@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f5f6fa;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+.ant-layout { background: #f5f6fa !important; }
+
+/* ── Print styles (ventana principal — para reportes financieros legacy) ──── */
+@media print {
+  .ant-layout-sider,
+  .ant-layout-header,
+  button,
+  .ant-alert-action { display: none !important; }
+
+  .ant-layout { margin-left: 0 !important; background: #fff !important; }
+  .ant-layout-content { padding: 0 !important; }
+
+  #report-print-area {
+    font-family: 'Arial', sans-serif !important;
+    color: #000 !important;
+  }
+
+  .ant-card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; }
+  .ant-table { font-size: 10px !important; }
+
+  /* Las facturas se imprimen en VENTANA NUEVA via PrintInvoiceButton — no aplica @page aquí */
+}

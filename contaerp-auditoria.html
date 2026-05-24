@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConTaERP — Auditoría de Código</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#1e1e1e;color:#d4d4d4;font-size:13px}
+
+  header{background:#1B3A6B;color:#fff;padding:18px 32px;display:flex;align-items:center;justify-content:space-between}
+  header h1{font-size:20px;font-weight:700}
+  header span{font-size:12px;opacity:.7}
+
+  nav{background:#252526;border-bottom:1px solid #333;padding:0 24px;display:flex;gap:4px;overflow-x:auto;flex-wrap:nowrap}
+  nav a{color:#ccc;text-decoration:none;padding:10px 14px;font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;display:block}
+  nav a:hover,nav a.active{color:#4fc3f7;border-bottom-color:#4fc3f7}
+
+  .container{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 88px)}
+
+  aside{background:#252526;border-right:1px solid #333;padding:16px 0;position:sticky;top:0;height:calc(100vh - 88px);overflow-y:auto}
+  aside h3{font-size:10px;text-transform:uppercase;color:#666;padding:8px 16px 4px;letter-spacing:.08em}
+  aside a{display:block;padding:5px 16px;color:#aaa;text-decoration:none;font-size:12px;border-left:2px solid transparent}
+  aside a:hover{color:#4fc3f7;background:rgba(79,195,247,.05)}
+  aside a.active{color:#4fc3f7;border-left-color:#4fc3f7;background:rgba(79,195,247,.05)}
+
+  main{padding:24px 32px;overflow-x:auto}
+
+  .section{margin-bottom:48px}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid #333}
+  .section-header h2{font-size:18px;color:#4fc3f7;font-weight:600}
+  .layer-badge{font-size:10px;padding:2px 8px;border-radius:3px;font-weight:600;text-transform:uppercase}
+  .be{background:#1a4731;color:#4ade80}
+  .fe{background:#1a2f4a;color:#60a5fa}
+
+  .module-card{background:#252526;border:1px solid #333;border-radius:8px;margin-bottom:24px;overflow:hidden}
+  .module-card-header{background:#2d2d2d;padding:12px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;border-bottom:1px solid #333}
+  .module-card-header h3{font-size:14px;color:#e2e2e2;font-weight:600}
+  .module-card-header .file-path{font-size:11px;color:#666;margin-left:auto;font-family:monospace}
+  .module-card-body{padding:0}
+
+  .file-block{border-bottom:1px solid #2a2a2a}
+  .file-block:last-child{border-bottom:none}
+  .file-label{background:#1e1e1e;padding:8px 18px;font-size:11px;color:#888;font-family:monospace;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;gap:8px}
+  .file-label .ext{padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+  .ext-ts{background:#3178c6;color:#fff}
+  .ext-tsx{background:#61dafb22;color:#61dafb;border:1px solid #61dafb44}
+
+  pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:12px;line-height:1.6;background:#1e1e1e;tab-size:2}
+
+  /* Syntax highlight — minimal */
+  .kw{color:#569cd6}       /* keywords */
+  .str{color:#ce9178}      /* strings */
+  .cmt{color:#6a9955}      /* comments */
+  .dec{color:#4ec9b0}      /* decorators / types */
+  .fn{color:#dcdcaa}       /* functions */
+  .num{color:#b5cea8}      /* numbers */
+  .cls{color:#4ec9b0}      /* class names */
+  .prop{color:#9cdcfe}     /* properties */
+
+  .info-box{background:#1a2d1a;border:1px solid #2a4a2a;border-radius:6px;padding:12px 16px;margin:12px 18px;font-size:12px;color:#aaa;line-height:1.8}
+  .info-box strong{color:#4ade80}
+
+  .endpoint-table{width:100%;border-collapse:collapse;margin:8px 0}
+  .endpoint-table th{background:#2a2a2a;color:#888;font-size:11px;text-align:left;padding:7px 12px;text-transform:uppercase;letter-spacing:.05em}
+  .endpoint-table td{padding:7px 12px;border-bottom:1px solid #2a2a2a;font-size:12px;vertical-align:top}
+  .endpoint-table tr:last-child td{border-bottom:none}
+  .method{font-weight:700;font-family:monospace;font-size:11px;padding:2px 6px;border-radius:3px}
+  .GET{background:#0d3d0d;color:#4ade80}
+  .POST{background:#0d2a3d;color:#60a5fa}
+  .PATCH{background:#3d2d0d;color:#fbbf24}
+  .DELETE{background:#3d0d0d;color:#f87171}
+  .perm{font-size:10px;font-family:monospace;color:#888;background:#2a2a2a;padding:1px 5px;border-radius:2px}
+
+  .toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:32px}
+  .toc-card{background:#252526;border:1px solid #333;border-radius:6px;padding:14px 16px}
+  .toc-card h4{font-size:12px;color:#4fc3f7;margin-bottom:8px;font-weight:600}
+  .toc-card a{display:block;font-size:11px;color:#aaa;text-decoration:none;padding:2px 0}
+  .toc-card a:hover{color:#4fc3f7}
+
+  footer{background:#252526;border-top:1px solid #333;padding:12px 32px;font-size:11px;color:#555;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>ConTaERP — Auditoría de Código</h1>
+    <div style="margin-top:4px"><span>GLL Consulting · Guatemala · Stack: NestJS + TypeORM + React + TypeScript · Generado: 22/05/2026</span></div>
+  </div>
+  <div style="text-align:right;font-size:11px;opacity:.6">
+    Backend: contaerp-backend<br>
+    Frontend: contaerp-frontend
+  </div>
+</header>
+
+<nav id="main-nav">
+  <a href="#overview" class="active">Resumen</a>
+  <a href="#be-facturas">BE · Facturas</a>
+  <a href="#be-estimaciones">BE · Estimaciones</a>
+  <a href="#be-pagos">BE · Pagos</a>
+  <a href="#be-contabilidad">BE · Contabilidad</a>
+  <a href="#be-bancos">BE · Bancos</a>
+  <a href="#be-shared">BE · Shared</a>
+  <a href="#fe-api">FE · API Layer</a>
+  <a href="#fe-components">FE · Componentes</a>
+</nav>
+
+<div class="container">
+<aside>
+  <h3>Backend</h3>
+  <a href="#be-facturas">Facturas — Entity</a>
+  <a href="#be-facturas-ctrl">Facturas — Controller</a>
+  <a href="#be-estimaciones">Estimaciones — Entity</a>
+  <a href="#be-pagos">Pagos — Controller</a>
+  <a href="#be-contabilidad">Account — Entity</a>
+  <a href="#be-journal-entry">JournalEntry — Entity</a>
+  <a href="#be-journal-line">JournalEntry Line</a>
+  <a href="#be-bancos">BankAccount — Entity</a>
+  <a href="#be-shared">SequenceService</a>
+  <a href="#be-journal-svc">JournalService</a>
+  <h3 style="margin-top:12px">Frontend</h3>
+  <a href="#fe-api-facturas">api/facturas.ts</a>
+  <a href="#fe-api-pagos">api/pagos-recibidos.ts</a>
+  <a href="#fe-printformats">Print Formats</a>
+  <a href="#fe-lineitems">LineItemsEditor</a>
+</aside>
+
+<main>
+
+<!-- ══════════════════════════ OVERVIEW ══════════════════════════ -->
+<div class="section" id="overview">
+  <div class="section-header"><h2>📋 Resumen del Proyecto</h2></div>
+
+  <div class="info-box">
+    <strong>ConTaERP</strong> — Sistema de contabilidad y ERP para Guatemala (GLL Consulting).<br>
+    <strong>Multi-tenant:</strong> Cada empresa tiene su propio schema en PostgreSQL. El <code>TenantDataSourceService</code> mantiene un pool de <code>DataSource</code> por tenant.<br>
+    <strong>Auth:</strong> JWT (accessToken + refreshToken). Header obligatorio: <code>X-Tenant-ID</code>.<br>
+    <strong>Guards (orden obligatorio):</strong> <code>JwtAuthGuard → TenantGuard → PermissionsGuard</code>.<br>
+    <strong>Numeración:</strong> <code>SequenceService</code> centralizado. Series: FAC · ANT · NC · PAG · POL · COT.<br>
+    <strong>Contabilidad:</strong> <code>JournalService</code> genera pólizas automáticas (type=AUTO) en facturas, pagos y notas de crédito.<br>
+    <strong>FEL Guatemala:</strong> Tipos FACT/FCAM/FPEQ/FAPE/NABN/RECI/NDEB/NCRE. Frases fiscales: Art.52, Art.55, Exportación, Art.7.<br>
+    <strong>Anticipos:</strong> <code>InvoiceType.ADVANCE</code> — excluidos de <code>GET /ventas/facturas</code> con <code>WHERE type != 'advance'</code>.
+  </div>
+
+  <div class="toc-grid">
+    <div class="toc-card">
+      <h4>Backend — Endpoints principales</h4>
+      <a href="#be-facturas-ctrl">POST/GET/PATCH/DELETE /ventas/facturas</a>
+      <a href="#be-facturas-ctrl">POST /ventas/facturas/:id/pago</a>
+      <a href="#be-facturas-ctrl">POST /ventas/facturas/:id/anular</a>
+      <a href="#be-facturas-ctrl">POST /ventas/facturas/:id/emitir-fel</a>
+      <a href="#be-facturas-ctrl">POST /ventas/facturas/:id/marcar-enviada</a>
+      <a href="#be-facturas-ctrl">POST /ventas/facturas/masiva/marcar-enviadas</a>
+      <a href="#be-pagos">POST/GET/DELETE /ventas/pagos-recibidos</a>
+      <a href="#be-pagos">PATCH /ventas/pagos-recibidos/:id/reprocess-journal</a>
+    </div>
+    <div class="toc-card">
+      <h4>Frontend — Módulos</h4>
+      <a href="#fe-api-facturas">src/api/facturas.ts — tipos + llamadas REST</a>
+      <a href="#fe-api-pagos">src/api/pagos-recibidos.ts</a>
+      <a href="#fe-printformats">src/components/Print/printFormats.ts</a>
+      <a href="#fe-lineitems">src/components/DocumentForm/LineItemsEditor.tsx</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ BE FACTURAS ENTITY ══════════════════════════ -->
+<div class="section" id="be-facturas">
+  <div class="section-header">
+    <h2>Facturas</h2>
+    <span class="layer-badge be">Backend</span>
+  </div>
+
+  <div class="module-card">
+    <div class="module-card-header">
+      <h3>invoice.entity.ts</h3>
+      <span class="file-path">ventas/facturas/entities/invoice.entity.ts</span>
+    </div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> InvoiceEntity · InvoiceStatus · InvoiceType (TypeORM @Entity)</div>
+        <pre><span class="kw">export enum</span> <span class="cls">InvoiceStatus</span> {
+  DRAFT = <span class="str">'draft'</span>, PENDING = <span class="str">'pending'</span>, SENT = <span class="str">'sent'</span>,
+  PARTIAL = <span class="str">'partial'</span>, PAID = <span class="str">'paid'</span>, OVERDUE = <span class="str">'overdue'</span>,
+  VOIDED = <span class="str">'voided'</span>, WRITTEN_OFF = <span class="str">'written_off'</span>,
+}
+
+<span class="kw">export enum</span> <span class="cls">InvoiceType</span> {
+  STANDARD = <span class="str">'standard'</span>,     <span class="cmt">// FAC-XXXX — facturas normales</span>
+  RECURRING = <span class="str">'recurring'</span>,
+  PROFORMA = <span class="str">'proforma'</span>,
+  CREDIT_NOTE = <span class="str">'credit_note'</span>, <span class="cmt">// NC-XXXX</span>
+  ADVANCE = <span class="str">'advance'</span>,       <span class="cmt">// ANT-XXXX — EXCLUIDO de GET /ventas/facturas</span>
+}
+
+<span class="dec">@Entity</span>(<span class="str">'invoices'</span>)
+<span class="kw">export class</span> <span class="cls">InvoiceEntity</span> {
+  <span class="dec">@PrimaryGeneratedColumn</span>(<span class="str">'uuid'</span>) id: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ unique: <span class="kw">true</span> }) <span class="dec">@Index</span>() invoiceNumber: <span class="cls">string</span>; <span class="cmt">// FAC-2026-00001</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'enum'</span>, enum: <span class="cls">InvoiceType</span>, default: <span class="cls">InvoiceType</span>.STANDARD }) type: <span class="cls">InvoiceType</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'enum'</span>, enum: <span class="cls">InvoiceStatus</span>, default: <span class="cls">InvoiceStatus</span>.DRAFT }) status: <span class="cls">InvoiceStatus</span>;
+
+  <span class="cmt">// Cliente (snapshot al momento de crear — inmune a cambios posteriores)</span>
+  <span class="dec">@Column</span>() <span class="dec">@Index</span>() customerId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>() customerName: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) customerTaxId: <span class="cls">string</span>;
+
+  <span class="dec">@Column</span>({ type: <span class="str">'date'</span> }) invoiceDate: <span class="cls">Date</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'date'</span>, nullable: <span class="kw">true</span> }) dueDate: <span class="cls">Date</span>;
+  <span class="dec">@Column</span>({ default: <span class="str">'GTQ'</span> }) currency: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">10</span>, scale: <span class="num">6</span>, default: <span class="num">1</span> }) exchangeRate: <span class="cls">number</span>;
+
+  <span class="cmt">// Totales</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) subtotal: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) discountAmount: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">5</span>,  scale: <span class="num">2</span>, default: <span class="num">0</span> }) discountPercent: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) taxAmount: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) total: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) paidAmount: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) balance: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) advanceApplied: <span class="cls">number</span>;
+
+  <span class="cmt">// FEL Guatemala — campos del certificador FEEL/SAT</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felTipoDocumento: <span class="cls">string</span>; <span class="cmt">// FACT|FCAM|FPEQ|FAPE|NABN|RECI</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felUuid: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felSerie: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felNumero: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felAutorizacion: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felMensaje: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felUrl: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felStatus: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) felCertificadaAt: <span class="cls">Date</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'jsonb'</span>, default: [] }) felFrases: <span class="cls">FelFrase</span>[];
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) lugarExpedicion: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) nombreConsignatario: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) direccionConsignatario: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) incoterm: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) facturaExenta: <span class="cls">boolean</span>;
+
+  <span class="cmt">// Partidas contables generadas automáticamente</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) journalEntryId: <span class="cls">string</span>;     <span class="cmt">// Asiento venta: CxC/Ingresos/IVA</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) costJournalEntryId: <span class="cls">string</span>; <span class="cmt">// Asiento baja inventario: COGS/Inventario</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'jsonb'</span>, nullable: <span class="kw">true</span> }) journalLines: <span class="cls">JournalLine</span>[];
+
+  <span class="cmt">// Nota de crédito</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) originalInvoiceId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) creditNoteReason: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) appliedCreditAmount: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) creditBalance: <span class="cls">number</span>;
+
+  <span class="dec">@OneToMany</span>(() => <span class="cls">InvoiceItemEntity</span>, item => item.invoice, { cascade: <span class="kw">true</span> }) items: <span class="cls">InvoiceItemEntity</span>[];
+  <span class="dec">@OneToMany</span>(() => <span class="cls">InvoicePaymentEntity</span>, p => p.invoice) payments: <span class="cls">InvoicePaymentEntity</span>[];
+
+  <span class="dec">@CreateDateColumn</span>() createdAt: <span class="cls">Date</span>;
+  <span class="dec">@UpdateDateColumn</span>() updatedAt: <span class="cls">Date</span>;
+  <span class="dec">@DeleteDateColumn</span>() deletedAt: <span class="cls">Date</span>; <span class="cmt">// soft delete</span>
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Facturas Controller -->
+  <div class="module-card" id="be-facturas-ctrl">
+    <div class="module-card-header">
+      <h3>facturas.controller.ts — Endpoints</h3>
+      <span class="file-path">ventas/facturas/facturas.controller.ts</span>
+    </div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> @Controller('ventas/facturas') · Guards: JwtAuth, Tenant, Permissions</div>
+        <table class="endpoint-table" style="margin:0">
+          <tr><th>Método</th><th>Ruta</th><th>Permiso</th><th>Descripción</th></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas</code></td><td><span class="perm">ventas:facturas:create</span></td><td>Crear factura con líneas, impuestos, descuentos</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/masiva</code></td><td><span class="perm">ventas:facturas:create</span></td><td>Facturación masiva (array)</td></tr>
+          <tr><td><span class="method GET">GET</span></td><td><code>/ventas/facturas</code></td><td><span class="perm">ventas:facturas:read</span></td><td>Listar facturas — excluye type=advance automáticamente</td></tr>
+          <tr><td><span class="method GET">GET</span></td><td><code>/ventas/facturas/:id</code></td><td><span class="perm">ventas:facturas:read</span></td><td>Factura por ID (con ítems y pagos)</td></tr>
+          <tr><td><span class="method PATCH">PATCH</span></td><td><code>/ventas/facturas/:id</code></td><td><span class="perm">ventas:facturas:update</span></td><td>Actualizar (solo borradores)</td></tr>
+          <tr><td><span class="method DELETE">DELETE</span></td><td><code>/ventas/facturas/:id</code></td><td><span class="perm">ventas:facturas:delete</span></td><td>Eliminar (soft delete)</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/:id/pago</code></td><td><span class="perm">ventas:facturas:update</span></td><td>Registrar pago (total o parcial)</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/:id/anular</code></td><td><span class="perm">ventas:facturas:delete</span></td><td>Anular factura</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/:id/condonar</code></td><td><span class="perm">ventas:facturas:update</span></td><td>Write-off / condonar saldo</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/:id/emitir-fel</code></td><td><span class="perm">ventas:facturas:update</span></td><td>Emitir electrónica vía FEEL/SAT</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/:id/marcar-enviada</code></td><td><span class="perm">ventas:facturas:update</span></td><td>Marcar enviada + genera póliza contable</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/masiva/marcar-enviadas</code></td><td><span class="perm">ventas:facturas:update</span></td><td>Marcar múltiples como enviadas</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/:id/recompute-journal</code></td><td><span class="perm">ventas:facturas:update</span></td><td>Recalcular póliza contable</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/:id/enviar</code></td><td><span class="perm">ventas:facturas:send</span></td><td>Enviar por email</td></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/facturas/convertir-desde-estimacion/:estimateId</code></td><td><span class="perm">ventas:facturas:create</span></td><td>Convertir estimación a factura</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ BE ESTIMACIONES ══════════════════════════ -->
+<div class="section" id="be-estimaciones">
+  <div class="section-header"><h2>Estimaciones / Cotizaciones</h2><span class="layer-badge be">Backend</span></div>
+  <div class="module-card">
+    <div class="module-card-header"><h3>estimate.entity.ts</h3><span class="file-path">ventas/estimaciones/entities/estimate.entity.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> EstimateEntity · EstimateStatus</div>
+        <pre><span class="kw">export enum</span> <span class="cls">EstimateStatus</span> {
+  DRAFT = <span class="str">'draft'</span>, SENT = <span class="str">'sent'</span>, ACCEPTED = <span class="str">'accepted'</span>,
+  DECLINED = <span class="str">'declined'</span>, INVOICED = <span class="str">'invoiced'</span>, EXPIRED = <span class="str">'expired'</span>,
+}
+
+<span class="dec">@Entity</span>(<span class="str">'estimates'</span>)
+<span class="kw">export class</span> <span class="cls">EstimateEntity</span> {
+  <span class="dec">@PrimaryGeneratedColumn</span>(<span class="str">'uuid'</span>) id: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ unique: <span class="kw">true</span> }) estimateNumber: <span class="cls">string</span>; <span class="cmt">// COT-2026-00001</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'enum'</span>, enum: <span class="cls">EstimateStatus</span>, default: <span class="cls">EstimateStatus</span>.DRAFT }) status: <span class="cls">EstimateStatus</span>;
+  <span class="dec">@Column</span>() customerId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>() customerName: <span class="cls">string</span>; <span class="cmt">// snapshot</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) customerTaxId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'date'</span> }) estimateDate: <span class="cls">Date</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'date'</span>, nullable: <span class="kw">true</span> }) expiryDate: <span class="cls">Date</span>;
+  <span class="dec">@Column</span>({ default: <span class="str">'GTQ'</span> }) currency: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) subtotal: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) discountAmount: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) taxAmount: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) total: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) notes: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) invoiceId: <span class="cls">string</span>; <span class="cmt">// si ya fue convertida a factura</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'jsonb'</span>, default: [] }) items: <span class="kw">any</span>[];
+  <span class="dec">@CreateDateColumn</span>() createdAt: <span class="cls">Date</span>;
+  <span class="dec">@UpdateDateColumn</span>() updatedAt: <span class="cls">Date</span>;
+  <span class="dec">@DeleteDateColumn</span>() deletedAt: <span class="cls">Date</span>;
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ BE PAGOS ══════════════════════════ -->
+<div class="section" id="be-pagos">
+  <div class="section-header"><h2>Pagos Recibidos</h2><span class="layer-badge be">Backend</span></div>
+  <div class="module-card">
+    <div class="module-card-header" id="be-pagos-ctrl"><h3>pagos-recibidos.controller.ts — Endpoints</h3><span class="file-path">ventas/pagos-recibidos/pagos-recibidos.controller.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> @Controller('ventas/pagos-recibidos')</div>
+        <table class="endpoint-table" style="margin:0">
+          <tr><th>Método</th><th>Ruta</th><th>Permiso</th><th>Descripción</th></tr>
+          <tr><td><span class="method POST">POST</span></td><td><code>/ventas/pagos-recibidos</code></td><td><span class="perm">ventas:pagos:create</span></td><td>Registrar pago y aplicar a factura. Si <code>isAdvance=true</code> crea anticipo (ANT-XXXX)</td></tr>
+          <tr><td><span class="method GET">GET</span></td><td><code>/ventas/pagos-recibidos</code></td><td><span class="perm">ventas:pagos:read</span></td><td>Listar pagos (incluye anticipos)</td></tr>
+          <tr><td><span class="method GET">GET</span></td><td><code>/ventas/pagos-recibidos/:id</code></td><td><span class="perm">ventas:pagos:read</span></td><td>Pago por ID con detalle</td></tr>
+          <tr><td><span class="method DELETE">DELETE</span></td><td><code>/ventas/pagos-recibidos/:id</code></td><td><span class="perm">ventas:pagos:delete</span></td><td>Eliminar pago y revertir saldo en factura</td></tr>
+          <tr><td><span class="method PATCH">PATCH</span></td><td><code>/ventas/pagos-recibidos/:id/reprocess-journal</code></td><td><span class="perm">ventas:pagos:create</span></td><td>Reprocesar póliza contable del pago</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ BE CONTABILIDAD ══════════════════════════ -->
+<div class="section" id="be-contabilidad">
+  <div class="section-header"><h2>Contabilidad</h2><span class="layer-badge be">Backend</span></div>
+
+  <div class="module-card">
+    <div class="module-card-header"><h3>account.entity.ts</h3><span class="file-path">contabilidad/catalogo/entities/account.entity.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> AccountEntity — Plan de cuentas GLL Guatemala (Nested Set Tree)</div>
+        <pre><span class="kw">export enum</span> <span class="cls">AccountType</span> {
+  ASSET = <span class="str">'asset'</span>, LIABILITY = <span class="str">'liability'</span>, EQUITY = <span class="str">'equity'</span>,
+  INCOME = <span class="str">'income'</span>, EXPENSE = <span class="str">'expense'</span>, CONTRA = <span class="str">'contra'</span>,
+}
+
+<span class="dec">@Entity</span>(<span class="str">'accounts'</span>) <span class="dec">@Tree</span>(<span class="str">'nested-set'</span>)
+<span class="kw">export class</span> <span class="cls">AccountEntity</span> {
+  <span class="dec">@PrimaryGeneratedColumn</span>(<span class="str">'uuid'</span>) id: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ unique: <span class="kw">true</span> }) code: <span class="cls">string</span>; <span class="cmt">// 1000, 1100, 1110...</span>
+  <span class="dec">@Column</span>() name: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'enum'</span>, enum: <span class="cls">AccountType</span> }) type: <span class="cls">AccountType</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) parentId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ default: <span class="kw">true</span> })  isActive: <span class="cls">boolean</span>;
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) isHeader: <span class="cls">boolean</span>;  <span class="cmt">// no recibe movimientos directos</span>
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) isSystem: <span class="cls">boolean</span>;  <span class="cmt">// no se puede eliminar</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) currentBalance: <span class="cls">number</span>;
+
+  <span class="cmt">// GLL Guatemala — balanceType usado para clasificar cuentas de ingreso</span>
+  <span class="cmt">// Valores: 'Activo'|'Pasivo'|'Capital'|'Ingresos'|'Costos'|'Gastos'|'Otros Ingresos'</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) balanceType: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ default: <span class="str">'debit'</span> }) normalBalance: <span class="cls">string</span>; <span class="cmt">// 'debit' | 'credit'</span>
+
+  <span class="cmt">// Flags de vinculación</span>
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) bankLinking: <span class="cls">boolean</span>;
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) isCustomerAccount: <span class="cls">boolean</span>; <span class="cmt">// CxC</span>
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) isVendorAccount: <span class="cls">boolean</span>;   <span class="cmt">// CxP</span>
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) isInventoryAccount: <span class="cls">boolean</span>; <span class="cmt">// grupo 130</span>
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) isFixedAsset: <span class="cls">boolean</span>;
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) openItems: <span class="cls">boolean</span>;          <span class="cmt">// partidas abiertas AR/AP</span>
+
+  <span class="dec">@TreeChildren</span>() children: <span class="cls">AccountEntity</span>[];
+  <span class="dec">@TreeParent</span>()   parent:   <span class="cls">AccountEntity</span>;
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-card" id="be-journal-entry">
+    <div class="module-card-header"><h3>journal-entry.entity.ts</h3><span class="file-path">contabilidad/asientos/entities/journal-entry.entity.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> JournalEntryEntity · JournalEntryType · JournalEntryStatus</div>
+        <pre><span class="kw">export enum</span> <span class="cls">JournalEntryStatus</span> { DRAFT = <span class="str">'draft'</span>, POSTED = <span class="str">'posted'</span>, VOID = <span class="str">'void'</span> }
+
+<span class="kw">export enum</span> <span class="cls">JournalEntryType</span> {
+  MANUAL = <span class="str">'manual'</span>,       <span class="cmt">// creado por usuario</span>
+  AUTO = <span class="str">'auto'</span>,           <span class="cmt">// generado por factura/pago — NO editable</span>
+  RECURRING = <span class="str">'recurring'</span>,
+  OPENING = <span class="str">'opening'</span>,
+  CLOSING = <span class="str">'closing'</span>,
+  ADJUSTMENT = <span class="str">'adjustment'</span>,
+}
+
+<span class="dec">@Entity</span>(<span class="str">'journal_entries'</span>)
+<span class="kw">export class</span> <span class="cls">JournalEntryEntity</span> {
+  <span class="dec">@PrimaryGeneratedColumn</span>(<span class="str">'uuid'</span>) id: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ unique: <span class="kw">true</span> }) entryNumber: <span class="cls">string</span>; <span class="cmt">// POL-2026-00001</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'enum'</span>, enum: <span class="cls">JournalEntryType</span>,   default: <span class="cls">JournalEntryType</span>.MANUAL })   type: <span class="cls">JournalEntryType</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'enum'</span>, enum: <span class="cls">JournalEntryStatus</span>, default: <span class="cls">JournalEntryStatus</span>.DRAFT }) status: <span class="cls">JournalEntryStatus</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'date'</span> }) entryDate: <span class="cls">Date</span>;
+  <span class="dec">@Column</span>() description: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) sourceDocumentId: <span class="cls">string</span>;   <span class="cmt">// FK a factura/pago</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) sourceDocumentType: <span class="cls">string</span>; <span class="cmt">// 'invoice'|'payment'</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) totalDebit: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) totalCredit: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) reversedEntryId: <span class="cls">string</span>;
+  <span class="dec">@OneToMany</span>(() => <span class="cls">JournalEntryLineEntity</span>, l => l.journalEntry, { cascade: <span class="kw">true</span> }) lines: <span class="cls">JournalEntryLineEntity</span>[];
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-card" id="be-journal-line">
+    <div class="module-card-header"><h3>journal-entry-line.entity.ts</h3><span class="file-path">contabilidad/asientos/entities/journal-entry-line.entity.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> JournalEntryLineEntity — Líneas Debe/Haber</div>
+        <pre><span class="dec">@Entity</span>(<span class="str">'journal_entry_lines'</span>)
+<span class="kw">export class</span> <span class="cls">JournalEntryLineEntity</span> {
+  <span class="dec">@PrimaryGeneratedColumn</span>(<span class="str">'uuid'</span>) id: <span class="cls">string</span>;
+  <span class="dec">@ManyToOne</span>(() => <span class="cls">JournalEntryEntity</span>, je => je.lines, { onDelete: <span class="str">'CASCADE'</span> })
+  <span class="dec">@JoinColumn</span>({ name: <span class="str">'journalEntryId'</span> })
+  journalEntry: <span class="cls">JournalEntryEntity</span>;
+  <span class="dec">@Column</span>() journalEntryId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>() accountId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>() accountCode: <span class="cls">string</span>;
+  <span class="dec">@Column</span>() accountName: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) description: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) debit: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) credit: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) customerId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) vendorId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) projectId: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'integer'</span>, default: <span class="num">0</span> }) sortOrder: <span class="cls">number</span>;
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ BE BANCOS ══════════════════════════ -->
+<div class="section" id="be-bancos">
+  <div class="section-header"><h2>Bancos</h2><span class="layer-badge be">Backend</span></div>
+  <div class="module-card">
+    <div class="module-card-header"><h3>bank-account.entity.ts</h3><span class="file-path">bancos/cuentas/entities/bank-account.entity.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> BankAccountEntity · BankAccountType · BankAccountStatus</div>
+        <pre><span class="kw">export enum</span> <span class="cls">BankAccountType</span> {
+  CHECKING = <span class="str">'checking'</span>, SAVINGS = <span class="str">'savings'</span>, CREDIT_CARD = <span class="str">'credit_card'</span>,
+  PETTY_CASH = <span class="str">'petty_cash'</span>, INVESTMENT = <span class="str">'investment'</span>, OTHER = <span class="str">'other'</span>,
+}
+
+<span class="dec">@Entity</span>(<span class="str">'bank_accounts'</span>)
+<span class="kw">export class</span> <span class="cls">BankAccountEntity</span> {
+  <span class="dec">@PrimaryGeneratedColumn</span>(<span class="str">'uuid'</span>) id: <span class="cls">string</span>;
+  <span class="dec">@Column</span>() <span class="dec">@Index</span>() name: <span class="cls">string</span>;         <span class="cmt">// "Cuenta Monetaria BanRural Q"</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'enum'</span>, enum: <span class="cls">BankAccountType</span>, default: <span class="cls">BankAccountType</span>.CHECKING }) type: <span class="cls">BankAccountType</span>;
+  <span class="dec">@Column</span>({ default: <span class="kw">false</span> }) isPrimary: <span class="cls">boolean</span>;
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) bankName: <span class="cls">string</span>;       <span class="cmt">// "BanRural", "G&T Continental"</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) accountNumber: <span class="cls">string</span>;
+  <span class="dec">@Column</span>({ default: <span class="str">'GTQ'</span> }) currency: <span class="cls">string</span>;
+
+  <span class="cmt">// Saldos</span>
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) openingBalance: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, default: <span class="num">0</span> }) currentBalance: <span class="cls">number</span>;
+  <span class="dec">@Column</span>({ type: <span class="str">'decimal'</span>, precision: <span class="num">14</span>, scale: <span class="num">2</span>, nullable: <span class="kw">true</span> }) bankBalance: <span class="cls">number</span>; <span class="cmt">// conciliación</span>
+
+  <span class="cmt">// Vinculación contable (obligatorio para que el JournalService genere pólizas)</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) glAccountId: <span class="cls">string</span>;   <span class="cmt">// ID en catálogo</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) glAccountCode: <span class="cls">string</span>; <span class="cmt">// desnormalizado para rapidez</span>
+  <span class="dec">@Column</span>({ nullable: <span class="kw">true</span> }) glAccountName: <span class="cls">string</span>;
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ BE SHARED ══════════════════════════ -->
+<div class="section" id="be-shared">
+  <div class="section-header"><h2>Ventas Shared — Servicios Centralizados</h2><span class="layer-badge be">Backend</span></div>
+
+  <div class="module-card">
+    <div class="module-card-header"><h3>sequence.service.ts</h3><span class="file-path">ventas/_shared/sequence.service.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> Generador centralizado de números correlativos — reemplaza 6+ implementaciones duplicadas</div>
+        <pre><span class="dec">@Injectable</span>()
+<span class="kw">export class</span> <span class="cls">SequenceService</span> {
+  <span class="kw">async</span> <span class="fn">nextNumber</span>(
+    ds: <span class="cls">DataSource</span>,
+    series: <span class="cls">string</span>,              <span class="cmt">// 'FAC' | 'ANT' | 'NC' | 'PAG' | 'POL' | 'COT'</span>
+    entityClass: <span class="kw">new</span> () => <span class="kw">any</span>,
+    numberField: <span class="cls">string</span>,
+    opts: { withDeleted?: <span class="cls">boolean</span>; padLength?: <span class="cls">number</span>; yearSuffix?: <span class="cls">boolean</span> } = {},
+  ): <span class="cls">Promise</span>&lt;<span class="cls">string</span>&gt; {
+    <span class="kw">const</span> { withDeleted = <span class="kw">true</span>, padLength = <span class="num">5</span>, yearSuffix = <span class="kw">true</span> } = opts;
+    <span class="kw">const</span> year   = <span class="kw">new</span> <span class="cls">Date</span>().<span class="fn">getFullYear</span>();
+    <span class="kw">const</span> prefix = yearSuffix ? <span class="str">`${series}-${year}-`</span> : <span class="str">`${series}-`</span>;
+
+    <span class="kw">const</span> qb = ds.<span class="fn">getRepository</span>(entityClass)
+      .<span class="fn">createQueryBuilder</span>(<span class="str">'e'</span>)
+      .<span class="fn">where</span>(<span class="str">`e.${numberField} LIKE :p`</span>, { p: <span class="str">`${prefix}%`</span> })
+      .<span class="fn">orderBy</span>(<span class="str">`e.${numberField}`</span>, <span class="str">'DESC'</span>)
+      .<span class="fn">limit</span>(<span class="num">1</span>);
+
+    <span class="kw">if</span> (withDeleted) qb.<span class="fn">withDeleted</span>(); <span class="cmt">// evita reusar números de registros borrados</span>
+
+    <span class="kw">const</span> last = <span class="kw">await</span> qb.<span class="fn">getOne</span>().<span class="fn">catch</span>(() => <span class="kw">null</span>);
+    <span class="kw">let</span> seq = <span class="num">1</span>;
+    <span class="kw">if</span> (last) {
+      <span class="kw">const</span> m = (last[numberField] <span class="kw">as</span> <span class="cls">string</span>).<span class="fn">match</span>(<span class="str">/(\d+)$/</span>);
+      <span class="kw">if</span> (m) seq = <span class="fn">parseInt</span>(m[<span class="num">1</span>], <span class="num">10</span>) + <span class="num">1</span>;
+    }
+    <span class="kw">return</span> <span class="str">`${prefix}${String(seq).padStart(padLength, '0')}`</span>;
+  }
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-card" id="be-journal-svc">
+    <div class="module-card-header"><h3>journal.service.ts</h3><span class="file-path">ventas/_shared/journal.service.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> Helper contable — resolveAccount() + postEntry() centralizados</div>
+        <pre><span class="dec">@Injectable</span>()
+<span class="kw">export class</span> <span class="cls">JournalService</span> {
+  <span class="cmt">// Resuelve cuenta por ID, con fallback por código en el catálogo</span>
+  <span class="kw">async</span> <span class="fn">resolveAccount</span>(ds, accountId?, fallbackCode?, fallbackName?): <span class="cls">Promise</span>&lt;<span class="cls">ResolvedAccount</span>&gt; {
+    <span class="kw">if</span> (accountId) {
+      <span class="kw">const</span> acc = <span class="kw">await</span> accRepo.<span class="fn">findOne</span>({ where: { id: accountId } });
+      <span class="kw">if</span> (acc) <span class="kw">return</span> { id: acc.id, code: acc.code, name: acc.name };
+    }
+    <span class="kw">if</span> (fallbackCode) {
+      <span class="kw">const</span> acc = <span class="kw">await</span> accRepo.<span class="fn">findOne</span>({ where: { code: fallbackCode } });
+      <span class="kw">if</span> (acc) <span class="kw">return</span> { id: acc.id, code: acc.code, name: acc.name };
+    }
+    <span class="kw">return</span> { id: <span class="kw">undefined</span>, code: fallbackCode ?? <span class="str">'????'</span>, name: fallbackName ?? <span class="str">'Cuenta no configurada'</span> };
+  }
+
+  <span class="cmt">// Crea póliza completa con número POL-YYYY-NNNNN correlativo</span>
+  <span class="cmt">// Solo inserta líneas con accountId válido (respeta FK de BD)</span>
+  <span class="kw">async</span> <span class="fn">postEntry</span>(ds: <span class="cls">DataSource</span>, input: <span class="cls">PostEntryInput</span>): <span class="cls">Promise</span>&lt;<span class="cls">string</span>&gt; {
+    <span class="kw">const</span> entryNumber = <span class="kw">await</span> <span class="kw">this</span>.sequenceService.<span class="fn">nextNumber</span>(
+      ds, <span class="str">'POL'</span>, <span class="cls">JournalEntryEntity</span>, <span class="str">'entryNumber'</span>, { withDeleted: <span class="kw">false</span> }
+    );
+    <span class="kw">const</span> entry = <span class="kw">await</span> jeRepo.<span class="fn">save</span>(jeRepo.<span class="fn">create</span>({
+      entryNumber, type: input.type ?? <span class="cls">JournalEntryType</span>.AUTO,
+      status: input.status ?? <span class="cls">JournalEntryStatus</span>.POSTED,
+      ...input
+    }));
+    <span class="kw">const</span> validLines = input.lines.<span class="fn">filter</span>(l => l.accountId);
+    <span class="kw">for</span> (<span class="kw">const</span> l <span class="kw">of</span> validLines) {
+      <span class="kw">await</span> jelRepo.<span class="fn">save</span>(jelRepo.<span class="fn">create</span>({ journalEntryId: entry.id, ...l }));
+    }
+    <span class="kw">return</span> entry.id;
+  }
+
+  <span class="cmt">// Elimina póliza (CASCADE elimina líneas automáticamente)</span>
+  <span class="kw">async</span> <span class="fn">deleteEntry</span>(ds: <span class="cls">DataSource</span>, journalEntryId: <span class="cls">string</span>): <span class="cls">Promise</span>&lt;<span class="kw">void</span>&gt; {
+    <span class="kw">await</span> ds.<span class="fn">getRepository</span>(<span class="cls">JournalEntryEntity</span>).<span class="fn">delete</span>(journalEntryId).<span class="fn">catch</span>(() => <span class="kw">null</span>);
+  }
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ FE API ══════════════════════════ -->
+<div class="section" id="fe-api">
+  <div class="section-header"><h2>Frontend — Capa API</h2><span class="layer-badge fe">Frontend</span></div>
+
+  <div class="module-card" id="fe-api-facturas">
+    <div class="module-card-header"><h3>api/facturas.ts</h3><span class="file-path">src/api/facturas.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> Tipos + funciones REST — Invoice, InvoiceItem, Estimate, Anticipo</div>
+        <pre><span class="kw">const</span> unwrap = (r: <span class="kw">any</span>) => r.data?.data ?? r.data <span class="cmt">// Backend devuelve { data: T } o { data: { data: T[] } }</span>
+
+<span class="kw">export type</span> <span class="cls">InvoiceStatus</span> = <span class="str">'draft'</span>|<span class="str">'pending'</span>|<span class="str">'sent'</span>|<span class="str">'partial'</span>|<span class="str">'paid'</span>|<span class="str">'overdue'</span>|<span class="str">'voided'</span>|<span class="str">'written_off'</span>
+<span class="kw">export type</span> <span class="cls">InvoiceType</span>   = <span class="str">'standard'</span>|<span class="str">'recurring'</span>|<span class="str">'proforma'</span>|<span class="str">'credit_note'</span>
+
+<span class="kw">export interface</span> <span class="cls">Invoice</span> {
+  id: <span class="cls">string</span>; invoiceNumber: <span class="cls">string</span>; type: <span class="cls">InvoiceType</span>; status: <span class="cls">InvoiceStatus</span>;
+  customerId: <span class="cls">string</span>; customerName: <span class="cls">string</span>; customerTaxId?: <span class="cls">string</span>;
+  invoiceDate: <span class="cls">string</span>; dueDate?: <span class="cls">string</span>; currency: <span class="cls">string</span>;
+  subtotal: <span class="cls">number</span>; discountAmount: <span class="cls">number</span>; taxAmount: <span class="cls">number</span>;
+  total: <span class="cls">number</span>; paidAmount: <span class="cls">number</span>; balance: <span class="cls">number</span>;
+  <span class="cmt">// FEL Guatemala</span>
+  felTipoDocumento?: <span class="cls">string</span>; felUuid?: <span class="cls">string</span>; felSerie?: <span class="cls">string</span>;
+  felNumero?: <span class="cls">string</span>; felAutorizacion?: <span class="cls">string</span>; felUrl?: <span class="cls">string</span>;
+  felFrases?: <span class="cls">FelFrase</span>[]; facturaExenta?: <span class="cls">boolean</span>;
+  lugarExpedicion?: <span class="cls">string</span>; incoterm?: <span class="cls">string</span>;
+  nombreConsignatario?: <span class="cls">string</span>; direccionConsignatario?: <span class="cls">string</span>;
+  journalEntryId?: <span class="cls">string</span>; journalLines?: <span class="cls">JournalLine</span>[];
+  items?: <span class="cls">InvoiceItem</span>[]; payments?: <span class="cls">InvoicePayment</span>[];
+}
+
+<span class="cmt">// ─── Endpoints ────────────────────────────────────────────────────────────────</span>
+<span class="kw">export const</span> <span class="fn">getInvoices</span> = (params?) => api.<span class="fn">get</span>(<span class="str">'/ventas/facturas'</span>, { params }).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">getInvoice</span>  = (id) => api.<span class="fn">get</span>(<span class="str">`/ventas/facturas/${id}`</span>).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">createInvoice</span> = (dto) => api.<span class="fn">post</span>(<span class="str">'/ventas/facturas'</span>, dto).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">updateInvoice</span> = (id, dto) => api.<span class="fn">patch</span>(<span class="str">`/ventas/facturas/${id}`</span>, dto).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">recordInvoicePayment</span> = (id, dto) => api.<span class="fn">post</span>(<span class="str">`/ventas/facturas/${id}/pago`</span>, dto).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">voidInvoice</span> = (id, reason) => api.<span class="fn">post</span>(<span class="str">`/ventas/facturas/${id}/anular`</span>, { reason }).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">emitirFelInvoice</span> = (id) => api.<span class="fn">post</span>(<span class="str">`/ventas/facturas/${id}/emitir-fel`</span>).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">marcarEnviadasMasivo</span> = (ids) => api.<span class="fn">post</span>(<span class="str">'/ventas/facturas/masiva/marcar-enviadas'</span>, { ids }).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">deleteInvoice</span> = (id) => api.<span class="fn">delete</span>(<span class="str">`/ventas/facturas/${id}`</span>)
+
+<span class="cmt">// Anticipos — endpoint separado (type=ADVANCE, numeración ANT-XXXX)</span>
+<span class="kw">export const</span> <span class="fn">getAnticipos</span>  = (params?) => api.<span class="fn">get</span>(<span class="str">'/ventas/facturas-anticipo'</span>, { params }).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">createAnticipo</span> = (dto) => api.<span class="fn">post</span>(<span class="str">'/ventas/facturas-anticipo'</span>, dto).<span class="fn">then</span>(unwrap)</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-card" id="fe-api-pagos">
+    <div class="module-card-header"><h3>api/pagos-recibidos.ts</h3><span class="file-path">src/api/pagos-recibidos.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> PagoRecibido — incluye flags isAdvance / advanceInvoiceId</div>
+        <pre><span class="kw">export interface</span> <span class="cls">PagoRecibido</span> {
+  id: <span class="cls">string</span>; paymentNumber: <span class="cls">string</span>; customerId: <span class="cls">string</span>; customerName?: <span class="cls">string</span>;
+  invoiceId?: <span class="cls">string</span>; invoiceNumber?: <span class="cls">string</span>; invoiceStatus?: <span class="cls">string</span>; invoiceType?: <span class="cls">string</span>;
+  paymentDate: <span class="cls">string</span>; amount: <span class="cls">number</span>; currency: <span class="cls">string</span>; mode?: <span class="cls">PaymentMode</span>;
+  reference?: <span class="cls">string</span>; bankAccountId?: <span class="cls">string</span>; journalEntryId?: <span class="cls">string</span>;
+  <span class="cmt">// Anticipo flags</span>
+  isAdvance?: <span class="cls">boolean</span>;        <span class="cmt">// true = este pago ES un anticipo</span>
+  advanceInvoiceId?: <span class="cls">string</span>;  <span class="cmt">// ID de la factura ANT-XXXX creada</span>
+  advanceNumber?: <span class="cls">string</span>;     <span class="cmt">// ANT-2026-00001</span>
+}
+
+<span class="kw">export const</span> <span class="fn">getPagosRecibidos</span>  = (params?) => api.<span class="fn">get</span>(<span class="str">'/ventas/pagos-recibidos'</span>, { params }).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">createPagoRecibido</span> = (dto) => api.<span class="fn">post</span>(<span class="str">'/ventas/pagos-recibidos'</span>, dto).<span class="fn">then</span>(unwrap)
+<span class="kw">export const</span> <span class="fn">deletePagoRecibido</span> = (id) => api.<span class="fn">delete</span>(<span class="str">`/ventas/pagos-recibidos/${id}`</span>)
+<span class="kw">export const</span> <span class="fn">reprocessPagoJournal</span> = (id) => api.<span class="fn">patch</span>(<span class="str">`/ventas/pagos-recibidos/${id}/reprocess-journal`</span>).<span class="fn">then</span>(unwrap)</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ FE COMPONENTS ══════════════════════════ -->
+<div class="section" id="fe-components">
+  <div class="section-header"><h2>Frontend — Componentes Clave</h2><span class="layer-badge fe">Frontend</span></div>
+
+  <div class="module-card" id="fe-printformats">
+    <div class="module-card-header"><h3>printFormats.ts</h3><span class="file-path">src/components/Print/printFormats.ts</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-ts">TS</span> Formatos de impresión — Carta · Media Carta · Ticket 80mm · Ticket 58mm</div>
+        <pre><span class="kw">export type</span> <span class="cls">PrintFormatId</span> = <span class="str">'carta'</span> | <span class="str">'media-carta'</span> | <span class="str">'ticket-80'</span> | <span class="str">'ticket-58'</span>
+
+<span class="kw">export const</span> PRINT_FORMATS: <span class="cls">PrintFormat</span>[] = [
+  { id: <span class="str">'carta'</span>,      pageSize: <span class="str">'8.5in 11in'</span>, margin: <span class="str">'12mm 18mm'</span>, fontSize: <span class="num">11</span>, isTicket: <span class="kw">false</span> },
+  { id: <span class="str">'media-carta'</span>, pageSize: <span class="str">'5.5in 8.5in'</span>, margin: <span class="str">'8mm 12mm'</span>,  fontSize: <span class="num">10</span>, isTicket: <span class="kw">false</span> },
+  { id: <span class="str">'ticket-80'</span>,   pageSize: <span class="str">'80mm auto'</span>,   margin: <span class="str">'4mm 5mm'</span>,   fontSize: <span class="num">9</span>,  isTicket: <span class="kw">true</span>  },
+  { id: <span class="str">'ticket-58'</span>,   pageSize: <span class="str">'58mm auto'</span>,   margin: <span class="str">'3mm 4mm'</span>,   fontSize: <span class="num">8</span>,  isTicket: <span class="kw">true</span>  },
+]
+<span class="cmt">// Guardado en localStorage: 'contaerp_print_format'</span>
+<span class="cmt">// PrintInvoiceButton abre /ventas/facturas/:id/imprimir?format=&lt;id&gt;</span>
+<span class="cmt">// @page { margin: 0 } elimina URL/fecha del browser en impresión</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-card" id="fe-lineitems">
+    <div class="module-card-header"><h3>LineItemsEditor.tsx — Patrones críticos</h3><span class="file-path">src/components/DocumentForm/LineItemsEditor.tsx</span></div>
+    <div class="module-card-body">
+      <div class="file-block">
+        <div class="file-label"><span class="ext ext-tsx">TSX</span> LineItem · recalc() · CellInput con debounce · IVA Guatemala incluido</div>
+        <pre><span class="kw">export interface</span> <span class="cls">LineItem</span> {
+  _key: <span class="cls">string</span>; productId?: <span class="cls">string</span>; description: <span class="cls">string</span>;
+  unit?: <span class="cls">string</span>; quantity: <span class="cls">number</span>; unitPrice: <span class="cls">number</span>;
+  discountPercent: <span class="cls">number</span>; taxPercent: <span class="cls">number</span>;
+  taxInclusive?: <span class="cls">boolean</span>;  <span class="cmt">// true por defecto (Guatemala: precio incluye IVA)</span>
+  accountId?: <span class="cls">string</span>; projectId?: <span class="cls">string</span>;
+  lineNet: <span class="cls">number</span>; lineTax: <span class="cls">number</span>; lineTotal: <span class="cls">number</span>;
+}
+
+<span class="kw">export function</span> <span class="fn">recalc</span>(item: <span class="cls">LineItem</span>): <span class="cls">LineItem</span> {
+  <span class="kw">const</span> gross = item.quantity * item.unitPrice * (<span class="num">1</span> - item.discountPercent / <span class="num">100</span>);
+  <span class="kw">if</span> (item.taxInclusive && item.taxPercent > <span class="num">0</span>) {
+    <span class="cmt">// Precio YA incluye IVA → extrae base e impuesto</span>
+    lineNet   = Math.<span class="fn">round</span>(gross / (<span class="num">1</span> + item.taxPercent / <span class="num">100</span>) * <span class="num">100</span>) / <span class="num">100</span>
+    lineTax   = Math.<span class="fn">round</span>((gross - lineNet) * <span class="num">100</span>) / <span class="num">100</span>
+    lineTotal = Math.<span class="fn">round</span>(gross * <span class="num">100</span>) / <span class="num">100</span>
+  } <span class="kw">else</span> {
+    <span class="cmt">// Precio excluye IVA → agrega impuesto sobre base</span>
+    lineNet   = Math.<span class="fn">round</span>(gross * <span class="num">100</span>) / <span class="num">100</span>
+    lineTax   = Math.<span class="fn">round</span>(lineNet * item.taxPercent / <span class="num">100</span> * <span class="num">100</span>) / <span class="num">100</span>
+    lineTotal = lineNet + lineTax
+  }
+}
+
+<span class="cmt">// CellInput — evita pérdida de foco en Ant Design Table</span>
+<span class="cmt">// Problema: Table re-renderiza en cada onChange → pierde el cursor</span>
+<span class="cmt">// Solución: estado local + debounce 500ms + commit en onBlur/Enter</span>
+<span class="kw">const</span> <span class="fn">CellInput</span> = <span class="fn">memo</span>(({ value, onCommit, placeholder, style }) => {
+  <span class="kw">const</span> [local, setLocal] = <span class="fn">useState</span>(value)
+  <span class="kw">const</span> committed = <span class="fn">useRef</span>(value)
+  <span class="kw">const</span> debounceRef = <span class="fn">useRef</span>()
+
+  <span class="fn">useEffect</span>(() => {
+    <span class="kw">if</span> (value !== committed.current) { setLocal(value); committed.current = value }
+  }, [value])
+
+  <span class="kw">const</span> <span class="fn">handleChange</span> = (e) => {
+    setLocal(e.target.value)
+    <span class="fn">clearTimeout</span>(debounceRef.current)
+    debounceRef.current = <span class="fn">setTimeout</span>(() => {
+      <span class="kw">if</span> (e.target.value !== committed.current) {
+        committed.current = e.target.value
+        <span class="fn">onCommit</span>(e.target.value)
+      }
+    }, <span class="num">500</span>)
+  }
+  <span class="kw">return</span> &lt;<span class="cls">Input</span> value={local} onChange={handleChange} onBlur={() => <span class="fn">commitNow</span>(local)} /&gt;
+})</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<footer>
+  ConTaERP — Auditoría de Código · GLL Consulting · Guatemala · 22/05/2026
+</footer>
+
+<script>
+  // Highlight nav on scroll
+  const sections = document.querySelectorAll('.section')
+  const navLinks = document.querySelectorAll('nav a')
+  const sideLinks = document.querySelectorAll('aside a')
+
+  document.addEventListener('scroll', () => {
+    let current = ''
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id
+    })
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current))
+    sideLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current))
+  })
+</script>
+</body>
+</html>

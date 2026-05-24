@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConTaERP — Estructura del Proyecto</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #222; }
+
+  header {
+    background: #1B3A6B; color: #fff; padding: 20px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header span { font-size: 13px; opacity: .75; }
+  .badge { background: rgba(255,255,255,.2); border-radius: 4px; padding: 2px 8px; font-size: 11px; margin-left: 8px; }
+
+  .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 24px 32px; }
+
+  .panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.08); overflow: hidden; }
+  .panel-header {
+    padding: 12px 18px; font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; gap: 8px; border-bottom: 2px solid;
+  }
+  .panel-header .lang { font-size: 11px; font-weight: 400; opacity: .8; margin-left: auto;
+    background: rgba(0,0,0,.12); border-radius: 4px; padding: 2px 8px; }
+
+  /* Frontend — azul */
+  .fe .panel-header { background: #1B3A6B; color: #fff; border-color: #1B3A6B; }
+  /* Backend — verde oscuro */
+  .be .panel-header { background: #1a4731; color: #fff; border-color: #1a4731; }
+  /* DB — gris */
+  .db .panel-header { background: #4a4a4a; color: #fff; border-color: #4a4a4a; }
+
+  .module { border-bottom: 1px solid #f0f0f0; }
+  .module:last-child { border-bottom: none; }
+  .module-title {
+    padding: 10px 18px; font-weight: 600; font-size: 13px;
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    background: #fafafa; user-select: none;
+  }
+  .module-title:hover { background: #f0f5ff; }
+  .module-title .icon { font-size: 15px; }
+  .module-title .count { margin-left: auto; font-size: 11px; color: #888; font-weight: 400; }
+
+  .submodules { padding: 6px 18px 10px 42px; }
+  .sub {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 8px; border-radius: 5px; font-size: 12px; color: #444;
+    margin-bottom: 2px;
+  }
+  .sub:hover { background: #f5f5f5; }
+  .sub .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .sub .tag {
+    margin-left: auto; font-size: 10px; border-radius: 3px;
+    padding: 1px 6px; font-weight: 500;
+  }
+  .tag-done   { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+  .tag-wip    { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+  .tag-soon   { background: #f5f5f5; color: #8c8c8c; border: 1px solid #d9d9d9; }
+  .tag-key    { background: #e6f7ff; color: #0958d9; border: 1px solid #91caff; }
+
+  .dot-green  { background: #52c41a; }
+  .dot-blue   { background: #1677ff; }
+  .dot-orange { background: #fa8c16; }
+  .dot-gray   { background: #bbb; }
+  .dot-purple { background: #722ed1; }
+  .dot-red    { background: #f5222d; }
+
+  /* Stack summary */
+  .stack { grid-column: 1 / -1; background: #fff; border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 18px 24px; }
+  .stack h2 { font-size: 14px; font-weight: 700; color: #1B3A6B; margin-bottom: 14px; }
+  .stack-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stack-item { border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px 14px; }
+  .stack-item .layer { font-size: 10px; text-transform: uppercase; color: #888; font-weight: 600; letter-spacing: .05em; margin-bottom: 6px; }
+  .stack-item .tech  { font-size: 13px; font-weight: 600; color: #1B3A6B; line-height: 1.8; }
+
+  footer { text-align: center; padding: 16px; font-size: 11px; color: #aaa; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>ConTaERP <span class="badge">v1.0 — 2026</span></h1>
+    <span>Sistema de Contabilidad y ERP — Guatemala · Estructura completa del proyecto</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ═══════════════════════════════════════════════════════ STACK -->
+  <div class="stack">
+    <h2>Stack Tecnológico</h2>
+    <div class="stack-grid">
+      <div class="stack-item">
+        <div class="layer">Frontend</div>
+        <div class="tech">React 18<br>TypeScript<br>Vite<br>Ant Design 5<br>React Router v6<br>Axios · Day.js</div>
+      </div>
+      <div class="stack-item">
+        <div class="layer">Backend</div>
+        <div class="tech">NestJS<br>TypeScript<br>TypeORM<br>PostgreSQL<br>JWT Auth<br>Multer · OCR</div>
+      </div>
+      <div class="stack-item">
+        <div class="layer">Integración</div>
+        <div class="tech">FEL SAT Guatemala<br>FEEL Certificador<br>Factura Electrónica<br>UUID · Serie · Autorización</div>
+      </div>
+      <div class="stack-item">
+        <div class="layer">Infraestructura</div>
+        <div class="tech">Multi-tenant<br>Tenancy por schema<br>renderToStaticMarkup<br>Print: window.open<br>PDF: @page CSS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ FRONTEND -->
+  <div class="panel fe">
+    <div class="panel-header">
+      🖥️ Frontend — contaerp-frontend
+      <span class="lang">React · TypeScript · Vite · Ant Design</span>
+    </div>
+
+    <!-- Auth -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🔐</span> Autenticación <span class="count">2 páginas</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> LoginPage <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> RegisterPage <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="module">
+      <div class="module-title"><span class="icon">📊</span> Dashboard <span class="count">1 página</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> DashboardPage — KPIs generales <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Ventas -->
+    <div class="module">
+      <div class="module-title"><span class="icon">💼</span> Ventas <span class="count">6 submódulos</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Clientes — lista + form <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Facturas — lista · form · detalle · imprimir <span class="tag tag-key">FEL SAT</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Estimaciones — lista · form · imprimir <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Notas de Crédito — lista · form · detalle <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Pagos Recibidos — lista · form · detalle <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> Anticipos — integrado en Pagos Recibidos <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Compras -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🛒</span> Compras <span class="count">4 submódulos</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Proveedores — lista + form <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Facturas Proveedor — lista · form <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Órdenes de Compra — lista · form <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-gray"></span> Gastos <span class="tag tag-soon">Próximamente</span></div>
+      </div>
+    </div>
+
+    <!-- Bancos -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🏦</span> Bancos <span class="count">3 páginas</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Lista de cuentas bancarias <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Form nueva cuenta / editar <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Detalle con movimientos <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Contabilidad -->
+    <div class="module">
+      <div class="module-title"><span class="icon">📒</span> Contabilidad <span class="count">3 submódulos</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Catálogo de Cuentas (Plan GLL) <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Libro Diario / Asientos <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-gray"></span> Activos Fijos <span class="tag tag-soon">Próximamente</span></div>
+      </div>
+    </div>
+
+    <!-- Inventario -->
+    <div class="module">
+      <div class="module-title"><span class="icon">📦</span> Inventario <span class="count">11 submódulos</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Artículos — lista + form <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Importaciones <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Expedientes <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Almacenes <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Grupos <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Centros de costo <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Ajustes de inventario <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Producción <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Entregas <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Ubicaciones <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Movimientos <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- POS -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🖥️</span> POS — Punto de Venta <span class="count">1 página</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Terminal pantalla completa <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Reportes -->
+    <div class="module">
+      <div class="module-title"><span class="icon">📈</span> Reportes <span class="count">8 reportes</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Balance General <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Estado de Resultados <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Flujo de Efectivo <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Tasas de Rendimiento <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Movimiento de Capital <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Balanza de Comprobación <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Libro Diario <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Libro Mayor <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Configuración -->
+    <div class="module">
+      <div class="module-title"><span class="icon">⚙️</span> Configuración <span class="count">2 páginas</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Perfil de organización — logo, NIT, dirección <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Integraciones — FEL, bancos, API keys <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Componentes -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🧩</span> Componentes Compartidos <span class="count">transversales</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-blue"></span> LineItemsEditor — tabla de líneas con totales <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> PrintInvoiceButton — selector de formato <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> FacturaImprimirPage — Carta/½Carta/Ticket 80/58mm <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> EstimacionPrintPage — impresión estimaciones <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> ErrorBoundary · MainLayout · AuthStore <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ BACKEND -->
+  <div class="panel be">
+    <div class="panel-header">
+      ⚙️ Backend — contaerp-backend
+      <span class="lang">NestJS · TypeScript · TypeORM · PostgreSQL</span>
+    </div>
+
+    <!-- Auth -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🔐</span> Auth <span class="count">JWT + Guards</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Login / Register / Refresh Token <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> JwtAuthGuard · RolesGuard <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Tenancy -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🏢</span> Tenancy — Multi-empresa <span class="count">por schema</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-purple"></span> DataSource dinámico por tenant <span class="tag tag-key">Core</span></div>
+        <div class="sub"><span class="dot dot-purple"></span> Schema aislado por organización <span class="tag tag-key">Core</span></div>
+      </div>
+    </div>
+
+    <!-- Ventas -->
+    <div class="module">
+      <div class="module-title"><span class="icon">💼</span> Ventas <span class="count">6 servicios</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Clientes — CRUD + búsqueda <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Facturas — CRUD · FEL · póliza · anular · condonar <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Facturas Anticipo — type:advance, excluido de listado FAC <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Estimaciones — CRUD · convertir a factura <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Notas de Crédito <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Pagos Recibidos — pago · anticipo · póliza Dr/Cr <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Compras -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🛒</span> Compras <span class="count">3 servicios</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Proveedores <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Facturas de Proveedor <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Órdenes de Compra <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Bancos -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🏦</span> Bancos <span class="count">2 servicios</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Cuentas bancarias — CRUD <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Transacciones / movimientos <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Contabilidad -->
+    <div class="module">
+      <div class="module-title"><span class="icon">📒</span> Contabilidad <span class="count">4 servicios</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Catálogo de Cuentas — Plan GLL Guatemala <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Asientos / Libro Diario — AUTO + MANUAL <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Libro Mayor <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Balanza de Comprobación <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- FEL -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🇬🇹</span> FEL — SAT Guatemala <span class="count">integración</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-blue"></span> FEEL Certificador — emisión electrónica <span class="tag tag-key">SAT</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> UUID · Serie · Número · Autorización <span class="tag tag-key">SAT</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> Tipos: FACT · FCAM · FPEQ · NABN · NDEB · NCRE <span class="tag tag-key">SAT</span></div>
+        <div class="sub"><span class="dot dot-blue"></span> Frases: Art.52 · Art.55 · Exportación · Art.7 <span class="tag tag-key">SAT</span></div>
+      </div>
+    </div>
+
+    <!-- Inventario -->
+    <div class="module">
+      <div class="module-title"><span class="icon">📦</span> Inventario <span class="count">multi-servicio</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Artículos / Productos <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Importaciones · Expedientes <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Almacenes · Ubicaciones <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Ajustes · Producción · Entregas <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Movimientos · Grupos · Centros <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- Reportes -->
+    <div class="module">
+      <div class="module-title"><span class="icon">📈</span> Reportes <span class="count">8 endpoints</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Balance General · Estado de Resultados <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Flujo de Efectivo · Tasas de Rendimiento <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Balanza · Libro Diario · Libro Mayor <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Movimiento de Capital <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+    <!-- OCR / Automatización -->
+    <div class="module">
+      <div class="module-title"><span class="icon">🤖</span> OCR · Automatización <span class="count">2 módulos</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-orange"></span> OCR — lectura de documentos escaneados <span class="tag tag-wip">En curso</span></div>
+        <div class="sub"><span class="dot dot-orange"></span> Automatización — reglas y flujos automáticos <span class="tag tag-wip">En curso</span></div>
+      </div>
+    </div>
+
+    <!-- Configuración -->
+    <div class="module">
+      <div class="module-title"><span class="icon">⚙️</span> Configuración <span class="count">por tenant</span></div>
+      <div class="submodules">
+        <div class="sub"><span class="dot dot-green"></span> Perfil organización — NIT · logo · dirección · moneda <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Impuestos — IVA 12% · exento · configurables <span class="tag tag-done">Listo</span></div>
+        <div class="sub"><span class="dot dot-green"></span> Integraciones — API keys FEL · bancos <span class="tag tag-done">Listo</span></div>
+      </div>
+    </div>
+
+  </div><!-- /panel be -->
+
+</div><!-- /container -->
+
+<footer>
+  ConTaERP — Sistema de Contabilidad ERP · Guatemala · Generado: 22/05/2026
+</footer>
+
+</body>
+</html>

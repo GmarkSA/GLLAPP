@@ -1,0 +1,942 @@
+import { useState, useEffect, useCallback } from 'react'
+import {
+  Layout, Menu, Form, Input, Button, Select, Upload, Avatar,
+  Typography, Card, Row, Col, Divider, message, Spin, Space, Tag,
+  Modal, Table, Popconfirm, InputNumber, Switch,
+} from 'antd'
+import {
+  BankOutlined, GlobalOutlined, DollarOutlined,
+  MailOutlined, PhoneOutlined, EnvironmentOutlined,
+  CameraOutlined, SaveOutlined, TeamOutlined,
+  SecurityScanOutlined, ApiOutlined, BellOutlined,
+  FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
+  PlusOutlined, DeleteOutlined, StarFilled,
+} from '@ant-design/icons'
+import ImpuestosPage from './impuestos/ImpuestosPage'
+import UsuariosPage  from './usuarios/UsuariosPage'
+import type { UploadChangeParam } from 'antd/es/upload'
+import {
+  getOrganizationProfile,
+  updateOrganizationProfile,
+  uploadLogo,
+  type OrganizationProfile,
+} from '../../api/configuracion'
+import {
+  getCurrencies, createCurrency, updateRate, removeCurrency,
+  type Currency,
+} from '../../api/monedas'
+import { getAccounts, type Account } from '../../api/catalogo'
+
+const { Sider, Content } = Layout
+const { Title, Text } = Typography
+const { Option } = Select
+const { TextArea } = Input
+
+// ── Sidebar sections (Zoho Books pattern) ──────────────────────────────────
+const sections = [
+  { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organización' },
+  { key: 'fiscal',          icon: <FileTextOutlined />,     label: 'Configuración fiscal' },
+  { key: 'taxes',           icon: <PercentageOutlined />,   label: 'Impuestos' },
+  { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
+  { key: 'accountDefaults', icon: <ApiOutlined />,          label: 'Cuentas por defecto' },
+  { key: 'users',           icon: <TeamOutlined />,         label: 'Usuarios y roles' },
+  { key: 'notifications',   icon: <BellOutlined />,         label: 'Notificaciones' },
+  { key: 'integrations',    icon: <ApiOutlined />,          label: 'Integraciones' },
+  { key: 'security',        icon: <SecurityScanOutlined />, label: 'Seguridad' },
+]
+
+const COUNTRIES = [
+  'Guatemala', 'México', 'El Salvador', 'Honduras', 'Costa Rica',
+  'Panamá', 'Colombia', 'Estados Unidos', 'España', 'Otro',
+]
+
+const TIMEZONES = [
+  { value: 'America/Guatemala',    label: '(GMT-6) Guatemala' },
+  { value: 'America/Mexico_City',  label: '(GMT-6) Ciudad de México' },
+  { value: 'America/Bogota',       label: '(GMT-5) Bogotá' },
+  { value: 'America/New_York',     label: '(GMT-5) Nueva York' },
+  { value: 'America/Los_Angeles',  label: '(GMT-8) Los Ángeles' },
+  { value: 'Europe/Madrid',        label: '(GMT+1) Madrid' },
+]
+
+const CURRENCIES = [
+  { code: 'GTQ', label: 'Quetzal guatemalteco (Q)' },
+  { code: 'USD', label: 'Dólar estadounidense ($)' },
+  { code: 'MXN', label: 'Peso mexicano ($)' },
+  { code: 'EUR', label: 'Euro (€)' },
+  { code: 'COP', label: 'Peso colombiano ($)' },
+]
+
+const FISCAL_MONTHS = [
+  { value: '01', label: 'Enero' },  { value: '02', label: 'Febrero' },
+  { value: '03', label: 'Marzo' },  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Mayo' },   { value: '06', label: 'Junio' },
+  { value: '07', label: 'Julio' },  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Septiembre' }, { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' }, { value: '12', label: 'Diciembre' },
+]
+
+// ── Sub-pages ──────────────────────────────────────────────────────────────
+
+function OrganizationSection({
+  profile, loading, onSave,
+}: {
+  profile: OrganizationProfile | null
+  loading: boolean
+  onSave: (values: Partial<OrganizationProfile>) => Promise<void>
+}) {
+  const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(profile?.logoUrl)
+  const [uploading, setUploading] = useState(false)
+
+  useEffect(() => {
+    if (profile) {
+      form.setFieldsValue(profile)
+      setLogoUrl(profile.logoUrl)
+    }
+  }, [profile, form])
+
+  const handleLogoUpload = async (info: UploadChangeParam) => {
+    const file = info.file.originFileObj
+    if (!file) return
+    setUploading(true)
+    try {
+      const url = await uploadLogo(file)
+      setLogoUrl(url)
+      message.success('Logo actualizado')
+    } catch {
+      // If backend logo endpoint isn't ready, show preview from local file
+      const reader = new FileReader()
+      reader.onload = e => setLogoUrl(e.target?.result as string)
+      reader.readAsDataURL(file)
+      message.info('Logo cargado localmente (endpoint en desarrollo)')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      setSaving(true)
+      await onSave({ ...values, logoUrl })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Spin spinning={loading}>
+      <div style={{ maxWidth: 860 }}>
+        <div style={{ marginBottom: 28 }}>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Perfil de organización</Title>
+          <Text type="secondary">Información general de tu empresa que aparece en documentos y reportes</Text>
+        </div>
+
+        {/* Logo row */}
+        <Card bordered={false} style={cardStyle} bodyStyle={{ padding: '24px 28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+            <div style={{ position: 'relative' }}>
+              <Avatar
+                size={96}
+                src={logoUrl}
+                style={{
+                  background: logoUrl ? 'transparent' : '#1B3A6B',
+                  fontSize: 32, fontWeight: 700,
+                  border: '3px solid #e8edf5',
+                }}
+              >
+                {!logoUrl && (profile?.name?.[0] || 'E')}
+              </Avatar>
+              <Upload
+                accept="image/*"
+                showUploadList={false}
+                beforeUpload={() => false}
+                onChange={handleLogoUpload}
+              >
+                <div style={{
+                  position: 'absolute', bottom: 0, right: 0,
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: '#1B3A6B', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '2px solid #fff',
+                }}>
+                  {uploading
+                    ? <Spin size="small" />
+                    : <CameraOutlined style={{ color: '#fff', fontSize: 13 }} />
+                  }
+                </div>
+              </Upload>
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 16, color: '#1B3A6B' }}>
+                {profile?.name || 'Tu empresa'}
+              </div>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Haz clic en el ícono de cámara para cambiar el logo
+              </Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                PNG, JPG o SVG — máximo 2 MB, recomendado 200×200 px
+              </Text>
+            </div>
+          </div>
+        </Card>
+
+        {/* Main form */}
+        <Form form={form} layout="vertical" style={{ marginTop: 20 }}>
+
+          {/* Basic info */}
+          <SectionCard title="Información básica" icon={<BankOutlined />}>
+            <Row gutter={20}>
+              <Col xs={24} md={12}>
+                <Form.Item name="name" label="Nombre comercial" rules={[{ required: true, message: 'Requerido' }]}>
+                  <Input placeholder="Mi Empresa S.A." size="large" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="legalName" label="Razón social">
+                  <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="taxId" label="NIT / RFC / RUC">
+                  <Input placeholder="1234567-8" size="large" prefix={<FileTextOutlined style={{ color: '#bbb' }} />} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="industry" label="Industria">
+                  <Select placeholder="Selecciona una industria" size="large">
+                    {['Comercio', 'Manufactura', 'Servicios profesionales', 'Tecnología',
+                      'Construcción', 'Salud', 'Educación', 'Agricultura', 'Otro'].map(i =>
+                      <Option key={i} value={i}>{i}</Option>
+                    )}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </SectionCard>
+
+          {/* Contact */}
+          <SectionCard title="Información de contacto" icon={<MailOutlined />}>
+            <Row gutter={20}>
+              <Col xs={24} md={12}>
+                <Form.Item name="email" label="Correo electrónico" rules={[{ type: 'email', message: 'Email inválido' }]}>
+                  <Input placeholder="info@miempresa.com" size="large" prefix={<MailOutlined style={{ color: '#bbb' }} />} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="phone" label="Teléfono">
+                  <Input placeholder="+502 2345-6789" size="large" prefix={<PhoneOutlined style={{ color: '#bbb' }} />} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="website" label="Sitio web">
+                  <Input placeholder="https://miempresa.com" size="large" prefix={<GlobalOutlined style={{ color: '#bbb' }} />} />
+                </Form.Item>
+              </Col>
+            </Row>
+          </SectionCard>
+
+          {/* Address */}
+          <SectionCard title="Dirección" icon={<EnvironmentOutlined />}>
+            <Row gutter={20}>
+              <Col xs={24}>
+                <Form.Item name="address" label="Dirección">
+                  <TextArea
+                    placeholder="5a Avenida 4-50, Zona 1"
+                    rows={2}
+                    size="large"
+                    style={{ resize: 'none' }}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="city" label="Ciudad">
+                  <Input placeholder="Ciudad de Guatemala" size="large" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="state" label="Departamento / Estado">
+                  <Input placeholder="Guatemala" size="large" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="zipCode" label="Código postal">
+                  <Input placeholder="01001" size="large" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="country" label="País">
+                  <Select placeholder="Selecciona un país" size="large">
+                    {COUNTRIES.map(c => <Option key={c} value={c}>{c}</Option>)}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </SectionCard>
+
+          {/* Save */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Button
+              type="primary"
+              size="large"
+              icon={<SaveOutlined />}
+              loading={saving}
+              onClick={handleSave}
+              style={{ background: '#1B3A6B', minWidth: 160 }}
+            >
+              Guardar cambios
+            </Button>
+          </div>
+        </Form>
+      </div>
+    </Spin>
+  )
+}
+
+function FiscalSection({
+  profile, loading, onSave,
+}: {
+  profile: OrganizationProfile | null
+  loading: boolean
+  onSave: (values: Partial<OrganizationProfile>) => Promise<void>
+}) {
+  const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (profile) form.setFieldsValue(profile)
+  }, [profile, form])
+
+  const handleSave = async () => {
+    const values = await form.validateFields()
+    setSaving(true)
+    try { await onSave(values) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <Spin spinning={loading}>
+      <div style={{ maxWidth: 860 }}>
+        <div style={{ marginBottom: 28 }}>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Configuración fiscal</Title>
+          <Text type="secondary">Parámetros para la generación de documentos fiscales y reportes</Text>
+        </div>
+
+        <Form form={form} layout="vertical">
+          <SectionCard title="Año fiscal" icon={<ClockCircleOutlined />}>
+            <Row gutter={20}>
+              <Col xs={24} md={12}>
+                <Form.Item name="fiscalYearStart" label="Inicio del año fiscal">
+                  <Select placeholder="Mes de inicio" size="large">
+                    {FISCAL_MONTHS.map(m => (
+                      <Option key={m.value} value={m.value}>{m.label}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 16 }}>
+                  El año fiscal de Guatemala inicia en enero (01)
+                </Text>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="timezone" label="Zona horaria">
+                  <Select placeholder="Selecciona zona horaria" size="large">
+                    {TIMEZONES.map(t => (
+                      <Option key={t.value} value={t.value}>{t.label}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </SectionCard>
+
+          <SectionCard title="Facturación electrónica (FEL)" icon={<FileTextOutlined />}>
+            <div style={{
+              background: '#f0f7ff', borderRadius: 8, padding: '16px 20px',
+              border: '1px solid #bae0ff', marginBottom: 16,
+            }}>
+              <Space>
+                <Tag color="blue">SAT Guatemala</Tag>
+                <Text style={{ fontSize: 13 }}>
+                  La configuración de certificadores FEL se realiza en la sección <strong>Integraciones → FEL</strong>
+                </Text>
+              </Space>
+            </div>
+            <Row gutter={20}>
+              <Col xs={24} md={12}>
+                <Form.Item name="taxId" label="NIT del emisor">
+                  <Input placeholder="1234567-8" size="large" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="legalName" label="Nombre del emisor (como en SAT)">
+                  <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </SectionCard>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Button
+              type="primary" size="large" icon={<SaveOutlined />}
+              loading={saving} onClick={handleSave}
+              style={{ background: '#1B3A6B', minWidth: 160 }}
+            >
+              Guardar cambios
+            </Button>
+          </div>
+        </Form>
+      </div>
+    </Spin>
+  )
+}
+
+// ── Catálogo de monedas disponibles ───────────────────────────────────────
+const ALL_CURRENCIES = [
+  { code: 'GTQ', name: 'Quetzal guatemalteco',   symbol: 'Q',   country: 'Guatemala' },
+  { code: 'USD', name: 'Dólar estadounidense',    symbol: '$',   country: 'Estados Unidos' },
+  { code: 'EUR', name: 'Euro',                    symbol: '€',   country: 'Unión Europea' },
+  { code: 'MXN', name: 'Peso mexicano',           symbol: '$',   country: 'México' },
+  { code: 'COP', name: 'Peso colombiano',         symbol: '$',   country: 'Colombia' },
+  { code: 'HNL', name: 'Lempira hondureño',       symbol: 'L',   country: 'Honduras' },
+  { code: 'CRC', name: 'Colón costarricense',     symbol: '₡',   country: 'Costa Rica' },
+  { code: 'DOP', name: 'Peso dominicano',         symbol: 'RD$', country: 'Rep. Dominicana' },
+  { code: 'PEN', name: 'Sol peruano',             symbol: 'S/',  country: 'Perú' },
+  { code: 'CLP', name: 'Peso chileno',            symbol: '$',   country: 'Chile' },
+  { code: 'GBP', name: 'Libra esterlina',         symbol: '£',   country: 'Reino Unido' },
+  { code: 'CAD', name: 'Dólar canadiense',        symbol: 'CA$', country: 'Canadá' },
+]
+
+
+function CurrencySection() {
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [saving,     setSaving]     = useState(false)
+  const [modalOpen,  setModalOpen]  = useState(false)
+  const [form] = Form.useForm()
+
+  const fetchCurrencies = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await getCurrencies()
+      const list: Currency[] = Array.isArray(data) ? data : []
+      // Ordenar: moneda base primero
+      list.sort((a, b) => (b.isBase ? 1 : 0) - (a.isBase ? 1 : 0))
+      setCurrencies(list)
+    } catch {
+      setCurrencies([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchCurrencies() }, [fetchCurrencies])
+
+  const handleAdd = async () => {
+    try {
+      const values = await form.validateFields()
+      const meta   = ALL_CURRENCIES.find(c => c.code === values.code)!
+      setSaving(true)
+      await createCurrency({
+        code:         values.code,
+        name:         meta.name,
+        symbol:       meta.symbol,
+        exchangeRate: values.exchangeRate ?? 1,
+        isBase:       false,
+        isActive:     true,
+      })
+      message.success(`Moneda ${meta.name} agregada`)
+      setModalOpen(false)
+      form.resetFields()
+      fetchCurrencies()
+    } catch (e: any) {
+      const msg = e?.response?.data?.message
+      if (msg) message.error(msg)
+      // validation errors are silently ignored
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRemove = async (id: string, name: string) => {
+    try {
+      await removeCurrency(id)
+      message.success(`Moneda ${name} eliminada`)
+      fetchCurrencies()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo eliminar')
+    }
+  }
+
+  const handleRateChange = async (id: string, rate: number) => {
+    try {
+      await updateRate(id, rate)
+      setCurrencies(prev => prev.map(c => c.id === id ? { ...c, exchangeRate: rate } : c))
+    } catch {
+      message.error('No se pudo actualizar la tasa')
+    }
+  }
+
+  const activeCodes  = currencies.map(c => c.code)
+  const availableToAdd = ALL_CURRENCIES.filter(c => !activeCodes.includes(c.code))
+
+  return (
+    <div style={{ maxWidth: 860 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+        <div>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Monedas</Title>
+          <Text type="secondary">
+            Configura las monedas activas para facturación. La moneda base es el Quetzal (GTQ).
+          </Text>
+        </div>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setModalOpen(true)}
+          style={{ background: '#1B3A6B' }}
+          disabled={availableToAdd.length === 0}
+        >
+          Agregar moneda
+        </Button>
+      </div>
+
+      {/* Tabla de monedas activas */}
+      <Card bordered={false} style={cardStyle} bodyStyle={{ padding: 0 }}>
+        <Table
+          dataSource={currencies}
+          rowKey="id"
+          pagination={false}
+          size="middle"
+          loading={loading}
+          columns={[
+            {
+              title: 'Moneda',
+              render: (_, r) => (
+                <Space>
+                  <Tag style={{ fontFamily: 'monospace', fontSize: 13, padding: '2px 8px' }}>
+                    {r.code}
+                  </Tag>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Símbolo: {r.symbol}</Text>
+                  </div>
+                  {r.isBase && <Tag color="gold" icon={<StarFilled />}>Base</Tag>}
+                </Space>
+              ),
+            },
+            {
+              title: 'Tipo de cambio vs GTQ',
+              width: 240,
+              render: (_, r) => r.isBase
+                ? <Text type="secondary">1.0000 (moneda base)</Text>
+                : (
+                  <InputNumber
+                    value={Number(r.exchangeRate)}
+                    min={0.000001}
+                    precision={4}
+                    step={0.01}
+                    onBlur={e => {
+                      const v = parseFloat(e.target.value.replace(/[^0-9.]/g, ''))
+                      if (!isNaN(v)) handleRateChange(r.id, v)
+                    }}
+                    style={{ width: 140 }}
+                    addonBefore="Q ="
+                    addonAfter={r.symbol}
+                  />
+                ),
+            },
+            {
+              title: '',
+              width: 60,
+              render: (_, r) => r.isBase ? null : (
+                <Popconfirm
+                  title={`¿Eliminar ${r.name}?`}
+                  onConfirm={() => handleRemove(r.id, r.name)}
+                  okText="Sí" cancelText="No"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+                </Popconfirm>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      {/* Modal agregar moneda */}
+      <Modal
+        open={modalOpen}
+        title={<Space><DollarOutlined /> Agregar moneda</Space>}
+        onCancel={() => { setModalOpen(false); form.resetFields() }}
+        onOk={handleAdd}
+        okText="Agregar"
+        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="code" label="Moneda" rules={[{ required: true, message: 'Selecciona una moneda' }]}>
+            <Select
+              showSearch
+              placeholder="Busca por nombre o código..."
+              size="large"
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {availableToAdd.map(c => (
+                <Option key={c.code} value={c.code} label={`${c.code} ${c.name}`}>
+                  <Space>
+                    <Tag style={{ fontFamily: 'monospace' }}>{c.code}</Tag>
+                    <span>{c.name}</span>
+                    <Text type="secondary" style={{ fontSize: 12 }}>({c.country})</Text>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="exchangeRate"
+            label="Tipo de cambio inicial (1 GTQ =)"
+            rules={[{ required: true, message: 'Ingresa el tipo de cambio' }]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              min={0.000001}
+              precision={4}
+              step={0.01}
+              placeholder="Ej: 0.13 para USD"
+              size="large"
+            />
+          </Form.Item>
+
+          <Form.Item
+            extra="La actualización automática de tasas estará disponible próximamente"
+          >
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Puedes actualizar la tasa manualmente en la tabla en cualquier momento.
+            </Text>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  )
+}
+
+interface AccountDefaults {
+  customerAdvanceAccountCode?: string
+  vendorAdvanceAccountCode?: string
+  employeeAdvanceAccountCode?: string
+}
+
+function AccountDefaultsSection() {
+  const [accounts,  setAccounts]  = useState<Account[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [saving,    setSaving]    = useState(false)
+  const [defaults,  setDefaults]  = useState<AccountDefaults>({
+    customerAdvanceAccountCode:  '2110',
+    vendorAdvanceAccountCode:    '2500',
+    employeeAdvanceAccountCode:  '1260',
+  })
+
+  useEffect(() => {
+    // Load accounts list and current settings in parallel
+    Promise.all([
+      getAccounts({ limit: 1000, isActive: true })
+        .then((data: any) => {
+          const list: Account[] = Array.isArray(data) ? data : (data?.data ?? [])
+          setAccounts(list)
+        })
+        .catch(() => setAccounts([])),
+      getOrganizationProfile()
+        .then((profile: any) => {
+          if (profile?.settings?.accountDefaults) {
+            setDefaults(prev => ({ ...prev, ...profile.settings.accountDefaults }))
+          }
+        })
+        .catch(() => null),
+    ]).finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      // Read current settings first to avoid overwriting other keys
+      const profile = await getOrganizationProfile().catch(() => ({} as any))
+      const existingSettings = (profile as any)?.settings ?? {}
+      await updateOrganizationProfile({
+        settings: {
+          ...existingSettings,
+          accountDefaults: defaults,
+        },
+      } as any)
+      message.success('Cuentas por defecto guardadas correctamente')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo guardar la configuración')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const accountOptions = accounts.map(a => ({
+    value: a.code,
+    label: `${a.code} — ${a.name}`,
+  }))
+
+  return (
+    <Spin spinning={loading}>
+      <div style={{ maxWidth: 860 }}>
+        <div style={{ marginBottom: 28 }}>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Cuentas por defecto</Title>
+          <Text type="secondary">
+            Define las cuentas contables que se usarán automáticamente al registrar anticipos y documentos sin cuenta específica
+          </Text>
+        </div>
+
+        <SectionCard title="Anticipos" icon={<DollarOutlined />}>
+          <Row gutter={20}>
+            <Col xs={24} md={12}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Anticipo de clientes</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta de pasivo usada al registrar pagos anticipados de clientes sin factura
+                </Text>
+              </div>
+              <Select
+                showSearch
+                style={{ width: '100%' }}
+                value={defaults.customerAdvanceAccountCode}
+                placeholder="Ej: 2110 — Anticipos de Clientes"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, customerAdvanceAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.customerAdvanceAccountCode || '2110'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Anticipo de proveedores</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta de activo usada al registrar anticipos pagados a proveedores
+                </Text>
+              </div>
+              <Select
+                showSearch
+                style={{ width: '100%' }}
+                value={defaults.vendorAdvanceAccountCode}
+                placeholder="Ej: 2500 — Anticipos a Proveedores"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, vendorAdvanceAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.vendorAdvanceAccountCode || '2500'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24} md={12} style={{ marginTop: 16 }}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Anticipo de empleados</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta de activo para anticipos de nómina o préstamos a empleados
+                </Text>
+              </div>
+              <Select
+                showSearch
+                style={{ width: '100%' }}
+                value={defaults.employeeAdvanceAccountCode}
+                placeholder="Ej: 1260 — Anticipos a Empleados"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, employeeAdvanceAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.employeeAdvanceAccountCode || '1260'}</Text>
+              </Text>
+            </Col>
+          </Row>
+        </SectionCard>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <Button
+            type="primary"
+            size="large"
+            icon={<SaveOutlined />}
+            loading={saving}
+            onClick={handleSave}
+            style={{ background: '#1B3A6B', minWidth: 160 }}
+          >
+            Guardar cambios
+          </Button>
+        </div>
+      </div>
+    </Spin>
+  )
+}
+
+function ComingSoonSection({ title, description }: { title: string; description: string }) {
+  return (
+    <div style={{ maxWidth: 860 }}>
+      <div style={{ marginBottom: 28 }}>
+        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{title}</Title>
+        <Text type="secondary">{description}</Text>
+      </div>
+      <Card bordered={false} style={cardStyle}>
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: '#8c8c8c' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#1B3A6B', marginBottom: 8 }}>
+            En desarrollo
+          </div>
+          <div style={{ fontSize: 14 }}>Esta sección estará disponible próximamente</div>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// ── Helper components ──────────────────────────────────────────────────────
+
+function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Card
+      bordered={false}
+      style={{ ...cardStyle, marginBottom: 16 }}
+      bodyStyle={{ padding: '20px 24px' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <span style={{ color: '#1B3A6B', fontSize: 16 }}>{icon}</span>
+        <span style={{ fontWeight: 600, color: '#1B3A6B', fontSize: 14 }}>{title}</span>
+      </div>
+      <Divider style={{ margin: '0 0 20px' }} />
+      {children}
+    </Card>
+  )
+}
+
+const cardStyle: React.CSSProperties = {
+  borderRadius: 10,
+  boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+  background: '#fff',
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────
+
+export default function ConfiguracionPage() {
+  const [activeKey, setActiveKey] = useState('organization')
+  const [profile, setProfile] = useState<OrganizationProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  const fetchProfile = async () => {
+    setLoading(true)
+    try {
+      const data = await getOrganizationProfile()
+      setProfile(data)
+    } catch {
+      // Backend endpoint may not exist yet — use empty profile
+      setProfile({ name: '', email: '', country: 'Guatemala', currency: 'GTQ', fiscalYearStart: '01', timezone: 'America/Guatemala' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async (values: Partial<OrganizationProfile>) => {
+    try {
+      const updated = await updateOrganizationProfile(values)
+      setProfile(prev => ({ ...prev, ...updated }))
+      message.success('✓ Cambios guardados correctamente')
+    } catch (e: any) {
+      const msg = e?.response?.data?.error?.message
+      const detail = Array.isArray(msg) ? msg.join(', ') : msg
+      message.error(detail ? `Error: ${detail}` : 'No se pudo guardar. Intenta de nuevo.')
+    }
+  }
+
+  const renderContent = () => {
+    switch (activeKey) {
+      case 'organization':
+        return <OrganizationSection profile={profile} loading={loading} onSave={handleSave} />
+      case 'fiscal':
+        return <FiscalSection profile={profile} loading={loading} onSave={handleSave} />
+      case 'currency':
+        return <CurrencySection />
+      case 'taxes':
+        return <ImpuestosPage />
+      case 'accountDefaults':
+        return <AccountDefaultsSection />
+      case 'users':
+        return <UsuariosPage />
+      case 'notifications':
+        return <ComingSoonSection title="Notificaciones" description="Configura alertas por correo y notificaciones del sistema" />
+      case 'integrations':
+        return <ComingSoonSection title="Integraciones" description="Conecta ContaERP con servicios externos: FEL, bancos, pagos" />
+      case 'security':
+        return <ComingSoonSection title="Seguridad" description="Autenticación, tokens de API y registro de actividad" />
+      default:
+        return null
+    }
+  }
+
+  return (
+    <Layout style={{ background: 'transparent', minHeight: 'calc(100vh - 112px)' }}>
+      {/* Left nav — Zoho Books style */}
+      <Sider
+        width={230}
+        style={{
+          background: '#fff',
+          borderRadius: 10,
+          boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+          marginRight: 20,
+          alignSelf: 'flex-start',
+          position: 'sticky',
+          top: 88,
+        }}
+      >
+        <div style={{ padding: '20px 16px 12px' }}>
+          <Text style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: 1 }}>
+            Configuración
+          </Text>
+        </div>
+        <Menu
+          mode="inline"
+          selectedKeys={[activeKey]}
+          onClick={({ key }) => setActiveKey(key)}
+          style={{ border: 'none', fontSize: 13 }}
+          items={sections.map(s => ({
+            key: s.key,
+            icon: s.icon,
+            label: s.label,
+            style: {
+              borderRadius: 6,
+              margin: '2px 8px',
+              width: 'calc(100% - 16px)',
+            },
+          }))}
+        />
+        <div style={{ height: 20 }} />
+      </Sider>
+
+      {/* Right content */}
+      <Content style={{ background: 'transparent' }}>
+        {renderContent()}
+      </Content>
+    </Layout>
+  )
+}
