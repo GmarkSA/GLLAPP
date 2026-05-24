@@ -40,7 +40,7 @@ export default function LoginPage() {
             <BookOutlined style={{ fontSize: 28, color: '#fff' }} />
           </div>
           <Title level={3} style={{ margin: 0, color: '#1B3A6B' }}>ContaERP</Title>
-          <Text type="secondary">Sistema ERP — GLL Consulting</Text>
+          <Text type="secondary">Sistema ERP — GLL Consulting v1.0</Text>
         </div>
 
         <Form layout="vertical" onFinish={onFinish} size="large" autoComplete="on">
