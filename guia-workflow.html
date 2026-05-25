@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ContaERP — Guía de Workflow</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+    header {
+      background: linear-gradient(135deg, #1B3A6B 0%, #2d5fa6 100%);
+      color: white; padding: 40px 32px; text-align: center;
+    }
+    header h1 { font-size: 2rem; margin-bottom: 8px; }
+    header p { opacity: 0.85; font-size: 1rem; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 32px 16px; }
+
+    /* ARQUITECTURA */
+    .arch { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 40px; }
+    .platform {
+      background: white; border-radius: 12px; padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center;
+    }
+    .platform .icon { font-size: 2.4rem; margin-bottom: 12px; }
+    .platform h3 { font-size: 1.1rem; color: #1B3A6B; margin-bottom: 8px; }
+    .platform p { font-size: 0.85rem; color: #555; line-height: 1.5; }
+    .platform .url {
+      display: inline-block; margin-top: 12px; padding: 4px 12px;
+      background: #f0f4ff; border-radius: 20px; font-size: 0.78rem;
+      color: #2d5fa6; font-weight: 600; word-break: break-all;
+    }
+
+    /* FLUJO */
+    .flow {
+      background: white; border-radius: 12px; padding: 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 32px;
+    }
+    .flow h2 { color: #1B3A6B; margin-bottom: 20px; font-size: 1.2rem; border-bottom: 2px solid #e8edf5; padding-bottom: 10px; }
+
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex; gap: 16px; position: relative; padding-bottom: 24px;
+    }
+    .step:last-child { padding-bottom: 0; }
+    .step-num {
+      width: 36px; height: 36px; border-radius: 50%; background: #1B3A6B;
+      color: white; font-weight: 700; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; position: relative; z-index: 1;
+    }
+    .step:not(:last-child) .step-num::after {
+      content: ''; position: absolute; top: 36px; left: 50%;
+      transform: translateX(-50%); width: 2px; height: calc(100% + 24px - 36px);
+      background: #dce4f0;
+    }
+    .step-content { padding-top: 6px; }
+    .step-content h4 { color: #1B3A6B; margin-bottom: 4px; font-size: 0.95rem; }
+    .step-content p { font-size: 0.85rem; color: #555; line-height: 1.5; }
+    .step-content code {
+      display: inline-block; background: #1e1e2e; color: #a8d8a8;
+      padding: 2px 8px; border-radius: 4px; font-size: 0.82rem; margin-top: 6px;
+    }
+
+    /* COMANDOS */
+    .cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+    .cmd-box {
+      background: white; border-radius: 12px; padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .cmd-box h3 { color: #1B3A6B; font-size: 0.95rem; margin-bottom: 12px; }
+    .cmd {
+      background: #1e1e2e; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
+    }
+    .cmd .label { color: #888; font-size: 0.72rem; margin-bottom: 4px; font-family: monospace; }
+    .cmd .code { color: #a8d8a8; font-size: 0.82rem; font-family: monospace; }
+
+    /* CREDENCIALES */
+    .creds {
+      background: white; border-radius: 12px; padding: 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 32px;
+    }
+    .creds h2 { color: #1B3A6B; margin-bottom: 16px; font-size: 1.2rem; border-bottom: 2px solid #e8edf5; padding-bottom: 10px; }
+    .cred-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid #f0f2f5;
+    }
+    .cred-row:last-child { border-bottom: none; }
+    .cred-label { font-size: 0.85rem; color: #555; font-weight: 500; }
+    .cred-value {
+      font-size: 0.82rem; background: #f0f4ff; color: #1B3A6B;
+      padding: 3px 10px; border-radius: 6px; font-family: monospace; font-weight: 600;
+    }
+
+    /* REGLA DE ORO */
+    .golden {
+      background: linear-gradient(135deg, #1B3A6B, #2d5fa6);
+      border-radius: 12px; padding: 24px 28px; color: white; margin-bottom: 32px;
+      text-align: center;
+    }
+    .golden h2 { font-size: 1.1rem; margin-bottom: 8px; opacity: 0.9; }
+    .golden p { font-size: 0.9rem; opacity: 0.85; line-height: 1.6; }
+    .golden .rule {
+      font-size: 1.3rem; font-weight: 700; margin: 12px 0;
+      background: rgba(255,255,255,0.15); padding: 10px 20px; border-radius: 8px;
+    }
+
+    /* ADVERTENCIAS */
+    .warn {
+      background: #fff8e6; border-left: 4px solid #f0a500;
+      border-radius: 0 8px 8px 0; padding: 14px 16px; margin-bottom: 12px;
+      font-size: 0.85rem; color: #555; line-height: 1.5;
+    }
+    .warn strong { color: #b07800; }
+
+    section h2 { color: #1B3A6B; font-size: 1.2rem; margin-bottom: 16px; }
+
+    @media (max-width: 640px) {
+      .arch { grid-template-columns: 1fr; }
+      .cmd-grid { grid-template-columns: 1fr; }
+      .cred-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ContaERP — Guía de Workflow</h1>
+  <p>Cómo trabajar con VS Code, GitHub, Vercel y Railway</p>
+</header>
+
+<div class="container">
+
+  <!-- ARQUITECTURA -->
+  <h2 style="color:#1B3A6B; margin-bottom:16px; margin-top:8px;">Las 3 plataformas</h2>
+  <div class="arch">
+    <div class="platform">
+      <div class="icon">🐙</div>
+      <h3>GitHub</h3>
+      <p>Almacena el código. Cada <code>git push</code> dispara el deploy automático en Vercel y Railway.</p>
+      <span class="url">github.com/GmarkSA</span>
+    </div>
+    <div class="platform">
+      <div class="icon">▲</div>
+      <h3>Vercel</h3>
+      <p>Hospeda el <strong>Frontend</strong> (React). Se actualiza solo cuando haces push al branch master del frontend.</p>
+      <span class="url">gllapp.vercel.app</span>
+    </div>
+    <div class="platform">
+      <div class="icon">🚂</div>
+      <h3>Railway</h3>
+      <p>Hospeda el <strong>Backend</strong> (NestJS) y la base de datos <strong>PostgreSQL</strong>. Se actualiza solo con cada push al backend.</p>
+      <span class="url">contaerp-backend-production.up.railway.app</span>
+    </div>
+  </div>
+
+  <!-- FLUJO DIARIO -->
+  <div class="flow">
+    <h2>📋 Flujo de trabajo diario desde VS Code</h2>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Abrir VS Code</h4>
+          <p>Abre la carpeta del proyecto que vayas a modificar:<br>
+          <strong>Frontend:</strong> <code>C:\Users\l_cha\contaerp-frontend</code><br>
+          <strong>Backend:</strong> <code>C:\Users\l_cha\contaerp-backend</code></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Iniciar servidores locales (para desarrollo)</h4>
+          <p>Abre dos terminales en VS Code (Ctrl + `):</p>
+          <code>cd contaerp-frontend &amp;&amp; npm run dev</code>
+          <br><code>cd contaerp-backend &amp;&amp; npm run start:dev</code>
+          <p style="margin-top:8px">Frontend local en <strong>http://localhost:5173</strong> | Backend local en <strong>http://localhost:3000</strong></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Hacer cambios en el código</h4>
+          <p>Edita los archivos normalmente en VS Code. Los cambios se reflejan en tiempo real en el navegador (hot reload).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Verificar que no hay errores</h4>
+          <p>Antes de subir, verifica tipos TypeScript:</p>
+          <code>npm run typecheck</code>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Subir cambios a GitHub → Deploy automático</h4>
+          <p>Desde la terminal de VS Code o desde el panel Git de VS Code:</p>
+          <code>git add .</code>
+          <br><code>git commit -m "descripción del cambio"</code>
+          <br><code>git push</code>
+          <p style="margin-top:8px">✅ <strong>Vercel</strong> detecta el push del frontend y despliega en ~1 min<br>
+          ✅ <strong>Railway</strong> detecta el push del backend y despliega en ~3 min</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <h4>Verificar en producción</h4>
+          <p>Entra a <strong>gllapp.vercel.app</strong> y verifica que los cambios estén activos.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMANDOS ÚTILES -->
+  <h2 style="color:#1B3A6B; margin-bottom:16px;">⌨️ Comandos útiles</h2>
+  <div class="cmd-grid">
+    <div class="cmd-box">
+      <h3>🖥️ Frontend (contaerp-frontend)</h3>
+      <div class="cmd">
+        <div class="label"># Servidor de desarrollo</div>
+        <div class="code">npm run dev</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Verificar tipos TypeScript</div>
+        <div class="code">npm run typecheck</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Build de producción</div>
+        <div class="code">npm run build</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Lint</div>
+        <div class="code">npm run lint</div>
+      </div>
+    </div>
+
+    <div class="cmd-box">
+      <h3>⚙️ Backend (contaerp-backend)</h3>
+      <div class="cmd">
+        <div class="label"># Servidor de desarrollo (con hot reload)</div>
+        <div class="code">npm run start:dev</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Build de producción</div>
+        <div class="code">npm run build</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Ver logs en tiempo real</div>
+        <div class="code">npm run start:dev</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Subir a producción</div>
+        <div class="code">git push</div>
+      </div>
+    </div>
+
+    <div class="cmd-box">
+      <h3>📦 Git (aplica a ambos proyectos)</h3>
+      <div class="cmd">
+        <div class="label"># Ver qué archivos cambiaste</div>
+        <div class="code">git status</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Guardar todos los cambios</div>
+        <div class="code">git add .</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Crear commit</div>
+        <div class="code">git commit -m "descripción"</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Subir a GitHub (dispara deploy)</div>
+        <div class="code">git push</div>
+      </div>
+    </div>
+
+    <div class="cmd-box">
+      <h3>🔍 Ver deploys en curso</h3>
+      <div class="cmd">
+        <div class="label"># Frontend — entrar a Vercel</div>
+        <div class="code">vercel.com → gllapp → Deployments</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Backend — entrar a Railway</div>
+        <div class="code">railway.app → proyecto → Deploy Logs</div>
+      </div>
+      <div class="cmd">
+        <div class="label"># Estado del deploy backend</div>
+        <div class="code">Busca: "Active" en verde ✅</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREDENCIALES PRODUCCIÓN -->
+  <div class="creds">
+    <h2>🔐 Accesos de producción</h2>
+    <div class="cred-row">
+      <span class="cred-label">🌐 Frontend (producción)</span>
+      <span class="cred-value">https://gllapp.vercel.app</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">⚙️ Backend API (producción)</span>
+      <span class="cred-value">https://contaerp-backend-production.up.railway.app/api/v1</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">📖 Swagger API Docs (solo en dev local)</span>
+      <span class="cred-value">http://localhost:3000/docs</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">👤 Usuario superadmin</span>
+      <span class="cred-value">admin@contaerp.com</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">🔑 Contraseña superadmin</span>
+      <span class="cred-value">Admin2026!</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">🗄️ Base de datos</span>
+      <span class="cred-value">Railway PostgreSQL (interno)</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">⚡ Redis / Colas</span>
+      <span class="cred-value">Upstash (upright-duck-135508.upstash.io)</span>
+    </div>
+  </div>
+
+  <!-- REGLA DE ORO -->
+  <div class="golden">
+    <h2>⭐ La regla de oro</h2>
+    <div class="rule">Desarrollas local → Verificas → git push → Producción se actualiza sola</div>
+    <p>Nunca necesitas entrar a Vercel o Railway para desplegar.<br>
+    Solo necesitas entrar si hay un error que quieres diagnosticar en los logs.</p>
+  </div>
+
+  <!-- ADVERTENCIAS -->
+  <section>
+    <h2>⚠️ Cosas importantes a recordar</h2>
+    <div class="warn">
+      <strong>Variables de entorno en Railway:</strong> Railway v2 no inyecta variables custom en el contenedor. Las credenciales de BD están hardcodeadas en <code>database.config.ts</code> con los valores internos de Railway. No cambies la contraseña de PostgreSQL en Railway sin actualizar el código también.
+    </div>
+    <div class="warn">
+      <strong>Base de datos de producción:</strong> Los cambios en las entidades TypeORM ya <strong>no</strong> se aplican automáticamente (<code>synchronize: false</code>). Si agregas nuevas columnas o tablas, deberás ejecutar el SQL manualmente en Railway → PostgreSQL → Data.
+    </div>
+    <div class="warn">
+      <strong>Secretos JWT:</strong> Los secretos JWT tienen valores por defecto en el código (<code>app.config.ts</code>). Si algún día quieres cambiarlos, todos los usuarios deberán volver a iniciar sesión.
+    </div>
+    <div class="warn">
+      <strong>Frontend en Vercel:</strong> Si cambias la URL del backend, debes actualizar <code>VITE_API_URL</code> en Vercel → Settings → Environment Variables y hacer Redeploy.
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

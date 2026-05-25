@@ -3,8 +3,12 @@ import api from './axios'
 const unwrap = (r: any) => r.data?.data ?? r.data
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type BillStatus = 'draft' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'
-export type POStatus   = 'draft' | 'sent' | 'received' | 'billed' | 'cancelled'
+export type BillStatus   = 'draft' | 'pending_approval' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'
+export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel'
+export type PaymentTerms = 'immediate' | 'net_15' | 'net_30' | 'net_60' | 'net_90' | 'custom'
+export type POStatus     = 'draft' | 'sent' | 'received' | 'billed' | 'cancelled'
+
+export type IdpFuelType = 'super' | 'regular' | 'diesel' | 'other'
 
 export interface BillItem {
   id?:             string
@@ -19,45 +23,82 @@ export interface BillItem {
   lineTotal:       number
   accountId?:      string
   projectId?:      string
+  // IDP (combustible)
+  idpType?:        IdpFuelType
+  idpAmount?:      number
 }
 
 export interface PurchaseInvoice {
-  id:                  string
-  invoiceNumber:       string
-  vendorInvoiceNumber?: string
-  status:              BillStatus
-  vendorId:            string
-  vendorName:          string
-  vendorTaxId?:        string
-  invoiceDate:         string
-  dueDate?:            string
-  currency:            string
-  exchangeRate:        number
-  subtotal:            number
-  taxAmount:           number
-  retentionAmount:     number
-  total:               number
-  paidAmount:          number
-  balance:             number
-  purchaseOrderId?:    string
-  notes?:              string
-  items:               BillItem[]
-  createdAt:           string
+  id:                      string
+  invoiceNumber:           string
+  vendorInvoiceNumber?:    string
+  status:                  BillStatus
+  invoiceType:             BillType
+  vendorId:                string
+  vendorName:              string
+  vendorTaxId?:            string
+  invoiceDate:             string
+  dueDate?:                string
+
+  // Términos de pago
+  paymentTerms:            PaymentTerms
+  paymentTermsDays?:       number
+
+  // Moneda
+  currency:                string
+  exchangeRate:            number
+
+  // Totales
+  subtotal:                number
+  taxAmount:               number
+  retentionAmount:         number
+  isrRetentionAmount:      number
+  ivaRetentionAmount:      number
+  idpAmount:               number
+  total:                   number
+  paidAmount:              number
+  balance:                 number
+
+  // FEL (Factura Electrónica SAT Guatemala)
+  felSerie?:               string
+  felNumber?:              string
+  felUuid?:                string
+  felAuthNumber?:          string
+  felMessage?:             string
+  felCertDate?:            string
+
+  // Reembolso de gastos
+  isExpenseReimbursement?: boolean
+  employeeId?:             string
+  employeeName?:           string
+  employeePayableAccountId?: string
+
+  // Cuentas
+  accountId?:              string
+  idpAccountId?:           string
+  journalEntryId?:         string
+
+  purchaseOrderId?:        string
+  notes?:                  string
+  items:                   BillItem[]
+  attachments?:            any[]
+  createdAt:               string
+  updatedAt?:              string
 }
 
 export interface PurchaseOrder {
-  id:                   string
-  orderNumber:          string
-  status:               POStatus
-  vendorId:             string
-  vendorName:           string
-  orderDate:            string
+  id:                    string
+  orderNumber:           string
+  status:                POStatus
+  vendorId:              string
+  vendorName:            string
+  orderDate:             string
   expectedDeliveryDate?: string
-  currency:             string
-  total:                number
-  notes?:               string
-  items:                BillItem[]
-  createdAt:            string
+  currency:              string
+  total:                 number
+  notes?:                string
+  items:                 BillItem[]
+  createdAt:             string
 }
 
 // ─── Gastos ───────────────────────────────────────────────────────────────────
@@ -72,6 +113,65 @@ export interface Expense {
 export interface Vendor {
   id: string; code?: string; name: string; tradeName?: string
   taxId?: string; email?: string; phone?: string; isActive: boolean
+}
+
+// ─── AP Aging ────────────────────────────────────────────────────────────────
+export interface ApAgingRow {
+  id:            string
+  invoiceNumber: string
+  vendorId:      string
+  vendorName:    string
+  invoiceDate:   string
+  dueDate?:      string
+  total:         number
+  balance:       number
+  daysOverdue:   number
+}
+
+export interface ApAgingBucket {
+  label: string
+  total: number
+  count: number
+  items: ApAgingRow[]
+}
+
+export interface ApAgingReport {
+  buckets: {
+    current:  ApAgingBucket
+    days_30:  ApAgingBucket
+    days_60:  ApAgingBucket
+    days_90:  ApAgingBucket
+    over_90:  ApAgingBucket
+  }
+  grandTotal:   number
+  generatedAt:  string
+}
+
+// ─── Libro de Compras ─────────────────────────────────────────────────────────
+export interface LibroComprasRow {
+  fecha:           string
+  nitProveedor:    string
+  nombreProveedor: string
+  felSerie:        string
+  felNumero:       string
+  uuid:            string
+  tipoDocumento:   BillType
+  base:            number
+  iva:             number
+  total:           number
+  retencionIsr:    number
+  retencionIva:    number
+  idp:             number
+  numeroInterno:   string
+  status:          BillStatus
+}
+
+export interface LibroComprasReport {
+  from:   string
+  to:     string
+  items:  LibroComprasRow[]
+  totals: { base: number; iva: number; total: number; retencionIsr: number; retencionIva: number; idp: number }
+  count:  number
 }
 
 // ─── Bills (Facturas de Proveedor) ────────────────────────────────────────────
@@ -89,6 +189,9 @@ export const createBill = (dto: Partial<PurchaseInvoice>) =>
 export const updateBill = (id: string, dto: Partial<PurchaseInvoice>) =>
   api.patch(`${BILL}/${id}`, dto).then(unwrap) as Promise<PurchaseInvoice>
 
+export const approveBill = (id: string) =>
+  api.post(`${BILL}/${id}/aprobar`).then(unwrap) as Promise<PurchaseInvoice>
+
 export const recordBillPayment = (id: string, dto: { amount: number; paymentDate: string; mode?: string; reference?: string; bankAccountId?: string }) =>
   api.post(`${BILL}/${id}/registrar-pago`, dto).then(unwrap)
 
@@ -97,6 +200,12 @@ export const voidBill = (id: string, reason?: string) =>
 
 export const deleteBill = (id: string) =>
   api.delete(`${BILL}/${id}`)
+
+export const getApAging = () =>
+  api.get(`${BILL}/reportes/ap-aging`).then(unwrap) as Promise<ApAgingReport>
+
+export const getLibroCompras = (from: string, to: string) =>
+  api.get(`${BILL}/reportes/libro-compras`, { params: { from, to } }).then(unwrap) as Promise<LibroComprasReport>
 
 // ─── Purchase Orders (Órdenes de Compra) ──────────────────────────────────────
 const PO = '/compras/ordenes-compra'
@@ -136,12 +245,37 @@ export const getVendors = (params?: { search?: string; isActive?: boolean; limit
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 export const BILL_STATUS_CONFIG: Record<BillStatus, { label: string; color: string }> = {
-  draft:    { label: 'Borrador',     color: 'default' },
-  open:     { label: 'Pendiente',    color: 'orange'  },
-  partial:  { label: 'Pago parcial', color: 'geekblue'},
-  paid:     { label: 'Pagada',       color: 'green'   },
-  overdue:  { label: 'Vencida',      color: 'red'     },
-  voided:   { label: 'Anulada',      color: 'volcano' },
+  draft:            { label: 'Borrador',          color: 'default'  },
+  pending_approval: { label: 'Pendiente aprobación', color: 'purple' },
+  open:             { label: 'Pendiente',          color: 'orange'  },
+  partial:          { label: 'Pago parcial',       color: 'geekblue'},
+  paid:             { label: 'Pagada',             color: 'green'   },
+  overdue:          { label: 'Vencida',            color: 'red'     },
+  voided:           { label: 'Anulada',            color: 'volcano' },
+}
+
+export const BILL_TYPE_CONFIG: Record<BillType, { label: string }> = {
+  goods:         { label: 'Compra de bienes'          },
+  services:      { label: 'Servicios'                 },
+  reimbursement: { label: 'Reembolso de gastos'       },
+  special:       { label: 'Factura Especial (SAT)'    },
+  fuel:          { label: 'Combustible (con IDP)'     },
+}
+
+export const PAYMENT_TERMS_CONFIG: Record<PaymentTerms, string> = {
+  immediate: 'Contado',
+  net_15:    'Neto 15 días',
+  net_30:    'Neto 30 días',
+  net_60:    'Neto 60 días',
+  net_90:    'Neto 90 días',
+  custom:    'Personalizado',
+}
+
+export const IDP_RATES: Record<string, number> = {
+  super:   4.70,
+  regular: 4.60,
+  diesel:  1.30,
+  other:   0,
 }
 
 export const PO_STATUS_CONFIG: Record<POStatus, { label: string; color: string }> = {

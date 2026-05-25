@@ -2,15 +2,21 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   Form, Select, DatePicker, InputNumber, Input, Button,
-  Card, Breadcrumb, Typography, Spin, Divider, Space, message,
+  Card, Breadcrumb, Typography, Spin, Divider, message,
+  Tag,
 } from 'antd'
 import {
-  SaveOutlined, CheckOutlined, HomeOutlined,
+  SaveOutlined, CheckOutlined, HomeOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
-import { createBill, updateBill, getBill, getVendors, type Vendor } from '../../../api/compras'
+import {
+  createBill, updateBill, getBill, approveBill, getVendors,
+  type BillType, type PaymentTerms,
+  BILL_TYPE_CONFIG, PAYMENT_TERMS_CONFIG, IDP_RATES,
+} from '../../../api/compras'
 import { getTaxes, type Tax } from '../../../api/impuestos'
+import { getAccounts, type Account } from '../../../api/catalogo'
 import LineItemsEditor, {
   type LineItem,
   newLineItem,
@@ -18,55 +24,115 @@ import LineItemsEditor, {
 } from '../../../components/DocumentForm/LineItemsEditor'
 import DocumentTotals from '../../../components/DocumentForm/DocumentTotals'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
-const fmt = (n: number) =>
-  `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+const fmt = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-interface VendorOption { value: string; label: string }
+const BILL_TYPES: { value: BillType; label: string }[] = [
+  { value: 'goods',         label: BILL_TYPE_CONFIG.goods.label         },
+  { value: 'services',      label: BILL_TYPE_CONFIG.services.label      },
+  { value: 'reimbursement', label: BILL_TYPE_CONFIG.reimbursement.label },
+  { value: 'special',       label: BILL_TYPE_CONFIG.special.label       },
+  { value: 'fuel',          label: BILL_TYPE_CONFIG.fuel.label          },
+]
+
+const PAYMENT_TERMS_OPTIONS = Object.entries(PAYMENT_TERMS_CONFIG).map(([v, l]) => ({ value: v, label: l }))
+
+const IDP_FUEL_OPTS = [
+  { value: 'super',   label: `Super (Q${IDP_RATES.super}/gal)`   },
+  { value: 'regular', label: `Regular (Q${IDP_RATES.regular}/gal)` },
+  { value: 'diesel',  label: `Diesel (Q${IDP_RATES.diesel}/gal)` },
+]
 
 export default function FacturaProveedorFormPage() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
   const [form] = Form.useForm()
 
-  const [items, setItems] = useState<LineItem[]>([newLineItem()])
-  const [taxes, setTaxes] = useState<Tax[]>([])
-  const [vendors, setVendors] = useState<VendorOption[]>([])
+  const [items, setItems]               = useState<LineItem[]>([newLineItem()])
+  const [taxes, setTaxes]               = useState<Tax[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string }[]>([])
+  const [accounts, setAccounts]         = useState<Account[]>([])
   const [loadingVendors, setLoadingVendors] = useState(false)
-  const [loading, setLoading] = useState(!!id)
-  const [saving, setSaving] = useState(false)
-  const [retentionAmount, setRetentionAmount] = useState<number>(0)
+  const [loading, setLoading]           = useState(!!id)
+  const [saving, setSaving]             = useState(false)
+  const [approving, setApproving]       = useState(false)
+  const [billStatus, setBillStatus]     = useState<string>('draft')
+
+  // Retention amounts (controlled outside form for live calculation)
+  const [isrAmount, setIsrAmount]       = useState(0)
+  const [ivaRetAmount, setIvaRetAmount] = useState(0)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // Watched form values
+  const invoiceType   = Form.useWatch('invoiceType',   form) as BillType   ?? 'goods'
+  const paymentTerms  = Form.useWatch('paymentTerms',  form) as PaymentTerms ?? 'immediate'
+  const fuelType      = Form.useWatch('fuelType',      form) as string     ?? 'super'
+  const invoiceDate   = Form.useWatch('invoiceDate',   form)
+  const customDays    = Form.useWatch('paymentTermsDays', form) as number
+  const watchCurr     = Form.useWatch('currency',      form) ?? 'GTQ'
+
+  // ── Load data ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     getTaxes()
       .then((res: any) => setTaxes(Array.isArray(res) ? res : (res?.data ?? [])))
-      .catch(() => message.error('No se pudieron cargar los impuestos'))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
-    fetchVendors('')
+    getAccounts({ limit: 200 })
+      .then((res: any) => {
+        const list: Account[] = Array.isArray(res) ? res : (res?.data ?? [])
+        setAccounts(list.filter(a => a.isActive && !a.isHeader))
+      })
+      .catch(() => {})
   }, [])
+
+  useEffect(() => { fetchVendors('') }, [])
 
   useEffect(() => {
     if (!id) return
     setLoading(true)
     getBill(id)
       .then((bill) => {
+        setBillStatus(bill.status)
         form.setFieldsValue({
-          vendorId: bill.vendorId,
-          invoiceDate: bill.invoiceDate ? dayjs(bill.invoiceDate) : undefined,
-          dueDate: bill.dueDate ? dayjs(bill.dueDate) : undefined,
-          currency: bill.currency ?? 'GTQ',
+          vendorId:            bill.vendorId,
+          invoiceType:         bill.invoiceType    ?? 'goods',
+          invoiceDate:         bill.invoiceDate ? dayjs(bill.invoiceDate) : undefined,
+          dueDate:             bill.dueDate    ? dayjs(bill.dueDate)    : undefined,
+          paymentTerms:        bill.paymentTerms   ?? 'immediate',
+          paymentTermsDays:    bill.paymentTermsDays,
+          currency:            bill.currency       ?? 'GTQ',
           vendorInvoiceNumber: bill.vendorInvoiceNumber ?? '',
+          accountId:           bill.accountId,
+          // FEL
+          felSerie:            bill.felSerie,
+          felNumber:           bill.felNumber,
+          felUuid:             bill.felUuid,
+          felAuthNumber:       bill.felAuthNumber,
+          felMessage:          bill.felMessage,
+          felCertDate:         bill.felCertDate ? dayjs(bill.felCertDate) : undefined,
+          // Reimbursement
+          employeeId:          bill.employeeId,
+          employeePayableAccountId: bill.employeePayableAccountId,
+          // IDP
+          fuelType:            undefined,
+          idpAccountId:        bill.idpAccountId,
+          // Notes
+          notes:               bill.notes,
         })
         if (bill.vendorId && bill.vendorName) {
-          setVendors([{ value: bill.vendorId, label: bill.vendorName }])
+          setVendors(prev => {
+            if (prev.find(v => v.value === bill.vendorId)) return prev
+            return [{ value: bill.vendorId, label: bill.vendorName }, ...prev]
+          })
         }
-        setRetentionAmount(Number(bill.retentionAmount ?? 0))
-        const loadedItems: LineItem[] = (bill.items ?? []).map((it) =>
+        setIsrAmount(Number(bill.isrRetentionAmount ?? 0))
+        setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
+        const loadedItems: LineItem[] = (bill.items ?? []).map(it =>
           newLineItem({
             _key: it.id ?? undefined,
             productId: it.productId,
@@ -87,12 +153,32 @@ export default function FacturaProveedorFormPage() {
       .finally(() => setLoading(false))
   }, [id, form])
 
+  // Auto-update due date when payment terms change
+  useEffect(() => {
+    if (!invoiceDate || paymentTerms === 'immediate') {
+      form.setFieldValue('dueDate', undefined)
+      return
+    }
+    const base = dayjs(invoiceDate)
+    const daysMap: Record<string, number> = {
+      net_15: 15, net_30: 30, net_60: 60, net_90: 90,
+    }
+    const days = daysMap[paymentTerms] ?? (paymentTerms === 'custom' ? (customDays ?? 30) : 0)
+    if (days > 0) form.setFieldValue('dueDate', base.add(days, 'day'))
+  }, [paymentTerms, invoiceDate, customDays, form])
+
+  // ── Vendor search ──────────────────────────────────────────────────────────
+
   const fetchVendors = useCallback((search: string) => {
     setLoadingVendors(true)
-    getVendors({ search, limit: 20 })
+    getVendors({ search, limit: 30 })
       .then((res: any) => {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
-        setVendors(list.map((v) => ({ value: v.id, label: v.name })))
+        setVendors(prev => {
+          const map = new Map(prev.map(v => [v.value, v]))
+          list.forEach(v => map.set(v.id, { value: v.id, label: v.name }))
+          return [...map.values()]
+        })
       })
       .catch(() => {})
       .finally(() => setLoadingVendors(false))
@@ -103,94 +189,160 @@ export default function FacturaProveedorFormPage() {
     debounceRef.current = setTimeout(() => fetchVendors(val), 300)
   }
 
+  // ── Totals ─────────────────────────────────────────────────────────────────
+
+  const totals = calcTotals(items)
+
+  // IDP calculation: total quantity of all lines × rate per fuel type
+  const totalQty    = items.reduce((s, it) => s + Number(it.quantity || 0), 0)
+  const idpRate     = IDP_RATES[fuelType] ?? 0
+  const idpAmount   = invoiceType === 'fuel' ? Math.round(totalQty * idpRate * 100) / 100 : 0
+
+  // For special invoices, IVA retention = taxAmount (buyer retains it)
+  const ivaRetForSpecial = invoiceType === 'special' ? totals.taxAmount : ivaRetAmount
+  const totalRetention   = isrAmount + (invoiceType === 'special' ? ivaRetForSpecial : ivaRetAmount)
+  const netPayable       = Math.round((totals.total + idpAmount - totalRetention) * 100) / 100
+
+  // ── Account options ────────────────────────────────────────────────────────
+
+  const expenseAccounts = accounts.filter(a =>
+    a.type === 'expense' || a.type === 'asset'
+  ).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))
+
+  const allAccounts = accounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))
+
+  // ── Save ───────────────────────────────────────────────────────────────────
+
   const buildDto = (status: string) => {
     const vals = form.getFieldsValue()
-    const lineItems = items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, accountId, projectId }) => ({
-      productId,
-      description,
-      unit,
-      quantity,
-      unitPrice,
-      discountPercent,
-      taxPercent,
-      taxId,
-      accountId,
-      projectId,
+    const lineItems = items.map(it => ({
+      productId: it.productId,
+      description: it.description,
+      unit: it.unit,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
+      discountPercent: it.discountPercent,
+      taxPercent: it.taxPercent,
+      taxId: it.taxId,
+      accountId: it.accountId,
+      projectId: it.projectId,
     }))
+    const isReimbursement = vals.invoiceType === 'reimbursement'
     return {
-      vendorId: vals.vendorId,
-      invoiceDate: vals.invoiceDate ? vals.invoiceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
-      dueDate: vals.dueDate ? vals.dueDate.format('YYYY-MM-DD') : undefined,
-      currency: vals.currency ?? 'GTQ',
+      vendorId:            vals.vendorId,
+      invoiceDate:         vals.invoiceDate ? vals.invoiceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+      dueDate:             vals.dueDate ? vals.dueDate.format('YYYY-MM-DD') : undefined,
+      currency:            vals.currency ?? 'GTQ',
+      invoiceType:         vals.invoiceType ?? 'goods',
+      paymentTerms:        vals.paymentTerms ?? 'immediate',
+      paymentTermsDays:    vals.paymentTerms === 'custom' ? vals.paymentTermsDays : undefined,
       vendorInvoiceNumber: vals.vendorInvoiceNumber || undefined,
-      retentionAmount: retentionAmount || 0,
+      accountId:           vals.accountId,
+      // FEL
+      felSerie:            vals.felSerie   || undefined,
+      felNumber:           vals.felNumber  || undefined,
+      felUuid:             vals.felUuid    || undefined,
+      felAuthNumber:       vals.felAuthNumber || undefined,
+      felMessage:          vals.felMessage   || undefined,
+      felCertDate:         vals.felCertDate ? vals.felCertDate.toISOString() : undefined,
+      // Retenciones
+      isrRetentionAmount:  isrAmount,
+      ivaRetentionAmount:  invoiceType === 'special' ? totals.taxAmount : ivaRetAmount,
+      // Reembolso
+      isExpenseReimbursement: isReimbursement,
+      employeeId:          isReimbursement ? vals.employeeId : undefined,
+      employeeName:        isReimbursement
+        ? vendors.find(v => v.value === vals.employeeId)?.label
+        : undefined,
+      employeePayableAccountId: isReimbursement ? vals.employeePayableAccountId : undefined,
+      // IDP
+      idpAmount:           idpAmount,
+      idpAccountId:        vals.invoiceType === 'fuel' ? vals.idpAccountId : undefined,
       status,
+      notes: vals.notes,
       items: lineItems,
     }
   }
 
   const handleSave = async (asDraft: boolean) => {
-    try {
-      await form.validateFields(['vendorId', 'invoiceDate'])
-    } catch {
-      return
-    }
+    try { await form.validateFields(['vendorId', 'invoiceDate']) } catch { return }
     setSaving(true)
     try {
-      const dto = buildDto(asDraft ? 'draft' : 'open')
+      const dto  = buildDto(asDraft ? 'draft' : 'draft')
       let result: any
       if (id) {
         result = await updateBill(id, dto as any)
       } else {
         result = await createBill(dto as any)
       }
-      message.success(asDraft ? 'Borrador guardado' : 'Factura registrada')
+      message.success(asDraft ? 'Borrador guardado' : 'Factura guardada')
       navigate(`/compras/facturas/${result.id}`)
     } catch (err: any) {
-      message.error(err?.response?.data?.message ?? 'Error al guardar la factura')
+      message.error(err?.response?.data?.message ?? 'Error al guardar')
     } finally {
       setSaving(false)
     }
   }
 
-  const totals      = calcTotals(items)
-  const watchCurr   = Form.useWatch('currency', form) ?? 'GTQ'
-  const netTotal    = Math.round((totals.total - retentionAmount) * 100) / 100
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-        <Spin size="large" tip="Cargando factura…" />
-      </div>
-    )
+  const handleApprove = async () => {
+    if (!id) return
+    setApproving(true)
+    try {
+      // Save latest changes first
+      const dto = buildDto('draft')
+      await updateBill(id, dto as any)
+      // Then approve
+      await approveBill(id)
+      message.success('Factura aprobada — asiento contable generado')
+      navigate(`/compras/facturas`)
+    } catch (err: any) {
+      message.error(err?.response?.data?.message ?? 'Error al aprobar')
+    } finally {
+      setApproving(false)
+    }
   }
 
+  const canApprove = !!id && ['draft', 'pending_approval'].includes(billStatus)
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+      <Spin size="large" />
+    </div>
+  )
+
   return (
-    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ padding: 24, background: '#f5f5f5', minHeight: '100vh' }}>
       <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
           { title: <Link to="/"><HomeOutlined /></Link> },
           { title: <Link to="/compras/facturas">Facturas Proveedor</Link> },
-          { title: id ? 'Editar Factura' : 'Nueva Factura Proveedor' },
+          { title: id ? 'Editar' : 'Nueva Factura Proveedor' },
         ]}
       />
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-        {/* LEFT COLUMN */}
+
+        {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Header fields */}
-          <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>{id ? 'Editar Factura Proveedor' : 'Nueva Factura Proveedor'}</span>}>
-            <Form form={form} layout="vertical" initialValues={{ currency: 'GTQ' }}>
+
+          {/* Header */}
+          <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>
+            {id ? 'Editar Factura Proveedor' : 'Nueva Factura Proveedor'}
+          </span>}>
+            <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceType: 'goods', paymentTerms: 'immediate' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                <Form.Item
-                  name="vendorId"
-                  label="Proveedor"
-                  rules={[{ required: true, message: 'Seleccione un proveedor' }]}
-                >
+
+                <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]}>
+                  <Select options={BILL_TYPES} />
+                </Form.Item>
+
+                <Form.Item name="vendorId" label="Proveedor / Empleado" rules={[{ required: true, message: 'Seleccione un proveedor' }]}>
                   <Select
                     showSearch
-                    placeholder="Buscar proveedor…"
+                    placeholder="Buscar…"
                     filterOption={false}
                     loading={loadingVendors}
                     onSearch={handleVendorSearch}
@@ -199,19 +351,29 @@ export default function FacturaProveedorFormPage() {
                   />
                 </Form.Item>
 
-                <Form.Item name="vendorInvoiceNumber" label="No. Factura Proveedor">
-                  <Input placeholder="Ej. F001-000123" />
+                <Form.Item name="vendorInvoiceNumber" label="No. Factura del Proveedor">
+                  <Input placeholder="F001-000123" />
                 </Form.Item>
 
-                <Form.Item
-                  name="invoiceDate"
-                  label="Fecha de Factura"
-                  rules={[{ required: true, message: 'Ingrese la fecha' }]}
-                >
+                <Form.Item name="accountId" label="Cuenta de gasto / activo">
+                  <Select showSearch placeholder="Seleccionar cuenta…" filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())} options={expenseAccounts} allowClear />
+                </Form.Item>
+
+                <Form.Item name="invoiceDate" label="Fecha de factura" rules={[{ required: true, message: 'Ingrese la fecha' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
 
-                <Form.Item name="dueDate" label="Fecha de Vencimiento">
+                <Form.Item name="paymentTerms" label="Términos de pago">
+                  <Select options={PAYMENT_TERMS_OPTIONS} />
+                </Form.Item>
+
+                {paymentTerms === 'custom' && (
+                  <Form.Item name="paymentTermsDays" label="Días de crédito">
+                    <InputNumber min={1} max={365} style={{ width: '100%' }} />
+                  </Form.Item>
+                )}
+
+                <Form.Item name="dueDate" label="Fecha de vencimiento">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
 
@@ -225,28 +387,145 @@ export default function FacturaProveedorFormPage() {
             </Form>
           </Card>
 
-          {/* Line Items */}
+          {/* FEL — always visible */}
+          <Card
+            title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>FEL — Factura Electrónica SAT</span>}
+            styles={{ body: { paddingBottom: 4 } }}
+          >
+            <Form form={form} layout="vertical" size="small">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 12px' }}>
+                <Form.Item name="felSerie"      label="Serie FEL">       <Input placeholder="A" /> </Form.Item>
+                <Form.Item name="felNumber"     label="Número SAT">      <Input placeholder="00001" /> </Form.Item>
+                <Form.Item name="felUuid"       label="UUID" style={{ gridColumn: 'span 2' }}>
+                  <Input placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </Form.Item>
+                <Form.Item name="felAuthNumber" label="Autorización SAT" style={{ gridColumn: 'span 2' }}>
+                  <Input placeholder="Número de autorización" />
+                </Form.Item>
+                <Form.Item name="felCertDate"   label="Fecha certificación">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" showTime />
+                </Form.Item>
+                <Form.Item name="felMessage"    label="Mensaje SAT">
+                  <Input placeholder="Ej. CERTIFICADA" />
+                </Form.Item>
+              </div>
+            </Form>
+          </Card>
+
+          {/* Reemboolso — solo si type = reimbursement */}
+          {invoiceType === 'reimbursement' && (
+            <Card title={<span style={{ color: '#7c3aed', fontWeight: 600 }}>Reembolso de Gastos</span>}>
+              <Form form={form} layout="vertical" size="small">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                  <Form.Item name="employeeId" label="Empleado (mismo que proveedor)">
+                    <Select
+                      showSearch placeholder="Seleccionar empleado…"
+                      filterOption={false}
+                      loading={loadingVendors}
+                      onSearch={handleVendorSearch}
+                      options={vendors}
+                      notFoundContent={loadingVendors ? 'Buscando…' : 'Sin resultados'}
+                      onChange={(v) => form.setFieldValue('vendorId', v)}
+                    />
+                  </Form.Item>
+                  <Form.Item name="employeePayableAccountId" label="Cuenta puente empleado">
+                    <Select showSearch placeholder="Cuenta transitoria…" filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())} options={allAccounts} allowClear />
+                  </Form.Item>
+                </div>
+                <div style={{ padding: '8px 12px', background: '#f5f0ff', borderRadius: 8, fontSize: 12, color: '#6b21a8' }}>
+                  El reembolso se registra como deuda con el empleado en la cuenta puente, no como CxP proveedor.
+                </div>
+              </Form>
+            </Card>
+          )}
+
+          {/* Line items */}
           <Card title="Líneas de Factura" styles={{ body: { padding: '12px 16px' } }}>
-            <LineItemsEditor
-              items={items}
-              taxes={taxes}
-              onChange={setItems}
-              docType="bill"
-            />
+            <LineItemsEditor items={items} taxes={taxes} onChange={setItems} docType="bill" />
           </Card>
 
           {/* Notes */}
           <Card title="Notas">
-            <Form form={form} layout="vertical">
-              <Form.Item name="notes" label="Notas internas">
+            <Form form={form} layout="vertical" size="small">
+              <Form.Item name="notes">
                 <Input.TextArea rows={3} placeholder="Notas internas sobre esta factura…" />
               </Form.Item>
             </Form>
           </Card>
         </div>
 
-        {/* RIGHT COLUMN */}
+        {/* ── RIGHT COLUMN ────────────────────────────────────────────────── */}
         <div style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* IDP — solo si fuel */}
+          {invoiceType === 'fuel' && (
+            <Card title={<span style={{ color: '#d97706', fontWeight: 600 }}>IDP — Combustible</span>}>
+              <Form form={form} layout="vertical" size="small">
+                <Form.Item name="fuelType" label="Tipo de combustible" initialValue="super">
+                  <Select options={IDP_FUEL_OPTS} />
+                </Form.Item>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Total galones (sum. líneas)</Text>
+                  <Text style={{ fontSize: 13, fontWeight: 600 }}>{fmt(totalQty)}</Text>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>IDP calculado</Text>
+                  <Text style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>Q {fmt(idpAmount)}</Text>
+                </div>
+                <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar">
+                  <Select showSearch placeholder="Ej. 1106 — IDP por Acreditar" filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())} options={allAccounts} allowClear />
+                </Form.Item>
+              </Form>
+            </Card>
+          )}
+
+          {/* Retenciones — solo si special */}
+          {invoiceType === 'special' && (
+            <Card title={<span style={{ color: '#dc2626', fontWeight: 600 }}>Retenciones (Factura Especial)</span>}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>IVA Retenido (12%)</Text>
+                <Text style={{ fontSize: 13, fontWeight: 600, color: '#dc2626' }}>Q {fmt(totals.taxAmount)}</Text>
+              </div>
+              <Divider style={{ margin: '8px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>ISR Retención</Text>
+                <InputNumber
+                  size="small" min={0} step={0.01} prefix="Q"
+                  value={isrAmount}
+                  onChange={(v) => setIsrAmount(v ?? 0)}
+                  style={{ width: 110 }}
+                />
+              </div>
+              <div style={{ marginTop: 10, padding: '6px 10px', background: '#fef2f2', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>
+                Total retenido: Q {fmt(totals.taxAmount + isrAmount)} — neto a proveedor: Q {fmt(totals.subtotal - isrAmount)}
+              </div>
+            </Card>
+          )}
+
+          {/* Para otros tipos con ISR manual */}
+          {invoiceType !== 'special' && (
+            <Card title="Retenciones" styles={{ body: { padding: '12px 16px' } }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Retención ISR</Text>
+                <InputNumber
+                  size="small" min={0} step={0.01} prefix="Q"
+                  value={isrAmount}
+                  onChange={(v) => setIsrAmount(v ?? 0)}
+                  style={{ width: 110 }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Retención IVA</Text>
+                <InputNumber
+                  size="small" min={0} step={0.01} prefix="Q"
+                  value={ivaRetAmount}
+                  onChange={(v) => setIvaRetAmount(v ?? 0)}
+                  style={{ width: 110 }}
+                />
+              </div>
+            </Card>
+          )}
+
           {/* Totals */}
           <Card title="Resumen" styles={{ body: { padding: '16px' } }}>
             <DocumentTotals
@@ -257,61 +536,77 @@ export default function FacturaProveedorFormPage() {
               taxBreakdown={totals.taxBreakdown}
               currency={watchCurr}
             />
-            <div style={{ marginTop: 12, padding: '10px 0', borderTop: '1px solid #f0f0f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, color: '#8c8c8c' }}>Retención ISR</Text>
-                <InputNumber
-                  size="small"
-                  min={0}
-                  step={0.01}
-                  prefix="Q"
-                  value={retentionAmount}
-                  onChange={(v) => setRetentionAmount(v ?? 0)}
-                  style={{ width: 120 }}
-                />
+            {idpAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px dashed #e5e7eb' }}>
+                <Text style={{ fontSize: 12, color: '#d97706' }}>IDP Combustible</Text>
+                <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>Q {fmt(idpAmount)}</Text>
               </div>
-              {retentionAmount > 0 && (
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  marginTop: 10, background: '#fff7e6', borderRadius: 6,
-                  padding: '8px 12px', border: '1px solid #ffd591',
-                }}>
-                  <Text style={{ fontSize: 13, fontWeight: 600, color: '#d46b08' }}>Neto a Pagar</Text>
-                  <Text style={{ fontSize: 15, fontWeight: 700, color: '#d46b08' }}>
-                    {watchCurr} {netTotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-                  </Text>
-                </div>
-              )}
-            </div>
+            )}
+            {totalRetention > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px dashed #e5e7eb' }}>
+                <Text style={{ fontSize: 12, color: '#dc2626' }}>Retenciones</Text>
+                <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>- Q {fmt(totalRetention)}</Text>
+              </div>
+            )}
+            {(totalRetention > 0 || idpAmount > 0) && (
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                marginTop: 8, background: '#fff7e6', borderRadius: 6,
+                padding: '8px 12px', border: '1px solid #ffd591',
+              }}>
+                <Text style={{ fontSize: 13, fontWeight: 600, color: '#d46b08' }}>Neto a Pagar</Text>
+                <Text style={{ fontSize: 15, fontWeight: 700, color: '#d46b08' }}>
+                  {watchCurr} {fmt(netPayable)}
+                </Text>
+              </div>
+            )}
           </Card>
 
           {/* Actions */}
           <Card title="Acciones">
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
               <Button
-                block
-                icon={<SaveOutlined />}
-                loading={saving}
+                block icon={<SaveOutlined />} loading={saving}
                 onClick={() => handleSave(true)}
                 style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
               >
                 Guardar borrador
               </Button>
               <Button
-                block
-                type="primary"
-                icon={<CheckOutlined />}
-                loading={saving}
+                block type="primary" icon={<CheckOutlined />} loading={saving}
                 onClick={() => handleSave(false)}
-                style={{ background: '#1B3A6B', borderColor: '#1B3A6B' }}
               >
-                Registrar factura
+                Guardar cambios
               </Button>
-            </Space>
+              {canApprove && (
+                <>
+                  <Divider style={{ margin: '4px 0' }} />
+                  <Button
+                    block type="primary" icon={<ThunderboltOutlined />} loading={approving}
+                    onClick={handleApprove}
+                    style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                  >
+                    Aprobar y generar asiento
+                  </Button>
+                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+                    Genera póliza contable automática (CxP + IVA CF)
+                  </div>
+                </>
+              )}
+              {billStatus && (
+                <Tag color={
+                  billStatus === 'paid' ? 'green' :
+                  billStatus === 'voided' ? 'volcano' :
+                  billStatus === 'pending_approval' ? 'purple' :
+                  billStatus === 'open' ? 'orange' : 'default'
+                } style={{ width: '100%', textAlign: 'center', marginTop: 4 }}>
+                  Estado: {billStatus === 'pending_approval' ? 'Pendiente aprobación' : billStatus}
+                </Tag>
+              )}
+            </div>
           </Card>
         </div>
       </div>
     </div>
   )
 }
-

@@ -36,6 +36,8 @@ const ProveedoresPage          = lazy(() => import('./pages/compras/proveedores/
 const ProveedorFormPage        = lazy(() => import('./pages/compras/proveedores/ProveedorFormPage'))
 const FacturasProveedorPage    = lazy(() => import('./pages/compras/facturas/FacturasProveedorPage'))
 const FacturaProveedorFormPage = lazy(() => import('./pages/compras/facturas/FacturaProveedorFormPage'))
+const ApAgingPage              = lazy(() => import('./pages/compras/reportes/ApAgingPage'))
+const LibroComprasPage         = lazy(() => import('./pages/compras/reportes/LibroComprasPage'))
 const OrdenesCompraPage        = lazy(() => import('./pages/compras/ordenes/OrdenesCompraPage'))
 const OrdenCompraFormPage      = lazy(() => import('./pages/compras/ordenes/OrdenCompraFormPage'))
 
@@ -143,7 +145,9 @@ export default function App() {
           <Route path="compras/facturas"            element={<FacturasProveedorPage />} />
           <Route path="compras/facturas/nueva"      element={<FacturaProveedorFormPage />} />
           <Route path="compras/facturas/:id"        element={<FacturaProveedorFormPage />} />
-          <Route path="compras/facturas/:id/editar" element={<FacturaProveedorFormPage />} />
+          <Route path="compras/facturas/:id/editar"         element={<FacturaProveedorFormPage />} />
+          <Route path="compras/reportes/ap-aging"           element={<ApAgingPage />} />
+          <Route path="compras/reportes/libro-compras"      element={<LibroComprasPage />} />
 
           <Route path="compras/ordenes"             element={<OrdenesCompraPage />} />
           <Route path="compras/ordenes/nueva"       element={<OrdenCompraFormPage />} />

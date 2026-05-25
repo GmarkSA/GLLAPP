@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(*)",
+      "Bash(node *)",
+      "Read(C:\\Users\\l_cha\\contaerp-backend\\scripts\\*)",
+      "Write(C:\\Users\\l_cha\\contaerp-backend\\scripts\\*)"
+    ]
+  }
+}

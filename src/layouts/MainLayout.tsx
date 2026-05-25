@@ -24,10 +24,12 @@ const menuItems = [
     { key: '/ventas/pagos-recibidos', label: 'Pagos recibidos' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [
-    { key: '/compras/proveedores', label: 'Proveedores' },
-    { key: '/compras/facturas',    label: 'Facturas proveedor' },
-    { key: '/compras/ordenes',     label: 'Órdenes de compra' },
-    { key: '/compras/gastos',      label: 'Gastos' },
+    { key: '/compras/proveedores',         label: 'Proveedores' },
+    { key: '/compras/facturas',            label: 'Facturas proveedor' },
+    { key: '/compras/ordenes',             label: 'Órdenes de compra' },
+    { key: '/compras/gastos',              label: 'Gastos' },
+    { key: '/compras/reportes/ap-aging',   label: 'AP Aging (CxP)' },
+    { key: '/compras/reportes/libro-compras', label: 'Libro de Compras' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
     { key: '/bancos',       label: 'Cuentas bancarias' },
