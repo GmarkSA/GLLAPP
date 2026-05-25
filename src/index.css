@@ -1,27 +1,96 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap');
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: #f5f6fa;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  background: #f0f2f7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  width: 100%;
-  min-height: 100vh;
+#root { width: 100%; min-height: 100vh; }
+
+/* Scrollbar refinada */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+
+/* Layout base */
+.ant-layout { background: #f0f2f7 !important; }
+
+/* Cards con sombra suave tipo Apple */
+.ant-card {
+  border-radius: 14px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04) !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  transition: box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.06) !important;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f1f1; }
-::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+/* Botón primario con gradiente */
+.ant-btn-primary {
+  background: linear-gradient(135deg, #1B3A6B 0%, #2d5fa6 100%) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(27,58,107,0.35) !important;
+  transition: all 0.2s ease !important;
+}
+.ant-btn-primary:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(27,58,107,0.4) !important;
+}
 
-.ant-layout { background: #f5f6fa !important; }
+/* Inputs más refinados */
+.ant-input, .ant-input-affix-wrapper,
+.ant-select-selector, .ant-picker {
+  border-radius: 10px !important;
+  border-color: rgba(0,0,0,0.1) !important;
+  transition: all 0.2s ease !important;
+}
+.ant-input:focus, .ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  box-shadow: 0 0 0 3px rgba(27,58,107,0.12) !important;
+}
+
+/* Tabla más limpia */
+.ant-table { border-radius: 12px !important; overflow: hidden; }
+.ant-table-thead > tr > th {
+  background: #f8f9fc !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.03em !important;
+  color: #6b7280 !important;
+  text-transform: uppercase !important;
+}
+.ant-table-tbody > tr:hover > td {
+  background: #f5f7ff !important;
+}
+
+/* Tags más pill */
+.ant-tag { border-radius: 20px !important; font-weight: 500 !important; }
+
+/* Modal con bordes redondeados */
+.ant-modal-content { border-radius: 18px !important; overflow: hidden; }
+
+/* Animación fade para page transitions */
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-transition { animation: pageFadeIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+
+/* Print styles */
+@media print {
+  .ant-layout-sider, .ant-layout-header, button, .ant-alert-action { display: none !important; }
+  .ant-layout { margin-left: 0 !important; background: #fff !important; }
+  .ant-layout-content { padding: 0 !important; }
+  #report-print-area { font-family: 'Arial', sans-serif !important; color: #000 !important; }
+  .ant-card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; }
+  .ant-table { font-size: 10px !important; }
+}
 
 /* ── Print styles (ventana principal — para reportes financieros legacy) ──── */
 @media print {

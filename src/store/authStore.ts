@@ -7,6 +7,7 @@ interface User {
   firstName: string
   lastName: string
   tenantIds: string[]
+  isSuperAdmin?: boolean
 }
 
 interface AuthState {
