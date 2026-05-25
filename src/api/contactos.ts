@@ -73,9 +73,10 @@ export interface Customer {
 }
 
 export interface Vendor extends Omit<Customer, 'customerNumber' | 'receivableAccountId' | 'incomeAccountId' | 'shippingAddress' | 'creditLimit'> {
-  vendorNumber?:      string
-  payableAccountId?:  string
-  expenseAccountId?:  string
+  vendorNumber?:         string
+  payableAccountId?:     string
+  expenseAccountId?:     string
+  defaultPurchaseTaxId?: string
   bankAccount?: {
     bankName?: string
     accountNumber?: string

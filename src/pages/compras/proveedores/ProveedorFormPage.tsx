@@ -494,7 +494,7 @@ export default function ProveedorFormPage() {
                       </Col>
                     </Row>
 
-                    <Divider titlePlacement="left">Cuentas contables</Divider>
+                    <Divider titlePlacement="left">Cuentas contables e impuesto</Divider>
                     <Row gutter={16}>
                       <Col xs={24} md={12}>
                         <Form.Item
@@ -517,6 +517,22 @@ export default function ProveedorFormPage() {
                           <AccountSelect
                             filter={{ balanceType: 'Gastos' }}
                             placeholder="Buscar cuenta de gastos..."
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          name="defaultPurchaseTaxId"
+                          label="Impuesto de compra por defecto"
+                          tooltip="Al agregar un artículo en una orden de compra o factura proveedor, se aplicará automáticamente este impuesto. Si no se configura, se usa el impuesto del artículo."
+                        >
+                          <Select
+                            placeholder="Seleccionar impuesto…"
+                            allowClear
+                            options={taxes.map((t: Tax) => ({
+                              value: t.id,
+                              label: `${t.name} (${Number(t.rate)}%)`,
+                            }))}
                           />
                         </Form.Item>
                       </Col>

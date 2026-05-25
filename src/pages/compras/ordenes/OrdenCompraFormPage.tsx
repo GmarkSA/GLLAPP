@@ -25,7 +25,7 @@ import LineItemsEditor, {
 } from '../../../components/DocumentForm/LineItemsEditor'
 import DocumentTotals from '../../../components/DocumentForm/DocumentTotals'
 
-interface VendorOption { value: string; label: string }
+interface VendorOption { value: string; label: string; defaultPurchaseTaxId?: string }
 
 export default function OrdenCompraFormPage() {
   const { id } = useParams<{ id?: string }>()
@@ -42,8 +42,9 @@ export default function OrdenCompraFormPage() {
   const [converting, setConverting]     = useState(false)
   const [deleting, setDeleting]         = useState(false)
   const [poStatus, setPoStatus]         = useState<POStatus | null>(null)
-  const [vendorId, setVendorId]         = useState<string | undefined>()
-  const [vendorName, setVendorName]     = useState<string | undefined>()
+  const [vendorId, setVendorId]                 = useState<string | undefined>()
+  const [vendorName, setVendorName]             = useState<string | undefined>()
+  const [vendorDefaultTaxId, setVendorDefaultTaxId] = useState<string | undefined>()
   const [emailModal, setEmailModal]     = useState(false)
   const [emailTo, setEmailTo]           = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -57,6 +58,13 @@ export default function OrdenCompraFormPage() {
   }, [])
 
   useEffect(() => { fetchVendors('') }, [])
+
+  // Cuando la lista de vendors llega (o cuando cambia el vendorId), sincroniza el impuesto
+  useEffect(() => {
+    if (!vendorId) return
+    const found = vendors.find(v => v.value === vendorId)
+    if (found) setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+  }, [vendors, vendorId])
 
   useEffect(() => {
     if (!id) return
@@ -73,7 +81,10 @@ export default function OrdenCompraFormPage() {
           notes: po.notes ?? '',
         })
         if (po.vendorId && po.vendorName) {
-          setVendors([{ value: po.vendorId, label: po.vendorName }])
+          setVendors(prev => {
+            if (prev.find(v => v.value === po.vendorId)) return prev
+            return [{ value: po.vendorId, label: po.vendorName }, ...prev]
+          })
         }
         const loadedItems: LineItem[] = (po.items ?? []).map((it) =>
           newLineItem({
@@ -101,7 +112,16 @@ export default function OrdenCompraFormPage() {
     getVendors({ search, limit: 20 })
       .then((res: any) => {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
-        setVendors(list.map((v) => ({ value: v.id, label: v.name })))
+        setVendors(prev => {
+          // Conservar proveedores ya seleccionados (con su defaultPurchaseTaxId)
+          const keepMap = new Map(prev.map(v => [v.value, v]))
+          list.forEach((v: any) => keepMap.set(v.id, {
+            value: v.id,
+            label: v.name,
+            defaultPurchaseTaxId: v.defaultPurchaseTaxId ?? undefined,
+          }))
+          return [...keepMap.values()]
+        })
       })
       .catch(() => {})
       .finally(() => setLoadingVendors(false))
@@ -260,8 +280,10 @@ export default function OrdenCompraFormPage() {
                     options={vendors}
                     notFoundContent={loadingVendors ? 'Buscando…' : 'Sin resultados'}
                     onChange={(v) => {
+                      const selected = vendors.find(vn => vn.value === v)
                       setVendorId(v)
-                      setVendorName(vendors.find(vn => vn.value === v)?.label)
+                      setVendorName(selected?.label)
+                      setVendorDefaultTaxId(selected?.defaultPurchaseTaxId)
                     }}
                     disabled={!isEditable}
                   />
@@ -290,6 +312,7 @@ export default function OrdenCompraFormPage() {
               taxes={taxes}
               onChange={setItems}
               docType="po"
+              vendorDefaultTaxId={vendorDefaultTaxId}
             />
           </Card>
 

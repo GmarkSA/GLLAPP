@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, memo } from 'react'
 import {
-  Table, Button, Input, InputNumber, Select, Tooltip, Tag, Typography,
+  Table, Button, Input, InputNumber, Select, Tooltip, Tag, Typography, message,
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, SearchOutlined, WarningOutlined, SwapOutlined,
@@ -109,6 +109,8 @@ interface Props {
   onChange: (items: LineItem[]) => void
   readOnly?: boolean
   docType?: 'invoice' | 'estimate' | 'bill' | 'po'
+  /** ID del impuesto por defecto configurado en el proveedor (solo po/bill) */
+  vendorDefaultTaxId?: string
 }
 
 /** Input de celda con estado local + debounce — evita pérdida de foco Y mantiene padre sincronizado */
@@ -214,7 +216,7 @@ const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix,
   )
 })
 
-export default function LineItemsEditor({ items, taxes, onChange, readOnly, docType = 'invoice' }: Props) {
+export default function LineItemsEditor({ items, taxes, onChange, readOnly, docType = 'invoice', vendorDefaultTaxId }: Props) {
   const [prodOptions, setProdOptions]     = useState<ProdOption[]>([])
   const [searching,   setSearching]       = useState(false)
   const [initialized, setInitialized]     = useState(false)
@@ -369,17 +371,52 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     const opt = prodOptions.find(o => o.value === productId)
     if (!opt) return
     const p = opt.product
-    const defaultTax = taxes.find(t => t.isDefault && t.isActive)
+    const isPurchase = docType === 'po' || docType === 'bill'
+
+    // ── Tax resolution ─────────────────────────────────────────────────────
+    let resolvedTax: Tax | undefined
+
+    if (isPurchase) {
+      // 1. Impuesto configurado en el proveedor
+      if (vendorDefaultTaxId) {
+        resolvedTax = taxes.find(t => t.id === vendorDefaultTaxId && t.isActive)
+      }
+      // 2. Impuesto configurado en el artículo (compras)
+      if (!resolvedTax && p.purchaseTaxId) {
+        resolvedTax = taxes.find(t => t.id === p.purchaseTaxId && t.isActive)
+      }
+      // 3. Impuesto global por defecto (fallback)
+      if (!resolvedTax) {
+        resolvedTax = taxes.find(t => t.isDefault && t.isActive) ?? taxes.find(t => t.isActive)
+      }
+      // Avisar si ni el proveedor ni el artículo tenían impuesto definido
+      if (!vendorDefaultTaxId && !p.purchaseTaxId) {
+        message.warning(
+          `"${p.name}" no tiene impuesto de compra configurado — se aplicó el impuesto por defecto. ` +
+          `Configúralo en el artículo o en el proveedor para evitar este aviso.`,
+          6,
+        )
+      }
+    } else {
+      // Ventas: impuesto del artículo → global por defecto
+      if (p.salesTaxId) {
+        resolvedTax = taxes.find(t => t.id === p.salesTaxId && t.isActive)
+      }
+      if (!resolvedTax) {
+        resolvedTax = taxes.find(t => t.isDefault && t.isActive) ?? taxes.find(t => t.isActive)
+      }
+    }
+
     update(key, {
       productId,
       description:     p.description || p.name,
       unit:            p.unit,
-      unitPrice:       Number(p.salesPrice ?? 0),
-      taxPercent:      defaultTax ? Number(defaultTax.rate) : 12,
-      taxId:           defaultTax?.id,
-      taxName:         defaultTax?.name,
-      taxInclusive:    defaultTax?.isInclusive ?? true,
-      accountId:       p.salesAccountId ?? undefined,
+      unitPrice:       Number(isPurchase ? (p.purchasePrice ?? p.salesPrice ?? 0) : (p.salesPrice ?? 0)),
+      taxPercent:      resolvedTax ? Number(resolvedTax.rate) : 12,
+      taxId:           resolvedTax?.id,
+      taxName:         resolvedTax?.name,
+      taxInclusive:    resolvedTax?.isInclusive ?? true,
+      accountId:       isPurchase ? (p.purchaseAccountId ?? undefined) : (p.salesAccountId ?? undefined),
       stockOnHand:     Number(p.stockOnHand ?? 0),
       isInventoriable: p.isInventoriable ?? false,
     })

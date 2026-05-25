@@ -113,6 +113,7 @@ export interface Expense {
 export interface Vendor {
   id: string; code?: string; name: string; tradeName?: string
   taxId?: string; email?: string; phone?: string; isActive: boolean
+  defaultPurchaseTaxId?: string
 }
 
 // ─── AP Aging ────────────────────────────────────────────────────────────────

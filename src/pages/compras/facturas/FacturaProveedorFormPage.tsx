@@ -54,14 +54,15 @@ export default function FacturaProveedorFormPage() {
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
   const [taxes, setTaxes]               = useState<Tax[]>([])
-  const [vendors, setVendors]           = useState<{ value: string; label: string }[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string; defaultPurchaseTaxId?: string }[]>([])
   const [accounts, setAccounts]         = useState<Account[]>([])
   const [loadingVendors, setLoadingVendors] = useState(false)
   const [loading, setLoading]           = useState(!!id)
   const [saving, setSaving]             = useState(false)
   const [approving, setApproving]       = useState(false)
-  const [billStatus, setBillStatus]     = useState<string>('draft')
-  const [purchaseOrderId, setPurchaseOrderId] = useState<string | undefined>(fromPO?.purchaseOrderId)
+  const [billStatus, setBillStatus]         = useState<string>('draft')
+  const [purchaseOrderId, setPurchaseOrderId]         = useState<string | undefined>(fromPO?.purchaseOrderId)
+  const [vendorDefaultTaxId, setVendorDefaultTaxId]   = useState<string | undefined>()
 
   // Retention amounts (controlled outside form for live calculation)
   const [isrAmount, setIsrAmount]       = useState(0)
@@ -76,6 +77,7 @@ export default function FacturaProveedorFormPage() {
   const invoiceDate   = Form.useWatch('invoiceDate',   form)
   const customDays    = Form.useWatch('paymentTermsDays', form) as number
   const watchCurr     = Form.useWatch('currency',      form) ?? 'GTQ'
+  const watchVendorId = Form.useWatch('vendorId',      form) as string | undefined
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
@@ -201,6 +203,13 @@ export default function FacturaProveedorFormPage() {
     if (days > 0) form.setFieldValue('dueDate', base.add(days, 'day'))
   }, [paymentTerms, invoiceDate, customDays, form])
 
+  // Sincroniza impuesto por defecto del proveedor cuando llega la lista o cambia el vendorId
+  useEffect(() => {
+    if (!watchVendorId) return
+    const found = vendors.find(v => v.value === watchVendorId)
+    if (found) setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+  }, [vendors, watchVendorId])
+
   // ── Vendor search ──────────────────────────────────────────────────────────
 
   const fetchVendors = useCallback((search: string) => {
@@ -210,7 +219,11 @@ export default function FacturaProveedorFormPage() {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
         setVendors(prev => {
           const map = new Map(prev.map(v => [v.value, v]))
-          list.forEach(v => map.set(v.id, { value: v.id, label: v.name }))
+          list.forEach((v: any) => map.set(v.id, {
+            value: v.id,
+            label: v.name,
+            defaultPurchaseTaxId: v.defaultPurchaseTaxId ?? undefined,
+          }))
           return [...map.values()]
         })
       })
@@ -488,7 +501,7 @@ export default function FacturaProveedorFormPage() {
 
           {/* Line items */}
           <Card title="Líneas de Factura" styles={{ body: { padding: '12px 16px' } }}>
-            <LineItemsEditor items={items} taxes={taxes} onChange={setItems} docType="bill" />
+            <LineItemsEditor items={items} taxes={taxes} onChange={setItems} docType="bill" vendorDefaultTaxId={vendorDefaultTaxId} />
           </Card>
 
           {/* Notes */}
