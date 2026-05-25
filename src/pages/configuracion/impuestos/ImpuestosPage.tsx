@@ -587,7 +587,7 @@ function TaxModal({
         )}
 
         {/* Cuentas contables */}
-        <Divider orientation="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
           Cuentas contables (para partidas automáticas)
         </Divider>
         <Row gutter={16}>

@@ -64,8 +64,9 @@ export interface Customer {
   // Contactos
   contacts?:        ContactPerson[]
   // Extras
-  openingBalance?:  number
-  portalEnabled?:   boolean
+  openingBalance?:     number
+  openingBalanceDate?: string
+  portalEnabled?:      boolean
   notes?:           string
   tags?:            string[]
   customFields?:    Record<string, any>

@@ -494,7 +494,7 @@ export default function ProveedorFormPage() {
                       </Col>
                     </Row>
 
-                    <Divider orientation="left">Cuentas contables</Divider>
+                    <Divider titlePlacement="left">Cuentas contables</Divider>
                     <Row gutter={16}>
                       <Col xs={24} md={12}>
                         <Form.Item
@@ -522,11 +522,11 @@ export default function ProveedorFormPage() {
                       </Col>
                     </Row>
 
-                    <Divider orientation="left">Saldo inicial</Divider>
+                    <Divider titlePlacement="left">Saldo inicial</Divider>
                     <Row gutter={16}>
                       <Col xs={24} md={8}>
                         <Form.Item name="openingBalance" label="Saldo inicial (Q)">
-                          <InputNumber
+                          <InputNumber<number>
                             style={{ width: '100%' }}
                             formatter={v => `Q ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                             parser={v => Number(v?.replace(/Q\s?|(,*)/g, '') ?? 0)}
@@ -608,7 +608,7 @@ export default function ProveedorFormPage() {
                       </Col>
                     </Row>
 
-                    <Divider orientation="left">Cuenta bancaria del proveedor</Divider>
+                    <Divider titlePlacement="left">Cuenta bancaria del proveedor</Divider>
                     <Row gutter={16}>
                       <Col xs={24} md={8}>
                         <Form.Item name={['bankAccount', 'bankName']} label="Banco">

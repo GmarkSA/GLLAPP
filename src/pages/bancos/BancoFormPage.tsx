@@ -198,7 +198,7 @@ export default function BancoFormPage() {
                 label="Saldo inicial"
                 tooltip="Saldo con el que se registra la cuenta. Puede ser 0 si ya está vinculada al catálogo y el saldo se calculará desde asientos."
               >
-                <InputNumber
+                <InputNumber<number>
                   style={{ width: '100%' }}
                   precision={2}
                   min={-999999999}

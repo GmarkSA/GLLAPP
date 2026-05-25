@@ -102,7 +102,7 @@ function AddTransactionModal({ accountId, currency, open, onClose, onSaved }: {
         <Row gutter={12}>
           <Col span={12}>
             <Form.Item name="amount" label={`Monto (${currency})`} rules={[{ required: true, message: 'Requerido' }]}>
-              <InputNumber
+              <InputNumber<number>
                 style={{ width: '100%' }} min={0} precision={2}
                 formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 parser={v => Number(v!.replace(/,/g, ''))}

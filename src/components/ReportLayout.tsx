@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Space, DatePicker, Tooltip, Modal, Form, Input, Select,

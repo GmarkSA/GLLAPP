@@ -582,7 +582,7 @@ function CurrencySection() {
               placeholder="Busca por nombre o código..."
               size="large"
               filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
             >
               {availableToAdd.map(c => (

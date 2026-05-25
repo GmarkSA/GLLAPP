@@ -118,7 +118,7 @@ const CellInput = memo(({ value, onCommit, placeholder, style }: {
 }) => {
   const [local, setLocal]   = useState(value)
   const committed           = useRef(value)
-  const debounceRef         = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef         = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (value !== committed.current) { setLocal(value); committed.current = value }
@@ -154,7 +154,7 @@ const CellTextArea = memo(({ value, onCommit, placeholder, style }: {
 }) => {
   const [local, setLocal]   = useState(value)
   const committed           = useRef(value)
-  const debounceRef         = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef         = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (value !== committed.current) { setLocal(value); committed.current = value }
@@ -458,7 +458,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
                 filterOption={false} loading={searching}
                 onSearch={searchProducts}
                 onDropdownVisibleChange={open => { if (open) loadInitial() }}
-                onSelect={(v: string) => selectProduct(row._key, v)}
+                onSelect={(v: string | undefined) => v && selectProduct(row._key, v)}
                 options={prodOptions.map(o => ({
                   value: o.value,
                   label: (

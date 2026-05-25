@@ -63,7 +63,7 @@ export default function NotaCreditoDetallePage() {
   const loadInvoicesForApply = async () => {
     if (!nc) return
     const res = await getInvoices({ customerId: nc.customerId, limit: 50 } as any)
-    const list = Array.isArray(res) ? res : (res?.data ?? [])
+    const list = Array.isArray(res) ? res : ((res as any)?.data ?? [])
     setInvoices(
       list
         .filter((inv: any) => inv.status !== 'voided' && inv.status !== 'paid' && inv.id !== nc.originalInvoiceId)
@@ -76,7 +76,7 @@ export default function NotaCreditoDetallePage() {
 
   const loadBankAccounts = async () => {
     const res = await getBankAccounts().catch(() => [])
-    const list = Array.isArray(res) ? res : (res?.data ?? [])
+    const list = Array.isArray(res) ? res : ((res as any)?.data ?? [])
     setBankAccts(list.map((b: any) => ({ value: b.id, label: `${b.name} — ${b.currency}` })))
   }
 

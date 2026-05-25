@@ -268,7 +268,7 @@ export default function ArticuloFormPage() {
             </Col>
             <Col xs={24} sm={9}>
               <Form.Item name="purchasePrice" label={`Precio de compra (${currencySymbol})`}>
-                <InputNumber
+                <InputNumber<number>
                   style={{ width: '100%' }} precision={4} min={0}
                   formatter={v => `${currencySymbol} ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={v => Number(v!.replace(/[^0-9.]/g, ''))}
@@ -277,7 +277,7 @@ export default function ArticuloFormPage() {
             </Col>
             <Col xs={24} sm={9}>
               <Form.Item name="salesPrice" label={`Precio de venta (${currencySymbol})`}>
-                <InputNumber
+                <InputNumber<number>
                   style={{ width: '100%' }} precision={4} min={0}
                   formatter={v => `${currencySymbol} ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={v => Number(v!.replace(/[^0-9.]/g, ''))}
@@ -296,7 +296,7 @@ export default function ArticuloFormPage() {
                 <InputNumber
                   style={{ width: '100%' }} precision={4}
                   formatter={v => `${currencySymbol} ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={v => Number(v!.replace(/[^0-9.]/g, ''))}
+                  parser={v => Number(v!.replace(/[^0-9.]/g, '')) as number}
                 />
               </Form.Item>
             </Col>
@@ -309,7 +309,7 @@ export default function ArticuloFormPage() {
                 <InputNumber
                   style={{ width: '100%' }} precision={4}
                   formatter={v => `${currencySymbol} ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={v => Number(v!.replace(/[^0-9.]/g, ''))}
+                  parser={v => Number(v!.replace(/[^0-9.]/g, '')) as number}
                 />
               </Form.Item>
             </Col>

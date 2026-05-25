@@ -146,7 +146,7 @@ function NuevaOrdenModal({ open, almacenes, onClose, onSaved }: {
       okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
       destroyOnClose
     >
-      <Divider orientation="left" style={{ marginTop: 0 }}>Producto a producir</Divider>
+      <Divider titlePlacement="left" style={{ marginTop: 0 }}>Producto a producir</Divider>
       <Form form={form} layout="vertical">
         <Row gutter={16}>
           <Col span={12}>
@@ -192,7 +192,7 @@ function NuevaOrdenModal({ open, almacenes, onClose, onSaved }: {
         </Form.Item>
       </Form>
 
-      <Divider orientation="left">Lista de materiales (BOM)</Divider>
+      <Divider titlePlacement="left">Lista de materiales (BOM)</Divider>
       <Form form={lineForm} layout="inline" style={{ marginBottom: 8, flexWrap: 'wrap', gap: 4 }}>
         <Form.Item name="productId" rules={[{ required: true, message: '' }]} style={{ flex: '0 0 260px' }}>
           <Select

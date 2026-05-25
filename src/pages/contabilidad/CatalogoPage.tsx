@@ -178,7 +178,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
           <Input.TextArea rows={2} placeholder="Descripción opcional" />
         </Form.Item>
 
-        <Divider orientation="left" style={{ fontSize: 12, color: '#8c8c8c' }}>Configuración automática del grupo</Divider>
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c' }}>Configuración automática del grupo</Divider>
 
         <Space style={{ width: '100%' }} wrap>
           <Form.Item name="balanceType" label="Tipo de balance" style={{ marginBottom: 0 }}>
@@ -195,7 +195,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
           </Form.Item>
         </Space>
 
-        <Divider orientation="left" style={{ fontSize: 12, color: '#8c8c8c', marginTop: 16 }}>Flags / Comportamiento</Divider>
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', marginTop: 16 }}>Flags / Comportamiento</Divider>
 
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="bankLinking" label="Vinculación con bancos" valuePropName="checked" style={{ marginBottom: 4 }}>

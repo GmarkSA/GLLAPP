@@ -103,7 +103,7 @@ export default function AccountSelect({
         <Space size={6}>
           <BookOutlined style={{ color: '#1677ff', fontSize: 12 }} />
           <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>
-            {(opt.data as any)?.account?.code ?? ''}
+            {(opt as any)?.account?.code ?? ''}
           </span>
           <span style={{ fontSize: 13 }}>{opt.label?.toString().replace(/^\S+\s/, '')}</span>
         </Space>
