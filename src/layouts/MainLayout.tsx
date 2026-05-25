@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Badge, Typography, Space, Button, Tooltip } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
   BankOutlined, BarChartOutlined, SettingOutlined,
@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 
 const { Header, Sider, Content } = Layout
-const { Text } = Typography
 
 const menuItems = [
   { key: '/dashboard',        icon: <DashboardOutlined />,    label: 'Dashboard' },
@@ -149,19 +148,25 @@ export default function MainLayout() {
           )}
         </div>
 
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          defaultOpenKeys={getOpenKey(location.pathname)}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-          style={{
-            background: 'transparent',
-            borderRight: 'none',
-            padding: '0 8px',
-          }}
-        />
+        <div className="sidebar-scroll" style={{
+          height: 'calc(100vh - 72px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}>
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            defaultOpenKeys={getOpenKey(location.pathname)}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+            style={{
+              background: 'transparent',
+              borderRight: 'none',
+              padding: '0 8px',
+            }}
+          />
+        </div>
       </Sider>
 
       {/* ── Main area ───────────────────────────────────────────── */}

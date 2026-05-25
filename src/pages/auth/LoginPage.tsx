@@ -14,8 +14,15 @@ export default function LoginPage() {
       await login(values.email, values.password)
       message.success('Bienvenido a ContaERP')
       navigate('/dashboard')
-    } catch {
-      message.error('Credenciales incorrectas. Verifica tu email y contraseña.')
+    } catch (err: any) {
+      const status = err?.response?.status
+      if (status === 401 || status === 400) {
+        message.error('Credenciales incorrectas. Verifica tu email y contraseña.')
+      } else if (!status) {
+        message.error('No se pudo conectar al servidor. Verifica tu conexión.')
+      } else {
+        message.error('Error al iniciar sesión. Intenta de nuevo.')
+      }
     }
   }
 
