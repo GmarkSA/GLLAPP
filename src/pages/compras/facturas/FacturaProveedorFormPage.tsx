@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import {
   Form, Select, DatePicker, InputNumber, Input, Button,
   Card, Breadcrumb, Typography, Spin, Divider, message,
-  Tag,
+  Tag, Alert,
 } from 'antd'
 import {
   SaveOutlined, CheckOutlined, HomeOutlined, ThunderboltOutlined,
+  SwapOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -47,6 +48,8 @@ const IDP_FUEL_OPTS = [
 export default function FacturaProveedorFormPage() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const fromPO   = !id ? (location.state as any)?.fromPO as { purchaseOrderId: string; vendorId: string; vendorName: string; items: LineItem[] } | undefined : undefined
   const [form] = Form.useForm()
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
@@ -58,6 +61,7 @@ export default function FacturaProveedorFormPage() {
   const [saving, setSaving]             = useState(false)
   const [approving, setApproving]       = useState(false)
   const [billStatus, setBillStatus]     = useState<string>('draft')
+  const [purchaseOrderId, setPurchaseOrderId] = useState<string | undefined>(fromPO?.purchaseOrderId)
 
   // Retention amounts (controlled outside form for live calculation)
   const [isrAmount, setIsrAmount]       = useState(0)
@@ -91,6 +95,36 @@ export default function FacturaProveedorFormPage() {
   }, [])
 
   useEffect(() => { fetchVendors('') }, [])
+
+  // Pre-fill from Purchase Order when converting OC → Factura Proveedor
+  useEffect(() => {
+    if (!fromPO) return
+    setPurchaseOrderId(fromPO.purchaseOrderId)
+    if (fromPO.vendorId && fromPO.vendorName) {
+      setVendors(prev => {
+        if (prev.find(v => v.value === fromPO.vendorId)) return prev
+        return [{ value: fromPO.vendorId, label: fromPO.vendorName }, ...prev]
+      })
+      form.setFieldValue('vendorId', fromPO.vendorId)
+    }
+    if (fromPO.items?.length) {
+      setItems(fromPO.items.map(it => newLineItem({
+        productId:       it.productId,
+        description:     it.description,
+        unit:            it.unit,
+        quantity:        Number(it.quantity),
+        unitPrice:       Number(it.unitPrice),
+        discountPercent: Number(it.discountPercent ?? 0),
+        taxPercent:      Number(it.taxPercent ?? 12),
+        taxId:           it.taxId,
+        accountId:       it.accountId,
+        projectId:       it.projectId,
+      })))
+    }
+    form.setFieldValue('invoiceDate', dayjs())
+  // run once on mount when fromPO is present
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -261,6 +295,7 @@ export default function FacturaProveedorFormPage() {
       status,
       notes: vals.notes,
       items: lineItems,
+      purchaseOrderId: purchaseOrderId ?? undefined,
     }
   }
 
@@ -322,6 +357,18 @@ export default function FacturaProveedorFormPage() {
           { title: id ? 'Editar' : 'Nueva Factura Proveedor' },
         ]}
       />
+
+      {fromPO && (
+        <Alert
+          type="info"
+          icon={<SwapOutlined />}
+          showIcon
+          message="Factura creada desde Orden de Compra"
+          description={`Proveedor, líneas e importes copiados de la OC. Completa los datos FEL y guarda.`}
+          style={{ marginBottom: 16 }}
+          closable
+        />
+      )}
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
 
