@@ -77,6 +77,17 @@ export default function MainLayout() {
   const location = useLocation()
   const { user, logout } = useAuthStore()
 
+  const getOpenKey = (pathname: string) => {
+    if (pathname.startsWith('/ventas'))        return ['ventas']
+    if (pathname.startsWith('/compras'))       return ['compras']
+    if (pathname.startsWith('/bancos'))        return ['bancos']
+    if (pathname.startsWith('/contabilidad'))  return ['contabilidad']
+    if (pathname.startsWith('/inventario'))    return ['inventario']
+    if (pathname.startsWith('/reportes'))      return ['reportes']
+    if (pathname.startsWith('/configuracion')) return ['configuracion']
+    return []
+  }
+
   const userMenu = {
     items: [
       { key: 'profile', icon: <UserOutlined />, label: 'Mi perfil' },
@@ -142,7 +153,7 @@ export default function MainLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['ventas', 'compras', 'bancos', 'inventario', 'contabilidad', 'reportes', 'configuracion']}
+          defaultOpenKeys={getOpenKey(location.pathname)}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
           style={{
