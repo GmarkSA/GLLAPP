@@ -315,32 +315,39 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items])
 
-  // Cuando los impuestos cargan (async), auto-aplicar el impuesto por defecto
-  // a las líneas que no tienen taxId asignado todavía (ej. newLineItem inicial)
+  // Aplica el impuesto preferido a las líneas sin artículo seleccionado.
+  // Para compras (po/bill): filtra solo impuestos de compra; proveedor tiene prioridad.
+  // Se re-ejecuta cuando cargan los taxes O cuando cambia el proveedor.
   useEffect(() => {
     if (!taxes.length) return
-    const defaultTax =
-      taxes.find(t => t.isDefault && t.isActive) ??
-      taxes.find(t => t.isActive && Number(t.rate) > 0) ??
-      taxes.find(t => t.isActive)
-    if (!defaultTax) return
+    const isPurchase = docType === 'po' || docType === 'bill'
+    const eligible = isPurchase
+      ? taxes.filter(t => t.isActive && (t.applicability === 'purchases' || t.applicability === 'both'))
+      : taxes.filter(t => t.isActive && (t.applicability === 'sales'     || t.applicability === 'both'))
 
-    const needsUpdate = items.some(i => !i.taxId)
+    const preferredTax =
+      (vendorDefaultTaxId ? eligible.find(t => t.id === vendorDefaultTaxId) : undefined) ??
+      eligible.find(t => t.isDefault) ??
+      eligible.find(t => Number(t.rate) > 0) ??
+      eligible[0]
+    if (!preferredTax) return
+
+    const needsUpdate = items.some(i => !i.productId && i.taxId !== preferredTax.id)
     if (!needsUpdate) return
 
     onChange(items.map(item => {
-      if (item.taxId) return item
+      if (item.productId) return item
+      if (item.taxId === preferredTax.id) return item
       return recalc({
         ...item,
-        taxId:        defaultTax.id,
-        taxName:      defaultTax.name,
-        taxPercent:   Number(defaultTax.rate),
-        taxInclusive: defaultTax.isInclusive ?? true,
+        taxId:        preferredTax.id,
+        taxName:      preferredTax.name,
+        taxPercent:   Number(preferredTax.rate),
+        taxInclusive: preferredTax.isInclusive ?? true,
       })
     }))
-  // Solo re-ejecutar cuando cambien los impuestos disponibles
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taxes])
+  }, [taxes, vendorDefaultTaxId, docType])
 
   const taxOptions = taxes
     .filter(t => t.isActive)
@@ -355,14 +362,20 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     onChange(items.map(item => item._key === key ? recalc({ ...item, ...patch }) : item))
 
   const addRow = () => {
-    const defaultTax =
-      taxes.find(t => t.isDefault && t.isActive) ??
-      taxes.find(t => t.isActive && Number(t.rate) > 0)
-    onChange([...items, newLineItem(defaultTax ? {
-      taxId:        defaultTax.id,
-      taxName:      defaultTax.name,
-      taxPercent:   Number(defaultTax.rate),
-      taxInclusive: defaultTax.isInclusive ?? true,
+    const isPurchase = docType === 'po' || docType === 'bill'
+    const eligible = isPurchase
+      ? taxes.filter(t => t.isActive && (t.applicability === 'purchases' || t.applicability === 'both'))
+      : taxes.filter(t => t.isActive && (t.applicability === 'sales'     || t.applicability === 'both'))
+    const preferredTax =
+      (vendorDefaultTaxId ? eligible.find(t => t.id === vendorDefaultTaxId) : undefined) ??
+      eligible.find(t => t.isDefault) ??
+      eligible.find(t => Number(t.rate) > 0) ??
+      eligible[0]
+    onChange([...items, newLineItem(preferredTax ? {
+      taxId:        preferredTax.id,
+      taxName:      preferredTax.name,
+      taxPercent:   Number(preferredTax.rate),
+      taxInclusive: preferredTax.isInclusive ?? true,
     } : {})])
   }
   const removeRow = (key: string) => onChange(items.filter(i => i._key !== key))
@@ -376,20 +389,25 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     // ── Tax resolution ─────────────────────────────────────────────────────
     let resolvedTax: Tax | undefined
 
+    // Filtrar impuestos según tipo de documento
+    const eligible = isPurchase
+      ? taxes.filter(t => t.isActive && (t.applicability === 'purchases' || t.applicability === 'both'))
+      : taxes.filter(t => t.isActive && (t.applicability === 'sales'     || t.applicability === 'both'))
+
     if (isPurchase) {
       // 1. Impuesto configurado en el proveedor
       if (vendorDefaultTaxId) {
-        resolvedTax = taxes.find(t => t.id === vendorDefaultTaxId && t.isActive)
+        resolvedTax = eligible.find(t => t.id === vendorDefaultTaxId)
       }
       // 2. Impuesto configurado en el artículo (compras)
       if (!resolvedTax && p.purchaseTaxId) {
-        resolvedTax = taxes.find(t => t.id === p.purchaseTaxId && t.isActive)
+        resolvedTax = eligible.find(t => t.id === p.purchaseTaxId)
       }
-      // 3. Impuesto global por defecto (fallback)
+      // 3. Impuesto de compra por defecto o primer activo (fallback)
       if (!resolvedTax) {
-        resolvedTax = taxes.find(t => t.isDefault && t.isActive) ?? taxes.find(t => t.isActive)
+        resolvedTax = eligible.find(t => t.isDefault) ?? eligible.find(t => Number(t.rate) > 0) ?? eligible[0]
       }
-      // Avisar si ni el proveedor ni el artículo tenían impuesto definido
+      // Avisar si ni el proveedor ni el artículo tenían impuesto de compra definido
       if (!vendorDefaultTaxId && !p.purchaseTaxId) {
         message.warning(
           `"${p.name}" no tiene impuesto de compra configurado — se aplicó el impuesto por defecto. ` +
@@ -400,10 +418,10 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     } else {
       // Ventas: impuesto del artículo → global por defecto
       if (p.salesTaxId) {
-        resolvedTax = taxes.find(t => t.id === p.salesTaxId && t.isActive)
+        resolvedTax = eligible.find(t => t.id === p.salesTaxId)
       }
       if (!resolvedTax) {
-        resolvedTax = taxes.find(t => t.isDefault && t.isActive) ?? taxes.find(t => t.isActive)
+        resolvedTax = eligible.find(t => t.isDefault) ?? eligible.find(t => Number(t.rate) > 0) ?? eligible[0]
       }
     }
 
