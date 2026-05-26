@@ -324,8 +324,9 @@ export default function FacturaProveedorFormPage() {
       felMessage:          vals.felMessage   || undefined,
       felCertDate:         vals.felCertDate ? vals.felCertDate.toISOString() : undefined,
       // Retenciones
-      isrRetentionAmount:  isrAmount,
-      ivaRetentionAmount:  invoiceType === 'special' ? totals.taxAmount : ivaRetAmount,
+      isrRetentionAmount:    isrAmount,
+      ivaRetentionAmount:    invoiceType === 'special' ? totals.taxAmount : ivaRetAmount,
+      isrRetentionAccountId: vendorIsrTax?.retentionAccountId ?? undefined,
       // Reembolso
       isExpenseReimbursement: isReimbursement,
       employeeId:          isReimbursement ? vals.employeeId : undefined,
@@ -685,20 +686,38 @@ export default function FacturaProveedorFormPage() {
                 <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>Q {fmt(idpAmount)}</Text>
               </div>
             )}
-            {totalRetention > 0 && (
+            {/* Desglose de retenciones — una línea por cada tipo */}
+            {isrAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '1px dashed #e5e7eb' }}>
+                <div>
+                  <Text style={{ fontSize: 12, color: '#531dab' }}>
+                    {vendorIsrTax ? `${vendorIsrTax.code} — ${vendorIsrTax.name}` : 'Retención ISR'}
+                  </Text>
+                  {vendorIsrTax && (
+                    <Text style={{ fontSize: 10, color: '#9ca3af', display: 'block' }}>
+                      Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
+                    </Text>
+                  )}
+                </div>
+                <Text style={{ fontSize: 13, color: '#531dab', fontWeight: 600 }}>- Q {fmt(isrAmount)}</Text>
+              </div>
+            )}
+            {(invoiceType !== 'special' ? ivaRetAmount : ivaRetForSpecial) > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px dashed #e5e7eb' }}>
-                <Text style={{ fontSize: 12, color: '#dc2626' }}>Retenciones</Text>
-                <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>- Q {fmt(totalRetention)}</Text>
+                <Text style={{ fontSize: 12, color: '#dc2626' }}>Retención IVA</Text>
+                <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+                  - Q {fmt(invoiceType === 'special' ? ivaRetForSpecial : ivaRetAmount)}
+                </Text>
               </div>
             )}
             {(totalRetention > 0 || idpAmount > 0) && (
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                marginTop: 8, background: '#fff7e6', borderRadius: 6,
-                padding: '8px 12px', border: '1px solid #ffd591',
+                marginTop: 8, background: '#1B3A6B', borderRadius: 6,
+                padding: '10px 14px',
               }}>
-                <Text style={{ fontSize: 13, fontWeight: 600, color: '#d46b08' }}>Neto a Pagar</Text>
-                <Text style={{ fontSize: 15, fontWeight: 700, color: '#d46b08' }}>
+                <Text style={{ fontSize: 13, fontWeight: 600, color: '#adc6ff' }}>Neto a Pagar Proveedor</Text>
+                <Text style={{ fontSize: 16, fontWeight: 800, color: '#ffffff' }}>
                   {watchCurr} {fmt(netPayable)}
                 </Text>
               </div>
