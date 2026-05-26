@@ -257,6 +257,7 @@ export default function NotaCreditoFormPage() {
         unitPrice:       it.unitPrice,
         discountPercent: it.discountPercent || 0,
         taxPercent:      it.taxPercent || 0,
+        taxInclusive:    it.taxInclusive ?? true,
         taxId:           it.taxId || undefined,
         accountId:       it.accountId || undefined,
       })),
