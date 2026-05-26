@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import {
   Form, Select, DatePicker, InputNumber, Input, Button,
   Card, Breadcrumb, Typography, Spin, Divider, message,
-  Tag, Alert,
+  Tag, Alert, Space,
 } from 'antd'
 import {
   SaveOutlined, CheckOutlined, HomeOutlined, ThunderboltOutlined,
@@ -54,7 +54,7 @@ export default function FacturaProveedorFormPage() {
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
   const [taxes, setTaxes]               = useState<Tax[]>([])
-  const [vendors, setVendors]           = useState<{ value: string; label: string; defaultPurchaseTaxId?: string }[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string }[]>([])
   const [accounts, setAccounts]         = useState<Account[]>([])
   const [loadingVendors, setLoadingVendors] = useState(false)
   const [loading, setLoading]           = useState(!!id)
@@ -63,6 +63,7 @@ export default function FacturaProveedorFormPage() {
   const [billStatus, setBillStatus]         = useState<string>('draft')
   const [purchaseOrderId, setPurchaseOrderId]         = useState<string | undefined>(fromPO?.purchaseOrderId)
   const [vendorDefaultTaxId, setVendorDefaultTaxId]   = useState<string | undefined>()
+  const [vendorIsrTax, setVendorIsrTax]               = useState<Tax | undefined>()
 
   // Retention amounts (controlled outside form for live calculation)
   const [isrAmount, setIsrAmount]       = useState(0)
@@ -210,6 +211,25 @@ export default function FacturaProveedorFormPage() {
     if (found) setVendorDefaultTaxId(found.defaultPurchaseTaxId)
   }, [vendors, watchVendorId])
 
+  // Resuelve el Tax de ISR configurado en el proveedor
+  useEffect(() => {
+    if (!watchVendorId || !taxes.length) { setVendorIsrTax(undefined); return }
+    const vendor = vendors.find(v => v.value === watchVendorId)
+    if (vendor?.tdsEnabled && vendor.tdsTaxCode) {
+      setVendorIsrTax(taxes.find(t => t.code === vendor.tdsTaxCode && t.isActive))
+    } else {
+      setVendorIsrTax(undefined)
+    }
+  }, [vendors, watchVendorId, taxes])
+
+  // Auto-calcula ISR solo en facturas nuevas (no en edición — el monto guardado prevalece)
+  useEffect(() => {
+    if (id || !vendorIsrTax) return
+    const subtotal = calcTotals(items).subtotal
+    setIsrAmount(Math.round(subtotal * Number(vendorIsrTax.rate) / 100 * 100) / 100)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, vendorIsrTax])
+
   // ── Vendor search ──────────────────────────────────────────────────────────
 
   const fetchVendors = useCallback((search: string) => {
@@ -223,6 +243,8 @@ export default function FacturaProveedorFormPage() {
             value: v.id,
             label: v.name,
             defaultPurchaseTaxId: v.defaultPurchaseTaxId ?? undefined,
+            tdsEnabled:           v.tdsEnabled ?? false,
+            tdsTaxCode:           v.tdsTaxCode ?? undefined,
           }))
           return [...map.values()]
         })
@@ -562,18 +584,50 @@ export default function FacturaProveedorFormPage() {
             </Card>
           )}
 
-          {/* Para otros tipos con ISR manual */}
+          {/* Retenciones — tipos distintos de factura especial */}
           {invoiceType !== 'special' && (
             <Card title="Retenciones" styles={{ body: { padding: '12px 16px' } }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Retención ISR</Text>
-                <InputNumber
-                  size="small" min={0} step={0.01} prefix="Q"
-                  value={isrAmount}
-                  onChange={(v) => setIsrAmount(v ?? 0)}
-                  style={{ width: 110 }}
-                />
-              </div>
+
+              {/* ISR — con info del proveedor si está configurado */}
+              {vendorIsrTax ? (
+                <>
+                  <div style={{ padding: '6px 10px', background: '#f9f0ff', borderRadius: 6, marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>ISR configurado en el proveedor</div>
+                    <Space size={6}>
+                      <Tag color="purple" style={{ margin: 0 }}>{vendorIsrTax.code}</Tag>
+                      <Text style={{ fontSize: 12, fontWeight: 500, color: '#531dab' }}>
+                        {vendorIsrTax.name} ({Number(vendorIsrTax.rate)}%)
+                      </Text>
+                    </Space>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
+                      Retención ISR{!id ? ' (auto)' : ''}
+                    </Text>
+                    <InputNumber
+                      size="small" min={0} step={0.01} prefix="Q"
+                      value={isrAmount}
+                      onChange={(v) => setIsrAmount(v ?? 0)}
+                      style={{ width: 110 }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right', marginBottom: 8 }}>
+                    Base Q {fmt(totals.subtotal)} × {Number(vendorIsrTax.rate)}%
+                    {' = Q '}{fmt(Math.round(totals.subtotal * Number(vendorIsrTax.rate) / 100 * 100) / 100)}
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Retención ISR</Text>
+                  <InputNumber
+                    size="small" min={0} step={0.01} prefix="Q"
+                    value={isrAmount}
+                    onChange={(v) => setIsrAmount(v ?? 0)}
+                    style={{ width: 110 }}
+                  />
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Retención IVA</Text>
                 <InputNumber
