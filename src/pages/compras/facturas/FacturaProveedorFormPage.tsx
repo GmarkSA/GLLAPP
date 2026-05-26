@@ -64,6 +64,7 @@ export default function FacturaProveedorFormPage() {
   const [purchaseOrderId, setPurchaseOrderId]         = useState<string | undefined>(fromPO?.purchaseOrderId)
   const [vendorDefaultTaxId, setVendorDefaultTaxId]   = useState<string | undefined>()
   const [vendorIsrTax, setVendorIsrTax]               = useState<Tax | undefined>()
+  const [isrAppliedRate, setIsrAppliedRate]           = useState(0)  // tasa efectiva (puede ser tier)
 
   // Retention amounts (controlled outside form for live calculation)
   const [isrAmount, setIsrAmount]       = useState(0)
@@ -211,14 +212,22 @@ export default function FacturaProveedorFormPage() {
     if (found) setVendorDefaultTaxId(found.defaultPurchaseTaxId)
   }, [vendors, watchVendorId])
 
-  // Resuelve el Tax de ISR configurado en el proveedor
+  // Resuelve el Tax de ISR configurado en el proveedor y determina la tasa inicial
   useEffect(() => {
-    if (!watchVendorId || !taxes.length) { setVendorIsrTax(undefined); return }
+    if (!watchVendorId || !taxes.length) { setVendorIsrTax(undefined); setIsrAppliedRate(0); return }
     const vendor = vendors.find(v => v.value === watchVendorId)
     if (vendor?.tdsEnabled && vendor.tdsTaxCode) {
-      setVendorIsrTax(taxes.find(t => t.code === vendor.tdsTaxCode && t.isActive))
+      const tax = taxes.find(t => t.code === vendor.tdsTaxCode && t.isActive)
+      setVendorIsrTax(tax)
+      if (tax) {
+        const defaultRate = tax.subtype === 'progressive' && tax.tiers?.length
+          ? Math.min(...tax.tiers.map(t => t.rate))  // tasa mínima del tramo como punto de partida
+          : Number(tax.rate)
+        setIsrAppliedRate(defaultRate)
+      }
     } else {
       setVendorIsrTax(undefined)
+      setIsrAppliedRate(0)
     }
   }, [vendors, watchVendorId, taxes])
 
@@ -226,9 +235,9 @@ export default function FacturaProveedorFormPage() {
   useEffect(() => {
     if (id || !vendorIsrTax) return
     const subtotal = calcTotals(items).subtotal
-    setIsrAmount(Math.round(subtotal * Number(vendorIsrTax.rate) / 100 * 100) / 100)
+    setIsrAmount(Math.round(subtotal * isrAppliedRate / 100 * 100) / 100)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, vendorIsrTax])
+  }, [items, vendorIsrTax, isrAppliedRate])
 
   // ── Vendor search ──────────────────────────────────────────────────────────
 
@@ -596,10 +605,30 @@ export default function FacturaProveedorFormPage() {
                     <Space size={6}>
                       <Tag color="purple" style={{ margin: 0 }}>{vendorIsrTax.code}</Tag>
                       <Text style={{ fontSize: 12, fontWeight: 500, color: '#531dab' }}>
-                        {vendorIsrTax.name} ({Number(vendorIsrTax.rate)}%)
+                        {vendorIsrTax.name}{' '}
+                        ({vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length
+                          ? `${Math.min(...vendorIsrTax.tiers.map(t => t.rate))}% - ${Math.max(...vendorIsrTax.tiers.map(t => t.rate))}%`
+                          : `${Number(vendorIsrTax.rate)}%`})
                       </Text>
                     </Space>
                   </div>
+                  {/* Selector de tasa para impuestos progresivos (ej. ISR 5%-7%) */}
+                  {vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length ? (
+                    <div style={{ marginBottom: 8 }}>
+                      <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 4 }}>
+                        Tasa a aplicar (selecciona el tramo del proveedor)
+                      </Text>
+                      <Select
+                        size="small" style={{ width: '100%' }}
+                        value={isrAppliedRate}
+                        onChange={(v) => setIsrAppliedRate(v)}
+                        options={vendorIsrTax.tiers.map(t => ({
+                          value: t.rate,
+                          label: `${t.rate}% — ${t.label || (t.upTo ? `hasta Q ${t.upTo.toLocaleString('es-GT')}` : 'exceso')}`,
+                        }))}
+                      />
+                    </div>
+                  ) : null}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
                       Retención ISR{!id ? ' (auto)' : ''}
@@ -612,8 +641,8 @@ export default function FacturaProveedorFormPage() {
                     />
                   </div>
                   <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right', marginBottom: 8 }}>
-                    Base Q {fmt(totals.subtotal)} × {Number(vendorIsrTax.rate)}%
-                    {' = Q '}{fmt(Math.round(totals.subtotal * Number(vendorIsrTax.rate) / 100 * 100) / 100)}
+                    Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
+                    {' = Q '}{fmt(Math.round(totals.subtotal * isrAppliedRate / 100 * 100) / 100)}
                   </div>
                 </>
               ) : (
