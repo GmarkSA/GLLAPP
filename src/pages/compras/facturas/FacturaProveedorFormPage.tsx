@@ -321,6 +321,7 @@ export default function FacturaProveedorFormPage() {
       unitPrice: it.unitPrice,
       discountPercent: it.discountPercent,
       taxPercent: it.taxPercent,
+      taxInclusive: it.taxInclusive ?? true,
       taxId: it.taxId,
       accountId: it.accountId,
       projectId: it.projectId,
