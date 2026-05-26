@@ -216,6 +216,26 @@ const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix,
   )
 })
 
+/** Resuelve el impuesto preferido según contexto de compra/venta.
+ *  Prioridad: taxId explícito → específico default → both default → específico con tasa → both con tasa */
+function resolvePreferredTax(taxes: Tax[], forPurchase: boolean, preferTaxId?: string): Tax | undefined {
+  if (preferTaxId) {
+    const direct = taxes.find(t => t.id === preferTaxId && t.isActive)
+    if (direct) return direct
+  }
+  const specific = taxes.filter(t => t.isActive && t.applicability === (forPurchase ? 'purchases' : 'sales'))
+  const common   = taxes.filter(t => t.isActive && t.applicability === 'both')
+  return (
+    specific.find(t => t.isDefault && Number(t.rate) > 0) ??
+    common.find(t => t.isDefault && Number(t.rate) > 0) ??
+    specific.find(t => t.isDefault) ??
+    common.find(t => t.isDefault) ??
+    specific.find(t => Number(t.rate) > 0) ??
+    common.find(t => Number(t.rate) > 0) ??
+    specific[0] ?? common[0]
+  )
+}
+
 export default function LineItemsEditor({ items, taxes, onChange, readOnly, docType = 'invoice', vendorDefaultTaxId }: Props) {
   const [prodOptions, setProdOptions]     = useState<ProdOption[]>([])
   const [searching,   setSearching]       = useState(false)
@@ -316,20 +336,12 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
   }, [items])
 
   // Aplica el impuesto preferido a las líneas sin artículo seleccionado.
-  // Para compras (po/bill): filtra solo impuestos de compra; proveedor tiene prioridad.
-  // Se re-ejecuta cuando cargan los taxes O cuando cambia el proveedor.
+  // Prioridad: proveedor → específico de compra/venta → ambos → primer activo.
+  // Se re-ejecuta cuando cargan los taxes O cuando cambia el proveedor / docType.
   useEffect(() => {
     if (!taxes.length) return
     const isPurchase = docType === 'po' || docType === 'bill'
-    const eligible = isPurchase
-      ? taxes.filter(t => t.isActive && (t.applicability === 'purchases' || t.applicability === 'both'))
-      : taxes.filter(t => t.isActive && (t.applicability === 'sales'     || t.applicability === 'both'))
-
-    const preferredTax =
-      (vendorDefaultTaxId ? eligible.find(t => t.id === vendorDefaultTaxId) : undefined) ??
-      eligible.find(t => t.isDefault) ??
-      eligible.find(t => Number(t.rate) > 0) ??
-      eligible[0]
+    const preferredTax = resolvePreferredTax(taxes, isPurchase, vendorDefaultTaxId)
     if (!preferredTax) return
 
     const needsUpdate = items.some(i => !i.productId && i.taxId !== preferredTax.id)
@@ -362,15 +374,8 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     onChange(items.map(item => item._key === key ? recalc({ ...item, ...patch }) : item))
 
   const addRow = () => {
-    const isPurchase = docType === 'po' || docType === 'bill'
-    const eligible = isPurchase
-      ? taxes.filter(t => t.isActive && (t.applicability === 'purchases' || t.applicability === 'both'))
-      : taxes.filter(t => t.isActive && (t.applicability === 'sales'     || t.applicability === 'both'))
-    const preferredTax =
-      (vendorDefaultTaxId ? eligible.find(t => t.id === vendorDefaultTaxId) : undefined) ??
-      eligible.find(t => t.isDefault) ??
-      eligible.find(t => Number(t.rate) > 0) ??
-      eligible[0]
+    const isPurchase  = docType === 'po' || docType === 'bill'
+    const preferredTax = resolvePreferredTax(taxes, isPurchase, vendorDefaultTaxId)
     onChange([...items, newLineItem(preferredTax ? {
       taxId:        preferredTax.id,
       taxName:      preferredTax.name,
@@ -389,24 +394,13 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     // ── Tax resolution ─────────────────────────────────────────────────────
     let resolvedTax: Tax | undefined
 
-    // Filtrar impuestos según tipo de documento
-    const eligible = isPurchase
-      ? taxes.filter(t => t.isActive && (t.applicability === 'purchases' || t.applicability === 'both'))
-      : taxes.filter(t => t.isActive && (t.applicability === 'sales'     || t.applicability === 'both'))
-
     if (isPurchase) {
       // 1. Impuesto configurado en el proveedor
-      if (vendorDefaultTaxId) {
-        resolvedTax = eligible.find(t => t.id === vendorDefaultTaxId)
-      }
+      if (vendorDefaultTaxId) resolvedTax = taxes.find(t => t.id === vendorDefaultTaxId && t.isActive)
       // 2. Impuesto configurado en el artículo (compras)
-      if (!resolvedTax && p.purchaseTaxId) {
-        resolvedTax = eligible.find(t => t.id === p.purchaseTaxId)
-      }
-      // 3. Impuesto de compra por defecto o primer activo (fallback)
-      if (!resolvedTax) {
-        resolvedTax = eligible.find(t => t.isDefault) ?? eligible.find(t => Number(t.rate) > 0) ?? eligible[0]
-      }
+      if (!resolvedTax && p.purchaseTaxId) resolvedTax = taxes.find(t => t.id === p.purchaseTaxId && t.isActive)
+      // 3. Fallback: impuesto de compra por defecto según contexto
+      if (!resolvedTax) resolvedTax = resolvePreferredTax(taxes, true)
       // Avisar si ni el proveedor ni el artículo tenían impuesto de compra definido
       if (!vendorDefaultTaxId && !p.purchaseTaxId) {
         message.warning(
@@ -417,12 +411,8 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
       }
     } else {
       // Ventas: impuesto del artículo → global por defecto
-      if (p.salesTaxId) {
-        resolvedTax = eligible.find(t => t.id === p.salesTaxId)
-      }
-      if (!resolvedTax) {
-        resolvedTax = eligible.find(t => t.isDefault) ?? eligible.find(t => Number(t.rate) > 0) ?? eligible[0]
-      }
+      if (p.salesTaxId) resolvedTax = taxes.find(t => t.id === p.salesTaxId && t.isActive)
+      if (!resolvedTax) resolvedTax = resolvePreferredTax(taxes, false)
     }
 
     update(key, {
