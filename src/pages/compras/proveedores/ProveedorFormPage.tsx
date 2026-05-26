@@ -523,16 +523,18 @@ export default function ProveedorFormPage() {
                       <Col xs={24} md={12}>
                         <Form.Item
                           name="defaultPurchaseTaxId"
-                          label="Impuesto de compra por defecto"
-                          tooltip="Al agregar un artículo en una orden de compra o factura proveedor, se aplicará automáticamente este impuesto. Si no se configura, se usa el impuesto del artículo."
+                          label="Impuesto de compra por defecto (IVA)"
+                          tooltip="Al agregar un artículo en una orden de compra o factura proveedor, se aplicará automáticamente este impuesto. Solo aplica a impuestos de tipo IVA — el ISR se configura arriba."
                         >
                           <Select
-                            placeholder="Seleccionar impuesto…"
+                            placeholder="Seleccionar impuesto IVA…"
                             allowClear
-                            options={taxes.map((t: Tax) => ({
-                              value: t.id,
-                              label: `${t.name} (${Number(t.rate)}%)`,
-                            }))}
+                            options={taxes
+                              .filter(t => t.isActive && !t.isWithholding && (t.applicability === 'purchases' || t.applicability === 'both'))
+                              .map((t: Tax) => ({
+                                value: t.id,
+                                label: `${t.name} (${Number(t.rate)}%)`,
+                              }))}
                           />
                         </Form.Item>
                       </Col>

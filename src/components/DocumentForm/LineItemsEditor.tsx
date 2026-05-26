@@ -216,15 +216,17 @@ const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix,
   )
 })
 
-/** Resuelve el impuesto preferido según contexto de compra/venta.
+/** Resuelve el impuesto transaccional preferido según contexto de compra/venta.
+ *  Excluye retenciones (isWithholding) — esas van en el dato maestro del proveedor/cliente.
  *  Prioridad: taxId explícito → específico default → both default → específico con tasa → both con tasa */
 function resolvePreferredTax(taxes: Tax[], forPurchase: boolean, preferTaxId?: string): Tax | undefined {
+  const transactional = taxes.filter(t => t.isActive && !t.isWithholding)
   if (preferTaxId) {
-    const direct = taxes.find(t => t.id === preferTaxId && t.isActive)
+    const direct = transactional.find(t => t.id === preferTaxId)
     if (direct) return direct
   }
-  const specific = taxes.filter(t => t.isActive && t.applicability === (forPurchase ? 'purchases' : 'sales'))
-  const common   = taxes.filter(t => t.isActive && t.applicability === 'both')
+  const specific = transactional.filter(t => t.applicability === (forPurchase ? 'purchases' : 'sales'))
+  const common   = transactional.filter(t => t.applicability === 'both')
   return (
     specific.find(t => t.isDefault && Number(t.rate) > 0) ??
     common.find(t => t.isDefault && Number(t.rate) > 0) ??
@@ -363,7 +365,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
   const isPurchaseDoc = docType === 'po' || docType === 'bill'
   const taxOptions = taxes
     .filter(t => {
-      if (!t.isActive) return false
+      if (!t.isActive || t.isWithholding) return false  // retenciones (ISR) van en dato maestro, no en líneas
       if (isPurchaseDoc) return t.applicability === 'purchases' || t.applicability === 'both'
       return t.applicability === 'sales' || t.applicability === 'both'
     })
