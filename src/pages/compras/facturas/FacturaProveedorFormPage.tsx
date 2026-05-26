@@ -28,6 +28,22 @@ const { Text } = Typography
 
 const fmt = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+/** Calcula ISR progresivo por tramos (igual que la vista previa de configuración fiscal).
+ *  tiers deben tener upTo (null = sin límite) y rate (%). */
+function calcProgressiveISR(base: number, tiers: { upTo: number | null; rate: number }[]): number {
+  const sorted = [...tiers].sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
+  let total    = 0
+  let prevLimit = 0
+  for (const tier of sorted) {
+    if (base <= prevLimit) break
+    const limit   = tier.upTo ?? Infinity
+    const taxable = Math.min(base, limit) - prevLimit
+    total    += taxable * tier.rate / 100
+    prevLimit = limit
+  }
+  return Math.round(total * 100) / 100
+}
+
 const BILL_TYPES: { value: BillType; label: string }[] = [
   { value: 'goods',         label: BILL_TYPE_CONFIG.goods.label         },
   { value: 'services',      label: BILL_TYPE_CONFIG.services.label      },
@@ -236,7 +252,10 @@ export default function FacturaProveedorFormPage() {
   useEffect(() => {
     if (id || !vendorIsrTax) return
     const subtotal = calcTotals(items).subtotal
-    setIsrAmount(Math.round(subtotal * isrAppliedRate / 100 * 100) / 100)
+    const amount = vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length
+      ? calcProgressiveISR(subtotal, vendorIsrTax.tiers)
+      : Math.round(subtotal * isrAppliedRate / 100 * 100) / 100
+    setIsrAmount(amount)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, vendorIsrTax, isrAppliedRate])
 
@@ -552,19 +571,16 @@ export default function FacturaProveedorFormPage() {
                         <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>{vendorIsrTax.code}</Tag>
                         <Text style={{ fontSize: 12, color: '#531dab', fontWeight: 500 }}>{vendorIsrTax.name}</Text>
                       </Space>
+                      {/* Impuesto progresivo: el selector de tramo no aplica — se calculan todos los tramos */}
                       {vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length ? (
-                        <Select
-                          size="small" value={isrAppliedRate} onChange={(v) => setIsrAppliedRate(v)}
-                          options={vendorIsrTax.tiers.map(t => ({
-                            value: t.rate,
-                            label: `${t.rate}% — ${t.label || (t.upTo ? `hasta Q ${t.upTo.toLocaleString('es-GT')}` : 'exceso')}`,
-                          }))}
-                          style={{ display: 'block', width: 240, marginTop: 4 }}
-                        />
-                      ) : null}
-                      <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
-                        Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
-                      </Text>
+                        <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
+                          Cálculo progresivo por tramos — Base Q {fmt(totals.subtotal)}
+                        </Text>
+                      ) : (
+                        <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
+                          Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
+                        </Text>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 2 }}>
                       <Text style={{ fontSize: 13, color: '#531dab', fontWeight: 600 }}>−</Text>

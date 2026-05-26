@@ -145,6 +145,7 @@ const CellInput = memo(({ value, onCommit, placeholder, style }: {
       onChange={handleChange}
       onBlur={() => commitNow(local)}
       onPressEnter={() => commitNow(local)}
+      onKeyDown={(e) => e.stopPropagation()}
       placeholder={placeholder} style={style} />
   )
 })
@@ -182,6 +183,7 @@ const CellTextArea = memo(({ value, onCommit, placeholder, style }: {
       size="small" value={local} autoSize={{ minRows: 1, maxRows: 4 }}
       onChange={handleChange}
       onBlur={() => commitNow(local)}
+      onKeyDown={(e) => e.stopPropagation()}
       placeholder={placeholder}
       style={{ fontSize: 13, resize: 'none', ...style }}
     />
@@ -211,7 +213,7 @@ const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix,
       value={local}
       onChange={v => setLocal(v)}
       onBlur={() => commit(local)}
-      onKeyDown={e => { if (e.key === 'Enter') commit(local) }}
+      onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') commit(local) }}
     />
   )
 })
@@ -648,7 +650,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Tarifa ════════════════════════════════════════════════════════ */
     {
-      title: 'Tarifa', dataIndex: 'unitPrice', width: 110, align: 'right' as const,
+      title: 'Tarifa', dataIndex: 'unitPrice', width: 145, align: 'right' as const,
       render: (_: any, row: LineItem) => readOnly
         ? <span style={{ fontSize: 13 }}>{Number(row.unitPrice).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
         : <CellInputNumber
