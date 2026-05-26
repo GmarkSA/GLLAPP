@@ -54,6 +54,7 @@ export interface PurchaseInvoice {
   retentionAmount:         number
   isrRetentionAmount:      number
   ivaRetentionAmount:      number
+  isrRetentionAccountId?:  string
   idpAmount:               number
   total:                   number
   paidAmount:              number

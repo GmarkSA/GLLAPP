@@ -23,7 +23,6 @@ import LineItemsEditor, {
   newLineItem,
   calcTotals,
 } from '../../../components/DocumentForm/LineItemsEditor'
-import DocumentTotals from '../../../components/DocumentForm/DocumentTotals'
 
 const { Text } = Typography
 
@@ -65,6 +64,7 @@ export default function FacturaProveedorFormPage() {
   const [vendorDefaultTaxId, setVendorDefaultTaxId]   = useState<string | undefined>()
   const [vendorIsrTax, setVendorIsrTax]               = useState<Tax | undefined>()
   const [isrAppliedRate, setIsrAppliedRate]           = useState(0)  // tasa efectiva (puede ser tier)
+  const [loadedIsrAccountId, setLoadedIsrAccountId]   = useState<string | undefined>()
 
   // Retention amounts (controlled outside form for live calculation)
   const [isrAmount, setIsrAmount]       = useState(0)
@@ -170,6 +170,7 @@ export default function FacturaProveedorFormPage() {
         }
         setIsrAmount(Number(bill.isrRetentionAmount ?? 0))
         setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
+        setLoadedIsrAccountId(bill.isrRetentionAccountId ?? undefined)
         const loadedItems: LineItem[] = (bill.items ?? []).map(it =>
           newLineItem({
             _key: it.id ?? undefined,
@@ -326,7 +327,7 @@ export default function FacturaProveedorFormPage() {
       // Retenciones
       isrRetentionAmount:    isrAmount,
       ivaRetentionAmount:    invoiceType === 'special' ? totals.taxAmount : ivaRetAmount,
-      isrRetentionAccountId: vendorIsrTax?.retentionAccountId ?? undefined,
+      isrRetentionAccountId: vendorIsrTax?.retentionAccountId ?? loadedIsrAccountId,
       // Reembolso
       isExpenseReimbursement: isReimbursement,
       employeeId:          isReimbursement ? vals.employeeId : undefined,
@@ -368,15 +369,19 @@ export default function FacturaProveedorFormPage() {
     if (!id) return
     setApproving(true)
     try {
-      // Save latest changes first
       const dto = buildDto('draft')
       await updateBill(id, dto as any)
-      // Then approve
+    } catch (err: any) {
+      message.error('Error al guardar: ' + (err?.response?.data?.message ?? 'intente de nuevo'))
+      setApproving(false)
+      return
+    }
+    try {
       await approveBill(id)
       message.success('Factura aprobada — asiento contable generado')
       navigate(`/compras/facturas`)
     } catch (err: any) {
-      message.error(err?.response?.data?.message ?? 'Error al aprobar')
+      message.error('Error al generar asiento: ' + (err?.response?.data?.message ?? 'contacte soporte'))
     } finally {
       setApproving(false)
     }
@@ -531,9 +536,105 @@ export default function FacturaProveedorFormPage() {
             </Card>
           )}
 
-          {/* Line items */}
+          {/* Line items + Retenciones & Neto a Pagar */}
           <Card title="Líneas de Factura" styles={{ body: { padding: '12px 16px' } }}>
             <LineItemsEditor items={items} taxes={taxes} onChange={setItems} docType="bill" vendorDefaultTaxId={vendorDefaultTaxId} />
+
+            {/* ── Retenciones & Neto a Pagar ─────────────────────────────── */}
+            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
+              <div style={{ maxWidth: 560, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                {/* ISR — con info del proveedor si está configurado */}
+                {vendorIsrTax ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div>
+                      <Space size={6} style={{ marginBottom: 2 }}>
+                        <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>{vendorIsrTax.code}</Tag>
+                        <Text style={{ fontSize: 12, color: '#531dab', fontWeight: 500 }}>{vendorIsrTax.name}</Text>
+                      </Space>
+                      {vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length ? (
+                        <Select
+                          size="small" value={isrAppliedRate} onChange={(v) => setIsrAppliedRate(v)}
+                          options={vendorIsrTax.tiers.map(t => ({
+                            value: t.rate,
+                            label: `${t.rate}% — ${t.label || (t.upTo ? `hasta Q ${t.upTo.toLocaleString('es-GT')}` : 'exceso')}`,
+                          }))}
+                          style={{ display: 'block', width: 240, marginTop: 4 }}
+                        />
+                      ) : null}
+                      <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
+                        Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
+                      </Text>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 2 }}>
+                      <Text style={{ fontSize: 13, color: '#531dab', fontWeight: 600 }}>−</Text>
+                      <InputNumber
+                        size="small" min={0} step={0.01} prefix="Q"
+                        value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
+                        style={{ width: 120 }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención ISR</Text>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ color: '#6b7280' }}>−</Text>
+                      <InputNumber
+                        size="small" min={0} step={0.01} prefix="Q"
+                        value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
+                        style={{ width: 120 }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* IVA Retention */}
+                {invoiceType === 'special' ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <Text style={{ fontSize: 12, color: '#dc2626', fontWeight: 500 }}>IVA Retenido — Factura Especial</Text>
+                      <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>El comprador retiene el 100% del IVA</Text>
+                    </div>
+                    <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>− Q {fmt(totals.taxAmount)}</Text>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención IVA</Text>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ color: '#6b7280' }}>−</Text>
+                      <InputNumber
+                        size="small" min={0} step={0.01} prefix="Q"
+                        value={ivaRetAmount} onChange={(v) => setIvaRetAmount(v ?? 0)}
+                        style={{ width: 120 }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* IDP row (combustible) */}
+                {idpAmount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#d97706' }}>IDP Combustible</Text>
+                    <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>+ Q {fmt(idpAmount)}</Text>
+                  </div>
+                )}
+
+                {/* Neto a Pagar — solo cuando hay retenciones o IDP */}
+                {(totalRetention > 0 || idpAmount > 0) && (
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: '#1B3A6B', borderRadius: 8, padding: '10px 16px', marginTop: 2,
+                  }}>
+                    <Text style={{ fontSize: 13, fontWeight: 600, color: '#adc6ff' }}>Neto a Pagar Proveedor</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 800, color: '#ffffff' }}>
+                      {watchCurr} {fmt(netPayable)}
+                    </Text>
+                  </div>
+                )}
+
+              </div>
+            </div>
           </Card>
 
           {/* Notes */}
@@ -570,159 +671,6 @@ export default function FacturaProveedorFormPage() {
               </Form>
             </Card>
           )}
-
-          {/* Retenciones — solo si special */}
-          {invoiceType === 'special' && (
-            <Card title={<span style={{ color: '#dc2626', fontWeight: 600 }}>Retenciones (Factura Especial)</span>}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>IVA Retenido (12%)</Text>
-                <Text style={{ fontSize: 13, fontWeight: 600, color: '#dc2626' }}>Q {fmt(totals.taxAmount)}</Text>
-              </div>
-              <Divider style={{ margin: '8px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>ISR Retención</Text>
-                <InputNumber
-                  size="small" min={0} step={0.01} prefix="Q"
-                  value={isrAmount}
-                  onChange={(v) => setIsrAmount(v ?? 0)}
-                  style={{ width: 110 }}
-                />
-              </div>
-              <div style={{ marginTop: 10, padding: '6px 10px', background: '#fef2f2', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>
-                Total retenido: Q {fmt(totals.taxAmount + isrAmount)} — neto a proveedor: Q {fmt(totals.subtotal - isrAmount)}
-              </div>
-            </Card>
-          )}
-
-          {/* Retenciones — tipos distintos de factura especial */}
-          {invoiceType !== 'special' && (
-            <Card title="Retenciones" styles={{ body: { padding: '12px 16px' } }}>
-
-              {/* ISR — con info del proveedor si está configurado */}
-              {vendorIsrTax ? (
-                <>
-                  <div style={{ padding: '6px 10px', background: '#f9f0ff', borderRadius: 6, marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>ISR configurado en el proveedor</div>
-                    <Space size={6}>
-                      <Tag color="purple" style={{ margin: 0 }}>{vendorIsrTax.code}</Tag>
-                      <Text style={{ fontSize: 12, fontWeight: 500, color: '#531dab' }}>
-                        {vendorIsrTax.name}{' '}
-                        ({vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length
-                          ? `${Math.min(...vendorIsrTax.tiers.map(t => t.rate))}% - ${Math.max(...vendorIsrTax.tiers.map(t => t.rate))}%`
-                          : `${Number(vendorIsrTax.rate)}%`})
-                      </Text>
-                    </Space>
-                  </div>
-                  {/* Selector de tasa para impuestos progresivos (ej. ISR 5%-7%) */}
-                  {vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length ? (
-                    <div style={{ marginBottom: 8 }}>
-                      <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 4 }}>
-                        Tasa a aplicar (selecciona el tramo del proveedor)
-                      </Text>
-                      <Select
-                        size="small" style={{ width: '100%' }}
-                        value={isrAppliedRate}
-                        onChange={(v) => setIsrAppliedRate(v)}
-                        options={vendorIsrTax.tiers.map(t => ({
-                          value: t.rate,
-                          label: `${t.rate}% — ${t.label || (t.upTo ? `hasta Q ${t.upTo.toLocaleString('es-GT')}` : 'exceso')}`,
-                        }))}
-                      />
-                    </div>
-                  ) : null}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
-                      Retención ISR{!id ? ' (auto)' : ''}
-                    </Text>
-                    <InputNumber
-                      size="small" min={0} step={0.01} prefix="Q"
-                      value={isrAmount}
-                      onChange={(v) => setIsrAmount(v ?? 0)}
-                      style={{ width: 110 }}
-                    />
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right', marginBottom: 8 }}>
-                    Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
-                    {' = Q '}{fmt(Math.round(totals.subtotal * isrAppliedRate / 100 * 100) / 100)}
-                  </div>
-                </>
-              ) : (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Retención ISR</Text>
-                  <InputNumber
-                    size="small" min={0} step={0.01} prefix="Q"
-                    value={isrAmount}
-                    onChange={(v) => setIsrAmount(v ?? 0)}
-                    style={{ width: 110 }}
-                  />
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Retención IVA</Text>
-                <InputNumber
-                  size="small" min={0} step={0.01} prefix="Q"
-                  value={ivaRetAmount}
-                  onChange={(v) => setIvaRetAmount(v ?? 0)}
-                  style={{ width: 110 }}
-                />
-              </div>
-            </Card>
-          )}
-
-          {/* Totals */}
-          <Card title="Resumen" styles={{ body: { padding: '16px' } }}>
-            <DocumentTotals
-              subtotal={totals.subtotal}
-              taxAmount={totals.taxAmount}
-              total={totals.total}
-              hasInclusive={totals.hasInclusive}
-              taxBreakdown={totals.taxBreakdown}
-              currency={watchCurr}
-            />
-            {idpAmount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px dashed #e5e7eb' }}>
-                <Text style={{ fontSize: 12, color: '#d97706' }}>IDP Combustible</Text>
-                <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>Q {fmt(idpAmount)}</Text>
-              </div>
-            )}
-            {/* Desglose de retenciones — una línea por cada tipo */}
-            {isrAmount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '1px dashed #e5e7eb' }}>
-                <div>
-                  <Text style={{ fontSize: 12, color: '#531dab' }}>
-                    {vendorIsrTax ? `${vendorIsrTax.code} — ${vendorIsrTax.name}` : 'Retención ISR'}
-                  </Text>
-                  {vendorIsrTax && (
-                    <Text style={{ fontSize: 10, color: '#9ca3af', display: 'block' }}>
-                      Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
-                    </Text>
-                  )}
-                </div>
-                <Text style={{ fontSize: 13, color: '#531dab', fontWeight: 600 }}>- Q {fmt(isrAmount)}</Text>
-              </div>
-            )}
-            {(invoiceType !== 'special' ? ivaRetAmount : ivaRetForSpecial) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px dashed #e5e7eb' }}>
-                <Text style={{ fontSize: 12, color: '#dc2626' }}>Retención IVA</Text>
-                <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
-                  - Q {fmt(invoiceType === 'special' ? ivaRetForSpecial : ivaRetAmount)}
-                </Text>
-              </div>
-            )}
-            {(totalRetention > 0 || idpAmount > 0) && (
-              <div style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                marginTop: 8, background: '#1B3A6B', borderRadius: 6,
-                padding: '10px 14px',
-              }}>
-                <Text style={{ fontSize: 13, fontWeight: 600, color: '#adc6ff' }}>Neto a Pagar Proveedor</Text>
-                <Text style={{ fontSize: 16, fontWeight: 800, color: '#ffffff' }}>
-                  {watchCurr} {fmt(netPayable)}
-                </Text>
-              </div>
-            )}
-          </Card>
 
           {/* Actions */}
           <Card title="Acciones">
