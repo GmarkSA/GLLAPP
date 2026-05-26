@@ -340,8 +340,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
   // Se re-ejecuta cuando cargan los taxes O cuando cambia el proveedor / docType.
   useEffect(() => {
     if (!taxes.length) return
-    const isPurchase = docType === 'po' || docType === 'bill'
-    const preferredTax = resolvePreferredTax(taxes, isPurchase, vendorDefaultTaxId)
+    const preferredTax = resolvePreferredTax(taxes, isPurchaseDoc, vendorDefaultTaxId)
     if (!preferredTax) return
 
     const needsUpdate = items.some(i => !i.productId && i.taxId !== preferredTax.id)
@@ -361,8 +360,13 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taxes, vendorDefaultTaxId, docType])
 
+  const isPurchaseDoc = docType === 'po' || docType === 'bill'
   const taxOptions = taxes
-    .filter(t => t.isActive)
+    .filter(t => {
+      if (!t.isActive) return false
+      if (isPurchaseDoc) return t.applicability === 'purchases' || t.applicability === 'both'
+      return t.applicability === 'sales' || t.applicability === 'both'
+    })
     .map(t => ({
       value:       t.id,
       label:       `${t.name} (${Number(t.rate)}%)`,
@@ -374,8 +378,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     onChange(items.map(item => item._key === key ? recalc({ ...item, ...patch }) : item))
 
   const addRow = () => {
-    const isPurchase  = docType === 'po' || docType === 'bill'
-    const preferredTax = resolvePreferredTax(taxes, isPurchase, vendorDefaultTaxId)
+    const preferredTax = resolvePreferredTax(taxes, isPurchaseDoc, vendorDefaultTaxId)
     onChange([...items, newLineItem(preferredTax ? {
       taxId:        preferredTax.id,
       taxName:      preferredTax.name,
@@ -389,12 +392,10 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     const opt = prodOptions.find(o => o.value === productId)
     if (!opt) return
     const p = opt.product
-    const isPurchase = docType === 'po' || docType === 'bill'
-
     // ── Tax resolution ─────────────────────────────────────────────────────
     let resolvedTax: Tax | undefined
 
-    if (isPurchase) {
+    if (isPurchaseDoc) {
       // 1. Impuesto configurado en el proveedor
       if (vendorDefaultTaxId) resolvedTax = taxes.find(t => t.id === vendorDefaultTaxId && t.isActive)
       // 2. Impuesto configurado en el artículo (compras)
@@ -419,12 +420,12 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
       productId,
       description:     p.description || p.name,
       unit:            p.unit,
-      unitPrice:       Number(isPurchase ? (p.purchasePrice ?? p.salesPrice ?? 0) : (p.salesPrice ?? 0)),
+      unitPrice:       Number(isPurchaseDoc ? (p.purchasePrice ?? p.salesPrice ?? 0) : (p.salesPrice ?? 0)),
       taxPercent:      resolvedTax ? Number(resolvedTax.rate) : 12,
       taxId:           resolvedTax?.id,
       taxName:         resolvedTax?.name,
       taxInclusive:    resolvedTax?.isInclusive ?? true,
-      accountId:       isPurchase ? (p.purchaseAccountId ?? undefined) : (p.salesAccountId ?? undefined),
+      accountId:       isPurchaseDoc ? (p.purchaseAccountId ?? undefined) : (p.salesAccountId ?? undefined),
       stockOnHand:     Number(p.stockOnHand ?? 0),
       isInventoriable: p.isInventoriable ?? false,
     })
