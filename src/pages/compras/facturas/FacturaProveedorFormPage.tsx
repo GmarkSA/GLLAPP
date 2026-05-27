@@ -3,17 +3,18 @@ import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import {
   Form, Select, DatePicker, InputNumber, Input, Button,
   Card, Breadcrumb, Typography, Spin, Divider, message,
-  Tag, Alert, Space,
+  Tag, Alert, Space, Table, Checkbox,
 } from 'antd'
 import {
   SaveOutlined, CheckOutlined, HomeOutlined, ThunderboltOutlined,
-  SwapOutlined,
+  SwapOutlined, EditOutlined, SyncOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 import {
   createBill, updateBill, getBill, approveBill, getVendors,
-  type BillType, type PaymentTerms,
+  getJournalEntry, regenerateBillJournalEntry,
+  type BillType, type PaymentTerms, type JournalEntry, type JournalEntryLine,
   BILL_TYPE_CONFIG, PAYMENT_TERMS_CONFIG, IDP_RATES,
 } from '../../../api/compras'
 import { getTaxes, type Tax } from '../../../api/impuestos'
@@ -45,20 +46,15 @@ function calcProgressiveISR(base: number, tiers: { upTo: number | null; rate: nu
 }
 
 const BILL_TYPES: { value: BillType; label: string }[] = [
-  { value: 'goods',         label: BILL_TYPE_CONFIG.goods.label         },
-  { value: 'services',      label: BILL_TYPE_CONFIG.services.label      },
-  { value: 'reimbursement', label: BILL_TYPE_CONFIG.reimbursement.label },
-  { value: 'special',       label: BILL_TYPE_CONFIG.special.label       },
-  { value: 'fuel',          label: BILL_TYPE_CONFIG.fuel.label          },
+  { value: 'goods',    label: BILL_TYPE_CONFIG.goods.label    },
+  { value: 'services', label: BILL_TYPE_CONFIG.services.label },
+  { value: 'special',  label: BILL_TYPE_CONFIG.special.label  },
+  { value: 'fuel',     label: BILL_TYPE_CONFIG.fuel.label     },
 ]
 
 const PAYMENT_TERMS_OPTIONS = Object.entries(PAYMENT_TERMS_CONFIG).map(([v, l]) => ({ value: v, label: l }))
 
-const IDP_FUEL_OPTS = [
-  { value: 'super',   label: `Super (Q${IDP_RATES.super}/gal)`   },
-  { value: 'regular', label: `Regular (Q${IDP_RATES.regular}/gal)` },
-  { value: 'diesel',  label: `Diesel (Q${IDP_RATES.diesel}/gal)` },
-]
+const FUEL_UNITS = new Set(['super', 'regular', 'diesel'])
 
 export default function FacturaProveedorFormPage() {
   const { id } = useParams<{ id?: string }>()
@@ -69,33 +65,38 @@ export default function FacturaProveedorFormPage() {
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
   const [taxes, setTaxes]               = useState<Tax[]>([])
-  const [vendors, setVendors]           = useState<{ value: string; label: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string }[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string }[]>([])
   const [accounts, setAccounts]         = useState<Account[]>([])
   const [loadingVendors, setLoadingVendors] = useState(false)
   const [loading, setLoading]           = useState(!!id)
   const [saving, setSaving]             = useState(false)
   const [approving, setApproving]       = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   const [billStatus, setBillStatus]         = useState<string>('draft')
   const [purchaseOrderId, setPurchaseOrderId]         = useState<string | undefined>(fromPO?.purchaseOrderId)
   const [vendorDefaultTaxId, setVendorDefaultTaxId]   = useState<string | undefined>()
   const [vendorIsrTax, setVendorIsrTax]               = useState<Tax | undefined>()
   const [isrAppliedRate, setIsrAppliedRate]           = useState(0)  // tasa efectiva (puede ser tier)
   const [loadedIsrAccountId, setLoadedIsrAccountId]   = useState<string | undefined>()
+  const [journalEntry, setJournalEntry]               = useState<JournalEntry | null>(null)
+  const [reclasEntry, setReclasEntry]                 = useState<JournalEntry | null>(null)
 
   // Retention amounts (controlled outside form for live calculation)
   const [isrAmount, setIsrAmount]       = useState(0)
   const [ivaRetAmount, setIvaRetAmount] = useState(0)
+  const [editingIsr, setEditingIsr]     = useState(false)
+  const [editingIvaRet, setEditingIvaRet] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Watched form values
-  const invoiceType   = Form.useWatch('invoiceType',   form) as BillType   ?? 'goods'
-  const paymentTerms  = Form.useWatch('paymentTerms',  form) as PaymentTerms ?? 'immediate'
-  const fuelType      = Form.useWatch('fuelType',      form) as string     ?? 'super'
-  const invoiceDate   = Form.useWatch('invoiceDate',   form)
-  const customDays    = Form.useWatch('paymentTermsDays', form) as number
-  const watchCurr     = Form.useWatch('currency',      form) ?? 'GTQ'
-  const watchVendorId = Form.useWatch('vendorId',      form) as string | undefined
+  const invoiceType      = Form.useWatch('invoiceType',              form) as BillType   ?? 'goods'
+  const paymentTerms     = Form.useWatch('paymentTerms',             form) as PaymentTerms ?? 'immediate'
+  const invoiceDate      = Form.useWatch('invoiceDate',              form)
+  const customDays       = Form.useWatch('paymentTermsDays',         form) as number
+  const watchCurr        = Form.useWatch('currency',                 form) ?? 'GTQ'
+  const watchVendorId    = Form.useWatch('vendorId',                 form) as string | undefined
+  const isReimbursement  = Form.useWatch('isExpenseReimbursement',   form) as boolean ?? false
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
@@ -169,8 +170,9 @@ export default function FacturaProveedorFormPage() {
           felAuthNumber:       bill.felAuthNumber,
           felMessage:          bill.felMessage,
           felCertDate:         bill.felCertDate ? dayjs(bill.felCertDate) : undefined,
-          // Reimbursement
-          employeeId:          bill.employeeId,
+          // Reembolso
+          isExpenseReimbursement:   bill.isExpenseReimbursement ?? false,
+          employeeId:               bill.employeeId,
           employeePayableAccountId: bill.employeePayableAccountId,
           // IDP
           fuelType:            undefined,
@@ -187,6 +189,16 @@ export default function FacturaProveedorFormPage() {
         setIsrAmount(Number(bill.isrRetentionAmount ?? 0))
         setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
         setLoadedIsrAccountId(bill.isrRetentionAccountId ?? undefined)
+        if (bill.journalEntryId) {
+          getJournalEntry(bill.journalEntryId)
+            .then(je => setJournalEntry(je))
+            .catch(() => {})
+        }
+        if (bill.reclassificationJournalEntryId) {
+          getJournalEntry(bill.reclassificationJournalEntryId)
+            .then(je => setReclasEntry(je))
+            .catch(() => {})
+        }
         const loadedItems: LineItem[] = (bill.items ?? []).map(it =>
           newLineItem({
             _key: it.id ?? undefined,
@@ -222,11 +234,30 @@ export default function FacturaProveedorFormPage() {
     if (days > 0) form.setFieldValue('dueDate', base.add(days, 'day'))
   }, [paymentTerms, invoiceDate, customDays, form])
 
-  // Sincroniza impuesto por defecto del proveedor cuando llega la lista o cambia el vendorId
+  // Sincroniza impuesto y términos de pago del proveedor cuando llega la lista o cambia el vendorId
   useEffect(() => {
     if (!watchVendorId) return
     const found = vendors.find(v => v.value === watchVendorId)
-    if (found) setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+    if (!found) return
+    setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+    // Auto-fill payment terms solo en facturas nuevas (no sobreescribir datos guardados)
+    if (!id && found.paymentTerms) {
+      const validTerms = ['immediate', 'net_15', 'net_30', 'net_60', 'net_90', 'custom']
+      if (validTerms.includes(found.paymentTerms)) {
+        form.setFieldValue('paymentTerms', found.paymentTerms)
+        if (found.paymentTermsDays != null) {
+          form.setFieldValue('paymentTermsDays', found.paymentTermsDays)
+        }
+      } else {
+        // Mapear net_N (ej. net_7, net_45) → custom + días
+        const match = found.paymentTerms.match(/^net_(\d+)$/i)
+        if (match) {
+          form.setFieldValue('paymentTerms', 'custom')
+          form.setFieldValue('paymentTermsDays', parseInt(match[1]))
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendors, watchVendorId])
 
   // Resuelve el Tax de ISR configurado en el proveedor y determina la tasa inicial
@@ -271,9 +302,13 @@ export default function FacturaProveedorFormPage() {
           list.forEach((v: any) => map.set(v.id, {
             value: v.id,
             label: v.name,
+            type:                 v.type ?? undefined,
+            expenseAccountId:     v.expenseAccountId ?? undefined,
             defaultPurchaseTaxId: v.defaultPurchaseTaxId ?? undefined,
             tdsEnabled:           v.tdsEnabled ?? false,
             tdsTaxCode:           v.tdsTaxCode ?? undefined,
+            paymentTerms:         v.paymentTerms ?? undefined,
+            paymentTermsDays:     v.paymentTermsDays ?? undefined,
           }))
           return [...map.values()]
         })
@@ -291,10 +326,13 @@ export default function FacturaProveedorFormPage() {
 
   const totals = calcTotals(items)
 
-  // IDP calculation: total quantity of all lines × rate per fuel type
-  const totalQty    = items.reduce((s, it) => s + Number(it.quantity || 0), 0)
-  const idpRate     = IDP_RATES[fuelType] ?? 0
-  const idpAmount   = invoiceType === 'fuel' ? Math.round(totalQty * idpRate * 100) / 100 : 0
+  // IDP calculation: per-line, derived from unit (super/regular/diesel)
+  const idpAmount = invoiceType === 'fuel'
+    ? Math.round(items.reduce((sum, it) => {
+        const rate = FUEL_UNITS.has(it.unit ?? '') ? (IDP_RATES[it.unit!] ?? 0) : 0
+        return sum + Number(it.quantity || 0) * rate
+      }, 0) * 100) / 100
+    : 0
 
   // For special invoices, IVA retention = taxAmount (buyer retains it)
   const ivaRetForSpecial = invoiceType === 'special' ? totals.taxAmount : ivaRetAmount
@@ -325,8 +363,10 @@ export default function FacturaProveedorFormPage() {
       taxId: it.taxId,
       accountId: it.accountId,
       projectId: it.projectId,
+      // Para facturas de combustible: el idpType se deriva de la unidad de medida
+      idpType: FUEL_UNITS.has(it.unit ?? '') ? it.unit : undefined,
     }))
-    const isReimbursement = vals.invoiceType === 'reimbursement'
+    const isReim = vals.isExpenseReimbursement ?? false
     return {
       vendorId:            vals.vendorId,
       invoiceDate:         vals.invoiceDate ? vals.invoiceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
@@ -347,14 +387,12 @@ export default function FacturaProveedorFormPage() {
       // Retenciones
       isrRetentionAmount:    isrAmount,
       ivaRetentionAmount:    invoiceType === 'special' ? totals.taxAmount : ivaRetAmount,
-      isrRetentionAccountId: vendorIsrTax?.retentionAccountId ?? loadedIsrAccountId,
+      isrRetentionAccountId: vendorIsrTax?.retentionAccountId ?? vendorIsrTax?.purchaseAccountId ?? loadedIsrAccountId,
       // Reembolso
-      isExpenseReimbursement: isReimbursement,
-      employeeId:          isReimbursement ? vals.employeeId : undefined,
-      employeeName:        isReimbursement
-        ? vendors.find(v => v.value === vals.employeeId)?.label
-        : undefined,
-      employeePayableAccountId: isReimbursement ? vals.employeePayableAccountId : undefined,
+      isExpenseReimbursement:   isReim,
+      employeeId:               isReim ? vals.employeeId : undefined,
+      employeeName:             isReim ? vendors.find(e => e.value === vals.employeeId && e.type === 'employee')?.label : undefined,
+      employeePayableAccountId: isReim ? vals.employeePayableAccountId : undefined,
       // IDP
       idpAmount:           idpAmount,
       idpAccountId:        vals.invoiceType === 'fuel' ? vals.idpAccountId : undefined,
@@ -404,6 +442,29 @@ export default function FacturaProveedorFormPage() {
       message.error('Error al generar asiento: ' + (err?.response?.data?.message ?? 'contacte soporte'))
     } finally {
       setApproving(false)
+    }
+  }
+
+  const handleRegenerate = async () => {
+    if (!id) return
+    setRegenerating(true)
+    try {
+      const updated = await regenerateBillJournalEntry(id)
+      if (updated.journalEntryId) {
+        const je = await getJournalEntry(updated.journalEntryId)
+        setJournalEntry(je)
+      }
+      if (updated.reclassificationJournalEntryId) {
+        const rje = await getJournalEntry(updated.reclassificationJournalEntryId)
+        setReclasEntry(rje)
+      } else {
+        setReclasEntry(null)
+      }
+      message.success('Póliza contable regenerada')
+    } catch (err: any) {
+      message.error('Error al regenerar: ' + (err?.response?.data?.message ?? 'intente de nuevo'))
+    } finally {
+      setRegenerating(false)
     }
   }
 
@@ -529,28 +590,48 @@ export default function FacturaProveedorFormPage() {
             </Form>
           </Card>
 
-          {/* Reemboolso — solo si type = reimbursement */}
-          {invoiceType === 'reimbursement' && (
-            <Card title={<span style={{ color: '#7c3aed', fontWeight: 600 }}>Reembolso de Gastos</span>}>
+          {/* Checkbox Reembolso de Gastos */}
+          <Card styles={{ body: { padding: '12px 16px' } }}>
+            <Form form={form} layout="vertical" size="small">
+              <Form.Item name="isExpenseReimbursement" valuePropName="checked" style={{ marginBottom: 0 }}>
+                <Checkbox>
+                  <span style={{ fontWeight: 600, color: '#1B3A6B' }}>
+                    <TeamOutlined style={{ marginRight: 6 }} />
+                    Reembolso de gastos
+                  </span>
+                  <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 8 }}>
+                    — la deuda se traslada al empleado mediante un asiento de reclasificación
+                  </span>
+                </Checkbox>
+              </Form.Item>
+            </Form>
+          </Card>
+
+          {/* Sección de empleado — visible solo si el checkbox está activo */}
+          {isReimbursement && (
+            <Card
+              title={<span style={{ color: '#7c3aed', fontWeight: 600 }}><TeamOutlined style={{ marginRight: 6 }} />Datos del Empleado</span>}
+              style={{ border: '1px solid #d3adf7' }}
+            >
               <Form form={form} layout="vertical" size="small">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                  <Form.Item name="employeeId" label="Empleado (mismo que proveedor)">
-                    <Select
-                      showSearch placeholder="Seleccionar empleado…"
-                      filterOption={false}
-                      loading={loadingVendors}
-                      onSearch={handleVendorSearch}
-                      options={vendors}
-                      notFoundContent={loadingVendors ? 'Buscando…' : 'Sin resultados'}
-                      onChange={(v) => form.setFieldValue('vendorId', v)}
-                    />
-                  </Form.Item>
-                  <Form.Item name="employeePayableAccountId" label="Cuenta puente empleado">
-                    <Select showSearch placeholder="Cuenta transitoria…" filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())} options={allAccounts} allowClear />
-                  </Form.Item>
-                </div>
+                <Form.Item name="employeePayableAccountId" hidden><Input /></Form.Item>
+                <Form.Item name="employeeId" label="Empleado" rules={[{ required: true, message: 'Seleccione el empleado' }]}>
+                  <Select
+                    showSearch
+                    placeholder="Buscar empleado…"
+                    filterOption={(v, opt) => String(opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
+                    options={vendors.filter(v => v.type === 'employee')}
+                    notFoundContent="Sin empleados — registre empleados en Proveedores"
+                    onChange={(v) => {
+                      const emp = vendors.find(e => e.value === v && e.type === 'employee')
+                      if (emp?.expenseAccountId) {
+                        form.setFieldValue('employeePayableAccountId', emp.expenseAccountId)
+                      }
+                    }}
+                  />
+                </Form.Item>
                 <div style={{ padding: '8px 12px', background: '#f5f0ff', borderRadius: 8, fontSize: 12, color: '#6b21a8' }}>
-                  El reembolso se registra como deuda con el empleado en la cuenta puente, no como CxP proveedor.
+                  Al aprobar se generan <strong>dos asientos</strong>: (1) Dr Gasto / Cr CxP Proveedor — para el Libro de Compras; (2) Dr CxP Proveedor / Cr Cuenta Transitoria Empleado — reclasificación interna.
                 </div>
               </Form>
             </Card>
@@ -572,10 +653,9 @@ export default function FacturaProveedorFormPage() {
                         <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>{vendorIsrTax.code}</Tag>
                         <Text style={{ fontSize: 12, color: '#531dab', fontWeight: 500 }}>{vendorIsrTax.name}</Text>
                       </Space>
-                      {/* Impuesto progresivo: el selector de tramo no aplica — se calculan todos los tramos */}
                       {vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length ? (
                         <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
-                          Cálculo progresivo por tramos — Base Q {fmt(totals.subtotal)}
+                          Progresivo — Base Q {fmt(totals.subtotal)}
                         </Text>
                       ) : (
                         <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
@@ -583,25 +663,53 @@ export default function FacturaProveedorFormPage() {
                         </Text>
                       )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Text style={{ fontSize: 13, color: '#531dab', fontWeight: 600 }}>−</Text>
-                      <InputNumber
-                        size="small" min={0} step={0.01} prefix="Q"
-                        value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
-                        style={{ width: 120 }}
-                      />
+                      {editingIsr ? (
+                        <>
+                          <InputNumber
+                            size="small" min={0} step={0.01} prefix="Q" precision={2}
+                            value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
+                            style={{ width: 120 }}
+                            formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
+                            parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
+                          />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsr(false)} style={{ color: '#16a34a' }} />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#531dab', fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }}>
+                            Q {fmt(isrAmount)}
+                          </Text>
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9ca3af' }} />
+                        </>
+                      )}
                     </div>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención ISR</Text>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Text style={{ color: '#6b7280' }}>−</Text>
-                      <InputNumber
-                        size="small" min={0} step={0.01} prefix="Q"
-                        value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
-                        style={{ width: 120 }}
-                      />
+                      {editingIsr ? (
+                        <>
+                          <InputNumber
+                            size="small" min={0} step={0.01} prefix="Q" precision={2}
+                            value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
+                            style={{ width: 120 }}
+                            formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
+                            parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
+                          />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsr(false)} style={{ color: '#16a34a' }} />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }}>
+                            Q {fmt(isrAmount)}
+                          </Text>
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9ca3af' }} />
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -618,13 +726,27 @@ export default function FacturaProveedorFormPage() {
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención IVA</Text>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Text style={{ color: '#6b7280' }}>−</Text>
-                      <InputNumber
-                        size="small" min={0} step={0.01} prefix="Q"
-                        value={ivaRetAmount} onChange={(v) => setIvaRetAmount(v ?? 0)}
-                        style={{ width: 120 }}
-                      />
+                      {editingIvaRet ? (
+                        <>
+                          <InputNumber
+                            size="small" min={0} step={0.01} prefix="Q" precision={2}
+                            value={ivaRetAmount} onChange={(v) => setIvaRetAmount(v ?? 0)}
+                            style={{ width: 120 }}
+                            formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
+                            parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
+                          />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIvaRet(false)} style={{ color: '#16a34a' }} />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }}>
+                            Q {fmt(ivaRetAmount)}
+                          </Text>
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIvaRet(true)} style={{ color: '#9ca3af' }} />
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -654,6 +776,138 @@ export default function FacturaProveedorFormPage() {
             </div>
           </Card>
 
+          {/* Póliza Contable — visible cuando la factura fue aprobada */}
+          {journalEntry && (
+            <Card
+              title={
+                <span style={{ color: '#1B3A6B', fontWeight: 600 }}>
+                  Póliza Contable — {journalEntry.entryNumber}
+                </span>
+              }
+              styles={{ body: { padding: '8px 0 0 0' } }}
+              extra={
+                <Space size={8}>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                    {dayjs(journalEntry.entryDate).format('DD/MM/YYYY')}
+                  </Text>
+                  <Tag color={journalEntry.status === 'posted' ? 'green' : 'default'} style={{ margin: 0 }}>
+                    {journalEntry.status === 'posted' ? 'Publicado' : journalEntry.status}
+                  </Tag>
+                </Space>
+              }
+            >
+              <Table<JournalEntryLine>
+                dataSource={journalEntry.lines ?? []}
+                rowKey="id"
+                locale={{ emptyText: 'Sin líneas — verifique que el plan de cuentas tenga los códigos: 2101, 1104, 6107' }}
+                size="small"
+                pagination={false}
+                style={{ borderRadius: 0 }}
+                columns={[
+                  {
+                    title: 'Cuenta',
+                    width: 220,
+                    render: (_: any, line: JournalEntryLine) => (
+                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {line.accountCode} — {line.accountName}
+                      </span>
+                    ),
+                  },
+                  {
+                    title: 'Descripción',
+                    dataIndex: 'description',
+                    render: (v: string) => <span style={{ fontSize: 12, color: '#6b7280' }}>{v || '—'}</span>,
+                  },
+                  {
+                    title: 'Débito',
+                    dataIndex: 'debit',
+                    align: 'right' as const,
+                    width: 120,
+                    render: (v: number) => Number(v) > 0
+                      ? <span style={{ fontWeight: 600, color: '#1B3A6B', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                  },
+                  {
+                    title: 'Crédito',
+                    dataIndex: 'credit',
+                    align: 'right' as const,
+                    width: 120,
+                    render: (v: number) => Number(v) > 0
+                      ? <span style={{ fontWeight: 600, color: '#dc2626', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                  },
+                ]}
+                summary={() => (
+                  <Table.Summary fixed>
+                    <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+                      <Table.Summary.Cell index={0} colSpan={2}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase' }}>Totales</span>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right">
+                        <span style={{ fontWeight: 800, color: '#1B3A6B', fontFamily: 'monospace' }}>Q {fmt(Number(journalEntry.totalDebit))}</span>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right">
+                        <span style={{ fontWeight: 800, color: '#dc2626', fontFamily: 'monospace' }}>Q {fmt(Number(journalEntry.totalCredit))}</span>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  </Table.Summary>
+                )}
+              />
+            </Card>
+          )}
+
+          {/* Póliza de Reclasificación — solo si es reembolso aprobado */}
+          {reclasEntry && (
+            <Card
+              title={
+                <span style={{ color: '#7c3aed', fontWeight: 600 }}>
+                  Reclasificación — {reclasEntry.entryNumber}
+                </span>
+              }
+              styles={{ body: { padding: '8px 0 0 0' } }}
+              extra={
+                <Space size={8}>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                    {dayjs(reclasEntry.entryDate).format('DD/MM/YYYY')}
+                  </Text>
+                  <Tag color="purple" style={{ margin: 0 }}>CxP Proveedor → CxP Empleado</Tag>
+                </Space>
+              }
+            >
+              <Table<JournalEntryLine>
+                dataSource={reclasEntry.lines ?? []}
+                rowKey="id"
+                size="small"
+                pagination={false}
+                style={{ borderRadius: 0 }}
+                columns={[
+                  {
+                    title: 'Cuenta',
+                    width: 220,
+                    render: (_: any, line: JournalEntryLine) => (
+                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {line.accountCode} — {line.accountName}
+                      </span>
+                    ),
+                  },
+                  { title: 'Descripción', dataIndex: 'description', render: (v: string) => <span style={{ fontSize: 12, color: '#6b7280' }}>{v || '—'}</span> },
+                  {
+                    title: 'Débito', dataIndex: 'debit', align: 'right' as const, width: 120,
+                    render: (v: number) => Number(v) > 0
+                      ? <span style={{ fontWeight: 600, color: '#7c3aed', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                  },
+                  {
+                    title: 'Crédito', dataIndex: 'credit', align: 'right' as const, width: 120,
+                    render: (v: number) => Number(v) > 0
+                      ? <span style={{ fontWeight: 600, color: '#7c3aed', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                  },
+                ]}
+              />
+            </Card>
+          )}
+
           {/* Notes */}
           <Card title="Notas">
             <Form form={form} layout="vertical" size="small">
@@ -671,16 +925,37 @@ export default function FacturaProveedorFormPage() {
           {invoiceType === 'fuel' && (
             <Card title={<span style={{ color: '#d97706', fontWeight: 600 }}>IDP — Combustible</span>}>
               <Form form={form} layout="vertical" size="small">
-                <Form.Item name="fuelType" label="Tipo de combustible" initialValue="super">
-                  <Select options={IDP_FUEL_OPTS} />
-                </Form.Item>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Total galones (sum. líneas)</Text>
-                  <Text style={{ fontSize: 13, fontWeight: 600 }}>{fmt(totalQty)}</Text>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>IDP calculado</Text>
-                  <Text style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>Q {fmt(idpAmount)}</Text>
+                {/* Desglose por tipo — derivado de la columna Unidad en cada línea */}
+                <div style={{ marginBottom: 12 }}>
+                  {(['super', 'regular', 'diesel'] as const).map(ft => {
+                    const fuelLines = items.filter(it => it.unit === ft)
+                    if (!fuelLines.length) return null
+                    const qty = fuelLines.reduce((s, it) => s + Number(it.quantity || 0), 0)
+                    const rate = IDP_RATES[ft]
+                    const amt  = Math.round(qty * rate * 100) / 100
+                    const label = ft === 'super' ? 'Gasolina Super' : ft === 'regular' ? 'Gasolina Regular' : 'Diesel'
+                    return (
+                      <div key={ft} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                          {label}
+                          <span style={{ color: '#d1d5db', marginLeft: 4, fontSize: 11 }}>({fmt(qty)} gal × Q{rate})</span>
+                        </Text>
+                        <Text style={{ fontSize: 13, fontWeight: 600, color: '#d97706', fontFamily: 'monospace' }}>
+                          Q {fmt(amt)}
+                        </Text>
+                      </div>
+                    )
+                  })}
+                  {idpAmount > 0 ? (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #fde68a', paddingTop: 6, marginTop: 4 }}>
+                      <Text style={{ fontSize: 13, fontWeight: 700, color: '#d97706' }}>Total IDP</Text>
+                      <Text style={{ fontSize: 14, fontWeight: 800, color: '#d97706', fontFamily: 'monospace' }}>Q {fmt(idpAmount)}</Text>
+                    </div>
+                  ) : (
+                    <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>
+                      Selecciona Super, Regular o Diesel en la columna Unidad de cada línea
+                    </Text>
+                  )}
                 </div>
                 <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar">
                   <Select showSearch placeholder="Ej. 1106 — IDP por Acreditar" filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())} options={allAccounts} allowClear />
@@ -717,6 +992,21 @@ export default function FacturaProveedorFormPage() {
                   </Button>
                   <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
                     Genera póliza contable automática (CxP + IVA CF)
+                  </div>
+                </>
+              )}
+              {!!id && !canApprove && billStatus === 'open' && (
+                <>
+                  <Divider style={{ margin: '4px 0' }} />
+                  <Button
+                    block icon={<SyncOutlined />} loading={regenerating}
+                    onClick={handleRegenerate}
+                    style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+                  >
+                    Regenerar póliza contable
+                  </Button>
+                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+                    Recalcula cuentas contables con la configuración actual
                   </div>
                 </>
               )}

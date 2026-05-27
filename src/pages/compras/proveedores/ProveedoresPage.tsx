@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
   MoreOutlined, UserOutlined, BankOutlined, MailOutlined,
-  PhoneOutlined,
+  PhoneOutlined, IdcardOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getVendors, deleteVendor, type Vendor } from '../../../api/contactos'
@@ -71,9 +71,9 @@ export default function ProveedoresPage() {
       render: (_, r) => (
         <Space>
           <Avatar
-            style={{ background: r.type === 'individual' ? '#7c3aed' : '#1B3A6B', flexShrink: 0 }}
+            style={{ background: r.type === 'employee' ? '#d46b08' : r.type === 'individual' ? '#7c3aed' : '#1B3A6B', flexShrink: 0 }}
             size={36}
-            icon={r.type === 'individual' ? <UserOutlined /> : <BankOutlined />}
+            icon={r.type === 'employee' ? <IdcardOutlined /> : r.type === 'individual' ? <UserOutlined /> : <BankOutlined />}
           >
             {!r.name ? 'P' : r.name[0]}
           </Avatar>

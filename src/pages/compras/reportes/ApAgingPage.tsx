@@ -31,9 +31,19 @@ const columns = [
     ),
   },
   {
-    title: 'Proveedor',
+    title: 'Acreedor',
     dataIndex: 'vendorName',
     ellipsis: true,
+    render: (v: string, row: ApAgingRow) => (
+      <span>
+        {v}
+        {row.isExpenseReimbursement && (
+          <Tag color="purple" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
+            Reembolso
+          </Tag>
+        )}
+      </span>
+    ),
   },
   {
     title: 'Fecha',

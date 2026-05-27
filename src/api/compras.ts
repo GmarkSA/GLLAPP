@@ -78,6 +78,7 @@ export interface PurchaseInvoice {
   accountId?:              string
   idpAccountId?:           string
   journalEntryId?:         string
+  reclassificationJournalEntryId?: string
 
   purchaseOrderId?:        string
   notes?:                  string
@@ -119,15 +120,16 @@ export interface Vendor {
 
 // ─── AP Aging ────────────────────────────────────────────────────────────────
 export interface ApAgingRow {
-  id:            string
-  invoiceNumber: string
-  vendorId:      string
-  vendorName:    string
-  invoiceDate:   string
-  dueDate?:      string
-  total:         number
-  balance:       number
-  daysOverdue:   number
+  id:                      string
+  invoiceNumber:           string
+  vendorId:                string
+  vendorName:              string
+  isExpenseReimbursement?: boolean
+  invoiceDate:             string
+  dueDate?:                string
+  total:                   number
+  balance:                 number
+  daysOverdue:             number
 }
 
 export interface ApAgingBucket {
@@ -176,6 +178,35 @@ export interface LibroComprasReport {
   count:  number
 }
 
+// ─── Journal Entry ───────────────────────────────────────────────────────────
+export interface JournalEntryLine {
+  id:           string
+  accountId:    string
+  accountCode:  string
+  accountName:  string
+  description?: string
+  debit:        number
+  credit:       number
+  sortOrder:    number
+}
+
+export interface JournalEntry {
+  id:           string
+  entryNumber:  string
+  type:         string
+  status:       string
+  entryDate:    string
+  description:  string
+  reference?:   string
+  totalDebit:   number
+  totalCredit:  number
+  currency:     string
+  lines:        JournalEntryLine[]
+}
+
+export const getJournalEntry = (id: string) =>
+  api.get(`/contabilidad/asientos/${id}`).then(unwrap) as Promise<JournalEntry>
+
 // ─── Bills (Facturas de Proveedor) ────────────────────────────────────────────
 const BILL = '/compras/facturas-proveedor'
 
@@ -193,6 +224,9 @@ export const updateBill = (id: string, dto: Partial<PurchaseInvoice>) =>
 
 export const approveBill = (id: string) =>
   api.post(`${BILL}/${id}/aprobar`).then(unwrap) as Promise<PurchaseInvoice>
+
+export const regenerateBillJournalEntry = (id: string) =>
+  api.post(`${BILL}/${id}/regenerar-asiento`).then(unwrap) as Promise<PurchaseInvoice>
 
 export const recordBillPayment = (id: string, dto: { amount: number; paymentDate: string; mode?: string; reference?: string; bankAccountId?: string }) =>
   api.post(`${BILL}/${id}/registrar-pago`, dto).then(unwrap)
@@ -242,7 +276,7 @@ export const getExpense = (id: string) =>
 
 // ─── Proveedores ──────────────────────────────────────────────────────────────
 const PROV = '/compras/proveedores'
-export const getVendors = (params?: { search?: string; isActive?: boolean; limit?: number; page?: number }) =>
+export const getVendors = (params?: { search?: string; isActive?: boolean; limit?: number; page?: number; type?: string }) =>
   api.get(PROV, { params }).then(unwrap)
 
 // ─── Status helpers ───────────────────────────────────────────────────────────

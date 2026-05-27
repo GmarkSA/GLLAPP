@@ -191,10 +191,12 @@ const CellTextArea = memo(({ value, onCommit, placeholder, style }: {
 })
 
 /** InputNumber de celda con estado local — evita pérdida de foco al teclear */
-const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix, style }: {
+const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix, style, formatter, parser, precision }: {
   value: number; onCommit: (v: number) => void
-  min?: number; max?: number; step?: number
+  min?: number; max?: number; step?: number; precision?: number
   prefix?: string; suffix?: string; style?: React.CSSProperties
+  formatter?: (v: number | string | undefined) => string
+  parser?: (v: string | undefined) => number | string
 }) => {
   const [local, setLocal] = useState<number | null>(value)
   const committed = useRef(value)
@@ -208,8 +210,10 @@ const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix,
   return (
     <InputNumber
       size="small" style={{ width: '100%', ...style }}
-      min={min} max={max} step={step}
+      min={min} max={max} step={step} precision={precision}
       prefix={prefix} suffix={suffix}
+      formatter={formatter as any}
+      parser={parser as any}
       value={local}
       onChange={v => setLocal(v)}
       onBlur={() => commit(local)}
@@ -238,6 +242,36 @@ function resolvePreferredTax(taxes: Tax[], forPurchase: boolean, preferTaxId?: s
     common.find(t => Number(t.rate) > 0) ??
     specific[0] ?? common[0]
   )
+}
+
+// Definido fuera del componente para que sea una referencia estable.
+// Si se define inline en el JSX, React lo trata como un nuevo tipo en cada render
+// y desmonta/remonta las filas, causando pérdida de foco en los inputs.
+const TABLE_COMPONENTS = {
+  header: {
+    cell: (props: any) => (
+      <th
+        {...props}
+        style={{
+          ...props.style,
+          background:    '#e8f0fe',
+          color:         '#1B3A6B',
+          fontWeight:    700,
+          fontSize:      11,
+          textTransform: 'uppercase' as const,
+          letterSpacing: '0.05em',
+          padding:       '10px 12px',
+          borderBottom:  '2px solid #adc6ff',
+          whiteSpace:    'nowrap' as const,
+        }}
+      />
+    ),
+  },
+  body: {
+    row: (props: any) => (
+      <tr {...props} style={{ ...props.style, verticalAlign: 'top' }} />
+    ),
+  },
 }
 
 export default function LineItemsEditor({ items, taxes, onChange, readOnly, docType = 'invoice', vendorDefaultTaxId }: Props) {
@@ -622,15 +656,19 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
             placeholder="Tipo…"
             allowClear
             options={[
-              { value: 'UND',  label: 'Unidad' },
-              { value: 'SER',  label: 'Servicio' },
-              { value: 'EXP',  label: 'Exportación' },
-              { value: 'EXE',  label: 'Exento' },
-              { value: 'KG',   label: 'Kilogramo' },
-              { value: 'MT',   label: 'Metro' },
-              { value: 'LT',   label: 'Litro' },
-              { value: 'HRS',  label: 'Horas' },
-              { value: 'MT2',  label: 'Metro²' },
+              { value: 'UND',     label: 'Unidad'           },
+              { value: 'SER',     label: 'Servicio'         },
+              { value: 'EXP',     label: 'Exportación'      },
+              { value: 'EXE',     label: 'Exento'           },
+              { value: 'KG',      label: 'Kilogramo'        },
+              { value: 'MT',      label: 'Metro'            },
+              { value: 'LT',      label: 'Litro'            },
+              { value: 'HRS',     label: 'Horas'            },
+              { value: 'MT2',     label: 'Metro²'           },
+              { value: 'GAL',     label: 'Galón'            },
+              { value: 'super',   label: 'Super (gasolina)' },
+              { value: 'regular', label: 'Regular (gasolina)'},
+              { value: 'diesel',  label: 'Diesel'           },
             ]}
           />
         ),
@@ -644,19 +682,26 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
         : <CellInputNumber
             value={row.quantity}
             onCommit={v => update(row._key, { quantity: v })}
-            min={0.001} step={1}
+            min={0.001} step={1} precision={2}
           />,
     },
 
     /* ══ Tarifa ════════════════════════════════════════════════════════ */
     {
-      title: 'Tarifa', dataIndex: 'unitPrice', width: 145, align: 'right' as const,
+      title: 'Tarifa', dataIndex: 'unitPrice', width: 145, align: 'left' as const,
       render: (_: any, row: LineItem) => readOnly
         ? <span style={{ fontSize: 13 }}>{Number(row.unitPrice).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
         : <CellInputNumber
             value={row.unitPrice}
             onCommit={v => update(row._key, { unitPrice: v })}
             min={0} step={0.01} prefix="Q"
+            formatter={v => {
+              if (v === undefined || v === '') return ''
+              const parts = `${v}`.split('.')
+              parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+              return parts.join('.')
+            }}
+            parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
           />,
     },
 
@@ -670,7 +715,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
         : <CellInputNumber
             value={row.discountPercent}
             onCommit={v => update(row._key, { discountPercent: v })}
-            min={0} max={100} step={1} suffix="%"
+            min={0} max={100} step={1} precision={2} suffix="%"
           />,
     },
 
@@ -750,38 +795,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
         size="small"
         style={{ marginBottom: 0 }}
         scroll={{ x: 900 }}
-        components={{
-          header: {
-            cell: (props: any) => (
-              <th
-                {...props}
-                style={{
-                  ...props.style,
-                  background:     '#e8f0fe',
-                  color:          '#1B3A6B',
-                  fontWeight:     700,
-                  fontSize:       11,
-                  textTransform:  'uppercase',
-                  letterSpacing:  '0.05em',
-                  padding:        '10px 12px',
-                  borderBottom:   '2px solid #adc6ff',
-                  whiteSpace:     'nowrap',
-                }}
-              />
-            ),
-          },
-          body: {
-            row: (props: any) => (
-              <tr
-                {...props}
-                style={{
-                  ...props.style,
-                  verticalAlign: 'top',
-                }}
-              />
-            ),
-          },
-        }}
+        components={TABLE_COMPONENTS}
       />
 
       {/* ── Agregar fila ───────────────────────────────────────────────── */}
@@ -849,7 +863,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
           background:   '#1B3A6B',
         }}>
           <div style={{ fontSize: 11, color: '#adc6ff', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-            Total a pagar
+            Total Factura
           </div>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#ffffff' }}>
             Q {totals.total.toLocaleString('es-GT', { minimumFractionDigits: 2 })}

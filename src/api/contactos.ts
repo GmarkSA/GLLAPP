@@ -33,7 +33,7 @@ export interface ContactPerson {
 export interface Customer {
   id?:              string
   customerNumber?:  string
-  type?:            'individual' | 'company'
+  type?:            'individual' | 'company' | 'employee'
   name:             string
   legalName?:       string
   salutation?:      string

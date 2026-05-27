@@ -8,7 +8,7 @@ import {
 import {
   SaveOutlined, ArrowLeftOutlined, UserOutlined, BankOutlined,
   PercentageOutlined, BookOutlined, EnvironmentOutlined,
-  TeamOutlined, PlusOutlined, DeleteOutlined,
+  TeamOutlined, PlusOutlined, DeleteOutlined, IdcardOutlined,
 } from '@ant-design/icons'
 import {
   getVendor, createVendor, updateVendor,
@@ -119,7 +119,7 @@ function ContactPersonRow({
           </Form.Item>
         </Col>
         <Col xs={24} md={8}>
-          <Form.Item name={['contacts', index, 'firstName']} label="Nombre" rules={[{ required: true, message: 'Requerido' }]}>
+          <Form.Item name={['contacts', index, 'firstName']} label="Nombre">
             <Input placeholder="Juan" size="small" />
           </Form.Item>
         </Col>
@@ -198,7 +198,8 @@ export default function ProveedorFormPage() {
         .catch(() => message.error('No se pudo cargar el proveedor'))
         .finally(() => setLoading(false))
     } else {
-      // Valores por defecto para nuevo proveedor
+      // Valores por defecto para nuevo proveedor/empleado
+      form.resetFields()
       form.setFieldsValue({
         type: 'company', currency: 'GTQ', paymentTerms: 'net_30',
         taxTreatment: 'taxable', taxCode: 'IVA12',
@@ -208,6 +209,19 @@ export default function ProveedorFormPage() {
       })
     }
   }, [id, isNew, form])
+
+  // Ajusta valores por defecto cuando el usuario cambia el tipo
+  const handleTypeChange = (type: string) => {
+    setVendorType(type)
+    if (type === 'employee') {
+      form.setFieldsValue({
+        taxTreatment: 'exempt',
+        taxCode: undefined,
+        tdsEnabled: false,
+        currency: 'GTQ',
+      })
+    }
+  }
 
   const handleSave = async () => {
     try {
@@ -224,7 +238,9 @@ export default function ProveedorFormPage() {
       navigate('/compras/proveedores')
     } catch (e: any) {
       if (e?.errorFields) return // validación del form
-      message.error(e?.response?.data?.message || 'Error al guardar')
+      const serverMsg = e?.response?.data?.error?.message || e?.response?.data?.message
+      const display = Array.isArray(serverMsg) ? serverMsg[0] : (serverMsg || 'Error al guardar')
+      message.error(display)
     } finally {
       setSaving(false)
     }
@@ -272,10 +288,22 @@ export default function ProveedorFormPage() {
                 key: 'info', label: <><UserOutlined /> Info principal</>,
                 children: (
                   <div style={{ padding: '16px 0' }}>
+                    {/* Alerta empleado */}
+                    {vendorType === 'employee' && (
+                      <Alert
+                        icon={<IdcardOutlined />}
+                        showIcon
+                        type="warning"
+                        message="Ficha de empleado — para reembolsos de gastos"
+                        description="Este registro permite documentar y pagar reembolsos al empleado. Configura la cuenta puente en la pestaña 'Impuestos y contabilidad' para que se registre automáticamente al crear la factura de reembolso."
+                        style={{ marginBottom: 20 }}
+                      />
+                    )}
+
                     {/* Tipo de proveedor */}
                     <Form.Item name="type" label="Tipo de proveedor">
                       <Radio.Group
-                        onChange={e => setVendorType(e.target.value)}
+                        onChange={e => handleTypeChange(e.target.value)}
                         buttonStyle="solid"
                       >
                         <Radio.Button value="company">
@@ -284,12 +312,15 @@ export default function ProveedorFormPage() {
                         <Radio.Button value="individual">
                           <UserOutlined /> Individual
                         </Radio.Button>
+                        <Radio.Button value="employee">
+                          <IdcardOutlined /> Empleado
+                        </Radio.Button>
                       </Radio.Group>
                     </Form.Item>
 
                     <Row gutter={16}>
-                      {/* Para individuales: saludo + nombre */}
-                      {vendorType === 'individual' && (
+                      {/* Para individuales y empleados: saludo + nombre */}
+                      {(vendorType === 'individual' || vendorType === 'employee') && (
                         <>
                           <Col xs={24} md={4}>
                             <Form.Item name="salutation" label="Tratamiento">
@@ -299,7 +330,7 @@ export default function ProveedorFormPage() {
                             </Form.Item>
                           </Col>
                           <Col xs={24} md={8}>
-                            <Form.Item name="firstName" label="Nombre">
+                            <Form.Item name="firstName" label="Nombre" rules={vendorType === 'employee' ? [{ required: true, message: 'Requerido' }] : []}>
                               <Input placeholder="Juan" />
                             </Form.Item>
                           </Col>
@@ -311,35 +342,80 @@ export default function ProveedorFormPage() {
                         </>
                       )}
 
-                      <Col xs={24} md={vendorType === 'individual' ? 12 : 16}>
+                      <Col xs={24} md={vendorType !== 'company' ? 12 : 16}>
                         <Form.Item
                           name="legalName"
-                          label={vendorType === 'company' ? 'Razón social (SAT)' : 'Nombre completo (SAT)'}
-                          rules={[{ required: true, message: 'La razón social es requerida' }]}
+                          label={
+                            vendorType === 'company'   ? 'Razón social (SAT)'    :
+                            vendorType === 'employee'  ? 'Nombre completo (SAT)' :
+                                                         'Nombre completo (SAT)'
+                          }
+                          rules={[{ required: true, message: 'El nombre es requerido' }]}
                         >
                           <Input
-                            placeholder={vendorType === 'company' ? 'EMPRESA XYZ SOCIEDAD ANÓNIMA' : 'JUAN CARLOS PÉREZ LÓPEZ'}
+                            placeholder={
+                              vendorType === 'company'  ? 'EMPRESA XYZ SOCIEDAD ANÓNIMA' :
+                              vendorType === 'employee' ? 'JUAN CARLOS PÉREZ LÓPEZ'      :
+                                                          'JUAN CARLOS PÉREZ LÓPEZ'
+                            }
                             size="large"
                           />
                         </Form.Item>
                       </Col>
-                      <Col xs={24} md={vendorType === 'individual' ? 12 : 8}>
-                        <Form.Item name="name" label="Nombre comercial">
-                          <Input placeholder="Empresa XYZ S.A." />
-                        </Form.Item>
-                      </Col>
+                      {vendorType !== 'employee' && (
+                        <Col xs={24} md={vendorType === 'individual' ? 12 : 8}>
+                          <Form.Item name="name" label="Nombre comercial">
+                            <Input placeholder="Empresa XYZ S.A." />
+                          </Form.Item>
+                        </Col>
+                      )}
                     </Row>
+
+                    {/* ── Datos específicos del empleado ─────────────────── */}
+                    {vendorType === 'employee' && (
+                      <Card
+                        size="small"
+                        style={{ background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 8, marginBottom: 16 }}
+                      >
+                        <div style={{ fontWeight: 600, color: '#874d00', marginBottom: 12, fontSize: 13 }}>
+                          <IdcardOutlined style={{ marginRight: 6 }} />
+                          Datos del empleado
+                        </div>
+                        <Row gutter={16}>
+                          <Col xs={24} md={8}>
+                            <Form.Item name={['customFields', 'dpi']} label="DPI / CUI">
+                              <Input placeholder="1234 56789 0101" />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} md={8}>
+                            <Form.Item name={['customFields', 'cargo']} label="Cargo / Puesto">
+                              <Input placeholder="Contador, Vendedor..." />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} md={8}>
+                            <Form.Item name={['customFields', 'departamento']} label="Departamento / Área">
+                              <Input placeholder="Administración, Ventas..." />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} md={8}>
+                            <Form.Item name={['customFields', 'fechaIngreso']} label="Fecha de ingreso">
+                              <Input type="date" />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </Card>
+                    )}
 
                     <Row gutter={16}>
                       <Col xs={24} md={8}>
-                        <Form.Item name="taxId" label="NIT">
+                        <Form.Item name="taxId" label={vendorType === 'employee' ? 'NIT (CF si no tiene)' : 'NIT'}>
                           <Input placeholder="1234567-8" />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>
                         <Form.Item name="email" label="Correo electrónico"
                           rules={[{ type: 'email', message: 'Email inválido' }]}>
-                          <Input placeholder="info@proveedor.com" />
+                          <Input placeholder={vendorType === 'employee' ? 'empleado@empresa.com' : 'info@proveedor.com'} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>
@@ -352,18 +428,22 @@ export default function ProveedorFormPage() {
                           <Input placeholder="+502 5678-9012" />
                         </Form.Item>
                       </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="website" label="Sitio web">
-                          <Input placeholder="https://proveedor.com" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="currency" label="Moneda">
-                          <Select>
-                            {CURRENCIES.map(c => <Option key={c} value={c}>{c}</Option>)}
-                          </Select>
-                        </Form.Item>
-                      </Col>
+                      {vendorType !== 'employee' && (
+                        <>
+                          <Col xs={24} md={8}>
+                            <Form.Item name="website" label="Sitio web">
+                              <Input placeholder="https://proveedor.com" />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} md={8}>
+                            <Form.Item name="currency" label="Moneda">
+                              <Select>
+                                {CURRENCIES.map(c => <Option key={c} value={c}>{c}</Option>)}
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                        </>
+                      )}
                       <Col xs={24} md={8}>
                         <Form.Item name="paymentTerms" label="Términos de pago">
                           <PaymentTermsSelect />
@@ -380,185 +460,264 @@ export default function ProveedorFormPage() {
                 label: <><PercentageOutlined /> Impuestos y contabilidad</>,
                 children: (
                   <div style={{ padding: '16px 0' }}>
-                    <Alert
-                      message="Vinculación fiscal — clave para registro de compras automático"
-                      description="Los impuestos aquí configurados se aplican automáticamente al registrar facturas de compra de este proveedor. No es necesario seleccionarlos manualmente en cada factura."
-                      type="info" showIcon style={{ marginBottom: 20 }}
-                    />
 
-                    {/* Tratamiento fiscal */}
-                    <Form.Item
-                      name="taxTreatment"
-                      label="Tratamiento fiscal del proveedor"
-                      rules={[{ required: true }]}
-                    >
-                      <Select
-                        onChange={v => setTaxTreatment(v)}
-                        size="large"
-                      >
-                        {TAX_TREATMENTS.map(t => (
-                          <Option key={t.value} value={t.value}>
-                            <div>
-                              <div style={{ fontWeight: 500 }}>{t.label}</div>
-                              <div style={{ fontSize: 11, color: '#8c8c8c' }}>{t.desc}</div>
-                            </div>
-                          </Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
+                    {vendorType === 'employee' ? (
+                      /* ── Vista simplificada para empleados ────────────── */
+                      <>
+                        <Alert
+                          message="Configuración de reembolsos de empleado"
+                          description="La cuenta puente es la cuenta transitoria que se usa al registrar una factura de reembolso. Debe ser una cuenta de pasivo (ej. 2105 — Por pagar a empleados). El ISR aplica si el empleado recibe pagos sujetos a retención."
+                          type="info" showIcon style={{ marginBottom: 20 }}
+                        />
 
-                    <Row gutter={20}>
-                      {/* IVA */}
-                      <Col xs={24} md={12}>
-                        <Card
-                          size="small" bordered={false}
-                          style={{ background: '#f0f7ff', borderRadius: 8, marginBottom: 16 }}
+                        <Row gutter={20}>
+                          {/* Cuenta puente */}
+                          <Col xs={24} md={12}>
+                            <Card
+                              size="small" bordered={false}
+                              style={{ background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 8, marginBottom: 16 }}
+                            >
+                              <div style={{ fontWeight: 600, color: '#874d00', marginBottom: 8 }}>
+                                Cuenta puente (transitoria para reembolsos)
+                              </div>
+                              <Form.Item
+                                name="payableAccountId"
+                                label="Cuenta puente del empleado"
+                                tooltip="Cuenta de pasivo transitoria que registra la obligación con el empleado. Se acredita al aprobar el reembolso y se debita al pagar."
+                                style={{ marginBottom: 0 }}
+                              >
+                                <AccountSelect
+                                  filter={{ isVendorAccount: true }}
+                                  placeholder="Ej. 2105 — Por pagar a empleados..."
+                                />
+                              </Form.Item>
+                            </Card>
+                          </Col>
+
+                          {/* Cuenta transitoria (empleados) */}
+                          <Col xs={24} md={12}>
+                            <Card
+                              size="small" bordered={false}
+                              style={{ background: '#fff0f6', border: '1px solid #ffadd2', borderRadius: 8, marginBottom: 16 }}
+                            >
+                              <div style={{ fontWeight: 600, color: '#c41d7f', marginBottom: 8 }}>
+                                Cuenta transitoria
+                              </div>
+                              <Form.Item
+                                name="expenseAccountId"
+                                label="Cuenta de pasivo"
+                                style={{ marginBottom: 0 }}
+                              >
+                                <AccountSelect
+                                  filter={{ balanceType: 'Pasivo' }}
+                                  placeholder="Buscar cuenta de pasivo..."
+                                />
+                              </Form.Item>
+                            </Card>
+                          </Col>
+
+                          {/* ISR del empleado */}
+                          <Col xs={24} md={12}>
+                            <Card
+                              size="small" bordered={false}
+                              style={{ background: '#f9f0ff', border: '1px dashed #d3adf7', borderRadius: 8, marginBottom: 16 }}
+                            >
+                              <div style={{ fontWeight: 600, color: '#531dab', marginBottom: 8 }}>
+                                ISR — Retención sobre pagos al empleado
+                              </div>
+                              <Form.Item name="tdsEnabled" label="¿Aplica retención ISR en pagos a este empleado?" valuePropName="checked">
+                                <Switch
+                                  checkedChildren="Sí, retener ISR"
+                                  unCheckedChildren="No aplica"
+                                />
+                              </Form.Item>
+                              <Form.Item name="tdsTaxCode" label="Código ISR aplicable" style={{ marginBottom: 0 }}>
+                                <Select placeholder="Selecciona impuesto ISR" allowClear>
+                                  {isrTaxes.length > 0
+                                    ? isrTaxes.map(t => (
+                                      <Option key={t.code} value={t.code}>
+                                        <Space><Tag color="purple">{t.code}</Tag>{t.name}</Space>
+                                      </Option>
+                                    ))
+                                    : <Option disabled value="">Sin ISR configurado</Option>
+                                  }
+                                </Select>
+                              </Form.Item>
+                            </Card>
+                          </Col>
+                        </Row>
+                      </>
+                    ) : (
+                      /* ── Vista estándar para proveedor/empresa ─────────── */
+                      <>
+                        <Alert
+                          message="Vinculación fiscal — clave para registro de compras automático"
+                          description="Los impuestos aquí configurados se aplican automáticamente al registrar facturas de compra de este proveedor. No es necesario seleccionarlos manualmente en cada factura."
+                          type="info" showIcon style={{ marginBottom: 20 }}
+                        />
+
+                        {/* Tratamiento fiscal */}
+                        <Form.Item
+                          name="taxTreatment"
+                          label="Tratamiento fiscal del proveedor"
+                          rules={[{ required: true }]}
                         >
-                          <div style={{ fontWeight: 600, color: '#1B3A6B', marginBottom: 8 }}>
-                            IVA aplicable en facturas de compra
-                          </div>
-                          <Form.Item name="taxCode" label="Impuesto IVA" style={{ marginBottom: 0 }}>
-                            <Select placeholder="Selecciona impuesto IVA" allowClear>
-                              {ivaTaxes.length > 0
-                                ? ivaTaxes.map(t => (
-                                  <Option key={t.code} value={t.code}>
-                                    <Space>
-                                      <Tag color="blue">{t.code}</Tag>
-                                      {t.name}
-                                    </Space>
-                                  </Option>
-                                ))
-                                : <Option disabled value="">Sin impuestos — configúralos en Configuración → Impuestos</Option>
-                              }
-                            </Select>
-                          </Form.Item>
-                        </Card>
-                      </Col>
+                          <Select onChange={v => setTaxTreatment(v)} size="large">
+                            {TAX_TREATMENTS.map(t => (
+                              <Option key={t.value} value={t.value}>
+                                <div>
+                                  <div style={{ fontWeight: 500 }}>{t.label}</div>
+                                  <div style={{ fontSize: 11, color: '#8c8c8c' }}>{t.desc}</div>
+                                </div>
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
 
-                      {/* IVA Retenida — solo para contribuyente especial / gobierno */}
-                      {showRetention && (
-                        <Col xs={24} md={12}>
-                          <Card
-                            size="small" bordered={false}
-                            style={{ background: '#fff7e6', borderRadius: 8, marginBottom: 16 }}
-                          >
-                            <div style={{ fontWeight: 600, color: '#d46b08', marginBottom: 8 }}>
-                              Retención de IVA (proveedor retenedor)
-                            </div>
-                            <Form.Item name="ivaRetentionCode" label="Porcentaje de retención IVA" style={{ marginBottom: 0 }}>
-                              <Select placeholder="Retención aplicable" allowClear>
-                                {IVA_RETENTION_OPTIONS.map(o => (
-                                  <Option key={o.value} value={o.value}>{o.label}</Option>
-                                ))}
-                              </Select>
+                        <Row gutter={20}>
+                          {/* IVA */}
+                          <Col xs={24} md={12}>
+                            <Card
+                              size="small" bordered={false}
+                              style={{ background: '#f0f7ff', borderRadius: 8, marginBottom: 16 }}
+                            >
+                              <div style={{ fontWeight: 600, color: '#1B3A6B', marginBottom: 8 }}>
+                                IVA aplicable en facturas de compra
+                              </div>
+                              <Form.Item name="taxCode" label="Impuesto IVA" style={{ marginBottom: 0 }}>
+                                <Select placeholder="Selecciona impuesto IVA" allowClear>
+                                  {ivaTaxes.length > 0
+                                    ? ivaTaxes.map(t => (
+                                      <Option key={t.code} value={t.code}>
+                                        <Space><Tag color="blue">{t.code}</Tag>{t.name}</Space>
+                                      </Option>
+                                    ))
+                                    : <Option disabled value="">Sin impuestos — configúralos en Configuración → Impuestos</Option>
+                                  }
+                                </Select>
+                              </Form.Item>
+                            </Card>
+                          </Col>
+
+                          {/* IVA Retenida — solo para contribuyente especial / gobierno */}
+                          {showRetention && (
+                            <Col xs={24} md={12}>
+                              <Card
+                                size="small" bordered={false}
+                                style={{ background: '#fff7e6', borderRadius: 8, marginBottom: 16 }}
+                              >
+                                <div style={{ fontWeight: 600, color: '#d46b08', marginBottom: 8 }}>
+                                  Retención de IVA (proveedor retenedor)
+                                </div>
+                                <Form.Item name="ivaRetentionCode" label="Porcentaje de retención IVA" style={{ marginBottom: 0 }}>
+                                  <Select placeholder="Retención aplicable" allowClear>
+                                    {IVA_RETENTION_OPTIONS.map(o => (
+                                      <Option key={o.value} value={o.value}>{o.label}</Option>
+                                    ))}
+                                  </Select>
+                                </Form.Item>
+                              </Card>
+                            </Col>
+                          )}
+
+                          {/* ISR / TDS */}
+                          <Col xs={24} md={12}>
+                            <Card
+                              size="small" bordered={false}
+                              style={{ background: '#f9f0ff', borderRadius: 8, marginBottom: 16 }}
+                            >
+                              <div style={{ fontWeight: 600, color: '#531dab', marginBottom: 8 }}>
+                                ISR — Impuesto Sobre la Renta (retención en origen)
+                              </div>
+                              <Form.Item name="tdsEnabled" label="¿Debemos retener ISR al pagar a este proveedor?" valuePropName="checked">
+                                <Switch
+                                  checkedChildren="Sí, aplica retención ISR"
+                                  unCheckedChildren="No aplica retención ISR"
+                                />
+                              </Form.Item>
+                              <Form.Item name="tdsTaxCode" label="Impuesto ISR aplicable" style={{ marginBottom: 0 }}>
+                                <Select placeholder="Selecciona impuesto ISR" allowClear>
+                                  {isrTaxes.length > 0
+                                    ? isrTaxes.map(t => (
+                                      <Option key={t.code} value={t.code}>
+                                        <Space><Tag color="purple">{t.code}</Tag>{t.name}</Space>
+                                      </Option>
+                                    ))
+                                    : <Option disabled value="">Sin ISR configurado — ve a Configuración → Impuestos</Option>
+                                  }
+                                </Select>
+                              </Form.Item>
+                            </Card>
+                          </Col>
+                        </Row>
+
+                        <Divider titlePlacement="left">Cuentas contables e impuesto</Divider>
+                        <Row gutter={16}>
+                          <Col xs={24} md={12}>
+                            <Form.Item
+                              name="payableAccountId"
+                              label="Cuenta por pagar (CxP)"
+                              tooltip="Solo muestra cuentas marcadas como 'Cuenta de proveedores' en el catálogo. Registra las facturas pendientes de pago."
+                            >
+                              <AccountSelect
+                                filter={{ isVendorAccount: true }}
+                                placeholder="Buscar cuenta CxP..."
+                              />
                             </Form.Item>
-                          </Card>
-                        </Col>
-                      )}
+                          </Col>
+                          <Col xs={24} md={12}>
+                            <Form.Item
+                              name="expenseAccountId"
+                              label="Cuenta de gastos por defecto"
+                              tooltip="Solo muestra cuentas de tipo Gastos. Se usa automáticamente al registrar facturas de compra de este proveedor."
+                            >
+                              <AccountSelect
+                                filter={{ balanceType: 'Gastos' }}
+                                placeholder="Buscar cuenta de gastos..."
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} md={12}>
+                            <Form.Item
+                              name="defaultPurchaseTaxId"
+                              label="Impuesto de compra por defecto (IVA)"
+                              tooltip="Al agregar un artículo en una orden de compra o factura proveedor, se aplicará automáticamente este impuesto."
+                            >
+                              <Select
+                                placeholder="Seleccionar impuesto IVA…"
+                                allowClear
+                                options={taxes
+                                  .filter(t => t.isActive && !t.isWithholding && (t.applicability === 'purchases' || t.applicability === 'both'))
+                                  .map((t: Tax) => ({
+                                    value: t.id,
+                                    label: `${t.name} (${Number(t.rate)}%)`,
+                                  }))}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
 
-                      {/* ISR / TDS */}
-                      <Col xs={24} md={12}>
-                        <Card
-                          size="small" bordered={false}
-                          style={{ background: '#f9f0ff', borderRadius: 8, marginBottom: 16 }}
-                        >
-                          <div style={{ fontWeight: 600, color: '#531dab', marginBottom: 8 }}>
-                            ISR — Impuesto Sobre la Renta (retención en origen)
-                          </div>
-                          <Form.Item name="tdsEnabled" label="¿Debemos retener ISR al pagar a este proveedor?" valuePropName="checked">
-                            <Switch
-                              checkedChildren="Sí, aplica retención ISR"
-                              unCheckedChildren="No aplica retención ISR"
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            name="tdsTaxCode"
-                            label="Impuesto ISR aplicable"
-                            style={{ marginBottom: 0 }}
-                          >
-                            <Select placeholder="Selecciona impuesto ISR" allowClear>
-                              {isrTaxes.length > 0
-                                ? isrTaxes.map(t => (
-                                  <Option key={t.code} value={t.code}>
-                                    <Space>
-                                      <Tag color="purple">{t.code}</Tag>
-                                      {t.name}
-                                    </Space>
-                                  </Option>
-                                ))
-                                : <Option disabled value="">Sin ISR configurado — ve a Configuración → Impuestos</Option>
-                              }
-                            </Select>
-                          </Form.Item>
-                        </Card>
-                      </Col>
-                    </Row>
-
-                    <Divider titlePlacement="left">Cuentas contables e impuesto</Divider>
-                    <Row gutter={16}>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          name="payableAccountId"
-                          label="Cuenta por pagar (CxP)"
-                          tooltip="Solo muestra cuentas marcadas como 'Cuenta de proveedores' en el catálogo. Registra las facturas pendientes de pago."
-                        >
-                          <AccountSelect
-                            filter={{ isVendorAccount: true }}
-                            placeholder="Buscar cuenta CxP..."
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          name="expenseAccountId"
-                          label="Cuenta de gastos por defecto"
-                          tooltip="Solo muestra cuentas de tipo Gastos. Se usa automáticamente al registrar facturas de compra de este proveedor."
-                        >
-                          <AccountSelect
-                            filter={{ balanceType: 'Gastos' }}
-                            placeholder="Buscar cuenta de gastos..."
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          name="defaultPurchaseTaxId"
-                          label="Impuesto de compra por defecto (IVA)"
-                          tooltip="Al agregar un artículo en una orden de compra o factura proveedor, se aplicará automáticamente este impuesto. Solo aplica a impuestos de tipo IVA — el ISR se configura arriba."
-                        >
-                          <Select
-                            placeholder="Seleccionar impuesto IVA…"
-                            allowClear
-                            options={taxes
-                              .filter(t => t.isActive && !t.isWithholding && (t.applicability === 'purchases' || t.applicability === 'both'))
-                              .map((t: Tax) => ({
-                                value: t.id,
-                                label: `${t.name} (${Number(t.rate)}%)`,
-                              }))}
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Divider titlePlacement="left">Saldo inicial</Divider>
-                    <Row gutter={16}>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="openingBalance" label="Saldo inicial (Q)">
-                          <InputNumber<number>
-                            style={{ width: '100%' }}
-                            formatter={v => `Q ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={v => Number(v?.replace(/Q\s?|(,*)/g, '') ?? 0)}
-                            min={0}
-                            placeholder="0.00"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="openingBalanceDate" label="Fecha de saldo inicial">
-                          <Input type="date" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                        <Divider titlePlacement="left">Saldo inicial</Divider>
+                        <Row gutter={16}>
+                          <Col xs={24} md={8}>
+                            <Form.Item name="openingBalance" label="Saldo inicial (Q)">
+                              <InputNumber<number>
+                                style={{ width: '100%' }}
+                                formatter={v => `Q ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                parser={v => Number(v?.replace(/Q\s?|(,*)/g, '') ?? 0)}
+                                min={0}
+                                placeholder="0.00"
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} md={8}>
+                            <Form.Item name="openingBalanceDate" label="Fecha de saldo inicial">
+                              <Input type="date" />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </>
+                    )}
                   </div>
                 ),
               },
