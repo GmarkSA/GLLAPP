@@ -337,8 +337,8 @@ export default function FacturaProveedorFormPage() {
   // For special invoices, IVA retention = taxAmount (buyer retains it)
   const ivaRetForSpecial = invoiceType === 'special' ? totals.taxAmount : ivaRetAmount
   const totalRetention   = isrAmount + (invoiceType === 'special' ? ivaRetForSpecial : ivaRetAmount)
-  // El IDP ya está DENTRO del total de las líneas (no se suma encima)
-  const netPayable       = Math.round((totals.total - totalRetention) * 100) / 100
+  // IDP se suma al gross porque el precio SAT ("P. Unitario con IVA") no lo incluye
+  const netPayable       = Math.round((totals.total + idpAmount - totalRetention) * 100) / 100
 
   // ── Account options ────────────────────────────────────────────────────────
 
@@ -752,21 +752,16 @@ export default function FacturaProveedorFormPage() {
                   </div>
                 )}
 
-                {/* IDP row (combustible) — desglose informativo, NO es suma */}
+                {/* IDP row (combustible) */}
                 {idpAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <Text style={{ fontSize: 12, color: '#d97706' }}>IDP Combustible (incluido en precio)</Text>
-                      <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>
-                        Ya descontado de la base del IVA
-                      </Text>
-                    </div>
-                    <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>Q {fmt(idpAmount)}</Text>
+                    <Text style={{ fontSize: 12, color: '#d97706' }}>IDP Combustible</Text>
+                    <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>+ Q {fmt(idpAmount)}</Text>
                   </div>
                 )}
 
-                {/* Neto a Pagar — solo cuando hay retenciones */}
-                {totalRetention > 0 && (
+                {/* Neto a Pagar — cuando hay retenciones o IDP */}
+                {(totalRetention > 0 || idpAmount > 0) && (
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     background: '#1B3A6B', borderRadius: 8, padding: '10px 16px', marginTop: 2,

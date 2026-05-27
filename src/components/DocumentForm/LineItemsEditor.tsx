@@ -50,36 +50,24 @@ export const newLineItem = (overrides?: Partial<LineItem>): LineItem => {
   return recalc(item)
 }
 
-// ── IDP (Guatemala, Decreto 38-92) ─────────────────────────────────────────
-// El IDP ya está incluido en el precio del combustible y NO es base para IVA.
-// Fórmula: total_línea = base_IVA × (1 + IVA%) + IDP
-const FUEL_IDP_RATES: Record<string, number> = {
-  super:   4.70,
-  regular: 4.60,
-  diesel:  1.30,
-}
-
 export function recalc(item: LineItem): LineItem {
   const rate        = item.taxPercent ?? 0
   const grossAmount = item.quantity * item.unitPrice * (1 - (item.discountPercent ?? 0) / 100)
 
-  // Para combustible: extraer IDP del grossAmount antes de calcular IVA
-  const idpRate      = FUEL_IDP_RATES[item.unit ?? ''] ?? 0
-  const lineIdp      = idpRate > 0 ? Math.round(item.quantity * idpRate * 100) / 100 : 0
-  const taxableGross = grossAmount - lineIdp  // = base_IVA + IVA, sin IDP
-
+  // El precio SAT ("P. Unitario con IVA") = base + IVA, sin IDP.
+  // El IDP se calcula en el form padre y se SUMA al total. Aquí solo IVA.
   let lineNet: number, lineTax: number, lineTotal: number
 
   if (item.taxInclusive && rate > 0) {
-    // Precio YA incluye impuesto (y eventualmente IDP extraído)
-    lineNet   = Math.round(taxableGross / (1 + rate / 100) * 100) / 100
-    lineTax   = Math.round((taxableGross - lineNet) * 100) / 100
-    lineTotal = Math.round(grossAmount * 100) / 100  // total = base + IVA + IDP
+    // Precio YA incluye el impuesto → extraer base e impuesto
+    lineNet   = Math.round(grossAmount / (1 + rate / 100) * 100) / 100
+    lineTax   = Math.round((grossAmount - lineNet) * 100) / 100
+    lineTotal = Math.round(grossAmount * 100) / 100
   } else {
     // Precio excluye el impuesto → agregar impuesto sobre la base
-    lineNet   = Math.round(taxableGross * 100) / 100
+    lineNet   = Math.round(grossAmount * 100) / 100
     lineTax   = Math.round(lineNet * (rate / 100) * 100) / 100
-    lineTotal = Math.round((lineNet + lineTax + lineIdp) * 100) / 100
+    lineTotal = Math.round((lineNet + lineTax) * 100) / 100
   }
 
   return { ...item, lineNet, lineTax, lineTotal }
