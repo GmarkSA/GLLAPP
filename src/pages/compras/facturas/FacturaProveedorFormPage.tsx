@@ -65,7 +65,7 @@ export default function FacturaProveedorFormPage() {
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
   const [taxes, setTaxes]               = useState<Tax[]>([])
-  const [vendors, setVendors]           = useState<{ value: string; label: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string }[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string }[]>([])
   const [accounts, setAccounts]         = useState<Account[]>([])
   const [loadingVendors, setLoadingVendors] = useState(false)
   const [loading, setLoading]           = useState(!!id)
@@ -303,7 +303,8 @@ export default function FacturaProveedorFormPage() {
             value: v.id,
             label: v.name,
             type:                 v.type ?? undefined,
-            expenseAccountId:     v.expenseAccountId ?? undefined,
+            expenseAccountId:     v.expenseAccountId  ?? undefined,
+            payableAccountId:     v.payableAccountId  ?? undefined,
             defaultPurchaseTaxId: v.defaultPurchaseTaxId ?? undefined,
             tdsEnabled:           v.tdsEnabled ?? false,
             tdsTaxCode:           v.tdsTaxCode ?? undefined,
@@ -625,8 +626,11 @@ export default function FacturaProveedorFormPage() {
                     notFoundContent="Sin empleados — registre empleados en Proveedores"
                     onChange={(v) => {
                       const emp = vendors.find(e => e.value === v && e.type === 'employee')
-                      if (emp?.expenseAccountId) {
-                        form.setFieldValue('employeePayableAccountId', emp.expenseAccountId)
+                      // Cuenta puente del empleado = payableAccountId configurado en el empleado
+                      // (NO expenseAccountId — esa es la cuenta transitoria de pasivo del empleado)
+                      const acctId = emp?.payableAccountId ?? emp?.expenseAccountId
+                      if (acctId) {
+                        form.setFieldValue('employeePayableAccountId', acctId)
                       }
                     }}
                   />
