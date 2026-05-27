@@ -408,7 +408,7 @@ export default function FacturaProveedorFormPage() {
     try { await form.validateFields(['vendorId', 'invoiceDate']) } catch { return }
     setSaving(true)
     try {
-      const dto  = buildDto(asDraft ? 'draft' : 'draft')
+      const dto  = buildDto(asDraft ? 'draft' : 'pending_approval')
       let result: any
       if (id) {
         result = await updateBill(id, dto as any)
