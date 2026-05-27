@@ -248,7 +248,9 @@ export default function MainLayout() {
                 </Avatar>
                 <div style={{ lineHeight: 1.25 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a2e' }}>
-                    {user ? `${user.firstName} ${user.lastName}` : 'Usuario'}
+                    {user
+                      ? (user.fullName || `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email)
+                      : 'Usuario'}
                   </div>
                   <div style={{ fontSize: 10, color: '#9ca3af' }}>
                     {user?.isSuperAdmin ? 'Super Admin' : 'Administrador'}

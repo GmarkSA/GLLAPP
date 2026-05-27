@@ -6,6 +6,8 @@ interface User {
   email: string
   firstName: string
   lastName: string
+  fullName?: string
+  roles?: string[]
   tenantIds: string[]
   isSuperAdmin?: boolean
 }
