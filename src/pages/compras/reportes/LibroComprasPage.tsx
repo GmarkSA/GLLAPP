@@ -4,119 +4,297 @@ import {
   Card, Button, Table, Typography, Breadcrumb, DatePicker, Space,
   Tag, Divider, message,
 } from 'antd'
-import {
-  HomeOutlined, SearchOutlined, PrinterOutlined,
-} from '@ant-design/icons'
+import { HomeOutlined, SearchOutlined, PrinterOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 
 import {
-  getLibroCompras, type LibroComprasRow, type LibroComprasReport,
+  getLibroCompras,
+  type LibroComprasRow,
+  type LibroComprasReport,
+  type LibroComprasResumenCategoria,
   BILL_TYPE_CONFIG,
 } from '../../../api/compras'
 
 const { Title, Text } = Typography
-const { RangePicker } = DatePicker
+const { RangePicker }  = DatePicker
 
-const fmt  = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2 })
-const fmtQ = (n: number) => `Q ${fmt(n)}`
+const fmt  = (n: number) => n === 0 ? '—' : n.toLocaleString('es-GT', { minimumFractionDigits: 2 })
+const fmtQ = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+const fmtD = (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—'
 
+const CATEGORIA_LABEL: Record<string, string> = {
+  bienes:               'Compra de Bienes',
+  servicios:            'Compra de Servicios',
+  combustibles:         'Compra de Combustibles',
+  importacion:          'Importación',
+  pequenoContribuyente: 'Pequeño Contribuyente',
+  exento:               'Exento',
+}
+
+const CATEGORIA_COLOR: Record<string, string> = {
+  bienes:               '#1B3A6B',
+  servicios:            '#2563eb',
+  combustibles:         '#d97706',
+  importacion:          '#7c3aed',
+  pequenoContribuyente: '#059669',
+  exento:               '#6b7280',
+}
+
+// ── Columnas tabla SAT ──────────────────────────────────────────────────────
 const columns = [
   {
-    title: 'Fecha',
-    dataIndex: 'fecha',
-    width: 90,
-    render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—',
+    title: 'Folio',
+    dataIndex: 'folio',
+    width: 52,
+    align: 'center' as const,
+    render: (v: number) => <Text style={{ fontSize: 11, color: '#6b7280' }}>{v}</Text>,
   },
   {
-    title: 'NIT Proveedor',
-    dataIndex: 'nitProveedor',
-    width: 110,
-  },
-  {
-    title: 'Proveedor',
-    dataIndex: 'nombreProveedor',
-    ellipsis: true,
-    width: 180,
-  },
-  {
-    title: 'Tipo',
+    title: 'Tipo Doc.',
     dataIndex: 'tipoDocumento',
-    width: 120,
+    width: 90,
     render: (v: string) => (
-      <Tag style={{ fontSize: 10 }}>
-        {BILL_TYPE_CONFIG[v as keyof typeof BILL_TYPE_CONFIG]?.label ?? v}
+      <Tag style={{ fontSize: 10, padding: '0 4px' }}>
+        {v === 'goods' ? 'FACT' : v === 'services' ? 'SERV' : v === 'fuel' ? 'COMB' : v === 'special' ? 'FE' : v === 'reimbursement' ? 'REEM' : v.toUpperCase()}
       </Tag>
     ),
   },
   {
+    title: 'Fecha',
+    dataIndex: 'fecha',
+    width: 88,
+    render: (v: string) => <span style={{ fontSize: 11 }}>{fmtD(v)}</span>,
+  },
+  {
     title: 'Serie',
     dataIndex: 'felSerie',
-    width: 60,
+    width: 55,
+    render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span>,
   },
   {
-    title: 'No. SAT',
+    title: 'No. Documento',
     dataIndex: 'felNumero',
-    width: 80,
+    width: 100,
+    render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span>,
   },
   {
-    title: 'UUID',
-    dataIndex: 'uuid',
+    title: 'Referencia',
+    dataIndex: 'referencia',
     width: 90,
     ellipsis: true,
-    render: (v: string) => v ? <Text style={{ fontSize: 10, fontFamily: 'monospace' }}>{v.substring(0, 8)}…</Text> : '—',
+    render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span>,
   },
   {
-    title: 'Base',
-    dataIndex: 'base',
-    width: 100,
+    title: 'NIT Contribuyente',
+    dataIndex: 'nitProveedor',
+    width: 110,
+    render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span>,
+  },
+  {
+    title: 'Nombre del Contribuyente',
+    dataIndex: 'nombreProveedor',
+    ellipsis: true,
+    width: 180,
+    render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span>,
+  },
+  // ── VALOR BASE (sin IVA) ────────────────────────────────────────────────
+  {
+    title: <span style={{ fontSize: 10 }}>Compra Bienes</span>,
+    dataIndex: 'compraBienes',
+    width: 90,
     align: 'right' as const,
-    render: (v: number) => <Text style={{ fontSize: 12 }}>Q {fmt(v)}</Text>,
+    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
+  },
+  {
+    title: <span style={{ fontSize: 10 }}>Compra Servicios</span>,
+    dataIndex: 'compraServicios',
+    width: 95,
+    align: 'right' as const,
+    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
+  },
+  {
+    title: <span style={{ fontSize: 10 }}>Combustibles</span>,
+    dataIndex: 'compraCombustibles',
+    width: 85,
+    align: 'right' as const,
+    render: (v: number) => v > 0
+      ? <span style={{ fontSize: 11, color: '#d97706' }}>{fmt(v)}</span>
+      : <span style={{ fontSize: 11 }}>—</span>,
+  },
+  {
+    title: <span style={{ fontSize: 10 }}>Importación</span>,
+    dataIndex: 'importacion',
+    width: 80,
+    align: 'right' as const,
+    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
+  },
+  {
+    title: <span style={{ fontSize: 10 }}>Peq. Contrib.</span>,
+    dataIndex: 'pequenoContribuyente',
+    width: 80,
+    align: 'right' as const,
+    render: (v: number) => v > 0
+      ? <span style={{ fontSize: 11, color: '#059669' }}>{fmt(v)}</span>
+      : <span style={{ fontSize: 11 }}>—</span>,
+  },
+  {
+    title: <span style={{ fontSize: 10 }}>Exento</span>,
+    dataIndex: 'exento',
+    width: 70,
+    align: 'right' as const,
+    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
+  },
+  // ── Impuestos ────────────────────────────────────────────────────────────
+  {
+    title: 'IDP',
+    dataIndex: 'idp',
+    width: 72,
+    align: 'right' as const,
+    render: (v: number) => v > 0
+      ? <span style={{ fontSize: 11, color: '#d97706' }}>{fmt(v)}</span>
+      : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span>,
   },
   {
     title: 'IVA',
     dataIndex: 'iva',
-    width: 85,
-    align: 'right' as const,
-    render: (v: number) => <Text style={{ fontSize: 12, color: '#6b7280' }}>Q {fmt(v)}</Text>,
-  },
-  {
-    title: 'Ret. ISR',
-    dataIndex: 'retencionIsr',
-    width: 85,
-    align: 'right' as const,
-    render: (v: number) => v > 0 ? <Text style={{ fontSize: 12, color: '#dc2626' }}>Q {fmt(v)}</Text> : <Text style={{ color: '#d1d5db', fontSize: 12 }}>—</Text>,
-  },
-  {
-    title: 'Ret. IVA FE',
-    dataIndex: 'retencionIva',
-    width: 90,
-    align: 'right' as const,
-    render: (v: number) => v > 0 ? <Text style={{ fontSize: 12, color: '#dc2626' }}>Q {fmt(v)}</Text> : <Text style={{ color: '#d1d5db', fontSize: 12 }}>—</Text>,
-  },
-  {
-    title: 'IDP',
-    dataIndex: 'idp',
     width: 80,
     align: 'right' as const,
-    render: (v: number) => v > 0 ? <Text style={{ fontSize: 12, color: '#d97706' }}>Q {fmt(v)}</Text> : <Text style={{ color: '#d1d5db', fontSize: 12 }}>—</Text>,
+    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
   },
   {
-    title: 'Total',
+    title: 'Total Factura',
     dataIndex: 'total',
-    width: 100,
+    width: 95,
     align: 'right' as const,
-    render: (v: number) => <Text style={{ fontWeight: 600, fontSize: 12 }}>Q {fmt(v)}</Text>,
-  },
-  {
-    title: 'No. Interno',
-    dataIndex: 'numeroInterno',
-    width: 120,
-    render: (v: string, row: LibroComprasRow) => (
-      <Text style={{ fontSize: 11, color: '#6b7280' }}>{v}</Text>
-    ),
+    render: (v: number) => <span style={{ fontSize: 12, fontWeight: 600 }}>{fmt(v)}</span>,
   },
 ]
 
+// ── Fila de totales ─────────────────────────────────────────────────────────
+function TotalsRow({ data }: { data: LibroComprasReport }) {
+  const t = data.totals
+  const vals = [
+    t.compraBienes, t.compraServicios, t.compraCombustibles,
+    t.importacion, t.pequenoContribuyente, t.exento,
+    t.idp, t.iva, t.total,
+  ]
+  return (
+    <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
+      <Table.Summary.Cell index={0} colSpan={8}>
+        <Text strong style={{ fontSize: 11, color: '#1B3A6B' }}>
+          TOTALES — {data.count} documentos
+        </Text>
+      </Table.Summary.Cell>
+      {vals.map((v, i) => (
+        <Table.Summary.Cell key={i} index={8 + i} align="right">
+          <Text strong style={{ fontSize: 11, color: v > 0 ? '#1B3A6B' : '#d1d5db' }}>
+            {v > 0 ? fmt(v) : '—'}
+          </Text>
+        </Table.Summary.Cell>
+      ))}
+    </Table.Summary.Row>
+  )
+}
+
+// ── Resumen por categoría (insumo para formulario IVA SAT) ──────────────────
+function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria[]; totals: LibroComprasReport['totals'] }) {
+  const ALL_CATS = ['bienes', 'servicios', 'combustibles', 'importacion', 'pequenoContribuyente', 'exento']
+  const rows = ALL_CATS.map(cat => {
+    const found = resumen.find(r => r.categoria === cat)
+    return { cat, cantidad: found?.cantidad ?? 0, base: found?.base ?? 0, iva: found?.iva ?? 0, total: found?.total ?? 0 }
+  })
+
+  return (
+    <Card
+      title={
+        <span style={{ color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>
+          Resumen por Categoría — Insumo Formulario IVA (SAT)
+        </span>
+      }
+      style={{ marginTop: 16 }}
+      styles={{ body: { padding: '12px 16px' } }}
+    >
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: '#f8f9fc', borderBottom: '2px solid #e5e7eb' }}>
+              <th style={{ textAlign: 'left',  padding: '8px 12px', fontWeight: 600 }}>Categoría</th>
+              <th style={{ textAlign: 'center', padding: '8px 12px', fontWeight: 600, width: 80 }}>Docs.</th>
+              <th style={{ textAlign: 'right',  padding: '8px 12px', fontWeight: 600, width: 130 }}>Base (sin IVA)</th>
+              <th style={{ textAlign: 'right',  padding: '8px 12px', fontWeight: 600, width: 110 }}>IVA</th>
+              <th style={{ textAlign: 'right',  padding: '8px 12px', fontWeight: 600, width: 130 }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ cat, cantidad, base, iva, total }) => (
+              <tr key={cat} style={{ borderBottom: '1px solid #f0f0f0', opacity: cantidad === 0 ? 0.35 : 1 }}>
+                <td style={{ padding: '7px 12px' }}>
+                  <span style={{
+                    display: 'inline-block', width: 10, height: 10, borderRadius: 2,
+                    background: CATEGORIA_COLOR[cat] ?? '#9ca3af', marginRight: 8,
+                  }} />
+                  <span style={{ fontWeight: cantidad > 0 ? 600 : 400, color: CATEGORIA_COLOR[cat] ?? '#6b7280' }}>
+                    {CATEGORIA_LABEL[cat]}
+                  </span>
+                </td>
+                <td style={{ textAlign: 'center', padding: '7px 12px', color: '#6b7280' }}>
+                  {cantidad > 0 ? cantidad : '—'}
+                </td>
+                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace' }}>
+                  {base > 0 ? fmtQ(base) : '—'}
+                </td>
+                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace', color: '#2563eb' }}>
+                  {iva > 0 ? fmtQ(iva) : '—'}
+                </td>
+                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace', fontWeight: 600 }}>
+                  {total > 0 ? fmtQ(total) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: '#1B3A6B', color: '#fff' }}>
+              <td style={{ padding: '8px 12px', fontWeight: 700 }}>TOTAL PERÍODO</td>
+              <td style={{ textAlign: 'center', padding: '8px 12px', fontWeight: 700 }}>
+                {rows.reduce((s, r) => s + r.cantidad, 0)}
+              </td>
+              <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
+                {fmtQ(rows.reduce((s, r) => s + r.base, 0))}
+              </td>
+              <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
+                {fmtQ(totals.iva)}
+              </td>
+              <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
+                {fmtQ(totals.total)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* IDP separado si hay combustibles */}
+      {totals.idp > 0 && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a', fontSize: 12 }}>
+          <Text style={{ color: '#92400e' }}>
+            <strong>IDP Combustibles:</strong> {fmtQ(totals.idp)} — no forma parte de la base IVA
+          </Text>
+        </div>
+      )}
+      {/* Retenciones si hay */}
+      {(totals.retencionIsr + totals.retencionIva) > 0 && (
+        <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef2f2', borderRadius: 6, border: '1px solid #fca5a5', fontSize: 12 }}>
+          <Text style={{ color: '#991b1b' }}>
+            <strong>Retenciones del período:</strong>&nbsp;
+            ISR: {fmtQ(totals.retencionIsr)} &nbsp;|&nbsp;
+            IVA FE: {fmtQ(totals.retencionIva)}
+          </Text>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ── Página principal ────────────────────────────────────────────────────────
 export default function LibroComprasPage() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().startOf('month'),
@@ -126,15 +304,12 @@ export default function LibroComprasPage() {
   const [loading, setLoading] = useState(false)
 
   const load = () => {
-    if (!dateRange) return
     setLoading(true)
     getLibroCompras(dateRange[0].format('YYYY-MM-DD'), dateRange[1].format('YYYY-MM-DD'))
       .then(setData)
       .catch(() => message.error('No se pudo cargar el Libro de Compras'))
       .finally(() => setLoading(false))
   }
-
-  const handlePrint = () => window.print()
 
   return (
     <div>
@@ -149,12 +324,12 @@ export default function LibroComprasPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
-          Libro de Compras — SAT Guatemala
+          Libro de Compras y Servicios — SAT Guatemala
         </Title>
         <Space>
           <RangePicker
             value={dateRange}
-            onChange={(v) => { if (v && v[0] && v[1]) setDateRange([v[0], v[1]]) }}
+            onChange={(v) => { if (v?.[0] && v?.[1]) setDateRange([v[0], v[1]]) }}
             format="DD/MM/YYYY"
             allowClear={false}
           />
@@ -162,7 +337,7 @@ export default function LibroComprasPage() {
             Generar
           </Button>
           {data && (
-            <Button icon={<PrinterOutlined />} onClick={handlePrint}>
+            <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
               Imprimir
             </Button>
           )}
@@ -171,87 +346,52 @@ export default function LibroComprasPage() {
 
       {data && (
         <div id="report-print-area">
-          {/* Header for print */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+
+          {/* Cabecera del reporte */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
             <div>
-              <Text style={{ fontSize: 13, fontWeight: 600 }}>
-                Período: {dayjs(data.from).format('DD/MM/YYYY')} — {dayjs(data.to).format('DD/MM/YYYY')}
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                Libro de Compras y Servicios sin IVA &nbsp;·&nbsp;
+                Período: <strong>{dayjs(data.from).format('DD/MM/YYYY')}</strong> al <strong>{dayjs(data.to).format('DD/MM/YYYY')}</strong>
               </Text>
             </div>
-            <Text style={{ fontSize: 12, color: '#6b7280' }}>{data.count} registros</Text>
+            <div style={{
+              border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 14px',
+              textAlign: 'center', minWidth: 70,
+            }}>
+              <div style={{ fontSize: 10, color: '#9ca3af', lineHeight: 1 }}>FOLIO</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1B3A6B', lineHeight: 1.4 }}>
+                {data.count}
+              </div>
+            </div>
           </div>
 
-          {/* Table */}
-          <Card styles={{ body: { padding: 0 } }}>
+          {/* Cabecera de columnas VALOR BASE */}
+          <div style={{
+            background: '#1B3A6B', color: '#fff', fontSize: 10, fontWeight: 600,
+            padding: '4px 8px', borderRadius: '6px 6px 0 0',
+            display: 'flex', justifyContent: 'flex-end', gap: 4,
+          }}>
+            <span style={{ marginRight: 'auto' }}>VALOR BASE (sin IVA) — por categoría SAT</span>
+          </div>
+
+          {/* Tabla principal */}
+          <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: '0 0 8px 8px', borderTop: 'none' }}>
             <Table
               dataSource={data.items}
               columns={columns}
               rowKey={(r) => r.uuid || r.numeroInterno}
-              pagination={{ pageSize: 50, showSizeChanger: true }}
+              pagination={{ pageSize: 100, showSizeChanger: true, showTotal: (t) => `${t} registros` }}
               size="small"
-              scroll={{ x: 1300 }}
+              scroll={{ x: 1600 }}
               loading={loading}
-              summary={() => data.items.length > 0 ? (
-                <Table.Summary.Row style={{ background: '#f8f9fc', fontWeight: 700 }}>
-                  <Table.Summary.Cell index={0} colSpan={7}>
-                    <Text strong style={{ fontSize: 12, color: '#1B3A6B' }}>
-                      TOTALES ({data.count} documentos)
-                    </Text>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={7} align="right">
-                    <Text strong style={{ color: '#1B3A6B' }}>Q {fmt(data.totals.base)}</Text>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={8} align="right">
-                    <Text strong style={{ color: '#6b7280' }}>Q {fmt(data.totals.iva)}</Text>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={9} align="right">
-                    <Text strong style={{ color: '#dc2626' }}>Q {fmt(data.totals.retencionIsr)}</Text>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={10} align="right">
-                    <Text strong style={{ color: '#dc2626' }}>Q {fmt(data.totals.retencionIva)}</Text>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={11} align="right">
-                    <Text strong style={{ color: '#d97706' }}>Q {fmt(data.totals.idp)}</Text>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={12} align="right">
-                    <Text strong style={{ color: '#1B3A6B', fontSize: 13 }}>Q {fmt(data.totals.total)}</Text>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={13} />
-                </Table.Summary.Row>
-              ) : null}
+              summary={() => data.items.length > 0 ? <TotalsRow data={data} /> : null}
             />
           </Card>
 
-          {/* Resumen fiscal */}
-          <Divider />
-          <Card title="Resumen Fiscal del Período" style={{ marginTop: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-              <div style={{ padding: '12px 16px', background: '#f8f9fc', borderRadius: 8, borderLeft: '3px solid #1B3A6B' }}>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>Base Imponible Total</Text>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#1B3A6B' }}>{fmtQ(data.totals.base)}</div>
-              </div>
-              <div style={{ padding: '12px 16px', background: '#f0fdf4', borderRadius: 8, borderLeft: '3px solid #16a34a' }}>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>IVA Crédito Fiscal</Text>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#16a34a' }}>{fmtQ(data.totals.iva)}</div>
-              </div>
-              <div style={{ padding: '12px 16px', background: '#fef2f2', borderRadius: 8, borderLeft: '3px solid #dc2626' }}>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>Total Retenciones (ISR + IVA FE)</Text>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#dc2626' }}>
-                  {fmtQ(data.totals.retencionIsr + data.totals.retencionIva)}
-                </div>
-              </div>
-              {data.totals.idp > 0 && (
-                <div style={{ padding: '12px 16px', background: '#fffbeb', borderRadius: 8, borderLeft: '3px solid #d97706' }}>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>IDP Combustibles</Text>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#d97706' }}>{fmtQ(data.totals.idp)}</div>
-                </div>
-              )}
-              <div style={{ padding: '12px 16px', background: '#1B3A6B', borderRadius: 8, gridColumn: data.totals.idp > 0 ? 'auto' : 'span 2' }}>
-                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>Total Compras del Período</Text>
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>{fmtQ(data.totals.total)}</div>
-              </div>
-            </div>
-          </Card>
+          {/* Resumen por categoría */}
+          <ResumenIVA resumen={data.resumenCategoria} totals={data.totals} />
+
         </div>
       )}
 

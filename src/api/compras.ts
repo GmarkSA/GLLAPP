@@ -153,29 +153,53 @@ export interface ApAgingReport {
 
 // ─── Libro de Compras ─────────────────────────────────────────────────────────
 export interface LibroComprasRow {
-  fecha:           string
-  nitProveedor:    string
-  nombreProveedor: string
-  felSerie:        string
-  felNumero:       string
-  uuid:            string
-  tipoDocumento:   BillType
-  base:            number
-  iva:             number
-  total:           number
-  retencionIsr:    number
-  retencionIva:    number
-  idp:             number
-  numeroInterno:   string
-  status:          BillStatus
+  folio:                number
+  tipoDocumento:        BillType
+  fecha:                string
+  felSerie:             string
+  felNumero:            string
+  referencia:           string
+  nitProveedor:         string
+  nombreProveedor:      string
+  // VALOR BASE por categoría SAT
+  compraBienes:         number
+  compraServicios:      number
+  compraCombustibles:   number
+  importacion:          number
+  pequenoContribuyente: number
+  exento:               number
+  // Impuestos
+  idp:                  number
+  iva:                  number
+  total:                number
+  retencionIsr:         number
+  retencionIva:         number
+  // Meta
+  uuid:                 string
+  numeroInterno:        string
+  status:               BillStatus
+  categoria:            string
+}
+
+export interface LibroComprasResumenCategoria {
+  categoria: string
+  cantidad:  number
+  base:      number
+  iva:       number
+  total:     number
 }
 
 export interface LibroComprasReport {
-  from:   string
-  to:     string
-  items:  LibroComprasRow[]
-  totals: { base: number; iva: number; total: number; retencionIsr: number; retencionIva: number; idp: number }
-  count:  number
+  from:               string
+  to:                 string
+  items:              LibroComprasRow[]
+  totals:             {
+    compraBienes: number; compraServicios: number; compraCombustibles: number
+    importacion: number; pequenoContribuyente: number; exento: number
+    idp: number; iva: number; total: number; retencionIsr: number; retencionIva: number
+  }
+  resumenCategoria:   LibroComprasResumenCategoria[]
+  count:              number
 }
 
 // ─── Journal Entry ───────────────────────────────────────────────────────────
