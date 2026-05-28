@@ -1,7 +1,4 @@
-import { Typography } from 'antd'
 import type { EmpresaInfo } from '../../api/reportes'
-
-const { Text } = Typography
 
 interface Props {
   empresa:     EmpresaInfo | null
@@ -12,9 +9,10 @@ interface Props {
 }
 
 export default function ReportHeader({ empresa, reportName, period, folioInicio, folioFin }: Props) {
-  const name     = empresa?.company_name || empresa?.legal_name || 'ContaERP'
-  const nit      = empresa?.tax_id  ?? ''
-  const currency = empresa?.currency ?? 'GTQ'
+  const tradeName = empresa?.company_name ?? 'ContaERP'
+  const legalName = empresa?.legal_name   ?? ''
+  const nit       = empresa?.tax_id       ?? ''
+  const currency  = empresa?.currency     ?? 'GTQ'
 
   return (
     <div style={{
@@ -23,14 +21,17 @@ export default function ReportHeader({ empresa, reportName, period, folioInicio,
     }}>
       {/* Datos empresa */}
       <div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#1B3A6B', lineHeight: 1.3 }}>{name}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#1B3A6B', lineHeight: 1.3 }}>{tradeName}</div>
+        {legalName && legalName !== tradeName && (
+          <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>{legalName}</div>
+        )}
         {nit && (
           <div style={{ fontSize: 12, color: '#4b5563', marginTop: 2 }}>
             <span style={{ fontWeight: 600 }}>N.I.T.:</span> {nit}
           </div>
         )}
-        <div style={{ fontSize: 12, color: '#4b5563', marginTop: 1 }}>{reportName}</div>
-        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{period}</div>
+        <div style={{ fontSize: 12, color: '#4b5563', marginTop: 4, fontWeight: 500 }}>{reportName}</div>
+        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>{period}</div>
       </div>
 
       {/* Moneda + Folio */}
