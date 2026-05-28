@@ -153,7 +153,6 @@ export default function App() {
           <Route path="compras/ordenes/nueva"       element={<OrdenCompraFormPage />} />
           <Route path="compras/ordenes/:id"         element={<OrdenCompraFormPage />} />
           <Route path="compras/ordenes/:id/editar"  element={<OrdenCompraFormPage />} />
-          <Route path="compras/gastos"              element={<ComingSoon title="Gastos" />} />
 
           <Route path="bancos"            element={<BancosPage />} />
           <Route path="bancos/nuevo"      element={<BancoFormPage />} />
