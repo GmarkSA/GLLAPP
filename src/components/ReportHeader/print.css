@@ -1,56 +1,50 @@
-/* ── Estilos de impresión para reportes SAT (Libro de Compras / Ventas) ── */
+/* ── Estilos de impresión para reportes SAT ────────────────────────── */
 
 @media print {
 
-  /* ── Página carta landscape ────────────────────────────────────────── */
+  /* ── Página carta landscape ──────────────────────────────────────── */
   @page {
     size: letter landscape;
     margin: 0.8cm 1cm;
   }
 
-  /* ── Ocultar todo lo que no es el reporte ─────────────────────────── */
-  body > *,
+  /* ── Ocultar solo navegación y controles — NO usar body > * ──────── */
   .ant-layout-sider,
   .ant-layout-header,
   .ant-breadcrumb,
-  .ant-space,
-  .ant-btn,
-  .ant-picker,
-  .ant-input-number,
-  .ant-pagination,
-  .ant-divider,
-  [class*="no-print"] {
+  .ant-page-header,
+  .ant-divider {
     display: none !important;
   }
 
-  /* Solo mostrar el área del reporte */
+  /* Ocultar la barra de controles (botones, datepicker, folio input)   */
+  /* El wrapper de controles está FUERA de #report-print-area           */
+  .ant-layout-content > div > div:first-child,
+  .ant-layout-content > div > .ant-space {
+    display: none !important;
+  }
+
+  /* Paginación y controles de tabla */
+  .ant-table-pagination,
+  .ant-pagination {
+    display: none !important;
+  }
+
+  /* ── Layout: fondo blanco ────────────────────────────────────────── */
+  body,
+  .ant-layout,
   .ant-layout-content {
-    display: block !important;
+    background: #fff !important;
     padding: 0 !important;
     margin: 0 !important;
   }
 
+  /* ── Escalar para que las columnas quepan en carta landscape ──────── */
   #report-print-area {
-    display: block !important;
-    /* Escalar para que las columnas quepan en carta landscape.
-       Libro de Compras ~1500px → carta landscape ~1050px → zoom 0.68
-       Ajusta este valor si el reporte tiene más o menos columnas.     */
     zoom: 0.68;
   }
 
-  /* ── Fondo blanco, texto negro ────────────────────────────────────── */
-  body,
-  .ant-layout,
-  .ant-layout-content,
-  .ant-card,
-  .ant-table {
-    background: #fff !important;
-    color: #000 !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-
-  /* ── Eliminar scroll horizontal de Ant Design Table ──────────────── */
+  /* ── Eliminar scroll horizontal de Ant Design Table ─────────────── */
   .ant-table-wrapper,
   .ant-table-container,
   .ant-table-content,
@@ -62,14 +56,14 @@
     max-height: none !important;
   }
 
-  /* Tabla ocupa todo el ancho disponible */
+  /* Tabla ocupa el 100% disponible */
   .ant-table table {
     width: 100% !important;
     min-width: unset !important;
     table-layout: fixed !important;
   }
 
-  /* ── Fuente y padding compactos ───────────────────────────────────── */
+  /* ── Fuente y padding compactos ──────────────────────────────────── */
   .ant-table-thead > tr > th {
     font-size: 7pt !important;
     padding: 3px 4px !important;
@@ -88,7 +82,6 @@
     word-break: break-word !important;
   }
 
-  /* Fila de totales */
   .ant-table-summary tr {
     background: #e8ecf5 !important;
     -webkit-print-color-adjust: exact;
@@ -99,28 +92,22 @@
     padding: 3px 4px !important;
   }
 
-  /* ── Tarjetas sin borde innecesario ───────────────────────────────── */
-  .ant-card-body {
-    padding: 0 !important;
-  }
+  /* ── Tarjetas sin borde ──────────────────────────────────────────── */
   .ant-card {
+    box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
   }
+  .ant-card-body {
+    padding: 0 !important;
+  }
 
-  /* ── Evitar cortes de página en mitad de fila ─────────────────────── */
+  /* ── No cortar filas entre páginas ───────────────────────────────── */
   .ant-table-tbody > tr {
     page-break-inside: avoid;
   }
-  .report-header-wrap {
-    page-break-inside: avoid;
-  }
 
-  /* ── Resumen categoría al final ───────────────────────────────────── */
-  table.resumen-categoria-table {
-    font-size: 7.5pt !important;
-    width: 100% !important;
-  }
+  /* ── Resumen categoría ────────────────────────────────────────────── */
   table.resumen-categoria-table td,
   table.resumen-categoria-table th {
     padding: 4px 8px !important;
