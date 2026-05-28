@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, DatePicker, Space,
-  Tag, Divider, message,
+  Tag, InputNumber, message,
 } from 'antd'
 import { HomeOutlined, SearchOutlined, PrinterOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
@@ -12,8 +12,12 @@ import {
   type LibroComprasRow,
   type LibroComprasReport,
   type LibroComprasResumenCategoria,
-  BILL_TYPE_CONFIG,
 } from '../../../api/compras'
+import {
+  getEmpresaInfo, getCorrelativo, setCorrelativo,
+  type EmpresaInfo,
+} from '../../../api/reportes'
+import ReportHeader from '../../../components/ReportHeader/ReportHeader'
 
 const { Title, Text } = Typography
 const { RangePicker }  = DatePicker
@@ -294,22 +298,49 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria
   )
 }
 
+// Filas por hoja carta (aprox. 20 renglones con tamaño "small")
+const ROWS_PER_PAGE = 20
+
 // ── Página principal ────────────────────────────────────────────────────────
 export default function LibroComprasPage() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().startOf('month'),
     dayjs().endOf('month'),
   ])
-  const [data, setData]       = useState<LibroComprasReport | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [data,     setData]     = useState<LibroComprasReport | null>(null)
+  const [loading,  setLoading]  = useState(false)
+  const [empresa,  setEmpresa]  = useState<EmpresaInfo | null>(null)
+  const [folioInicio, setFolioInicio] = useState<number>(1)
+
+  // Carga info empresa + correlativo al montar
+  useEffect(() => {
+    getEmpresaInfo().then(setEmpresa).catch(() => {})
+    getCorrelativo('libro-compras', dayjs().format('YYYY'))
+      .then(r => setFolioInicio((r.current_correlativo ?? 0) + 1))
+      .catch(() => {})
+  }, [])
+
+  // Páginas estimadas y folio final
+  const pages    = data ? Math.max(1, Math.ceil(data.count / ROWS_PER_PAGE)) : 0
+  const folioFin = folioInicio + pages - 1
 
   const load = () => {
     setLoading(true)
     getLibroCompras(dateRange[0].format('YYYY-MM-DD'), dateRange[1].format('YYYY-MM-DD'))
-      .then(setData)
+      .then(result => {
+        setData(result)
+        // Guarda el folio final como el nuevo correlativo para el próximo reporte
+        const pags = Math.max(1, Math.ceil(result.count / ROWS_PER_PAGE))
+        setCorrelativo('libro-compras', folioInicio + pags - 1, dateRange[0].format('YYYY'))
+          .catch(() => {})
+      })
       .catch(() => message.error('No se pudo cargar el Libro de Compras'))
       .finally(() => setLoading(false))
   }
+
+  const period = data
+    ? `Del ${dayjs(data.from).format('DD/MM/YYYY')} al ${dayjs(data.to).format('DD/MM/YYYY')}`
+    : ''
 
   return (
     <div>
@@ -327,6 +358,14 @@ export default function LibroComprasPage() {
           Libro de Compras y Servicios — SAT Guatemala
         </Title>
         <Space>
+          {/* Folio inicial editable */}
+          <Space size={4}>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>Folio inicial:</Text>
+            <InputNumber
+              min={1} value={folioInicio} size="small" style={{ width: 72 }}
+              onChange={v => setFolioInicio(v ?? 1)}
+            />
+          </Space>
           <RangePicker
             value={dateRange}
             onChange={(v) => { if (v?.[0] && v?.[1]) setDateRange([v[0], v[1]]) }}
@@ -347,32 +386,28 @@ export default function LibroComprasPage() {
       {data && (
         <div id="report-print-area">
 
-          {/* Cabecera del reporte */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
-            <div>
-              <Text style={{ fontSize: 12, color: '#6b7280' }}>
-                Libro de Compras y Servicios sin IVA &nbsp;·&nbsp;
-                Período: <strong>{dayjs(data.from).format('DD/MM/YYYY')}</strong> al <strong>{dayjs(data.to).format('DD/MM/YYYY')}</strong>
-              </Text>
-            </div>
-            <div style={{
-              border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 14px',
-              textAlign: 'center', minWidth: 70,
-            }}>
-              <div style={{ fontSize: 10, color: '#9ca3af', lineHeight: 1 }}>FOLIO</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#1B3A6B', lineHeight: 1.4 }}>
-                {data.count}
-              </div>
-            </div>
+          {/* Encabezado empresa */}
+          <ReportHeader
+            empresa={empresa}
+            reportName="Libro de Compras y Servicios sin IVA"
+            period={period}
+            folioInicio={folioInicio}
+            folioFin={folioFin}
+          />
+
+          {/* Aviso de folios generados */}
+          <div style={{ marginBottom: 8, fontSize: 11, color: '#6b7280' }}>
+            {pages} hoja{pages !== 1 ? 's' : ''} carta estimada{pages !== 1 ? 's' : ''}
+            &nbsp;·&nbsp; Folios asignados: <strong style={{ color: '#1B3A6B' }}>{folioInicio} al {folioFin}</strong>
+            &nbsp;·&nbsp; Próximo reporte iniciará en folio <strong>{folioFin + 1}</strong>
           </div>
 
-          {/* Cabecera de columnas VALOR BASE */}
+          {/* Cabecera VALOR BASE */}
           <div style={{
             background: '#1B3A6B', color: '#fff', fontSize: 10, fontWeight: 600,
             padding: '4px 8px', borderRadius: '6px 6px 0 0',
-            display: 'flex', justifyContent: 'flex-end', gap: 4,
           }}>
-            <span style={{ marginRight: 'auto' }}>VALOR BASE (sin IVA) — por categoría SAT</span>
+            VALOR BASE (sin IVA) — por categoría SAT
           </div>
 
           {/* Tabla principal */}

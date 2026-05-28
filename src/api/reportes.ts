@@ -4,6 +4,26 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 
 const BASE = '/reportes'
 
+// ─── Empresa / Encabezado de reportes ─────────────────────────────────────────
+
+export interface EmpresaInfo {
+  company_name: string
+  legal_name:   string
+  tax_id:       string
+  address:      string
+  phone:        string
+  email:        string
+  currency:     string
+}
+
+export const getEmpresaInfo = () =>
+  api.get(`${BASE}/empresa`).then(unwrap) as Promise<EmpresaInfo>
+
+// ─── Correlativos / Folios ─────────────────────────────────────────────────────
+
+export const setCorrelativo = (tipo: string, value: number, year?: string) =>
+  api.post(`${BASE}/correlativo/${tipo}/set`, { value, year }).then(unwrap)
+
 // ─── Financieros ──────────────────────────────────────────────────────────────
 
 export interface BalanceGeneralData {
