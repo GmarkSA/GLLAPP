@@ -9,7 +9,6 @@ import dayjs, { Dayjs } from 'dayjs'
 
 import {
   getLibroCompras,
-  type LibroComprasRow,
   type LibroComprasReport,
   type LibroComprasResumenCategoria,
 } from '../../../api/compras'
@@ -389,7 +388,7 @@ export default function LibroComprasPage() {
           {/* Encabezado empresa */}
           <ReportHeader
             empresa={empresa}
-            reportName="Libro de Compras y Servicios sin IVA"
+            reportName="Libro de Compras y Servicios"
             period={period}
             folioInicio={folioInicio}
             folioFin={folioFin}
