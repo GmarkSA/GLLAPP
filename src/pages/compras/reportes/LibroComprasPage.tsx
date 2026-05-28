@@ -46,9 +46,9 @@ const CATEGORIA_COLOR: Record<string, string> = {
 // ── Columnas tabla SAT ──────────────────────────────────────────────────────
 const columns = [
   {
-    title: 'Folio',
+    title: 'No.',
     dataIndex: 'folio',
-    width: 52,
+    width: 48,
     align: 'center' as const,
     render: (v: number) => <Text style={{ fontSize: 11, color: '#6b7280' }}>{v}</Text>,
   },
