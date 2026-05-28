@@ -531,14 +531,6 @@ export default function FacturaProveedorFormPage() {
                   />
                 </Form.Item>
 
-                <Form.Item name="vendorInvoiceNumber" label="No. Factura del Proveedor">
-                  <Input placeholder="F001-000123" />
-                </Form.Item>
-
-                <Form.Item name="accountId" label="Cuenta de gasto / activo">
-                  <Select showSearch placeholder="Seleccionar cuenta…" filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())} options={expenseAccounts} allowClear />
-                </Form.Item>
-
                 <Form.Item name="invoiceDate" label="Fecha de factura" rules={[{ required: true, message: 'Ingrese la fecha' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
