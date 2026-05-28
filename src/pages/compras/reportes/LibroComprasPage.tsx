@@ -2,16 +2,20 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, DatePicker, Space,
-  Tag, InputNumber, message,
+  Tag, InputNumber, message, Dropdown,
 } from 'antd'
-import { HomeOutlined, SearchOutlined, PrinterOutlined } from '@ant-design/icons'
+import {
+  HomeOutlined, SearchOutlined, PrinterOutlined,
+  FileExcelOutlined, FilePdfOutlined, DownOutlined,
+} from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 
 import {
-  getLibroCompras,
+  getLibroCompras, downloadLibroComprasExcel,
   type LibroComprasReport,
   type LibroComprasResumenCategoria,
 } from '../../../api/compras'
+import '../../../components/ReportHeader/print.css'
 import {
   getEmpresaInfo, getCorrelativo, setCorrelativo,
   type EmpresaInfo,
@@ -306,9 +310,10 @@ export default function LibroComprasPage() {
     dayjs().startOf('month'),
     dayjs().endOf('month'),
   ])
-  const [data,     setData]     = useState<LibroComprasReport | null>(null)
-  const [loading,  setLoading]  = useState(false)
-  const [empresa,  setEmpresa]  = useState<EmpresaInfo | null>(null)
+  const [data,        setData]        = useState<LibroComprasReport | null>(null)
+  const [loading,     setLoading]     = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [empresa,     setEmpresa]     = useState<EmpresaInfo | null>(null)
   const [folioInicio, setFolioInicio] = useState<number>(1)
 
   // Carga info empresa + correlativo al montar
@@ -328,13 +333,25 @@ export default function LibroComprasPage() {
     getLibroCompras(dateRange[0].format('YYYY-MM-DD'), dateRange[1].format('YYYY-MM-DD'))
       .then(result => {
         setData(result)
-        // Guarda el folio final como el nuevo correlativo para el próximo reporte
         const pags = Math.max(1, Math.ceil(result.count / ROWS_PER_PAGE))
         setCorrelativo('libro-compras', folioInicio + pags - 1, dateRange[0].format('YYYY'))
           .catch(() => {})
       })
       .catch(() => message.error('No se pudo cargar el Libro de Compras'))
       .finally(() => setLoading(false))
+  }
+
+  const handleExcel = async () => {
+    if (!data) return
+    setDownloading(true)
+    try {
+      await downloadLibroComprasExcel(
+        dateRange[0].format('YYYY-MM-DD'),
+        dateRange[1].format('YYYY-MM-DD'),
+        `libro-compras-${dateRange[0].format('YYYY-MM')}.xlsx`,
+      )
+    } catch { message.error('Error al descargar Excel') }
+    finally { setDownloading(false) }
   }
 
   const period = data
@@ -375,9 +392,36 @@ export default function LibroComprasPage() {
             Generar
           </Button>
           {data && (
-            <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-              Imprimir
-            </Button>
+            <>
+              <Button
+                icon={<FileExcelOutlined />}
+                loading={downloading}
+                onClick={handleExcel}
+                style={{ color: '#16a34a', borderColor: '#16a34a' }}
+              >
+                Excel
+              </Button>
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'landscape', label: 'Carta horizontal', icon: <PrinterOutlined />, onClick: () => window.print() },
+                    { key: 'portrait',  label: 'Carta vertical',   icon: <FilePdfOutlined />,  onClick: () => {
+                      const el = document.querySelector('style#print-orientation') as HTMLStyleElement | null
+                      const s  = el ?? document.createElement('style')
+                      s.id = 'print-orientation'
+                      s.textContent = '@media print { @page { size: letter portrait; } }'
+                      document.head.appendChild(s)
+                      window.print()
+                      setTimeout(() => s.remove(), 1000)
+                    }},
+                  ],
+                }}
+              >
+                <Button icon={<PrinterOutlined />}>
+                  Imprimir <DownOutlined />
+                </Button>
+              </Dropdown>
+            </>
           )}
         </Space>
       </div>

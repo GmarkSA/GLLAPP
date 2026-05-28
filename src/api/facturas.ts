@@ -243,6 +243,14 @@ export interface LibroVentasReport {
 export const getLibroVentas = (from: string, to: string) =>
   api.get(`${BASE_INV}/reportes/libro-ventas`, { params: { from, to } }).then(unwrap) as Promise<LibroVentasReport>
 
+export const downloadLibroVentasExcel = async (from: string, to: string, filename: string) => {
+  const res = await api.get(`${BASE_INV}/reportes/libro-ventas/excel`, { params: { from, to }, responseType: 'blob' })
+  const url = URL.createObjectURL(res.data)
+  const a   = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
 export const getInvoices = (params?: {
   page?: number; limit?: number; search?: string
   status?: string; customerId?: string; fromDate?: string; toDate?: string

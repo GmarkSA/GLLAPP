@@ -267,6 +267,14 @@ export const getApAging = () =>
 export const getLibroCompras = (from: string, to: string) =>
   api.get(`${BILL}/reportes/libro-compras`, { params: { from, to } }).then(unwrap) as Promise<LibroComprasReport>
 
+export const downloadLibroComprasExcel = async (from: string, to: string, filename: string) => {
+  const res = await api.get(`${BILL}/reportes/libro-compras/excel`, { params: { from, to }, responseType: 'blob' })
+  const url = URL.createObjectURL(res.data)
+  const a   = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ─── Purchase Orders (Órdenes de Compra) ──────────────────────────────────────
 const PO = '/compras/ordenes-compra'
 

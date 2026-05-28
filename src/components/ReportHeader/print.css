@@ -1,0 +1,95 @@
+/* ── Estilos de impresión para reportes SAT (Libro de Compras / Ventas) ── */
+
+@media print {
+  /* Orientación y tamaño carta */
+  @page {
+    size: letter landscape;
+    margin: 1cm 1.2cm;
+  }
+
+  /* Ocultar elementos de navegación y controles */
+  header,
+  nav,
+  aside,
+  .ant-layout-sider,
+  .ant-layout-header,
+  .ant-breadcrumb,
+  .ant-btn,
+  .ant-space,
+  .ant-picker,
+  .ant-input-number,
+  [class*="ant-pagination"],
+  [class*="no-print"] {
+    display: none !important;
+  }
+
+  /* Forzar fondo blanco y texto negro */
+  body,
+  .ant-layout,
+  .ant-layout-content {
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Área del reporte ocupa todo el ancho */
+  #report-print-area {
+    width: 100%;
+    padding: 0;
+  }
+
+  /* Tabla: fuente compacta para caber en carta */
+  .ant-table {
+    font-size: 8pt !important;
+  }
+  .ant-table-thead > tr > th {
+    font-size: 7.5pt !important;
+    padding: 3px 4px !important;
+    background: #1B3A6B !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .ant-table-tbody > tr > td {
+    font-size: 8pt !important;
+    padding: 2px 4px !important;
+  }
+
+  /* Evitar corte de tabla entre páginas */
+  .ant-table-wrapper {
+    overflow: visible !important;
+  }
+  .ant-table-container {
+    overflow: visible !important;
+  }
+
+  /* Fila de totales con fondo */
+  .ant-table-summary tr {
+    background: #e8ecf5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Tarjetas sin sombra */
+  .ant-card {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* ReportHeader siempre visible */
+  .report-header-wrap {
+    display: block !important;
+  }
+
+  /* Resumen por categoría */
+  .resumen-categoria-table {
+    font-size: 8pt !important;
+  }
+
+  /* Evitar salto de página dentro del encabezado */
+  .report-header-wrap,
+  .ant-table-thead {
+    page-break-inside: avoid;
+  }
+}
