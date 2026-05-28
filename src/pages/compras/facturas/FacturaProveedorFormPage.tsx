@@ -343,10 +343,6 @@ export default function FacturaProveedorFormPage() {
 
   // ── Account options ────────────────────────────────────────────────────────
 
-  const expenseAccounts = accounts.filter(a =>
-    a.type === 'expense' || a.type === 'asset'
-  ).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))
-
   const allAccounts = accounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))
 
   // ── Save ───────────────────────────────────────────────────────────────────
@@ -508,17 +504,14 @@ export default function FacturaProveedorFormPage() {
         {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          {/* Header */}
+          {/* ── Encabezado unificado: datos generales + FEL ─────────────────── */}
           <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>
             {id ? 'Editar Factura Proveedor' : 'Nueva Factura Proveedor'}
           </span>}>
             <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceType: 'goods', paymentTerms: 'immediate' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
 
-                <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]}>
-                  <Select options={BILL_TYPES} />
-                </Form.Item>
-
+              {/* Fila 1: Proveedor | Tipo de factura */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 16px' }}>
                 <Form.Item name="vendorId" label="Proveedor / Empleado" rules={[{ required: true, message: 'Seleccione un proveedor' }]}>
                   <Select
                     showSearch
@@ -530,25 +523,22 @@ export default function FacturaProveedorFormPage() {
                     notFoundContent={loadingVendors ? 'Buscando…' : 'Sin resultados'}
                   />
                 </Form.Item>
+                <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]}>
+                  <Select options={BILL_TYPES} />
+                </Form.Item>
+              </div>
 
+              {/* Fila 2: Fecha | Serie | Número SAT | Moneda */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="invoiceDate" label="Fecha de factura" rules={[{ required: true, message: 'Ingrese la fecha' }]}>
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
-
-                <Form.Item name="paymentTerms" label="Términos de pago">
-                  <Select options={PAYMENT_TERMS_OPTIONS} />
+                <Form.Item name="felSerie" label="Serie FEL">
+                  <Input placeholder="A" />
                 </Form.Item>
-
-                {paymentTerms === 'custom' && (
-                  <Form.Item name="paymentTermsDays" label="Días de crédito">
-                    <InputNumber min={1} max={365} style={{ width: '100%' }} />
-                  </Form.Item>
-                )}
-
-                <Form.Item name="dueDate" label="Fecha de vencimiento">
-                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                <Form.Item name="felNumber" label="Número SAT">
+                  <Input placeholder="00001" />
                 </Form.Item>
-
                 <Form.Item name="currency" label="Moneda">
                   <Select options={[
                     { value: 'GTQ', label: 'GTQ — Quetzal' },
@@ -556,31 +546,30 @@ export default function FacturaProveedorFormPage() {
                   ]} />
                 </Form.Item>
               </div>
-            </Form>
-          </Card>
 
-          {/* FEL — always visible */}
-          <Card
-            title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>FEL — Factura Electrónica SAT</span>}
-            styles={{ body: { paddingBottom: 4 } }}
-          >
-            <Form form={form} layout="vertical" size="small">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 12px' }}>
-                <Form.Item name="felSerie"      label="Serie FEL">       <Input placeholder="A" /> </Form.Item>
-                <Form.Item name="felNumber"     label="Número SAT">      <Input placeholder="00001" /> </Form.Item>
-                <Form.Item name="felUuid"       label="UUID" style={{ gridColumn: 'span 2' }}>
-                  <Input placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+              {/* Fila 3: Autorización SAT | Términos de pago | Fecha de vencimiento */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 12px' }}>
+                <Form.Item name="felAuthNumber" label="Autorización SAT">
+                  <Input placeholder="Número de autorización SAT" />
                 </Form.Item>
-                <Form.Item name="felAuthNumber" label="Autorización SAT" style={{ gridColumn: 'span 2' }}>
-                  <Input placeholder="Número de autorización" />
+                <Form.Item name="paymentTerms" label="Términos de pago">
+                  <Select options={PAYMENT_TERMS_OPTIONS} />
                 </Form.Item>
-                <Form.Item name="felCertDate"   label="Fecha certificación">
-                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY HH:mm" showTime />
-                </Form.Item>
-                <Form.Item name="felMessage"    label="Mensaje SAT">
-                  <Input placeholder="Ej. CERTIFICADA" />
+                <Form.Item name="dueDate" label="Fecha de vencimiento">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
               </div>
+
+              {paymentTerms === 'custom' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 12px' }}>
+                  <div />
+                  <Form.Item name="paymentTermsDays" label="Días de crédito">
+                    <InputNumber min={1} max={365} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <div />
+                </div>
+              )}
+
             </Form>
           </Card>
 
