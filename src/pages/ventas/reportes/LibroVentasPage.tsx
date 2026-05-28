@@ -2,12 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, DatePicker, Space,
-  Tag, InputNumber, message, Dropdown,
+  Tag, InputNumber, message,
 } from 'antd'
-import {
-  HomeOutlined, SearchOutlined, PrinterOutlined,
-  FileExcelOutlined, FilePdfOutlined, DownOutlined,
-} from '@ant-design/icons'
+import { HomeOutlined, SearchOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 
 import {
@@ -15,7 +12,7 @@ import {
   type LibroVentasReport,
   type LibroVentasResumenCategoria,
 } from '../../../api/facturas'
-import '../../../components/ReportHeader/print.css'
+import { printLibro } from '../../../components/ReportHeader/printLibro'
 import {
   getEmpresaInfo, getCorrelativo, setCorrelativo,
   type EmpresaInfo,
@@ -297,6 +294,37 @@ export default function LibroVentasPage() {
     finally { setDownloading(false) }
   }
 
+  const handlePrint = () => {
+    if (!data) return
+    printLibro({
+      empresa, reportName: 'Libro de Ventas y Servicios', period, folioInicio, folioFin,
+      nitLabel: 'NIT Cliente', nombreLabel: 'Nombre del Cliente',
+      hasIdp: false, hasCol5: false, hasCol6: false,
+      rows: data.items.map(r => ({
+        folio: r.folio, tipoDocumento: r.tipoDocumento, fecha: String(r.fecha),
+        felSerie: r.felSerie, felNumero: r.felNumero, referencia: r.referencia,
+        nitParty: r.nitCliente, nombreParty: r.nombreCliente,
+        col1: r.ventaBienes,    label1: 'Venta Bienes',
+        col2: r.ventaServicios, label2: 'Venta Servicios',
+        col3: r.exportacion,    label3: 'Exportación',
+        col4: r.exento,         label4: 'Exento',
+        iva: r.iva, total: r.total,
+      })),
+      totals: {
+        col1: data.totals.ventaBienes,    col2: data.totals.ventaServicios,
+        col3: data.totals.exportacion,    col4: data.totals.exento,
+        iva: data.totals.iva, total: data.totals.total,
+      },
+      resumen: data.resumenCategoria.map(r => ({
+        label:    r.categoria === 'bienes'      ? 'Ventas de Bienes'
+                : r.categoria === 'servicios'   ? 'Ventas de Servicios'
+                : r.categoria === 'exportacion' ? 'Exportación'
+                : 'Exento',
+        cantidad: r.cantidad, base: r.base, iva: r.iva, total: r.total,
+      })),
+    })
+  }
+
   const period = data
     ? `Del ${dayjs(data.from).format('DD/MM/YYYY')} al ${dayjs(data.to).format('DD/MM/YYYY')}`
     : ''
@@ -343,26 +371,9 @@ export default function LibroVentasPage() {
               >
                 Excel
               </Button>
-              <Dropdown
-                menu={{
-                  items: [
-                    { key: 'landscape', label: 'Carta horizontal', icon: <PrinterOutlined />, onClick: () => window.print() },
-                    { key: 'portrait',  label: 'Carta vertical',   icon: <FilePdfOutlined />,  onClick: () => {
-                      const el = document.querySelector('style#print-orientation') as HTMLStyleElement | null
-                      const s  = el ?? document.createElement('style')
-                      s.id = 'print-orientation'
-                      s.textContent = '@media print { @page { size: letter portrait; } }'
-                      document.head.appendChild(s)
-                      window.print()
-                      setTimeout(() => s.remove(), 1000)
-                    }},
-                  ],
-                }}
-              >
-                <Button icon={<PrinterOutlined />}>
-                  Imprimir <DownOutlined />
-                </Button>
-              </Dropdown>
+              <Button icon={<PrinterOutlined />} onClick={handlePrint}>
+                Imprimir / PDF
+              </Button>
             </>
           )}
         </Space>

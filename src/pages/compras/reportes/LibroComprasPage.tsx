@@ -2,12 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, DatePicker, Space,
-  Tag, InputNumber, message, Dropdown,
+  Tag, InputNumber, message,
 } from 'antd'
-import {
-  HomeOutlined, SearchOutlined, PrinterOutlined,
-  FileExcelOutlined, FilePdfOutlined, DownOutlined,
-} from '@ant-design/icons'
+import { HomeOutlined, SearchOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 
 import {
@@ -15,7 +12,7 @@ import {
   type LibroComprasReport,
   type LibroComprasResumenCategoria,
 } from '../../../api/compras'
-import '../../../components/ReportHeader/print.css'
+import { printLibro } from '../../../components/ReportHeader/printLibro'
 import {
   getEmpresaInfo, getCorrelativo, setCorrelativo,
   type EmpresaInfo,
@@ -354,6 +351,42 @@ export default function LibroComprasPage() {
     finally { setDownloading(false) }
   }
 
+  const handlePrint = () => {
+    if (!data) return
+    printLibro({
+      empresa, reportName: 'Libro de Compras y Servicios', period, folioInicio, folioFin,
+      nitLabel: 'NIT Contribuyente', nombreLabel: 'Nombre del Contribuyente',
+      hasIdp: data.totals.idp > 0, hasCol5: true, hasCol6: true,
+      rows: data.items.map(r => ({
+        folio: r.folio, tipoDocumento: r.tipoDocumento, fecha: String(r.fecha),
+        felSerie: r.felSerie, felNumero: r.felNumero, referencia: r.referencia,
+        nitParty: r.nitProveedor, nombreParty: r.nombreProveedor,
+        col1: r.compraBienes,       label1: 'Compra Bienes',
+        col2: r.compraServicios,    label2: 'Compra Servicios',
+        col3: r.compraCombustibles, label3: 'Combustibles',
+        col4: r.importacion,        label4: 'Importación',
+        col5: r.pequenoContribuyente, label5: 'Peq. Contrib.',
+        col6: r.exento,             label6: 'Exento',
+        idp: r.idp, iva: r.iva, total: r.total,
+      })),
+      totals: {
+        col1: data.totals.compraBienes,   col2: data.totals.compraServicios,
+        col3: data.totals.compraCombustibles, col4: data.totals.importacion,
+        col5: data.totals.pequenoContribuyente, col6: data.totals.exento,
+        idp: data.totals.idp, iva: data.totals.iva, total: data.totals.total,
+      },
+      resumen: data.resumenCategoria.map(r => ({
+        label:    r.categoria === 'bienes' ? 'Compra de Bienes'
+                : r.categoria === 'servicios' ? 'Compra de Servicios'
+                : r.categoria === 'combustibles' ? 'Compra de Combustibles'
+                : r.categoria === 'importacion' ? 'Importación'
+                : r.categoria === 'pequenoContribuyente' ? 'Pequeño Contribuyente'
+                : 'Exento',
+        cantidad: r.cantidad, base: r.base, iva: r.iva, total: r.total,
+      })),
+    })
+  }
+
   const period = data
     ? `Del ${dayjs(data.from).format('DD/MM/YYYY')} al ${dayjs(data.to).format('DD/MM/YYYY')}`
     : ''
@@ -401,26 +434,9 @@ export default function LibroComprasPage() {
               >
                 Excel
               </Button>
-              <Dropdown
-                menu={{
-                  items: [
-                    { key: 'landscape', label: 'Carta horizontal', icon: <PrinterOutlined />, onClick: () => window.print() },
-                    { key: 'portrait',  label: 'Carta vertical',   icon: <FilePdfOutlined />,  onClick: () => {
-                      const el = document.querySelector('style#print-orientation') as HTMLStyleElement | null
-                      const s  = el ?? document.createElement('style')
-                      s.id = 'print-orientation'
-                      s.textContent = '@media print { @page { size: letter portrait; } }'
-                      document.head.appendChild(s)
-                      window.print()
-                      setTimeout(() => s.remove(), 1000)
-                    }},
-                  ],
-                }}
-              >
-                <Button icon={<PrinterOutlined />}>
-                  Imprimir <DownOutlined />
-                </Button>
-              </Dropdown>
+              <Button icon={<PrinterOutlined />} onClick={handlePrint}>
+                Imprimir / PDF
+              </Button>
             </>
           )}
         </Space>
