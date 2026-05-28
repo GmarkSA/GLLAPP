@@ -194,6 +194,55 @@ export interface RecordPaymentDto {
 // ─── Invoice API ──────────────────────────────────────────────────────────────
 const BASE_INV = '/ventas/facturas'
 
+// ─── Libro de Ventas ──────────────────────────────────────────────────────────
+
+export interface LibroVentasRow {
+  folio:          number
+  tipoDocumento:  string
+  fecha:          string
+  felSerie:       string
+  felNumero:      string
+  referencia:     string
+  nitCliente:     string
+  nombreCliente:  string
+  // VALOR BASE por categoría SAT
+  ventaBienes:    number
+  ventaServicios: number
+  exportacion:    number
+  exento:         number
+  // Impuesto
+  iva:            number
+  total:          number
+  // Meta
+  uuid:           string
+  numeroInterno:  string
+  status:         string
+  categoria:      string
+}
+
+export interface LibroVentasResumenCategoria {
+  categoria: string
+  cantidad:  number
+  base:      number
+  iva:       number
+  total:     number
+}
+
+export interface LibroVentasReport {
+  from:             string
+  to:               string
+  items:            LibroVentasRow[]
+  totals: {
+    ventaBienes: number; ventaServicios: number
+    exportacion: number; exento: number; iva: number; total: number
+  }
+  resumenCategoria: LibroVentasResumenCategoria[]
+  count:            number
+}
+
+export const getLibroVentas = (from: string, to: string) =>
+  api.get(`${BASE_INV}/reportes/libro-ventas`, { params: { from, to } }).then(unwrap) as Promise<LibroVentasReport>
+
 export const getInvoices = (params?: {
   page?: number; limit?: number; search?: string
   status?: string; customerId?: string; fromDate?: string; toDate?: string

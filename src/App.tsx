@@ -32,6 +32,8 @@ const PagoRecibidoFormPage   = lazy(() => import('./pages/ventas/pagos-recibidos
 const PagoRecibidoDetallePage = lazy(() => import('./pages/ventas/pagos-recibidos/PagoRecibidoDetallePage'))
 
 // Compras
+const LibroVentasPage          = lazy(() => import('./pages/ventas/reportes/LibroVentasPage'))
+
 const ProveedoresPage          = lazy(() => import('./pages/compras/proveedores/ProveedoresPage'))
 const ProveedorFormPage        = lazy(() => import('./pages/compras/proveedores/ProveedorFormPage'))
 const FacturasProveedorPage    = lazy(() => import('./pages/compras/facturas/FacturasProveedorPage'))
@@ -134,9 +136,10 @@ export default function App() {
           <Route path="ventas/notas-credito/:id/editar" element={<NotaCreditoFormPage />} />
           <Route path="ventas/notas-credito/:id"       element={<NotaCreditoDetallePage />} />
 
-          <Route path="ventas/pagos-recibidos"        element={<PagosRecibidosPage />} />
-          <Route path="ventas/pagos-recibidos/nuevo"  element={<PagoRecibidoFormPage />} />
-          <Route path="ventas/pagos-recibidos/:id"    element={<PagoRecibidoDetallePage />} />
+          <Route path="ventas/pagos-recibidos"              element={<PagosRecibidosPage />} />
+          <Route path="ventas/pagos-recibidos/nuevo"        element={<PagoRecibidoFormPage />} />
+          <Route path="ventas/pagos-recibidos/:id"          element={<PagoRecibidoDetallePage />} />
+          <Route path="ventas/reportes/libro-ventas"        element={<LibroVentasPage />} />
 
           <Route path="compras/proveedores"         element={<ProveedoresPage />} />
           <Route path="compras/proveedores/nuevo"   element={<ProveedorFormPage />} />

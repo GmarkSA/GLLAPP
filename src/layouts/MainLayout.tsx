@@ -21,7 +21,8 @@ const menuItems = [
     { key: '/ventas/estimaciones',    label: 'Cotizaciones' },
     { key: '/ventas/facturas',        label: 'Facturas de venta' },
     { key: '/ventas/notas-credito',   label: 'Notas de crédito' },
-    { key: '/ventas/pagos-recibidos', label: 'Pagos recibidos' },
+    { key: '/ventas/pagos-recibidos',          label: 'Pagos recibidos' },
+    { key: '/ventas/reportes/libro-ventas',    label: 'Libro de Ventas' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [
     { key: '/compras/proveedores',            label: 'Proveedores' },
