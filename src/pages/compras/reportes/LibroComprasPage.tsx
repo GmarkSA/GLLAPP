@@ -222,7 +222,7 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria
       styles={{ body: { padding: '12px 16px' } }}
     >
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <table className="resumen-categoria-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: '#f8f9fc', borderBottom: '2px solid #e5e7eb' }}>
               <th style={{ textAlign: 'left',  padding: '8px 12px', fontWeight: 600 }}>Categoría</th>
@@ -461,7 +461,7 @@ export default function LibroComprasPage() {
               rowKey={(r) => r.uuid || r.numeroInterno}
               pagination={{ pageSize: 100, showSizeChanger: true, showTotal: (t) => `${t} registros` }}
               size="small"
-              scroll={{ x: 1600 }}
+              scroll={{ x: 'max-content' }}
               loading={loading}
               summary={() => data.items.length > 0 ? <TotalsRow data={data} /> : null}
             />
