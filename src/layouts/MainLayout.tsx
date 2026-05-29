@@ -62,6 +62,7 @@ const menuItems = [
   ]},
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
     { key: '/configuracion',                      label: 'General' },
+    { key: '/configuracion/usuarios',             label: 'Usuarios y Roles' },
     { key: '/configuracion/unidades-medida',      label: 'Unidades de Medida' },
     { key: '/configuracion/integraciones',        label: 'Espacio de Desarrollador' },
   ]},
