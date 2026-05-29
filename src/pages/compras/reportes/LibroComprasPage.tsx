@@ -64,10 +64,23 @@ const columns = [
     ),
   },
   {
-    title: 'Fecha',
+    title: 'Fecha Factura',
     dataIndex: 'fecha',
-    width: 88,
+    width: 95,
     render: (v: string) => <span style={{ fontSize: 11 }}>{fmtD(v)}</span>,
+  },
+  {
+    title: 'Fecha Contabiliz.',
+    dataIndex: 'fechaContabilizacion',
+    width: 105,
+    render: (v: string, r: any) => {
+      const isDiff = v && r.fecha && new Date(v).toDateString() !== new Date(r.fecha).toDateString()
+      return (
+        <span style={{ fontSize: 11, color: isDiff ? '#d97706' : undefined, fontWeight: isDiff ? 600 : undefined }}>
+          {fmtD(v)}
+        </span>
+      )
+    },
   },
   {
     title: 'Serie',
@@ -184,13 +197,13 @@ function TotalsRow({ data }: { data: LibroComprasReport }) {
   ]
   return (
     <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
-      <Table.Summary.Cell index={0} colSpan={8}>
+      <Table.Summary.Cell index={0} colSpan={9}>
         <Text strong style={{ fontSize: 11, color: '#1B3A6B' }}>
           TOTALES — {data.count} documentos
         </Text>
       </Table.Summary.Cell>
       {vals.map((v, i) => (
-        <Table.Summary.Cell key={i} index={8 + i} align="right">
+        <Table.Summary.Cell key={i} index={9 + i} align="right">
           <Text strong style={{ fontSize: 11, color: v > 0 ? '#1B3A6B' : '#d1d5db' }}>
             {v > 0 ? fmt(v) : '—'}
           </Text>

@@ -17,7 +17,7 @@ const { Option } = Select
 const fmtQ = (n: number | undefined) =>
   n !== undefined ? `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
 
-interface Customer { id: string; name: string; taxId?: string }
+interface Customer { id: string; name: string; legalName?: string; taxId?: string }
 
 export default function PagoRecibidoFormPage() {
   const navigate = useNavigate()
@@ -40,7 +40,7 @@ export default function PagoRecibidoFormPage() {
     getCustomers({ limit: 100, search: search || undefined })
       .then((res: any) => {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
-        setCustomers(list.map(c => ({ id: c.id, name: c.name, taxId: c.taxId })))
+        setCustomers(list.map(c => ({ id: c.id, name: c.name, legalName: c.legalName, taxId: c.taxId })))
       })
       .catch(() => setCustomers([]))
       .finally(() => setLoadingCust(false))
@@ -93,11 +93,15 @@ export default function PagoRecibidoFormPage() {
     setSaving(true)
     try {
       const vals = form.getFieldsValue()
-      const paymentDate = (vals.paymentDate as dayjs.Dayjs).format('YYYY-MM-DD')
+      const paymentDate    = (vals.paymentDate    as dayjs.Dayjs).format('YYYY-MM-DD')
+      const accountingDate = vals.accountingDate
+        ? (vals.accountingDate as dayjs.Dayjs).format('YYYY-MM-DD')
+        : undefined
       const dto = isAdvance
         ? {
             customerId:    selectedCust!,
             paymentDate,
+            accountingDate,
             amount:        vals.amount,
             mode:          vals.mode as PaymentMode,
             reference:     vals.reference || undefined,
@@ -110,6 +114,7 @@ export default function PagoRecibidoFormPage() {
             customerId:    selectedCust!,
             invoiceId:     vals.invoiceId,
             paymentDate,
+            accountingDate,
             amount:        vals.amount,
             mode:          vals.mode as PaymentMode,
             reference:     vals.reference || undefined,
@@ -177,7 +182,7 @@ export default function PagoRecibidoFormPage() {
             bordered={false}
             style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}
           >
-            <Form form={form} layout="vertical" initialValues={{ paymentDate: dayjs(), currency: 'GTQ' }}>
+            <Form form={form} layout="vertical" initialValues={{ paymentDate: dayjs(), accountingDate: dayjs(), currency: 'GTQ' }}>
 
               {/* Tipo de pago */}
               <Form.Item label="Tipo de pago" style={{ marginBottom: 16 }}>
@@ -220,8 +225,23 @@ export default function PagoRecibidoFormPage() {
                   notFoundContent={loadingCust ? <Spin size="small" /> : 'Sin resultados'}
                   options={customers.map(c => ({
                     value: c.id,
-                    label: `${c.name}${c.taxId ? ` — ${c.taxId}` : ''}`,
+                    label: c.legalName ?? c.name,
                   }))}
+                  optionRender={(opt) => {
+                    const c = customers.find(x => x.id === opt.value)
+                    const displayName = c?.legalName ?? c?.name ?? ''
+                    const commercial  = c?.name !== displayName ? c?.name : undefined
+                    return (
+                      <div style={{ lineHeight: 1.3, padding: '2px 0' }}>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{displayName}</div>
+                        {(commercial || c?.taxId) && (
+                          <div style={{ fontSize: 11, color: '#6b7280' }}>
+                            {commercial}{commercial && c?.taxId ? ' — ' : ''}{c?.taxId}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }}
                 />
               </Form.Item>
 
@@ -262,7 +282,7 @@ export default function PagoRecibidoFormPage() {
 
               <Row gutter={12}>
                 {/* Fecha de pago */}
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item
                     name="paymentDate"
                     label="Fecha de pago"
@@ -271,9 +291,19 @@ export default function PagoRecibidoFormPage() {
                     <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                   </Form.Item>
                 </Col>
+                {/* Fecha de contabilización */}
+                <Col span={8}>
+                  <Form.Item
+                    name="accountingDate"
+                    label="Fecha de contabilización"
+                    tooltip="Período contable. La póliza se registra en esta fecha."
+                  >
+                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                  </Form.Item>
+                </Col>
 
                 {/* Monto */}
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item
                     name="amount"
                     label={isAdvance ? 'Monto del anticipo' : 'Monto a aplicar'}

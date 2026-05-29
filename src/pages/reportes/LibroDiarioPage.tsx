@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   SearchOutlined, FileTextOutlined, DownloadOutlined,
-  FilePdfOutlined, PlusSquareOutlined, MinusSquareOutlined,
+  FilePdfOutlined, PlusSquareOutlined, MinusSquareOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -50,6 +50,8 @@ export default function LibroDiarioPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setData([])      // limpiar estado antes de cargar para evitar datos en caché
+    setTotal(0)
     try {
       const res = await getLibroDiario({ fromDate, toDate, page, limit: 50, search: search || undefined })
       setData(res.entries ?? [])
@@ -236,6 +238,13 @@ export default function LibroDiarioPage() {
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             allowClear
           />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => load()}
+            loading={loading}
+          >
+            Actualizar
+          </Button>
         </Space>
       </Card>
 

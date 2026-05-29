@@ -15,7 +15,7 @@ import {
   createBill, updateBill, getBill, approveBill, getVendors,
   getJournalEntry, regenerateBillJournalEntry,
   type BillType, type PaymentTerms, type JournalEntry, type JournalEntryLine,
-  BILL_TYPE_CONFIG, PAYMENT_TERMS_CONFIG, IDP_RATES,
+  BILL_TYPE_CONFIG, IDP_RATES,
 } from '../../../api/compras'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getAccounts, type Account } from '../../../api/catalogo'
@@ -24,6 +24,7 @@ import LineItemsEditor, {
   newLineItem,
   calcTotals,
 } from '../../../components/DocumentForm/LineItemsEditor'
+import PaymentTermsSelect, { getPaymentTermDays } from '../../../components/PaymentTermsSelect'
 
 const { Text } = Typography
 
@@ -52,7 +53,6 @@ const BILL_TYPES: { value: BillType; label: string }[] = [
   { value: 'fuel',     label: BILL_TYPE_CONFIG.fuel.label     },
 ]
 
-const PAYMENT_TERMS_OPTIONS = Object.entries(PAYMENT_TERMS_CONFIG).map(([v, l]) => ({ value: v, label: l }))
 
 const FUEL_UNITS = new Set(['super', 'regular', 'diesel'])
 
@@ -65,7 +65,7 @@ export default function FacturaProveedorFormPage() {
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
   const [taxes, setTaxes]               = useState<Tax[]>([])
-  const [vendors, setVendors]           = useState<{ value: string; label: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string; currency?: string }[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string; commercialName?: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string; currency?: string }[]>([])
   const [vendorCurrency, setVendorCurrency] = useState<string>('GTQ')
   const [exchangeRate,   setExchangeRate]   = useState<number>(7.622067)
   const [rateDate,       setRateDate]       = useState<string>(dayjs().format('YYYY-MM-DD'))
@@ -164,6 +164,7 @@ export default function FacturaProveedorFormPage() {
           dueDate:             bill.dueDate    ? dayjs(bill.dueDate)    : undefined,
           paymentTerms:        bill.paymentTerms   ?? 'immediate',
           paymentTermsDays:    bill.paymentTermsDays,
+          accountingDate:      bill.accountingDate ? dayjs(bill.accountingDate) : undefined,
           currency:            bill.currency       ?? 'GTQ',
           vendorInvoiceNumber: bill.vendorInvoiceNumber ?? '',
           accountId:           bill.accountId,
@@ -231,18 +232,19 @@ export default function FacturaProveedorFormPage() {
       .finally(() => setLoading(false))
   }, [id, form])
 
-  // Auto-update due date when payment terms change
+  // Auto-update due date cuando cambian los términos de pago o la fecha de factura.
+  // getPaymentTermDays() resuelve cualquier net_N (7, 10, 25, 45...) automáticamente.
   useEffect(() => {
-    if (!invoiceDate || paymentTerms === 'immediate') {
+    if (!invoiceDate) return
+    const termValue = paymentTerms as string
+    if (!termValue || termValue === 'immediate') {
       form.setFieldValue('dueDate', undefined)
       return
     }
-    const base = dayjs(invoiceDate)
-    const daysMap: Record<string, number> = {
-      net_15: 15, net_30: 30, net_60: 60, net_90: 90,
-    }
-    const days = daysMap[paymentTerms] ?? (paymentTerms === 'custom' ? (customDays ?? 30) : 0)
-    if (days > 0) form.setFieldValue('dueDate', base.add(days, 'day'))
+    // Resolución de días: estándar (net_7, net_30...) o custom con días
+    const stdDays = getPaymentTermDays(termValue)
+    const days    = stdDays !== null ? stdDays : (termValue === 'custom' ? (customDays ?? 30) : 0)
+    if (days > 0) form.setFieldValue('dueDate', dayjs(invoiceDate).add(days, 'day'))
   }, [paymentTerms, invoiceDate, customDays, form])
 
   // Sincroniza impuesto, términos de pago y moneda del proveedor cuando cambia el vendorId
@@ -260,21 +262,12 @@ export default function FacturaProveedorFormPage() {
       if (isForex) setRateDate(dayjs().format('YYYY-MM-DD'))
     }
 
-    // Auto-fill payment terms solo en facturas nuevas (no sobreescribir datos guardados)
+    // Auto-fill payment terms solo en facturas nuevas.
+    // PaymentTermsSelect acepta cualquier net_N (7, 10, 25, 45...) — no hay mapeo needed.
     if (!id && found.paymentTerms) {
-      const validTerms = ['immediate', 'net_15', 'net_30', 'net_60', 'net_90', 'custom']
-      if (validTerms.includes(found.paymentTerms)) {
-        form.setFieldValue('paymentTerms', found.paymentTerms)
-        if (found.paymentTermsDays != null) {
-          form.setFieldValue('paymentTermsDays', found.paymentTermsDays)
-        }
-      } else {
-        // Mapear net_N (ej. net_7, net_45) → custom + días
-        const match = found.paymentTerms.match(/^net_(\d+)$/i)
-        if (match) {
-          form.setFieldValue('paymentTerms', 'custom')
-          form.setFieldValue('paymentTermsDays', parseInt(match[1]))
-        }
+      form.setFieldValue('paymentTerms', found.paymentTerms)
+      if (found.paymentTermsDays != null) {
+        form.setFieldValue('paymentTermsDays', found.paymentTermsDays)
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,7 +314,9 @@ export default function FacturaProveedorFormPage() {
           const map = new Map(prev.map(v => [v.value, v]))
           list.forEach((v: any) => map.set(v.id, {
             value: v.id,
-            label: v.name,
+            // Mostrar Razón Social (SAT) como nombre principal; nombre comercial como subtítulo
+            label: v.legalName ?? v.name,
+            commercialName:       v.name ?? undefined,
             type:                 v.type ?? undefined,
             expenseAccountId:     v.expenseAccountId  ?? undefined,
             payableAccountId:     v.payableAccountId  ?? undefined,
@@ -389,6 +384,7 @@ export default function FacturaProveedorFormPage() {
     return {
       vendorId:            vals.vendorId,
       invoiceDate:         vals.invoiceDate ? vals.invoiceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+      accountingDate:      vals.accountingDate ? vals.accountingDate.format('YYYY-MM-DD') : undefined,
       dueDate:             vals.dueDate ? vals.dueDate.format('YYYY-MM-DD') : undefined,
       currency:            vals.currency ?? 'GTQ',
       exchangeRate:        vendorCurrency !== 'GTQ' ? exchangeRate : 1,
@@ -423,18 +419,14 @@ export default function FacturaProveedorFormPage() {
     }
   }
 
-  const handleSave = async (asDraft: boolean) => {
+  /** Guarda como borrador — sin generar póliza contable */
+  const handleSaveDraft = async () => {
     try { await form.validateFields(['vendorId', 'invoiceDate']) } catch { return }
     setSaving(true)
     try {
-      const dto  = buildDto(asDraft ? 'draft' : 'pending_approval')
-      let result: any
-      if (id) {
-        result = await updateBill(id, dto as any)
-      } else {
-        result = await createBill(dto as any)
-      }
-      message.success(asDraft ? 'Borrador guardado' : 'Factura guardada')
+      const dto = buildDto('draft')
+      const result: any = id ? await updateBill(id, dto as any) : await createBill(dto as any)
+      message.success('Guardado como borrador')
       navigate(`/compras/facturas/${result.id}`)
     } catch (err: any) {
       message.error(err?.response?.data?.message ?? 'Error al guardar')
@@ -443,27 +435,27 @@ export default function FacturaProveedorFormPage() {
     }
   }
 
-  const handleApprove = async () => {
-    if (!id) return
+  /** Guarda y abre — genera la póliza contable automáticamente en un solo paso */
+  const handleSaveAndOpen = async () => {
+    try { await form.validateFields(['vendorId', 'invoiceDate']) } catch { return }
     setApproving(true)
     try {
+      // Paso 1: guardar / crear
       const dto = buildDto('draft')
-      await updateBill(id, dto as any)
+      const result: any = id ? await updateBill(id, dto as any) : await createBill(dto as any)
+      const invoiceId = result.id ?? id
+      // Paso 2: aprobar → genera póliza contable (CxP + IVA CF + retenciones)
+      await approveBill(invoiceId)
+      message.success('Factura abierta — póliza contable generada')
+      navigate(`/compras/facturas/${invoiceId}`)
     } catch (err: any) {
-      message.error('Error al guardar: ' + (err?.response?.data?.message ?? 'intente de nuevo'))
-      setApproving(false)
-      return
-    }
-    try {
-      await approveBill(id)
-      message.success('Factura aprobada — asiento contable generado')
-      navigate(`/compras/facturas`)
-    } catch (err: any) {
-      message.error('Error al generar asiento: ' + (err?.response?.data?.message ?? 'contacte soporte'))
+      message.error(err?.response?.data?.message ?? 'Error al abrir la factura')
     } finally {
       setApproving(false)
     }
   }
+
+  const handleApprove = handleSaveAndOpen   // alias — usado por flujos internos existentes
 
   const handleRegenerate = async () => {
     if (!id) return
@@ -530,19 +522,30 @@ export default function FacturaProveedorFormPage() {
           <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>
             {id ? 'Editar Factura Proveedor' : 'Nueva Factura Proveedor'}
           </span>}>
-            <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceType: 'goods', paymentTerms: 'immediate' }}>
+            <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceType: 'goods', paymentTerms: 'immediate', accountingDate: dayjs() }}>
 
               {/* Fila 1: Proveedor | Tipo de factura */}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 16px' }}>
                 <Form.Item name="vendorId" label="Proveedor / Empleado" rules={[{ required: true, message: 'Seleccione un proveedor' }]}>
                   <Select
                     showSearch
-                    placeholder="Buscar…"
+                    placeholder="Buscar por Razón Social o nombre comercial…"
                     filterOption={false}
                     loading={loadingVendors}
                     onSearch={handleVendorSearch}
-                    options={vendors}
                     notFoundContent={loadingVendors ? 'Buscando…' : 'Sin resultados'}
+                    optionRender={(opt) => {
+                      const v = vendors.find(x => x.value === opt.value)
+                      return (
+                        <div style={{ lineHeight: 1.3, padding: '2px 0' }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{opt.label}</div>
+                          {v?.commercialName && v.commercialName !== opt.label?.toString() && (
+                            <div style={{ fontSize: 11, color: '#6b7280' }}>{v.commercialName}</div>
+                          )}
+                        </div>
+                      )
+                    }}
+                    options={vendors.map(v => ({ value: v.value, label: v.label }))}
                   />
                 </Form.Item>
                 <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]}>
@@ -613,28 +616,32 @@ export default function FacturaProveedorFormPage() {
                 </Form.Item>
               </div>
 
-              {/* Fila 3: Autorización SAT | Términos de pago | Fecha de vencimiento */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 12px' }}>
+              {/* Fila 3: Autorización SAT | Términos de pago | Fecha de vencimiento | Fecha de contabilización */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="felAuthNumber" label="Autorización SAT">
                   <Input placeholder="Número de autorización SAT" />
                 </Form.Item>
                 <Form.Item name="paymentTerms" label="Términos de pago">
-                  <Select options={PAYMENT_TERMS_OPTIONS} />
+                  <PaymentTermsSelect size="small" />
                 </Form.Item>
                 <Form.Item name="dueDate" label="Fecha de vencimiento">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
+                <Form.Item
+                  name="accountingDate"
+                  label={
+                    <span>
+                      Fecha de contabilización
+                      <span style={{ fontSize: 10, color: '#6b7280', marginLeft: 4, fontWeight: 400 }}>
+                        (período contable)
+                      </span>
+                    </span>
+                  }
+                  tooltip="Fecha en que se registra en libros contables. Puede diferir de la fecha de factura cuando se recibe en un período distinto."
+                >
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
               </div>
-
-              {paymentTerms === 'custom' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 12px' }}>
-                  <div />
-                  <Form.Item name="paymentTermsDays" label="Días de crédito">
-                    <InputNumber min={1} max={365} style={{ width: '100%' }} />
-                  </Form.Item>
-                  <div />
-                </div>
-              )}
 
             </Form>
           </Card>
@@ -1035,37 +1042,37 @@ export default function FacturaProveedorFormPage() {
           {/* Actions */}
           <Card title="Acciones">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-              <Button
-                block icon={<SaveOutlined />} loading={saving}
-                onClick={() => handleSave(true)}
-                style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
-              >
-                Guardar borrador
-              </Button>
-              <Button
-                block type="primary" icon={<CheckOutlined />} loading={saving}
-                onClick={() => handleSave(false)}
-              >
-                Guardar cambios
-              </Button>
-              {canApprove && (
-                <>
-                  <Divider style={{ margin: '4px 0' }} />
-                  <Button
-                    block type="primary" icon={<ThunderboltOutlined />} loading={approving}
-                    onClick={handleApprove}
-                    style={{ background: '#16a34a', borderColor: '#16a34a' }}
-                  >
-                    Aprobar y generar asiento
-                  </Button>
-                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
-                    Genera póliza contable automática (CxP + IVA CF)
-                  </div>
-                </>
+
+              {/* Botón 1: Guardar como borrador */}
+              {(billStatus === 'draft' || billStatus === 'pending_approval' || !id) && (
+                <Button
+                  block icon={<SaveOutlined />} loading={saving}
+                  onClick={handleSaveDraft}
+                  style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                >
+                  Guardar como borrador
+                </Button>
               )}
-              {!!id && !canApprove && billStatus === 'open' && (
+
+              {/* Botón 2: Guardar como abierto (guarda + genera póliza en un paso) */}
+              {(billStatus === 'draft' || billStatus === 'pending_approval' || !id) && (
+                <Button
+                  block type="primary" icon={<CheckOutlined />} loading={approving}
+                  onClick={handleSaveAndOpen}
+                  style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                >
+                  Guardar como abierto
+                </Button>
+              )}
+              {(billStatus === 'draft' || billStatus === 'pending_approval' || !id) && (
+                <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+                  Genera póliza contable automáticamente
+                </div>
+              )}
+
+              {/* Regenerar póliza — solo para facturas ya abiertas */}
+              {!!id && billStatus === 'open' && (
                 <>
-                  <Divider style={{ margin: '4px 0' }} />
                   <Button
                     block icon={<SyncOutlined />} loading={regenerating}
                     onClick={handleRegenerate}
@@ -1074,7 +1081,7 @@ export default function FacturaProveedorFormPage() {
                     Regenerar póliza contable
                   </Button>
                   <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
-                    Recalcula cuentas contables con la configuración actual
+                    Recalcula cuentas con la configuración actual
                   </div>
                 </>
               )}

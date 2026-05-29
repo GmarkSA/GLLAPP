@@ -37,7 +37,7 @@ const statusColor: Record<string, string> = {
   partial: 'geekblue', paid: 'green', overdue: 'red',
 }
 
-interface CustomerOption { value: string; label: string }
+interface CustomerOption { value: string; label: string; commercialName?: string; taxId?: string }
 interface InvoiceOption  {
   value: string; label: string
   invoiceDate: string; status: string; total: number; invoiceNumber: string
@@ -123,7 +123,9 @@ export default function NotaCreditoFormPage() {
         const list = Array.isArray(res) ? res : (res?.data ?? [])
         setCustomers(list.map((c: any) => ({
           value: c.id,
-          label: `${c.name}${c.taxId ? ` — ${c.taxId}` : ''}`,
+          label: c.legalName ?? c.name,
+          commercialName: c.name,
+          taxId: c.taxId,
         })))
       })
       .catch(() => {})
@@ -419,11 +421,24 @@ export default function NotaCreditoFormPage() {
             <Form.Item name="customerId" label="Cliente" rules={[{ required: true, message: 'Selecciona un cliente' }]}>
               <Select
                 showSearch filterOption={false}
-                placeholder="Buscar cliente..."
+                placeholder="Buscar por Razón Social o nombre comercial..."
                 loading={loadingCustomers}
                 onSearch={handleCustomerSearch}
                 onChange={handleCustomerChange}
-                options={customers}
+                optionRender={(opt) => {
+                  const c = customers.find(x => x.value === opt.value)
+                  return (
+                    <div style={{ lineHeight: 1.3, padding: '2px 0' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{opt.label}</div>
+                      {c?.commercialName && c.commercialName !== opt.label?.toString() && (
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>
+                          {c.commercialName}{c.taxId ? ` — ${c.taxId}` : ''}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }}
+                options={customers.map(c => ({ value: c.value, label: c.label }))}
               />
             </Form.Item>
 

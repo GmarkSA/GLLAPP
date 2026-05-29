@@ -62,10 +62,23 @@ const columns = [
     ),
   },
   {
-    title: 'Fecha',
+    title: 'Fecha Factura',
     dataIndex: 'fecha',
-    width: 88,
+    width: 95,
     render: (v: string) => <span style={{ fontSize: 11 }}>{fmtD(v)}</span>,
+  },
+  {
+    title: 'Fecha Contabiliz.',
+    dataIndex: 'fechaContabilizacion',
+    width: 105,
+    render: (v: string, r: any) => {
+      const isDiff = v && r.fecha && new Date(v).toDateString() !== new Date(r.fecha).toDateString()
+      return (
+        <span style={{ fontSize: 11, color: isDiff ? '#d97706' : undefined, fontWeight: isDiff ? 600 : undefined }}>
+          {fmtD(v)}
+        </span>
+      )
+    },
   },
   {
     title: 'Serie',
@@ -151,7 +164,7 @@ function TotalsRow({ data }: { data: LibroVentasReport }) {
   const vals = [t.ventaBienes, t.ventaServicios, t.exportacion, t.exento, t.iva, t.total]
   return (
     <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
-      <Table.Summary.Cell index={0} colSpan={8}>
+      <Table.Summary.Cell index={0} colSpan={9}>
         <Text strong style={{ fontSize: 11, color: '#1B3A6B' }}>
           TOTALES — {data.count} documentos
         </Text>

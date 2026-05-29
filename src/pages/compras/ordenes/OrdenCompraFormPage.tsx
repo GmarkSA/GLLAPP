@@ -24,8 +24,16 @@ import LineItemsEditor, {
   calcTotals,
 } from '../../../components/DocumentForm/LineItemsEditor'
 import DocumentTotals from '../../../components/DocumentForm/DocumentTotals'
+import PaymentTermsSelect, { getPaymentTermDays } from '../../../components/PaymentTermsSelect'
 
-interface VendorOption { value: string; label: string; defaultPurchaseTaxId?: string }
+interface VendorOption {
+  value: string
+  label: string
+  commercialName?: string
+  defaultPurchaseTaxId?: string
+  paymentTerms?: string
+  paymentTermsDays?: number
+}
 
 export default function OrdenCompraFormPage() {
   const { id } = useParams<{ id?: string }>()
@@ -59,12 +67,29 @@ export default function OrdenCompraFormPage() {
 
   useEffect(() => { fetchVendors('') }, [])
 
-  // Cuando la lista de vendors llega (o cuando cambia el vendorId), sincroniza el impuesto
+  // Cuando cambia el vendorId: sincroniza impuesto y términos de pago del proveedor
   useEffect(() => {
     if (!vendorId) return
     const found = vendors.find(v => v.value === vendorId)
-    if (found) setVendorDefaultTaxId(found.defaultPurchaseTaxId)
-  }, [vendors, vendorId])
+    if (!found) return
+    setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+    // Auto-fill términos de pago en órdenes nuevas
+    if (!id && found.paymentTerms) {
+      form.setFieldValue('paymentTerms', found.paymentTerms)
+      if (found.paymentTermsDays != null)
+        form.setFieldValue('paymentTermsDays', found.paymentTermsDays)
+    }
+  }, [vendors, vendorId, id, form])
+
+  // Auto-calcula fecha esperada de entrega cuando cambian los términos de pago + fecha de orden
+  const watchPaymentTerms = Form.useWatch('paymentTerms', form) as string | undefined
+  const watchOrderDate    = Form.useWatch('orderDate',    form)
+  useEffect(() => {
+    if (!watchOrderDate || !watchPaymentTerms || watchPaymentTerms === 'immediate') return
+    const days = getPaymentTermDays(watchPaymentTerms)
+    if (days && days > 0)
+      form.setFieldValue('expectedDeliveryDate', dayjs(watchOrderDate).add(days, 'day'))
+  }, [watchPaymentTerms, watchOrderDate, form])
 
   useEffect(() => {
     if (!id) return
@@ -75,10 +100,12 @@ export default function OrdenCompraFormPage() {
         setVendorId(po.vendorId)
         setVendorName(po.vendorName)
         form.setFieldsValue({
-          vendorId: po.vendorId,
-          orderDate: po.orderDate ? dayjs(po.orderDate) : undefined,
+          vendorId:             po.vendorId,
+          orderDate:            po.orderDate ? dayjs(po.orderDate) : undefined,
           expectedDeliveryDate: po.expectedDeliveryDate ? dayjs(po.expectedDeliveryDate) : undefined,
-          notes: po.notes ?? '',
+          paymentTerms:         po.paymentTerms  ?? undefined,
+          paymentTermsDays:     po.paymentTermsDays ?? undefined,
+          notes:                po.notes ?? '',
         })
         if (po.vendorId && po.vendorName) {
           setVendors(prev => {
@@ -113,12 +140,14 @@ export default function OrdenCompraFormPage() {
       .then((res: any) => {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
         setVendors(prev => {
-          // Conservar proveedores ya seleccionados (con su defaultPurchaseTaxId)
           const keepMap = new Map(prev.map(v => [v.value, v]))
           list.forEach((v: any) => keepMap.set(v.id, {
-            value: v.id,
-            label: v.name,
+            value:                v.id,
+            label:                v.legalName ?? v.name,   // Razón Social SAT
+            commercialName:       v.name ?? undefined,
             defaultPurchaseTaxId: v.defaultPurchaseTaxId ?? undefined,
+            paymentTerms:         v.paymentTerms ?? undefined,
+            paymentTermsDays:     v.paymentTermsDays ?? undefined,
           }))
           return [...keepMap.values()]
         })
@@ -138,12 +167,14 @@ export default function OrdenCompraFormPage() {
       productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxInclusive: taxInclusive ?? true, taxId, accountId, projectId,
     }))
     return {
-      vendorId: vals.vendorId,
-      orderDate: vals.orderDate ? vals.orderDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+      vendorId:             vals.vendorId,
+      orderDate:            vals.orderDate ? vals.orderDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
       expectedDeliveryDate: vals.expectedDeliveryDate ? vals.expectedDeliveryDate.format('YYYY-MM-DD') : undefined,
-      notes: vals.notes || undefined,
+      paymentTerms:         vals.paymentTerms  ?? undefined,
+      paymentTermsDays:     vals.paymentTermsDays ?? undefined,
+      notes:                vals.notes || undefined,
       status,
-      items: lineItems,
+      items:                lineItems,
     }
   }
 
@@ -265,19 +296,20 @@ export default function OrdenCompraFormPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>{id ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}</span>}>
             <Form form={form} layout="vertical" size="small">
+              {/* Fila 1: Proveedor (span 2 cols) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                 <Form.Item
                   name="vendorId"
                   label="Proveedor"
                   rules={[{ required: true, message: 'Seleccione un proveedor' }]}
+                  style={{ gridColumn: '1 / -1' }}
                 >
                   <Select
                     showSearch
-                    placeholder="Buscar proveedor…"
+                    placeholder="Buscar por Razón Social o nombre comercial…"
                     filterOption={false}
                     loading={loadingVendors}
                     onSearch={handleVendorSearch}
-                    options={vendors}
                     notFoundContent={loadingVendors ? 'Buscando…' : 'Sin resultados'}
                     onChange={(v) => {
                       const selected = vendors.find(vn => vn.value === v)
@@ -286,10 +318,20 @@ export default function OrdenCompraFormPage() {
                       setVendorDefaultTaxId(selected?.defaultPurchaseTaxId)
                     }}
                     disabled={!isEditable}
+                    optionRender={(opt) => {
+                      const v = vendors.find(x => x.value === opt.value)
+                      return (
+                        <div style={{ lineHeight: 1.3, padding: '2px 0' }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{opt.label}</div>
+                          {v?.commercialName && v.commercialName !== opt.label?.toString() && (
+                            <div style={{ fontSize: 11, color: '#6b7280' }}>{v.commercialName}</div>
+                          )}
+                        </div>
+                      )
+                    }}
+                    options={vendors.map(v => ({ value: v.value, label: v.label }))}
                   />
                 </Form.Item>
-
-                <div />
 
                 <Form.Item
                   name="orderDate"
@@ -302,6 +344,12 @@ export default function OrdenCompraFormPage() {
                 <Form.Item name="expectedDeliveryDate" label="Fecha Estimada de Entrega">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" disabled={!isEditable} />
                 </Form.Item>
+
+                <Form.Item name="paymentTerms" label="Términos de pago">
+                  <PaymentTermsSelect size="small" disabled={!isEditable} />
+                </Form.Item>
+
+                <div />
               </div>
             </Form>
           </Card>

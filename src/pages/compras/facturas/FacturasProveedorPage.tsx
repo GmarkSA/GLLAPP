@@ -18,8 +18,39 @@ import {
 const { Title, Text } = Typography
 const { Option } = Select
 
-const fmt = (x: number | string) =>
+const fmtGTQ = (x: number | string) =>
   `Q ${Number(x).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+/** Muestra monto en la moneda original. Si es moneda extranjera agrega equivalente GTQ debajo. */
+function FmtDual({ amount, currency, exchangeRate, bold }: {
+  amount: number | string
+  currency?: string
+  exchangeRate?: number | string
+  bold?: boolean
+}) {
+  const n   = Number(amount)
+  const cur = currency ?? 'GTQ'
+  const fx  = Number(exchangeRate ?? 1)
+  if (cur !== 'GTQ' && fx > 1) {
+    const gtq = n * fx
+    return (
+      <div style={{ textAlign: 'right' }}>
+        <Text style={{ fontSize: 13, color: '#0369a1', fontWeight: bold ? 700 : 600 }}>
+          {cur} {n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+        </Text>
+        <br />
+        <Text style={{ fontSize: 11, color: '#6b7280' }}>
+          Q {gtq.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+        </Text>
+      </div>
+    )
+  }
+  return (
+    <Text strong={bold} style={{ fontSize: 13 }}>
+      {fmtGTQ(n)}
+    </Text>
+  )
+}
 
 const PAYMENT_MODES = [
   { value: 'cash',          label: 'Efectivo'              },
@@ -60,6 +91,8 @@ export default function FacturasProveedorPage() {
   const [payTarget, setPayTarget]     = useState<PurchaseInvoice | null>(null)
   const [payLoading, setPayLoading]   = useState(false)
   const [payForm]                     = Form.useForm()
+  const [payExchangeRate, setPayExchangeRate] = useState<number>(1)
+  const payAmount = Form.useWatch('amount', payForm) as number | undefined
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -118,11 +151,15 @@ export default function FacturasProveedorPage() {
     try {
       const values = await payForm.validateFields()
       setPayLoading(true)
+      const isFx = (payTarget.currency ?? 'GTQ') !== 'GTQ'
       await recordBillPayment(payTarget.id, {
-        amount:      values.amount,
-        paymentDate: values.paymentDate.format('YYYY-MM-DD'),
-        mode:        values.mode,
-        reference:   values.reference,
+        amount:       values.amount,
+        currency:     payTarget.currency ?? 'GTQ',
+        exchangeRate: isFx ? payExchangeRate : 1,
+        paymentDate:  values.paymentDate.format('YYYY-MM-DD'),
+        mode:         values.mode,
+        reference:    values.reference,
+        bankAccountId: values.bankAccountId,
       })
       message.success('Pago registrado')
       setPayModal(false); payForm.resetFields(); setPayTarget(null)
@@ -136,6 +173,8 @@ export default function FacturasProveedorPage() {
 
   const openPay = (bill: PurchaseInvoice) => {
     setPayTarget(bill)
+    const fx = Number(bill.exchangeRate ?? 1)
+    setPayExchangeRate(fx > 1 ? fx : 1)
     payForm.setFieldsValue({
       amount:      bill.balance,
       paymentDate: dayjs(),
@@ -187,19 +226,35 @@ export default function FacturasProveedorPage() {
     {
       title: 'Total',
       dataIndex: 'total',
-      width: 130,
+      width: 150,
       align: 'right',
-      render: (v) => <Text strong>{fmt(v)}</Text>,
+      render: (v, r) => (
+        <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} bold />
+      ),
     },
     {
       title: 'Saldo',
       dataIndex: 'balance',
-      width: 130,
+      width: 150,
       align: 'right',
-      render: (v) => (
-        <Text style={{ color: Number(v) > 0 ? '#cf1322' : '#52c41a' }}>
-          {fmt(v)}
-        </Text>
+      render: (v, r) => (
+        <div style={{ textAlign: 'right' }}>
+          {r.currency && r.currency !== 'GTQ' && Number(r.exchangeRate) > 1 ? (
+            <>
+              <Text style={{ fontSize: 13, fontWeight: 700, color: Number(v) > 0 ? '#0369a1' : '#52c41a' }}>
+                {r.currency} {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+              <br />
+              <Text style={{ fontSize: 11, color: Number(v) > 0 ? '#6b7280' : '#52c41a' }}>
+                Q {(Number(v) * Number(r.exchangeRate)).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            </>
+          ) : (
+            <Text style={{ fontWeight: 700, color: Number(v) > 0 ? '#cf1322' : '#52c41a' }}>
+              {fmtGTQ(v)}
+            </Text>
+          )}
+        </div>
       ),
     },
     {
@@ -347,34 +402,107 @@ export default function FacturasProveedorPage() {
         okText="Registrar pago"
         okButtonProps={{ loading: payLoading, style: { background: '#1B3A6B' } }}
         cancelText="Cancelar"
+        width={480}
       >
-        {payTarget && (
-          <p style={{ color: '#8c8c8c', marginBottom: 16 }}>
-            Saldo pendiente: <strong style={{ color: '#1B3A6B' }}>{fmt(payTarget.balance)}</strong>
-          </p>
-        )}
-        <Form form={payForm} layout="vertical">
-          <Form.Item name="amount" label="Monto" rules={[{ required: true, message: 'Ingresa el monto' }]}>
-            <InputNumber
-              style={{ width: '100%' }}
-              min={0.01}
-              step={0.01}
-              prefix="Q"
-              formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            />
-          </Form.Item>
-          <Form.Item name="paymentDate" label="Fecha de pago" rules={[{ required: true, message: 'Selecciona la fecha' }]}>
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-          </Form.Item>
-          <Form.Item name="mode" label="Forma de pago">
-            <Select placeholder="Selecciona...">
-              {PAYMENT_MODES.map(m => <Option key={m.value} value={m.value}>{m.label}</Option>)}
-            </Select>
-          </Form.Item>
-          <Form.Item name="reference" label="Referencia / No. documento">
-            <Input placeholder="Número de transferencia, cheque..." />
-          </Form.Item>
-        </Form>
+        {payTarget && (() => {
+          const isFx  = (payTarget.currency ?? 'GTQ') !== 'GTQ'
+          const cur   = payTarget.currency ?? 'GTQ'
+          const gtqEq = isFx ? Number(payTarget.balance) * payExchangeRate : Number(payTarget.balance)
+          const amountGTQ = isFx && payAmount ? payAmount * payExchangeRate : undefined
+
+          return (
+            <>
+              {/* Saldo info banner */}
+              <div style={{
+                background: isFx ? '#eff6ff' : '#f0f5ff',
+                border: `1px solid ${isFx ? '#bfdbfe' : '#d6e4ff'}`,
+                borderRadius: 8, padding: '10px 14px', marginBottom: 16,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Saldo pendiente:</Text>
+                  <div style={{ textAlign: 'right' }}>
+                    <Text strong style={{ fontSize: 14, color: isFx ? '#0369a1' : '#1B3A6B' }}>
+                      {isFx ? `${cur} ` : 'Q '}{Number(payTarget.balance).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                    </Text>
+                    {isFx && (
+                      <><br /><Text style={{ fontSize: 11, color: '#6b7280' }}>
+                        Q {gtqEq.toLocaleString('es-GT', { minimumFractionDigits: 2 })} (al tipo de cambio actual)
+                      </Text></>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Form form={payForm} layout="vertical" size="small">
+                {/* Monto */}
+                <Form.Item name="amount" label={`Monto a pagar${isFx ? ` (${cur})` : ''}`} rules={[{ required: true, message: 'Ingresa el monto' }]}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={0.01}
+                    step={0.01}
+                    prefix={isFx ? cur : 'Q'}
+                    formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  />
+                </Form.Item>
+
+                {/* Tipo de cambio + equivalente GTQ (solo para moneda extranjera) */}
+                {isFx && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                    <Form.Item label={`Tipo de cambio (${cur} → GTQ)`}>
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        value={payExchangeRate}
+                        min={0.000001}
+                        step={0.01}
+                        precision={6}
+                        onChange={v => setPayExchangeRate(Number(v ?? 1))}
+                      />
+                    </Form.Item>
+                    <Form.Item label="Equivalente en GTQ">
+                      <div style={{
+                        height: 32, padding: '4px 11px', background: '#f5f5f5',
+                        border: '1px solid #d9d9d9', borderRadius: 6,
+                        display: 'flex', alignItems: 'center',
+                      }}>
+                        <Text strong style={{ color: '#1B3A6B', fontSize: 13 }}>
+                          Q {amountGTQ
+                            ? amountGTQ.toLocaleString('es-GT', { minimumFractionDigits: 2 })
+                            : '—'}
+                        </Text>
+                      </div>
+                    </Form.Item>
+                  </div>
+                )}
+
+                {/* Nota diferencial cambiario */}
+                {isFx && payExchangeRate !== Number(payTarget.exchangeRate ?? 1) && (
+                  <div style={{
+                    background: '#fffbeb', border: '1px solid #fde68a',
+                    borderRadius: 6, padding: '6px 10px', marginBottom: 8, fontSize: 11, color: '#92400e',
+                  }}>
+                    ⚠️ El tipo de cambio difiere del registrado en la factura ({Number(payTarget.exchangeRate ?? 1).toFixed(6)}).
+                    Se generará un asiento de <strong>diferencial cambiario</strong> automáticamente.
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                  <Form.Item name="paymentDate" label="Fecha de pago" rules={[{ required: true, message: 'Selecciona la fecha' }]}>
+                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                  </Form.Item>
+                  <Form.Item name="mode" label="Forma de pago">
+                    <Select placeholder="Selecciona...">
+                      {PAYMENT_MODES.map(m => <Option key={m.value} value={m.value}>{m.label}</Option>)}
+                    </Select>
+                  </Form.Item>
+                </div>
+
+                <Form.Item name="reference" label="Referencia / No. documento">
+                  <Input placeholder="Número de transferencia, cheque..." />
+                </Form.Item>
+              </Form>
+            </>
+          )
+        })()}
       </Modal>
     </div>
   )

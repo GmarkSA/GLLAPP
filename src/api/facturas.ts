@@ -69,6 +69,7 @@ export interface Invoice {
   customerName:    string
   customerTaxId?:  string
   invoiceDate:     string
+  accountingDate?: string
   dueDate?:        string
   currency:        string
   exchangeRate:    number
@@ -139,10 +140,11 @@ export interface Estimate {
 
 // ─── DTOs ─────────────────────────────────────────────────────────────────────
 export interface CreateInvoiceDto {
-  status?:         InvoiceStatus
-  customerId:      string
-  invoiceDate:     string
-  dueDate?:        string
+  status?:          InvoiceStatus
+  customerId:       string
+  invoiceDate:      string
+  accountingDate?:  string
+  dueDate?:         string
   currency?:       string
   exchangeRate?:   number
   discountPercent?: number

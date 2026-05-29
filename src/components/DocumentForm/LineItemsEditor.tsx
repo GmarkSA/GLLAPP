@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons'
 import { getProducts, getProduct, type Product } from '../../api/inventario'
 import { getAccounts, type Account } from '../../api/catalogo'
+import { getUnidadesActivas, type UnidadMedida } from '../../api/unidades-medida'
 import type { Tax } from '../../api/impuestos'
 
 export interface LineItem {
@@ -284,6 +285,32 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
   const [initialized, setInitialized]     = useState(false)
   const [allAccounts,  setAllAccounts]  = useState<Account[]>([])
   const [accountMap,   setAccountMap]   = useState<Record<string, Account>>({})
+  const [unitOptions,  setUnitOptions]  = useState<{ value: string; label: string }[]>([])
+
+  // Carga unidades de medida activas desde configuración (falla silenciosa con fallback)
+  useEffect(() => {
+    getUnidadesActivas()
+      .then((list: UnidadMedida[]) => {
+        if (list?.length) setUnitOptions(list.map(u => ({ value: u.code, label: u.name })))
+      })
+      .catch(() => {
+        // Fallback silencioso — el usuario sigue viendo las unidades básicas
+        setUnitOptions([
+          { value: 'UND',     label: 'Unidad'           },
+          { value: 'SER',     label: 'Servicio'         },
+          { value: 'HRS',     label: 'Horas'            },
+          { value: 'KG',      label: 'Kilogramo'        },
+          { value: 'LT',      label: 'Litro'            },
+          { value: 'MT',      label: 'Metro'            },
+          { value: 'GAL',     label: 'Galón'            },
+          { value: 'EXP',     label: 'Exportación'      },
+          { value: 'EXE',     label: 'Exento'           },
+          { value: 'super',   label: 'Super (gasolina)' },
+          { value: 'regular', label: 'Regular (gasolina)'},
+          { value: 'diesel',  label: 'Diesel'           },
+        ])
+      })
+  }, [])
 
   // Carga TODAS las cuentas activas (no solo ingresos — el usuario puede asignar cualquier cuenta)
   useEffect(() => {
@@ -659,21 +686,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
             onChange={(v: string) => update(row._key, { unit: v })}
             placeholder="Tipo…"
             allowClear
-            options={[
-              { value: 'UND',     label: 'Unidad'           },
-              { value: 'SER',     label: 'Servicio'         },
-              { value: 'EXP',     label: 'Exportación'      },
-              { value: 'EXE',     label: 'Exento'           },
-              { value: 'KG',      label: 'Kilogramo'        },
-              { value: 'MT',      label: 'Metro'            },
-              { value: 'LT',      label: 'Litro'            },
-              { value: 'HRS',     label: 'Horas'            },
-              { value: 'MT2',     label: 'Metro²'           },
-              { value: 'GAL',     label: 'Galón'            },
-              { value: 'super',   label: 'Super (gasolina)' },
-              { value: 'regular', label: 'Regular (gasolina)'},
-              { value: 'diesel',  label: 'Diesel'           },
-            ]}
+            options={unitOptions}
           />
         ),
     },

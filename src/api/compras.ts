@@ -38,6 +38,7 @@ export interface PurchaseInvoice {
   vendorName:              string
   vendorTaxId?:            string
   invoiceDate:             string
+  accountingDate?:         string   // Fecha de contabilización (período contable)
   dueDate?:                string
 
   // Términos de pago
@@ -97,6 +98,8 @@ export interface PurchaseOrder {
   orderDate:             string
   expectedDeliveryDate?: string
   currency:              string
+  paymentTerms?:         string
+  paymentTermsDays?:     number
   total:                 number
   notes?:                string
   items:                 BillItem[]
@@ -256,8 +259,15 @@ export const approveBill = (id: string) =>
 export const regenerateBillJournalEntry = (id: string) =>
   api.post(`${BILL}/${id}/regenerar-asiento`).then(unwrap) as Promise<PurchaseInvoice>
 
-export const recordBillPayment = (id: string, dto: { amount: number; paymentDate: string; mode?: string; reference?: string; bankAccountId?: string }) =>
-  api.post(`${BILL}/${id}/registrar-pago`, dto).then(unwrap)
+export const recordBillPayment = (id: string, dto: {
+  amount: number
+  currency?: string
+  exchangeRate?: number
+  paymentDate: string
+  mode?: string
+  reference?: string
+  bankAccountId?: string
+}) => api.post(`${BILL}/${id}/registrar-pago`, dto).then(unwrap)
 
 export const voidBill = (id: string, reason?: string) =>
   api.post(`${BILL}/${id}/anular`, { reason }).then(unwrap)

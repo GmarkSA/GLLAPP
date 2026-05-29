@@ -61,8 +61,9 @@ const menuItems = [
     { key: '/reportes/balanza',            label: 'Balanza de Comprobación' },
   ]},
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
-    { key: '/configuracion',               label: 'General' },
-    { key: '/configuracion/integraciones', label: 'Espacio de Desarrollador' },
+    { key: '/configuracion',                      label: 'General' },
+    { key: '/configuracion/unidades-medida',      label: 'Unidades de Medida' },
+    { key: '/configuracion/integraciones',        label: 'Espacio de Desarrollador' },
   ]},
 ]
 

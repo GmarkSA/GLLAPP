@@ -13,6 +13,7 @@ import RegisterPage from './pages/auth/RegisterPage'
 const DashboardPage          = lazy(() => import('./pages/DashboardPage'))
 const ConfiguracionPage      = lazy(() => import('./pages/configuracion/ConfiguracionPage'))
 const IntegracionesPage      = lazy(() => import('./pages/configuracion/IntegracionesPage'))
+const UnidadesMedidaPage     = lazy(() => import('./pages/configuracion/UnidadesMedidaPage'))
 
 // Ventas
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
@@ -196,8 +197,9 @@ export default function App() {
           </Route>
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />
-          <Route path="configuracion"               element={<ConfiguracionPage />} />
-          <Route path="configuracion/integraciones" element={<IntegracionesPage />} />
+          <Route path="configuracion"                        element={<ConfiguracionPage />} />
+          <Route path="configuracion/integraciones"         element={<IntegracionesPage />} />
+          <Route path="configuracion/unidades-medida"       element={<UnidadesMedidaPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

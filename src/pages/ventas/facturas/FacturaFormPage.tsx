@@ -21,11 +21,11 @@ import LineItemsEditor, {
   type LineItem,
   newLineItem,
 } from '../../../components/DocumentForm/LineItemsEditor'
-// DocumentTotals now embedded in LineItemsEditor footer bar
+import PaymentTermsSelect, { getPaymentTermDays } from '../../../components/PaymentTermsSelect'
 
 const { Text } = Typography
 
-interface CustomerOption { value: string; label: string }
+interface CustomerOption { value: string; label: string; commercialName?: string }
 
 export default function FacturaFormPage() {
   const { id } = useParams<{ id?: string }>()
@@ -63,6 +63,7 @@ export default function FacturaFormPage() {
         form.setFieldsValue({
           customerId:             inv.customerId,
           invoiceDate:            inv.invoiceDate      ? dayjs(inv.invoiceDate)        : undefined,
+          accountingDate:         inv.accountingDate   ? dayjs(inv.accountingDate)    : undefined,
           dueDate:                inv.dueDate          ? dayjs(inv.dueDate)            : undefined,
           currency:               inv.currency         ?? 'GTQ',
           reference:              inv.purchaseOrderRef ?? '',
@@ -118,7 +119,11 @@ export default function FacturaFormPage() {
     getCustomers({ search, limit: 20 })
       .then((res: any) => {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
-        setCustomers(list.map((c) => ({ value: c.id, label: c.name })))
+        setCustomers(list.map((c) => ({
+          value: c.id,
+          label: c.legalName ?? c.name,
+          commercialName: c.name,
+        })))
       })
       .catch(() => {})
       .finally(() => setLoadingCustomers(false))
@@ -136,30 +141,21 @@ export default function FacturaFormPage() {
     form.setFieldValue('dueDate', base.add(termsDays, 'day'))
   }
 
-  // Mapa de términos estándar → días
-  const STD_TERMS_DAYS: Record<string, number> = {
-    immediate: 0,
-    net_15:   15,
-    net_30:   30,
-    net_60:   60,
-    net_90:   90,
-  }
-
   const handleCustomerSelect = async (customerId: string) => {
     try {
       const cust: any = await getCustomer(customerId)
-      // Primero usa paymentTermsDays (custom), luego deriva del enum estándar
-      let days: number | null = cust?.paymentTermsDays ? Number(cust.paymentTermsDays) : null
-      if (!days && cust?.paymentTerms && cust.paymentTerms in STD_TERMS_DAYS) {
-        days = STD_TERMS_DAYS[cust.paymentTerms]
-      }
-      const label = cust?.paymentTermsLabel
-        || (days != null && days > 0 ? `Neto ${days} días` : (days === 0 ? 'Pago inmediato' : null))
+      // getPaymentTermDays resuelve cualquier net_N (7, 10, 25, 45...)
+      const termValue = cust?.paymentTerms as string | undefined
+      const stdDays   = termValue ? getPaymentTermDays(termValue) : null
+      const days: number | null = cust?.paymentTermsDays
+        ? Number(cust.paymentTermsDays)
+        : stdDays
+      const label = days != null && days > 0
+        ? `Neto ${days} días`
+        : days === 0 ? 'Pago inmediato' : null
       setCustomerTermsDays(days)
       setCustomerTermsLabel(label)
-      if (days != null && days > 0) {
-        applyDueDate(days)
-      }
+      if (days != null && days > 0) applyDueDate(days)
     } catch {
       setCustomerTermsDays(null)
       setCustomerTermsLabel(null)
@@ -191,6 +187,7 @@ export default function FacturaFormPage() {
     return {
       customerId:       v.customerId,
       invoiceDate:      v.invoiceDate ? v.invoiceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+      accountingDate:   v.accountingDate ? v.accountingDate.format('YYYY-MM-DD') : undefined,
       dueDate:          v.dueDate ? v.dueDate.format('YYYY-MM-DD') : undefined,
       currency:         v.currency ?? 'GTQ',
       discountPercent:  v.discountPercent ?? 0,
@@ -278,21 +275,36 @@ export default function FacturaFormPage() {
               form={form}
               layout="vertical"
               size="small"
-              initialValues={{ currency: 'GTQ', discountPercent: 0, felTipoDocumento: 'FACT', facturaExenta: false }}
+              initialValues={{ currency: 'GTQ', discountPercent: 0, felTipoDocumento: 'FACT', facturaExenta: false, accountingDate: dayjs() }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', gap: '0 12px' }}>
+              {/* Fila 1: Cliente (ancho completo) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0 12px' }}>
                 <Form.Item name="customerId" label="Cliente" style={{ marginBottom: 8 }}
                   rules={[{ required: true, message: 'Seleccione un cliente' }]}
                 >
                   <Select
-                    showSearch placeholder="Buscar cliente…"
+                    showSearch placeholder="Buscar por Razón Social o nombre comercial…"
                     filterOption={false} loading={loadingCustomers}
                     onSearch={handleCustomerSearch} onSelect={handleCustomerSelect}
-                    options={customers}
                     notFoundContent={loadingCustomers ? 'Buscando…' : 'Sin resultados'}
+                    optionRender={(opt) => {
+                      const c = customers.find(x => x.value === opt.value)
+                      return (
+                        <div style={{ lineHeight: 1.3, padding: '2px 0' }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{opt.label}</div>
+                          {c?.commercialName && c.commercialName !== opt.label?.toString() && (
+                            <div style={{ fontSize: 11, color: '#6b7280' }}>{c.commercialName}</div>
+                          )}
+                        </div>
+                      )
+                    }}
+                    options={customers.map(c => ({ value: c.value, label: c.label }))}
                   />
                 </Form.Item>
+              </div>
 
+              {/* Fila 2: Moneda | Fecha Factura | Vencimiento | F. Contabilización | Referencia | Desc.% */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="currency" label="Moneda" style={{ marginBottom: 8 }}>
                   <Select options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]} />
                 </Form.Item>
@@ -309,6 +321,12 @@ export default function FacturaFormPage() {
                       <Tag color="blue" style={{ fontSize: 10, marginLeft: 4 }}>{customerTermsLabel}</Tag>
                     )}</span>
                   }
+                >
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+
+                <Form.Item name="accountingDate" label="Fecha Contabilización" style={{ marginBottom: 8 }}
+                  tooltip="Período contable. Si difiere de la fecha de factura, la póliza y el libro se registran en este período."
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
