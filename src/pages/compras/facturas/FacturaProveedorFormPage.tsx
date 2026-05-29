@@ -65,7 +65,11 @@ export default function FacturaProveedorFormPage() {
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
   const [taxes, setTaxes]               = useState<Tax[]>([])
-  const [vendors, setVendors]           = useState<{ value: string; label: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string }[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string; currency?: string }[]>([])
+  const [vendorCurrency, setVendorCurrency] = useState<string>('GTQ')
+  const [exchangeRate,   setExchangeRate]   = useState<number>(7.622067)
+  const [rateDate,       setRateDate]       = useState<string>(dayjs().format('YYYY-MM-DD'))
+  const [editingRate,    setEditingRate]    = useState(false)
   const [accounts, setAccounts]         = useState<Account[]>([])
   const [loadingVendors, setLoadingVendors] = useState(false)
   const [loading, setLoading]           = useState(!!id)
@@ -188,6 +192,13 @@ export default function FacturaProveedorFormPage() {
         }
         setIsrAmount(Number(bill.isrRetentionAmount ?? 0))
         setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
+        // Restaurar tipo de cambio si la factura es en moneda extranjera
+        if (bill.currency && bill.currency !== 'GTQ') {
+          setVendorCurrency(bill.currency)
+          if (bill.exchangeRate && Number(bill.exchangeRate) > 1) {
+            setExchangeRate(Number(bill.exchangeRate))
+          }
+        }
         setLoadedIsrAccountId(bill.isrRetentionAccountId ?? undefined)
         if (bill.journalEntryId) {
           getJournalEntry(bill.journalEntryId)
@@ -234,12 +245,21 @@ export default function FacturaProveedorFormPage() {
     if (days > 0) form.setFieldValue('dueDate', base.add(days, 'day'))
   }, [paymentTerms, invoiceDate, customDays, form])
 
-  // Sincroniza impuesto y términos de pago del proveedor cuando llega la lista o cambia el vendorId
+  // Sincroniza impuesto, términos de pago y moneda del proveedor cuando cambia el vendorId
   useEffect(() => {
     if (!watchVendorId) return
     const found = vendors.find(v => v.value === watchVendorId)
     if (!found) return
     setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+
+    // Auto-set moneda y tipo de cambio según el proveedor
+    if (!id && found.currency) {
+      form.setFieldValue('currency', found.currency)
+      const isForex = found.currency !== 'GTQ'
+      setVendorCurrency(found.currency)
+      if (isForex) setRateDate(dayjs().format('YYYY-MM-DD'))
+    }
+
     // Auto-fill payment terms solo en facturas nuevas (no sobreescribir datos guardados)
     if (!id && found.paymentTerms) {
       const validTerms = ['immediate', 'net_15', 'net_30', 'net_60', 'net_90', 'custom']
@@ -310,6 +330,7 @@ export default function FacturaProveedorFormPage() {
             tdsTaxCode:           v.tdsTaxCode ?? undefined,
             paymentTerms:         v.paymentTerms ?? undefined,
             paymentTermsDays:     v.paymentTermsDays ?? undefined,
+            currency:             v.currency ?? undefined,
           }))
           return [...map.values()]
         })
@@ -370,6 +391,7 @@ export default function FacturaProveedorFormPage() {
       invoiceDate:         vals.invoiceDate ? vals.invoiceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
       dueDate:             vals.dueDate ? vals.dueDate.format('YYYY-MM-DD') : undefined,
       currency:            vals.currency ?? 'GTQ',
+      exchangeRate:        vendorCurrency !== 'GTQ' ? exchangeRate : 1,
       invoiceType:         vals.invoiceType ?? 'goods',
       paymentTerms:        vals.paymentTerms ?? 'immediate',
       paymentTermsDays:    vals.paymentTerms === 'custom' ? vals.paymentTermsDays : undefined,
@@ -527,6 +549,50 @@ export default function FacturaProveedorFormPage() {
                   <Select options={BILL_TYPES} />
                 </Form.Item>
               </div>
+
+              {/* Tipo de cambio — visible solo cuando la moneda del proveedor no es GTQ */}
+              {vendorCurrency !== 'GTQ' && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 12px', marginBottom: 12,
+                  background: '#f0f9ff', borderRadius: 6,
+                  border: '1px solid #bae6fd',
+                }}>
+                  <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                    (A partir del {rateDate})
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#0369a1', whiteSpace: 'nowrap' }}>
+                    1 {vendorCurrency} =
+                  </span>
+                  {editingRate ? (
+                    <InputNumber
+                      value={exchangeRate}
+                      precision={6}
+                      min={0.000001}
+                      step={0.01}
+                      style={{ width: 130 }}
+                      autoFocus
+                      onChange={v => setExchangeRate(v ?? 1)}
+                      onBlur={() => setEditingRate(false)}
+                      onPressEnter={() => setEditingRate(false)}
+                      addonAfter="GTQ"
+                    />
+                  ) : (
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0369a1', fontFamily: 'monospace' }}>
+                      {exchangeRate.toFixed(6)} GTQ
+                    </span>
+                  )}
+                  <Button
+                    size="small" type="text" icon={<EditOutlined />}
+                    onClick={() => { setEditingRate(!editingRate); setRateDate(dayjs().format('YYYY-MM-DD')) }}
+                    title="Editar tipo de cambio manualmente"
+                    style={{ color: '#0369a1' }}
+                  />
+                  <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 4 }}>
+                    Futuro: actualización automática Banguat
+                  </span>
+                </div>
+              )}
 
               {/* Fila 2: Fecha | Serie | Número SAT | Moneda */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 12px' }}>
