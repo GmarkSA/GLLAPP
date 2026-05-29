@@ -69,16 +69,48 @@ const columns = [
   {
     title: 'Total',
     dataIndex: 'total',
-    width: 120,
+    width: 140,
     align: 'right' as const,
-    render: (v: number) => <Text style={{ fontSize: 13 }}>{fmt(v)}</Text>,
+    render: (v: number, row: ApAgingRow) => (
+      <div style={{ textAlign: 'right' }}>
+        {row.currency && row.currency !== 'GTQ' ? (
+          <>
+            <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: 600 }}>
+              {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            </Text>
+            <br />
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>
+              Q {(row.totalGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            </Text>
+          </>
+        ) : (
+          <Text style={{ fontSize: 13 }}>{fmt(v)}</Text>
+        )}
+      </div>
+    ),
   },
   {
     title: 'Saldo',
     dataIndex: 'balance',
-    width: 120,
+    width: 150,
     align: 'right' as const,
-    render: (v: number) => <Text style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 13 }}>{fmt(v)}</Text>,
+    render: (v: number, row: ApAgingRow) => (
+      <div style={{ textAlign: 'right' }}>
+        {row.currency && row.currency !== 'GTQ' ? (
+          <>
+            <Text style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>
+              {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            </Text>
+            <br />
+            <Text style={{ fontSize: 11, fontWeight: 600, color: '#1B3A6B' }}>
+              Q {(row.balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            </Text>
+          </>
+        ) : (
+          <Text style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 13 }}>{fmt(v)}</Text>
+        )}
+      </div>
+    ),
   },
 ]
 

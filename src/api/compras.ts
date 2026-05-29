@@ -127,8 +127,12 @@ export interface ApAgingRow {
   isExpenseReimbursement?: boolean
   invoiceDate:             string
   dueDate?:                string
+  currency:                string
+  exchangeRate:            number
   total:                   number
+  totalGTQ:                number
   balance:                 number
+  balanceGTQ:              number
   daysOverdue:             number
 }
 

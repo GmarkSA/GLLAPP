@@ -113,6 +113,8 @@ interface Props {
   docType?: 'invoice' | 'estimate' | 'bill' | 'po'
   /** ID del impuesto por defecto configurado en el proveedor (solo po/bill) */
   vendorDefaultTaxId?: string
+  /** Moneda del documento — determina el símbolo en columnas de precio */
+  currency?: string
 }
 
 /** Input de celda con estado local + debounce — evita pérdida de foco Y mantiene padre sincronizado */
@@ -276,7 +278,7 @@ const TABLE_COMPONENTS = {
   },
 }
 
-export default function LineItemsEditor({ items, taxes, onChange, readOnly, docType = 'invoice', vendorDefaultTaxId }: Props) {
+export default function LineItemsEditor({ items, taxes, onChange, readOnly, docType = 'invoice', vendorDefaultTaxId, currency = 'GTQ' }: Props) {
   const [prodOptions, setProdOptions]     = useState<ProdOption[]>([])
   const [searching,   setSearching]       = useState(false)
   const [initialized, setInitialized]     = useState(false)
@@ -696,7 +698,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
         : <CellInputNumber
             value={row.unitPrice}
             onCommit={v => update(row._key, { unitPrice: v })}
-            min={0} step={0.01} prefix="Q"
+            min={0} step={0.01} prefix={currency === 'USD' ? '$' : currency === 'GTQ' ? 'Q' : currency}
             formatter={v => {
               if (v === undefined || v === '') return ''
               const parts = `${v}`.split('.')
@@ -837,7 +839,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
             Subtotal (base)
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#595959' }}>
-            Q {totals.subtotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            {currency === 'USD' ? '$' : 'Q'} {totals.subtotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
 
@@ -853,7 +855,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
             IVA (impuesto)
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#1677ff' }}>
-            Q {totals.taxAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            {currency === 'USD' ? '$' : 'Q'} {totals.taxAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
 
@@ -868,7 +870,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
             Total Factura
           </div>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#ffffff' }}>
-            Q {totals.total.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            {currency === 'USD' ? '$' : 'Q'} {totals.total.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
       </div>

@@ -691,7 +691,7 @@ export default function FacturaProveedorFormPage() {
 
           {/* Line items + Retenciones & Neto a Pagar */}
           <Card title="Líneas de Factura" styles={{ body: { padding: '12px 16px' } }}>
-            <LineItemsEditor items={items} taxes={taxes} onChange={setItems} docType="bill" vendorDefaultTaxId={vendorDefaultTaxId} />
+            <LineItemsEditor items={items} taxes={taxes} onChange={setItems} docType="bill" vendorDefaultTaxId={vendorDefaultTaxId} currency={watchCurr} />
 
             {/* ── Retenciones & Neto a Pagar ─────────────────────────────── */}
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
@@ -808,6 +808,22 @@ export default function FacturaProveedorFormPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#d97706' }}>IDP Combustible</Text>
                     <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>+ Q {fmt(idpAmount)}</Text>
+                  </div>
+                )}
+
+                {/* Equivalente GTQ — cuando la factura es en moneda extranjera */}
+                {vendorCurrency !== 'GTQ' && exchangeRate > 1 && (
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: '#f0f9ff', borderRadius: 6, padding: '6px 12px',
+                    border: '1px solid #bae6fd',
+                  }}>
+                    <Text style={{ fontSize: 11, color: '#6b7280' }}>
+                      Equivalente en GTQ ({vendorCurrency} × {exchangeRate.toFixed(6)})
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>
+                      Q {fmt(Math.round(netPayable * exchangeRate * 100) / 100)}
+                    </Text>
                   </div>
                 )}
 
