@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
   Dropdown, Modal, Form, InputNumber, DatePicker, Select,
-  message, Tabs, Popover, Checkbox, Tooltip, Divider,
+  message, Tabs, Popover, Tooltip,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, ShopOutlined, MoreOutlined,
-  SettingOutlined, ArrowUpOutlined, ArrowDownOutlined, ReloadOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -17,6 +17,10 @@ import {
   type PurchaseInvoice, type BillStatus,
 } from '../../../api/compras'
 import { getPaymentTermLabel } from '../../../components/PaymentTermsSelect'
+import ColumnConfigurator, {
+  loadColConfig, saveColConfig,
+  type ColConfig, type ColMeta,
+} from '../../../components/ColumnConfigurator'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -48,9 +52,7 @@ function FmtDual({ amount, currency, exchangeRate, bold }: {
 // ── Configurador de columnas ──────────────────────────────────────────────────
 const STORAGE_KEY = 'contaerp_cols_facturas_proveedor'
 
-interface ColConfig { key: string; visible: boolean; sortOrder: number }
-
-const ALL_COL_META: { key: string; label: string; description?: string }[] = [
+const ALL_COL_META: ColMeta[] = [
   { key: 'invoiceNumber',       label: '# Factura',              description: 'Número interno del sistema' },
   { key: 'vendorInvoiceNumber', label: '# Fact. Proveedor',      description: 'Número de la factura del proveedor' },
   { key: 'vendor',              label: 'Proveedor',              description: 'Nombre y NIT del proveedor' },
@@ -82,128 +84,6 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
-function loadColConfig(): ColConfig[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) return DEFAULT_COL_CONFIG
-    const parsed: ColConfig[] = JSON.parse(stored)
-    // Merge: add any new columns not yet in stored config
-    const storedKeys = new Set(parsed.map(c => c.key))
-    const merged = [...parsed]
-    ALL_COL_META.forEach((m, i) => {
-      if (!storedKeys.has(m.key)) merged.push({ key: m.key, visible: false, sortOrder: parsed.length + i + 1 })
-    })
-    return merged
-  } catch { return DEFAULT_COL_CONFIG }
-}
-
-function saveColConfig(cfg: ColConfig[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg))
-}
-
-// ── Popover configurador ──────────────────────────────────────────────────────
-function ColConfigurator({ config, onChange }: {
-  config:   ColConfig[]
-  onChange: (cfg: ColConfig[]) => void
-}) {
-  const sorted = [...config].sort((a, b) => a.sortOrder - b.sortOrder)
-
-  const toggle = (key: string) => {
-    const next = config.map(c => c.key === key ? { ...c, visible: !c.visible } : c)
-    onChange(next)
-    saveColConfig(next)
-  }
-
-  const move = (key: string, dir: -1 | 1) => {
-    const arr = [...sorted]
-    const idx = arr.findIndex(c => c.key === key)
-    const tgt = idx + dir
-    if (tgt < 0 || tgt >= arr.length) return
-    ;[arr[idx], arr[tgt]] = [arr[tgt], arr[idx]]
-    const next = arr.map((c, i) => ({ ...c, sortOrder: i + 1 }))
-    onChange(next)
-    saveColConfig(next)
-  }
-
-  const reset = () => {
-    onChange(DEFAULT_COL_CONFIG)
-    saveColConfig(DEFAULT_COL_CONFIG)
-  }
-
-  const visibleCount = config.filter(c => c.visible).length
-
-  return (
-    <div style={{ width: 280 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Text strong style={{ fontSize: 13, color: '#1B3A6B' }}>Columnas visibles</Text>
-        <Tooltip title="Restaurar columnas por defecto">
-          <Button size="small" type="text" icon={<ReloadOutlined />} onClick={reset} style={{ color: '#6b7280' }} />
-        </Tooltip>
-      </div>
-      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 10 }}>
-        {visibleCount} de {config.length} columnas activas
-      </Text>
-
-      <div style={{ maxHeight: 380, overflowY: 'auto', marginRight: -4, paddingRight: 4 }}>
-        {sorted.map((col, idx) => {
-          const meta = ALL_COL_META.find(m => m.key === col.key)
-          return (
-            <div
-              key={col.key}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '5px 4px', borderRadius: 4,
-                background: col.visible ? '#f0f7ff' : 'transparent',
-                marginBottom: 2,
-                transition: 'background 0.15s',
-              }}
-            >
-              {/* Checkbox */}
-              <Checkbox
-                checked={col.visible}
-                onChange={() => toggle(col.key)}
-                style={{ flexShrink: 0 }}
-              />
-              {/* Nombre */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 12, fontWeight: col.visible ? 600 : 400 }}>
-                  {meta?.label ?? col.key}
-                </Text>
-                {meta?.description && (
-                  <Text type="secondary" style={{ fontSize: 10, display: 'block', lineHeight: 1.2 }}>
-                    {meta.description}
-                  </Text>
-                )}
-              </div>
-              {/* Flechas reorden */}
-              <Space size={0}>
-                <Button
-                  size="small" type="text"
-                  icon={<ArrowUpOutlined style={{ fontSize: 9 }} />}
-                  onClick={() => move(col.key, -1)}
-                  disabled={idx === 0}
-                  style={{ padding: '0 3px', height: 20, color: '#9ca3af' }}
-                />
-                <Button
-                  size="small" type="text"
-                  icon={<ArrowDownOutlined style={{ fontSize: 9 }} />}
-                  onClick={() => move(col.key, 1)}
-                  disabled={idx === sorted.length - 1}
-                  style={{ padding: '0 3px', height: 20, color: '#9ca3af' }}
-                />
-              </Space>
-            </div>
-          )
-        })}
-      </div>
-
-      <Divider style={{ margin: '10px 0 6px' }} />
-      <Text type="secondary" style={{ fontSize: 10 }}>
-        Preferencias guardadas en este navegador
-      </Text>
-    </div>
-  )
-}
 
 // ── Definiciones de columna por clave ────────────────────────────────────────
 function buildColDef(
@@ -364,7 +244,7 @@ export default function FacturasProveedorPage() {
   const [statusTab, setStatusTab]     = useState('all')
 
   // Column config
-  const [colConfig, setColConfig] = useState<ColConfig[]>(loadColConfig)
+  const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
 
   // Void modal
@@ -548,8 +428,11 @@ export default function FacturasProveedorPage() {
                 placement="bottomRight"
                 title={null}
                 content={
-                  <ColConfigurator
+                  <ColumnConfigurator
                     config={colConfig}
+                    allColMeta={ALL_COL_META}
+                    defaultConfig={DEFAULT_COL_CONFIG}
+                    storageKey={STORAGE_KEY}
                     onChange={setColConfig}
                   />
                 }
