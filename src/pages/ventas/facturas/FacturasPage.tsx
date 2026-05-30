@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
   Dropdown, Statistic, Row, Col, Modal, Form, DatePicker,
-  message, Tabs,
+  message, Tabs, Popover, Tooltip,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, FileTextOutlined,
   MoreOutlined, DollarOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, CheckCircleOutlined,
-  CheckSquareOutlined,
+  CheckSquareOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { RangePickerProps } from 'antd/es/date-picker'
@@ -18,6 +18,9 @@ import {
   getInvoices, deleteInvoice, voidInvoice, marcarEnviadasMasivo,
   INVOICE_STATUS_CONFIG, type Invoice, type InvoiceStatus,
 } from '../../../api/facturas'
+import ColumnConfigurator, {
+  loadColConfig, type ColConfig, type ColMeta,
+} from '../../../components/ColumnConfigurator'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -25,6 +28,136 @@ const { RangePicker } = DatePicker
 const fmt = (x: number | string) =>
   `Q ${Number(x).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+// ── Configurador de columnas ──────────────────────────────────────────────────
+const STORAGE_KEY = 'contaerp_cols_facturas_venta'
+
+const ALL_COL_META: ColMeta[] = [
+  { key: 'invoiceNumber',  label: '# Factura',          description: 'Número interno del sistema' },
+  { key: 'customer',       label: 'Cliente',             description: 'Nombre y NIT del cliente' },
+  { key: 'customerTaxId',  label: 'NIT Cliente',         description: 'Solo el NIT, columna separada' },
+  { key: 'invoiceDate',    label: 'Fecha Factura' },
+  { key: 'accountingDate', label: 'Fecha Contabiliz.',   description: 'Período contable (si difiere)' },
+  { key: 'felSerie',       label: 'Serie FEL' },
+  { key: 'felNumero',      label: 'Número SAT' },
+  { key: 'currency',       label: 'Moneda' },
+  { key: 'exchangeRate',   label: 'Tipo de Cambio' },
+  { key: 'dueDate',        label: 'Fecha Vencimiento' },
+  { key: 'subtotal',       label: 'Subtotal (Base)' },
+  { key: 'discountAmount', label: 'Descuento' },
+  { key: 'taxAmount',      label: 'IVA' },
+  { key: 'total',          label: 'Total' },
+  { key: 'paidAmount',     label: 'Pagado' },
+  { key: 'balance',        label: 'Saldo' },
+  { key: 'status',         label: 'Estado' },
+  { key: 'notes',          label: 'Notas' },
+]
+
+const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
+  key: c.key,
+  visible: ['invoiceNumber', 'customer', 'invoiceDate', 'dueDate', 'total', 'balance', 'status'].includes(c.key),
+  sortOrder: i + 1,
+}))
+
+// ── Definiciones de columna ───────────────────────────────────────────────────
+function buildColDef(
+  key: string,
+  openVoid: (inv: Invoice) => void,
+  handleDelete: (inv: Invoice) => void,
+  navigate: (path: string) => void,
+): ColumnsType<Invoice>[number] | null {
+  const base = { key }
+  switch (key) {
+    case 'invoiceNumber':
+      return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 140,
+        render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
+    case 'customer':
+      return { ...base, title: 'Cliente',
+        render: (_: any, r: Invoice) => (
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{r.customerName}</div>
+            {r.customerTaxId && <Text type="secondary" style={{ fontSize: 11 }}>NIT: {r.customerTaxId}</Text>}
+          </div>
+        ) }
+    case 'customerTaxId':
+      return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
+        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+    case 'invoiceDate':
+      return { ...base, title: 'Fecha Factura', dataIndex: 'invoiceDate', width: 110,
+        render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
+    case 'accountingDate':
+      return { ...base, title: 'Fecha Contabiliz.', dataIndex: 'accountingDate', width: 115,
+        render: (v: string, r: Invoice) => {
+          const diff = v && r.invoiceDate && new Date(v).toDateString() !== new Date(r.invoiceDate).toDateString()
+          return <span style={{ fontSize: 12, color: diff ? '#d97706' : undefined, fontWeight: diff ? 600 : undefined }}>
+            {v ? dayjs(v).format('DD/MM/YYYY') : '—'}
+          </span>
+        } }
+    case 'felSerie':
+      return { ...base, title: 'Serie FEL', dataIndex: 'felSerie', width: 80,
+        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+    case 'felNumero':
+      return { ...base, title: 'No. SAT', dataIndex: 'felNumero', width: 100,
+        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+    case 'currency':
+      return { ...base, title: 'Moneda', dataIndex: 'currency', width: 80,
+        render: (v: string) => <Tag style={{ fontSize: 11 }}>{v || 'GTQ'}</Tag> }
+    case 'exchangeRate':
+      return { ...base, title: 'T/C', dataIndex: 'exchangeRate', width: 90, align: 'right' as const,
+        render: (v: number, r: Invoice) =>
+          r.currency && r.currency !== 'GTQ'
+            ? <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(v).toFixed(4)}</span>
+            : <Text type="secondary">—</Text> }
+    case 'dueDate':
+      return { ...base, title: 'Vence', dataIndex: 'dueDate', width: 105,
+        render: (v: string, r: Invoice) => {
+          if (!v) return <Text type="secondary">—</Text>
+          const isOver = r.status === 'overdue'
+          return <span style={{ fontSize: 12, color: isOver ? '#ff4d4f' : undefined }}>
+            {dayjs(v).format('DD/MM/YYYY')}
+          </span>
+        } }
+    case 'subtotal':
+      return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 120, align: 'right' as const,
+        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+    case 'discountAmount':
+      return { ...base, title: 'Descuento', dataIndex: 'discountAmount', width: 105, align: 'right' as const,
+        render: (v: number) => Number(v) > 0
+          ? <span style={{ fontSize: 12, color: '#059669' }}>- {fmt(v)}</span>
+          : <Text type="secondary">—</Text> }
+    case 'taxAmount':
+      return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 105, align: 'right' as const,
+        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+    case 'total':
+      return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
+        render: (v: number) => <Text strong style={{ fontSize: 13 }}>{fmt(v)}</Text> }
+    case 'paidAmount':
+      return { ...base, title: 'Pagado', dataIndex: 'paidAmount', width: 120, align: 'right' as const,
+        render: (v: number) => Number(v) > 0
+          ? <span style={{ fontSize: 12, color: '#52c41a' }}>{fmt(v)}</span>
+          : <Text type="secondary">—</Text> }
+    case 'balance':
+      return { ...base, title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
+        render: (v: number) => (
+          <Text style={{ fontWeight: 700, fontSize: 13, color: Number(v) > 0 ? '#cf1322' : '#52c41a' }}>
+            {fmt(v)}
+          </Text>
+        ) }
+    case 'status':
+      return { ...base, title: 'Estado', dataIndex: 'status', width: 120,
+        render: (v: InvoiceStatus) => {
+          const cfg = INVOICE_STATUS_CONFIG[v]
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>
+        } }
+    case 'notes':
+      return { ...base, title: 'Notas', dataIndex: 'notes', width: 160, ellipsis: true,
+        render: (v: string) => v
+          ? <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: v }}>{v}</Text>
+          : <Text type="secondary">—</Text> }
+    default: return null
+  }
+}
+
+// ── Status tabs ───────────────────────────────────────────────────────────────
 const STATUS_TABS = [
   { key: 'all',     label: 'Todos'        },
   { key: 'draft',   label: 'Borradores'   },
@@ -36,20 +169,25 @@ const STATUS_TABS = [
   { key: 'voided',  label: 'Anuladas'     },
 ]
 
+// ── Página principal ──────────────────────────────────────────────────────────
 export default function FacturasPage() {
   const navigate = useNavigate()
-  const [invoices, setInvoices]       = useState<Invoice[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [search, setSearch]           = useState('')
+  const [invoices, setInvoices]         = useState<Invoice[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [search, setSearch]             = useState('')
   const [debouncedSearch, setDebounced] = useState('')
-  const [total, setTotal]             = useState(0)
-  const [page, setPage]               = useState(1)
-  const [statusTab, setStatusTab]     = useState('all')
-  const [dateRange, setDateRange]     = useState<[string, string] | null>(null)
+  const [total, setTotal]               = useState(0)
+  const [page, setPage]                 = useState(1)
+  const [statusTab, setStatusTab]       = useState('all')
+  const [dateRange, setDateRange]       = useState<[string, string] | null>(null)
 
-  // Row selection (for bulk actions)
+  // Row selection
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [bulkLoading, setBulkLoading]         = useState(false)
+
+  // Column config
+  const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
+  const [colPopover, setColPopover] = useState(false)
 
   // Void modal
   const [voidModal, setVoidModal]     = useState(false)
@@ -78,14 +216,11 @@ export default function FacturasPage() {
     } catch {
       message.error('Error cargando facturas')
       setInvoices([]); setTotal(0)
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }, [page, debouncedSearch, statusTab, dateRange])
 
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
 
-  // Stats computed from current page — best-effort; real totals need separate aggregate endpoint
   const stats = {
     totalFacturado: invoices.reduce((s, i) => s + Number(i.total), 0),
     pendiente:      invoices.filter(i => ['draft', 'sent', 'partial'].includes(i.status)).reduce((s, i) => s + Number(i.balance), 0),
@@ -94,23 +229,13 @@ export default function FacturasPage() {
   }
 
   const handleDelete = (inv: Invoice) => {
-    const isVoided = inv.status === 'voided'
     Modal.confirm({
       title: 'Eliminar factura',
-      content: isVoided
-        ? `¿Eliminar permanentemente la factura anulada ${inv.invoiceNumber}? Se eliminarán también sus asientos contables asociados. Esta acción no se puede deshacer.`
-        : `¿Eliminar permanentemente la factura ${inv.invoiceNumber}? Esta acción no se puede deshacer.`,
-      okText: 'Eliminar',
-      okButtonProps: { danger: true },
-      cancelText: 'Cancelar',
+      content: `¿Eliminar permanentemente la factura ${inv.invoiceNumber}? Esta acción no se puede deshacer.`,
+      okText: 'Eliminar', okButtonProps: { danger: true }, cancelText: 'Cancelar',
       onOk: async () => {
-        try {
-          await deleteInvoice(inv.id)
-          message.success('Factura eliminada')
-          fetchInvoices()
-        } catch (e: any) {
-          message.error(e?.response?.data?.message || 'No se pudo eliminar')
-        }
+        try { await deleteInvoice(inv.id); message.success('Factura eliminada'); fetchInvoices() }
+        catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo eliminar') }
       },
     })
   }
@@ -125,9 +250,7 @@ export default function FacturasPage() {
       fetchInvoices()
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'No se pudo anular')
-    } finally {
-      setVoidLoading(false)
-    }
+    } finally { setVoidLoading(false) }
   }
 
   const openVoid = (inv: Invoice) => { setVoidTarget(inv); setVoidModal(true) }
@@ -138,104 +261,35 @@ export default function FacturasPage() {
     try {
       const res = await marcarEnviadasMasivo(selectedRowKeys as string[])
       const errors = res.errors?.length ?? 0
-      if (errors > 0) {
-        message.warning(`${res.updated} marcadas como enviadas. ${errors} con error.`)
-      } else {
-        message.success(`${res.updated} factura(s) marcadas como enviadas con partida contable generada.`)
-      }
+      if (errors > 0) message.warning(`${res.updated} marcadas. ${errors} con error.`)
+      else message.success(`${res.updated} factura(s) marcadas como enviadas.`)
       setSelectedRowKeys([])
       fetchInvoices()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al marcar como enviadas')
-    } finally {
-      setBulkLoading(false)
-    }
+      message.error(e?.response?.data?.message || 'Error al marcar')
+    } finally { setBulkLoading(false) }
   }
 
-  const columns: ColumnsType<Invoice> = [
+  // ── Columnas dinámicas ──────────────────────────────────────────────────────
+  const activeColumns: ColumnsType<Invoice> = [
+    ...[...colConfig]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .filter(c => c.visible)
+      .map(c => buildColDef(c.key, openVoid, handleDelete, navigate))
+      .filter((c): c is ColumnsType<Invoice>[number] => c !== null),
     {
-      title: '# Factura',
-      dataIndex: 'invoiceNumber',
-      width: 130,
-      render: (v: string) => <Text strong style={{ color: '#1B3A6B' }}>{v}</Text>,
-    },
-    {
-      title: 'Cliente',
-      render: (_, r) => (
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 13 }}>{r.customerName}</div>
-          {r.customerTaxId && (
-            <Text type="secondary" style={{ fontSize: 11 }}>NIT: {r.customerTaxId}</Text>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Fecha',
-      dataIndex: 'invoiceDate',
-      width: 105,
-      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
-    },
-    {
-      title: 'Vence',
-      dataIndex: 'dueDate',
-      width: 105,
-      render: (v: string, r) => {
-        if (!v) return '—'
-        const isOver = r.status === 'overdue'
-        return <span style={{ color: isOver ? '#ff4d4f' : undefined }}>{dayjs(v).format('DD/MM/YYYY')}</span>
-      },
-    },
-    {
-      title: 'Total',
-      dataIndex: 'total',
-      width: 130,
-      align: 'right',
-      render: (v) => <Text strong>{fmt(v)}</Text>,
-    },
-    {
-      title: 'Saldo',
-      dataIndex: 'balance',
-      width: 130,
-      align: 'right',
-      render: (v) => (
-        <Text style={{ color: Number(v) > 0 ? '#cf1322' : '#52c41a' }}>
-          {fmt(v)}
-        </Text>
-      ),
-    },
-    {
-      title: 'Estado',
-      dataIndex: 'status',
-      width: 120,
-      render: (v: InvoiceStatus) => {
-        const cfg = INVOICE_STATUS_CONFIG[v]
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>
-      },
-    },
-    {
+      key: '_actions',
       title: '',
       width: 50,
-      render: (_, r) => {
+      render: (_: any, r: Invoice) => {
         const isDraft  = r.status === 'draft'
         const isPaid   = r.status === 'paid'
         const isVoided = r.status === 'voided'
-        const items: any[] = [
-          { key: 'view', label: 'Ver detalle' },
-        ]
-        if (isDraft) {
-          items.push({ key: 'edit', label: 'Editar' })
-        }
-        if (isDraft || isVoided) {
-          items.push({ type: 'divider' })
-          items.push({ key: 'delete', label: <span style={{ color: '#ff4d4f' }}>Eliminar</span>, danger: false })
-        }
-        if (!isPaid && !isVoided) {
-          items.push({ key: 'pay', label: 'Registrar pago' })
-        }
-        if (!isVoided) {
-          items.push({ key: 'void', label: 'Anular' })
-        }
+        const items: any[] = [{ key: 'view', label: 'Ver detalle' }]
+        if (isDraft) items.push({ key: 'edit', label: 'Editar' })
+        if (isDraft || isVoided) { items.push({ type: 'divider' }); items.push({ key: 'delete', label: <span style={{ color: '#ff4d4f' }}>Eliminar</span> }) }
+        if (!isPaid && !isVoided) items.push({ key: 'pay', label: 'Registrar pago' })
+        if (!isVoided) items.push({ key: 'void', label: 'Anular' })
         return (
           <Dropdown
             menu={{
@@ -273,12 +327,7 @@ export default function FacturasPage() {
             <Text type="secondary">Gestión de facturas emitidas a clientes</Text>
           </div>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/ventas/facturas/nueva')}
-          style={{ background: '#1B3A6B' }}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1B3A6B' }}>
           Nueva factura
         </Button>
       </div>
@@ -286,10 +335,10 @@ export default function FacturasPage() {
       {/* Stats */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         {[
-          { title: 'Total Facturado', value: stats.totalFacturado, icon: <DollarOutlined />, color: '#1B3A6B' },
-          { title: 'Pendiente',       value: stats.pendiente,       icon: <ClockCircleOutlined />, color: '#fa8c16' },
-          { title: 'Vencidas',        value: stats.vencidas,        icon: <ExclamationCircleOutlined />, color: '#ff4d4f' },
-          { title: 'Cobradas',        value: stats.cobradas,        icon: <CheckCircleOutlined />, color: '#52c41a' },
+          { title: 'Total Facturado', value: stats.totalFacturado, icon: <DollarOutlined />,            color: '#1B3A6B' },
+          { title: 'Pendiente',       value: stats.pendiente,       icon: <ClockCircleOutlined />,        color: '#fa8c16' },
+          { title: 'Vencidas',        value: stats.vencidas,        icon: <ExclamationCircleOutlined />,  color: '#ff4d4f' },
+          { title: 'Cobradas',        value: stats.cobradas,        icon: <CheckCircleOutlined />,        color: '#52c41a' },
         ].map(s => (
           <Col span={6} key={s.title}>
             <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -314,21 +363,39 @@ export default function FacturasPage() {
           style={{ marginBottom: 0 }}
           tabBarExtraContent={
             <Space style={{ paddingBottom: 8 }}>
-              <RangePicker
-                format="YYYY-MM-DD"
-                onChange={onDateChange}
-                size="small"
-                placeholder={['Desde', 'Hasta']}
-              />
+              <RangePicker format="YYYY-MM-DD" onChange={onDateChange} size="small" placeholder={['Desde', 'Hasta']} />
               <Input
                 placeholder="Buscar factura, cliente..."
                 prefix={<SearchOutlined style={{ color: '#bbb' }} />}
-                style={{ width: 240 }}
+                style={{ width: 220 }}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 allowClear
                 size="small"
               />
+              <Popover
+                open={colPopover}
+                onOpenChange={setColPopover}
+                trigger="click"
+                placement="bottomRight"
+                title={null}
+                content={
+                  <ColumnConfigurator
+                    config={colConfig}
+                    allColMeta={ALL_COL_META}
+                    defaultConfig={DEFAULT_COL_CONFIG}
+                    storageKey={STORAGE_KEY}
+                    onChange={setColConfig}
+                  />
+                }
+              >
+                <Tooltip title="Configurar columnas">
+                  <Button size="small" icon={<SettingOutlined />}
+                    style={{ border: colPopover ? '1px solid #1B3A6B' : undefined, color: colPopover ? '#1B3A6B' : undefined }}>
+                    Columnas
+                  </Button>
+                </Tooltip>
+              </Popover>
             </Space>
           }
         />
@@ -336,54 +403,31 @@ export default function FacturasPage() {
 
       {/* Bulk action bar */}
       {selectedRowKeys.length > 0 && (
-        <div style={{
-          background: '#e6f4ff', border: '1px solid #91caff', borderRadius: 8,
-          padding: '8px 16px', marginBottom: 8,
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <Text strong style={{ color: '#1677ff' }}>
-            {selectedRowKeys.length} factura(s) seleccionada(s)
-          </Text>
-          <Button
-            type="primary"
-            size="small"
-            icon={<CheckSquareOutlined />}
-            loading={bulkLoading}
-            onClick={handleBulkMarcarEnviadas}
-            style={{ background: '#52c41a', borderColor: '#52c41a' }}
-          >
+        <div style={{ background: '#e6f4ff', border: '1px solid #91caff', borderRadius: 8, padding: '8px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Text strong style={{ color: '#1677ff' }}>{selectedRowKeys.length} factura(s) seleccionada(s)</Text>
+          <Button type="primary" size="small" icon={<CheckSquareOutlined />} loading={bulkLoading} onClick={handleBulkMarcarEnviadas} style={{ background: '#52c41a', borderColor: '#52c41a' }}>
             Marcar como Enviadas
           </Button>
-          <Button size="small" type="text" onClick={() => setSelectedRowKeys([])}>
-            Deseleccionar
-          </Button>
+          <Button size="small" type="text" onClick={() => setSelectedRowKeys([])}>Deseleccionar</Button>
         </div>
       )}
 
       {/* Table */}
       <Card bordered={false} style={{ borderRadius: '0 0 10px 10px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
         <Table
-          columns={columns}
+          columns={activeColumns}
           dataSource={invoices}
           rowKey="id"
           loading={loading}
           size="middle"
+          scroll={{ x: 'max-content' }}
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,
-            getCheckboxProps: (r) => ({
-              disabled: r.status === 'voided' || r.status === 'written_off',
-            }),
+            getCheckboxProps: (r) => ({ disabled: r.status === 'voided' || r.status === 'written_off' }),
           }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/facturas/${r.id}`) })}
-          pagination={{
-            total,
-            current: page,
-            pageSize: 20,
-            onChange: setPage,
-            showTotal: (t) => `${t} facturas`,
-            showSizeChanger: false,
-          }}
+          pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: (t) => `${t} facturas`, showSizeChanger: false }}
           locale={{ emptyText: 'Sin facturas' }}
         />
       </Card>
@@ -398,22 +442,13 @@ export default function FacturasPage() {
         okButtonProps={{ danger: true, loading: voidLoading, disabled: !voidReason.trim() }}
         cancelText="Cancelar"
       >
-        <p>
-          Â¿Estás seguro de anular la factura <strong>{voidTarget?.invoiceNumber}</strong>?
-          Esta acción no se puede deshacer.
-        </p>
+        <p>¿Anular la factura <strong>{voidTarget?.invoiceNumber}</strong>? Esta acción no se puede deshacer.</p>
         <Form layout="vertical">
           <Form.Item label="Motivo de anulación" required>
-            <Input.TextArea
-              rows={3}
-              value={voidReason}
-              onChange={e => setVoidReason(e.target.value)}
-              placeholder="Ingresa el motivo..."
-            />
+            <Input.TextArea rows={3} value={voidReason} onChange={e => setVoidReason(e.target.value)} placeholder="Ingresa el motivo..." />
           </Form.Item>
         </Form>
       </Modal>
     </div>
   )
 }
-
