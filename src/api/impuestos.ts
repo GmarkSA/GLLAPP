@@ -21,7 +21,7 @@ export interface Tax {
   rate:        number
   tiers:       TaxTier[] | null
   baseTaxCode: string | null
-  isInclusive: boolean     // true = precio incluye el impuesto (IVA incluido)
+  isInclusive: boolean
   isWithholding: boolean
   isDefault:   boolean
   isSystem:    boolean
@@ -30,6 +30,9 @@ export interface Tax {
   salesAccountId?:     string
   purchaseAccountId?:  string
   retentionAccountId?: string
+  // Vinculación a libros SAT (configurable por empresa)
+  libroComprasCol?: string | null
+  libroVentasCol?:  string | null
 }
 
 export interface TaxCalculation {

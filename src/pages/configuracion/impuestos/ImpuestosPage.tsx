@@ -642,6 +642,49 @@ function TaxModal({
           <TextArea rows={2} placeholder="Decreto 27-92, Art. 10 — Tasa general del IVA" />
         </Form.Item>
 
+        {/* Vinculación a Libros SAT */}
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
+          Vinculación a Libros SAT (multi-empresa)
+        </Divider>
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12, fontSize: 12 }}
+          message="Asigna este impuesto a la columna correspondiente del Libro de Compras o Ventas SAT. Esto permite que el sistema sea dinámico para cualquier nomenclatura de impuestos."
+        />
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              name="libroComprasCol"
+              label="Columna en Libro de Compras"
+              tooltip="A qué columna del Libro de Compras y Servicios (SAT) contribuye este impuesto"
+            >
+              <Select allowClear placeholder="Sin asignación">
+                <Option value="bienes">Compra de Bienes</Option>
+                <Option value="servicios">Compra de Servicios</Option>
+                <Option value="combustibles">Combustibles</Option>
+                <Option value="importacion">Importación</Option>
+                <Option value="pequenoContribuyente">Pequeño Contribuyente</Option>
+                <Option value="exento">Exento / No gravado</Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="libroVentasCol"
+              label="Columna en Libro de Ventas"
+              tooltip="A qué columna del Libro de Ventas y Servicios (SAT) contribuye este impuesto"
+            >
+              <Select allowClear placeholder="Sin asignación">
+                <Option value="bienes">Venta de Bienes</Option>
+                <Option value="servicios">Venta de Servicios</Option>
+                <Option value="exportacion">Exportación</Option>
+                <Option value="exento">Exento / No gravado</Option>
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item
