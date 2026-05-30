@@ -15,6 +15,7 @@ import {
   type Tax, type TaxTier,
 } from '../../../api/impuestos'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import { getLibroSATConfig, DEFAULT_CONFIG, type LibroSATConfig } from '../../../api/libros-sat'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -375,22 +376,25 @@ function TaxModal({
   onSaved: () => void
 }) {
   const [form]    = Form.useForm()
-  const [loading, setLoading]   = useState(false)
-  const [subtype, setSubtype]   = useState<string>('simple')
-  const [tiers,   setTiers]     = useState<TaxTier[]>([
+  const [loading,     setLoading]     = useState(false)
+  const [subtype,     setSubtype]     = useState<string>('simple')
+  const [tiers,       setTiers]       = useState<TaxTier[]>([
     { upTo: 30000, rate: 5, label: 'Hasta Q 30,000.00' },
     { upTo: null,  rate: 7, label: 'Más de Q 30,000.00' },
   ])
-  const [previewTax, setPreviewTax] = useState<Tax | null>(null)
-  const [accounts,  setAccounts]   = useState<Account[]>([])
+  const [previewTax,  setPreviewTax]  = useState<Tax | null>(null)
+  const [accounts,    setAccounts]    = useState<Account[]>([])
+  const [libroConfig, setLibroConfig] = useState<LibroSATConfig>(DEFAULT_CONFIG)
 
-  // Load accounts once when modal opens
+  // Carga accounts y configuración de columnas SAT cuando el modal abre
   useEffect(() => {
-    if (open && accounts.length === 0) {
+    if (!open) return
+    if (accounts.length === 0) {
       getAccounts({ isHeader: false, limit: 500 })
         .then((res: any) => setAccounts(Array.isArray(res) ? res : (res?.data ?? [])))
         .catch(() => {})
     }
+    getLibroSATConfig().then(setLibroConfig).catch(() => {})
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -642,45 +646,43 @@ function TaxModal({
           <TextArea rows={2} placeholder="Decreto 27-92, Art. 10 — Tasa general del IVA" />
         </Form.Item>
 
-        {/* Vinculación a Libros SAT */}
+        {/* Vinculación a Libros SAT — opciones dinámicas desde Configuración → Columnas Libros SAT */}
         <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
-          Vinculación a Libros SAT (multi-empresa)
+          Vinculación a Libros SAT
         </Divider>
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 12, fontSize: 12 }}
-          message="Asigna este impuesto a la columna correspondiente del Libro de Compras o Ventas SAT. Esto permite que el sistema sea dinámico para cualquier nomenclatura de impuestos."
-        />
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="libroComprasCol"
               label="Columna en Libro de Compras"
-              tooltip="A qué columna del Libro de Compras y Servicios (SAT) contribuye este impuesto"
+              tooltip="Columna del Libro de Compras y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en Configuración → Columnas Libros SAT."
             >
-              <Select allowClear placeholder="Sin asignación">
-                <Option value="bienes">Compra de Bienes</Option>
-                <Option value="servicios">Compra de Servicios</Option>
-                <Option value="combustibles">Combustibles</Option>
-                <Option value="importacion">Importación</Option>
-                <Option value="pequenoContribuyente">Pequeño Contribuyente</Option>
-                <Option value="exento">Exento / No gravado</Option>
-              </Select>
+              <Select
+                allowClear
+                placeholder="Sin asignación"
+                options={libroConfig.compras
+                  .filter(c => c.isActive)
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+                  .map(c => ({ value: c.key, label: c.label }))
+                }
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="libroVentasCol"
               label="Columna en Libro de Ventas"
-              tooltip="A qué columna del Libro de Ventas y Servicios (SAT) contribuye este impuesto"
+              tooltip="Columna del Libro de Ventas y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en Configuración → Columnas Libros SAT."
             >
-              <Select allowClear placeholder="Sin asignación">
-                <Option value="bienes">Venta de Bienes</Option>
-                <Option value="servicios">Venta de Servicios</Option>
-                <Option value="exportacion">Exportación</Option>
-                <Option value="exento">Exento / No gravado</Option>
-              </Select>
+              <Select
+                allowClear
+                placeholder="Sin asignación"
+                options={libroConfig.ventas
+                  .filter(c => c.isActive)
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+                  .map(c => ({ value: c.key, label: c.label }))
+                }
+              />
             </Form.Item>
           </Col>
         </Row>

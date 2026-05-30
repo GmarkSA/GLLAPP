@@ -12,8 +12,9 @@ import {
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled,
 } from '@ant-design/icons'
-import ImpuestosPage from './impuestos/ImpuestosPage'
-import UsuariosPage  from './usuarios/UsuariosPage'
+import ImpuestosPage  from './impuestos/ImpuestosPage'
+import UsuariosPage   from './usuarios/UsuariosPage'
+import LibroSATPage   from './libros-sat/LibroSATPage'
 import type { UploadChangeParam } from 'antd/es/upload'
 import {
   getOrganizationProfile,
@@ -37,6 +38,7 @@ const sections = [
   { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organización' },
   { key: 'fiscal',          icon: <FileTextOutlined />,     label: 'Configuración fiscal' },
   { key: 'taxes',           icon: <PercentageOutlined />,   label: 'Impuestos' },
+  { key: 'librosSAT',       icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
   { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
   { key: 'accountDefaults', icon: <ApiOutlined />,          label: 'Cuentas por defecto' },
   { key: 'users',           icon: <TeamOutlined />,         label: 'Usuarios y roles' },
@@ -879,6 +881,8 @@ export default function ConfiguracionPage() {
         return <CurrencySection />
       case 'taxes':
         return <ImpuestosPage />
+      case 'librosSAT':
+        return <LibroSATPage />
       case 'accountDefaults':
         return <AccountDefaultsSection />
       case 'users':
