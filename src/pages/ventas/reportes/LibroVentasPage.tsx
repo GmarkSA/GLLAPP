@@ -10,7 +10,6 @@ import dayjs, { Dayjs } from 'dayjs'
 import {
   getLibroVentas, downloadLibroVentasExcel,
   type LibroVentasReport,
-  type LibroVentasResumenCategoria,
 } from '../../../api/facturas'
 import { printLibro } from '../../../components/ReportHeader/printLibro'
 import {
@@ -18,19 +17,24 @@ import {
   type EmpresaInfo,
 } from '../../../api/reportes'
 import ReportHeader from '../../../components/ReportHeader/ReportHeader'
+import {
+  getLibroSATConfig, DEFAULT_CONFIG,
+  type LibroColumn, type LibroSATConfig,
+} from '../../../api/libros-sat'
 
 const { Title, Text } = Typography
 const { RangePicker }  = DatePicker
 
-const fmt  = (n: number) => n === 0 ? '—' : n.toLocaleString('es-GT', { minimumFractionDigits: 2 })
-const fmtQ = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+const fmt  = (n: number) => (n ?? 0) === 0 ? '—' : (n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })
+const fmtQ = (n: number) => `Q ${(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 const fmtD = (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—'
 
-const CATEGORIA_LABEL: Record<string, string> = {
-  bienes:      'Ventas de Bienes',
-  servicios:   'Ventas de Servicios',
-  exportacion: 'Exportación',
-  exento:      'Exento',
+// Mapa estable: clave SAT → campo del backend
+const FIELD_MAP: Record<string, string> = {
+  bienes:      'ventaBienes',
+  servicios:   'ventaServicios',
+  exportacion: 'exportacion',
+  exento:      'exento',
 }
 
 const CATEGORIA_COLOR: Record<string, string> = {
@@ -42,8 +46,8 @@ const CATEGORIA_COLOR: Record<string, string> = {
 
 const ROWS_PER_PAGE = 20
 
-// ── Columnas tabla SAT ──────────────────────────────────────────────────────
-const columns = [
+// ── Columnas fijas de cabecera ────────────────────────────────────────────────
+const FIXED_HEADER_COLS = [
   {
     title: 'No.',
     dataIndex: 'folio',
@@ -55,11 +59,7 @@ const columns = [
     title: 'Tipo Doc.',
     dataIndex: 'tipoDocumento',
     width: 90,
-    render: (v: string) => (
-      <Tag style={{ fontSize: 10, padding: '0 4px' }}>
-        {v || 'FACT'}
-      </Tag>
-    ),
+    render: (v: string) => <Tag style={{ fontSize: 10, padding: '0 4px' }}>{v || 'FACT'}</Tag>,
   },
   {
     title: 'Fecha Factura',
@@ -80,68 +80,14 @@ const columns = [
       )
     },
   },
-  {
-    title: 'Serie',
-    dataIndex: 'felSerie',
-    width: 55,
-    render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span>,
-  },
-  {
-    title: 'No. Documento',
-    dataIndex: 'felNumero',
-    width: 100,
-    render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span>,
-  },
-  {
-    title: 'Referencia',
-    dataIndex: 'referencia',
-    width: 90,
-    ellipsis: true,
-    render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span>,
-  },
-  {
-    title: 'NIT Cliente',
-    dataIndex: 'nitCliente',
-    width: 100,
-    render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || 'CF'}</span>,
-  },
-  {
-    title: 'Nombre del Cliente',
-    dataIndex: 'nombreCliente',
-    ellipsis: true,
-    width: 180,
-    render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span>,
-  },
-  // ── VALOR BASE (sin IVA) ────────────────────────────────────────────────
-  {
-    title: <span style={{ fontSize: 10 }}>Venta Bienes</span>,
-    dataIndex: 'ventaBienes',
-    width: 90,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11, color: v > 0 ? '#1B3A6B' : undefined }}>{fmt(v)}</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Venta Servicios</span>,
-    dataIndex: 'ventaServicios',
-    width: 95,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11, color: v > 0 ? '#2563eb' : undefined }}>{fmt(v)}</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Exportación</span>,
-    dataIndex: 'exportacion',
-    width: 85,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11, color: v > 0 ? '#059669' : undefined }}>{fmt(v)}</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Exento</span>,
-    dataIndex: 'exento',
-    width: 70,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
-  },
-  // ── IVA y Total ──────────────────────────────────────────────────────────
+  { title: 'Serie',            dataIndex: 'felSerie',   width: 55,  render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
+  { title: 'No. Documento',    dataIndex: 'felNumero',  width: 100, render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
+  { title: 'Referencia',       dataIndex: 'referencia', width: 90, ellipsis: true, render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
+  { title: 'NIT Cliente',      dataIndex: 'nitCliente',    width: 100, render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || 'CF'}</span> },
+  { title: 'Nombre del Cliente', dataIndex: 'nombreCliente', ellipsis: true, width: 180, render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span> },
+]
+
+const FIXED_TAIL_COLS = [
   {
     title: 'IVA',
     dataIndex: 'iva',
@@ -158,19 +104,33 @@ const columns = [
   },
 ]
 
-// ── Fila de totales ─────────────────────────────────────────────────────────
-function TotalsRow({ data }: { data: LibroVentasReport }) {
-  const t = data.totals
-  const vals = [t.ventaBienes, t.ventaServicios, t.exportacion, t.exento, t.iva, t.total]
+function buildColumns(colsConfig: LibroColumn[]) {
+  const dynamicCols = colsConfig
+    .filter(c => c.isActive)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(col => ({
+      title: <span style={{ fontSize: 10 }}>{col.label}</span>,
+      dataIndex: FIELD_MAP[col.key] ?? col.key,
+      width: 90,
+      align: 'right' as const,
+      render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v ?? 0)}</span>,
+    }))
+  return [...FIXED_HEADER_COLS, ...dynamicCols, ...FIXED_TAIL_COLS]
+}
+
+function TotalsRow({ data, colsConfig }: { data: LibroVentasReport; colsConfig: LibroColumn[] }) {
+  const t        = data.totals
+  const activeCols = colsConfig.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
+  const catVals  = activeCols.map(col => (t as any)[FIELD_MAP[col.key] ?? col.key] ?? 0)
+  const vals     = [...catVals, t.iva, t.total]
+
   return (
     <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
       <Table.Summary.Cell index={0} colSpan={9}>
-        <Text strong style={{ fontSize: 11, color: '#1B3A6B' }}>
-          TOTALES — {data.count} documentos
-        </Text>
+        <Text strong style={{ fontSize: 11, color: '#1B3A6B' }}>TOTALES — {data.count} documentos</Text>
       </Table.Summary.Cell>
       {vals.map((v, i) => (
-        <Table.Summary.Cell key={i} index={8 + i} align="right">
+        <Table.Summary.Cell key={i} index={9 + i} align="right">
           <Text strong style={{ fontSize: 11, color: v > 0 ? '#1B3A6B' : '#d1d5db' }}>
             {v > 0 ? fmt(v) : '—'}
           </Text>
@@ -180,26 +140,23 @@ function TotalsRow({ data }: { data: LibroVentasReport }) {
   )
 }
 
-// ── Resumen por categoría (insumo formulario IVA SAT) ──────────────────────
-function ResumenIVA({ resumen, totals }: { resumen: LibroVentasResumenCategoria[]; totals: LibroVentasReport['totals'] }) {
-  const ALL_CATS = ['bienes', 'servicios', 'exportacion', 'exento']
-  const rows = ALL_CATS.map(cat => {
-    const found = resumen.find(r => r.categoria === cat)
-    return { cat, cantidad: found?.cantidad ?? 0, base: found?.base ?? 0, iva: found?.iva ?? 0, total: found?.total ?? 0 }
-  })
+function ResumenIVA({
+  resumen, totals, colsConfig,
+}: {
+  resumen:    LibroVentasReport['resumenCategoria']
+  totals:     LibroVentasReport['totals']
+  colsConfig: LibroColumn[]
+}) {
+  const activeCols = colsConfig.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
     <Card
-      title={
-        <span style={{ color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>
-          Resumen por Categoría — Insumo Formulario IVA (SAT)
-        </span>
-      }
+      title={<span style={{ color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>Resumen por Categoría — Insumo Formulario IVA (SAT)</span>}
       style={{ marginTop: 16 }}
       styles={{ body: { padding: '12px 16px' } }}
     >
       <div style={{ overflowX: 'auto' }}>
-        <table className="resumen-categoria-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: '#f8f9fc', borderBottom: '2px solid #e5e7eb' }}>
               <th style={{ textAlign: 'left',   padding: '8px 12px', fontWeight: 600 }}>Categoría</th>
@@ -210,40 +167,36 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroVentasResumenCategoria[
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ cat, cantidad, base, iva, total }) => (
-              <tr key={cat} style={{ borderBottom: '1px solid #f0f0f0', opacity: cantidad === 0 ? 0.35 : 1 }}>
-                <td style={{ padding: '7px 12px' }}>
-                  <span style={{
-                    display: 'inline-block', width: 10, height: 10, borderRadius: 2,
-                    background: CATEGORIA_COLOR[cat] ?? '#9ca3af', marginRight: 8,
-                  }} />
-                  <span style={{ fontWeight: cantidad > 0 ? 600 : 400, color: CATEGORIA_COLOR[cat] ?? '#6b7280' }}>
-                    {CATEGORIA_LABEL[cat]}
-                  </span>
-                </td>
-                <td style={{ textAlign: 'center', padding: '7px 12px', color: '#6b7280' }}>
-                  {cantidad > 0 ? cantidad : '—'}
-                </td>
-                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace' }}>
-                  {base > 0 ? fmtQ(base) : '—'}
-                </td>
-                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace', color: '#2563eb' }}>
-                  {iva > 0 ? fmtQ(iva) : '—'}
-                </td>
-                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace', fontWeight: 600 }}>
-                  {total > 0 ? fmtQ(total) : '—'}
-                </td>
-              </tr>
-            ))}
+            {activeCols.map(col => {
+              const found = resumen.find(r => r.categoria === col.key)
+              const { cantidad = 0, base = 0, iva = 0, total = 0 } = found ?? {}
+              return (
+                <tr key={col.key} style={{ borderBottom: '1px solid #f0f0f0', opacity: cantidad === 0 ? 0.35 : 1 }}>
+                  <td style={{ padding: '7px 12px' }}>
+                    <span style={{
+                      display: 'inline-block', width: 10, height: 10, borderRadius: 2,
+                      background: CATEGORIA_COLOR[col.key] ?? '#9ca3af', marginRight: 8,
+                    }} />
+                    <span style={{ fontWeight: cantidad > 0 ? 600 : 400, color: CATEGORIA_COLOR[col.key] ?? '#6b7280' }}>
+                      {col.label}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '7px 12px', color: '#6b7280' }}>{cantidad > 0 ? cantidad : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace' }}>{base  > 0 ? fmtQ(base)  : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace', color: '#2563eb' }}>{iva > 0 ? fmtQ(iva) : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{total > 0 ? fmtQ(total) : '—'}</td>
+                </tr>
+              )
+            })}
           </tbody>
           <tfoot>
             <tr style={{ background: '#1B3A6B', color: '#fff' }}>
               <td style={{ padding: '8px 12px', fontWeight: 700 }}>TOTAL PERÍODO</td>
               <td style={{ textAlign: 'center', padding: '8px 12px', fontWeight: 700 }}>
-                {rows.reduce((s, r) => s + r.cantidad, 0)}
+                {resumen.reduce((s, r) => s + (r.cantidad ?? 0), 0)}
               </td>
               <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
-                {fmtQ(rows.reduce((s, r) => s + r.base, 0))}
+                {fmtQ(resumen.reduce((s, r) => s + (r.base ?? 0), 0))}
               </td>
               <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
                 {fmtQ(totals.iva)}
@@ -259,7 +212,7 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroVentasResumenCategoria[
   )
 }
 
-// ── Página principal ────────────────────────────────────────────────────────
+// ── Página principal ──────────────────────────────────────────────────────────
 export default function LibroVentasPage() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().startOf('month'),
@@ -270,9 +223,11 @@ export default function LibroVentasPage() {
   const [downloading, setDownloading] = useState(false)
   const [empresa,     setEmpresa]     = useState<EmpresaInfo | null>(null)
   const [folioInicio, setFolioInicio] = useState<number>(1)
+  const [libroConfig, setLibroConfig] = useState<LibroSATConfig>(DEFAULT_CONFIG)
 
   useEffect(() => {
     getEmpresaInfo().then(setEmpresa).catch(() => {})
+    getLibroSATConfig().then(setLibroConfig).catch(() => {})
     getCorrelativo('libro-ventas', dayjs().format('YYYY'))
       .then(r => setFolioInicio((r.current_correlativo ?? 0) + 1))
       .catch(() => {})
@@ -280,6 +235,7 @@ export default function LibroVentasPage() {
 
   const pages    = data ? Math.max(1, Math.ceil(data.count / ROWS_PER_PAGE)) : 0
   const folioFin = folioInicio + pages - 1
+  const activeCols = libroConfig.ventas.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
 
   const load = () => {
     setLoading(true)
@@ -287,8 +243,7 @@ export default function LibroVentasPage() {
       .then(result => {
         setData(result)
         const pags = Math.max(1, Math.ceil(result.count / ROWS_PER_PAGE))
-        setCorrelativo('libro-ventas', folioInicio + pags - 1, dateRange[0].format('YYYY'))
-          .catch(() => {})
+        setCorrelativo('libro-ventas', folioInicio + pags - 1, dateRange[0].format('YYYY')).catch(() => {})
       })
       .catch(() => message.error('No se pudo cargar el Libro de Ventas'))
       .finally(() => setLoading(false))
@@ -309,30 +264,39 @@ export default function LibroVentasPage() {
 
   const handlePrint = () => {
     if (!data) return
-    printLibro({
-      empresa, reportName: 'Libro de Ventas y Servicios', period, folioInicio, folioFin,
-      nitLabel: 'NIT Cliente', nombreLabel: 'Nombre del Cliente',
-      hasIdp: false, hasCol5: false, hasCol6: false,
-      rows: data.items.map(r => ({
+    const printRows = data.items.map(r => {
+      const base: any = {
         folio: r.folio, tipoDocumento: r.tipoDocumento, fecha: String(r.fecha),
         felSerie: r.felSerie, felNumero: r.felNumero, referencia: r.referencia,
         nitParty: r.nitCliente, nombreParty: r.nombreCliente,
-        col1: r.ventaBienes,    label1: 'Venta Bienes',
-        col2: r.ventaServicios, label2: 'Venta Servicios',
-        col3: r.exportacion,    label3: 'Exportación',
-        col4: r.exento,         label4: 'Exento',
         iva: r.iva, total: r.total,
-      })),
-      totals: {
-        col1: data.totals.ventaBienes,    col2: data.totals.ventaServicios,
-        col3: data.totals.exportacion,    col4: data.totals.exento,
-        iva: data.totals.iva, total: data.totals.total,
-      },
+      }
+      activeCols.slice(0, 6).forEach((col, i) => {
+        base[`col${i + 1}`]   = (r as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
+        base[`label${i + 1}`] = col.label
+      })
+      return base
+    })
+    const printTotals: any = { iva: data.totals.iva, total: data.totals.total }
+    activeCols.slice(0, 6).forEach((col, i) => {
+      printTotals[`col${i + 1}`] = (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
+    })
+
+    printLibro({
+      empresa,
+      reportName: 'Libro de Ventas y Servicios',
+      period,
+      folioInicio,
+      folioFin,
+      nitLabel:    'NIT Cliente',
+      nombreLabel: 'Nombre del Cliente',
+      hasIdp:  false,
+      hasCol5: activeCols.length > 4,
+      hasCol6: activeCols.length > 5,
+      rows:   printRows,
+      totals: printTotals,
       resumen: data.resumenCategoria.map(r => ({
-        label:    r.categoria === 'bienes'      ? 'Ventas de Bienes'
-                : r.categoria === 'servicios'   ? 'Ventas de Servicios'
-                : r.categoria === 'exportacion' ? 'Exportación'
-                : 'Exento',
+        label:    activeCols.find(c => c.key === r.categoria)?.label ?? r.categoria,
         cantidad: r.cantidad, base: r.base, iva: r.iva, total: r.total,
       })),
     })
@@ -341,6 +305,8 @@ export default function LibroVentasPage() {
   const period = data
     ? `Del ${dayjs(data.from).format('DD/MM/YYYY')} al ${dayjs(data.to).format('DD/MM/YYYY')}`
     : ''
+
+  const tableColumns = buildColumns(libroConfig.ventas)
 
   return (
     <div>
@@ -360,10 +326,7 @@ export default function LibroVentasPage() {
         <Space>
           <Space size={4}>
             <Text style={{ fontSize: 12, color: '#6b7280' }}>Folio inicial:</Text>
-            <InputNumber
-              min={1} value={folioInicio} size="small" style={{ width: 72 }}
-              onChange={v => setFolioInicio(v ?? 1)}
-            />
+            <InputNumber min={1} value={folioInicio} size="small" style={{ width: 72 }} onChange={v => setFolioInicio(v ?? 1)} />
           </Space>
           <RangePicker
             value={dateRange}
@@ -371,22 +334,11 @@ export default function LibroVentasPage() {
             format="DD/MM/YYYY"
             allowClear={false}
           />
-          <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={load}>
-            Generar
-          </Button>
+          <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={load}>Generar</Button>
           {data && (
             <>
-              <Button
-                icon={<FileExcelOutlined />}
-                loading={downloading}
-                onClick={handleExcel}
-                style={{ color: '#16a34a', borderColor: '#16a34a' }}
-              >
-                Excel
-              </Button>
-              <Button icon={<PrinterOutlined />} onClick={handlePrint}>
-                Imprimir / PDF
-              </Button>
+              <Button icon={<FileExcelOutlined />} loading={downloading} onClick={handleExcel} style={{ color: '#16a34a', borderColor: '#16a34a' }}>Excel</Button>
+              <Button icon={<PrinterOutlined />} onClick={handlePrint}>Imprimir / PDF</Button>
             </>
           )}
         </Space>
@@ -394,14 +346,7 @@ export default function LibroVentasPage() {
 
       {data && (
         <div id="report-print-area">
-
-          <ReportHeader
-            empresa={empresa}
-            reportName="Libro de Ventas y Servicios"
-            period={period}
-            folioInicio={folioInicio}
-            folioFin={folioFin}
-          />
+          <ReportHeader empresa={empresa} reportName="Libro de Ventas y Servicios" period={period} folioInicio={folioInicio} folioFin={folioFin} />
 
           <div style={{ marginBottom: 8, fontSize: 11, color: '#6b7280' }}>
             {pages} hoja{pages !== 1 ? 's' : ''} carta estimada{pages !== 1 ? 's' : ''}
@@ -409,28 +354,24 @@ export default function LibroVentasPage() {
             &nbsp;·&nbsp; Próximo reporte iniciará en folio <strong>{folioFin + 1}</strong>
           </div>
 
-          <div style={{
-            background: '#1B3A6B', color: '#fff', fontSize: 10, fontWeight: 600,
-            padding: '4px 8px', borderRadius: '6px 6px 0 0',
-          }}>
+          <div style={{ background: '#1B3A6B', color: '#fff', fontSize: 10, fontWeight: 600, padding: '4px 8px', borderRadius: '6px 6px 0 0' }}>
             VALOR BASE (sin IVA) — por categoría SAT
           </div>
 
           <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: '0 0 8px 8px', borderTop: 'none' }}>
             <Table
               dataSource={data.items}
-              columns={columns}
+              columns={tableColumns}
               rowKey={(r) => r.uuid || r.numeroInterno}
               pagination={{ pageSize: 100, showSizeChanger: true, showTotal: (t) => `${t} registros` }}
               size="small"
               scroll={{ x: 'max-content' }}
               loading={loading}
-              summary={() => data.items.length > 0 ? <TotalsRow data={data} /> : null}
+              summary={() => data.items.length > 0 ? <TotalsRow data={data} colsConfig={libroConfig.ventas} /> : null}
             />
           </Card>
 
-          <ResumenIVA resumen={data.resumenCategoria} totals={data.totals} />
-
+          <ResumenIVA resumen={data.resumenCategoria} totals={data.totals} colsConfig={libroConfig.ventas} />
         </div>
       )}
 

@@ -10,7 +10,6 @@ import dayjs, { Dayjs } from 'dayjs'
 import {
   getLibroCompras, downloadLibroComprasExcel,
   type LibroComprasReport,
-  type LibroComprasResumenCategoria,
 } from '../../../api/compras'
 import { printLibro } from '../../../components/ReportHeader/printLibro'
 import {
@@ -18,21 +17,26 @@ import {
   type EmpresaInfo,
 } from '../../../api/reportes'
 import ReportHeader from '../../../components/ReportHeader/ReportHeader'
+import {
+  getLibroSATConfig, DEFAULT_CONFIG,
+  type LibroColumn, type LibroSATConfig,
+} from '../../../api/libros-sat'
 
 const { Title, Text } = Typography
 const { RangePicker }  = DatePicker
 
-const fmt  = (n: number) => n === 0 ? '—' : n.toLocaleString('es-GT', { minimumFractionDigits: 2 })
-const fmtQ = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+const fmt  = (n: number) => (n ?? 0) === 0 ? '—' : (n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })
+const fmtQ = (n: number) => `Q ${(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 const fmtD = (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—'
 
-const CATEGORIA_LABEL: Record<string, string> = {
-  bienes:               'Compra de Bienes',
-  servicios:            'Compra de Servicios',
-  combustibles:         'Compra de Combustibles',
-  importacion:          'Importación',
-  pequenoContribuyente: 'Pequeño Contribuyente',
-  exento:               'Exento',
+// Mapa estable: clave SAT → campo devuelto por el backend
+const FIELD_MAP: Record<string, string> = {
+  bienes:               'compraBienes',
+  servicios:            'compraServicios',
+  combustibles:         'compraCombustibles',
+  importacion:          'importacion',
+  pequenoContribuyente: 'pequenoContribuyente',
+  exento:               'exento',
 }
 
 const CATEGORIA_COLOR: Record<string, string> = {
@@ -44,8 +48,10 @@ const CATEGORIA_COLOR: Record<string, string> = {
   exento:               '#6b7280',
 }
 
-// ── Columnas tabla SAT ──────────────────────────────────────────────────────
-const columns = [
+const ROWS_PER_PAGE = 20
+
+// ── Columnas fijas de cabecera (antes de las categorías SAT) ─────────────────
+const FIXED_HEADER_COLS = [
   {
     title: 'No.',
     dataIndex: 'folio',
@@ -82,86 +88,15 @@ const columns = [
       )
     },
   },
-  {
-    title: 'Serie',
-    dataIndex: 'felSerie',
-    width: 55,
-    render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span>,
-  },
-  {
-    title: 'No. Documento',
-    dataIndex: 'felNumero',
-    width: 100,
-    render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span>,
-  },
-  {
-    title: 'Referencia',
-    dataIndex: 'referencia',
-    width: 90,
-    ellipsis: true,
-    render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span>,
-  },
-  {
-    title: 'NIT Contribuyente',
-    dataIndex: 'nitProveedor',
-    width: 110,
-    render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span>,
-  },
-  {
-    title: 'Nombre del Contribuyente',
-    dataIndex: 'nombreProveedor',
-    ellipsis: true,
-    width: 180,
-    render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span>,
-  },
-  // ── VALOR BASE (sin IVA) ────────────────────────────────────────────────
-  {
-    title: <span style={{ fontSize: 10 }}>Compra Bienes</span>,
-    dataIndex: 'compraBienes',
-    width: 90,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Compra Servicios</span>,
-    dataIndex: 'compraServicios',
-    width: 95,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Combustibles</span>,
-    dataIndex: 'compraCombustibles',
-    width: 85,
-    align: 'right' as const,
-    render: (v: number) => v > 0
-      ? <span style={{ fontSize: 11, color: '#d97706' }}>{fmt(v)}</span>
-      : <span style={{ fontSize: 11 }}>—</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Importación</span>,
-    dataIndex: 'importacion',
-    width: 80,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Peq. Contrib.</span>,
-    dataIndex: 'pequenoContribuyente',
-    width: 80,
-    align: 'right' as const,
-    render: (v: number) => v > 0
-      ? <span style={{ fontSize: 11, color: '#059669' }}>{fmt(v)}</span>
-      : <span style={{ fontSize: 11 }}>—</span>,
-  },
-  {
-    title: <span style={{ fontSize: 10 }}>Exento</span>,
-    dataIndex: 'exento',
-    width: 70,
-    align: 'right' as const,
-    render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
-  },
-  // ── Impuestos ────────────────────────────────────────────────────────────
+  { title: 'Serie',         dataIndex: 'felSerie',   width: 55,  render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
+  { title: 'No. Documento', dataIndex: 'felNumero',  width: 100, render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
+  { title: 'Referencia',    dataIndex: 'referencia', width: 90, ellipsis: true, render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
+  { title: 'NIT Contribuyente',    dataIndex: 'nitProveedor',    width: 110, render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
+  { title: 'Nombre del Contribuyente', dataIndex: 'nombreProveedor', ellipsis: true, width: 180, render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span> },
+]
+
+// ── Columnas fijas de cola (después de las categorías) ───────────────────────
+const FIXED_TAIL_COLS = [
   {
     title: 'IDP',
     dataIndex: 'idp',
@@ -187,14 +122,28 @@ const columns = [
   },
 ]
 
-// ── Fila de totales ─────────────────────────────────────────────────────────
-function TotalsRow({ data }: { data: LibroComprasReport }) {
-  const t = data.totals
-  const vals = [
-    t.compraBienes, t.compraServicios, t.compraCombustibles,
-    t.importacion, t.pequenoContribuyente, t.exento,
-    t.idp, t.iva, t.total,
-  ]
+// ── Genera columnas dinámicas desde el config ────────────────────────────────
+function buildColumns(colsConfig: LibroColumn[]) {
+  const dynamicCols = colsConfig
+    .filter(c => c.isActive)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(col => ({
+      title: <span style={{ fontSize: 10 }}>{col.label}</span>,
+      dataIndex: FIELD_MAP[col.key] ?? col.key,
+      width: 90,
+      align: 'right' as const,
+      render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v ?? 0)}</span>,
+    }))
+  return [...FIXED_HEADER_COLS, ...dynamicCols, ...FIXED_TAIL_COLS]
+}
+
+// ── Fila de totales (dinámica) ───────────────────────────────────────────────
+function TotalsRow({ data, colsConfig }: { data: LibroComprasReport; colsConfig: LibroColumn[] }) {
+  const t        = data.totals
+  const activeCols = colsConfig.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
+  const catVals  = activeCols.map(col => (t as any)[FIELD_MAP[col.key] ?? col.key] ?? 0)
+  const vals     = [...catVals, t.idp, t.iva, t.total]
+
   return (
     <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
       <Table.Summary.Cell index={0} colSpan={9}>
@@ -213,29 +162,27 @@ function TotalsRow({ data }: { data: LibroComprasReport }) {
   )
 }
 
-// ── Resumen por categoría (insumo para formulario IVA SAT) ──────────────────
-function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria[]; totals: LibroComprasReport['totals'] }) {
-  const ALL_CATS = ['bienes', 'servicios', 'combustibles', 'importacion', 'pequenoContribuyente', 'exento']
-  const rows = ALL_CATS.map(cat => {
-    const found = resumen.find(r => r.categoria === cat)
-    return { cat, cantidad: found?.cantidad ?? 0, base: found?.base ?? 0, iva: found?.iva ?? 0, total: found?.total ?? 0 }
-  })
+// ── Resumen por categoría (dinámica) ─────────────────────────────────────────
+function ResumenIVA({
+  resumen, totals, colsConfig,
+}: {
+  resumen: LibroComprasReport['resumenCategoria']
+  totals:  LibroComprasReport['totals']
+  colsConfig: LibroColumn[]
+}) {
+  const activeCols = colsConfig.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
     <Card
-      title={
-        <span style={{ color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>
-          Resumen por Categoría — Insumo Formulario IVA (SAT)
-        </span>
-      }
+      title={<span style={{ color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>Resumen por Categoría — Insumo Formulario IVA (SAT)</span>}
       style={{ marginTop: 16 }}
       styles={{ body: { padding: '12px 16px' } }}
     >
       <div style={{ overflowX: 'auto' }}>
-        <table className="resumen-categoria-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: '#f8f9fc', borderBottom: '2px solid #e5e7eb' }}>
-              <th style={{ textAlign: 'left',  padding: '8px 12px', fontWeight: 600 }}>Categoría</th>
+              <th style={{ textAlign: 'left',   padding: '8px 12px', fontWeight: 600 }}>Categoría</th>
               <th style={{ textAlign: 'center', padding: '8px 12px', fontWeight: 600, width: 80 }}>Docs.</th>
               <th style={{ textAlign: 'right',  padding: '8px 12px', fontWeight: 600, width: 130 }}>Base (sin IVA)</th>
               <th style={{ textAlign: 'right',  padding: '8px 12px', fontWeight: 600, width: 110 }}>IVA</th>
@@ -243,40 +190,36 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ cat, cantidad, base, iva, total }) => (
-              <tr key={cat} style={{ borderBottom: '1px solid #f0f0f0', opacity: cantidad === 0 ? 0.35 : 1 }}>
-                <td style={{ padding: '7px 12px' }}>
-                  <span style={{
-                    display: 'inline-block', width: 10, height: 10, borderRadius: 2,
-                    background: CATEGORIA_COLOR[cat] ?? '#9ca3af', marginRight: 8,
-                  }} />
-                  <span style={{ fontWeight: cantidad > 0 ? 600 : 400, color: CATEGORIA_COLOR[cat] ?? '#6b7280' }}>
-                    {CATEGORIA_LABEL[cat]}
-                  </span>
-                </td>
-                <td style={{ textAlign: 'center', padding: '7px 12px', color: '#6b7280' }}>
-                  {cantidad > 0 ? cantidad : '—'}
-                </td>
-                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace' }}>
-                  {base > 0 ? fmtQ(base) : '—'}
-                </td>
-                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace', color: '#2563eb' }}>
-                  {iva > 0 ? fmtQ(iva) : '—'}
-                </td>
-                <td style={{ textAlign: 'right', padding: '7px 12px', fontFamily: 'monospace', fontWeight: 600 }}>
-                  {total > 0 ? fmtQ(total) : '—'}
-                </td>
-              </tr>
-            ))}
+            {activeCols.map(col => {
+              const found = resumen.find(r => r.categoria === col.key)
+              const { cantidad = 0, base = 0, iva = 0, total = 0 } = found ?? {}
+              return (
+                <tr key={col.key} style={{ borderBottom: '1px solid #f0f0f0', opacity: cantidad === 0 ? 0.35 : 1 }}>
+                  <td style={{ padding: '7px 12px' }}>
+                    <span style={{
+                      display: 'inline-block', width: 10, height: 10, borderRadius: 2,
+                      background: CATEGORIA_COLOR[col.key] ?? '#9ca3af', marginRight: 8,
+                    }} />
+                    <span style={{ fontWeight: cantidad > 0 ? 600 : 400, color: CATEGORIA_COLOR[col.key] ?? '#6b7280' }}>
+                      {col.label}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '7px 12px', color: '#6b7280' }}>{cantidad > 0 ? cantidad : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace' }}>{base  > 0 ? fmtQ(base)  : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace', color: '#2563eb' }}>{iva > 0 ? fmtQ(iva) : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{total > 0 ? fmtQ(total) : '—'}</td>
+                </tr>
+              )
+            })}
           </tbody>
           <tfoot>
             <tr style={{ background: '#1B3A6B', color: '#fff' }}>
               <td style={{ padding: '8px 12px', fontWeight: 700 }}>TOTAL PERÍODO</td>
               <td style={{ textAlign: 'center', padding: '8px 12px', fontWeight: 700 }}>
-                {rows.reduce((s, r) => s + r.cantidad, 0)}
+                {resumen.reduce((s, r) => s + (r.cantidad ?? 0), 0)}
               </td>
               <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
-                {fmtQ(rows.reduce((s, r) => s + r.base, 0))}
+                {fmtQ(resumen.reduce((s, r) => s + (r.base ?? 0), 0))}
               </td>
               <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
                 {fmtQ(totals.iva)}
@@ -289,7 +232,6 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria
         </table>
       </div>
 
-      {/* IDP separado si hay combustibles */}
       {totals.idp > 0 && (
         <div style={{ marginTop: 10, padding: '8px 12px', background: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a', fontSize: 12 }}>
           <Text style={{ color: '#92400e' }}>
@@ -297,7 +239,6 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria
           </Text>
         </div>
       )}
-      {/* Retenciones si hay */}
       {(totals.retencionIsr + totals.retencionIva) > 0 && (
         <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef2f2', borderRadius: 6, border: '1px solid #fca5a5', fontSize: 12 }}>
           <Text style={{ color: '#991b1b' }}>
@@ -311,10 +252,7 @@ function ResumenIVA({ resumen, totals }: { resumen: LibroComprasResumenCategoria
   )
 }
 
-// Filas por hoja carta (aprox. 20 renglones con tamaño "small")
-const ROWS_PER_PAGE = 20
-
-// ── Página principal ────────────────────────────────────────────────────────
+// ── Página principal ─────────────────────────────────────────────────────────
 export default function LibroComprasPage() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().startOf('month'),
@@ -325,18 +263,19 @@ export default function LibroComprasPage() {
   const [downloading, setDownloading] = useState(false)
   const [empresa,     setEmpresa]     = useState<EmpresaInfo | null>(null)
   const [folioInicio, setFolioInicio] = useState<number>(1)
+  const [libroConfig, setLibroConfig] = useState<LibroSATConfig>(DEFAULT_CONFIG)
 
-  // Carga info empresa + correlativo al montar
   useEffect(() => {
     getEmpresaInfo().then(setEmpresa).catch(() => {})
+    getLibroSATConfig().then(setLibroConfig).catch(() => {})
     getCorrelativo('libro-compras', dayjs().format('YYYY'))
       .then(r => setFolioInicio((r.current_correlativo ?? 0) + 1))
       .catch(() => {})
   }, [])
 
-  // Páginas estimadas y folio final
   const pages    = data ? Math.max(1, Math.ceil(data.count / ROWS_PER_PAGE)) : 0
   const folioFin = folioInicio + pages - 1
+  const activeCols = libroConfig.compras.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
 
   const load = () => {
     setLoading(true)
@@ -344,8 +283,7 @@ export default function LibroComprasPage() {
       .then(result => {
         setData(result)
         const pags = Math.max(1, Math.ceil(result.count / ROWS_PER_PAGE))
-        setCorrelativo('libro-compras', folioInicio + pags - 1, dateRange[0].format('YYYY'))
-          .catch(() => {})
+        setCorrelativo('libro-compras', folioInicio + pags - 1, dateRange[0].format('YYYY')).catch(() => {})
       })
       .catch(() => message.error('No se pudo cargar el Libro de Compras'))
       .finally(() => setLoading(false))
@@ -366,35 +304,40 @@ export default function LibroComprasPage() {
 
   const handlePrint = () => {
     if (!data) return
-    printLibro({
-      empresa, reportName: 'Libro de Compras y Servicios', period, folioInicio, folioFin,
-      nitLabel: 'NIT Contribuyente', nombreLabel: 'Nombre del Contribuyente',
-      hasIdp: data.totals.idp > 0, hasCol5: true, hasCol6: true,
-      rows: data.items.map(r => ({
+    // Hasta 6 columnas dinámicas → col1-col6 del printLibro
+    const printRows = data.items.map(r => {
+      const base: any = {
         folio: r.folio, tipoDocumento: r.tipoDocumento, fecha: String(r.fecha),
         felSerie: r.felSerie, felNumero: r.felNumero, referencia: r.referencia,
         nitParty: r.nitProveedor, nombreParty: r.nombreProveedor,
-        col1: r.compraBienes,       label1: 'Compra Bienes',
-        col2: r.compraServicios,    label2: 'Compra Servicios',
-        col3: r.compraCombustibles, label3: 'Combustibles',
-        col4: r.importacion,        label4: 'Importación',
-        col5: r.pequenoContribuyente, label5: 'Peq. Contrib.',
-        col6: r.exento,             label6: 'Exento',
         idp: r.idp, iva: r.iva, total: r.total,
-      })),
-      totals: {
-        col1: data.totals.compraBienes,   col2: data.totals.compraServicios,
-        col3: data.totals.compraCombustibles, col4: data.totals.importacion,
-        col5: data.totals.pequenoContribuyente, col6: data.totals.exento,
-        idp: data.totals.idp, iva: data.totals.iva, total: data.totals.total,
-      },
+      }
+      activeCols.slice(0, 6).forEach((col, i) => {
+        base[`col${i + 1}`]   = (r as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
+        base[`label${i + 1}`] = col.label
+      })
+      return base
+    })
+    const printTotals: any = { idp: data.totals.idp, iva: data.totals.iva, total: data.totals.total }
+    activeCols.slice(0, 6).forEach((col, i) => {
+      printTotals[`col${i + 1}`] = (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
+    })
+
+    printLibro({
+      empresa,
+      reportName: 'Libro de Compras y Servicios',
+      period,
+      folioInicio,
+      folioFin,
+      nitLabel:    'NIT Contribuyente',
+      nombreLabel: 'Nombre del Contribuyente',
+      hasIdp:  data.totals.idp > 0,
+      hasCol5: activeCols.length > 4,
+      hasCol6: activeCols.length > 5,
+      rows:   printRows,
+      totals: printTotals,
       resumen: data.resumenCategoria.map(r => ({
-        label:    r.categoria === 'bienes' ? 'Compra de Bienes'
-                : r.categoria === 'servicios' ? 'Compra de Servicios'
-                : r.categoria === 'combustibles' ? 'Compra de Combustibles'
-                : r.categoria === 'importacion' ? 'Importación'
-                : r.categoria === 'pequenoContribuyente' ? 'Pequeño Contribuyente'
-                : 'Exento',
+        label:    activeCols.find(c => c.key === r.categoria)?.label ?? r.categoria,
         cantidad: r.cantidad, base: r.base, iva: r.iva, total: r.total,
       })),
     })
@@ -403,6 +346,8 @@ export default function LibroComprasPage() {
   const period = data
     ? `Del ${dayjs(data.from).format('DD/MM/YYYY')} al ${dayjs(data.to).format('DD/MM/YYYY')}`
     : ''
+
+  const tableColumns = buildColumns(libroConfig.compras)
 
   return (
     <div>
@@ -420,13 +365,9 @@ export default function LibroComprasPage() {
           Libro de Compras y Servicios — SAT Guatemala
         </Title>
         <Space>
-          {/* Folio inicial editable */}
           <Space size={4}>
             <Text style={{ fontSize: 12, color: '#6b7280' }}>Folio inicial:</Text>
-            <InputNumber
-              min={1} value={folioInicio} size="small" style={{ width: 72 }}
-              onChange={v => setFolioInicio(v ?? 1)}
-            />
+            <InputNumber min={1} value={folioInicio} size="small" style={{ width: 72 }} onChange={v => setFolioInicio(v ?? 1)} />
           </Space>
           <RangePicker
             value={dateRange}
@@ -434,22 +375,11 @@ export default function LibroComprasPage() {
             format="DD/MM/YYYY"
             allowClear={false}
           />
-          <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={load}>
-            Generar
-          </Button>
+          <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={load}>Generar</Button>
           {data && (
             <>
-              <Button
-                icon={<FileExcelOutlined />}
-                loading={downloading}
-                onClick={handleExcel}
-                style={{ color: '#16a34a', borderColor: '#16a34a' }}
-              >
-                Excel
-              </Button>
-              <Button icon={<PrinterOutlined />} onClick={handlePrint}>
-                Imprimir / PDF
-              </Button>
+              <Button icon={<FileExcelOutlined />} loading={downloading} onClick={handleExcel} style={{ color: '#16a34a', borderColor: '#16a34a' }}>Excel</Button>
+              <Button icon={<PrinterOutlined />} onClick={handlePrint}>Imprimir / PDF</Button>
             </>
           )}
         </Space>
@@ -457,48 +387,32 @@ export default function LibroComprasPage() {
 
       {data && (
         <div id="report-print-area">
+          <ReportHeader empresa={empresa} reportName="Libro de Compras y Servicios" period={period} folioInicio={folioInicio} folioFin={folioFin} />
 
-          {/* Encabezado empresa */}
-          <ReportHeader
-            empresa={empresa}
-            reportName="Libro de Compras y Servicios"
-            period={period}
-            folioInicio={folioInicio}
-            folioFin={folioFin}
-          />
-
-          {/* Aviso de folios generados */}
           <div style={{ marginBottom: 8, fontSize: 11, color: '#6b7280' }}>
             {pages} hoja{pages !== 1 ? 's' : ''} carta estimada{pages !== 1 ? 's' : ''}
             &nbsp;·&nbsp; Folios asignados: <strong style={{ color: '#1B3A6B' }}>{folioInicio} al {folioFin}</strong>
             &nbsp;·&nbsp; Próximo reporte iniciará en folio <strong>{folioFin + 1}</strong>
           </div>
 
-          {/* Cabecera VALOR BASE */}
-          <div style={{
-            background: '#1B3A6B', color: '#fff', fontSize: 10, fontWeight: 600,
-            padding: '4px 8px', borderRadius: '6px 6px 0 0',
-          }}>
+          <div style={{ background: '#1B3A6B', color: '#fff', fontSize: 10, fontWeight: 600, padding: '4px 8px', borderRadius: '6px 6px 0 0' }}>
             VALOR BASE (sin IVA) — por categoría SAT
           </div>
 
-          {/* Tabla principal */}
           <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: '0 0 8px 8px', borderTop: 'none' }}>
             <Table
               dataSource={data.items}
-              columns={columns}
+              columns={tableColumns}
               rowKey={(r) => r.uuid || r.numeroInterno}
               pagination={{ pageSize: 100, showSizeChanger: true, showTotal: (t) => `${t} registros` }}
               size="small"
               scroll={{ x: 'max-content' }}
               loading={loading}
-              summary={() => data.items.length > 0 ? <TotalsRow data={data} /> : null}
+              summary={() => data.items.length > 0 ? <TotalsRow data={data} colsConfig={libroConfig.compras} /> : null}
             />
           </Card>
 
-          {/* Resumen por categoría */}
-          <ResumenIVA resumen={data.resumenCategoria} totals={data.totals} />
-
+          <ResumenIVA resumen={data.resumenCategoria} totals={data.totals} colsConfig={libroConfig.compras} />
         </div>
       )}
 
