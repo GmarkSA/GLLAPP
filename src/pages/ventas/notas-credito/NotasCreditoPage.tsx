@@ -2,11 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Button, Space, Typography, Tag, Input,
-  DatePicker, Tooltip, Popconfirm, message, Row, Col, Statistic, Modal, Form,
+  DatePicker, Tooltip, Popconfirm, message, Row, Col, Statistic,
+  Modal, Form, Popover,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, FileTextOutlined,
-  EyeOutlined, DeleteOutlined, SendOutlined, EditOutlined, StopOutlined,
+  EyeOutlined, DeleteOutlined, SendOutlined, EditOutlined,
+  StopOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -14,6 +16,9 @@ import {
   getNotasCredito, deleteNotaCredito, emitirNotaCredito, anularNotaCredito,
   type NotaCredito, NC_STATUS_CONFIG,
 } from '../../../api/notas-credito'
+import ColumnConfigurator, {
+  loadColConfig, type ColConfig, type ColMeta,
+} from '../../../components/ColumnConfigurator'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -21,10 +26,123 @@ const { RangePicker } = DatePicker
 const fmtQ = (n: number) =>
   `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+// ── Configurador de columnas ──────────────────────────────────────────────────
+const STORAGE_KEY = 'contaerp_cols_notas_credito'
+
+const ALL_COL_META: ColMeta[] = [
+  { key: 'invoiceNumber',      label: 'N° NC',             description: 'Número de la nota de crédito' },
+  { key: 'invoiceDate',        label: 'Fecha' },
+  { key: 'customer',           label: 'Cliente',            description: 'Nombre y NIT del cliente' },
+  { key: 'customerTaxId',      label: 'NIT Cliente',        description: 'Solo el NIT, columna separada' },
+  { key: 'originalInvoice',    label: 'Factura Original',   description: 'Número de la factura que se rectifica' },
+  { key: 'creditNoteReason',   label: 'Motivo' },
+  { key: 'currency',           label: 'Moneda' },
+  { key: 'subtotal',           label: 'Subtotal (Base)' },
+  { key: 'taxAmount',          label: 'IVA' },
+  { key: 'total',              label: 'Total' },
+  { key: 'creditBalance',      label: 'Crédito disponible' },
+  { key: 'appliedCreditAmount',label: 'Crédito aplicado' },
+  { key: 'status',             label: 'Estado' },
+  { key: 'felStatus',          label: 'Estado FEL' },
+  { key: 'felSerie',           label: 'Serie FEL' },
+  { key: 'felNumero',          label: 'Número SAT' },
+  { key: 'notes',              label: 'Notas' },
+  { key: 'itemsCount',         label: '# Líneas' },
+]
+
+const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
+  key: c.key,
+  visible: ['invoiceNumber', 'invoiceDate', 'customer', 'originalInvoice', 'creditNoteReason', 'status', 'felStatus', 'total', 'creditBalance'].includes(c.key),
+  sortOrder: i + 1,
+}))
+
+// ── Definiciones de columna ───────────────────────────────────────────────────
+function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
+  const base = { key }
+  switch (key) {
+    case 'invoiceNumber':
+      return { ...base, title: 'N° NC', dataIndex: 'invoiceNumber', width: 155,
+        render: (v: string) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12 }}>{v}</Text> }
+    case 'invoiceDate':
+      return { ...base, title: 'Fecha', dataIndex: 'invoiceDate', width: 105,
+        render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
+    case 'customer':
+      return { ...base, title: 'Cliente',
+        render: (_: any, r: NotaCredito) => (
+          <div>
+            <div style={{ fontWeight: 500, fontSize: 13 }}>{r.customerName}</div>
+            {r.customerTaxId && <Text type="secondary" style={{ fontSize: 11 }}>{r.customerTaxId}</Text>}
+          </div>
+        ) }
+    case 'customerTaxId':
+      return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
+        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+    case 'originalInvoice':
+      return { ...base, title: 'Factura Original', width: 150,
+        render: (_: any, r: NotaCredito) => r.originalInvoice
+          ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.originalInvoice.invoiceNumber}</Text>
+          : <Text type="secondary" style={{ fontSize: 11 }}>—</Text> }
+    case 'creditNoteReason':
+      return { ...base, title: 'Motivo', dataIndex: 'creditNoteReason', ellipsis: true,
+        render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v ?? '—'}</Text> }
+    case 'currency':
+      return { ...base, title: 'Moneda', dataIndex: 'currency', width: 80,
+        render: (v: string) => <Tag style={{ fontSize: 11 }}>{v || 'GTQ'}</Tag> }
+    case 'subtotal':
+      return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const,
+        render: (v: number) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</span> }
+    case 'taxAmount':
+      return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 100, align: 'right' as const,
+        render: (v: number) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</span> }
+    case 'total':
+      return { ...base, title: 'Total', dataIndex: 'total', width: 120, align: 'right' as const,
+        render: (v: number) => <Text strong style={{ fontFamily: 'monospace', fontSize: 13 }}>{fmtQ(v)}</Text> }
+    case 'creditBalance':
+      return { ...base, title: 'Crédito disp.', dataIndex: 'creditBalance', width: 120, align: 'right' as const,
+        render: (v: number) => (
+          <Text strong style={{ fontFamily: 'monospace', fontSize: 13, color: Number(v) > 0 ? '#52c41a' : '#bbb' }}>
+            {fmtQ(v)}
+          </Text>
+        ) }
+    case 'appliedCreditAmount':
+      return { ...base, title: 'Crédito aplicado', dataIndex: 'appliedCreditAmount', width: 130, align: 'right' as const,
+        render: (v: number) => Number(v) > 0
+          ? <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#1677ff' }}>{fmtQ(v)}</span>
+          : <Text type="secondary">—</Text> }
+    case 'status':
+      return { ...base, title: 'Estado', dataIndex: 'status', width: 130,
+        render: (v: string) => {
+          const cfg = NC_STATUS_CONFIG[v as keyof typeof NC_STATUS_CONFIG]
+          return <Tag color={cfg?.color ?? 'default'}>{cfg?.label ?? v}</Tag>
+        } }
+    case 'felStatus':
+      return { ...base, title: 'FEL', dataIndex: 'felStatus', width: 100,
+        render: (v: string) => v
+          ? <Tag color={v === 'certificada' ? 'green' : v === 'error' ? 'red' : 'default'}>{v}</Tag>
+          : <Text type="secondary">—</Text> }
+    case 'felSerie':
+      return { ...base, title: 'Serie FEL', dataIndex: 'felSerie', width: 80,
+        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+    case 'felNumero':
+      return { ...base, title: 'No. SAT', dataIndex: 'felNumero', width: 100,
+        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+    case 'notes':
+      return { ...base, title: 'Notas', dataIndex: 'notes', width: 150, ellipsis: true,
+        render: (v: string) => v
+          ? <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: v }}>{v}</Text>
+          : <Text type="secondary">—</Text> }
+    case 'itemsCount':
+      return { ...base, title: '# Líneas', width: 80, align: 'center' as const,
+        render: (_: any, r: NotaCredito) => <Tag style={{ fontSize: 11 }}>{r.items?.length ?? 0}</Tag> }
+    default: return null
+  }
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
 export default function NotasCreditoPage() {
   const navigate = useNavigate()
-
   const today = dayjs()
+
   const [fromDate, setFromDate] = useState(today.startOf('month').format('YYYY-MM-DD'))
   const [toDate,   setToDate]   = useState(today.format('YYYY-MM-DD'))
   const [search,   setSearch]   = useState('')
@@ -32,10 +150,14 @@ export default function NotasCreditoPage() {
   const [data,     setData]     = useState<NotaCredito[]>([])
   const [total,    setTotal]    = useState(0)
   const [loading,  setLoading]  = useState(false)
-  const [emitting,   setEmitting]   = useState<string | null>(null)
+  const [emitting, setEmitting] = useState<string | null>(null)
   const [voidTarget, setVoidTarget] = useState<NotaCredito | null>(null)
   const [voiding,    setVoiding]    = useState(false)
   const [voidForm]   = Form.useForm()
+
+  // Column config
+  const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
+  const [colPopover, setColPopover] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,23 +173,14 @@ export default function NotasCreditoPage() {
 
   const handleEmitir = async (id: string) => {
     setEmitting(id)
-    try {
-      await emitirNotaCredito(id)
-      message.success('Nota de crédito emitida exitosamente')
-      load()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al emitir')
-    } finally { setEmitting(null) }
+    try { await emitirNotaCredito(id); message.success('Nota de crédito emitida'); load() }
+    catch (e: any) { message.error(e?.response?.data?.message || 'Error al emitir') }
+    finally { setEmitting(null) }
   }
 
   const handleDelete = async (id: string) => {
-    try {
-      await deleteNotaCredito(id)
-      message.success('Nota de crédito eliminada')
-      load()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al eliminar')
-    }
+    try { await deleteNotaCredito(id); message.success('Nota de crédito eliminada'); load() }
+    catch (e: any) { message.error(e?.response?.data?.message || 'Error al eliminar') }
   }
 
   const handleVoid = async () => {
@@ -78,75 +191,28 @@ export default function NotasCreditoPage() {
       const { reason } = voidForm.getFieldsValue()
       await anularNotaCredito(voidTarget.id, reason)
       message.success(`${voidTarget.invoiceNumber} anulada correctamente`)
-      setVoidTarget(null)
-      voidForm.resetFields()
-      load()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al anular')
-    } finally { setVoiding(false) }
+      setVoidTarget(null); voidForm.resetFields(); load()
+    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al anular') }
+    finally { setVoiding(false) }
   }
 
-  // KPIs
-  const totalNc       = total
-  const totalMonto    = data.reduce((s, nc) => s + Number(nc.total), 0)
-  const totalCredito  = data.reduce((s, nc) => s + Number(nc.creditBalance), 0)
+  const totalMonto   = data.reduce((s, nc) => s + Number(nc.total), 0)
+  const totalCredito = data.reduce((s, nc) => s + Number(nc.creditBalance), 0)
 
-  const columns: ColumnsType<NotaCredito> = [
+  // ── Columnas dinámicas ──────────────────────────────────────────────────────
+  const activeColumns: ColumnsType<NotaCredito> = [
+    ...[...colConfig]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .filter(c => c.visible)
+      .map(c => buildColDef(c.key))
+      .filter((c): c is ColumnsType<NotaCredito>[number] => c !== null),
+    // Acciones — siempre fija al final (inline buttons, no dropdown)
     {
-      title: 'N° NC', dataIndex: 'invoiceNumber', width: 160,
-      render: (v) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>,
-    },
-    {
-      title: 'Fecha', dataIndex: 'invoiceDate', width: 110,
-      render: (v) => dayjs(v).format('DD/MM/YYYY'),
-    },
-    {
-      title: 'Cliente', dataIndex: 'customerName',
-      render: (v, r) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{v}</div>
-          {r.customerTaxId && <Text type="secondary" style={{ fontSize: 11 }}>{r.customerTaxId}</Text>}
-        </div>
-      ),
-    },
-    {
-      title: 'Factura original', dataIndex: 'originalInvoice', width: 150,
-      render: (_, r) => r.originalInvoice
-        ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.originalInvoice.invoiceNumber}</Text>
-        : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
-    },
-    {
-      title: 'Motivo', dataIndex: 'creditNoteReason',
-      render: (v) => <Text type="secondary" style={{ fontSize: 12 }}>{v ?? '—'}</Text>,
-    },
-    {
-      title: 'Estado', dataIndex: 'status', width: 140,
-      render: (v: string) => {
-        const cfg = NC_STATUS_CONFIG[v as keyof typeof NC_STATUS_CONFIG]
-        return <Tag color={cfg?.color ?? 'default'}>{cfg?.label ?? v}</Tag>
-      },
-    },
-    {
-      title: 'FEL', dataIndex: 'felStatus', width: 100,
-      render: (v) => v
-        ? <Tag color={v === 'certificada' ? 'green' : v === 'error' ? 'red' : 'default'}>{v}</Tag>
-        : <Text type="secondary">—</Text>,
-    },
-    {
-      title: 'Total', dataIndex: 'total', width: 130, align: 'right',
-      render: (v) => <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(v)}</Text>,
-    },
-    {
-      title: 'Crédito disp.', dataIndex: 'creditBalance', width: 130, align: 'right',
-      render: (v) => (
-        <Text strong style={{ fontFamily: 'monospace', color: Number(v) > 0 ? '#52c41a' : '#bbb' }}>
-          {fmtQ(v)}
-        </Text>
-      ),
-    },
-    {
-      title: 'Acciones', width: 160, align: 'center',
-      render: (_, r) => (
+      key: '_actions',
+      title: 'Acciones',
+      width: 150,
+      align: 'center' as const,
+      render: (_: any, r: NotaCredito) => (
         <Space size={4}>
           <Tooltip title="Ver detalle">
             <Button size="small" type="text" icon={<EyeOutlined />}
@@ -174,11 +240,7 @@ export default function NotasCreditoPage() {
           <Tooltip title="Eliminar">
             <Popconfirm
               title="¿Eliminar esta nota de crédito?"
-              description={
-                r.status !== 'draft'
-                  ? 'Se eliminarán también las pólizas contables asociadas. Esta acción no se puede deshacer.'
-                  : 'Esta acción no se puede deshacer.'
-              }
+              description={r.status !== 'draft' ? 'Se eliminarán también las pólizas contables.' : 'Esta acción no se puede deshacer.'}
               onConfirm={() => handleDelete(r.id)}
               okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
             >
@@ -201,21 +263,14 @@ export default function NotasCreditoPage() {
             <Text type="secondary">Gestión de devoluciones y ajustes a clientes</Text>
           </div>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          style={{ background: '#1B3A6B' }}
-          onClick={() => navigate('/ventas/notas-credito/nueva')}
-        >
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+          onClick={() => navigate('/ventas/notas-credito/nueva')}>
           Nueva Nota de Crédito
         </Button>
       </div>
 
       {/* Filtros */}
-      <Card bordered={false}
-        style={{ borderRadius: 10, marginBottom: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: '12px 16px' }}
-      >
+      <Card bordered={false} style={{ borderRadius: 10, marginBottom: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '12px 16px' }}>
         <Space wrap>
           <RangePicker
             format="YYYY-MM-DD"
@@ -227,54 +282,62 @@ export default function NotasCreditoPage() {
           <Input
             prefix={<SearchOutlined />}
             placeholder="Buscar NC, cliente, motivo..."
-            style={{ width: 280 }}
+            style={{ width: 260 }}
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             allowClear
           />
+          <Popover
+            open={colPopover}
+            onOpenChange={setColPopover}
+            trigger="click"
+            placement="bottomRight"
+            title={null}
+            content={
+              <ColumnConfigurator
+                config={colConfig}
+                allColMeta={ALL_COL_META}
+                defaultConfig={DEFAULT_COL_CONFIG}
+                storageKey={STORAGE_KEY}
+                onChange={setColConfig}
+              />
+            }
+          >
+            <Tooltip title="Configurar columnas">
+              <Button size="small" icon={<SettingOutlined />}
+                style={{ border: colPopover ? '1px solid #1B3A6B' : undefined, color: colPopover ? '#1B3A6B' : undefined }}>
+                Columnas
+              </Button>
+            </Tooltip>
+          </Popover>
         </Space>
       </Card>
 
       {/* KPIs */}
       <Row gutter={12} style={{ marginBottom: 12 }}>
         {[
-          { title: 'Total NCs', value: totalNc, fmt: (v: number) => String(v) },
-          { title: 'Monto total', value: totalMonto, fmt: fmtQ },
+          { title: 'Total NCs',          value: total,        fmt: (v: number) => String(v) },
+          { title: 'Monto total',        value: totalMonto,   fmt: fmtQ },
           { title: 'Crédito disponible', value: totalCredito, fmt: fmtQ },
         ].map(s => (
           <Col span={8} key={s.title}>
             <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-              <Statistic
-                title={s.title}
-                value={s.value}
-                formatter={v => s.fmt(Number(v))}
-                valueStyle={{ fontSize: 16, color: '#1B3A6B' }}
-              />
+              <Statistic title={s.title} value={s.value} formatter={v => s.fmt(Number(v))} valueStyle={{ fontSize: 16, color: '#1B3A6B' }} />
             </Card>
           </Col>
         ))}
       </Row>
 
       {/* Tabla */}
-      <Card bordered={false}
-        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: 0 }}
-      >
+      <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
         <Table
-          columns={columns}
+          columns={activeColumns}
           dataSource={data}
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 1200 }}
-          pagination={{
-            total,
-            current: page,
-            pageSize: 20,
-            onChange: setPage,
-            showTotal: t => `${t} notas de crédito`,
-            showSizeChanger: false,
-          }}
+          scroll={{ x: 'max-content' }}
+          pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} notas de crédito`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay notas de crédito en el período' }}
         />
       </Card>
@@ -290,12 +353,10 @@ export default function NotasCreditoPage() {
         okButtonProps={{ danger: true }}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Esta acción eliminará las pólizas contables asociadas y marcará la nota de crédito como anulada.
-          Solo se puede anular si no ha sido aplicada o reembolsada.
+          Esta acción eliminará las pólizas contables asociadas y marcará la nota como anulada.
         </Text>
         <Form form={voidForm} layout="vertical">
-          <Form.Item name="reason" label="Motivo de anulación"
-            rules={[{ required: true, message: 'Ingresa el motivo' }]}>
+          <Form.Item name="reason" label="Motivo de anulación" rules={[{ required: true, message: 'Ingresa el motivo' }]}>
             <Input.TextArea rows={3} placeholder="Ej: Emitida por error — datos incorrectos" />
           </Form.Item>
         </Form>
