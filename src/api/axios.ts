@@ -10,10 +10,12 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token    = localStorage.getItem('accessToken')
-  const tenantId = localStorage.getItem('tenantId')
-  if (token)    config.headers.Authorization  = `Bearer ${token}`
-  if (tenantId) config.headers['X-Tenant-ID'] = tenantId
+  const token           = localStorage.getItem('accessToken')
+  const tenantId        = localStorage.getItem('tenantId')
+  const activeCompanyId = localStorage.getItem('activeCompanyId')
+  if (token)           config.headers.Authorization   = `Bearer ${token}`
+  if (tenantId)        config.headers['X-Tenant-ID']  = tenantId
+  if (activeCompanyId) config.headers['X-Company-ID'] = activeCompanyId
   return config
 })
 

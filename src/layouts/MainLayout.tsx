@@ -11,6 +11,7 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
+import CompanySelector from '../components/CompanySelector'
 
 const { Header, Sider, Content } = Layout
 
@@ -62,6 +63,7 @@ const menuItems = [
   ]},
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
     { key: '/configuracion',                      label: 'General' },
+    { key: '/configuracion/empresas',             label: 'Empresas' },
     { key: '/configuracion/usuarios',             label: 'Usuarios y Roles' },
     { key: '/configuracion/unidades-medida',      label: 'Unidades de Medida' },
     { key: '/configuracion/integraciones',        label: 'Espacio de Desarrollador' },
@@ -157,6 +159,9 @@ export default function MainLayout() {
           overflowY: 'auto',
           overflowX: 'hidden',
         }}>
+          {/* Company Selector */}
+          {!collapsed && <CompanySelector />}
+
           <Menu
             theme="dark"
             mode="inline"

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprint Multi-Company — ConTaERP</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    font-size: 14px;
+  }
+
+  /* ── Header ── */
+  .page-header {
+    background: #1B3A6B;
+    color: white;
+    padding: 28px 40px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .page-header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }
+  .page-header p  { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+
+  .global-progress {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .global-progress .bar-wrap {
+    flex: 1;
+    background: rgba(255,255,255,0.2);
+    border-radius: 99px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .global-progress .bar-fill {
+    height: 100%;
+    background: #52c41a;
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .global-progress .label {
+    font-size: 13px;
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: right;
+    opacity: 0.9;
+  }
+
+  /* ── Layout ── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+  }
+
+  /* ── Sprint card ── */
+  .sprint {
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+
+  .sprint-header {
+    padding: 16px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .sprint-header:hover { background: #fafafa; }
+
+  .sprint-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sprint-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .badge-0 { background: #e6f7ff; color: #0958d9; }
+  .badge-1 { background: #fff7e6; color: #d46b08; }
+  .badge-2 { background: #fff1f0; color: #cf1322; }
+  .badge-3 { background: #f9f0ff; color: #531dab; }
+  .badge-4 { background: #f6ffed; color: #389e0d; }
+  .badge-5 { background: #e6fffb; color: #08979c; }
+
+  .sprint-name { font-size: 15px; font-weight: 600; color: #1B3A6B; }
+  .sprint-subtitle { font-size: 12px; color: #888; margin-top: 2px; }
+
+  .sprint-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .sprint-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sprint-bar-wrap {
+    width: 100px;
+    height: 6px;
+    background: #f0f0f0;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .sprint-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .fill-0 { background: #1677ff; }
+  .fill-1 { background: #fa8c16; }
+  .fill-2 { background: #f5222d; }
+  .fill-3 { background: #722ed1; }
+  .fill-4 { background: #52c41a; }
+  .fill-5 { background: #13c2c2; }
+
+  .sprint-pct { font-size: 12px; color: #888; min-width: 34px; text-align: right; }
+  .sprint-count { font-size: 12px; color: #aaa; white-space: nowrap; }
+
+  .risk-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .risk-cero  { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+  .risk-bajo  { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+  .risk-medio { background: #fff1f0; color: #cf1322; border: 1px solid #ffa39e; }
+
+  .chevron {
+    font-size: 11px;
+    color: #bbb;
+    transition: transform 0.2s;
+    margin-left: 6px;
+  }
+  .sprint.collapsed .chevron { transform: rotate(-90deg); }
+
+  /* ── Sprint body ── */
+  .sprint-body { padding: 4px 0 12px; }
+  .sprint.collapsed .sprint-body { display: none; }
+
+  /* ── Section ── */
+  .section {
+    padding: 12px 22px 4px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #1B3A6B;
+    opacity: 0.6;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  /* ── Sub-section ── */
+  .subsection { margin: 10px 0 6px; }
+  .subsection-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .subsection-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: #1B3A6B;
+    border-radius: 2px;
+    opacity: 0.35;
+  }
+
+  /* ── Task ── */
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 5px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    line-height: 1.45;
+    transition: background 0.15s;
+  }
+  .task:hover { background: #fafafa; }
+  .task.done .task-text {
+    text-decoration: line-through;
+    color: #bbb;
+  }
+  .task input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: #1B3A6B;
+  }
+  .task-text { font-size: 13px; color: #333; flex: 1; }
+  .task-text code {
+    background: #f5f5f5;
+    border: 1px solid #e8e8e8;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11.5px;
+    font-family: 'Consolas', 'Fira Code', monospace;
+    color: #1B3A6B;
+  }
+
+  /* subtask */
+  .task.subtask { padding-left: 26px; }
+  .task.subtask .task-text { font-size: 12.5px; color: #555; }
+
+  /* ── Pattern note ── */
+  .pattern-note {
+    background: #f8f9ff;
+    border: 1px solid #d6e0ff;
+    border-left: 3px solid #1B3A6B;
+    border-radius: 5px;
+    padding: 10px 14px;
+    margin: 10px 22px;
+    font-size: 12px;
+    color: #444;
+  }
+  .pattern-note code {
+    display: block;
+    background: #f0f0f8;
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-top: 6px;
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    color: #1B3A6B;
+    white-space: pre;
+  }
+
+  /* ── Summary table ── */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  .summary-table th {
+    background: #1B3A6B;
+    color: white;
+    padding: 9px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .summary-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table tr:hover td { background: #fafafa; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    color: #bbb;
+    font-size: 12px;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>ROADMAP MVP ENTERPRISE — Multi-Company</h1>
+  <p>ConTaERP · GLL Consulting · company_id obligatorio · Integraciones por company · Multi-país desde el inicio</p>
+  <div class="global-progress">
+    <div class="bar-wrap"><div class="bar-fill" id="global-bar" style="width:0%"></div></div>
+    <span class="label" id="global-label">0 / 0 tareas</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ══════════════════════════════════════════════════════════
+     SPRINT 0 — FUNDACIÓN
+══════════════════════════════════════════════════════════ -->
+<div class="sprint" id="sprint-0">
+  <div class="sprint-header" onclick="toggleSprint('sprint-0')">
+    <div class="sprint-title">
+      <span class="sprint-badge badge-0">Sprint 0</span>
+      <div>
+        <div class="sprint-name">Fundación</div>
+        <div class="sprint-subtitle">Semana 1 · Entidades + APIs + Company Selector</div>
+      </div>
+    </div>
+    <div class="sprint-meta">
+      <span class="risk-tag risk-cero">Riesgo: Cero</span>
+      <div class="sprint-progress-wrap">
+        <div class="sprint-bar-wrap"><div class="sprint-bar-fill fill-0" id="bar-sprint-0" style="width:0%"></div></div>
+        <span class="sprint-pct" id="pct-sprint-0">0%</span>
+      </div>
+      <span class="sprint-count" id="count-sprint-0">0/0</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+
+  <div class="sprint-body">
+
+    <!-- BACKEND -->
+    <div class="section">
+      <div class="section-title">Backend</div>
+
+      <div class="subsection">
+        <div class="subsection-title">Módulo <code>companies</code> — Entidades</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/entities/company.entity.ts</code> — CompanyEntity (id, tenant_id, company_number, legal_name, trade_name, tax_id, country_code, currency_code, timezone, fiscal_regime_id, is_default, status)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/entities/company-settings.entity.ts</code> — CompanySettingsEntity (base_currency, language, timezone, date_format, fiscal_year_start/end, inventory_method, default_payment_terms, default_sales_series, default_purchase_series, settings_json)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/entities/branch.entity.ts</code> — BranchEntity (id, company_id, name, code, address, is_default, status)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/entities/warehouse.entity.ts</code> — WarehouseEntity (id, company_id, branch_id nullable, name, code, address, is_default, is_active)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/entities/company-user.entity.ts</code> — CompanyUserEntity (id, company_id, user_id, role_ids[], branch_id nullable, module_overrides JSONB, is_active) — acceso de usuario a empresa</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/entities/company-bank-account.entity.ts</code> — CompanyBankAccountEntity (id, company_id, bank_name, account_number, account_type, currency_code, account_id FK→accounts, is_default, status) — cuenta bancaria contable, distinta del perfil de integración</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/entities/document-series.entity.ts</code> — DocumentSeriesEntity (company_id, document_type, series, current_number, padding)</span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Módulo <code>companies</code> — Servicios y Controladores</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/companies.service.ts</code> — CRUD empresas + auto-seed empresa default al crear tenant</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/companies.controller.ts</code> — GET /companies · POST /companies · GET /companies/:id · PATCH /companies/:id · DELETE /companies/:id</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/branches.service.ts</code> — CRUD sucursales</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/branches.controller.ts</code> — GET /companies/:id/branches · POST /companies/:id/branches · PATCH /branches/:id</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/warehouses.service.ts</code> — CRUD bodegas/almacenes por empresa</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/warehouses.controller.ts</code> — GET /companies/:id/warehouses · POST /companies/:id/warehouses · PATCH /warehouses/:id</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/company-users.service.ts</code> — Gestión de acceso usuario-empresa (roles, sucursal, módulos)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/company-users.controller.ts</code> — GET /companies/:id/users · POST /companies/:id/users · PATCH /companies/:id/users/:userId · DELETE /companies/:id/users/:userId</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/company-bank-accounts.service.ts</code> — CRUD cuentas bancarias contables por empresa</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/company-bank-accounts.controller.ts</code> — GET /companies/:id/bank-accounts · POST /companies/:id/bank-accounts · PATCH /bank-accounts/:id</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/document-series.service.ts</code> — CRUD series + nextNumber(companyId, documentType)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>companies/companies.module.ts</code></span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Módulo <code>company-integrations</code> — Entidades</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>company-integrations/entities/bank-profile.entity.ts</code> — CompanyBankProfileEntity (company_id, bank_name, country_code, integration_provider, credentials_encrypted, certificate_path, api_configuration_json, status)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>company-integrations/entities/electronic-invoicing.entity.ts</code> — CompanyElectronicInvoicingEntity (company_id, country_code, provider, environment, certificate, private_key, credentials_encrypted, api_configuration_json, status)</span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Módulo <code>company-integrations</code> — Servicios y Controladores</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>company-integrations/bank-profiles.service.ts</code> — CRUD + cifrado AES de credenciales</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>company-integrations/electronic-invoicing.service.ts</code> — CRUD + gestión de certificados FEL/CFDI/DTE</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>company-integrations/company-integrations.controller.ts</code></span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>company-integrations/company-integrations.module.ts</code></span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Módulo <code>fiscal-regimes</code> (schema <code>public</code>)</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>fiscal-regimes/entities/fiscal-regime.entity.ts</code> — en schema public (country_code, code, name, tax_config JSONB, is_active)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>fiscal-regimes/fiscal-regimes.service.ts</code> — Solo lectura (catálogo global)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>fiscal-regimes/fiscal-regimes.controller.ts</code> — GET /fiscal-regimes · GET /fiscal-regimes?country=GT</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>fiscal-regimes/fiscal-regimes.module.ts</code></span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>db/seeds/fiscal-regimes.seed.ts</code> — Seeding inicial de 6 países:</span></div>
+        <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Guatemala (GT) — NIT · IVA 12% · FEL infile/digifact/felplex</span></div>
+        <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Honduras (HN) — RTN · ISV 15% · SAR</span></div>
+        <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">El Salvador (SV) — NIT · IVA 13% · DTE Ministerio Hacienda</span></div>
+        <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Panamá (PA) — RUC · ITBMS 7% · DGI Panamá</span></div>
+        <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Costa Rica (CR) — Cédula Jurídica · IVA 13% · Hacienda CR</span></div>
+        <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">México (MX) — RFC · IVA 16% · CFDI + PAC</span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Auth — Company Context Guard</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>auth/guards/company-context.guard.ts</code> — Lee X-Company-ID header, valida acceso del usuario, inyecta en request</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>auth/decorators/company.decorator.ts</code> — @CurrentCompany() y @CurrentCompanyId()</span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Migraciones y Seeds de producción</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Migración: crear tablas companies, company_settings, branches, document_series, company_bank_profiles, company_electronic_invoicing</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Migración: crear tabla public.fiscal_regimes + ejecutar seed 6 países</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Seed de producción: crear "GMARK S.A." como empresa default del tenant en Railway (NIT, GTQ, GT, timezone Guatemala)</span></div>
+      </div>
+    </div>
+
+    <!-- FRONTEND -->
+    <div class="section">
+      <div class="section-title">Frontend</div>
+
+      <div class="subsection">
+        <div class="subsection-title">Store y API</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/store/authStore.ts</code> — Agregar activeCompanyId, activeCompany, setActiveCompany()</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/api/companies.ts</code> — getCompanies(), getCompany(id), createCompany(), updateCompany(), getCompanySettings(), updateCompanySettings()</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/api/branches.ts</code> — getBranches(companyId), createBranch(), updateBranch()</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/api/fiscalRegimes.ts</code> — getFiscalRegimes(), getFiscalRegimesByCountry(code)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/api/companyIntegrations.ts</code> — CRUD BankProfiles y ElectronicInvoicing por empresa</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/api/axios.ts</code> — Interceptor: agregar header X-Company-ID desde authStore.activeCompanyId en cada request</span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Páginas — Configuración → Empresa</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/pages/configuracion/EmpresasPage.tsx</code> — Lista de empresas del tenant (nombre, NIT, país, moneda, estado)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/pages/configuracion/EmpresaFormPage.tsx</code> — Crear / editar empresa (nombre legal, NIT, país, moneda, zona horaria, régimen fiscal)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/pages/configuracion/EmpresaSettingsPage.tsx</code> — Configuración operativa (moneda base, año fiscal, método inventario, series por defecto)</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/pages/configuracion/SucursalesPage.tsx</code> — Lista y CRUD de sucursales</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/pages/configuracion/BankProfilesPage.tsx</code> — Lista y formulario de perfiles bancarios por empresa</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/pages/configuracion/ElectronicInvoicingPage.tsx</code> — Lista y formulario de perfiles FEL/CFDI/DTE por empresa</span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Componente Company Selector (sidebar)</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/components/CompanySelector.tsx</code> — Dropdown en sidebar mostrando empresa activa; al seleccionar, llama setActiveCompany() y actualiza X-Company-ID</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/layouts/MainLayout.tsx</code> — Integrar CompanySelector sobre el menú de navegación</span></div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Rutas en <code>App.tsx</code> y menú Configuración</div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Rutas: /configuracion/empresas · /nueva · /:id · /:id/configuracion · /:id/sucursales · /:id/integraciones/bancos · /:id/integraciones/facturacion</span></div>
+        <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>src/layouts/MainLayout.tsx</code> — Agregar sección "Empresa" al submenú de Configuración</span></div>
+      </div>
+    </div>
+
+    <!-- CIERRE -->
+    <div class="section">
+      <div class="section-title">Cierre y Deploy</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Typecheck frontend sin errores (<code>npm run typecheck</code>)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Build backend sin errores (<code>npm run build</code>)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">GMARK S.A. aparece como empresa default al iniciar sesión</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Company Selector visible en sidebar y funcional</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Cambio de empresa actualiza el header X-Company-ID en Axios</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Todos los módulos existentes siguen funcionando (sin regresiones)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Deploy a Railway (backend) y Vercel (frontend)</span></div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SPRINT 1 — MIGRACIÓN BASE DE DATOS
+══════════════════════════════════════════════════════════ -->
+<div class="sprint" id="sprint-1">
+  <div class="sprint-header" onclick="toggleSprint('sprint-1')">
+    <div class="sprint-title">
+      <span class="sprint-badge badge-1">Sprint 1</span>
+      <div>
+        <div class="sprint-name">Migración Base de Datos</div>
+        <div class="sprint-subtitle">Semana 2 · company_id en 45 tablas · Backfill automático</div>
+      </div>
+    </div>
+    <div class="sprint-meta">
+      <span class="risk-tag risk-bajo">Riesgo: Bajo</span>
+      <div class="sprint-progress-wrap">
+        <div class="sprint-bar-wrap"><div class="sprint-bar-fill fill-1" id="bar-sprint-1" style="width:0%"></div></div>
+        <span class="sprint-pct" id="pct-sprint-1">0%</span>
+      </div>
+      <span class="sprint-count" id="count-sprint-1">0/0</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+
+  <div class="sprint-body">
+    <div class="section">
+      <div class="section-title">Migración SQL Atómica</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Agregar <code>company_id UUID</code> — Tablas maestras: customers, vendors, accounts, taxes, items, bank_accounts, employees, warehouses, cost_centers, projects</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Agregar <code>company_id UUID</code> — Tablas transaccionales: invoices, purchase_invoices, estimates, purchase_orders, payments, vendor_payments, credit_notes, expenses</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Agregar <code>company_id UUID</code> — Tablas contables: journal_entries, journal_entry_lines, fixed_assets</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Backfill automático: todos los registros existentes → empresa default del tenant</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Agregar <code>NOT NULL</code> en tablas críticas post-backfill (invoices, customers, vendors, accounts, journal_entries)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Índices: <code>CREATE INDEX ON &lt;tabla&gt;(company_id)</code> en todas las tablas modificadas</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">CompanyContext — NestJS</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">CompanyContext REQUEST-SCOPED: <code>@Injectable({ scope: Scope.REQUEST })</code> — companyId, tenantId, branchId</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Middleware actualizado: resuelve companyId desde X-Company-ID header → empresa default del usuario</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">CompanyContextGuard aplicado globalmente en AppModule</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Validación: company_id inválido para el tenant → 403 Forbidden</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Verificar GMARK en producción: datos existentes correctamente asignados a empresa default</span></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SPRINT 2 — SERVICIOS CORE
+══════════════════════════════════════════════════════════ -->
+<div class="sprint" id="sprint-2">
+  <div class="sprint-header" onclick="toggleSprint('sprint-2')">
+    <div class="sprint-title">
+      <span class="sprint-badge badge-2">Sprint 2</span>
+      <div>
+        <div class="sprint-name">Servicios Core</div>
+        <div class="sprint-subtitle">Semana 3 · Clientes · Proveedores · Facturación · Compras · Contabilidad</div>
+      </div>
+    </div>
+    <div class="sprint-meta">
+      <span class="risk-tag risk-medio">Riesgo: Medio</span>
+      <div class="sprint-progress-wrap">
+        <div class="sprint-bar-wrap"><div class="sprint-bar-fill fill-2" id="bar-sprint-2" style="width:0%"></div></div>
+        <span class="sprint-pct" id="pct-sprint-2">0%</span>
+      </div>
+      <span class="sprint-count" id="count-sprint-2">0/0</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+
+  <div class="sprint-body">
+    <div class="pattern-note">
+      <strong>Patrón mecánico en cada servicio — firma pública sin cambios:</strong>
+      <code>// Antes:  where: { tenantId }
+// Después: where: { tenantId: this.ctx.tenantId, companyId: this.ctx.companyId }</code>
+    </div>
+    <div class="section">
+      <div class="section-title">Servicios a actualizar</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>customers.service.ts</code> — filtrado + asignación por companyId</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>vendors.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>invoices.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>purchase-invoices.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>catalogo.service.ts</code> (cuentas) — plan de cuentas por empresa + <code>cloneChartOfAccounts(templateId, companyId)</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>journal-entries.service.ts</code> — asientos por empresa</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>bank-accounts.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>payments.service.ts</code> (pagos recibidos)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>vendor-payments.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Verificar paginación correcta por empresa en todos los endpoints de listado</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Deploy coordinado backend + verificación GMARK en producción</span></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SPRINT 3 — SERVICIOS SECUNDARIOS
+══════════════════════════════════════════════════════════ -->
+<div class="sprint" id="sprint-3">
+  <div class="sprint-header" onclick="toggleSprint('sprint-3')">
+    <div class="sprint-title">
+      <span class="sprint-badge badge-3">Sprint 3</span>
+      <div>
+        <div class="sprint-name">Servicios Secundarios</div>
+        <div class="sprint-subtitle">Semana 4 · Bancos · Inventarios · Activos · FEL · Reportes</div>
+      </div>
+    </div>
+    <div class="sprint-meta">
+      <span class="risk-tag risk-bajo">Riesgo: Bajo</span>
+      <div class="sprint-progress-wrap">
+        <div class="sprint-bar-wrap"><div class="sprint-bar-fill fill-3" id="bar-sprint-3" style="width:0%"></div></div>
+        <span class="sprint-pct" id="pct-sprint-3">0%</span>
+      </div>
+      <span class="sprint-count" id="count-sprint-3">0/0</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+
+  <div class="sprint-body">
+    <div class="section">
+      <div class="section-title">Servicios</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>estimates.service.ts</code> (cotizaciones)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>purchase-orders.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>credit-notes.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>expenses.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>fixed-assets.service.ts</code></span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>items.service.ts</code> (artículos / inventario)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>taxes.service.ts</code> — company_id nullable: null = impuesto compartido · valor = empresa específica</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text"><code>fel.service.ts</code> — refactorizar para usar company_electronic_invoicing en lugar de integraciones del tenant</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Reportes filtrados por empresa</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Libro de Compras — filtrado por company_id</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Libro de Ventas — filtrado por company_id</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">AP Aging por empresa</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">AR Aging por empresa</span></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SPRINT 4 — FRONTEND MULTI-EMPRESA
+══════════════════════════════════════════════════════════ -->
+<div class="sprint" id="sprint-4">
+  <div class="sprint-header" onclick="toggleSprint('sprint-4')">
+    <div class="sprint-title">
+      <span class="sprint-badge badge-4">Sprint 4</span>
+      <div>
+        <div class="sprint-name">Frontend Multi-Empresa</div>
+        <div class="sprint-subtitle">Semana 5 · Contexto Company · Seguridad · UI por empresa</div>
+      </div>
+    </div>
+    <div class="sprint-meta">
+      <span class="risk-tag risk-bajo">Riesgo: Bajo</span>
+      <div class="sprint-progress-wrap">
+        <div class="sprint-bar-wrap"><div class="sprint-bar-fill fill-4" id="bar-sprint-4" style="width:0%"></div></div>
+        <span class="sprint-pct" id="pct-sprint-4">0%</span>
+      </div>
+      <span class="sprint-count" id="count-sprint-4">0/0</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+
+  <div class="sprint-body">
+    <div class="section">
+      <div class="section-title">UI y Contexto</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Breadcrumb en header: [Grupo Castillo] &gt; [Castillo Guatemala] &gt; Facturas</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Todas las listas (facturas, clientes, proveedores, etc.) operan en contexto de empresa activa</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Formularios de creación asignan company_id automáticamente desde contexto</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Permisos: usuario con acceso a Empresa A no ve datos de Empresa B</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Manejo de estado cuando usuario no tiene empresa asignada</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Configuración por empresa (UI completa)</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Configuración → Integraciones FEL funcionando por empresa (con las nuevas entidades del Sprint 0)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Configuración → Bancos funcionando por empresa</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Configuración → Numeraciones de documentos por empresa</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Platform Admin</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Vista GLL Admin: todos los tenants, empresas, usuarios y planes</span></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SPRINT 5 — ONBOARDING Y DEMO
+══════════════════════════════════════════════════════════ -->
+<div class="sprint" id="sprint-5">
+  <div class="sprint-header" onclick="toggleSprint('sprint-5')">
+    <div class="sprint-title">
+      <span class="sprint-badge badge-5">Sprint 5</span>
+      <div>
+        <div class="sprint-name">Onboarding y Demo Enterprise</div>
+        <div class="sprint-subtitle">Semana 6 · Wizard · Grupo Castillo con 5 empresas</div>
+      </div>
+    </div>
+    <div class="sprint-meta">
+      <span class="risk-tag risk-cero">Riesgo: Cero</span>
+      <div class="sprint-progress-wrap">
+        <div class="sprint-bar-wrap"><div class="sprint-bar-fill fill-5" id="bar-sprint-5" style="width:0%"></div></div>
+        <span class="sprint-pct" id="pct-sprint-5">0%</span>
+      </div>
+      <span class="sprint-count" id="count-sprint-5">0/0</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+
+  <div class="sprint-body">
+    <div class="section">
+      <div class="section-title">Onboarding Wizard</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Paso 1: Datos del tenant (nombre del grupo, país principal)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Paso 2: Crear primera empresa (nombre legal, NIT, país, moneda)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Paso 3: Régimen fiscal y configuración FEL</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Paso 4: Plan de cuentas (desde template por país o personalizado)</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Paso 5: Invitar usuarios y asignar roles</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Paso 6: Activar módulos</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Template de plan de cuentas Guatemala (primer template)</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Tenant Demo — Grupo Castillo</div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Crear tenant "Grupo Castillo" en ambiente de demo</span></div>
+      <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Castillo Guatemala S.A.</span></div>
+      <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Castillo Honduras S.A.</span></div>
+      <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Castillo El Salvador S.A.</span></div>
+      <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Castillo Panamá S.A.</span></div>
+      <div class="task subtask" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Castillo Inmobiliaria S.A.</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Verificación: factura en Empresa A no visible en Empresa B</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Verificación: FEL de Empresa A no expuesto en Empresa B</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Verificación: consolidación con ChartOfAccounts + CompanyChartMapping</span></div>
+      <div class="task" onclick="toggleTask(this)"><input type="checkbox"><span class="task-text">Documentación técnica para el cliente</span></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     RESUMEN EJECUTIVO
+══════════════════════════════════════════════════════════ -->
+<div class="sprint">
+  <div class="sprint-header" style="cursor:default;">
+    <div class="sprint-title">
+      <div>
+        <div class="sprint-name" style="color:#1B3A6B;">Resumen Ejecutivo</div>
+      </div>
+    </div>
+  </div>
+  <div class="sprint-body" style="padding:16px 22px;">
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Sprint</th>
+          <th>Semana</th>
+          <th>Contenido</th>
+          <th>Riesgo GMARK</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>0 — Fundación</strong></td><td>1</td><td>Entidades + APIs + Company Selector</td><td><span class="risk-tag risk-cero">Cero</span></td></tr>
+        <tr><td><strong>1 — Migración BD</strong></td><td>2</td><td>company_id en 45 tablas + backfill</td><td><span class="risk-tag risk-bajo">Bajo</span></td></tr>
+        <tr><td><strong>2 — Servicios Core</strong></td><td>3</td><td>9 servicios principales actualizados</td><td><span class="risk-tag risk-medio">Medio</span></td></tr>
+        <tr><td><strong>3 — Servicios Rest</strong></td><td>4</td><td>Servicios secundarios + FEL + Reportes</td><td><span class="risk-tag risk-bajo">Bajo</span></td></tr>
+        <tr><td><strong>4 — Frontend</strong></td><td>5</td><td>UI multi-empresa completa</td><td><span class="risk-tag risk-bajo">Bajo</span></td></tr>
+        <tr><td><strong>5 — Onboarding Demo</strong></td><td>6</td><td>Wizard + Grupo Castillo 5 empresas</td><td><span class="risk-tag risk-cero">Cero</span></td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:14px; font-size:12px; color:#888; line-height:1.6;">
+      <strong>Resultado final:</strong> ERP Enterprise con soporte para grupos empresariales multi-país, sin necesidad de rediseño arquitectónico futuro.<br>
+      <strong>Principios garantizados:</strong> company_id obligatorio · Integraciones por company_id · Multi-país por datos, no por código · JWT sin company_id · X-Company-ID header
+    </p>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<footer>ConTaERP · GLL Consulting · 2026 — Los checkboxes se guardan automáticamente en el navegador</footer>
+
+<script>
+// ── Toggle sprint collapse ──────────────────────────────
+function toggleSprint(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('collapsed');
+}
+
+// ── Toggle task ─────────────────────────────────────────
+function toggleTask(taskEl) {
+  if (event.target.tagName === 'INPUT') return; // checkbox handled separately
+  const cb = taskEl.querySelector('input[type="checkbox"]');
+  cb.checked = !cb.checked;
+  applyDone(taskEl, cb.checked);
+  saveState();
+  updateProgress();
+}
+
+document.querySelectorAll('.task input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', function () {
+    applyDone(this.closest('.task'), this.checked);
+    saveState();
+    updateProgress();
+  });
+});
+
+function applyDone(taskEl, done) {
+  taskEl.classList.toggle('done', done);
+}
+
+// ── Progress ────────────────────────────────────────────
+function updateProgress() {
+  const sprintIds = ['sprint-0','sprint-1','sprint-2','sprint-3','sprint-4','sprint-5'];
+  let totalAll = 0, doneAll = 0;
+
+  sprintIds.forEach(sid => {
+    const tasks = document.querySelectorAll(`#${sid} .task input[type="checkbox"]`);
+    const total = tasks.length;
+    const done  = Array.from(tasks).filter(t => t.checked).length;
+    const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+
+    document.getElementById(`bar-${sid}`).style.width = pct + '%';
+    document.getElementById(`pct-${sid}`).textContent  = pct + '%';
+    document.getElementById(`count-${sid}`).textContent = `${done}/${total}`;
+
+    totalAll += total;
+    doneAll  += done;
+  });
+
+  const globalPct = totalAll > 0 ? Math.round(doneAll / totalAll * 100) : 0;
+  document.getElementById('global-bar').style.width = globalPct + '%';
+  document.getElementById('global-label').textContent = `${doneAll} / ${totalAll} tareas completadas`;
+}
+
+// ── Persist state ────────────────────────────────────────
+const STORAGE_KEY = 'contaerp_sprint_multicompany_v1';
+
+function saveState() {
+  const state = {};
+  document.querySelectorAll('.task input[type="checkbox"]').forEach((cb, i) => {
+    state[i] = cb.checked;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    document.querySelectorAll('.task input[type="checkbox"]').forEach((cb, i) => {
+      if (state[i]) {
+        cb.checked = true;
+        applyDone(cb.closest('.task'), true);
+      }
+    });
+  } catch(e) {}
+}
+
+// ── Init ─────────────────────────────────────────────────
+loadState();
+updateProgress();
+</script>
+</body>
+</html>

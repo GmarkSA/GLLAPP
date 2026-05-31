@@ -12,15 +12,32 @@ interface User {
   isSuperAdmin?: boolean
 }
 
+export interface Company {
+  id: string
+  companyNumber: string
+  legalName: string
+  tradeName?: string
+  taxId?: string
+  taxIdLabel?: string
+  countryCode: string
+  currencyCode: string
+  timezone: string
+  isDefault: boolean
+  status: string
+}
+
 interface AuthState {
   user: User | null
   tenantId: string | null
+  activeCompanyId: string | null
+  activeCompany: Company | null
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (data: RegisterData) => Promise<void>
   logout: () => void
   setTenant: (tenantId: string) => void
+  setActiveCompany: (company: Company) => void
 }
 
 interface RegisterData {
@@ -34,6 +51,10 @@ interface RegisterData {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   tenantId: localStorage.getItem('tenantId'),
+  activeCompanyId: localStorage.getItem('activeCompanyId'),
+  activeCompany: (() => {
+    try { return JSON.parse(localStorage.getItem('activeCompany') || 'null') } catch { return null }
+  })(),
   isAuthenticated: !!localStorage.getItem('accessToken'),
   isLoading: false,
 
@@ -88,11 +109,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.clear()
-    set({ user: null, isAuthenticated: false, tenantId: null })
+    set({ user: null, isAuthenticated: false, tenantId: null, activeCompanyId: null, activeCompany: null })
   },
 
   setTenant: (tenantId) => {
     localStorage.setItem('tenantId', tenantId)
     set({ tenantId })
+  },
+
+  setActiveCompany: (company) => {
+    localStorage.setItem('activeCompanyId', company.id)
+    localStorage.setItem('activeCompany', JSON.stringify(company))
+    set({ activeCompanyId: company.id, activeCompany: company })
   },
 }))

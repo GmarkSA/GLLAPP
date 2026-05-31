@@ -15,6 +15,9 @@ const ConfiguracionPage      = lazy(() => import('./pages/configuracion/Configur
 const IntegracionesPage      = lazy(() => import('./pages/configuracion/IntegracionesPage'))
 const UnidadesMedidaPage     = lazy(() => import('./pages/configuracion/UnidadesMedidaPage'))
 const UsuariosPage           = lazy(() => import('./pages/configuracion/UsuariosPage'))
+const EmpresasPage           = lazy(() => import('./pages/configuracion/empresas/EmpresasPage'))
+const EmpresaFormPage        = lazy(() => import('./pages/configuracion/empresas/EmpresaFormPage'))
+const SucursalesPage         = lazy(() => import('./pages/configuracion/empresas/SucursalesPage'))
 
 // Ventas
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
@@ -198,10 +201,14 @@ export default function App() {
           </Route>
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />
-          <Route path="configuracion"                        element={<ConfiguracionPage />} />
-          <Route path="configuracion/integraciones"         element={<IntegracionesPage />} />
-          <Route path="configuracion/unidades-medida"       element={<UnidadesMedidaPage />} />
-          <Route path="configuracion/usuarios"              element={<UsuariosPage />} />
+          <Route path="configuracion"                                element={<ConfiguracionPage />} />
+          <Route path="configuracion/integraciones"               element={<IntegracionesPage />} />
+          <Route path="configuracion/unidades-medida"             element={<UnidadesMedidaPage />} />
+          <Route path="configuracion/usuarios"                    element={<UsuariosPage />} />
+          <Route path="configuracion/empresas"                    element={<EmpresasPage />} />
+          <Route path="configuracion/empresas/nueva"              element={<EmpresaFormPage />} />
+          <Route path="configuracion/empresas/:id"                element={<EmpresaFormPage />} />
+          <Route path="configuracion/empresas/:id/sucursales"     element={<SucursalesPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
