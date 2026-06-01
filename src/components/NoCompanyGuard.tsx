@@ -10,21 +10,23 @@ interface Props {
 export default function NoCompanyGuard({ children }: Props) {
   const companies     = useCompanyStore(s => s.companies)
   const isLoading     = useCompanyStore(s => s.isLoading)
+  const lastLoaded    = useCompanyStore(s => s.lastLoaded)
   const loadCompanies = useCompanyStore(s => s.loadCompanies)
 
   const init = useCallback(() => { loadCompanies() }, [loadCompanies])
-
   useEffect(() => { init() }, [init])
 
-  if (isLoading && companies.length === 0) {
+  // Cargando por primera vez (isLoading activo o lastLoaded aún null)
+  if (isLoading || lastLoaded === null) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Spin size="large" tip="Cargando empresa..." />
+        <Spin size="large" style={{ display: 'block', margin: '0 auto' }} />
       </div>
     )
   }
 
-  if (!isLoading && companies.length === 0) {
+  // Solo mostrar "Sin empresas" cuando ya cargó y confirmó que no hay ninguna
+  if (!isLoading && lastLoaded !== null && companies.length === 0) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <Result

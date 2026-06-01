@@ -9,7 +9,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { companiesApi } from '../../../api/companies'
 import type { Company } from '../../../store/authStore'
-import { useAuthStore } from '../../../store/authStore'
+import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title } = Typography
 
@@ -26,8 +26,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function EmpresasPage() {
   const navigate         = useNavigate()
-  const setActiveCompany = useAuthStore(s => s.setActiveCompany)
-  const activeCompanyId  = useAuthStore(s => s.activeCompanyId)
+  const setActiveCompany = useCompanyStore(s => s.setActiveCompany)
+  const activeCompanyId  = useCompanyStore(s => s.activeCompany?.id ?? null)
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading]     = useState(false)
 
