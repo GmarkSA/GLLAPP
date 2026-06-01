@@ -3,11 +3,16 @@
     "allow": [
       "Bash(npm run typecheck)",
       "Bash(npm run lint)",
+      "Bash(npm run build)",
       "Bash(git -C * log *)",
       "Bash(git -C * status *)",
       "Bash(git -C * diff *)",
       "Bash(git -C * branch *)",
-      "Bash(npx tsc --noEmit *)"
+      "Bash(npx tsc --noEmit *)",
+      "Bash(find * -name *.ts *)",
+      "Bash(find * -type d *)",
+      "Bash(ls *)",
+      "Bash(wc -l *)"
     ],
     "deny": []
   }

@@ -27,6 +27,15 @@ export interface CompanySettings {
   settingsJson: Record<string, any>
 }
 
+export interface DocumentSeries {
+  id: string
+  companyId: string
+  documentType: string
+  series: string
+  currentNumber: number
+  padding: number
+}
+
 export const companiesApi = {
   getAll: ()                       => api.get('/companies').then(unwrap) as Promise<Company[]>,
   getOne: (id: string)             => api.get(`/companies/${id}`).then(unwrap) as Promise<Company>,
@@ -37,4 +46,8 @@ export const companiesApi = {
 
   getSettings: (id: string)                           => api.get(`/companies/${id}/settings`).then(unwrap) as Promise<CompanySettings>,
   updateSettings: (id: string, dto: Partial<CompanySettings>) => api.patch(`/companies/${id}/settings`, dto).then(unwrap) as Promise<CompanySettings>,
+
+  getDocumentSeries: (id: string)                           => api.get(`/companies/${id}/document-series`).then(unwrap) as Promise<DocumentSeries[]>,
+  createDocumentSeries: (id: string, dto: Partial<DocumentSeries>) => api.post(`/companies/${id}/document-series`, dto).then(unwrap) as Promise<DocumentSeries>,
+  updateDocumentSeries: (seriesId: string, dto: Partial<DocumentSeries>) => api.patch(`/companies/document-series/${seriesId}`, dto).then(unwrap) as Promise<DocumentSeries>,
 }

@@ -18,6 +18,10 @@ const UsuariosPage           = lazy(() => import('./pages/configuracion/Usuarios
 const EmpresasPage           = lazy(() => import('./pages/configuracion/empresas/EmpresasPage'))
 const EmpresaFormPage        = lazy(() => import('./pages/configuracion/empresas/EmpresaFormPage'))
 const SucursalesPage         = lazy(() => import('./pages/configuracion/empresas/SucursalesPage'))
+const SeriesDocumentalesPage = lazy(() => import('./pages/configuracion/empresas/SeriesDocumentalesPage'))
+const ElectronicInvoicingPage = lazy(() => import('./pages/configuracion/empresas/ElectronicInvoicingPage'))
+const BankProfilesPage       = lazy(() => import('./pages/configuracion/empresas/BankProfilesPage'))
+const PlatformAdminPage      = lazy(() => import('./pages/admin/PlatformAdminPage'))
 
 // Ventas
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
@@ -205,10 +209,15 @@ export default function App() {
           <Route path="configuracion/integraciones"               element={<IntegracionesPage />} />
           <Route path="configuracion/unidades-medida"             element={<UnidadesMedidaPage />} />
           <Route path="configuracion/usuarios"                    element={<UsuariosPage />} />
-          <Route path="configuracion/empresas"                    element={<EmpresasPage />} />
-          <Route path="configuracion/empresas/nueva"              element={<EmpresaFormPage />} />
-          <Route path="configuracion/empresas/:id"                element={<EmpresaFormPage />} />
-          <Route path="configuracion/empresas/:id/sucursales"     element={<SucursalesPage />} />
+          <Route path="configuracion/empresas"                               element={<EmpresasPage />} />
+          <Route path="configuracion/empresas/nueva"                          element={<EmpresaFormPage />} />
+          <Route path="configuracion/empresas/sucursales"                     element={<SucursalesPage />} />
+          <Route path="configuracion/empresas/series"                         element={<SeriesDocumentalesPage />} />
+          <Route path="configuracion/empresas/facturacion-electronica"        element={<ElectronicInvoicingPage />} />
+          <Route path="configuracion/empresas/bancos"                         element={<BankProfilesPage />} />
+          <Route path="configuracion/empresas/:id"                            element={<EmpresaFormPage />} />
+          <Route path="configuracion/empresas/:id/sucursales"                 element={<SucursalesPage />} />
+          <Route path="admin"                                                  element={<PlatformAdminPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

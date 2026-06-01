@@ -6,11 +6,14 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { branchesApi, type Branch } from '../../../api/branches'
+import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title } = Typography
 
 export default function SucursalesPage() {
-  const { id: companyId } = useParams<{ id: string }>()
+  const { id: paramId }    = useParams<{ id: string }>()
+  const activeCompany      = useCompanyStore(s => s.activeCompany)
+  const companyId          = paramId ?? activeCompany?.id
   const navigate           = useNavigate()
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading]   = useState(false)
@@ -91,8 +94,11 @@ export default function SucursalesPage() {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/configuracion/empresas/${companyId}`)} />
-        <Title level={4} style={{ margin: 0 }}>Sucursales</Title>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/configuracion/empresas')} />
+        <div>
+          <Title level={4} style={{ margin: 0 }}>Sucursales</Title>
+          {activeCompany && <div style={{ fontSize: 12, color: '#888' }}>{activeCompany.legalName}</div>}
+        </div>
         <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto', background: '#1B3A6B' }}
           onClick={openCreate}>Nueva Sucursal</Button>
       </div>

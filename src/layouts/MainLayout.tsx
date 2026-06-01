@@ -6,12 +6,15 @@ import {
   LogoutOutlined, UserOutlined, BellOutlined,
   ProjectOutlined, AuditOutlined, InboxOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined, BookOutlined,
-  TabletOutlined, SearchOutlined,
+  TabletOutlined, SearchOutlined, GlobalOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import CompanySelector from '../components/CompanySelector'
+import CompanyContextBar from '../components/CompanyContextBar'
+import NoCompanyGuard from '../components/NoCompanyGuard'
+import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
 
@@ -61,12 +64,17 @@ const menuItems = [
     { key: '/reportes/movimiento-capital', label: 'Movimiento de Capital' },
     { key: '/reportes/balanza',            label: 'Balanza de Comprobación' },
   ]},
+  { key: '/admin',           icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
-    { key: '/configuracion',                      label: 'General' },
-    { key: '/configuracion/empresas',             label: 'Empresas' },
-    { key: '/configuracion/usuarios',             label: 'Usuarios y Roles' },
-    { key: '/configuracion/unidades-medida',      label: 'Unidades de Medida' },
-    { key: '/configuracion/integraciones',        label: 'Espacio de Desarrollador' },
+    { key: '/configuracion',                              label: 'General' },
+    { key: '/configuracion/empresas',                     label: 'Empresas' },
+    { key: '/configuracion/empresas/sucursales',          label: 'Sucursales' },
+    { key: '/configuracion/empresas/series',              label: 'Series de Documentos' },
+    { key: '/configuracion/empresas/facturacion-electronica', label: 'Facturación Electrónica' },
+    { key: '/configuracion/empresas/bancos',              label: 'Perfiles Bancarios' },
+    { key: '/configuracion/usuarios',                     label: 'Usuarios y Roles' },
+    { key: '/configuracion/unidades-medida',              label: 'Unidades de Medida' },
+    { key: '/configuracion/integraciones',                label: 'Espacio de Desarrollador' },
   ]},
 ]
 
@@ -210,6 +218,7 @@ export default function MainLayout() {
                 style={{ color: '#6b7280', borderRadius: 8 }}
               />
             </Tooltip>
+            <CompanyContextBar />
           </Space>
 
           {/* Right */}
@@ -268,8 +277,12 @@ export default function MainLayout() {
           </Space>
         </Header>
 
+        {/* Breadcrumb enterprise */}
+        <EnterpriseBreadcrumb />
+
         {/* Contenido con transición */}
         <Content style={{ padding: 24, minHeight: 'calc(100vh - 60px)' }}>
+          <NoCompanyGuard>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -281,6 +294,7 @@ export default function MainLayout() {
               <Outlet />
             </motion.div>
           </AnimatePresence>
+          </NoCompanyGuard>
         </Content>
       </Layout>
     </Layout>
