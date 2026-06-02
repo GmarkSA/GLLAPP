@@ -64,7 +64,7 @@ const menuItems = [
     { key: '/reportes/movimiento-capital', label: 'Movimiento de Capital' },
     { key: '/reportes/balanza',            label: 'Balanza de Comprobación' },
   ]},
-  { key: '/admin',           icon: <GlobalOutlined />,       label: 'Platform Admin' },
+  { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
     { key: '/configuracion',                              label: 'General' },
     { key: '/configuracion/empresas',                     label: 'Empresas' },

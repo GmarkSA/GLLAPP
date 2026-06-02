@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Form, Input, Select, Button, Card, message, Spin, Row, Col, Divider, Typography,
+  Form, Input, Select, Button, Card, message, Spin, Typography,
+  Radio, Checkbox, Alert,
 } from 'antd'
-import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined } from '@ant-design/icons'
 import { companiesApi } from '../../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
+import type { Company } from '../../../store/authStore'
 
 const { Title } = Typography
 const { Option } = Select
@@ -34,6 +36,14 @@ export default function EmpresaFormPage() {
   const [regimes, setRegimes]   = useState<FiscalRegime[]>([])
   const [country, setCountry]   = useState<string>('GT')
 
+  // Template Engine state (solo en modo crear)
+  const [createMode, setCreateMode]         = useState<'empty' | 'clone'>('empty')
+  const [sourceCompanyId, setSourceCompanyId] = useState<string | null>(null)
+  const [allCompanies, setAllCompanies]     = useState<Company[]>([])
+  const [cloneOptions, setCloneOptions]     = useState<string[]>([
+    'copyChartOfAccounts', 'copyTaxes', 'copyDocumentSeries', 'copyBranches', 'copySettings',
+  ])
+
   useEffect(() => {
     fiscalRegimesApi.getAll().then(setRegimes).catch(() => {})
     if (isEdit) {
@@ -43,6 +53,9 @@ export default function EmpresaFormPage() {
         setCountry(company.countryCode)
       }).catch(() => message.error('Error al cargar empresa'))
         .finally(() => setLoading(false))
+    } else {
+      // Cargar empresas existentes para poder clonar
+      companiesApi.getAll().then(setAllCompanies).catch(() => {})
     }
   }, [id])
 
@@ -55,6 +68,25 @@ export default function EmpresaFormPage() {
   }
 
   const onFinish = async (values: any) => {
+    if (!isEdit && createMode === 'clone') {
+      if (!sourceCompanyId) { message.error('Seleccione la empresa origen'); return }
+      setSaving(true)
+      try {
+        const opts = Object.fromEntries(
+          ['copyChartOfAccounts','copyTaxes','copyDocumentSeries','copyBranches','copySettings']
+            .map(k => [k, cloneOptions.includes(k)]),
+        )
+        const result: any = await companiesApi.clone(sourceCompanyId, { targetCompany: values, options: opts })
+        message.success(`Empresa clonada correctamente — ${result.copied?.accounts ?? 0} cuentas, ${result.copied?.documentSeries ?? 0} series`)
+        navigate('/configuracion/empresas')
+      } catch {
+        message.error('Error al clonar empresa')
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     setSaving(true)
     try {
       if (isEdit) {
@@ -84,6 +116,69 @@ export default function EmpresaFormPage() {
       <Spin spinning={loading}>
         <Form form={form} layout="vertical" size="small" onFinish={onFinish}
           initialValues={{ countryCode: 'GT', currencyCode: 'GTQ', language: 'es', timezone: 'America/Guatemala' }}>
+
+          {/* ── Template Engine (solo en modo crear) ────────────────────────── */}
+          {!isEdit && (
+            <Card
+              title={<span><CopyOutlined style={{ marginRight: 6 }} />Método de creación</span>}
+              style={{ marginBottom: 16, borderColor: '#1B3A6B' }}
+            >
+              <Radio.Group
+                value={createMode}
+                onChange={e => setCreateMode(e.target.value)}
+                style={{ marginBottom: createMode === 'clone' ? 16 : 0 }}
+              >
+                <Radio value="empty">
+                  <span><PlusCircleOutlined style={{ marginRight: 6, color: '#52c41a' }} />Empresa vacía</span>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2, marginLeft: 22 }}>
+                    Comienza desde cero — catálogo de cuentas, series y configuración vacíos
+                  </div>
+                </Radio>
+                <Radio value="clone" style={{ marginTop: 10 }}>
+                  <span><CopyOutlined style={{ marginRight: 6, color: '#1677ff' }} />Copiar empresa existente</span>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2, marginLeft: 22 }}>
+                    Hereda configuración de una empresa ya configurada (plan de cuentas, series, sucursales…)
+                  </div>
+                </Radio>
+              </Radio.Group>
+
+              {createMode === 'clone' && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+                  <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 13 }}>Empresa origen</div>
+                  <Select
+                    style={{ width: '100%', marginBottom: 14 }}
+                    placeholder="Seleccionar empresa a copiar..."
+                    showSearch
+                    optionFilterProp="label"
+                    value={sourceCompanyId}
+                    onChange={setSourceCompanyId}
+                    options={allCompanies.map(c => ({
+                      value: c.id,
+                      label: `${c.legalName} (${c.countryCode} · ${c.currencyCode})`,
+                    }))}
+                  />
+                  <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 13 }}>Elementos a copiar</div>
+                  <Checkbox.Group
+                    value={cloneOptions}
+                    onChange={vals => setCloneOptions(vals as string[])}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                  >
+                    <Checkbox value="copyChartOfAccounts">Plan de cuentas contable</Checkbox>
+                    <Checkbox value="copyTaxes">Impuestos de la empresa</Checkbox>
+                    <Checkbox value="copyDocumentSeries">Series documentales (FACT, NC, OC…)</Checkbox>
+                    <Checkbox value="copyBranches">Sucursales</Checkbox>
+                    <Checkbox value="copySettings">Configuración general</Checkbox>
+                  </Checkbox.Group>
+                  <Alert
+                    style={{ marginTop: 12 }}
+                    type="info"
+                    showIcon
+                    message="No se copian: facturas, pagos, asientos, inventario, movimientos bancarios ni activos registrados"
+                  />
+                </div>
+              )}
+            </Card>
+          )}
 
           <Card title="Identificación" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>

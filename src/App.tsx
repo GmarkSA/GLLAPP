@@ -22,6 +22,8 @@ const SeriesDocumentalesPage = lazy(() => import('./pages/configuracion/empresas
 const ElectronicInvoicingPage = lazy(() => import('./pages/configuracion/empresas/ElectronicInvoicingPage'))
 const BankProfilesPage       = lazy(() => import('./pages/configuracion/empresas/BankProfilesPage'))
 const PlatformAdminPage      = lazy(() => import('./pages/admin/PlatformAdminPage'))
+const CompanyUsersPage       = lazy(() => import('./pages/configuracion/empresas/CompanyUsersPage'))
+const OnboardingWizardPage   = lazy(() => import('./pages/onboarding/OnboardingWizardPage'))
 
 // Ventas
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
@@ -216,8 +218,11 @@ export default function App() {
           <Route path="configuracion/empresas/facturacion-electronica"        element={<ElectronicInvoicingPage />} />
           <Route path="configuracion/empresas/bancos"                         element={<BankProfilesPage />} />
           <Route path="configuracion/empresas/:id"                            element={<EmpresaFormPage />} />
+          <Route path="configuracion/empresas/:id/usuarios"                   element={<CompanyUsersPage />} />
           <Route path="configuracion/empresas/:id/sucursales"                 element={<SucursalesPage />} />
-          <Route path="admin"                                                  element={<PlatformAdminPage />} />
+          <Route path="admin"                                                  element={<Navigate to="/admin/platform" replace />} />
+          <Route path="admin/platform"                                         element={<PlatformAdminPage />} />
+          <Route path="onboarding"                                             element={<OnboardingWizardPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

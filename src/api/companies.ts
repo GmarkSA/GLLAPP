@@ -47,6 +47,15 @@ export const companiesApi = {
   getSettings: (id: string)                           => api.get(`/companies/${id}/settings`).then(unwrap) as Promise<CompanySettings>,
   updateSettings: (id: string, dto: Partial<CompanySettings>) => api.patch(`/companies/${id}/settings`, dto).then(unwrap) as Promise<CompanySettings>,
 
+  // ── Usuarios por empresa ──────────────────────────────────────────────────
+  getCompanyUsers: (id: string)                           => api.get(`/companies/${id}/users`).then(unwrap),
+  assignUser: (id: string, dto: { userId: string; roleIds?: string[] }) => api.post(`/companies/${id}/users`, dto).then(unwrap),
+  updateCompanyUser: (id: string, userId: string, dto: any)             => api.patch(`/companies/${id}/users/${userId}`, dto).then(unwrap),
+  removeCompanyUser: (id: string, userId: string)                       => api.delete(`/companies/${id}/users/${userId}`),
+
+  // ── Clone (Template Engine) ───────────────────────────────────────────────
+  clone: (id: string, dto: any)                           => api.post(`/companies/${id}/clone`, dto).then(unwrap),
+
   getDocumentSeries: (id: string)                           => api.get(`/companies/${id}/document-series`).then(unwrap) as Promise<DocumentSeries[]>,
   createDocumentSeries: (id: string, dto: Partial<DocumentSeries>) => api.post(`/companies/${id}/document-series`, dto).then(unwrap) as Promise<DocumentSeries>,
   updateDocumentSeries: (seriesId: string, dto: Partial<DocumentSeries>) => api.patch(`/companies/document-series/${seriesId}`, dto).then(unwrap) as Promise<DocumentSeries>,
