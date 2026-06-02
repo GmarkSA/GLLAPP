@@ -55,6 +55,7 @@ export const companiesApi = {
 
   // ── Migración datos legacy (one-time) ────────────────────────────────────
   migrateLegacy: (id: string)                             => api.post(`/companies/${id}/migrate-legacy`).then(unwrap),
+  diagnoseData:  ()                                       => api.get('/companies/diagnose-data').then(unwrap),
 
   // ── Clone (Template Engine) ───────────────────────────────────────────────
   clone: (id: string, dto: any)                           => api.post(`/companies/${id}/clone`, dto).then(unwrap),

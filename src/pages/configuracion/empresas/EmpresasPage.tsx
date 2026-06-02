@@ -4,7 +4,8 @@ import {
   Table, Button, Tag, Space, Popconfirm, message, Typography, Badge, Modal,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, StarOutlined, StarFilled, BankOutlined, DatabaseOutlined,
+  PlusOutlined, EditOutlined, StarOutlined, StarFilled, BankOutlined,
+  DatabaseOutlined, BugOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { companiesApi } from '../../../api/companies'
@@ -165,14 +166,36 @@ export default function EmpresasPage() {
     },
   ]
 
+  const handleDiagnose = async () => {
+    try {
+      const data = await companiesApi.diagnoseData()
+      Modal.info({
+        title: 'Diagnóstico de datos',
+        width: 600,
+        content: (
+          <pre style={{ fontSize: 11, maxHeight: 400, overflow: 'auto', background: '#f5f5f5', padding: 12, borderRadius: 4 }}>
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        ),
+      })
+    } catch {
+      message.error('Error al obtener diagnóstico')
+    }
+  }
+
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Empresas</Title>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
-          onClick={() => navigate('/configuracion/empresas/nueva')}>
-          Nueva Empresa
-        </Button>
+        <Space>
+          <Button icon={<BugOutlined />} onClick={handleDiagnose} size="small" style={{ color: '#888' }}>
+            Diagnóstico
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+            onClick={() => navigate('/configuracion/empresas/nueva')}>
+            Nueva Empresa
+          </Button>
+        </Space>
       </div>
       <Table
         rowKey="id"
