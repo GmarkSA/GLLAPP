@@ -229,7 +229,12 @@ export default function ClienteFormPage() {
         message.error(`Completa los campos requeridos: ${names}`, 6)
         return
       }
-      message.error(e?.response?.data?.message || 'Error al guardar')
+      const data    = e?.response?.data
+      const raw     = data?.message ?? data?.error ?? data
+      const errMsg  = Array.isArray(raw) ? raw.join(' | ') : (typeof raw === 'string' ? raw : JSON.stringify(raw))
+      const status  = e?.response?.status ? ` (HTTP ${e.response.status})` : ''
+      message.error(errMsg ? `${errMsg}${status}` : `Error al guardar${status} — revisa la consola del navegador`, 8)
+      console.error('[ClienteForm] error:', e?.response?.data ?? e)
     } finally {
       setSaving(false)
     }
