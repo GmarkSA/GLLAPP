@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import {
   Table, Button, Tag, Modal, Form, Input, Select, Switch,
   InputNumber, Space, Tooltip, Popconfirm, Typography,
@@ -11,17 +11,18 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  getTaxes, createTax, updateTax, deleteTax, seedGuatemala, calculateTax,
+  getTaxes, createTax, updateTax, deleteTax, seedCountryTaxes, calculateTax,
   type Tax, type TaxTier,
 } from '../../../api/impuestos'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getLibroSATConfig, DEFAULT_CONFIG, type LibroSATConfig } from '../../../api/libros-sat'
+import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title, Text } = Typography
 const { Option } = Select
 const { TextArea } = Input
 
-// ── Helpers de presentación ────────────────────────────────────────────────
+// â”€â”€ Helpers de presentaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   iva:          { label: 'IVA',            color: 'blue'   },
@@ -35,9 +36,28 @@ const SUBTYPE_LABELS: Record<string, string> = {
   simple:        'Tasa simple',
   exempt:        'Exento',
   progressive:   'Progresivo por tramos',
-  retention_tax: 'Retención sobre impuesto',
+  retention_tax: 'RetenciÃ³n sobre impuesto',
 }
 
+const COUNTRY_TAX_LABELS: Record<string, { country: string; authority: string; taxName: string }> = {
+  GT: { country: 'Guatemala', authority: 'SAT Guatemala', taxName: 'IVA 12%' },
+  HN: { country: 'Honduras', authority: 'SAR Honduras', taxName: 'ISV 15%' },
+  NI: { country: 'Nicaragua', authority: 'DGI Nicaragua', taxName: 'IVA 15%' },
+  SV: { country: 'El Salvador', authority: 'MH El Salvador', taxName: 'IVA 13%' },
+  CR: { country: 'Costa Rica', authority: 'Hacienda CR', taxName: 'IVA 13%' },
+  PA: { country: 'Panama', authority: 'DGI Panama', taxName: 'ITBMS 7%' },
+}
+
+const countryFromCompany = (company: any): string => {
+  const raw = String(company?.countryCode ?? company?.country ?? 'GT').toUpperCase()
+  if (raw.includes('HONDURAS')) return 'HN'
+  if (raw.includes('NICARAGUA')) return 'NI'
+  if (raw.includes('SALVADOR')) return 'SV'
+  if (raw.includes('COSTA')) return 'CR'
+  if (raw.includes('PANAMA') || raw.includes('PANAM')) return 'PA'
+  if (raw.length === 2) return raw
+  return 'GT'
+}
 const APPLICABILITY_LABELS: Record<string, string> = {
   sales:     'Ventas',
   purchases: 'Compras',
@@ -55,16 +75,16 @@ function rateDisplay(tax: Tax): string {
   return `${tax.rate}%`
 }
 
-// ── Calculadora en tiempo real ─────────────────────────────────────────────
+// â”€â”€ Calculadora en tiempo real â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Recibe tiers por separado para evitar el bug de closure estale cuando
-// el impuesto aún no está guardado (id = 'preview')
+// el impuesto aÃºn no estÃ¡ guardado (id = 'preview')
 
 interface CalcResult {
   invoiceAmount: number   // valor factura (con IVA)
-  baseAmount:    number   // base sin IVA (÷1.12 si ISR)
+  baseAmount:    number   // base sin IVA (Ã·1.12 si ISR)
   breakdown:     { label: string; taxable: number; rate: number; amount: number }[]
   total:         number
-  netPayment:    number   // base - retención (para retenciones)
+  netPayment:    number   // base - retenciÃ³n (para retenciones)
 }
 
 function calcLocally(
@@ -83,7 +103,7 @@ function calcLocally(
   if (tax.subtype === 'simple') {
     let amt: number
     if (tax.isInclusive && Number(tax.rate) > 0) {
-      amt = inputAmount - baseAmount   // impuesto extraído del precio
+      amt = inputAmount - baseAmount   // impuesto extraÃ­do del precio
     } else {
       amt = (baseAmount * Number(tax.rate)) / 100   // impuesto agregado sobre la base
     }
@@ -112,7 +132,7 @@ function calcLocally(
     const ivaBase = (baseAmount * 12) / 100
     const ret     = (ivaBase * Number(tax.rate)) / 100
     breakdown.push({ label: `IVA 12% sobre Q${baseAmount.toFixed(2)}`, taxable: baseAmount, rate: 12, amount: ivaBase })
-    breakdown.push({ label: `Retención ${tax.rate}% del IVA`, taxable: ivaBase, rate: Number(tax.rate), amount: ret })
+    breakdown.push({ label: `RetenciÃ³n ${tax.rate}% del IVA`, taxable: ivaBase, rate: Number(tax.rate), amount: ret })
     total = ret
   }
 
@@ -149,7 +169,7 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
     <div style={{ background: '#f0f7ff', borderRadius: 8, padding: 16, marginTop: 12, border: '1px solid #bae0ff' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <CalculatorOutlined style={{ color: '#1B3A6B' }} />
-        <Text strong style={{ color: '#1B3A6B' }}>Vista previa del cálculo</Text>
+        <Text strong style={{ color: '#1B3A6B' }}>Vista previa del cÃ¡lculo</Text>
       </div>
 
       {/* Controles de entrada */}
@@ -184,18 +204,18 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
       {result && (
         <div style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #e8edf5' }}>
 
-          {/* Encabezado: precio → base (para IVA simple inclusivo o ISR en modo factura) */}
+          {/* Encabezado: precio â†’ base (para IVA simple inclusivo o ISR en modo factura) */}
           {(tax.isInclusive && tax.subtype === 'simple') || (isProgressive && inputMode === 'invoice') ? (
             <div style={{ background: '#f8faff', padding: '10px 14px', borderBottom: '1px solid #f0f0f0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <Text type="secondary">
-                  {tax.isInclusive ? '💰 Precio con IVA incluido' : 'Valor factura (con IVA)'}
+                  {tax.isInclusive ? 'ðŸ’° Precio con IVA incluido' : 'Valor factura (con IVA)'}
                 </Text>
                 <Text strong>{fmt(inputValue)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}>
                 <Text type="secondary">
-                  {tax.isInclusive ? `Base gravable (÷ ${1 + Number(tax.rate) / 100})` : 'Base sin IVA (÷ 1.12)'}
+                  {tax.isInclusive ? `Base gravable (Ã· ${1 + Number(tax.rate) / 100})` : 'Base sin IVA (Ã· 1.12)'}
                 </Text>
                 <Text strong style={{ color: '#1B3A6B' }}>{fmt(result.baseAmount)}</Text>
               </div>
@@ -238,7 +258,7 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
           <div style={{ padding: '10px 14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text strong style={{ color: '#1B3A6B', fontSize: 14 }}>
-                {tax.isWithholding ? '🔒 Total retención ISR' : 'Impuesto total'}
+                {tax.isWithholding ? 'ðŸ”’ Total retenciÃ³n ISR' : 'Impuesto total'}
               </Text>
               <Text strong style={{ color: '#1B3A6B', fontSize: 16 }}>
                 {fmt(result.total)}
@@ -252,7 +272,7 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
                   <Text style={{ fontSize: 12 }}>{fmt(result.baseAmount)}</Text>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Menos retención</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Menos retenciÃ³n</Text>
                   <Text style={{ fontSize: 12, color: '#ff4d4f' }}>- {fmt(result.total)}</Text>
                 </div>
                 <Divider style={{ margin: '6px 0' }} />
@@ -269,7 +289,7 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
   )
 }
 
-// ── Formulario de tramos progresivos ──────────────────────────────────────
+// â”€â”€ Formulario de tramos progresivos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function TiersEditor({
   tiers, onChange,
@@ -279,7 +299,7 @@ function TiersEditor({
 }) {
   const addTier = () => {
     const last = tiers[tiers.length - 1]
-    if (last?.upTo === null) return  // ya existe el último tramo abierto
+    if (last?.upTo === null) return  // ya existe el Ãºltimo tramo abierto
     onChange([...tiers, { upTo: null, rate: 0, label: 'Sobre el excedente' }])
   }
 
@@ -306,7 +326,7 @@ function TiersEditor({
             {i + 1}
           </div>
           <div style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Descripción</Text>
+            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>DescripciÃ³n</Text>
             <Input
               size="small"
               value={tier.label}
@@ -316,14 +336,14 @@ function TiersEditor({
           </div>
           <div style={{ width: 120 }}>
             <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
-              Límite superior (Q)
+              LÃ­mite superior (Q)
             </Text>
             <InputNumber
               size="small"
               style={{ width: '100%' }}
               value={tier.upTo ?? undefined}
               onChange={v => updateTier(i, 'upTo', v ?? null)}
-              placeholder="Sin límite"
+              placeholder="Sin lÃ­mite"
               formatter={v => v ? `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
             />
           </div>
@@ -357,14 +377,14 @@ function TiersEditor({
       </Button>
       {tiers[tiers.length - 1]?.upTo === null && (
         <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-          El último tramo no tiene límite — cubre el resto.
+          El Ãºltimo tramo no tiene lÃ­mite â€” cubre el resto.
         </Text>
       )}
     </div>
   )
 }
 
-// ── Modal crear/editar impuesto ────────────────────────────────────────────
+// â”€â”€ Modal crear/editar impuesto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function TaxModal({
   open, tax, taxes, onClose, onSaved,
@@ -380,13 +400,13 @@ function TaxModal({
   const [subtype,     setSubtype]     = useState<string>('simple')
   const [tiers,       setTiers]       = useState<TaxTier[]>([
     { upTo: 30000, rate: 5, label: 'Hasta Q 30,000.00' },
-    { upTo: null,  rate: 7, label: 'Más de Q 30,000.00' },
+    { upTo: null,  rate: 7, label: 'MÃ¡s de Q 30,000.00' },
   ])
   const [previewTax,  setPreviewTax]  = useState<Tax | null>(null)
   const [accounts,    setAccounts]    = useState<Account[]>([])
   const [libroConfig, setLibroConfig] = useState<LibroSATConfig>(DEFAULT_CONFIG)
 
-  // Carga accounts y configuración de columnas SAT cuando el modal abre
+  // Carga accounts y configuraciÃ³n de columnas SAT cuando el modal abre
   useEffect(() => {
     if (!open) return
     if (accounts.length === 0) {
@@ -409,7 +429,7 @@ function TaxModal({
         setSubtype('simple')
         setTiers([
           { upTo: 30000, rate: 5, label: 'Hasta Q 30,000.00' },
-          { upTo: null,  rate: 7, label: 'Más de Q 30,000.00' },
+          { upTo: null,  rate: 7, label: 'MÃ¡s de Q 30,000.00' },
         ])
         setPreviewTax(null)
       }
@@ -441,7 +461,7 @@ function TaxModal({
     }
   }
 
-  // Actualizar preview en tiempo real — usamos el valor de changed.subtype
+  // Actualizar preview en tiempo real â€” usamos el valor de changed.subtype
   // directamente para no depender del state estale
   const handleValuesChange = (changed: any, all: any) => {
     const newSubtype = changed.subtype ?? subtype
@@ -487,8 +507,8 @@ function TaxModal({
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="code" label="Código SAT" rules={[{ required: true }]}
-              tooltip="Código corto único, ej: IVA12, ISR, IVARET65">
+            <Form.Item name="code" label="CÃ³digo SAT" rules={[{ required: true }]}
+              tooltip="CÃ³digo corto Ãºnico, ej: IVA12, ISR, IVARET65">
               <Input placeholder="IVA12" style={{ textTransform: 'uppercase' }} />
             </Form.Item>
           </Col>
@@ -496,12 +516,12 @@ function TaxModal({
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="category" label="Categoría" rules={[{ required: true }]}>
+            <Form.Item name="category" label="CategorÃ­a" rules={[{ required: true }]}>
               <Select>
-                <Option value="iva">IVA — Impuesto al Valor Agregado</Option>
+                <Option value="iva">IVA â€” Impuesto al Valor Agregado</Option>
                 <Option value="iva_exento">IVA Exento</Option>
-                <Option value="iva_retenida">Retención de IVA</Option>
-                <Option value="isr">ISR — Retención en la Fuente</Option>
+                <Option value="iva_retenida">RetenciÃ³n de IVA</Option>
+                <Option value="isr">ISR â€” RetenciÃ³n en la Fuente</Option>
                 <Option value="other">Otro impuesto</Option>
               </Select>
             </Form.Item>
@@ -517,19 +537,19 @@ function TaxModal({
           </Col>
         </Row>
 
-        <Form.Item name="subtype" label="Tipo de cálculo" rules={[{ required: true }]}>
+        <Form.Item name="subtype" label="Tipo de cÃ¡lculo" rules={[{ required: true }]}>
           <Select onChange={v => setSubtype(v)}>
             <Option value="simple">
-              📊 Tasa simple — porcentaje fijo sobre el monto base (IVA 12%)
+              ðŸ“Š Tasa simple â€” porcentaje fijo sobre el monto base (IVA 12%)
             </Option>
             <Option value="exempt">
-              ✅ Exento — 0%, operaciones no gravadas
+              âœ… Exento â€” 0%, operaciones no gravadas
             </Option>
             <Option value="progressive">
-              📈 Progresivo por tramos — tasa diferente por rangos (ISR)
+              ðŸ“ˆ Progresivo por tramos â€” tasa diferente por rangos (ISR)
             </Option>
             <Option value="retention_tax">
-              🔗 Retención sobre impuesto — % de otro impuesto (IVA Retenida)
+              ðŸ”— RetenciÃ³n sobre impuesto â€” % de otro impuesto (IVA Retenida)
             </Option>
           </Select>
         </Form.Item>
@@ -549,7 +569,7 @@ function TaxModal({
         {subtype === 'progressive' && (
           <Form.Item label="Tramos del impuesto">
             <Alert
-              message="Impuesto progresivo — ISR Guatemala"
+              message="Impuesto progresivo â€” ISR Guatemala"
               description="Define tramos de monto con su tasa correspondiente. El impuesto se calcula acumulando cada tramo hasta agotar el monto total."
               type="info" showIcon style={{ marginBottom: 12 }}
             />
@@ -565,12 +585,12 @@ function TaxModal({
           </Form.Item>
         )}
 
-        {/* Retención sobre otro impuesto */}
+        {/* RetenciÃ³n sobre otro impuesto */}
         {subtype === 'retention_tax' && (
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="baseTaxCode" label="Impuesto base" rules={[{ required: true }]}
-                tooltip="El impuesto sobre el cual se calcula esta retención">
+                tooltip="El impuesto sobre el cual se calcula esta retenciÃ³n">
                 <Select placeholder="Selecciona el impuesto base">
                   {taxes.filter(t => t.subtype === 'simple').map(t => (
                     <Option key={t.code} value={t.code}>{t.name} ({t.code})</Option>
@@ -579,7 +599,7 @@ function TaxModal({
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="rate" label="Porcentaje de retención" rules={[{ required: true }]}>
+              <Form.Item name="rate" label="Porcentaje de retenciÃ³n" rules={[{ required: true }]}>
                 <InputNumber
                   min={0} max={100} precision={2}
                   style={{ width: '100%' }}
@@ -592,7 +612,7 @@ function TaxModal({
 
         {/* Cuentas contables */}
         <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
-          Cuentas contables (para partidas automáticas)
+          Cuentas contables (para partidas automÃ¡ticas)
         </Divider>
         <Row gutter={16}>
           <Col span={12}>
@@ -611,8 +631,8 @@ function TaxModal({
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="purchaseAccountId" label="Cuenta compras (débito)"
-              tooltip="Cuenta que se debita al registrar este impuesto en compras (ej: IVA Crédito Fiscal 1150)">
+            <Form.Item name="purchaseAccountId" label="Cuenta compras (dÃ©bito)"
+              tooltip="Cuenta que se debita al registrar este impuesto en compras (ej: IVA CrÃ©dito Fiscal 1150)">
               <Select
                 allowClear
                 showSearch
@@ -627,8 +647,8 @@ function TaxModal({
           </Col>
         </Row>
         {subtype === 'retention_tax' && (
-          <Form.Item name="retentionAccountId" label="Cuenta retención"
-            tooltip="Cuenta de pasivo donde se registra el importe retenido (ej: Retención IVA por Enterar 2215)">
+          <Form.Item name="retentionAccountId" label="Cuenta retenciÃ³n"
+            tooltip="Cuenta de pasivo donde se registra el importe retenido (ej: RetenciÃ³n IVA por Enterar 2215)">
             <Select
               allowClear
               showSearch
@@ -642,24 +662,24 @@ function TaxModal({
           </Form.Item>
         )}
 
-        <Form.Item name="description" label="Descripción / Fundamento legal">
-          <TextArea rows={2} placeholder="Decreto 27-92, Art. 10 — Tasa general del IVA" />
+        <Form.Item name="description" label="DescripciÃ³n / Fundamento legal">
+          <TextArea rows={2} placeholder="Decreto 27-92, Art. 10 â€” Tasa general del IVA" />
         </Form.Item>
 
-        {/* Vinculación a Libros SAT — opciones dinámicas desde Configuración → Columnas Libros SAT */}
+        {/* VinculaciÃ³n a Libros SAT â€” opciones dinÃ¡micas desde ConfiguraciÃ³n â†’ Columnas Libros SAT */}
         <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
-          Vinculación a Libros SAT
+          VinculaciÃ³n a Libros SAT
         </Divider>
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="libroComprasCol"
               label="Columna en Libro de Compras"
-              tooltip="Columna del Libro de Compras y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en Configuración → Columnas Libros SAT."
+              tooltip="Columna del Libro de Compras y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en ConfiguraciÃ³n â†’ Columnas Libros SAT."
             >
               <Select
                 allowClear
-                placeholder="Sin asignación"
+                placeholder="Sin asignaciÃ³n"
                 options={libroConfig.compras
                   .filter(c => c.isActive)
                   .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -672,11 +692,11 @@ function TaxModal({
             <Form.Item
               name="libroVentasCol"
               label="Columna en Libro de Ventas"
-              tooltip="Columna del Libro de Ventas y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en Configuración → Columnas Libros SAT."
+              tooltip="Columna del Libro de Ventas y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en ConfiguraciÃ³n â†’ Columnas Libros SAT."
             >
               <Select
                 allowClear
-                placeholder="Sin asignación"
+                placeholder="Sin asignaciÃ³n"
                 options={libroConfig.ventas
                   .filter(c => c.isActive)
                   .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -693,7 +713,7 @@ function TaxModal({
               name="isInclusive"
               label="Modo de precio"
               valuePropName="checked"
-              tooltip="IVA incluido: el precio ya contiene el impuesto (Q 1,000 → Base Q 892.86 + IVA Q 107.14 = Q 1,000). IVA excluido: el impuesto se suma sobre el precio (Q 1,000 + IVA Q 120 = Q 1,120)."
+              tooltip="IVA incluido: el precio ya contiene el impuesto (Q 1,000 â†’ Base Q 892.86 + IVA Q 107.14 = Q 1,000). IVA excluido: el impuesto se suma sobre el precio (Q 1,000 + IVA Q 120 = Q 1,120)."
             >
               <Switch
                 checkedChildren="IVA incluido"
@@ -703,7 +723,7 @@ function TaxModal({
           </Col>
           <Col span={8}>
             <Form.Item name="isDefault" label="Aplicar por defecto" valuePropName="checked">
-              <Switch checkedChildren="Sí" unCheckedChildren="No" />
+              <Switch checkedChildren="SÃ­" unCheckedChildren="No" />
             </Form.Item>
           </Col>
           <Col span={8}>
@@ -725,9 +745,12 @@ function TaxModal({
   )
 }
 
-// ── Página principal ───────────────────────────────────────────────────────
+// â”€â”€ PÃ¡gina principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function ImpuestosPage() {
+  const activeCompany = useCompanyStore(s => s.activeCompany)
+  const defaultCountry = countryFromCompany(activeCompany)
+  const [countryCode, setCountryCode] = useState(defaultCountry)
   const [taxes,   setTaxes]   = useState<Tax[]>([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
@@ -747,14 +770,17 @@ export default function ImpuestosPage() {
 
   useEffect(() => { fetchTaxes() }, [fetchTaxes])
 
+  useEffect(() => { setCountryCode(defaultCountry) }, [defaultCountry])
+
   const handleSeed = async () => {
     setSeeding(true)
     try {
-      const r = await seedGuatemala()
-      message.success(`✓ Catálogo Guatemala: ${r.created} impuestos creados, ${r.skipped} ya existían`)
+      const r = await seedCountryTaxes(countryCode)
+      const meta = COUNTRY_TAX_LABELS[countryCode] ?? COUNTRY_TAX_LABELS.GT
+      message.success(`${meta.country}: ${r.created} impuestos creados, ${r.skipped} ya existian`)
       fetchTaxes()
-    } catch {
-      message.error('Error al inicializar catálogo')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al inicializar catalogo fiscal')
     } finally {
       setSeeding(false)
     }
@@ -772,7 +798,7 @@ export default function ImpuestosPage() {
 
   const columns: ColumnsType<Tax> = [
     {
-      title: 'Código',
+      title: 'CÃ³digo',
       dataIndex: 'code',
       width: 110,
       render: (v, r) => (
@@ -790,14 +816,14 @@ export default function ImpuestosPage() {
           <div style={{ fontWeight: 500 }}>{v}</div>
           {r.description && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {r.description.length > 60 ? r.description.slice(0, 60) + '…' : r.description}
+              {r.description.length > 60 ? r.description.slice(0, 60) + 'â€¦' : r.description}
             </Text>
           )}
         </div>
       ),
     },
     {
-      title: 'Categoría',
+      title: 'CategorÃ­a',
       dataIndex: 'category',
       width: 130,
       render: (v: string) => {
@@ -806,7 +832,7 @@ export default function ImpuestosPage() {
       },
     },
     {
-      title: 'Tipo de cálculo',
+      title: 'Tipo de cÃ¡lculo',
       dataIndex: 'subtype',
       width: 180,
       render: (v: string, r) => (
@@ -832,7 +858,7 @@ export default function ImpuestosPage() {
       title: '',
       width: 40,
       render: (_, r) => r.isWithholding
-        ? <Tooltip title="Retención — el comprador retiene este impuesto"><Badge color="orange" text="" /></Tooltip>
+        ? <Tooltip title="RetenciÃ³n â€” el comprador retiene este impuesto"><Badge color="orange" text="" /></Tooltip>
         : null,
     },
     {
@@ -857,10 +883,10 @@ export default function ImpuestosPage() {
           </Tooltip>
           {!r.isSystem && (
             <Popconfirm
-              title="¿Desactivar impuesto?"
+              title="Â¿Desactivar impuesto?"
               description="El impuesto no se elimina, solo se desactiva."
               onConfirm={() => handleDelete(r.id)}
-              okText="Sí, desactivar"
+              okText="SÃ­, desactivar"
               okButtonProps={{ danger: true }}
             >
               <Tooltip title="Desactivar">
@@ -882,20 +908,24 @@ export default function ImpuestosPage() {
         <div>
           <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Impuestos</Title>
           <Text type="secondary">
-            Configura IVA, retenciones ISR e IVA según normativa SAT Guatemala
+            Configura impuestos por pais para la empresa activa y vincula cada impuesto al libro fiscal
           </Text>
         </div>
         <Space>
-          {!hasTaxes && (
-            <Button
-              icon={<ThunderboltOutlined />}
-              loading={seeding}
-              onClick={handleSeed}
-              style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
-            >
-              Inicializar catálogo Guatemala
-            </Button>
-          )}
+          <Select
+            value={countryCode}
+            onChange={setCountryCode}
+            style={{ width: 180 }}
+            options={Object.entries(COUNTRY_TAX_LABELS).map(([value, meta]) => ({ value, label: `${value} - ${meta.country}` }))}
+          />
+          <Button
+            icon={<ThunderboltOutlined />}
+            loading={seeding}
+            onClick={handleSeed}
+            style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+          >
+            Cargar plantilla fiscal
+          </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -913,8 +943,7 @@ export default function ImpuestosPage() {
           message="Sin impuestos configurados"
           description={
             <div>
-              Haz clic en <strong>Inicializar catálogo Guatemala</strong> para agregar
-              automáticamente: IVA 12%, IVA Exento, ISR Retención (5%/7%) e IVA Retenida (15%, 30%, 65%).
+              Selecciona el pais fiscal y carga la plantilla base de impuestos para la empresa activa.
               <br />
               <Button
                 type="link" style={{ padding: 0, marginTop: 4 }}
@@ -922,7 +951,7 @@ export default function ImpuestosPage() {
                 loading={seeding}
                 onClick={handleSeed}
               >
-                Inicializar ahora →
+                Cargar plantilla ahora
               </Button>
             </div>
           }
@@ -946,7 +975,7 @@ export default function ImpuestosPage() {
           pagination={false}
           size="middle"
           rowClassName={(r) => r.isSystem ? 'system-row' : ''}
-          locale={{ emptyText: 'Sin impuestos — usa el catálogo Guatemala para empezar' }}
+          locale={{ emptyText: 'Sin impuestos - carga una plantilla fiscal o crea un impuesto manualmente' }}
         />
       </Card>
 
@@ -958,7 +987,7 @@ export default function ImpuestosPage() {
           </Space>
         ))}
         <Text type="secondary" style={{ fontSize: 12 }}>
-          · 🟠 Naranja = retención (el comprador retiene al fisco)
+          Naranja = retencion (el comprador retiene al fisco)
         </Text>
       </div>
 
@@ -973,3 +1002,7 @@ export default function ImpuestosPage() {
     </div>
   )
 }
+
+
+
+

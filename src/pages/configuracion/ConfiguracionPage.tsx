@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Layout, Menu, Form, Input, Button, Select, Upload, Avatar,
@@ -34,10 +34,10 @@ const { Title, Text } = Typography
 const { Option } = Select
 const { TextArea } = Input
 
-// ── Sidebar sections (Zoho Books pattern) ──────────────────────────────────
+// â”€â”€ Sidebar sections (Zoho Books pattern) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const sections = [
-  { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organización' },
-  { key: 'fiscal',          icon: <FileTextOutlined />,     label: 'Configuración fiscal' },
+  { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organizaciÃ³n' },
+  { key: 'fiscal',          icon: <FileTextOutlined />,     label: 'ConfiguraciÃ³n fiscal' },
   { key: 'taxes',           icon: <PercentageOutlined />,   label: 'Impuestos' },
   { key: 'librosSAT',       icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
   { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
@@ -49,26 +49,26 @@ const sections = [
 ]
 
 const COUNTRIES = [
-  'Guatemala', 'México', 'El Salvador', 'Honduras', 'Costa Rica',
-  'Panamá', 'Colombia', 'Estados Unidos', 'España', 'Otro',
+  'Guatemala', 'MÃ©xico', 'El Salvador', 'Honduras', 'Costa Rica',
+  'PanamÃ¡', 'Colombia', 'Estados Unidos', 'EspaÃ±a', 'Otro',
 ]
 
 const TIMEZONES = [
   { value: 'America/Guatemala',    label: '(GMT-6) Guatemala' },
-  { value: 'America/Mexico_City',  label: '(GMT-6) Ciudad de México' },
-  { value: 'America/Bogota',       label: '(GMT-5) Bogotá' },
+  { value: 'America/Mexico_City',  label: '(GMT-6) Ciudad de MÃ©xico' },
+  { value: 'America/Bogota',       label: '(GMT-5) BogotÃ¡' },
   { value: 'America/New_York',     label: '(GMT-5) Nueva York' },
-  { value: 'America/Los_Angeles',  label: '(GMT-8) Los Ángeles' },
+  { value: 'America/Los_Angeles',  label: '(GMT-8) Los Ãngeles' },
   { value: 'Europe/Madrid',        label: '(GMT+1) Madrid' },
 ]
 
 const CURRENCIES = [
   { code: 'GTQ', label: 'Quetzal guatemalteco (Q)' },
-  { code: 'USD', label: 'Dólar estadounidense ($)' },
+  { code: 'USD', label: 'DÃ³lar estadounidense ($)' },
   { code: 'HNL', label: 'Lempira hondureno (L)' },
   { code: 'NIO', label: 'Cordoba nicaraguense (C$)' },
   { code: 'MXN', label: 'Peso mexicano ($)' },
-  { code: 'EUR', label: 'Euro (€)' },
+  { code: 'EUR', label: 'Euro (â‚¬)' },
   { code: 'COP', label: 'Peso colombiano ($)' },
 ]
 
@@ -81,7 +81,25 @@ const FISCAL_MONTHS = [
   { value: '11', label: 'Noviembre' }, { value: '12', label: 'Diciembre' },
 ]
 
-// ── Sub-pages ──────────────────────────────────────────────────────────────
+const COUNTRY_FISCAL_CONFIG: Record<string, { country: string; taxIdLabel: string; authority: string; invoiceName: string; timezone: string; currency: string }> = {
+  GT: { country: 'Guatemala', taxIdLabel: 'NIT del emisor', authority: 'SAT Guatemala', invoiceName: 'Facturacion electronica FEL', timezone: 'America/Guatemala', currency: 'GTQ' },
+  HN: { country: 'Honduras', taxIdLabel: 'RTN del emisor', authority: 'SAR Honduras', invoiceName: 'Facturacion electronica', timezone: 'America/Tegucigalpa', currency: 'HNL' },
+  NI: { country: 'Nicaragua', taxIdLabel: 'RUC del emisor', authority: 'DGI Nicaragua', invoiceName: 'Facturacion electronica', timezone: 'America/Managua', currency: 'NIO' },
+  SV: { country: 'El Salvador', taxIdLabel: 'NIT del emisor', authority: 'Ministerio de Hacienda', invoiceName: 'Facturacion electronica', timezone: 'America/El_Salvador', currency: 'USD' },
+  CR: { country: 'Costa Rica', taxIdLabel: 'Cedula juridica del emisor', authority: 'Ministerio de Hacienda CR', invoiceName: 'Facturacion electronica', timezone: 'America/Costa_Rica', currency: 'CRC' },
+  PA: { country: 'Panama', taxIdLabel: 'RUC del emisor', authority: 'DGI Panama', invoiceName: 'Facturacion electronica', timezone: 'America/Panama', currency: 'USD' },
+}
+
+const countryCodeFromValue = (value?: string | null): string => {
+  const raw = String(value ?? '').toUpperCase()
+  if (raw === 'HN' || raw.includes('HONDURAS')) return 'HN'
+  if (raw === 'NI' || raw.includes('NICARAGUA')) return 'NI'
+  if (raw === 'SV' || raw.includes('SALVADOR')) return 'SV'
+  if (raw === 'CR' || raw.includes('COSTA')) return 'CR'
+  if (raw === 'PA' || raw.includes('PANAMA') || raw.includes('PANAM')) return 'PA'
+  return raw === 'GT' || raw.includes('GUATEMALA') ? 'GT' : 'GT'
+}
+// â”€â”€ Sub-pages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function OrganizationSection({
   profile, loading, onSave,
@@ -92,6 +110,7 @@ function OrganizationSection({
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+
   const [logoUrl, setLogoUrl] = useState<string | undefined>(profile?.logoUrl)
   const [uploading, setUploading] = useState(false)
 
@@ -135,8 +154,8 @@ function OrganizationSection({
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Perfil de organización</Title>
-          <Text type="secondary">Información general de tu empresa que aparece en documentos y reportes</Text>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Perfil de organizaciÃ³n</Title>
+          <Text type="secondary">InformaciÃ³n general de tu empresa que aparece en documentos y reportes</Text>
         </div>
 
         {/* Logo row */}
@@ -179,11 +198,11 @@ function OrganizationSection({
                 {profile?.name || 'Tu empresa'}
               </div>
               <Text type="secondary" style={{ fontSize: 13 }}>
-                Haz clic en el ícono de cámara para cambiar el logo
+                Haz clic en el Ã­cono de cÃ¡mara para cambiar el logo
               </Text>
               <br />
               <Text type="secondary" style={{ fontSize: 12 }}>
-                PNG, JPG o SVG — máximo 2 MB, recomendado 200×200 px
+                PNG, JPG o SVG â€” mÃ¡ximo 2 MB, recomendado 200Ã—200 px
               </Text>
             </div>
           </div>
@@ -193,7 +212,7 @@ function OrganizationSection({
         <Form form={form} layout="vertical" style={{ marginTop: 20 }}>
 
           {/* Basic info */}
-          <SectionCard title="Información básica" icon={<BankOutlined />}>
+          <SectionCard title="InformaciÃ³n bÃ¡sica" icon={<BankOutlined />}>
             <Row gutter={20}>
               <Col xs={24} md={12}>
                 <Form.Item name="name" label="Nombre comercial" rules={[{ required: true, message: 'Requerido' }]}>
@@ -201,8 +220,8 @@ function OrganizationSection({
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="legalName" label="Razón social">
-                  <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
+                <Form.Item name="legalName" label="RazÃ³n social">
+                  <Input placeholder="MI EMPRESA SOCIEDAD ANÃ“NIMA" size="large" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
@@ -213,8 +232,8 @@ function OrganizationSection({
               <Col xs={24} md={12}>
                 <Form.Item name="industry" label="Industria">
                   <Select placeholder="Selecciona una industria" size="large">
-                    {['Comercio', 'Manufactura', 'Servicios profesionales', 'Tecnología',
-                      'Construcción', 'Salud', 'Educación', 'Agricultura', 'Otro'].map(i =>
+                    {['Comercio', 'Manufactura', 'Servicios profesionales', 'TecnologÃ­a',
+                      'ConstrucciÃ³n', 'Salud', 'EducaciÃ³n', 'Agricultura', 'Otro'].map(i =>
                       <Option key={i} value={i}>{i}</Option>
                     )}
                   </Select>
@@ -224,15 +243,15 @@ function OrganizationSection({
           </SectionCard>
 
           {/* Contact */}
-          <SectionCard title="Información de contacto" icon={<MailOutlined />}>
+          <SectionCard title="InformaciÃ³n de contacto" icon={<MailOutlined />}>
             <Row gutter={20}>
               <Col xs={24} md={12}>
-                <Form.Item name="email" label="Correo electrónico" rules={[{ type: 'email', message: 'Email inválido' }]}>
+                <Form.Item name="email" label="Correo electrÃ³nico" rules={[{ type: 'email', message: 'Email invÃ¡lido' }]}>
                   <Input placeholder="info@miempresa.com" size="large" prefix={<MailOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="phone" label="Teléfono">
+                <Form.Item name="phone" label="TelÃ©fono">
                   <Input placeholder="+502 2345-6789" size="large" prefix={<PhoneOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
               </Col>
@@ -245,10 +264,10 @@ function OrganizationSection({
           </SectionCard>
 
           {/* Address */}
-          <SectionCard title="Dirección" icon={<EnvironmentOutlined />}>
+          <SectionCard title="DirecciÃ³n" icon={<EnvironmentOutlined />}>
             <Row gutter={20}>
               <Col xs={24}>
-                <Form.Item name="address" label="Dirección">
+                <Form.Item name="address" label="DirecciÃ³n">
                   <TextArea
                     placeholder="5a Avenida 4-50, Zona 1"
                     rows={2}
@@ -268,13 +287,13 @@ function OrganizationSection({
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
-                <Form.Item name="zipCode" label="Código postal">
+                <Form.Item name="zipCode" label="CÃ³digo postal">
                   <Input placeholder="01001" size="large" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="country" label="País">
-                  <Select placeholder="Selecciona un país" size="large">
+                <Form.Item name="country" label="PaÃ­s">
+                  <Select placeholder="Selecciona un paÃ­s" size="large">
                     {COUNTRIES.map(c => <Option key={c} value={c}>{c}</Option>)}
                   </Select>
                 </Form.Item>
@@ -310,10 +329,23 @@ function FiscalSection({
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const activeCompany = useCompanyStore(s => s.activeCompany)
+  const companyCountryCode = countryCodeFromValue((activeCompany as any)?.countryCode ?? (activeCompany as any)?.country ?? profile?.country)
+  const watchedCountry = Form.useWatch(['settings', 'fiscalCountryCode'], form)
+  const fiscalCountryCode = countryCodeFromValue(watchedCountry ?? companyCountryCode)
+  const fiscalMeta = COUNTRY_FISCAL_CONFIG[fiscalCountryCode] ?? COUNTRY_FISCAL_CONFIG.GT
 
   useEffect(() => {
-    if (profile) form.setFieldsValue(profile)
-  }, [profile, form])
+    if (profile) {
+      form.setFieldsValue({
+        ...profile,
+        settings: {
+          ...(profile as any).settings,
+          fiscalCountryCode: (profile as any).settings?.fiscalCountryCode ?? companyCountryCode,
+        },
+      })
+    }
+  }, [profile, form, companyCountryCode])
 
   const handleSave = async () => {
     const values = await form.validateFields()
@@ -326,15 +358,34 @@ function FiscalSection({
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Configuración fiscal</Title>
-          <Text type="secondary">Parámetros para la generación de documentos fiscales y reportes</Text>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>ConfiguraciÃ³n fiscal</Title>
+          <Text type="secondary">ParÃ¡metros para la generaciÃ³n de documentos fiscales y reportes</Text>
         </div>
 
         <Form form={form} layout="vertical">
-          <SectionCard title="Año fiscal" icon={<ClockCircleOutlined />}>
+          <SectionCard title="Pais fiscal" icon={<GlobalOutlined />}>
             <Row gutter={20}>
               <Col xs={24} md={12}>
-                <Form.Item name="fiscalYearStart" label="Inicio del año fiscal">
+                <Form.Item name={['settings', 'fiscalCountryCode']} label="Pais / autoridad fiscal">
+                  <Select size="large" placeholder="Selecciona pais fiscal">
+                    {Object.entries(COUNTRY_FISCAL_CONFIG).map(([code, meta]) => (
+                      <Option key={code} value={code}>{code} - {meta.country}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Moneda local / consolidacion">
+                  <Input value={`${fiscalMeta.currency} / USD`} size="large" disabled />
+                </Form.Item>
+              </Col>
+            </Row>
+          </SectionCard>
+
+          <SectionCard title="AÃ±o fiscal" icon={<ClockCircleOutlined />}>
+            <Row gutter={20}>
+              <Col xs={24} md={12}>
+                <Form.Item name="fiscalYearStart" label="Inicio del aÃ±o fiscal">
                   <Select placeholder="Mes de inicio" size="large">
                     {FISCAL_MONTHS.map(m => (
                       <Option key={m.value} value={m.value}>{m.label}</Option>
@@ -342,7 +393,7 @@ function FiscalSection({
                   </Select>
                 </Form.Item>
                 <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 16 }}>
-                  El año fiscal de Guatemala inicia en enero (01)
+                  El anio fiscal de este pais inicia en el mes seleccionado
                 </Text>
               </Col>
               <Col xs={24} md={12}>
@@ -357,27 +408,27 @@ function FiscalSection({
             </Row>
           </SectionCard>
 
-          <SectionCard title="Facturación electrónica (FEL)" icon={<FileTextOutlined />}>
+          <SectionCard title={fiscalMeta.invoiceName} icon={<FileTextOutlined />}>
             <div style={{
               background: '#f0f7ff', borderRadius: 8, padding: '16px 20px',
               border: '1px solid #bae0ff', marginBottom: 16,
             }}>
               <Space>
-                <Tag color="blue">SAT Guatemala</Tag>
+                <Tag color="blue">{fiscalMeta.authority}</Tag>
                 <Text style={{ fontSize: 13 }}>
-                  La configuración de certificadores FEL se realiza en la sección <strong>Integraciones → FEL</strong>
+                  La configuracion de facturacion electronica se realiza en la seccion <strong>Integraciones</strong>
                 </Text>
               </Space>
             </div>
             <Row gutter={20}>
               <Col xs={24} md={12}>
-                <Form.Item name="taxId" label="NIT del emisor">
+                <Form.Item name="taxId" label={fiscalMeta.taxIdLabel}>
                   <Input placeholder="1234567-8" size="large" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="legalName" label="Nombre del emisor (como en SAT)">
-                  <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
+                <Form.Item name="legalName" label={`Nombre del emisor (como en ${fiscalMeta.authority})`}>
+                  <Input placeholder="MI EMPRESA SOCIEDAD ANÃ“NIMA" size="large" />
                 </Form.Item>
               </Col>
             </Row>
@@ -398,21 +449,21 @@ function FiscalSection({
   )
 }
 
-// ── Catálogo de monedas disponibles ───────────────────────────────────────
+// â”€â”€ CatÃ¡logo de monedas disponibles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ALL_CURRENCIES = [
   { code: 'GTQ', name: 'Quetzal guatemalteco',   symbol: 'Q',   country: 'Guatemala' },
-  { code: 'USD', name: 'Dólar estadounidense',    symbol: '$',   country: 'Estados Unidos' },
-  { code: 'EUR', name: 'Euro',                    symbol: '€',   country: 'Unión Europea' },
-  { code: 'MXN', name: 'Peso mexicano',           symbol: '$',   country: 'México' },
+  { code: 'USD', name: 'DÃ³lar estadounidense',    symbol: '$',   country: 'Estados Unidos' },
+  { code: 'EUR', name: 'Euro',                    symbol: 'â‚¬',   country: 'UniÃ³n Europea' },
+  { code: 'MXN', name: 'Peso mexicano',           symbol: '$',   country: 'MÃ©xico' },
   { code: 'COP', name: 'Peso colombiano',         symbol: '$',   country: 'Colombia' },
-  { code: 'HNL', name: 'Lempira hondureño',       symbol: 'L',   country: 'Honduras' },
+  { code: 'HNL', name: 'Lempira hondureÃ±o',       symbol: 'L',   country: 'Honduras' },
   { code: 'NIO', name: 'Cordoba nicaraguense',    symbol: 'C$',  country: 'Nicaragua' },
-  { code: 'CRC', name: 'Colón costarricense',     symbol: '₡',   country: 'Costa Rica' },
+  { code: 'CRC', name: 'ColÃ³n costarricense',     symbol: 'â‚¡',   country: 'Costa Rica' },
   { code: 'DOP', name: 'Peso dominicano',         symbol: 'RD$', country: 'Rep. Dominicana' },
-  { code: 'PEN', name: 'Sol peruano',             symbol: 'S/',  country: 'Perú' },
+  { code: 'PEN', name: 'Sol peruano',             symbol: 'S/',  country: 'PerÃº' },
   { code: 'CLP', name: 'Peso chileno',            symbol: '$',   country: 'Chile' },
-  { code: 'GBP', name: 'Libra esterlina',         symbol: '£',   country: 'Reino Unido' },
-  { code: 'CAD', name: 'Dólar canadiense',        symbol: 'CA$', country: 'Canadá' },
+  { code: 'GBP', name: 'Libra esterlina',         symbol: 'Â£',   country: 'Reino Unido' },
+  { code: 'CAD', name: 'DÃ³lar canadiense',        symbol: 'CA$', country: 'CanadÃ¡' },
 ]
 
 
@@ -533,7 +584,7 @@ function CurrencySection() {
                   </Tag>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Símbolo: {r.symbol}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>SÃ­mbolo: {r.symbol}</Text>
                   </div>
                   {r.isBase && <Tag color="gold" icon={<StarFilled />}>Base</Tag>}
                 </Space>
@@ -565,9 +616,9 @@ function CurrencySection() {
               width: 60,
               render: (_, r) => r.code === localCurrencyCode ? null : (
                 <Popconfirm
-                  title={`¿Eliminar ${r.name}?`}
+                  title={`Â¿Eliminar ${r.name}?`}
                   onConfirm={() => handleRemove(r.id, r.name)}
-                  okText="Sí" cancelText="No"
+                  okText="SÃ­" cancelText="No"
                   okButtonProps={{ danger: true }}
                 >
                   <Button type="text" danger size="small" icon={<DeleteOutlined />} />
@@ -592,7 +643,7 @@ function CurrencySection() {
           <Form.Item name="code" label="Moneda" rules={[{ required: true, message: 'Selecciona una moneda' }]}>
             <Select
               showSearch
-              placeholder="Busca por nombre o código..."
+              placeholder="Busca por nombre o cÃ³digo..."
               size="large"
               filterOption={(input, option) =>
                 String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
@@ -626,7 +677,7 @@ function CurrencySection() {
           </Form.Item>
 
           <Form.Item
-            extra="La actualización automática de tasas estará disponible próximamente"
+            extra="La actualizaciÃ³n automÃ¡tica de tasas estarÃ¡ disponible prÃ³ximamente"
           >
             <Text type="secondary" style={{ fontSize: 12 }}>
               Puedes actualizar la tasa manualmente en la tabla en cualquier momento.
@@ -687,7 +738,7 @@ function AccountDefaultsSection() {
       } as any)
       message.success('Cuentas por defecto guardadas correctamente')
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo guardar la configuración')
+      message.error(e?.response?.data?.message || 'No se pudo guardar la configuraciÃ³n')
     } finally {
       setSaving(false)
     }
@@ -695,7 +746,7 @@ function AccountDefaultsSection() {
 
   const accountOptions = accounts.map(a => ({
     value: a.code,
-    label: `${a.code} — ${a.name}`,
+    label: `${a.code} â€” ${a.name}`,
   }))
 
   return (
@@ -704,7 +755,7 @@ function AccountDefaultsSection() {
         <div style={{ marginBottom: 28 }}>
           <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Cuentas por defecto</Title>
           <Text type="secondary">
-            Define las cuentas contables que se usarán automáticamente al registrar anticipos y documentos sin cuenta específica
+            Define las cuentas contables que se usarÃ¡n automÃ¡ticamente al registrar anticipos y documentos sin cuenta especÃ­fica
           </Text>
         </div>
 
@@ -722,7 +773,7 @@ function AccountDefaultsSection() {
                 showSearch
                 style={{ width: '100%' }}
                 value={defaults.customerAdvanceAccountCode}
-                placeholder="Ej: 2110 — Anticipos de Clientes"
+                placeholder="Ej: 2110 â€” Anticipos de Clientes"
                 filterOption={(input, opt) =>
                   String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
                 }
@@ -746,7 +797,7 @@ function AccountDefaultsSection() {
                 showSearch
                 style={{ width: '100%' }}
                 value={defaults.vendorAdvanceAccountCode}
-                placeholder="Ej: 2500 — Anticipos a Proveedores"
+                placeholder="Ej: 2500 â€” Anticipos a Proveedores"
                 filterOption={(input, opt) =>
                   String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
                 }
@@ -763,14 +814,14 @@ function AccountDefaultsSection() {
                 <Text strong style={{ fontSize: 13 }}>Anticipo de empleados</Text>
                 <br />
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Cuenta de activo para anticipos de nómina o préstamos a empleados
+                  Cuenta de activo para anticipos de nÃ³mina o prÃ©stamos a empleados
                 </Text>
               </div>
               <Select
                 showSearch
                 style={{ width: '100%' }}
                 value={defaults.employeeAdvanceAccountCode}
-                placeholder="Ej: 1260 — Anticipos a Empleados"
+                placeholder="Ej: 1260 â€” Anticipos a Empleados"
                 filterOption={(input, opt) =>
                   String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
                 }
@@ -810,18 +861,18 @@ function ComingSoonSection({ title, description }: { title: string; description:
       </div>
       <Card bordered={false} style={cardStyle}>
         <div style={{ textAlign: 'center', padding: '48px 24px', color: '#8c8c8c' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>ðŸš§</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#1B3A6B', marginBottom: 8 }}>
             En desarrollo
           </div>
-          <div style={{ fontSize: 14 }}>Esta sección estará disponible próximamente</div>
+          <div style={{ fontSize: 14 }}>Esta secciÃ³n estarÃ¡ disponible prÃ³ximamente</div>
         </div>
       </Card>
     </div>
   )
 }
 
-// ── Helper components ──────────────────────────────────────────────────────
+// â”€â”€ Helper components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -846,7 +897,7 @@ const cardStyle: React.CSSProperties = {
   background: '#fff',
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────
+// â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function ConfiguracionPage() {
   const navigate   = useNavigate()
@@ -864,7 +915,7 @@ export default function ConfiguracionPage() {
       const data = await getOrganizationProfile()
       setProfile(data)
     } catch {
-      // Backend endpoint may not exist yet — use empty profile
+      // Backend endpoint may not exist yet â€” use empty profile
       setProfile({ name: '', email: '', country: 'Guatemala', currency: 'GTQ', fiscalYearStart: '01', timezone: 'America/Guatemala' })
     } finally {
       setLoading(false)
@@ -875,7 +926,7 @@ export default function ConfiguracionPage() {
     try {
       const updated = await updateOrganizationProfile(values)
       setProfile(prev => ({ ...prev, ...updated }))
-      message.success('✓ Cambios guardados correctamente')
+      message.success('âœ“ Cambios guardados correctamente')
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message
       const detail = Array.isArray(msg) ? msg.join(', ') : msg
@@ -905,7 +956,7 @@ export default function ConfiguracionPage() {
       case 'integrations':
         return <ComingSoonSection title="Integraciones" description="Conecta ContaERP con servicios externos: FEL, bancos, pagos" />
       case 'security':
-        return <ComingSoonSection title="Seguridad" description="Autenticación, tokens de API y registro de actividad" />
+        return <ComingSoonSection title="Seguridad" description="AutenticaciÃ³n, tokens de API y registro de actividad" />
       default:
         return null
     }
@@ -913,7 +964,7 @@ export default function ConfiguracionPage() {
 
   return (
     <Layout style={{ background: 'transparent', minHeight: 'calc(100vh - 112px)' }}>
-      {/* Left nav — Zoho Books style */}
+      {/* Left nav â€” Zoho Books style */}
       <Sider
         width={230}
         style={{
@@ -928,7 +979,7 @@ export default function ConfiguracionPage() {
       >
         <div style={{ padding: '20px 16px 12px' }}>
           <Text style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Configuración
+            ConfiguraciÃ³n
           </Text>
         </div>
         <Menu
@@ -957,3 +1008,5 @@ export default function ConfiguracionPage() {
     </Layout>
   )
 }
+
+

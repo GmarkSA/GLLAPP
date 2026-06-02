@@ -1,4 +1,4 @@
-import api from './axios'
+﻿import api from './axios'
 
 export type TaxCategory = 'iva' | 'iva_exento' | 'iva_retenida' | 'isr' | 'other'
 export type TaxSubtype  = 'simple' | 'exempt' | 'progressive' | 'retention_tax'
@@ -30,7 +30,7 @@ export interface Tax {
   salesAccountId?:     string
   purchaseAccountId?:  string
   retentionAccountId?: string
-  // Vinculación a libros SAT (configurable por empresa)
+  // VinculaciÃ³n a libros SAT (configurable por empresa)
   libroComprasCol?: string | null
   libroVentasCol?:  string | null
 }
@@ -49,5 +49,7 @@ export const createTax         = (dto: Partial<Tax>) => api.post('/configuracion
 export const updateTax         = (id: string, dto: Partial<Tax>) => api.patch(`/configuracion/impuestos/${id}`, dto).then(unwrap)
 export const deleteTax         = (id: string) => api.delete(`/configuracion/impuestos/${id}`)
 export const seedGuatemala     = () => api.get('/configuracion/impuestos/seed/guatemala').then(unwrap)
+export const seedCountryTaxes  = (countryCode: string) => api.post('/configuracion/impuestos/seed/country', { countryCode }).then(unwrap)
 export const calculateTax      = (id: string, amount: number): Promise<TaxCalculation> =>
   api.get(`/configuracion/impuestos/${id}/calculate`, { params: { amount } }).then(unwrap)
+
