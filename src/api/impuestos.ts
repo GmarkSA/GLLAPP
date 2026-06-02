@@ -1,4 +1,4 @@
-﻿import api from './axios'
+import api from './axios'
 
 export type TaxCategory = 'iva' | 'iva_exento' | 'iva_retenida' | 'isr' | 'other'
 export type TaxSubtype  = 'simple' | 'exempt' | 'progressive' | 'retention_tax'
@@ -30,7 +30,7 @@ export interface Tax {
   salesAccountId?:     string
   purchaseAccountId?:  string
   retentionAccountId?: string
-  // VinculaciÃ³n a libros SAT (configurable por empresa)
+  // Vinculación a libros SAT (configurable por empresa)
   libroComprasCol?: string | null
   libroVentasCol?:  string | null
 }

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Tag, Badge, Space, Typography, Statistic, Row, Col,
   Button, message, Modal, Descriptions, Spin, Popconfirm, Tabs,
@@ -112,7 +112,7 @@ export default function PlatformAdminPage() {
     setSeeding(true)
     try {
       const r = await api.post(`/admin/tenants/${tenantId}/seed-castillo`).then(unwrap)
-      message.success(`Grupo Castillo: ${r.created?.length ?? 0} creadas, ${r.skipped?.length ?? 0} ya existÃ­an`)
+      message.success(`Grupo Castillo: ${r.created?.length ?? 0} creadas, ${r.skipped?.length ?? 0} ya existían`)
       loadTenants()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error en seed Castillo')
@@ -172,21 +172,21 @@ export default function PlatformAdminPage() {
   const handleResetUserPassword = (tenantId: string, userId: string, label: string) => {
     let password = ''
     Modal.confirm({
-      title: `Cambiar contraseÃ±a de ${label}`,
+      title: `Cambiar contraseña de ${label}`,
       content: (
         <Input.Password
-          placeholder="Nueva contraseÃ±a"
+          placeholder="Nueva contraseña"
           onChange={e => { password = e.target.value }}
         />
       ),
       okText: 'Cambiar',
       onOk: async () => {
         if (!password || password.length < 6) {
-          message.error('La contraseÃ±a debe tener al menos 6 caracteres')
+          message.error('La contraseña debe tener al menos 6 caracteres')
           throw new Error('password-too-short')
         }
         await api.post(`/admin/tenants/${tenantId}/users/${userId}/reset-password`, { newPassword: password })
-        message.success('ContraseÃ±a actualizada')
+        message.success('Contraseña actualizada')
       },
     })
   }
@@ -305,7 +305,7 @@ export default function PlatformAdminPage() {
     {
       title: 'Estado',
       dataIndex: 'status', width: 110,
-      render: (v?: string) => <Badge status={STATUS_COLOR[v ?? ''] ?? 'default'} text={v ?? 'â€”'} />,
+      render: (v?: string) => <Badge status={STATUS_COLOR[v ?? ''] ?? 'default'} text={v ?? '—'} />,
     },
     { title: 'Empresas', dataIndex: 'companiesCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
@@ -315,9 +315,9 @@ export default function PlatformAdminPage() {
         <Space size={4}>
           <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} />
           <Popconfirm
-            title={r.status === 'suspended' ? 'Â¿Activar tenant?' : 'Â¿Suspender tenant por falta de pago?'}
+            title={r.status === 'suspended' ? '¿Activar tenant?' : '¿Suspender tenant por falta de pago?'}
             onConfirm={() => handleTenantStatus(r.id, r.status === 'suspended' ? 'active' : 'suspended')}
-            okText="SÃ­"
+            okText="Sí"
           >
             <Button
               size="small"
@@ -326,7 +326,7 @@ export default function PlatformAdminPage() {
               title={r.status === 'suspended' ? 'Activar tenant' : 'Suspender tenant'}
             />
           </Popconfirm>
-          <Popconfirm title="Â¿Crear Grupo Castillo (5 empresas) en este tenant?" onConfirm={() => handleSeedCastillo(r.id)} okText="SÃ­">
+          <Popconfirm title="¿Crear Grupo Castillo (5 empresas) en este tenant?" onConfirm={() => handleSeedCastillo(r.id)} okText="Sí">
             <Button size="small" icon={<RocketOutlined />} loading={seeding} title="Seed demo" />
           </Popconfirm>
         </Space>
@@ -419,7 +419,7 @@ export default function PlatformAdminPage() {
                           </Button>
                           <Popconfirm
                             title={`Eliminar plan "${plan.displayName}"?`}
-                            description="No se podrÃƒÂ¡ eliminar si estÃƒÂ¡ asignado a tenants."
+                            description="No se podrá eliminar si está asignado a tenants."
                             okText="Eliminar"
                             cancelText="Cancelar"
                             okButtonProps={{ danger: true }}
@@ -465,7 +465,7 @@ export default function PlatformAdminPage() {
                 {plans.length === 0 && (
                   <Col span={24}>
                     <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>
-                      Cargando planes... (se crean automÃ¡ticamente en el primer inicio del servidor)
+                      Cargando planes... (se crean automáticamente en el primer inicio del servidor)
                     </div>
                   </Col>
                 )}
@@ -495,8 +495,8 @@ export default function PlatformAdminPage() {
                 <Descriptions.Item label="Estado">
                   <Badge status={STATUS_COLOR[detail.status ?? ''] ?? 'default'} text={detail.status} />
                 </Descriptions.Item>
-                <Descriptions.Item label="NIT">{detail.taxId ?? 'â€”'}</Descriptions.Item>
-                <Descriptions.Item label="Creado">{detail.createdAt ? new Date(detail.createdAt).toLocaleDateString('es-GT') : 'â€”'}</Descriptions.Item>
+                <Descriptions.Item label="NIT">{detail.taxId ?? '—'}</Descriptions.Item>
+                <Descriptions.Item label="Creado">{detail.createdAt ? new Date(detail.createdAt).toLocaleDateString('es-GT') : '—'}</Descriptions.Item>
               </Descriptions>
               {detail.companies?.length > 0 && (
                 <>
@@ -578,7 +578,7 @@ export default function PlatformAdminPage() {
 
       {/* Modal crear / editar plan */}
       <Modal
-        title={<Space>{planMode === 'create' ? <PlusOutlined /> : <EditOutlined />}{planMode === 'create' ? 'Nuevo plan' : `Editar plan â€” ${editingPlan?.displayName}`}</Space>}
+        title={<Space>{planMode === 'create' ? <PlusOutlined /> : <EditOutlined />}{planMode === 'create' ? 'Nuevo plan' : `Editar plan — ${editingPlan?.displayName}`}</Space>}
         open={planModalOpen}
         onCancel={() => setPlanModalOpen(false)}
         onOk={handleSavePlan}
@@ -590,7 +590,7 @@ export default function PlatformAdminPage() {
         <Form form={planForm} layout="vertical" style={{ marginTop: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             {planMode === 'create' && (
-              <Form.Item name="plan" label="CÃ³digo" rules={[{ required: true }]}>
+              <Form.Item name="plan" label="Código" rules={[{ required: true }]}>
                 <Input placeholder="starter" />
               </Form.Item>
             )}
@@ -603,17 +603,17 @@ export default function PlatformAdminPage() {
             <Form.Item name="priceMonthly" label="Precio mensual" rules={[{ required: true }]}>
               <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix="$" />
             </Form.Item>
-            <Form.Item name="maxCompanies" label="MÃ¡x. empresas" rules={[{ required: true }]}>
+            <Form.Item name="maxCompanies" label="Máx. empresas" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="maxUsers" label="MÃ¡x. usuarios" rules={[{ required: true }]}>
+            <Form.Item name="maxUsers" label="Máx. usuarios" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="maxBranches" label="MÃ¡x. sucursales" rules={[{ required: true }]}>
+            <Form.Item name="maxBranches" label="Máx. sucursales" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
-          <Form.Item name="featuresText" label="CaracterÃ­sticas (una por lÃ­nea)">
+          <Form.Item name="featuresText" label="Características (una por línea)">
             <Input.TextArea rows={5} placeholder="1 empresa&#10;5 usuarios&#10;Soporte email" />
           </Form.Item>
         </Form>
