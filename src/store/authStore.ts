@@ -38,6 +38,7 @@ interface AuthState {
   logout: () => void
   setTenant: (tenantId: string) => void
   setActiveCompany: (company: Company) => void
+  bootstrapAuth: () => Promise<void>
 }
 
 interface RegisterData {
@@ -121,5 +122,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('activeCompanyId', company.id)
     localStorage.setItem('activeCompany', JSON.stringify(company))
     set({ activeCompanyId: company.id, activeCompany: company })
+  },
+
+  bootstrapAuth: async () => {
+    if (!localStorage.getItem('accessToken')) return
+    set({ isLoading: true })
+    try {
+      const { data: raw } = await api.get('/auth/me')
+      const user = raw?.data ?? raw
+      const tenantId = user?.tenantIds?.[0]
+      if (tenantId) {
+        localStorage.setItem('tenantId', tenantId)
+        set({ tenantId })
+      }
+      set({ user })
+    } catch {
+      // Token inválido — el interceptor de 401 maneja el logout
+    } finally {
+      set({ isLoading: false })
+    }
   },
 }))

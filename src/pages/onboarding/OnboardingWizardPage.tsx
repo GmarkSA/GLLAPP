@@ -111,19 +111,23 @@ export default function OnboardingWizardPage() {
       const company: any = await companiesApi.create(companyPayload)
       setCreatedCompanyId(company.id)
 
-      // 2. Inicializar plan de cuentas
+      // 2. Activar la empresa nueva ANTES de sembrar el catálogo.
+      // El interceptor de axios lee activeCompanyId del localStorage;
+      // sin este paso, seedGLL() sembraría en la empresa anterior.
+      await setActiveCompany(company)
+
+      // 3. Inicializar plan de cuentas (X-Company-ID ya apunta a la empresa nueva)
       if (selectedCOA === 'gll') {
         await seedGLL().catch(() => {})
       }
 
-      // 3. Asignar usuarios seleccionados
+      // 4. Asignar usuarios seleccionados
       for (const userId of selectedUsers) {
         await companiesApi.assignUser(company.id, { userId }).catch(() => {})
       }
 
-      // 4. Recargar empresas y activar la nueva
+      // 5. Recargar lista de empresas (setActiveCompany ya fue llamado)
       await loadCompanies()
-      await setActiveCompany(company)
 
       setDone(true)
     } catch (e: any) {

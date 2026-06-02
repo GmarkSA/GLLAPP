@@ -90,6 +90,10 @@ export default function MainLayout() {
   const location = useLocation()
   const { user, logout } = useAuthStore()
 
+  const visibleMenuItems = user?.isSuperAdmin
+    ? menuItems
+    : menuItems.filter(item => item.key !== '/admin/platform')
+
   const getOpenKey = (pathname: string) => {
     if (pathname.startsWith('/ventas'))        return ['ventas']
     if (pathname.startsWith('/compras'))       return ['compras']
@@ -175,7 +179,7 @@ export default function MainLayout() {
             mode="inline"
             selectedKeys={[location.pathname]}
             defaultOpenKeys={getOpenKey(location.pathname)}
-            items={menuItems}
+            items={visibleMenuItems}
             onClick={({ key }) => navigate(key)}
             style={{
               background: 'transparent',

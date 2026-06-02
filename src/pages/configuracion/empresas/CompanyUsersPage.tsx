@@ -5,6 +5,7 @@ import {
 } from 'antd'
 import { PlusOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useParams } from 'react-router-dom'
 import { companiesApi } from '../../../api/companies'
 import { getUsers, type TenantUser } from '../../../api/usuarios'
 import { useCompanyStore } from '../../../store/companyStore'
@@ -20,7 +21,14 @@ interface CompanyUser {
 }
 
 export default function CompanyUsersPage() {
-  const activeCompany = useCompanyStore(s => s.activeCompany)
+  const { id: urlCompanyId }  = useParams<{ id: string }>()
+  const activeCompany         = useCompanyStore(s => s.activeCompany)
+  // La URL es la fuente de verdad; si no hay param, cae al activo
+  const companyId             = urlCompanyId ?? activeCompany?.id ?? null
+  const companyName           = activeCompany?.id === companyId
+    ? (activeCompany?.legalName ?? companyId)
+    : companyId
+
   const [assignments, setAssignments] = useState<CompanyUser[]>([])
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([])
   const [loading, setLoading]         = useState(false)
@@ -29,11 +37,11 @@ export default function CompanyUsersPage() {
   const [saving, setSaving]           = useState(false)
 
   const load = useCallback(async () => {
-    if (!activeCompany) return
+    if (!companyId) return
     setLoading(true)
     try {
       const [users, all] = await Promise.all([
-        companiesApi.getCompanyUsers(activeCompany.id),
+        companiesApi.getCompanyUsers(companyId),
         getUsers(),
       ])
       setAssignments(Array.isArray(users) ? users : [])
@@ -43,17 +51,17 @@ export default function CompanyUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeCompany])
+  }, [companyId])
 
   useEffect(() => { load() }, [load])
 
   const getUser = (userId: string) => tenantUsers.find(u => u.id === userId)
 
   const handleAssign = async () => {
-    if (!activeCompany || !selectedUser) return
+    if (!companyId || !selectedUser) return
     setSaving(true)
     try {
-      await companiesApi.assignUser(activeCompany.id, { userId: selectedUser })
+      await companiesApi.assignUser(companyId, { userId: selectedUser })
       message.success('Usuario asignado correctamente')
       setModal(false)
       setSelectedUser(null)
@@ -66,9 +74,9 @@ export default function CompanyUsersPage() {
   }
 
   const handleRemove = async (userId: string) => {
-    if (!activeCompany) return
+    if (!companyId) return
     try {
-      await companiesApi.removeCompanyUser(activeCompany.id, userId)
+      await companiesApi.removeCompanyUser(companyId, userId)
       message.success('Acceso revocado')
       load()
     } catch {
@@ -134,7 +142,7 @@ export default function CompanyUsersPage() {
     },
   ]
 
-  if (!activeCompany) {
+  if (!companyId) {
     return <div style={{ padding: 24, color: '#999' }}>Seleccione una empresa para gestionar sus usuarios.</div>
   }
 
@@ -144,7 +152,7 @@ export default function CompanyUsersPage() {
         <div>
           <Title level={4} style={{ margin: 0 }}>
             <UserOutlined style={{ marginRight: 8, color: '#1B3A6B' }} />
-            Usuarios — {activeCompany.legalName}
+            Usuarios — {companyName}
           </Title>
           <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
             {assignments.length} usuario{assignments.length !== 1 ? 's' : ''} con acceso

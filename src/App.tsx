@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useAuthStore } from './store/authStore'
@@ -99,8 +99,17 @@ const PageLoader = () => (
 )
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, isLoading } = useAuthStore()
+  if (isLoading) return <PageLoader />
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isLoading } = useAuthStore()
+  if (isLoading) return <PageLoader />
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (!user?.isSuperAdmin) return <Navigate to="/dashboard" replace />
+  return <>{children}</>
 }
 
 function ComingSoon({ title }: { title: string }) {
@@ -114,6 +123,12 @@ function ComingSoon({ title }: { title: string }) {
 }
 
 export default function App() {
+  const { isAuthenticated, user, bootstrapAuth } = useAuthStore()
+
+  useEffect(() => {
+    if (isAuthenticated && !user) bootstrapAuth()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
@@ -221,8 +236,8 @@ export default function App() {
           <Route path="configuracion/empresas/:id/usuarios"                   element={<CompanyUsersPage />} />
           <Route path="configuracion/empresas/:id/sucursales"                 element={<SucursalesPage />} />
           <Route path="admin"                                                  element={<Navigate to="/admin/platform" replace />} />
-          <Route path="admin/platform"                                         element={<PlatformAdminPage />} />
-          <Route path="onboarding"                                             element={<OnboardingWizardPage />} />
+          <Route path="admin/platform"                                         element={<AdminRoute><PlatformAdminPage /></AdminRoute>} />
+          <Route path="onboarding"                                             element={<AdminRoute><OnboardingWizardPage /></AdminRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
