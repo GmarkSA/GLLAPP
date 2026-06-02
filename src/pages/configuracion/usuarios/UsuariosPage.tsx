@@ -113,6 +113,9 @@ export default function UsuariosPage() {
   const [assignedCompanyIds, setAssignedCompanyIds] = useState<string[]>([])
   const [loadingAssigned, setLoadingAssigned]       = useState(false)
 
+  // Dropdown de roles (se cierra tras cada selección)
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
+
   // Editor de permisos de rol
   const [editingRole, setEditingRole]     = useState<RoleSummary | null>(null)
   const [checkedSlugs, setCheckedSlugs]   = useState<Set<string>>(new Set())
@@ -542,6 +545,9 @@ export default function UsuariosPage() {
           </Form.Item>
           <Form.Item name="roleIds" label="Rol">
             <Select mode="multiple" placeholder="Selecciona rol(es)"
+              open={roleDropdownOpen}
+              onDropdownVisibleChange={setRoleDropdownOpen}
+              onSelect={() => setRoleDropdownOpen(false)}
               options={roles.filter(r => r.name !== 'superadmin').map(r => ({
                 value: r.id, label: r.name,
               }))} />
@@ -578,6 +584,9 @@ export default function UsuariosPage() {
           </Form.Item>
           <Form.Item name="roleIds" label="Rol">
             <Select mode="multiple" placeholder="Selecciona rol(es)"
+              open={roleDropdownOpen}
+              onDropdownVisibleChange={setRoleDropdownOpen}
+              onSelect={() => setRoleDropdownOpen(false)}
               options={roles.filter(r => r.name !== 'superadmin').map(r => ({
                 value: r.id, label: r.name,
               }))} />
