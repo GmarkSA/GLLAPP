@@ -7,6 +7,7 @@ import {
 import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
   EyeOutlined, RocketOutlined, EditOutlined, CheckCircleOutlined,
+  PlusOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
@@ -53,6 +54,7 @@ export default function PlatformAdminPage() {
 
   // Plan edit
   const [editingPlan, setEditingPlan] = useState<PlanConfig | null>(null)
+  const [planMode, setPlanMode] = useState<'create' | 'edit'>('edit')
   const [planModalOpen, setPlanModalOpen] = useState(false)
   const [savingPlan, setSavingPlan] = useState(false)
   const [planForm] = Form.useForm()
@@ -121,6 +123,7 @@ export default function PlatformAdminPage() {
   }
 
   const openEditPlan = (plan: PlanConfig) => {
+    setPlanMode('edit')
     setEditingPlan(plan)
     planForm.setFieldsValue({
       displayName: plan.displayName,
@@ -134,9 +137,23 @@ export default function PlatformAdminPage() {
     setPlanModalOpen(true)
   }
 
+  const openCreatePlan = () => {
+    setPlanMode('create')
+    setEditingPlan(null)
+    planForm.resetFields()
+    planForm.setFieldsValue({
+      currency: 'USD',
+      priceMonthly: 0,
+      maxCompanies: 1,
+      maxUsers: 5,
+      maxBranches: 1,
+      featuresText: '',
+    })
+    setPlanModalOpen(true)
+  }
+
   const handleSavePlan = async () => {
     const vals = await planForm.validateFields()
-    if (!editingPlan) return
     setSavingPlan(true)
     try {
       const dto = {
@@ -144,8 +161,13 @@ export default function PlatformAdminPage() {
         features: (vals.featuresText || '').split('\n').map((f: string) => f.trim()).filter(Boolean),
       }
       delete dto.featuresText
-      await api.patch(`/admin/plans/${editingPlan.plan}`, dto)
-      message.success(`Plan "${editingPlan.displayName}" actualizado`)
+      if (planMode === 'create') {
+        await api.post('/admin/plans', dto)
+        message.success(`Plan "${vals.displayName}" creado`)
+      } else if (editingPlan) {
+        await api.patch(`/admin/plans/${editingPlan.plan}`, dto)
+        message.success(`Plan "${editingPlan.displayName}" actualizado`)
+      }
       setPlanModalOpen(false)
       loadPlans()
     } catch (e: any) {
@@ -153,8 +175,27 @@ export default function PlatformAdminPage() {
     } finally { setSavingPlan(false) }
   }
 
+  const handleDeletePlan = async (plan: PlanConfig) => {
+    try {
+      await api.delete(`/admin/plans/${plan.plan}`)
+      message.success(`Plan "${plan.displayName}" eliminado`)
+      loadPlans()
+      loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al eliminar plan')
+    }
+  }
+
   const totalCompanies = tenants.reduce((s, t) => s + (t.companiesCount ?? 0), 0)
   const totalUsers     = tenants.reduce((s, t) => s + (t.usersCount ?? 0), 0)
+  const planOptions = (plans.length > 0 ? plans : [
+    { plan: 'basic', displayName: 'Basic' },
+    { plan: 'professional', displayName: 'Professional' },
+    { plan: 'enterprise', displayName: 'Enterprise' },
+  ] as Pick<PlanConfig, 'plan' | 'displayName'>[]).map(plan => ({
+    value: plan.plan,
+    label: <Tag color={PLAN_COLOR[plan.plan] ?? 'default'}>{plan.displayName}</Tag>,
+  }))
 
   const tenantColumns: ColumnsType<TenantSummary> = [
     {
@@ -177,11 +218,7 @@ export default function PlatformAdminPage() {
           style={{ width: 160 }}
           loading={assigningTenantId === r.id}
           onChange={val => handleAssignPlan(r.id, val)}
-          options={[
-            { value: 'basic',        label: <Tag>Basic</Tag> },
-            { value: 'professional', label: <Tag color="blue">Professional</Tag> },
-            { value: 'enterprise',   label: <Tag color="gold">Enterprise</Tag> },
-          ]}
+          options={planOptions}
         />
       ),
     },
@@ -265,6 +302,12 @@ export default function PlatformAdminPage() {
             key: 'plans',
             label: <Space><CheckCircleOutlined />Planes</Space>,
             children: (
+              <>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreatePlan} style={{ background: '#1B3A6B' }}>
+                  Nuevo plan
+                </Button>
+              </div>
               <Row gutter={16}>
                 {plans.map(plan => (
                   <Col span={8} key={plan.plan}>
@@ -278,9 +321,21 @@ export default function PlatformAdminPage() {
                         </Space>
                       }
                       extra={
-                        <Button size="small" icon={<EditOutlined />} onClick={() => openEditPlan(plan)}>
-                          Editar
-                        </Button>
+                        <Space size={4}>
+                          <Button size="small" icon={<EditOutlined />} onClick={() => openEditPlan(plan)}>
+                            Editar
+                          </Button>
+                          <Popconfirm
+                            title={`Eliminar plan "${plan.displayName}"?`}
+                            description="No se podrÃ¡ eliminar si estÃ¡ asignado a tenants."
+                            okText="Eliminar"
+                            cancelText="Cancelar"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => handleDeletePlan(plan)}
+                          >
+                            <Button size="small" danger icon={<DeleteOutlined />} />
+                          </Popconfirm>
+                        </Space>
                       }
                       style={{ marginBottom: 16 }}
                     >
@@ -323,6 +378,7 @@ export default function PlatformAdminPage() {
                   </Col>
                 )}
               </Row>
+              </>
             ),
           },
         ]}
@@ -379,9 +435,9 @@ export default function PlatformAdminPage() {
         }
       </Modal>
 
-      {/* Modal editar plan */}
+      {/* Modal crear / editar plan */}
       <Modal
-        title={<Space><EditOutlined />Editar plan — {editingPlan?.displayName}</Space>}
+        title={<Space>{planMode === 'create' ? <PlusOutlined /> : <EditOutlined />}{planMode === 'create' ? 'Nuevo plan' : `Editar plan — ${editingPlan?.displayName}`}</Space>}
         open={planModalOpen}
         onCancel={() => setPlanModalOpen(false)}
         onOk={handleSavePlan}
@@ -392,6 +448,11 @@ export default function PlatformAdminPage() {
       >
         <Form form={planForm} layout="vertical" style={{ marginTop: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            {planMode === 'create' && (
+              <Form.Item name="plan" label="Código" rules={[{ required: true }]}>
+                <Input placeholder="starter" />
+              </Form.Item>
+            )}
             <Form.Item name="displayName" label="Nombre del plan" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
