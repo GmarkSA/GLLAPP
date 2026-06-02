@@ -47,7 +47,7 @@ export default function UsuariosPage() {
 
   const openEdit = (u: TenantUser) => {
     setSelected(u)
-    form.setFieldsValue({ firstName: u.firstName, lastName: u.lastName, status: u.status, isSuperAdmin: u.isSuperAdmin })
+    form.setFieldsValue({ firstName: u.firstName, lastName: u.lastName, status: u.status })
     setModal('edit')
   }
 
@@ -73,7 +73,12 @@ export default function UsuariosPage() {
     const vals = await form.validateFields()
     setSaving(true)
     try {
-      await createUser(vals)
+      await createUser({
+        firstName: vals.firstName,
+        lastName: vals.lastName,
+        email: vals.email,
+        password: vals.password,
+      })
       message.success('Usuario creado')
       setModal(null)
       form.resetFields()
@@ -88,7 +93,11 @@ export default function UsuariosPage() {
     if (!selected) return
     setSaving(true)
     try {
-      await updateUser(selected.id, vals)
+      await updateUser(selected.id, {
+        firstName: vals.firstName,
+        lastName: vals.lastName,
+        status: vals.status,
+      })
       message.success('Usuario actualizado')
       setModal(null)
       load()
@@ -231,12 +240,6 @@ export default function UsuariosPage() {
           <Form.Item name="password" label="Contraseña" rules={[{ required: true, min: 6 }]}>
             <Input.Password />
           </Form.Item>
-          <Form.Item name="isSuperAdmin" label="Rol" initialValue={false}>
-            <Select>
-              <Select.Option value={false}>Usuario</Select.Option>
-              <Select.Option value={true}>Super Admin</Select.Option>
-            </Select>
-          </Form.Item>
         </Form>
       </Modal>
 
@@ -264,12 +267,6 @@ export default function UsuariosPage() {
               <Select.Option value="active">Activo</Select.Option>
               <Select.Option value="inactive">Inactivo</Select.Option>
               <Select.Option value="suspended">Suspendido</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="isSuperAdmin" label="Rol">
-            <Select>
-              <Select.Option value={false}>Usuario</Select.Option>
-              <Select.Option value={true}>Super Admin</Select.Option>
             </Select>
           </Form.Item>
         </Form>
