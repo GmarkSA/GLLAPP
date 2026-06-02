@@ -15,6 +15,7 @@ const { Option } = Select
 const COUNTRIES = [
   { code: 'GT', name: 'Guatemala',    currency: 'GTQ' },
   { code: 'HN', name: 'Honduras',     currency: 'HNL' },
+  { code: 'NI', name: 'Nicaragua',    currency: 'NIO' },
   { code: 'SV', name: 'El Salvador',  currency: 'USD' },
   { code: 'PA', name: 'Panamá',       currency: 'PAB' },
   { code: 'CR', name: 'Costa Rica',   currency: 'CRC' },
@@ -23,7 +24,7 @@ const COUNTRIES = [
 
 const TIMEZONES = [
   'America/Guatemala', 'America/Tegucigalpa', 'America/El_Salvador',
-  'America/Panama', 'America/Costa_Rica', 'America/Mexico_City',
+  'America/Managua', 'America/Panama', 'America/Costa_Rica', 'America/Mexico_City',
 ]
 
 export default function EmpresaFormPage() {

@@ -6,11 +6,11 @@ import { useAuthStore } from '../store/authStore'
 const { Text } = Typography
 
 const COUNTRY_FLAG: Record<string, string> = {
-  GT: '🇬🇹', HN: '🇭🇳', SV: '🇸🇻', PA: '🇵🇦', CR: '🇨🇷', MX: '🇲🇽',
+  GT: 'GT', HN: 'HN', NI: 'NI', SV: 'SV', PA: 'PA', CR: 'CR', MX: 'MX',
 }
 
 const CURRENCY_COLOR: Record<string, string> = {
-  GTQ: '#1B3A6B', USD: '#155724', HNL: '#721c24', EUR: '#856404',
+  GTQ: '#1B3A6B', USD: '#155724', HNL: '#721c24', NIO: '#0f766e', EUR: '#856404',
 }
 
 export default function CompanyContextBar() {

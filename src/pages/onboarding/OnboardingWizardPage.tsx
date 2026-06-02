@@ -19,14 +19,14 @@ import { seedGLL } from '../../api/catalogo'
 const { Title, Text } = Typography
 
 const COUNTRIES = [
-  { code: 'GT', name: 'Guatemala',   currency: 'GTQ', flag: '🇬🇹' },
-  { code: 'HN', name: 'Honduras',    currency: 'HNL', flag: '🇭🇳' },
-  { code: 'SV', name: 'El Salvador', currency: 'USD', flag: '🇸🇻' },
-  { code: 'PA', name: 'Panamá',      currency: 'USD', flag: '🇵🇦' },
-  { code: 'CR', name: 'Costa Rica',  currency: 'CRC', flag: '🇨🇷' },
-  { code: 'MX', name: 'México',      currency: 'MXN', flag: '🇲🇽' },
+  { code: 'GT', name: 'Guatemala',   currency: 'GTQ', flag: 'GT' },
+  { code: 'HN', name: 'Honduras',    currency: 'HNL', flag: 'HN' },
+  { code: 'NI', name: 'Nicaragua',   currency: 'NIO', flag: 'NI' },
+  { code: 'SV', name: 'El Salvador', currency: 'USD', flag: 'SV' },
+  { code: 'PA', name: 'Panama',      currency: 'USD', flag: 'PA' },
+  { code: 'CR', name: 'Costa Rica',  currency: 'CRC', flag: 'CR' },
+  { code: 'MX', name: 'Mexico',      currency: 'MXN', flag: 'MX' },
 ]
-
 const MODULES = [
   { value: 'ventas',        label: 'Ventas',        icon: '🛒', desc: 'Clientes, facturas, cotizaciones, pagos' },
   { value: 'compras',       label: 'Compras',       icon: '🏪', desc: 'Proveedores, órdenes, facturas proveedor' },
@@ -81,6 +81,21 @@ export default function OnboardingWizardPage() {
     }
   }, [step1Form])
 
+  const getCountryMeta = (code: string) => COUNTRIES.find(c => c.code === code)
+
+  const getTimezone = (code: string) => {
+    const timezones: Record<string, string> = {
+      GT: 'America/Guatemala',
+      HN: 'America/Tegucigalpa',
+      NI: 'America/Managua',
+      SV: 'America/El_Salvador',
+      PA: 'America/Panama',
+      CR: 'America/Costa_Rica',
+      MX: 'America/Mexico_City',
+    }
+    return timezones[code] ?? 'America/Guatemala'
+  }
+
   const next = async () => {
     if (current === 0) {
       await step1Form.validateFields()
@@ -107,9 +122,9 @@ export default function OnboardingWizardPage() {
         tradeName:      step2.tradeName,
         taxId:          step2.taxId,
         countryCode:    step1.country,
-        currencyCode:   COUNTRIES.find(c => c.code === step1.country)?.currency ?? 'GTQ',
+        currencyCode:   getCountryMeta(step1.country)?.currency ?? 'GTQ',
         fiscalRegimeId: selectedRegime ?? undefined,
-        timezone:       `America/${step1.country === 'GT' ? 'Guatemala' : step1.country === 'MX' ? 'Mexico_City' : 'Tegucigalpa'}`,
+        timezone:       getTimezone(step1.country),
       }
       const company: any = await companiesApi.create(companyPayload)
       setCreatedCompanyId(company.id)
@@ -200,7 +215,12 @@ export default function OnboardingWizardPage() {
             </Form.Item>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
               <Form.Item label="País principal" name="country" initialValue="GT" rules={[{ required: true }]}>
-                <Select options={COUNTRIES.map(c => ({ value: c.code, label: `${c.flag} ${c.name}` }))} />
+                <Select
+                  options={COUNTRIES.map(c => ({ value: c.code, label: `${c.flag} ${c.name}` }))}
+                  onChange={(code) => {
+                    step1Form.setFieldValue('currency', getCountryMeta(code)?.currency ?? 'GTQ')
+                  }}
+                />
               </Form.Item>
               <Form.Item label="Moneda principal" name="currency" initialValue="GTQ">
                 <Input />

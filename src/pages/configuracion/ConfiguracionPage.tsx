@@ -27,6 +27,7 @@ import {
   type Currency,
 } from '../../api/monedas'
 import { getAccounts, type Account } from '../../api/catalogo'
+import { useCompanyStore } from '../../store/companyStore'
 
 const { Sider, Content } = Layout
 const { Title, Text } = Typography
@@ -64,6 +65,8 @@ const TIMEZONES = [
 const CURRENCIES = [
   { code: 'GTQ', label: 'Quetzal guatemalteco (Q)' },
   { code: 'USD', label: 'Dólar estadounidense ($)' },
+  { code: 'HNL', label: 'Lempira hondureno (L)' },
+  { code: 'NIO', label: 'Cordoba nicaraguense (C$)' },
   { code: 'MXN', label: 'Peso mexicano ($)' },
   { code: 'EUR', label: 'Euro (€)' },
   { code: 'COP', label: 'Peso colombiano ($)' },
@@ -403,6 +406,7 @@ const ALL_CURRENCIES = [
   { code: 'MXN', name: 'Peso mexicano',           symbol: '$',   country: 'México' },
   { code: 'COP', name: 'Peso colombiano',         symbol: '$',   country: 'Colombia' },
   { code: 'HNL', name: 'Lempira hondureño',       symbol: 'L',   country: 'Honduras' },
+  { code: 'NIO', name: 'Cordoba nicaraguense',    symbol: 'C$',  country: 'Nicaragua' },
   { code: 'CRC', name: 'Colón costarricense',     symbol: '₡',   country: 'Costa Rica' },
   { code: 'DOP', name: 'Peso dominicano',         symbol: 'RD$', country: 'Rep. Dominicana' },
   { code: 'PEN', name: 'Sol peruano',             symbol: 'S/',  country: 'Perú' },
@@ -413,6 +417,7 @@ const ALL_CURRENCIES = [
 
 
 function CurrencySection() {
+  const activeCompany = useCompanyStore(s => s.activeCompany)
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [loading,    setLoading]    = useState(true)
   const [saving,     setSaving]     = useState(false)
@@ -483,6 +488,9 @@ function CurrencySection() {
 
   const activeCodes  = currencies.map(c => c.code)
   const availableToAdd = ALL_CURRENCIES.filter(c => !activeCodes.includes(c.code))
+  const localCurrencyCode = activeCompany?.currencyCode ?? currencies.find(c => c.isBase)?.code ?? 'GTQ'
+  const localCurrencyMeta = ALL_CURRENCIES.find(c => c.code === localCurrencyCode)
+  const usdAvailable = availableToAdd.some(c => c.code === 'USD')
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -490,13 +498,16 @@ function CurrencySection() {
         <div>
           <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Monedas</Title>
           <Text type="secondary">
-            Configura las monedas activas para facturación. La moneda base es el Quetzal (GTQ).
+            Moneda local: {localCurrencyCode}{localCurrencyMeta ? ` (${localCurrencyMeta.name})` : ''}. Consolidacion: USD.
           </Text>
         </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => setModalOpen(true)}
+          onClick={() => {
+            setModalOpen(true)
+            if (usdAvailable) form.setFieldsValue({ code: 'USD' })
+          }}
           style={{ background: '#1B3A6B' }}
           disabled={availableToAdd.length === 0}
         >
@@ -529,10 +540,10 @@ function CurrencySection() {
               ),
             },
             {
-              title: 'Tipo de cambio vs GTQ',
+              title: `Tipo de cambio desde ${localCurrencyCode}`,
               width: 240,
-              render: (_, r) => r.isBase
-                ? <Text type="secondary">1.0000 (moneda base)</Text>
+              render: (_, r) => r.code === localCurrencyCode
+                ? <Text type="secondary">1.0000 (moneda local)</Text>
                 : (
                   <InputNumber
                     value={Number(r.exchangeRate)}
@@ -544,15 +555,15 @@ function CurrencySection() {
                       if (!isNaN(v)) handleRateChange(r.id, v)
                     }}
                     style={{ width: 140 }}
-                    addonBefore="Q ="
-                    addonAfter={r.symbol}
+                    addonBefore={`1 ${localCurrencyCode} =`}
+                    addonAfter={r.code}
                   />
                 ),
             },
             {
               title: '',
               width: 60,
-              render: (_, r) => r.isBase ? null : (
+              render: (_, r) => r.code === localCurrencyCode ? null : (
                 <Popconfirm
                   title={`¿Eliminar ${r.name}?`}
                   onConfirm={() => handleRemove(r.id, r.name)}
@@ -601,7 +612,7 @@ function CurrencySection() {
 
           <Form.Item
             name="exchangeRate"
-            label="Tipo de cambio inicial (1 GTQ =)"
+            label={`Tipo de cambio inicial (1 ${localCurrencyCode} =)`}
             rules={[{ required: true, message: 'Ingresa el tipo de cambio' }]}
           >
             <InputNumber
@@ -609,7 +620,7 @@ function CurrencySection() {
               min={0.000001}
               precision={4}
               step={0.01}
-              placeholder="Ej: 0.13 para USD"
+              placeholder={localCurrencyCode === 'GTQ' ? 'Ej: 0.13 para USD' : localCurrencyCode === 'HNL' ? 'Ej: 0.039 para USD' : localCurrencyCode === 'NIO' ? 'Ej: 0.027 para USD' : 'Ej: tasa hacia USD'}
               size="large"
             />
           </Form.Item>

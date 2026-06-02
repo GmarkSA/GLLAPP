@@ -186,9 +186,9 @@ export default function BancoFormPage() {
             <Col xs={24} sm={8}>
               <Form.Item name="currency" label="Moneda" rules={[{ required: true }]}>
                 <Select>
-                  <Option value="GTQ">🇬🇹 GTQ — Quetzal guatemalteco</Option>
-                  <Option value="USD">🇺🇸 USD — Dólar estadounidense</Option>
-                  <Option value="EUR">🇪🇺 EUR — Euro</Option>
+                  <Option value="GTQ">GTQ - Quetzal guatemalteco</Option>
+                  <Option value="USD">USD - Dolar estadounidense</Option>
+                  <Option value="HNL">HNL - Lempira hondureno</Option>`r`n                  <Option value="NIO">NIO - Cordoba nicaraguense</Option>`r`n                  <Option value="EUR">EUR - Euro</Option>
                 </Select>
               </Form.Item>
             </Col>
