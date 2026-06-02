@@ -1,6 +1,7 @@
 import { Space, Tag, Tooltip, Typography } from 'antd'
-import { BankOutlined, BranchesOutlined, GlobalOutlined } from '@ant-design/icons'
+import { BankOutlined, BranchesOutlined, GlobalOutlined, ApartmentOutlined } from '@ant-design/icons'
 import { useCompanyStore } from '../store/companyStore'
+import { useAuthStore } from '../store/authStore'
 
 const { Text } = Typography
 
@@ -13,8 +14,9 @@ const CURRENCY_COLOR: Record<string, string> = {
 }
 
 export default function CompanyContextBar() {
-  const activeCompany = useCompanyStore(s => s.activeCompany)
-  const activeBranch  = useCompanyStore(s => s.activeBranch)
+  const activeCompany    = useCompanyStore(s => s.activeCompany)
+  const activeBranch     = useCompanyStore(s => s.activeBranch)
+  const tenantGroupName  = useAuthStore(s => s.tenantGroupName)
 
   if (!activeCompany) return null
 
@@ -30,6 +32,16 @@ export default function CompanyContextBar() {
       borderLeft: '1px solid #f0f0f0',
       marginLeft: 8,
     }}>
+      {/* Grupo empresarial */}
+      {tenantGroupName && (
+        <Tooltip title="Grupo empresarial">
+          <Space size={4} style={{ cursor: 'default' }}>
+            <ApartmentOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />
+            <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{tenantGroupName}</Text>
+          </Space>
+        </Tooltip>
+      )}
+
       {/* Empresa activa */}
       <Tooltip title="Empresa activa">
         <Space size={4} style={{ cursor: 'default' }}>

@@ -12,6 +12,18 @@ import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title } = Typography
 
+const COMPANY_ROLES = [
+  { value: 'admin',    label: 'Administrador Empresa', color: 'blue' },
+  { value: 'contador', label: 'Contador',              color: 'purple' },
+  { value: 'usuario',  label: 'Usuario',               color: 'default' },
+  { value: 'consulta', label: 'Consulta',              color: 'cyan' },
+]
+
+const roleLabel = (roleIds: string[]) => {
+  const id = roleIds?.[0]
+  return COMPANY_ROLES.find(r => r.value === id) ?? null
+}
+
 interface CompanyUser {
   id:        string
   userId:    string
@@ -23,7 +35,6 @@ interface CompanyUser {
 export default function CompanyUsersPage() {
   const { id: urlCompanyId }  = useParams<{ id: string }>()
   const activeCompany         = useCompanyStore(s => s.activeCompany)
-  // La URL es la fuente de verdad; si no hay param, cae al activo
   const companyId             = urlCompanyId ?? activeCompany?.id ?? null
   const companyName           = activeCompany?.id === companyId
     ? (activeCompany?.legalName ?? companyId)
@@ -35,6 +46,7 @@ export default function CompanyUsersPage() {
   const [modal, setModal]             = useState(false)
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [saving, setSaving]           = useState(false)
+  const [updatingRole, setUpdatingRole] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!companyId) return
@@ -84,7 +96,20 @@ export default function CompanyUsersPage() {
     }
   }
 
-  // Usuarios del tenant que aún NO están asignados
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    if (!companyId) return
+    setUpdatingRole(userId)
+    try {
+      await companiesApi.updateCompanyUser(companyId, userId, { roleIds: [newRole] })
+      message.success('Rol actualizado')
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al actualizar rol')
+    } finally {
+      setUpdatingRole(null)
+    }
+  }
+
   const assignedIds = new Set(assignments.map(a => a.userId))
   const availableUsers = tenantUsers.filter(u => !assignedIds.has(u.id))
 
@@ -119,14 +144,32 @@ export default function CompanyUsersPage() {
       },
     },
     {
-      title: 'Rol',
+      title: 'Rol en empresa',
       key: 'role',
-      width: 130,
+      width: 210,
       render: (_: any, r: CompanyUser) => {
         const u = getUser(r.userId)
-        return u?.isSuperAdmin
-          ? <Tag color="red">Super Admin</Tag>
-          : <Tag>Usuario</Tag>
+        if (u?.isSuperAdmin) {
+          return <Tag color="red">Super Admin</Tag>
+        }
+        const current = roleLabel(r.roleIds)
+        return (
+          <Select
+            size="small"
+            style={{ width: 190 }}
+            value={current?.value ?? 'usuario'}
+            loading={updatingRole === r.userId}
+            onChange={(val: string) => handleRoleChange(r.userId, val)}
+            options={COMPANY_ROLES.map(role => ({
+              value: role.value,
+              label: (
+                <Space size={4}>
+                  <Tag color={role.color} style={{ margin: 0, fontSize: 11 }}>{role.label}</Tag>
+                </Space>
+              ),
+            }))}
+          />
+        )
       },
     },
     {

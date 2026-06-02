@@ -12,6 +12,8 @@ import { companiesApi } from '../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import { getUsers, type TenantUser } from '../../api/usuarios'
 import { useCompanyStore } from '../../store/companyStore'
+import { useAuthStore } from '../../store/authStore'
+import { tenantsApi } from '../../api/tenants'
 import { seedGLL } from '../../api/catalogo'
 
 const { Title, Text } = Typography
@@ -36,8 +38,9 @@ const MODULES = [
 
 export default function OnboardingWizardPage() {
   const navigate         = useNavigate()
-  const loadCompanies    = useCompanyStore(s => s.loadCompanies)
-  const setActiveCompany = useCompanyStore(s => s.setActiveCompany)
+  const loadCompanies      = useCompanyStore(s => s.loadCompanies)
+  const setActiveCompany   = useCompanyStore(s => s.setActiveCompany)
+  const setTenantGroupName = useAuthStore(s => s.setTenantGroupName)
 
   const [current, setCurrent]     = useState(0)
   const [saving, setSaving]       = useState(false)
@@ -126,7 +129,16 @@ export default function OnboardingWizardPage() {
         await companiesApi.assignUser(company.id, { userId }).catch(() => {})
       }
 
-      // 5. Recargar lista de empresas (setActiveCompany ya fue llamado)
+      // 5. Persistir nombre del grupo empresarial en el tenant
+      const groupName = step1Form.getFieldValue('groupName')
+      if (groupName) {
+        const profile = await tenantsApi.getProfile().catch(() => null)
+        const currentSettings = profile?.settings ?? {}
+        await tenantsApi.updateProfile({ settings: { ...currentSettings, groupName } }).catch(() => {})
+        setTenantGroupName(groupName)
+      }
+
+      // 6. Recargar lista de empresas (setActiveCompany ya fue llamado)
       await loadCompanies()
 
       setDone(true)

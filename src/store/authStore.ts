@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import api from '../api/axios'
+import { tenantsApi } from '../api/tenants'
 
 interface User {
   id: string
@@ -31,6 +32,7 @@ interface AuthState {
   tenantId: string | null
   activeCompanyId: string | null
   activeCompany: Company | null
+  tenantGroupName: string | null
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
@@ -38,6 +40,7 @@ interface AuthState {
   logout: () => void
   setTenant: (tenantId: string) => void
   setActiveCompany: (company: Company) => void
+  setTenantGroupName: (name: string | null) => void
   bootstrapAuth: () => Promise<void>
 }
 
@@ -56,6 +59,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   activeCompany: (() => {
     try { return JSON.parse(localStorage.getItem('activeCompany') || 'null') } catch { return null }
   })(),
+  tenantGroupName: localStorage.getItem('tenantGroupName'),
   isAuthenticated: !!localStorage.getItem('accessToken'),
   isLoading: false,
 
@@ -110,7 +114,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.clear()
-    set({ user: null, isAuthenticated: false, tenantId: null, activeCompanyId: null, activeCompany: null })
+    set({ user: null, isAuthenticated: false, tenantId: null, activeCompanyId: null, activeCompany: null, tenantGroupName: null })
   },
 
   setTenant: (tenantId) => {
@@ -122,6 +126,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('activeCompanyId', company.id)
     localStorage.setItem('activeCompany', JSON.stringify(company))
     set({ activeCompanyId: company.id, activeCompany: company })
+  },
+
+  setTenantGroupName: (name) => {
+    if (name) localStorage.setItem('tenantGroupName', name)
+    else localStorage.removeItem('tenantGroupName')
+    set({ tenantGroupName: name })
   },
 
   bootstrapAuth: async () => {
@@ -136,6 +146,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ tenantId })
       }
       set({ user })
+
+      // Cargar grupo empresarial del tenant
+      const profile = await tenantsApi.getProfile().catch(() => null)
+      const groupName = profile?.settings?.groupName ?? null
+      if (groupName) localStorage.setItem('tenantGroupName', groupName)
+      else localStorage.removeItem('tenantGroupName')
+      set({ tenantGroupName: groupName })
     } catch {
       // Token inválido — el interceptor de 401 maneja el logout
     } finally {

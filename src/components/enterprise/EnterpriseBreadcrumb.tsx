@@ -1,6 +1,7 @@
 import { Breadcrumb } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCompanyStore } from '../../store/companyStore'
+import { useAuthStore } from '../../store/authStore'
 
 const ROUTE_LABELS: Record<string, string> = {
   dashboard:          'Dashboard',
@@ -34,9 +35,10 @@ const ROUTE_LABELS: Record<string, string> = {
 }
 
 export default function EnterpriseBreadcrumb() {
-  const location      = useLocation()
-  const navigate      = useNavigate()
-  const activeCompany = useCompanyStore(s => s.activeCompany)
+  const location        = useLocation()
+  const navigate        = useNavigate()
+  const activeCompany   = useCompanyStore(s => s.activeCompany)
+  const tenantGroupName = useAuthStore(s => s.tenantGroupName)
 
   const segments = location.pathname.split('/').filter(Boolean)
 
@@ -45,7 +47,14 @@ export default function EnterpriseBreadcrumb() {
 
   const items = []
 
-  // Empresa activa como primer nivel contextual
+  // Grupo empresarial como raíz (solo cuando existe)
+  if (tenantGroupName) {
+    items.push({
+      title: <span style={{ fontSize: 11, color: '#aaa' }}>{tenantGroupName}</span>,
+    })
+  }
+
+  // Empresa activa como segundo nivel contextual
   if (activeCompany) {
     items.push({
       title: <span style={{ fontSize: 11, color: '#1B3A6B', fontWeight: 600 }}>{activeCompany.legalName}</span>,
