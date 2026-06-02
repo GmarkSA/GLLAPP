@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, StarOutlined, StarFilled, BankOutlined,
-  DatabaseOutlined, BugOutlined,
+  DatabaseOutlined, DeleteOutlined, StopOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { companiesApi } from '../../../api/companies'
@@ -32,6 +32,8 @@ export default function EmpresasPage() {
   const [companies, setCompanies]   = useState<Company[]>([])
   const [loading, setLoading]       = useState(false)
   const [migrating, setMigrating]   = useState<string | null>(null)
+  const [toggling, setToggling]     = useState<string | null>(null)
+  const [deleting, setDeleting]     = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -60,6 +62,33 @@ export default function EmpresasPage() {
   const handleSwitch = (company: Company) => {
     setActiveCompany(company)
     message.success(`Empresa activa: ${company.legalName}`)
+  }
+
+  const handleToggleStatus = async (company: Company) => {
+    const newStatus = company.status === 'active' ? 'suspended' : 'active'
+    setToggling(company.id)
+    try {
+      await companiesApi.update(company.id, { status: newStatus } as any)
+      message.success(newStatus === 'suspended' ? 'Empresa bloqueada' : 'Empresa activada')
+      load()
+    } catch {
+      message.error('Error al cambiar estado de la empresa')
+    } finally {
+      setToggling(null)
+    }
+  }
+
+  const handleDelete = async (company: Company) => {
+    setDeleting(company.id)
+    try {
+      await companiesApi.remove(company.id)
+      message.success(`Empresa "${company.legalName}" eliminada`)
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al eliminar la empresa')
+    } finally {
+      setDeleting(null)
+    }
   }
 
   const handleMigrate = (company: Company) => {
@@ -144,7 +173,7 @@ export default function EmpresasPage() {
     },
     {
       title: 'Acciones',
-      width: 260,
+      width: 240,
       render: (_: any, r: Company) => (
         <Space>
           <Button size="small" onClick={() => handleSwitch(r)}>Usar</Button>
@@ -154,13 +183,38 @@ export default function EmpresasPage() {
               <Button size="small" icon={<StarOutlined />} />
             </Popconfirm>
           )}
-          <Button
-            size="small"
-            icon={<DatabaseOutlined />}
-            loading={migrating === r.id}
-            onClick={() => handleMigrate(r)}
-            title="Migrar datos históricos"
-          />
+          <Popconfirm
+            title={r.status === 'active' ? '¿Bloquear esta empresa?' : '¿Activar esta empresa?'}
+            description={r.status === 'active' ? 'Los usuarios no podrán operar con ella.' : 'Volverá a estar disponible para operar.'}
+            onConfirm={() => handleToggleStatus(r)}
+            okText="Sí"
+            cancelText="No"
+          >
+            <Button
+              size="small"
+              icon={r.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />}
+              loading={toggling === r.id}
+              title={r.status === 'active' ? 'Bloquear empresa' : 'Activar empresa'}
+            />
+          </Popconfirm>
+          {!r.isDefault && (
+            <Popconfirm
+              title="¿Eliminar esta empresa?"
+              description="Se eliminarán todos sus datos. Esta acción no se puede deshacer."
+              onConfirm={() => handleDelete(r)}
+              okText="Eliminar"
+              okButtonProps={{ danger: true }}
+              cancelText="Cancelar"
+            >
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                loading={deleting === r.id}
+                title="Eliminar empresa"
+              />
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -192,15 +246,10 @@ export default function EmpresasPage() {
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Empresas</Title>
-        <Space>
-          <Button icon={<BugOutlined />} onClick={handleDiagnose} size="small" style={{ color: '#888' }}>
-            Diagnóstico
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
-            onClick={() => navigate('/configuracion/empresas/nueva')}>
-            Nueva Empresa
-          </Button>
-        </Space>
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+          onClick={() => navigate('/configuracion/empresas/nueva')}>
+          Nueva Empresa
+        </Button>
       </div>
       <Table
         rowKey="id"
