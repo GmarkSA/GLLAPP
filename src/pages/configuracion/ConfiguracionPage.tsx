@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Layout, Menu, Form, Input, Button, Select, Upload, Avatar,
   Typography, Card, Row, Col, Divider, message, Spin, Space, Tag,
@@ -13,7 +14,6 @@ import {
   PlusOutlined, DeleteOutlined, StarFilled,
 } from '@ant-design/icons'
 import ImpuestosPage  from './impuestos/ImpuestosPage'
-import UsuariosPage   from './usuarios/UsuariosPage'
 import LibroSATPage   from './libros-sat/LibroSATPage'
 import type { UploadChangeParam } from 'antd/es/upload'
 import {
@@ -838,6 +838,7 @@ const cardStyle: React.CSSProperties = {
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function ConfiguracionPage() {
+  const navigate   = useNavigate()
   const [activeKey, setActiveKey] = useState('organization')
   const [profile, setProfile] = useState<OrganizationProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -886,7 +887,8 @@ export default function ConfiguracionPage() {
       case 'accountDefaults':
         return <AccountDefaultsSection />
       case 'users':
-        return <UsuariosPage />
+        navigate('/configuracion/usuarios')
+        return null
       case 'notifications':
         return <ComingSoonSection title="Notificaciones" description="Configura alertas por correo y notificaciones del sistema" />
       case 'integrations':
