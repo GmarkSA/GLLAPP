@@ -8,7 +8,7 @@ import {
   TeamOutlined, BankOutlined, KeyOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getUsers, createUser, updateUser, deleteUser, type TenantUser } from '../../../api/usuarios'
+import { getUsers, getRoles, createUser, updateUser, deleteUser, type TenantUser, type RoleSummary } from '../../../api/usuarios'
 import { companiesApi } from '../../../api/companies'
 import type { Company } from '../../../store/authStore'
 
@@ -16,6 +16,7 @@ const { Title, Text } = Typography
 
 export default function UsuariosPage() {
   const [users, setUsers]           = useState<TenantUser[]>([])
+  const [roles, setRoles]           = useState<RoleSummary[]>([])
   const [companies, setCompanies]   = useState<Company[]>([])
   const [loading, setLoading]       = useState(false)
   const [modal, setModal]           = useState<'create' | 'edit' | 'companies' | null>(null)
@@ -30,9 +31,10 @@ export default function UsuariosPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [u, c] = await Promise.all([getUsers(), companiesApi.getAll()])
+      const [u, c, r] = await Promise.all([getUsers(), companiesApi.getAll(), getRoles().catch(() => [])])
       setUsers(Array.isArray(u) ? u : [])
       setCompanies(Array.isArray(c) ? c : [])
+      setRoles(Array.isArray(r) ? r : [])
     } catch { message.error('Error al cargar usuarios') }
     finally { setLoading(false) }
   }, [])
@@ -148,10 +150,12 @@ export default function UsuariosPage() {
     },
     {
       title: 'Rol',
-      width: 140,
+      width: 220,
       render: (_, r) => r.isSuperAdmin
         ? <Tag color="red" icon={<CrownOutlined />}>Super Admin</Tag>
-        : <Tag color="blue" icon={<TeamOutlined />}>Usuario</Tag>,
+        : (r.roles?.length
+          ? r.roles.map(role => <Tag key={role.id ?? role.name} color="blue" icon={<TeamOutlined />}>{role.name}</Tag>)
+          : <Tag color="blue" icon={<TeamOutlined />}>Usuario</Tag>),
     },
     {
       title: 'Estado',
@@ -306,13 +310,51 @@ export default function UsuariosPage() {
         }
       </Modal>
 
-      {/* Info roles */}
-      <div style={{ marginTop: 24, padding: '12px 16px', background: '#f9f9fb', borderRadius: 8, fontSize: 12, color: '#888' }}>
-        <Space><KeyOutlined /><strong>Roles:</strong></Space>
-        <span style={{ marginLeft: 8 }}>
-          <Tag color="red" style={{ fontSize: 11 }}>Super Admin</Tag> — acceso total al tenant y todas las empresas.
-          <Tag color="blue" style={{ marginLeft: 8, fontSize: 11 }}>Usuario</Tag> — acceso solo a las empresas asignadas.
-        </span>
+      {/* Mapa de roles */}
+      <div style={{ marginTop: 24, padding: '14px 16px', background: '#f9f9fb', borderRadius: 8 }}>
+        <Space style={{ marginBottom: 12 }}>
+          <KeyOutlined />
+          <strong>Mapa de roles y accesos</strong>
+        </Space>
+        <Table<RoleSummary>
+          size="small"
+          rowKey="id"
+          pagination={false}
+          dataSource={roles}
+          locale={{ emptyText: 'No hay roles configurados todavía' }}
+          columns={[
+            {
+              title: 'Rol',
+              width: 180,
+              render: (_, role) => (
+                <div>
+                  <Tag color={role.name === 'admin' ? 'geekblue' : 'default'}>{role.name}</Tag>
+                  {role.description && <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{role.description}</div>}
+                </div>
+              ),
+            },
+            {
+              title: 'Accesos',
+              render: (_, role) => {
+                const grouped = role.permissions.reduce<Record<string, Set<string>>>((acc, permission) => {
+                  const key = `${permission.module}:${permission.submodule}`
+                  if (!acc[key]) acc[key] = new Set()
+                  acc[key].add(permission.action)
+                  return acc
+                }, {})
+                return (
+                  <Space size={[4, 4]} wrap>
+                    {Object.entries(grouped).map(([scope, actions]) => (
+                      <Tag key={scope} style={{ fontSize: 11 }}>
+                        {scope.replace(':', ' / ')}: {Array.from(actions).join(', ')}
+                      </Tag>
+                    ))}
+                  </Space>
+                )
+              },
+            },
+          ]}
+        />
       </div>
     </div>
   )

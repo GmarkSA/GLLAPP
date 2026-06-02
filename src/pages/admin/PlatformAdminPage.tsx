@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Tag, Badge, Space, Typography, Statistic, Row, Col,
   Button, message, Modal, Descriptions, Spin, Popconfirm, Tabs,
@@ -7,7 +7,7 @@ import {
 import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
   EyeOutlined, RocketOutlined, EditOutlined, CheckCircleOutlined,
-  PlusOutlined, DeleteOutlined,
+  PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
@@ -37,6 +37,14 @@ interface PlanConfig {
   plan: string; displayName: string; priceMonthly: number; currency: string
   maxCompanies: number; maxUsers: number; maxBranches: number
   features: string[]; isActive: boolean
+}
+interface AdminCompany {
+  id: string; companyNumber?: string; legalName: string; tradeName?: string; taxId?: string
+  countryCode: string; currencyCode: string; status: string; isActive: boolean; usersCount?: number
+}
+interface AdminUser {
+  id: string; email: string; firstName: string; lastName: string
+  status: string; isSuperAdmin?: boolean; roles?: string[]
 }
 
 export default function PlatformAdminPage() {
@@ -104,7 +112,7 @@ export default function PlatformAdminPage() {
     setSeeding(true)
     try {
       const r = await api.post(`/admin/tenants/${tenantId}/seed-castillo`).then(unwrap)
-      message.success(`Grupo Castillo: ${r.created?.length ?? 0} creadas, ${r.skipped?.length ?? 0} ya existían`)
+      message.success(`Grupo Castillo: ${r.created?.length ?? 0} creadas, ${r.skipped?.length ?? 0} ya existÃ­an`)
       loadTenants()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error en seed Castillo')
@@ -120,6 +128,78 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al cambiar plan')
     } finally { setAssigningTenantId(null) }
+  }
+
+  const refreshDetail = async (tenantId: string) => {
+    const d = await api.get(`/admin/tenants/${tenantId}`).then(unwrap)
+    setDetail(d)
+    return d
+  }
+
+  const handleTenantStatus = async (tenantId: string, status: 'active' | 'suspended') => {
+    try {
+      await api.patch(`/admin/tenants/${tenantId}/status`, { status })
+      message.success(status === 'active' ? 'Tenant activado' : 'Tenant suspendido')
+      await loadTenants()
+      if (detail?.id === tenantId) await refreshDetail(tenantId)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo cambiar el estado del tenant')
+    }
+  }
+
+  const handleCompanyStatus = async (tenantId: string, companyId: string, status: 'active' | 'suspended') => {
+    try {
+      await api.patch(`/admin/tenants/${tenantId}/companies/${companyId}/status`, { status })
+      message.success(status === 'active' ? 'Empresa activada' : 'Empresa suspendida')
+      await loadTenants()
+      await refreshDetail(tenantId)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo cambiar el estado de la empresa')
+    }
+  }
+
+  const handleUserStatus = async (tenantId: string, userId: string, status: 'active' | 'suspended') => {
+    try {
+      await api.patch(`/admin/tenants/${tenantId}/users/${userId}/status`, { status })
+      message.success(status === 'active' ? 'Usuario activado' : 'Usuario bloqueado')
+      await refreshDetail(tenantId)
+      await loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo cambiar el estado del usuario')
+    }
+  }
+
+  const handleResetUserPassword = (tenantId: string, userId: string, label: string) => {
+    let password = ''
+    Modal.confirm({
+      title: `Cambiar contraseÃ±a de ${label}`,
+      content: (
+        <Input.Password
+          placeholder="Nueva contraseÃ±a"
+          onChange={e => { password = e.target.value }}
+        />
+      ),
+      okText: 'Cambiar',
+      onOk: async () => {
+        if (!password || password.length < 6) {
+          message.error('La contraseÃ±a debe tener al menos 6 caracteres')
+          throw new Error('password-too-short')
+        }
+        await api.post(`/admin/tenants/${tenantId}/users/${userId}/reset-password`, { newPassword: password })
+        message.success('ContraseÃ±a actualizada')
+      },
+    })
+  }
+
+  const handleRemoveUser = async (tenantId: string, userId: string) => {
+    try {
+      await api.delete(`/admin/tenants/${tenantId}/users/${userId}`)
+      message.success('Usuario eliminado del tenant')
+      await refreshDetail(tenantId)
+      await loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo eliminar el usuario')
+    }
   }
 
   const openEditPlan = (plan: PlanConfig) => {
@@ -225,7 +305,7 @@ export default function PlatformAdminPage() {
     {
       title: 'Estado',
       dataIndex: 'status', width: 110,
-      render: (v?: string) => <Badge status={STATUS_COLOR[v ?? ''] ?? 'default'} text={v ?? '—'} />,
+      render: (v?: string) => <Badge status={STATUS_COLOR[v ?? ''] ?? 'default'} text={v ?? 'â€”'} />,
     },
     { title: 'Empresas', dataIndex: 'companiesCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
@@ -234,7 +314,19 @@ export default function PlatformAdminPage() {
       render: (_, r) => (
         <Space size={4}>
           <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} />
-          <Popconfirm title="¿Crear Grupo Castillo (5 empresas) en este tenant?" onConfirm={() => handleSeedCastillo(r.id)} okText="Sí">
+          <Popconfirm
+            title={r.status === 'suspended' ? 'Â¿Activar tenant?' : 'Â¿Suspender tenant por falta de pago?'}
+            onConfirm={() => handleTenantStatus(r.id, r.status === 'suspended' ? 'active' : 'suspended')}
+            okText="SÃ­"
+          >
+            <Button
+              size="small"
+              danger={r.status !== 'suspended'}
+              icon={r.status === 'suspended' ? <PlayCircleOutlined /> : <StopOutlined />}
+              title={r.status === 'suspended' ? 'Activar tenant' : 'Suspender tenant'}
+            />
+          </Popconfirm>
+          <Popconfirm title="Â¿Crear Grupo Castillo (5 empresas) en este tenant?" onConfirm={() => handleSeedCastillo(r.id)} okText="SÃ­">
             <Button size="small" icon={<RocketOutlined />} loading={seeding} title="Seed demo" />
           </Popconfirm>
         </Space>
@@ -327,7 +419,7 @@ export default function PlatformAdminPage() {
                           </Button>
                           <Popconfirm
                             title={`Eliminar plan "${plan.displayName}"?`}
-                            description="No se podrÃ¡ eliminar si estÃ¡ asignado a tenants."
+                            description="No se podrÃƒÂ¡ eliminar si estÃƒÂ¡ asignado a tenants."
                             okText="Eliminar"
                             cancelText="Cancelar"
                             okButtonProps={{ danger: true }}
@@ -373,7 +465,7 @@ export default function PlatformAdminPage() {
                 {plans.length === 0 && (
                   <Col span={24}>
                     <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>
-                      Cargando planes... (se crean automáticamente en el primer inicio del servidor)
+                      Cargando planes... (se crean automÃ¡ticamente en el primer inicio del servidor)
                     </div>
                   </Col>
                 )}
@@ -390,7 +482,7 @@ export default function PlatformAdminPage() {
         open={detailOpen}
         onCancel={() => { setDetailOpen(false); setDetail(null) }}
         footer={<Button onClick={() => { setDetailOpen(false); setDetail(null) }}>Cerrar</Button>}
-        width={640}
+        width={980}
       >
         {detailLoading
           ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
@@ -403,17 +495,40 @@ export default function PlatformAdminPage() {
                 <Descriptions.Item label="Estado">
                   <Badge status={STATUS_COLOR[detail.status ?? ''] ?? 'default'} text={detail.status} />
                 </Descriptions.Item>
-                <Descriptions.Item label="NIT">{detail.taxId ?? '—'}</Descriptions.Item>
-                <Descriptions.Item label="Creado">{detail.createdAt ? new Date(detail.createdAt).toLocaleDateString('es-GT') : '—'}</Descriptions.Item>
+                <Descriptions.Item label="NIT">{detail.taxId ?? 'â€”'}</Descriptions.Item>
+                <Descriptions.Item label="Creado">{detail.createdAt ? new Date(detail.createdAt).toLocaleDateString('es-GT') : 'â€”'}</Descriptions.Item>
               </Descriptions>
               {detail.companies?.length > 0 && (
                 <>
                   <Text strong style={{ fontSize: 12 }}><BankOutlined style={{ marginRight: 4 }} />Empresas ({detail.companies.length})</Text>
-                  <Table size="small" rowKey="id" style={{ marginTop: 8, marginBottom: 12 }} pagination={false} dataSource={detail.companies}
+                  <Table<AdminCompany> size="small" rowKey="id" style={{ marginTop: 8, marginBottom: 12 }} pagination={false} dataSource={detail.companies}
                     columns={[
-                      { title: 'Empresa', dataIndex: 'legalName' },
-                      { title: 'País', dataIndex: 'countryCode', width: 60 },
-                      { title: 'Estado', dataIndex: 'status', width: 90, render: (v: string) => <Badge status={v === 'active' ? 'success' : 'default'} text={v} /> },
+                      {
+                        title: 'Empresa',
+                        render: (_, c) => (
+                          <div>
+                            <b>{c.legalName}</b>
+                            <div style={{ fontSize: 11, color: '#888' }}>{c.companyNumber ?? 'Sin codigo'} · {c.taxId ?? 'Sin tax id'}</div>
+                          </div>
+                        ),
+                      },
+                      { title: 'Pais', width: 70, render: (_, c) => <Tag>{c.countryCode}</Tag> },
+                      { title: 'Moneda', dataIndex: 'currencyCode', width: 80, render: (v: string) => <Tag>{v}</Tag> },
+                      { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const },
+                      { title: 'Estado', dataIndex: 'status', width: 100, render: (v: string) => <Badge status={v === 'active' ? 'success' : 'warning'} text={v} /> },
+                      {
+                        title: '',
+                        width: 70,
+                        render: (_, c) => (
+                          <Popconfirm
+                            title={c.status === 'active' ? '¿Bloquear empresa?' : '¿Activar empresa?'}
+                            onConfirm={() => handleCompanyStatus(detail.id, c.id, c.status === 'active' ? 'suspended' : 'active')}
+                            okText="Sí"
+                          >
+                            <Button size="small" danger={c.status === 'active'} icon={c.status === 'active' ? <StopOutlined /> : <PlayCircleOutlined />} />
+                          </Popconfirm>
+                        ),
+                      },
                     ]}
                   />
                 </>
@@ -421,11 +536,37 @@ export default function PlatformAdminPage() {
               {detail.users?.length > 0 && (
                 <>
                   <Text strong style={{ fontSize: 12 }}><TeamOutlined style={{ marginRight: 4 }} />Usuarios ({detail.users.length})</Text>
-                  <Table size="small" rowKey="id" style={{ marginTop: 8 }} pagination={false} dataSource={detail.users}
+                  <Table<AdminUser> size="small" rowKey="id" style={{ marginTop: 8 }} pagination={false} dataSource={detail.users}
                     columns={[
-                      { title: 'Nombre', render: (_: any, u: any) => `${u.firstName} ${u.lastName}` },
+                      { title: 'Nombre', render: (_, u) => `${u.firstName} ${u.lastName}` },
                       { title: 'Email', dataIndex: 'email' },
-                      { title: 'Rol', width: 100, render: (_: any, u: any) => u.isSuperAdmin ? <Tag color="red">SuperAdmin</Tag> : <Tag>Usuario</Tag> },
+                      {
+                        title: 'Roles',
+                        width: 160,
+                        render: (_, u) => u.isSuperAdmin
+                          ? <Tag color="red">SuperAdmin</Tag>
+                          : (u.roles?.length ? u.roles.map(r => <Tag key={r}>{r}</Tag>) : <Tag>Usuario</Tag>),
+                      },
+                      { title: 'Estado', dataIndex: 'status', width: 100, render: (v: string) => <Badge status={v === 'active' ? 'success' : 'warning'} text={v} /> },
+                      {
+                        title: '',
+                        width: 120,
+                        render: (_, u) => (
+                          <Space size={4}>
+                            <Popconfirm
+                              title={u.status === 'active' ? '¿Bloquear usuario?' : '¿Activar usuario?'}
+                              onConfirm={() => handleUserStatus(detail.id, u.id, u.status === 'active' ? 'suspended' : 'active')}
+                              okText="Sí"
+                            >
+                              <Button size="small" danger={u.status === 'active'} icon={u.status === 'active' ? <StopOutlined /> : <PlayCircleOutlined />} />
+                            </Popconfirm>
+                            <Button size="small" icon={<KeyOutlined />} onClick={() => handleResetUserPassword(detail.id, u.id, u.email)} />
+                            <Popconfirm title="¿Eliminar usuario del tenant?" onConfirm={() => handleRemoveUser(detail.id, u.id)} okText="Eliminar" okButtonProps={{ danger: true }}>
+                              <Button size="small" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                          </Space>
+                        ),
+                      },
                     ]}
                   />
                 </>
@@ -437,7 +578,7 @@ export default function PlatformAdminPage() {
 
       {/* Modal crear / editar plan */}
       <Modal
-        title={<Space>{planMode === 'create' ? <PlusOutlined /> : <EditOutlined />}{planMode === 'create' ? 'Nuevo plan' : `Editar plan — ${editingPlan?.displayName}`}</Space>}
+        title={<Space>{planMode === 'create' ? <PlusOutlined /> : <EditOutlined />}{planMode === 'create' ? 'Nuevo plan' : `Editar plan â€” ${editingPlan?.displayName}`}</Space>}
         open={planModalOpen}
         onCancel={() => setPlanModalOpen(false)}
         onOk={handleSavePlan}
@@ -449,7 +590,7 @@ export default function PlatformAdminPage() {
         <Form form={planForm} layout="vertical" style={{ marginTop: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             {planMode === 'create' && (
-              <Form.Item name="plan" label="Código" rules={[{ required: true }]}>
+              <Form.Item name="plan" label="CÃ³digo" rules={[{ required: true }]}>
                 <Input placeholder="starter" />
               </Form.Item>
             )}
@@ -462,17 +603,17 @@ export default function PlatformAdminPage() {
             <Form.Item name="priceMonthly" label="Precio mensual" rules={[{ required: true }]}>
               <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix="$" />
             </Form.Item>
-            <Form.Item name="maxCompanies" label="Máx. empresas" rules={[{ required: true }]}>
+            <Form.Item name="maxCompanies" label="MÃ¡x. empresas" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="maxUsers" label="Máx. usuarios" rules={[{ required: true }]}>
+            <Form.Item name="maxUsers" label="MÃ¡x. usuarios" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="maxBranches" label="Máx. sucursales" rules={[{ required: true }]}>
+            <Form.Item name="maxBranches" label="MÃ¡x. sucursales" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
-          <Form.Item name="featuresText" label="Características (una por línea)">
+          <Form.Item name="featuresText" label="CaracterÃ­sticas (una por lÃ­nea)">
             <Input.TextArea rows={5} placeholder="1 empresa&#10;5 usuarios&#10;Soporte email" />
           </Form.Item>
         </Form>
