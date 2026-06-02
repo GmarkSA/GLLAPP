@@ -72,7 +72,6 @@ const menuItems = [
     { key: '/configuracion/empresas/series',              label: 'Series de Documentos' },
     { key: '/configuracion/empresas/facturacion-electronica', label: 'Facturación Electrónica' },
     { key: '/configuracion/empresas/bancos',              label: 'Perfiles Bancarios' },
-    { key: '/configuracion/usuarios',                     label: 'Usuarios y Roles' },
     { key: '/configuracion/unidades-medida',              label: 'Unidades de Medida' },
     { key: '/configuracion/integraciones',                label: 'Espacio de Desarrollador' },
   ]},
