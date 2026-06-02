@@ -119,7 +119,7 @@ function ContactPersonRow({
           </Form.Item>
         </Col>
         <Col xs={24} md={8}>
-          <Form.Item name={['contacts', index, 'firstName']} label="Nombre" rules={[{ required: true, message: 'Requerido' }]}>
+          <Form.Item name={['contacts', index, 'firstName']} label="Nombre">
             <Input placeholder="Juan" size="small" />
           </Form.Item>
         </Col>
@@ -224,7 +224,11 @@ export default function ClienteFormPage() {
       }
       navigate('/ventas/clientes')
     } catch (e: any) {
-      if (e?.errorFields) return // validación del form
+      if (e?.errorFields) {
+        const names = e.errorFields.map((f: any) => f.name?.join(' › ')).join(', ')
+        message.error(`Completa los campos requeridos: ${names}`, 6)
+        return
+      }
       message.error(e?.response?.data?.message || 'Error al guardar')
     } finally {
       setSaving(false)
