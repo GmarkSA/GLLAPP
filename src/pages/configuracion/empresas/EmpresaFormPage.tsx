@@ -17,7 +17,7 @@ const COUNTRIES = [
   { code: 'HN', name: 'Honduras',     currency: 'HNL' },
   { code: 'NI', name: 'Nicaragua',    currency: 'NIO' },
   { code: 'SV', name: 'El Salvador',  currency: 'USD' },
-  { code: 'PA', name: 'Panamá',       currency: 'PAB' },
+  { code: 'PA', name: 'Panamá',       currency: 'USD' },
   { code: 'CR', name: 'Costa Rica',   currency: 'CRC' },
   { code: 'MX', name: 'México',       currency: 'MXN' },
 ]
