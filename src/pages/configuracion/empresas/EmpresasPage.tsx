@@ -178,8 +178,13 @@ export default function EmpresasPage() {
           </pre>
         ),
       })
-    } catch {
-      message.error('Error al obtener diagnóstico')
+    } catch (e: any) {
+      const status  = e?.response?.status
+      const detail  = e?.response?.data?.message ?? e?.message ?? String(e)
+      Modal.error({
+        title: `Error diagnóstico (HTTP ${status ?? 'sin respuesta'})`,
+        content: <pre style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>{detail}</pre>,
+      })
     }
   }
 
