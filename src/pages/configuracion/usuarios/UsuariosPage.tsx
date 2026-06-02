@@ -354,11 +354,11 @@ export default function UsuariosPage() {
     {
       title: 'Rol',
       width: 240,
-      render: (_, r) => r.isSuperAdmin
-        ? <Tag color="red" icon={<CrownOutlined />}>Super Admin</Tag>
-        : (r.roles?.length
-          ? r.roles.map(role => <Tag key={role.id} color="blue" icon={<TeamOutlined />}>{role.name}</Tag>)
-          : <Tag color="default">Sin rol</Tag>),
+      render: (_, r) => r.roles?.length
+        ? r.roles.map(role => <Tag key={role.id} color="blue" icon={<TeamOutlined />}>{role.name}</Tag>)
+        : r.isSuperAdmin
+          ? <Tag color="red" icon={<CrownOutlined />}>Super Admin</Tag>
+          : <Tag color="default">Sin rol</Tag>,
     },
     {
       title: 'Estado',
@@ -546,7 +546,7 @@ export default function UsuariosPage() {
           <Form.Item name="roleIds" label="Rol">
             <Select mode="multiple" placeholder="Selecciona rol(es)"
               open={roleDropdownOpen}
-              onDropdownVisibleChange={setRoleDropdownOpen}
+              onOpenChange={setRoleDropdownOpen}
               onSelect={() => setRoleDropdownOpen(false)}
               options={roles.filter(r => r.name !== 'superadmin').map(r => ({
                 value: r.id, label: r.name,
@@ -585,7 +585,7 @@ export default function UsuariosPage() {
           <Form.Item name="roleIds" label="Rol">
             <Select mode="multiple" placeholder="Selecciona rol(es)"
               open={roleDropdownOpen}
-              onDropdownVisibleChange={setRoleDropdownOpen}
+              onOpenChange={setRoleDropdownOpen}
               onSelect={() => setRoleDropdownOpen(false)}
               options={roles.filter(r => r.name !== 'superadmin').map(r => ({
                 value: r.id, label: r.name,
