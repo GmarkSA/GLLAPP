@@ -19,19 +19,19 @@ export interface TenantUser {
 
 export interface PermissionSummary {
   id?:          string
-  module:      string
-  submodule:   string
-  action:      string
-  slug:        string
+  module:       string
+  submodule:    string
+  action:       string
+  slug:         string
   description?: string
 }
 
 export interface RoleSummary {
-  id:          string
-  name:        string
+  id:           string
+  name:         string
   description?: string
-  isSystem?:   boolean
-  permissions: PermissionSummary[]
+  isSystem?:    boolean
+  permissions:  PermissionSummary[]
 }
 
 export const getUsers = () =>
@@ -40,12 +40,16 @@ export const getUsers = () =>
 export const getRoles = () =>
   api.get('/auth/roles').then(unwrap) as Promise<RoleSummary[]>
 
+export const getPermissions = () =>
+  api.get('/auth/permissions').then(unwrap) as Promise<PermissionSummary[]>
+
 export const createUser = (dto: {
-  firstName: string
-  lastName:  string
-  email:     string
-  password:  string
+  firstName:    string
+  lastName:     string
+  email:        string
+  password:     string
   isSuperAdmin?: boolean
+  roleIds?:     string[]
 }) => api.post(BASE, dto).then(unwrap) as Promise<TenantUser>
 
 export const updateUser = (id: string, dto: {
@@ -53,6 +57,7 @@ export const updateUser = (id: string, dto: {
   lastName?:    string
   status?:      UserStatus
   isSuperAdmin?: boolean
+  roleIds?:     string[]
 }) => api.patch(`${BASE}/${id}`, dto).then(unwrap) as Promise<TenantUser>
 
 export const resetUserPassword = (id: string, newPassword: string) =>
@@ -60,3 +65,15 @@ export const resetUserPassword = (id: string, newPassword: string) =>
 
 export const deleteUser = (id: string) =>
   api.delete(`${BASE}/${id}`)
+
+export const createRole = (dto: {
+  name:            string
+  description?:    string
+  permissionSlugs?: string[]
+}) => api.post('/auth/roles', dto).then(unwrap) as Promise<RoleSummary>
+
+export const updateRolePermissions = (id: string, permissionSlugs: string[]) =>
+  api.put(`/auth/roles/${id}/permissions`, { permissionSlugs }).then(unwrap) as Promise<RoleSummary>
+
+export const deleteRole = (id: string) =>
+  api.delete(`/auth/roles/${id}`)
