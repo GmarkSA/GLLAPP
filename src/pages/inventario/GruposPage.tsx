@@ -17,7 +17,9 @@ function GrupoModal({ open, record, onClose, onSaved }: {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (open) record ? form.setFieldsValue(record) : form.resetFields()
+    if (!open) return
+    if (record) form.setFieldsValue(record)
+    else form.resetFields()
   }, [open, record, form])
 
   const handleOk = async () => {

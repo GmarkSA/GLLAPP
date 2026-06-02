@@ -36,11 +36,9 @@ function UbicacionModal({ open, record, almacenes, onClose, onSaved }: {
   const tipoWatch = Form.useWatch('type', form)
 
   useEffect(() => {
-    if (open) {
-      record
-        ? form.setFieldsValue(record)
-        : form.resetFields()
-    }
+    if (!open) return
+    if (record) form.setFieldsValue(record)
+    else form.resetFields()
   }, [open, record, form])
 
   const handleOk = async () => {

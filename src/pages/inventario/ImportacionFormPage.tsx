@@ -60,14 +60,15 @@ function calcProrrateo(
   const { freight, insurance, customsDuty, ivaImport, otherCharges } = costs
 
   return lineas.map(l => {
-    let prop = 0
-    switch (method) {
-      case 'by_value':    prop = totalFobSum  > 0 ? (l.totalFob  || 0) / totalFobSum  : 1 / lineas.length; break
-      case 'by_quantity': prop = totalQty     > 0 ? (l.quantity  || 0) / totalQty     : 1 / lineas.length; break
-      case 'by_weight':   prop = totalWeight  > 0 ? (l.weight    || 0) / totalWeight  : 1 / lineas.length; break
-      case 'by_volume':   prop = totalVolume  > 0 ? (l.volume    || 0) / totalVolume  : 1 / lineas.length; break
-      default:            prop = totalFobSum  > 0 ? (l.totalFob  || 0) / totalFobSum  : 1 / lineas.length
-    }
+    const prop = (() => {
+      switch (method) {
+        case 'by_value':    return totalFobSum  > 0 ? (l.totalFob  || 0) / totalFobSum  : 1 / lineas.length
+        case 'by_quantity': return totalQty     > 0 ? (l.quantity  || 0) / totalQty     : 1 / lineas.length
+        case 'by_weight':   return totalWeight  > 0 ? (l.weight    || 0) / totalWeight  : 1 / lineas.length
+        case 'by_volume':   return totalVolume  > 0 ? (l.volume    || 0) / totalVolume  : 1 / lineas.length
+        default:            return totalFobSum  > 0 ? (l.totalFob  || 0) / totalFobSum  : 1 / lineas.length
+      }
+    })()
     const pFreight      = freight      * prop
     const pInsurance    = insurance    * prop
     const pDuty         = customsDuty  * prop
