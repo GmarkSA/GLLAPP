@@ -53,6 +53,9 @@ export const companiesApi = {
   updateCompanyUser: (id: string, userId: string, dto: any)             => api.patch(`/companies/${id}/users/${userId}`, dto).then(unwrap),
   removeCompanyUser: (id: string, userId: string)                       => api.delete(`/companies/${id}/users/${userId}`),
 
+  // ── Migración datos legacy (one-time) ────────────────────────────────────
+  migrateLegacy: (id: string)                             => api.post(`/companies/${id}/migrate-legacy`).then(unwrap),
+
   // ── Clone (Template Engine) ───────────────────────────────────────────────
   clone: (id: string, dto: any)                           => api.post(`/companies/${id}/clone`, dto).then(unwrap),
 

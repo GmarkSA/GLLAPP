@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Table, Button, Tag, Space, Popconfirm, message, Typography, Badge,
+  Table, Button, Tag, Space, Popconfirm, message, Typography, Badge, Modal,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, StarOutlined, StarFilled, BankOutlined,
+  PlusOutlined, EditOutlined, StarOutlined, StarFilled, BankOutlined, DatabaseOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { companiesApi } from '../../../api/companies'
@@ -28,8 +28,9 @@ export default function EmpresasPage() {
   const navigate         = useNavigate()
   const setActiveCompany = useCompanyStore(s => s.setActiveCompany)
   const activeCompanyId  = useCompanyStore(s => s.activeCompany?.id ?? null)
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [loading, setLoading]     = useState(false)
+  const [companies, setCompanies]   = useState<Company[]>([])
+  const [loading, setLoading]       = useState(false)
+  const [migrating, setMigrating]   = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -58,6 +59,48 @@ export default function EmpresasPage() {
   const handleSwitch = (company: Company) => {
     setActiveCompany(company)
     message.success(`Empresa activa: ${company.legalName}`)
+  }
+
+  const handleMigrate = (company: Company) => {
+    Modal.confirm({
+      title: 'Migrar datos históricos',
+      icon: <DatabaseOutlined style={{ color: '#1B3A6B' }} />,
+      content: (
+        <div>
+          <p>Esto asignará todos los registros sin empresa (cuentas contables, clientes, facturas, proveedores, etc.) a <b>{company.legalName}</b>.</p>
+          <p style={{ color: '#888', fontSize: 12 }}>Operación de una sola vez — segura de ejecutar.</p>
+        </div>
+      ),
+      okText: 'Migrar ahora',
+      okButtonProps: { style: { background: '#1B3A6B' } },
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        setMigrating(company.id)
+        try {
+          const result: Record<string, number> = await companiesApi.migrateLegacy(company.id)
+          const total = Object.values(result).filter(v => v > 0).reduce((a, b) => a + b, 0)
+          const details = Object.entries(result)
+            .filter(([, v]) => v > 0)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ')
+          Modal.success({
+            title: '¡Migración completada!',
+            content: (
+              <div>
+                <p><b>{total}</b> registros migrados a {company.legalName}.</p>
+                {details && <p style={{ fontSize: 12, color: '#888' }}>{details}</p>}
+                <p style={{ marginTop: 8 }}>Recarga la página para ver los datos.</p>
+              </div>
+            ),
+            onOk: () => window.location.reload(),
+          })
+        } catch (e: any) {
+          message.error(e?.response?.data?.message ?? 'Error durante la migración')
+        } finally {
+          setMigrating(null)
+        }
+      },
+    })
   }
 
   const columns: ColumnsType<Company> = [
@@ -100,7 +143,7 @@ export default function EmpresasPage() {
     },
     {
       title: 'Acciones',
-      width: 200,
+      width: 260,
       render: (_: any, r: Company) => (
         <Space>
           <Button size="small" onClick={() => handleSwitch(r)}>Usar</Button>
@@ -110,6 +153,13 @@ export default function EmpresasPage() {
               <Button size="small" icon={<StarOutlined />} />
             </Popconfirm>
           )}
+          <Button
+            size="small"
+            icon={<DatabaseOutlined />}
+            loading={migrating === r.id}
+            onClick={() => handleMigrate(r)}
+            title="Migrar datos históricos"
+          />
         </Space>
       ),
     },
