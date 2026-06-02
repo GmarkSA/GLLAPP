@@ -1,27 +1,34 @@
 import { useState, useEffect } from 'react'
 import {
   Table, Button, Modal, Form, Input, Select, Space,
-  message, Typography, Tag, Badge, Tooltip, Popconfirm,
+  message, Typography, Tag, Badge, Tooltip, Popconfirm, Alert, Result,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
-  CheckCircleOutlined, ExclamationCircleOutlined, ThunderboltOutlined,
+  CheckCircleOutlined, ExclamationCircleOutlined,
+  ThunderboltOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { companyIntegrationsApi, type ElectronicInvoicingProfile } from '../../../api/companyIntegrations'
 import { useCompanyStore } from '../../../store/companyStore'
+import {
+  FEL_DOC_TYPES_BY_REGIME, FEL_DEFAULT_BY_REGIME, FEL_ALL_DOC_TYPES,
+  REGIME_LABELS, type FelDocType,
+} from '../../../api/fel'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 const PROVIDERS = [
-  { value: 'felplex',   label: 'FelPlex (GT)',         country: 'GT' },
-  { value: 'infile',    label: 'INFILE (GT)',            country: 'GT' },
-  { value: 'digifact',  label: 'Digifact (GT)',          country: 'GT' },
-  { value: 'hacienda_cr', label: 'Ministerio Hacienda (CR)', country: 'CR' },
-  { value: 'sat_mx',    label: 'SAT / PAC (MX)',         country: 'MX' },
-  { value: 'dgi_pa',    label: 'DGI (PA)',               country: 'PA' },
-  { value: 'sar_hn',    label: 'SAR (HN)',               country: 'HN' },
+  { value: 'felplex',      label: 'FelPlex (GT)',              country: 'GT' },
+  { value: 'infile',       label: 'INFILE (GT)',               country: 'GT' },
+  { value: 'digifact',     label: 'Digifact (GT)',             country: 'GT' },
+  { value: 'hacienda_cr',  label: 'Ministerio Hacienda (CR)', country: 'CR' },
+  { value: 'sat_mx',       label: 'SAT / PAC (MX)',            country: 'MX' },
+  { value: 'dgi_pa',       label: 'DGI (PA)',                  country: 'PA' },
+  { value: 'sar_hn',       label: 'SAR (HN)',                  country: 'HN' },
 ]
+
+const GT_REGIMES = Object.entries(REGIME_LABELS).map(([value, label]) => ({ value, label }))
 
 const STATUS_BADGE: Record<string, string> = {
   active:   'success',
@@ -34,10 +41,15 @@ export default function ElectronicInvoicingPage() {
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const [profiles, setProfiles] = useState<ElectronicInvoicingProfile[]>([])
   const [loading, setLoading]   = useState(false)
+  const [testing, setTesting]   = useState<string | null>(null)
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; detail?: any } | null>(null)
   const [modal, setModal]       = useState(false)
   const [editing, setEditing]   = useState<ElectronicInvoicingProfile | null>(null)
   const [saving, setSaving]     = useState(false)
   const [form] = Form.useForm()
+
+  const watchRegime  = Form.useWatch('regimeCode',  form)
+  const watchProvider = Form.useWatch('provider',   form)
 
   const load = async () => {
     if (!activeCompany) return
@@ -49,6 +61,10 @@ export default function ElectronicInvoicingPage() {
 
   useEffect(() => { load() }, [activeCompany?.id])
 
+  // Tipos de doc disponibles según régimen seleccionado
+  const availableDocTypes: FelDocType[] =
+    watchRegime ? (FEL_DOC_TYPES_BY_REGIME[watchRegime] ?? FEL_ALL_DOC_TYPES) : FEL_ALL_DOC_TYPES
+
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
@@ -58,97 +74,131 @@ export default function ElectronicInvoicingPage() {
 
   const openEdit = (p: ElectronicInvoicingProfile) => {
     setEditing(p)
-    form.setFieldsValue({ ...p, entityId: p.apiConfigurationJson?.entityId, apiKey: p.apiConfigurationJson?.apiKey })
+    form.setFieldsValue({
+      provider:            p.provider,
+      environment:         p.environment,
+      countryCode:         p.countryCode,
+      issuerTaxId:         p.issuerTaxId,
+      // credenciales — guardadas en credentialsEncrypted
+      entityId:            (p as any).credentialsEncrypted?.entityId ?? p.apiConfigurationJson?.entityId,
+      apiKey:              (p as any).credentialsEncrypted?.apiKey   ?? p.apiConfigurationJson?.apiKey,
+      // configuración
+      regimeCode:          p.apiConfigurationJson?.regimeCode,
+      defaultDocumentType: p.apiConfigurationJson?.defaultDocumentType,
+    })
     setModal(true)
   }
 
   const handleSave = async () => {
     if (!activeCompany) return
     const vals = await form.validateFields()
-    const { entityId, apiKey, ...rest } = vals
-    const dto = { ...rest, apiConfigurationJson: { entityId, apiKey } }
+    const { entityId, apiKey, regimeCode, defaultDocumentType, ...rest } = vals
+
+    // Credenciales → credentialsEncrypted (donde el backend las lee para FELPlex)
+    // Configuración de régimen/doc → apiConfigurationJson
+    const dto = {
+      ...rest,
+      credentialsEncrypted: { entityId, apiKey },
+      apiConfigurationJson: {
+        ...(editing?.apiConfigurationJson ?? {}),
+        regimeCode,
+        defaultDocumentType,
+      },
+      status: 'active',
+    }
+
     setSaving(true)
     try {
       if (editing) {
-        await companyIntegrationsApi.updateEInvoicing(editing.id, dto)
+        await companyIntegrationsApi.updateEInvoicing(editing.id, dto as any)
         message.success('Perfil FEL actualizado')
       } else {
-        await companyIntegrationsApi.createEInvoicing(activeCompany.id, { ...dto, companyId: activeCompany.id })
+        await companyIntegrationsApi.createEInvoicing(activeCompany.id, { ...dto, companyId: activeCompany.id } as any)
         message.success('Perfil FEL creado')
       }
       setModal(false)
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const handleTest = async (id: string) => {
+    setTesting(id)
+    setTestResult(null)
     try {
-      await companyIntegrationsApi.testEInvoicing(id)
-      message.success('Conexión FEL exitosa')
+      const result = await companyIntegrationsApi.testEInvoicing(id) as any
+      setTestResult(result)
+      message.success(result.success ? 'Conexión FEL exitosa' : `Fallo: ${result.message}`)
       load()
-    } catch {
-      message.error('Error al probar la conexión FEL')
-    }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? 'Error al probar la conexión FEL'
+      setTestResult({ success: false, message: msg })
+      message.error(msg)
+    } finally { setTesting(null) }
   }
 
   const handleDelete = async (id: string) => {
     try {
       await companyIntegrationsApi.removeEInvoicing(id)
-      message.success('Perfil eliminado')
+      message.success('Perfil desactivado')
       load()
-    } catch {
-      message.error('Error al eliminar perfil')
-    }
+    } catch { message.error('Error al eliminar perfil') }
   }
 
   const columns: ColumnsType<ElectronicInvoicingProfile> = [
     {
       title: 'Estado',
       dataIndex: 'status',
-      width: 90,
+      width: 110,
       render: (v: string) => <Badge status={STATUS_BADGE[v] as any} text={v} />,
     },
     {
       title: 'Proveedor',
-      dataIndex: 'provider',
-      render: (v: string) => {
-        const p = PROVIDERS.find(x => x.value === v)
-        return <Tag color="blue">{p?.label ?? v}</Tag>
+      render: (_: any, p: ElectronicInvoicingProfile) => {
+        const prov = PROVIDERS.find(x => x.value === p.provider)
+        return <Tag color="blue">{prov?.label ?? p.provider}</Tag>
       },
     },
     {
-      title: 'País',
-      dataIndex: 'countryCode',
-      width: 70,
+      title: 'Régimen',
+      render: (_: any, p: ElectronicInvoicingProfile) => {
+        const rc = p.apiConfigurationJson?.regimeCode
+        return rc ? <Text style={{ fontSize: 12 }}>{REGIME_LABELS[rc] ?? rc}</Text> : <Text type="secondary">—</Text>
+      },
+    },
+    {
+      title: 'Tipo doc. default',
+      render: (_: any, p: ElectronicInvoicingProfile) => {
+        const dt = p.apiConfigurationJson?.defaultDocumentType
+        return dt ? <Tag color="geekblue">{dt}</Tag> : <Text type="secondary">—</Text>
+      },
     },
     {
       title: 'Ambiente',
       dataIndex: 'environment',
       width: 100,
       render: (v: string) => v === 'production'
-        ? <Tag color="red" icon={<CheckCircleOutlined />}>Producción</Tag>
+        ? <Tag color="red"   icon={<CheckCircleOutlined />}>Producción</Tag>
         : <Tag color="orange" icon={<ExclamationCircleOutlined />}>Sandbox</Tag>,
     },
     {
       title: 'Último test',
       dataIndex: 'lastTestedAt',
-      width: 160,
+      width: 150,
       render: (v?: string) => v ? new Date(v).toLocaleString('es-GT') : '—',
     },
     {
       title: '',
-      width: 130,
+      width: 120,
       render: (_: any, r: ElectronicInvoicingProfile) => (
         <Space>
-          <Tooltip title="Probar conexión">
-            <Button size="small" icon={<ThunderboltOutlined />} onClick={() => handleTest(r.id)} />
+          <Tooltip title="Probar conexión real">
+            <Button size="small" icon={<ThunderboltOutlined />}
+              loading={testing === r.id} onClick={() => handleTest(r.id)} />
           </Tooltip>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-          <Popconfirm title="¿Eliminar perfil?" onConfirm={() => handleDelete(r.id)}>
+          <Popconfirm title="¿Desactivar perfil?" onConfirm={() => handleDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -172,6 +222,18 @@ export default function ElectronicInvoicingPage() {
         </Button>
       </div>
 
+      {testResult && (
+        <Alert
+          type={testResult.success ? 'success' : 'error'}
+          message={testResult.success ? 'Conexión exitosa' : 'Fallo de conexión'}
+          description={testResult.message}
+          showIcon
+          closable
+          onClose={() => setTestResult(null)}
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
       <Table
         rowKey="id"
         columns={columns}
@@ -181,28 +243,37 @@ export default function ElectronicInvoicingPage() {
         pagination={false}
       />
 
+      {/* Modal crear/editar perfil FEL */}
       <Modal
-        title={editing ? 'Editar perfil FEL' : 'Nuevo perfil FEL'}
+        title={
+          <Space>
+            <SafetyCertificateOutlined />
+            {editing ? 'Editar perfil FEL' : 'Nuevo perfil FEL'}
+          </Space>
+        }
         open={modal}
         onCancel={() => setModal(false)}
         onOk={handleSave}
         confirmLoading={saving}
         okText={editing ? 'Guardar' : 'Crear'}
         okButtonProps={{ style: { background: '#1B3A6B' } }}
-        width={520}
+        width={540}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
+          {/* Proveedor + Ambiente */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="provider" label="Proveedor FEL" rules={[{ required: true }]}>
               <Select options={PROVIDERS.map(p => ({ value: p.value, label: p.label }))} />
             </Form.Item>
             <Form.Item name="environment" label="Ambiente" rules={[{ required: true }]}>
               <Select options={[
-                { value: 'sandbox', label: '🧪 Sandbox (pruebas)' },
+                { value: 'sandbox',    label: '🧪 Sandbox (pruebas)' },
                 { value: 'production', label: '🔴 Producción' },
               ]} />
             </Form.Item>
           </div>
+
+          {/* País + NIT Emisor */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="countryCode" label="País" rules={[{ required: true }]}>
               <Select options={[
@@ -218,11 +289,39 @@ export default function ElectronicInvoicingPage() {
               <Input placeholder="NIT del establecimiento" />
             </Form.Item>
           </div>
-          <Form.Item name="entityId" label="Entity ID / Código de Acceso">
+
+          {/* Régimen fiscal → auto-filtra tipos de documento */}
+          {watchProvider === 'felplex' || watchProvider === 'infile' || watchProvider === 'digifact' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Form.Item name="regimeCode" label="Régimen del contribuyente"
+                tooltip="Define qué tipos de documento puede emitir esta empresa">
+                <Select
+                  placeholder="Selecciona régimen"
+                  options={GT_REGIMES}
+                  onChange={regime => {
+                    const defaultType = FEL_DEFAULT_BY_REGIME[regime]
+                    if (defaultType) form.setFieldValue('defaultDocumentType', defaultType)
+                  }}
+                />
+              </Form.Item>
+              <Form.Item name="defaultDocumentType" label="Tipo doc. por defecto"
+                tooltip="Se usará automáticamente al certificar facturas sin tipo definido">
+                <Select
+                  placeholder="Tipo de documento"
+                  options={availableDocTypes.map(d => ({ value: d.code, label: d.label }))}
+                />
+              </Form.Item>
+            </div>
+          ) : null}
+
+          {/* Credenciales API */}
+          <Form.Item name="entityId" label="Entity ID" rules={[{ required: true, message: 'Requerido' }]}
+            tooltip="Código de tu entidad en el certificador (entityId / código de acceso)">
             <Input placeholder="Código provisto por el certificador" />
           </Form.Item>
-          <Form.Item name="apiKey" label="API Key / Token">
-            <Input.Password placeholder="Clave de acceso a la API" />
+          <Form.Item name="apiKey" label="API Key / Token" rules={[{ required: true, message: 'Requerido' }]}
+            tooltip="Token de autenticación (X-Authorization para FELPlex)">
+            <Input.Password placeholder="Clave secreta de la API" />
           </Form.Item>
         </Form>
       </Modal>

@@ -7,14 +7,17 @@ import {
 import {
   SaveOutlined, SendOutlined, HomeOutlined,
   GlobalOutlined, SafetyCertificateOutlined,
+  CheckCircleFilled, CloseCircleFilled, LoadingOutlined, LinkOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 import {
-  createInvoice, updateInvoice, getInvoice,
+  createInvoice, updateInvoice, getInvoice, emitirFelInvoice,
   FEL_TIPOS_DOCUMENTO, FEL_TIPOS_FRASE, INCOTERMS,
   type CreateInvoiceDto, type FelFrase,
 } from '../../../api/facturas'
+import { companyIntegrationsApi } from '../../../api/companyIntegrations'
+import { useCompanyStore } from '../../../store/companyStore'
 import { getCustomers, getCustomer } from '../../../api/contactos'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import LineItemsEditor, {
@@ -42,6 +45,9 @@ export default function FacturaFormPage() {
   const [isExenta, setIsExenta] = useState(false)
   const [customerTermsDays, setCustomerTermsDays] = useState<number | null>(null)
   const [customerTermsLabel, setCustomerTermsLabel] = useState<string | null>(null)
+  const [certifying, setCertifying] = useState(false)
+  const [felCertResult, setFelCertResult] = useState<{ success: boolean; uuid?: string; serie?: string; numero?: string; url?: string; mensaje: string } | null>(null)
+  const activeCompany = useCompanyStore(s => s.activeCompany)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -53,6 +59,18 @@ export default function FacturaFormPage() {
   }, [])
 
   useEffect(() => { fetchCustomers('') }, [])
+
+  // ── Auto-cargar defaultDocumentType del perfil FEL activo ─────────────────
+  useEffect(() => {
+    if (id || !activeCompany) return  // solo en nueva factura
+    companyIntegrationsApi.getEInvoicing(activeCompany.id)
+      .then(profiles => {
+        const active = profiles.find(p => p.status === 'active')
+        const defaultType = active?.apiConfigurationJson?.defaultDocumentType
+        if (defaultType) form.setFieldValue('felTipoDocumento', defaultType)
+      })
+      .catch(() => {})
+  }, [activeCompany?.id])
 
   // ── Load existing invoice (edit mode) ──────────────────────────────────────
   useEffect(() => {
@@ -214,6 +232,28 @@ export default function FacturaFormPage() {
     }
   }
 
+  const handleCertify = async () => {
+    if (!id) return
+    setCertifying(true)
+    setFelCertResult(null)
+    try {
+      const updated = await emitirFelInvoice(id)
+      if (updated.felUuid) {
+        setFelCertResult({ success: true, uuid: updated.felUuid, serie: updated.felSerie, numero: updated.felNumero, url: updated.felUrl, mensaje: 'Factura certificada correctamente' })
+        message.success('¡Factura certificada ante SAT!')
+        // Actualizar campos FEL en el formulario
+        form.setFieldsValue({ felUuid: updated.felUuid, felSerie: updated.felSerie, felNumero: updated.felNumero, felAutorizacion: updated.felAutorizacion, felUrl: updated.felUrl, felMensaje: updated.felMensaje })
+      } else {
+        setFelCertResult({ success: false, mensaje: updated.felMensaje ?? 'Error desconocido del certificador' })
+        message.error(updated.felMensaje ?? 'Error al certificar')
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Error de conexión con el certificador'
+      setFelCertResult({ success: false, mensaje: msg })
+      message.error(msg)
+    } finally { setCertifying(false) }
+  }
+
   const handleSave = async (status: 'draft' | 'sent') => {
     try { await form.validateFields(['customerId', 'invoiceDate']) } catch { return }
     setSaving(true)
@@ -239,6 +279,7 @@ export default function FacturaFormPage() {
   const watchTipoDoc      = Form.useWatch('felTipoDocumento',  form)
   const watchSerie        = Form.useWatch('felSerie',          form)
   const watchNumero       = Form.useWatch('felNumero',         form)
+  const watchUuid         = Form.useWatch('felUuid',           form)
 
   if (loading) {
     return (
@@ -450,30 +491,49 @@ export default function FacturaFormPage() {
 
           {/* Acciones */}
           <Card size="small" title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>Acciones</span>}>
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Button block icon={<SaveOutlined />} loading={saving}
                 onClick={() => handleSave('draft')}
                 style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
               >
                 Guardar borrador
               </Button>
-              <Button block type="primary" icon={<SendOutlined />} loading={saving}
+              <Button block icon={<SendOutlined />} loading={saving}
                 onClick={() => handleSave('sent')}
-                style={{ background: '#1B3A6B', borderColor: '#1B3A6B' }}
+                style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
               >
-                Emitir / Enviar FEL
+                Guardar y marcar enviada
               </Button>
-            </Space>
+              {id && (
+                <Button block type="primary" icon={<SafetyCertificateOutlined />}
+                  loading={certifying}
+                  onClick={handleCertify}
+                  style={{ background: '#096dd9' }}
+                  disabled={!!watchSerie}
+                >
+                  {watchSerie ? 'Ya certificada' : 'Certificar ante SAT'}
+                </Button>
+              )}
+            </div>
           </Card>
 
-          {/* FEL resumen */}
+          {/* FEL — estado de certificación */}
           <Card size="small"
-            style={{ borderColor: '#91d5ff' }}
-            styles={{ header: { background: '#e6f7ff', borderBottom: '1px solid #91d5ff', minHeight: 36 } }}
+            style={{ borderColor: felCertResult?.success ? '#b7eb8f' : watchSerie ? '#b7eb8f' : '#91d5ff' }}
+            styles={{ header: { background: watchSerie || felCertResult?.success ? '#f6ffed' : '#e6f7ff', borderBottom: '1px solid', minHeight: 36 } }}
             title={
               <Space style={{ fontSize: 12 }}>
-                <SafetyCertificateOutlined style={{ color: '#1890ff', fontSize: 12 }} />
-                <span style={{ color: '#1890ff', fontWeight: 600 }}>FEL Guatemala</span>
+                {watchSerie
+                  ? <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                  : felCertResult?.success === false
+                    ? <CloseCircleFilled style={{ color: '#ff4d4f', fontSize: 13 }} />
+                    : certifying
+                      ? <LoadingOutlined style={{ color: '#1890ff', fontSize: 13 }} />
+                      : <SafetyCertificateOutlined style={{ color: '#1890ff', fontSize: 13 }} />
+                }
+                <span style={{ color: watchSerie ? '#52c41a' : '#1890ff', fontWeight: 600 }}>
+                  FEL Guatemala
+                </span>
               </Space>
             }
           >
@@ -490,16 +550,36 @@ export default function FacturaFormPage() {
                 <Text type="secondary">Frases</Text>
                 <Text strong style={{ fontSize: 12 }}>{felFrases.length} seleccionada(s)</Text>
               </div>
-              {watchSerie && (
+              {(watchSerie || felCertResult?.serie) && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text type="secondary">Serie</Text>
-                  <Text code style={{ fontSize: 10 }}>{watchSerie}</Text>
+                  <Text code style={{ fontSize: 10 }}>{watchSerie || felCertResult?.serie}</Text>
                 </div>
               )}
-              {watchNumero && (
+              {(watchNumero || felCertResult?.numero) && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text type="secondary">Número</Text>
-                  <Text code style={{ fontSize: 10 }}>{watchNumero}</Text>
+                  <Text code style={{ fontSize: 10 }}>{watchNumero || felCertResult?.numero}</Text>
+                </div>
+              )}
+              {(felCertResult?.uuid || watchUuid) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text type="secondary">UUID</Text>
+                  <Text code style={{ fontSize: 9, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {felCertResult?.uuid}
+                  </Text>
+                </div>
+              )}
+              {(felCertResult?.url) && (
+                <div style={{ marginTop: 6 }}>
+                  <a href={felCertResult.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>
+                    <LinkOutlined /> Ver PDF en SAT
+                  </a>
+                </div>
+              )}
+              {felCertResult?.success === false && (
+                <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 11 }}>
+                  {felCertResult.mensaje}
                 </div>
               )}
             </div>

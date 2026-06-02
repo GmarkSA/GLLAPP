@@ -11,10 +11,11 @@ import {
   CameraOutlined, SaveOutlined, TeamOutlined,
   SecurityScanOutlined, ApiOutlined, BellOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
-  PlusOutlined, DeleteOutlined, StarFilled,
+  PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined,
 } from '@ant-design/icons'
-import ImpuestosPage  from './impuestos/ImpuestosPage'
-import LibroSATPage   from './libros-sat/LibroSATPage'
+import ImpuestosPage          from './impuestos/ImpuestosPage'
+import LibroSATPage           from './libros-sat/LibroSATPage'
+import EspacioDesarrolloPage  from './EspacioDesarrolloPage'
 import type { UploadChangeParam } from 'antd/es/upload'
 import {
   getOrganizationProfile,
@@ -46,6 +47,7 @@ const sections = [
   { key: 'notifications',   icon: <BellOutlined />,         label: 'Notificaciones' },
   { key: 'integrations',    icon: <ApiOutlined />,          label: 'Integraciones' },
   { key: 'security',        icon: <SecurityScanOutlined />, label: 'Seguridad' },
+  { key: 'devspace',        icon: <CodeOutlined />,         label: 'Espacio de desarrollo' },
 ]
 
 const COUNTRIES = [
@@ -957,6 +959,8 @@ export default function ConfiguracionPage() {
         return <ComingSoonSection title="Integraciones" description="Conecta ContaERP con servicios externos: FEL, bancos, pagos" />
       case 'security':
         return <ComingSoonSection title="Seguridad" description="Autenticación, tokens de API y registro de actividad" />
+      case 'devspace':
+        return <EspacioDesarrolloPage />
       default:
         return null
     }
