@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert, Button, Card, Col, DatePicker, Form, Input, message, Row, Space,
-  Statistic, Table, Tabs, Tag, Typography,
+  Alert, Badge, Button, Card, Col, DatePicker, Form, Input, message, Row,
+  Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  ApiOutlined, CloudSyncOutlined, FileTextOutlined, ReloadOutlined,
-  SafetyCertificateOutlined, SearchOutlined,
+  ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
+  FileTextOutlined, ReloadOutlined, SafetyCertificateOutlined, SearchOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
-import { Dayjs } from 'dayjs'
+import dayjs, { Dayjs } from 'dayjs'
 import {
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   startSatDteImport, syncSatDteJob,
@@ -18,19 +19,21 @@ import {
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 
-const statusConfig: Record<SatDteStatus, { label: string; color: string }> = {
-  pending: { label: 'Proveedor pendiente', color: 'gold' },
-  ready: { label: 'Listo', color: 'green' },
-  duplicate: { label: 'Duplicado', color: 'volcano' },
-  posted: { label: 'Contabilizado', color: 'blue' },
-  error: { label: 'Error', color: 'red' },
+const POLL_INTERVAL_MS = 20_000 // 20 segundos — polling para jobs en ejecución
+
+const statusConfig: Record<SatDteStatus, { label: string; color: string; icon: React.ReactNode }> = {
+  pending:    { label: 'Proveedor pendiente', color: 'gold',    icon: <WarningOutlined /> },
+  ready:      { label: 'Listo',               color: 'green',   icon: <CheckCircleOutlined /> },
+  duplicate:  { label: 'Duplicado',           color: 'volcano', icon: <FileTextOutlined /> },
+  posted:     { label: 'Contabilizado',        color: 'blue',    icon: <BookOutlined /> },
+  error:      { label: 'Error',               color: 'red',     icon: <WarningOutlined /> },
 }
 
 const jobStatusConfig: Record<string, { label: string; color: string }> = {
-  queued: { label: 'En cola', color: 'default' },
-  running: { label: 'Ejecutando', color: 'processing' },
+  queued:    { label: 'En cola',    color: 'default' },
+  running:   { label: 'Ejecutando', color: 'processing' },
   succeeded: { label: 'Finalizado', color: 'green' },
-  failed: { label: 'Error', color: 'red' },
+  failed:    { label: 'Error',      color: 'red' },
 }
 
 function money(value: unknown, currency = 'GTQ') {
@@ -43,9 +46,8 @@ function money(value: unknown, currency = 'GTQ') {
 }
 
 function getErrorMessage(err: unknown, fallback: string) {
-  const responseMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-  const messageText = (err as { message?: string })?.message
-  return responseMessage ?? messageText ?? fallback
+  const msg = (err as any)?.response?.data?.message ?? (err as any)?.message
+  return msg ?? fallback
 }
 
 export default function DteSatPage() {
@@ -57,13 +59,16 @@ export default function DteSatPage() {
   const [importing, setImporting] = useState(false)
   const [syncingJob, setSyncingJob] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<string | undefined>()
+  const [statusFilter, setStatusFilter] = useState<string | undefined>()
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // ── Carga principal ────────────────────────────────────────────────────────
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const [docsRes, jobsRes, statsRes] = await Promise.all([
-        getSatDteDocuments({ limit: 50, search: search || undefined, status }),
+        getSatDteDocuments({ limit: 50, search: search || undefined, status: statusFilter }),
         getSatDteJobs({ limit: 10 }),
         getSatDteStats(),
       ])
@@ -71,14 +76,49 @@ export default function DteSatPage() {
       setJobs(jobsRes.data ?? [])
       setStats(statsRes ?? {})
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
-  }, [search, status])
+  }, [search, statusFilter])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(timer)
   }, [load])
+
+  // ── Auto-polling para jobs en ejecución ────────────────────────────────────
+  // Mientras haya algún job en estado "running", se sincroniza automáticamente
+  // cada 20 segundos. El polling se detiene cuando todos terminan.
+
+  const hasRunningJobs = jobs.some(j => j.status === 'running')
+
+  useEffect(() => {
+    if (hasRunningJobs) {
+      pollRef.current = setInterval(async () => {
+        const running = jobs.filter(j => j.status === 'running')
+        for (const job of running) {
+          try {
+            const updated = await syncSatDteJob(job.id)
+            if (updated.status === 'succeeded') {
+              message.success(`APIFY completó: ${updated.importedCount} nuevos DTEs importados`)
+            } else if (updated.status === 'failed') {
+              message.error(`APIFY falló: ${updated.errorMessage ?? 'error desconocido'}`)
+            }
+          } catch { /* silencioso durante polling */ }
+        }
+        await load(true)
+      }, POLL_INTERVAL_MS)
+    } else {
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+    }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [hasRunningJobs, jobs, load])
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleImport = async (values: { satNit: string; satPass: string; range: [Dayjs, Dayjs] }) => {
     setImporting(true)
@@ -89,11 +129,11 @@ export default function DteSatPage() {
         fechaInicio: values.range[0].format('YYYY-MM-DD'),
         fechaFin: values.range[1].format('YYYY-MM-DD'),
       })
-      message.success(`Importacion SAT iniciada. Run APIFY: ${job.apifyRunId ?? job.id}`)
+      message.success(`Importación SAT iniciada — Run APIFY: ${job.apifyRunId ?? job.id}`)
       form.setFieldValue('satPass', '')
       await load()
     } catch (err: unknown) {
-      message.error(getErrorMessage(err, 'No se pudo iniciar la importacion'))
+      message.error(getErrorMessage(err, 'No se pudo iniciar la importación'))
     } finally {
       setImporting(false)
     }
@@ -104,11 +144,15 @@ export default function DteSatPage() {
     try {
       const updated = await syncSatDteJob(job.id)
       if (updated.status === 'succeeded') {
-        message.success(`Sincronizacion completa: ${updated.importedCount} nuevos, ${updated.duplicateCount} duplicados`)
+        message.success(
+          `Sincronización completa: ${updated.importedCount} nuevos, ` +
+          `${updated.duplicateCount} duplicados` +
+          ((updated as any).errorCount > 0 ? `, ${(updated as any).errorCount} errores` : '')
+        )
       } else if (updated.status === 'failed') {
-        message.error(updated.errorMessage ?? 'El run APIFY fallo')
+        message.error(updated.errorMessage ?? 'El run APIFY falló')
       } else {
-        message.info('APIFY sigue ejecutando. Vuelve a sincronizar en unos minutos.')
+        message.info('APIFY sigue ejecutando — se sincronizará automáticamente cada 20 segundos.')
       }
       await load()
     } catch (err: unknown) {
@@ -118,145 +162,352 @@ export default function DteSatPage() {
     }
   }
 
+  // ── Totales ────────────────────────────────────────────────────────────────
+
   const totals = useMemo(() => ({
-    pending: stats.pending?.count ?? 0,
-    ready: stats.ready?.count ?? 0,
-    duplicate: stats.duplicate?.count ?? 0,
-    posted: stats.posted?.count ?? 0,
-    amount: Object.values(stats).reduce((sum, item) => sum + Number(item.total ?? 0), 0),
+    pending:  { count: stats.pending?.count ?? 0,   amount: stats.pending?.total ?? 0 },
+    ready:    { count: stats.ready?.count ?? 0,     amount: stats.ready?.total ?? 0 },
+    duplicate:{ count: stats.duplicate?.count ?? 0, amount: stats.duplicate?.total ?? 0 },
+    posted:   { count: stats.posted?.count ?? 0,    amount: stats.posted?.total ?? 0 },
+    total:    Object.values(stats).reduce((s, r) => s + Number(r.total ?? 0), 0),
   }), [stats])
+
+  // ── Columnas documentos ────────────────────────────────────────────────────
 
   const columns: ColumnsType<SatDte> = [
     {
       title: 'Fecha',
       dataIndex: 'fechaEmision',
-      width: 110,
-      render: (value: string) => value ? value.slice(0, 10) : '-',
+      width: 100,
+      sorter: (a, b) => (a.fechaEmision ?? '').localeCompare(b.fechaEmision ?? ''),
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
     },
     {
       title: 'Proveedor SAT',
       render: (_, row) => (
         <div>
-          <Text strong>{row.nombreEmisor ?? 'Proveedor sin nombre'}</Text>
+          <Text strong style={{ fontSize: 13 }}>{row.nombreEmisor ?? 'Sin nombre'}</Text>
           <br />
-          <Text type="secondary" style={{ fontSize: 11 }}>{row.nitEmisor ?? 'Sin NIT'}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>NIT: {row.nitEmisor ?? '—'}</Text>
         </div>
       ),
     },
     {
-      title: 'Serie / DTE',
-      width: 150,
+      title: 'Tipo / Serie / DTE',
+      width: 140,
       render: (_, row) => (
         <div>
-          <Text>{row.serie ?? '-'}</Text>
+          <Tag style={{ fontSize: 10 }}>{(row as any).tipoDocumento ?? 'FACT'}</Tag>
           <br />
-          <Text code style={{ fontSize: 11 }}>{row.numeroDte ?? '-'}</Text>
+          <Text style={{ fontSize: 11 }}>{row.serie ?? '—'} / {row.numeroDte ?? '—'}</Text>
         </div>
       ),
     },
     {
       title: 'UUID',
       dataIndex: 'uuid',
-      width: 220,
-      render: (value: string) => <Text code style={{ fontSize: 11 }}>{value}</Text>,
+      width: 200,
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <Text code style={{ fontSize: 10 }}>{v?.slice(0, 18)}…</Text>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Subtotal',
+      dataIndex: 'subtotal',
+      align: 'right',
+      width: 110,
+      render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
       title: 'IVA',
       dataIndex: 'totalIva',
       align: 'right',
-      width: 110,
-      render: (value: number, row) => money(value, row.moneda),
+      width: 100,
+      render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
       title: 'Total',
       dataIndex: 'total',
       align: 'right',
-      width: 130,
-      render: (value: number, row) => <Text strong>{money(value, row.moneda)}</Text>,
+      width: 120,
+      sorter: (a, b) => Number(a.total) - Number(b.total),
+      render: (v: number, row) => <Text strong>{money(v, row.moneda)}</Text>,
     },
     {
       title: 'Estado',
       dataIndex: 'status',
-      width: 150,
-      render: (value: SatDteStatus) => <Tag color={statusConfig[value]?.color}>{statusConfig[value]?.label ?? value}</Tag>,
+      width: 160,
+      filters: Object.entries(statusConfig).map(([k, v]) => ({ text: v.label, value: k })),
+      onFilter: (val, row) => row.status === val,
+      render: (v: SatDteStatus) => (
+        <Tag color={statusConfig[v]?.color} icon={statusConfig[v]?.icon}>
+          {statusConfig[v]?.label ?? v}
+        </Tag>
+      ),
     },
     {
       title: 'Archivos',
-      width: 120,
+      width: 90,
       render: (_, row) => (
-        <Space>
-          {row.xmlUrl ? <a href={row.xmlUrl} target="_blank" rel="noreferrer">XML</a> : <Text type="secondary">XML</Text>}
-          {row.pdfUrl ? <a href={row.pdfUrl} target="_blank" rel="noreferrer">PDF</a> : <Text type="secondary">PDF</Text>}
+        <Space size={4}>
+          {row.xmlUrl
+            ? <a href={row.xmlUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>XML</a>
+            : <Text type="secondary" style={{ fontSize: 12 }}>XML</Text>}
+          {row.pdfUrl
+            ? <a href={row.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>PDF</a>
+            : <Text type="secondary" style={{ fontSize: 12 }}>PDF</Text>}
         </Space>
       ),
     },
+    {
+      title: 'Acción',
+      width: 130,
+      fixed: 'right',
+      render: (_, row) => {
+        const canPost = row.status === 'ready' || row.status === 'pending'
+        return (
+          <Tooltip title={canPost ? 'Fase 2 — Contabilización asistida (próximamente)' : undefined}>
+            <Button
+              size="small"
+              icon={<BookOutlined />}
+              disabled={true}
+              style={{ fontSize: 11 }}
+            >
+              Contabilizar
+            </Button>
+          </Tooltip>
+        )
+      },
+    },
   ]
 
+  // ── Columnas jobs ──────────────────────────────────────────────────────────
+
   const jobColumns: ColumnsType<SatImportJob> = [
-    { title: 'Fecha', dataIndex: 'createdAt', width: 120, render: (v: string) => v?.slice(0, 10) },
-    { title: 'Rango', render: (_, row) => `${String(row.fechaInicio).slice(0, 10)} - ${String(row.fechaFin).slice(0, 10)}` },
-    { title: 'NIT SAT', dataIndex: 'satNit', width: 120 },
-    { title: 'Run APIFY', dataIndex: 'apifyRunId', render: (v: string) => <Text code style={{ fontSize: 11 }}>{v ?? '-'}</Text> },
-    { title: 'Estado', dataIndex: 'status', width: 120, render: (v: string) => <Tag color={jobStatusConfig[v]?.color}>{jobStatusConfig[v]?.label ?? v}</Tag> },
-    { title: 'Nuevos', dataIndex: 'importedCount', align: 'right', width: 90 },
-    { title: 'Duplicados', dataIndex: 'duplicateCount', align: 'right', width: 100 },
+    {
+      title: 'Fecha',
+      dataIndex: 'createdAt',
+      width: 110,
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YY HH:mm') : '—',
+    },
+    {
+      title: 'Rango',
+      width: 190,
+      render: (_, row) =>
+        `${dayjs(String(row.fechaInicio)).format('DD/MM/YYYY')} → ${dayjs(String(row.fechaFin)).format('DD/MM/YYYY')}`,
+    },
+    { title: 'NIT SAT', dataIndex: 'satNit', width: 110 },
+    {
+      title: 'Run APIFY',
+      dataIndex: 'apifyRunId',
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <Text code style={{ fontSize: 10 }}>{v ? v.slice(0, 16) + '…' : '—'}</Text>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Estado',
+      dataIndex: 'status',
+      width: 120,
+      render: (v: string) => (
+        <Space size={4}>
+          <Badge status={v === 'running' ? 'processing' : v === 'succeeded' ? 'success' : v === 'failed' ? 'error' : 'default'} />
+          <Tag color={jobStatusConfig[v]?.color} style={{ marginInlineEnd: 0 }}>
+            {jobStatusConfig[v]?.label ?? v}
+          </Tag>
+        </Space>
+      ),
+    },
+    {
+      title: 'Total / Nuevos / Dup. / Err.',
+      width: 160,
+      render: (_, row) => (
+        <Space size={2} wrap>
+          <Tag style={{ fontSize: 10 }}>{(row as any).totalCount ?? '?'} total</Tag>
+          <Tag color="green" style={{ fontSize: 10 }}>{row.importedCount} nuevos</Tag>
+          <Tag color="orange" style={{ fontSize: 10 }}>{row.duplicateCount} dup.</Tag>
+          {(row as any).errorCount > 0 && (
+            <Tag color="red" style={{ fontSize: 10 }}>{(row as any).errorCount} err.</Tag>
+          )}
+        </Space>
+      ),
+    },
     {
       title: 'Acciones',
       width: 130,
       render: (_, row) => (
-        <Button size="small" icon={<CloudSyncOutlined />} loading={syncingJob === row.id} onClick={() => handleSync(row)}>
+        <Button
+          size="small"
+          icon={<CloudSyncOutlined />}
+          loading={syncingJob === row.id}
+          onClick={() => handleSync(row)}
+          disabled={row.status === 'succeeded' || row.status === 'failed'}
+        >
           Sincronizar
         </Button>
       ),
     },
   ]
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
+
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#102a56' }}>DTE SAT</Title>
-          <Text type="secondary">Bandeja de facturas de compras importadas desde SAT via APIFY</Text>
+          <Title level={4} style={{ margin: 0, color: '#102a56' }}>
+            DTE SAT
+            {hasRunningJobs && (
+              <Spin size="small" style={{ marginLeft: 10 }} />
+            )}
+          </Title>
+          <Text type="secondary">
+            Bandeja de facturas de compras importadas desde SAT vía APIFY
+            {hasRunningJobs && (
+              <Text type="warning" style={{ marginLeft: 8, fontSize: 12 }}>
+                · Importación en progreso — sincronizando automáticamente
+              </Text>
+            )}
+          </Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Actualizar</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
+          Actualizar
+        </Button>
       </div>
 
+      {/* Alerta de fase */}
       <Alert
         type="info"
         showIcon
-        message="Fase 1 activa"
-        description="Esta pantalla inicia el actor APIFY, sincroniza resultados y guarda los DTE en una bandeja. La contabilizacion asistida se habilita en la siguiente fase."
+        message="Fase 1 — Bandeja DTE SAT activa"
+        description="Inicia el actor APIFY, sincroniza los resultados y guarda los DTE en la bandeja. La contabilización asistida (Fase 2) y la creación automática de proveedores (Fase 3) estarán disponibles en la próxima versión."
+        action={
+          <Tag color="blue" style={{ fontSize: 11 }}>
+            Fases 2-6 en roadmap
+          </Tag>
+        }
       />
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={6}><Card bordered={false}><Statistic title="Pendientes" value={totals.pending} prefix={<FileTextOutlined />} /></Card></Col>
-        <Col xs={24} md={6}><Card bordered={false}><Statistic title="Listos" value={totals.ready} prefix={<SafetyCertificateOutlined />} /></Card></Col>
-        <Col xs={24} md={6}><Card bordered={false}><Statistic title="Duplicados" value={totals.duplicate} prefix={<ApiOutlined />} /></Card></Col>
-        <Col xs={24} md={6}><Card bordered={false}><Statistic title="Total importado" value={money(totals.amount)} /></Card></Col>
+      {/* Stats cards */}
+      <Row gutter={[12, 12]}>
+        <Col xs={12} md={4}>
+          <Card bordered={false} style={{ borderTop: '3px solid #d97706' }}>
+            <Statistic
+              title={<Text style={{ fontSize: 11 }}>Pendientes</Text>}
+              value={totals.pending.count}
+              prefix={<WarningOutlined style={{ color: '#d97706' }} />}
+              valueStyle={{ fontSize: 20, color: '#d97706' }}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.pending.amount)}</Text>
+          </Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card bordered={false} style={{ borderTop: '3px solid #16a34a' }}>
+            <Statistic
+              title={<Text style={{ fontSize: 11 }}>Listos</Text>}
+              value={totals.ready.count}
+              prefix={<CheckCircleOutlined style={{ color: '#16a34a' }} />}
+              valueStyle={{ fontSize: 20, color: '#16a34a' }}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.ready.amount)}</Text>
+          </Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card bordered={false} style={{ borderTop: '3px solid #6b7280' }}>
+            <Statistic
+              title={<Text style={{ fontSize: 11 }}>Duplicados</Text>}
+              value={totals.duplicate.count}
+              prefix={<ApiOutlined style={{ color: '#6b7280' }} />}
+              valueStyle={{ fontSize: 20, color: '#6b7280' }}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.duplicate.amount)}</Text>
+          </Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card bordered={false} style={{ borderTop: '3px solid #2563eb' }}>
+            <Statistic
+              title={<Text style={{ fontSize: 11 }}>Contabilizados</Text>}
+              value={totals.posted.count}
+              prefix={<BookOutlined style={{ color: '#2563eb' }} />}
+              valueStyle={{ fontSize: 20, color: '#2563eb' }}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.posted.amount)}</Text>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={{ borderTop: '3px solid #1B3A6B' }}>
+            <Statistic
+              title={<Text style={{ fontSize: 11 }}>Total importado (todas las facturas)</Text>}
+              value={money(totals.total)}
+              prefix={<SafetyCertificateOutlined style={{ color: '#1B3A6B' }} />}
+              valueStyle={{ fontSize: 18, color: '#1B3A6B', fontWeight: 700 }}
+            />
+          </Card>
+        </Col>
       </Row>
 
-      <Card bordered={false} title="Importar desde SAT">
+      {/* Formulario de importación */}
+      <Card
+        bordered={false}
+        title={
+          <Space>
+            <ApiOutlined style={{ color: '#1B3A6B' }} />
+            <span style={{ color: '#1B3A6B', fontWeight: 600 }}>Importar desde Agencia Virtual SAT</span>
+          </Space>
+        }
+      >
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 14, fontSize: 12 }}
+          message="Seguridad: el password SAT se envía directamente al actor APIFY vía HTTPS y nunca se almacena en la base de datos."
+        />
         <Form form={form} layout="vertical" onFinish={handleImport}>
-          <Row gutter={[16, 8]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="satNit" label="NIT SAT" rules={[{ required: true, message: 'Ingresa el NIT SAT' }]}>
-                <Input placeholder="108285685" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="satPass" label="Password SAT" rules={[{ required: true, message: 'Ingresa el password SAT' }]}>
-                <Input.Password placeholder="Password Agencia Virtual" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={7}>
-              <Form.Item name="range" label="Rango de emision" rules={[{ required: true, message: 'Selecciona el rango' }]}>
-                <RangePicker style={{ width: '100%' }} />
+          <Row gutter={[16, 0]}>
+            <Col xs={24} md={5}>
+              <Form.Item name="satNit" label="NIT Agencia Virtual SAT"
+                rules={[{ required: true, message: 'Ingresa el NIT SAT' }]}
+              >
+                <Input placeholder="108285685" autoComplete="off" />
               </Form.Item>
             </Col>
             <Col xs={24} md={5}>
+              <Form.Item name="satPass" label="Contraseña Agencia Virtual"
+                rules={[{ required: true, message: 'Ingresa la contraseña SAT' }]}
+              >
+                <Input.Password placeholder="••••••••" autoComplete="off" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="range" label="Rango de emisión"
+                rules={[{ required: true, message: 'Selecciona el rango' }]}
+              >
+                <RangePicker
+                  style={{ width: '100%' }}
+                  presets={[
+                    { label: 'Este mes', value: [dayjs().startOf('month'), dayjs()] },
+                    { label: 'Mes anterior', value: [dayjs().subtract(1,'month').startOf('month'), dayjs().subtract(1,'month').endOf('month')] },
+                    { label: 'Este trimestre', value: [dayjs().subtract(2,'month').startOf('month'), dayjs()] },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
               <Form.Item label=" ">
-                <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing} block>
-                  Importar SAT
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<ApiOutlined />}
+                  loading={importing}
+                  block
+                  style={{ background: '#1B3A6B' }}
+                >
+                  Iniciar importación SAT
                 </Button>
               </Form.Item>
             </Col>
@@ -264,26 +515,51 @@ export default function DteSatPage() {
         </Form>
       </Card>
 
+      {/* Tabs: Documentos + Jobs */}
       <Tabs
+        type="card"
         items={[
           {
             key: 'documentos',
-            label: 'Documentos SAT',
+            label: (
+              <Space size={4}>
+                <FileTextOutlined />
+                Documentos SAT
+                {(totals.pending.count + totals.ready.count) > 0 && (
+                  <Tag color="gold" style={{ fontSize: 10, marginInlineEnd: 0 }}>
+                    {totals.pending.count + totals.ready.count} por procesar
+                  </Tag>
+                )}
+              </Space>
+            ),
             children: (
               <Card bordered={false}>
+                {/* Barra de filtros */}
                 <Space wrap style={{ marginBottom: 12 }}>
                   <Input
                     allowClear
                     prefix={<SearchOutlined />}
                     placeholder="Buscar UUID, NIT, proveedor o DTE"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    style={{ width: 320 }}
+                    onChange={e => setSearch(e.target.value)}
+                    style={{ width: 300 }}
                   />
-                  <Button onClick={() => setStatus(undefined)} type={!status ? 'primary' : 'default'}>Todos</Button>
+                  <Button
+                    size="small"
+                    type={!statusFilter ? 'primary' : 'default'}
+                    onClick={() => setStatusFilter(undefined)}
+                  >
+                    Todos
+                  </Button>
                   {Object.entries(statusConfig).map(([key, cfg]) => (
-                    <Button key={key} onClick={() => setStatus(key)} type={status === key ? 'primary' : 'default'}>
+                    <Button
+                      key={key}
+                      size="small"
+                      type={statusFilter === key ? 'primary' : 'default'}
+                      onClick={() => setStatusFilter(key)}
+                    >
                       {cfg.label}
+                      {stats[key]?.count ? ` (${stats[key].count})` : ''}
                     </Button>
                   ))}
                 </Space>
@@ -293,24 +569,47 @@ export default function DteSatPage() {
                   rowKey="id"
                   loading={loading}
                   size="small"
-                  scroll={{ x: 1100 }}
-                  pagination={{ pageSize: 10, showTotal: (total) => `${total} DTE` }}
+                  scroll={{ x: 1300 }}
+                  pagination={{
+                    pageSize: 15,
+                    showSizeChanger: true,
+                    showTotal: t => `${t} documentos`,
+                  }}
+                  rowClassName={row =>
+                    row.status === 'ready' ? 'ant-table-row-ready' :
+                    row.status === 'error' ? 'ant-table-row-error' : ''
+                  }
                 />
               </Card>
             ),
           },
           {
             key: 'jobs',
-            label: 'Importaciones',
+            label: (
+              <Space size={4}>
+                <CloudSyncOutlined />
+                Importaciones
+                {hasRunningJobs && <Badge status="processing" />}
+              </Space>
+            ),
             children: (
               <Card bordered={false}>
+                {hasRunningJobs && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 12, fontSize: 12 }}
+                    message="Hay importaciones en curso — sincronizando automáticamente cada 20 segundos"
+                    action={<Spin size="small" />}
+                  />
+                )}
                 <Table
                   columns={jobColumns}
                   dataSource={jobs}
                   rowKey="id"
                   loading={loading}
                   size="small"
-                  scroll={{ x: 900 }}
+                  scroll={{ x: 950 }}
                   pagination={false}
                 />
               </Card>
