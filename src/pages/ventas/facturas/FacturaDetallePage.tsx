@@ -183,8 +183,12 @@ export default function FacturaDetallePage() {
       voidForm.resetFields()
       load()
     } catch (e: any) {
-      const raw = e?.response?.data?.message
-      message.error(Array.isArray(raw) ? raw.join(' | ') : (raw || 'Error al anular'), 8)
+      console.error('[handleVoid] error completo:', e?.response?.data ?? e)
+      const data   = e?.response?.data
+      const raw    = data?.message ?? data?.error ?? data
+      const errMsg = Array.isArray(raw) ? raw.join(' | ') : (typeof raw === 'string' ? raw : JSON.stringify(raw))
+      const status = e?.response?.status ? ` (HTTP ${e.response.status})` : ''
+      message.error(errMsg ? `${errMsg}${status}` : `Sin conexión con el servidor${status}`, 10)
     } finally { setSaving(false) }
   }
 
