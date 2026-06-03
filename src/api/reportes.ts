@@ -69,6 +69,62 @@ export interface FlujoEfectivoData {
   note?: string | null
 }
 
+export interface ExecutiveAgingRow {
+  customer_name?: string
+  customer_id?: string
+  vendor_name?: string
+  vendor_id?: string
+  documents?: number
+  current: number
+  days_1_30: number
+  days_31_60: number
+  days_61_90: number
+  over_90: number
+  total: number
+}
+
+export interface ExecutiveAgingSection {
+  asOf: string
+  total: number
+  overdue: number
+  critical: number
+  overduePct: number
+  criticalPct: number
+  buckets: Record<string, number>
+  rows: ExecutiveAgingRow[]
+  topCritical: ExecutiveAgingRow[]
+}
+
+export interface ExecutiveDashboardData {
+  period: { from: string; to: string; asOf: string }
+  company: Partial<EmpresaInfo> & { company_name?: string }
+  currency: string
+  summary: {
+    salesTotal: number
+    purchasesTotal: number
+    netIncome: number
+    grossMargin: number
+    operatingMargin: number
+    netMargin: number
+    cashNetChange: number
+    cashEnd: number
+    arTotal: number
+    apTotal: number
+    arOverdue: number
+    apOverdue: number
+    arOverduePct: number
+    apOverduePct: number
+    commercialLeverage: number | null
+    overdueInvoices: number
+  }
+  receivables: ExecutiveAgingSection
+  payables: ExecutiveAgingSection
+  cashFlow: FlujoEfectivoData | null
+  ratios: TasasRendimientoData | null
+  insights: { type: 'danger' | 'warning' | 'success' | string; title: string; text: string }[]
+  recent: { overdueInvoices: any[] }
+}
+
 export interface RatioItem {
   nombre: string
   valor: number | null
@@ -138,6 +194,9 @@ export const getFlujoEfectivo = (params?: { fromDate?: string; toDate?: string }
 
 export const getTasasRendimiento = (params?: { fromDate?: string; toDate?: string }) =>
   api.get<any>(`${BASE}/financiero/tasas-rendimiento`, { params }).then(unwrap) as Promise<TasasRendimientoData>
+
+export const getExecutiveDashboard = (params?: { fromDate?: string; toDate?: string; asOf?: string }) =>
+  api.get<any>(`${BASE}/dashboard-ejecutivo`, { params }).then(unwrap) as Promise<ExecutiveDashboardData>
 
 export const getMovimientoCapital = (params?: { fromDate?: string; toDate?: string }) =>
   api.get<any>(`${BASE}/financiero/movimiento-capital`, { params }).then(unwrap) as Promise<MovimientoCapitalData>
