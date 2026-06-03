@@ -32,6 +32,7 @@ const menuItems = [
     { key: '/compras/proveedores',            label: 'Proveedores' },
     { key: '/compras/ordenes',                label: 'Órdenes de compra' },
     { key: '/compras/facturas',               label: 'Facturas proveedor' },
+    { key: '/compras/dte-sat',                label: 'DTE SAT' },
     { key: '/compras/reportes/ap-aging',      label: 'AP Aging (CxP)' },
     { key: '/compras/reportes/libro-compras', label: 'Libro de Compras' },
   ]},

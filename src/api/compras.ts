@@ -367,3 +367,63 @@ export const PO_STATUS_CONFIG: Record<POStatus, { label: string; color: string }
   billed:    { label: 'Facturada',  color: 'green'   },
   cancelled: { label: 'Cancelada',  color: 'volcano' },
 }
+
+export type SatDteStatus = 'pending' | 'ready' | 'duplicate' | 'posted' | 'error'
+export type SatImportJobStatus = 'queued' | 'running' | 'succeeded' | 'failed'
+
+export interface SatDte {
+  id: string
+  status: SatDteStatus
+  uuid: string
+  serie?: string
+  numeroDte?: string
+  fechaEmision?: string
+  nitEmisor?: string
+  nombreEmisor?: string
+  nitReceptor?: string
+  nombreReceptor?: string
+  moneda: string
+  subtotal: number
+  totalIva: number
+  total: number
+  xmlUrl?: string
+  pdfUrl?: string
+  vendorId?: string
+  purchaseInvoiceId?: string
+  expenseId?: string
+  errorMessage?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface SatImportJob {
+  id: string
+  status: SatImportJobStatus
+  apifyRunId?: string
+  defaultDatasetId?: string
+  fechaInicio: string
+  fechaFin: string
+  satNit?: string
+  importedCount: number
+  duplicateCount: number
+  errorMessage?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+const DTE_SAT = '/compras/dte-sat'
+
+export const startSatDteImport = (dto: { satNit: string; satPass: string; fechaInicio: string; fechaFin: string }) =>
+  api.post(`${DTE_SAT}/importar`, dto).then(unwrap) as Promise<SatImportJob>
+
+export const syncSatDteJob = (id: string) =>
+  api.post(`${DTE_SAT}/jobs/${id}/sincronizar`).then(unwrap) as Promise<SatImportJob>
+
+export const getSatDteDocuments = (params?: { page?: number; limit?: number; search?: string; status?: string }) =>
+  api.get(`${DTE_SAT}/documentos`, { params }).then(unwrap) as Promise<{ data: SatDte[]; total: number }>
+
+export const getSatDteJobs = (params?: { page?: number; limit?: number }) =>
+  api.get(`${DTE_SAT}/jobs`, { params }).then(unwrap) as Promise<{ data: SatImportJob[]; total: number }>
+
+export const getSatDteStats = () =>
+  api.get(`${DTE_SAT}/stats`).then(unwrap) as Promise<Record<SatDteStatus, { count: number; total: number }>>
