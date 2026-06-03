@@ -20,6 +20,7 @@ import { companyIntegrationsApi } from '../../../api/companyIntegrations'
 import { useCompanyStore } from '../../../store/companyStore'
 import { getCustomers, getCustomer } from '../../../api/contactos'
 import { getTaxes, type Tax } from '../../../api/impuestos'
+import { getExchangeRateForDate } from '../../../api/monedas'
 import LineItemsEditor, {
   type LineItem,
   newLineItem,
@@ -45,6 +46,8 @@ export default function FacturaFormPage() {
   const [isExenta, setIsExenta] = useState(false)
   const [customerTermsDays, setCustomerTermsDays] = useState<number | null>(null)
   const [customerTermsLabel, setCustomerTermsLabel] = useState<string | null>(null)
+  const [loadingExchangeRate, setLoadingExchangeRate] = useState(false)
+  const [exchangeRateMeta, setExchangeRateMeta] = useState<{ effectiveDate: string; source: string } | null>(null)
   const [certifying, setCertifying] = useState(false)
   const [felCertResult, setFelCertResult] = useState<{ success: boolean; uuid?: string; serie?: string; numero?: string; url?: string; mensaje: string } | null>(null)
   const activeCompany = useCompanyStore(s => s.activeCompany)
@@ -84,6 +87,7 @@ export default function FacturaFormPage() {
           accountingDate:         inv.accountingDate   ? dayjs(inv.accountingDate)    : undefined,
           dueDate:                inv.dueDate          ? dayjs(inv.dueDate)            : undefined,
           currency:               inv.currency         ?? 'GTQ',
+          exchangeRate:           Number(inv.exchangeRate ?? 1),
           reference:              inv.purchaseOrderRef ?? '',
           discountPercent:        inv.discountPercent  ?? 0,
           notes:                  inv.notes            ?? '',
@@ -208,6 +212,7 @@ export default function FacturaFormPage() {
       accountingDate:   v.accountingDate ? v.accountingDate.format('YYYY-MM-DD') : undefined,
       dueDate:          v.dueDate ? v.dueDate.format('YYYY-MM-DD') : undefined,
       currency:         v.currency ?? 'GTQ',
+      exchangeRate:     v.exchangeRate ?? 1,
       discountPercent:  v.discountPercent ?? 0,
       purchaseOrderRef: v.reference || undefined,
       notes:            v.notes || undefined,
@@ -276,10 +281,32 @@ export default function FacturaFormPage() {
   // ── Form.useWatch — TODOS deben estar aquí, nunca dentro del JSX ──────────
   const watchDiscountPct  = Form.useWatch('discountPercent',   form) ?? 0
   const watchCurrency     = Form.useWatch('currency',          form) ?? 'GTQ'
+  const watchInvoiceDate  = Form.useWatch('invoiceDate',       form)
   const watchTipoDoc      = Form.useWatch('felTipoDocumento',  form)
   const watchSerie        = Form.useWatch('felSerie',          form)
   const watchNumero       = Form.useWatch('felNumero',         form)
   const watchUuid         = Form.useWatch('felUuid',           form)
+
+  useEffect(() => {
+    if (watchCurrency !== 'USD') {
+      form.setFieldValue('exchangeRate', 1)
+      setExchangeRateMeta(null)
+      return
+    }
+
+    const date = watchInvoiceDate ? dayjs(watchInvoiceDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+    setLoadingExchangeRate(true)
+    getExchangeRateForDate('USD', date)
+      .then((result) => {
+        const rate = result.officialRate ?? (result.rate > 0 ? 1 / result.rate : 1)
+        form.setFieldValue('exchangeRate', Number(rate.toFixed(6)))
+        setExchangeRateMeta({ effectiveDate: result.effectiveDate, source: result.source })
+      })
+      .catch(() => {
+        message.warning('No se pudo cargar el tipo de cambio histórico para la fecha seleccionada')
+      })
+      .finally(() => setLoadingExchangeRate(false))
+  }, [watchCurrency, watchInvoiceDate, form])
 
   if (loading) {
     return (
@@ -380,6 +407,34 @@ export default function FacturaFormPage() {
                   <InputNumber min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} />
                 </Form.Item>
               </div>
+
+              {watchCurrency === 'USD' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '0 12px', alignItems: 'end' }}>
+                  <Form.Item
+                    name="exchangeRate"
+                    label="Tipo de cambio"
+                    style={{ marginBottom: 8 }}
+                    tooltip="Se obtiene del historial segun la fecha de factura."
+                  >
+                    <InputNumber
+                      min={0.000001}
+                      precision={6}
+                      step={0.000001}
+                      addonBefore="1 USD ="
+                      addonAfter="GTQ"
+                      disabled={loadingExchangeRate}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <div style={{ marginBottom: 11, fontSize: 12, color: '#6b7280' }}>
+                    {loadingExchangeRate
+                      ? 'Consultando historial...'
+                      : exchangeRateMeta
+                        ? `Tasa aplicada del ${dayjs(exchangeRateMeta.effectiveDate).format('DD/MM/YYYY')} (${exchangeRateMeta.source}).`
+                        : 'Selecciona fecha para aplicar la tasa historica.'}
+                  </div>
+                </div>
+              )}
             </Form>
           </Card>
 
@@ -610,4 +665,3 @@ export default function FacturaFormPage() {
     </div>
   )
 }
-

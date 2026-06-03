@@ -1,0 +1,128 @@
+import api from './axios'
+
+const unwrap = (r: any) => r.data?.data ?? r.data
+
+// ── Tipos ────────────────────────────────────────────────────────────────────
+
+export type BillingCurrency = 'USD' | 'GTQ'
+export type CardType = 'visa' | 'mastercard'
+export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
+export type PaymentResult = 'approved' | 'declined' | 'pending' | 'error'
+
+export interface PlanConfig {
+  plan: string
+  displayName: string
+  priceMonthly: number
+  currency: string
+  maxCompanies: number
+  maxUsers: number
+  maxBranches: number
+  features: string[]
+  isActive: boolean
+}
+
+export interface SubscriptionInfo {
+  id: string
+  tenantId: string
+  plan: string
+  status: SubscriptionStatus
+  monthlyPrice: number
+  currency: string
+  billingCurrency: BillingCurrency
+  billingAmountLocal: number
+  currentPeriodStart?: string
+  currentPeriodEnd?: string
+  nextChargeAt?: string
+  lastChargedAt?: string
+  lastChargeStatus?: string
+  qpayproCardToken?: string
+  qpayproCardLast4?: string
+  qpayproCardBrand?: string
+  cardHolderName?: string
+  cancelledAt?: string
+  maxCompanies: number
+}
+
+export interface SubscriptionPayment {
+  id: string
+  result: PaymentResult
+  amount: number
+  currency: BillingCurrency
+  plan: string
+  qpayproTransactionId?: string
+  qpayproResponseCode?: string
+  qpayproResponseMessage?: string
+  cardLast4?: string
+  cardBrand?: string
+  chargedAt: string
+}
+
+export interface BillingState {
+  subscription: SubscriptionInfo | null
+  tenant: { id: string; name: string; email?: string; plan: string; status: string; trialEndsAt?: string }
+  plans: PlanConfig[]
+  paymentHistory: SubscriptionPayment[]
+  exchangeRateGTQ?: number
+}
+
+export interface SubscribeDto {
+  plan: string
+  currency: BillingCurrency
+  ccNumber: string
+  expMonth: string
+  expYear: string
+  cvv: string
+  cardType: CardType
+  holderName: string
+  email?: string
+  phone?: string
+}
+
+// ── API calls ────────────────────────────────────────────────────────────────
+
+export const getBillingState = (): Promise<BillingState> =>
+  api.get('/billing/subscription').then(unwrap)
+
+export interface PaymentResponse {
+  success: boolean
+  message: string
+  paymentId?: string
+  amountCharged?: number
+}
+
+export const subscribePlan = (dto: SubscribeDto): Promise<PaymentResponse> =>
+  api.post('/billing/subscribe', dto).then(unwrap)
+
+export const changePlan = (plan: string, currency: BillingCurrency): Promise<PaymentResponse> =>
+  api.post('/billing/change-plan', { plan, currency }).then(unwrap)
+
+export const cancelSubscription = (): Promise<{ success: boolean; message: string }> =>
+  api.post('/billing/cancel').then(unwrap)
+
+export const getGtqExchangeRate = (): Promise<{ rate: number; updatedAt?: string; updatedBy?: string }> =>
+  api.get('/billing/exchange-rate').then(unwrap)
+
+export const setGtqExchangeRate = (rate: number): Promise<{ rate: number }> =>
+  api.patch('/billing/exchange-rate', { rate }).then(unwrap)
+
+export interface RequestInvoiceDto {
+  subscriptionPaymentId: string
+  customerTaxId: string   // NIT o "CF"
+  customerName: string
+  customerEmail?: string
+  customerAddress?: string
+  currency?: BillingCurrency
+}
+
+export interface BillingFelResult {
+  success: boolean
+  message: string
+  felUuid?: string
+  felSerie?: string
+  felNumero?: string
+  felInvoiceUrl?: string
+  simulated?: boolean
+}
+
+export const requestBillingInvoice = (dto: RequestInvoiceDto): Promise<BillingFelResult> =>
+  api.post('/billing/request-invoice', dto).then(unwrap)

@@ -13,8 +13,139 @@ import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import { useNavigate } from 'react-router-dom'
+import { getGtqExchangeRate, setGtqExchangeRate } from '../../api/billing'
 
 const { Title, Text } = Typography
+
+// ── BillingConfigTab ──────────────────────────────────────────────────────────
+// Componente separado para evitar que el estado del InputNumber se pierda
+// cuando el padre re-renderiza y recrea el array items de <Tabs>.
+
+function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
+  const [rate, setRate]       = useState<number>(7.70)
+  const [info, setInfo]       = useState<{ updatedAt?: string; updatedBy?: string }>({})
+  const [saving, setSaving]   = useState(false)
+  const [loaded, setLoaded]   = useState(false)
+
+  useEffect(() => {
+    getGtqExchangeRate()
+      .then(r => { setRate(r.rate); setInfo({ updatedAt: r.updatedAt, updatedBy: r.updatedBy }); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  const handleSave = async () => {
+    if (!rate || rate <= 0) { message.error('Ingresa un tipo de cambio válido'); return }
+    setSaving(true)
+    try {
+      await setGtqExchangeRate(rate)
+      message.success(`Tipo de cambio actualizado: 1 USD = Q ${rate.toFixed(4)}`)
+      const r = await getGtqExchangeRate()
+      setInfo({ updatedAt: r.updatedAt, updatedBy: r.updatedBy })
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Row gutter={[24, 24]}>
+      <Col xs={24} md={12}>
+        <Card
+          size="small"
+          title={
+            <Space>
+              <GlobalOutlined style={{ color: '#1B3A6B' }} />
+              <span style={{ color: '#1B3A6B', fontWeight: 600 }}>
+                Tipo de cambio GTQ / USD para suscripciones
+              </span>
+            </Space>
+          }
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}
+        >
+          <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>
+            Este valor se usa para mostrar los precios de los planes en Quetzales (GTQ)
+            cuando un cliente elige esa moneda al suscribirse.
+          </Text>
+
+          <div style={{ marginBottom: 8, fontSize: 12, color: '#6b7280' }}>1 USD =</div>
+          <InputNumber
+            value={rate}
+            onChange={v => setRate(v ?? 7.70)}
+            min={0.0001}
+            max={99999}
+            precision={4}
+            step={0.01}
+            addonAfter="GTQ"
+            style={{ width: '100%', marginBottom: 16 }}
+            size="large"
+            disabled={!loaded}
+          />
+
+          {info.updatedBy && (
+            <div style={{
+              background: '#f9fafb', borderRadius: 6, padding: '8px 12px', marginBottom: 16,
+              fontSize: 12, color: '#6b7280',
+            }}>
+              <div>Último cambio por: <strong>{info.updatedBy}</strong></div>
+              {info.updatedAt && <div>Fecha: {new Date(info.updatedAt).toLocaleString('es-GT')}</div>}
+            </div>
+          )}
+
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Ejemplo: Plan Professional ($49 USD) = Q {(49 * rate).toFixed(2)} GTQ
+            </Text>
+          </div>
+
+          <Button
+            type="primary" loading={saving} onClick={handleSave}
+            style={{ background: '#1B3A6B', width: '100%' }}
+          >
+            Guardar tipo de cambio
+          </Button>
+        </Card>
+      </Col>
+
+      <Col xs={24} md={12}>
+        <Card
+          size="small"
+          title={
+            <Space>
+              <CheckCircleOutlined style={{ color: '#16a34a' }} />
+              <span style={{ color: '#1B3A6B', fontWeight: 600 }}>Vista previa en GTQ</span>
+            </Space>
+          }
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}
+        >
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+            Cómo verán los clientes los precios con este tipo de cambio:
+          </Text>
+          {plans.map(plan => (
+            <div key={plan.plan} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 0', borderBottom: '1px solid #f0f0f0',
+            }}>
+              <Tag color={Number(plan.priceMonthly) === 0 ? 'default' : plan.plan === 'enterprise' ? 'gold' : 'blue'}>
+                {plan.displayName}
+              </Tag>
+              {Number(plan.priceMonthly) === 0 ? (
+                <Tag color="success">Gratis</Tag>
+              ) : (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1B3A6B' }}>
+                    Q {(Number(plan.priceMonthly) * rate).toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                    (${Number(plan.priceMonthly).toFixed(2)} USD)
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </Card>
+      </Col>
+    </Row>
+  )
+}
 const unwrap = (r: any) => r.data?.data ?? r.data
 
 const PLAN_COLOR: Record<string, string> = {
@@ -69,6 +200,7 @@ export default function PlatformAdminPage() {
 
   // Assign plan to tenant
   const [assigningTenantId, setAssigningTenantId] = useState<string | null>(null)
+
 
   useEffect(() => {
     if (user && !user.isSuperAdmin) {
@@ -472,6 +604,11 @@ export default function PlatformAdminPage() {
               </Row>
               </>
             ),
+          },
+          {
+            key: 'billing',
+            label: <Space><KeyOutlined />Facturación</Space>,
+            children: <BillingConfigTab plans={plans} />,
           },
         ]}
       />

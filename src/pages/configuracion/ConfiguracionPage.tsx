@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
 import {
   Layout, Menu, Form, Input, Button, Select, Upload, Avatar,
   Typography, Card, Row, Col, Divider, message, Spin, Space, Tag,
-  Modal, Table, Popconfirm, InputNumber, Switch,
+  Modal, Table, Popconfirm, InputNumber, Switch, Collapse,
 } from 'antd'
 import {
   BankOutlined, GlobalOutlined, DollarOutlined,
@@ -11,7 +12,8 @@ import {
   CameraOutlined, SaveOutlined, TeamOutlined,
   SecurityScanOutlined, ApiOutlined, BellOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
-  PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined,
+  PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
+  CreditCardOutlined,
 } from '@ant-design/icons'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
@@ -24,8 +26,8 @@ import {
   type OrganizationProfile,
 } from '../../api/configuracion'
 import {
-  getCurrencies, createCurrency, updateRate, removeCurrency,
-  type Currency,
+  getCurrencies, createCurrency, updateRate, syncBanguatRate, getExchangeRateHistory, removeCurrency,
+  type Currency, type CurrencyExchangeRate,
 } from '../../api/monedas'
 import { getAccounts, type Account } from '../../api/catalogo'
 import { useCompanyStore } from '../../store/companyStore'
@@ -44,6 +46,7 @@ const sections = [
   { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
   { key: 'accountDefaults', icon: <ApiOutlined />,          label: 'Cuentas por defecto' },
   { key: 'users',           icon: <TeamOutlined />,         label: 'Usuarios y roles' },
+  { key: 'subscription',    icon: <CreditCardOutlined />,   label: 'Suscripción y Facturación' },
   { key: 'notifications',   icon: <BellOutlined />,         label: 'Notificaciones' },
   { key: 'integrations',    icon: <ApiOutlined />,          label: 'Integraciones' },
   { key: 'security',        icon: <SecurityScanOutlined />, label: 'Seguridad' },
@@ -472,8 +475,11 @@ const ALL_CURRENCIES = [
 function CurrencySection() {
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [history,    setHistory]    = useState<CurrencyExchangeRate[]>([])
   const [loading,    setLoading]    = useState(true)
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const [saving,     setSaving]     = useState(false)
+  const [syncing,    setSyncing]    = useState(false)
   const [modalOpen,  setModalOpen]  = useState(false)
   const [form] = Form.useForm()
 
@@ -493,6 +499,20 @@ function CurrencySection() {
   }, [])
 
   useEffect(() => { fetchCurrencies() }, [fetchCurrencies])
+
+  const fetchHistory = useCallback(async () => {
+    setLoadingHistory(true)
+    try {
+      const data = await getExchangeRateHistory('USD', 30)
+      setHistory(Array.isArray(data) ? data : [])
+    } catch {
+      setHistory([])
+    } finally {
+      setLoadingHistory(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchHistory() }, [fetchHistory])
 
   const handleAdd = async () => {
     try {
@@ -539,11 +559,29 @@ function CurrencySection() {
     }
   }
 
+  const handleBanguatSync = async () => {
+    setSyncing(true)
+    try {
+      const result = await syncBanguatRate()
+      await fetchCurrencies()
+      await fetchHistory()
+      const target = result.targetCurrencyCode ? ` ${result.targetCurrencyCode}` : ''
+      const officialRate = result.banguatRate ?? result.rate
+      message.success(`Banguat actualizado${target}: 1 USD = ${Number(officialRate).toFixed(6)} GTQ`)
+    } catch (e: any) {
+      const detail = e?.response?.data?.message || e?.response?.data?.error?.message
+      message.error(detail || 'No se pudo sincronizar el tipo de cambio con Banguat')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const activeCodes  = currencies.map(c => c.code)
   const availableToAdd = ALL_CURRENCIES.filter(c => !activeCodes.includes(c.code))
   const localCurrencyCode = activeCompany?.currencyCode ?? currencies.find(c => c.isBase)?.code ?? 'GTQ'
   const localCurrencyMeta = ALL_CURRENCIES.find(c => c.code === localCurrencyCode)
   const usdAvailable = availableToAdd.some(c => c.code === 'USD')
+  const canSyncBanguat = activeCodes.includes('USD') && activeCodes.includes('GTQ')
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -554,19 +592,37 @@ function CurrencySection() {
             Moneda local: {localCurrencyCode}{localCurrencyMeta ? ` (${localCurrencyMeta.name})` : ''}. Consolidacion: USD.
           </Text>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            setModalOpen(true)
-            if (usdAvailable) form.setFieldsValue({ code: 'USD' })
-          }}
-          style={{ background: '#1B3A6B' }}
-          disabled={availableToAdd.length === 0}
-        >
-          Agregar moneda
-        </Button>
+        <Space wrap>
+          <Button
+            icon={<SyncOutlined />}
+            loading={syncing}
+            onClick={handleBanguatSync}
+            disabled={!canSyncBanguat || loading}
+          >
+            Actualizar Banguat
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setModalOpen(true)
+              if (usdAvailable) form.setFieldsValue({ code: 'USD' })
+            }}
+            style={{ background: '#1B3A6B' }}
+            disabled={availableToAdd.length === 0}
+          >
+            Agregar moneda
+          </Button>
+        </Space>
       </div>
+
+      {!canSyncBanguat && (
+        <Card bordered={false} style={{ ...cardStyle, marginBottom: 16 }} bodyStyle={{ padding: '12px 16px' }}>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Para sincronizar desde Banco de Guatemala deben estar creadas las monedas GTQ y USD.
+          </Text>
+        </Card>
+      )}
 
       {/* Tabla de monedas activas */}
       <Card bordered={false} style={cardStyle} bodyStyle={{ padding: 0 }}>
@@ -614,6 +670,13 @@ function CurrencySection() {
                 ),
             },
             {
+              title: 'Actualizado',
+              width: 150,
+              render: (_, r) => r.updatedRateAt
+                ? <Text type="secondary" style={{ fontSize: 12 }}>{new Date(r.updatedRateAt).toLocaleDateString('es-GT')}</Text>
+                : <Text type="secondary" style={{ fontSize: 12 }}>Sin registro</Text>,
+            },
+            {
               title: '',
               width: 60,
               render: (_, r) => r.code === localCurrencyCode ? null : (
@@ -630,6 +693,47 @@ function CurrencySection() {
           ]}
         />
       </Card>
+
+      <Collapse
+        style={{ marginTop: 16, background: '#fff', borderRadius: 10 }}
+        items={[{
+          key: 'exchange-history',
+          label: <Space><SyncOutlined /> Historial USD/GTQ</Space>,
+          children: (
+            <Table
+              size="small"
+              rowKey="id"
+              loading={loadingHistory}
+              dataSource={history}
+              pagination={{ pageSize: 8, size: 'small' }}
+              columns={[
+                {
+                  title: 'Fecha',
+                  dataIndex: 'effectiveDate',
+                  width: 140,
+                  render: (v: string) => dayjs(v).format('DD/MM/YYYY'),
+                },
+                {
+                  title: 'Conversion GTQ a USD',
+                  dataIndex: 'rate',
+                  render: (v: number) => <Text code>1 GTQ = {Number(v).toFixed(8)} USD</Text>,
+                },
+                {
+                  title: 'Oficial Banguat',
+                  dataIndex: 'officialRate',
+                  render: (v?: number) => v ? <Text>1 USD = {Number(v).toFixed(6)} GTQ</Text> : <Text type="secondary">Manual</Text>,
+                },
+                {
+                  title: 'Fuente',
+                  dataIndex: 'source',
+                  width: 110,
+                  render: (v: string) => <Tag color={v === 'banguat' ? 'blue' : 'default'}>{v}</Tag>,
+                },
+              ]}
+            />
+          ),
+        }]}
+      />
 
       {/* Modal agregar moneda */}
       <Modal
@@ -952,6 +1056,9 @@ export default function ConfiguracionPage() {
         return <AccountDefaultsSection />
       case 'users':
         navigate('/configuracion/usuarios')
+        return null
+      case 'subscription':
+        navigate('/configuracion/suscripcion')
         return null
       case 'notifications':
         return <ComingSoonSection title="Notificaciones" description="Configura alertas por correo y notificaciones del sistema" />

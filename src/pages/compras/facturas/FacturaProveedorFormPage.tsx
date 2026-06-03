@@ -19,6 +19,7 @@ import {
 } from '../../../api/compras'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import { getExchangeRateForDate } from '../../../api/monedas'
 import LineItemsEditor, {
   type LineItem,
   newLineItem,
@@ -67,9 +68,11 @@ export default function FacturaProveedorFormPage() {
   const [taxes, setTaxes]               = useState<Tax[]>([])
   const [vendors, setVendors]           = useState<{ value: string; label: string; commercialName?: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string; currency?: string }[]>([])
   const [vendorCurrency, setVendorCurrency] = useState<string>('GTQ')
-  const [exchangeRate,   setExchangeRate]   = useState<number>(7.622067)
+  const [exchangeRate,   setExchangeRate]   = useState<number>(1)
   const [rateDate,       setRateDate]       = useState<string>(dayjs().format('YYYY-MM-DD'))
   const [editingRate,    setEditingRate]    = useState(false)
+  const [loadingExchangeRate, setLoadingExchangeRate] = useState(false)
+  const [exchangeRateMeta, setExchangeRateMeta] = useState<{ effectiveDate: string; source: string } | null>(null)
   const [accounts, setAccounts]         = useState<Account[]>([])
   const [loadingVendors, setLoadingVendors] = useState(false)
   const [loading, setLoading]           = useState(!!id)
@@ -302,6 +305,30 @@ export default function FacturaProveedorFormPage() {
     setIsrAmount(amount)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, vendorIsrTax, isrAppliedRate])
+
+  // Auto-carga el tipo de cambio desde Banguat cuando cambia la moneda o la fecha de factura
+  useEffect(() => {
+    if (watchCurr === 'GTQ') {
+      setVendorCurrency('GTQ')
+      setExchangeRate(1)
+      setExchangeRateMeta(null)
+      return
+    }
+    setVendorCurrency(watchCurr)
+    const date = invoiceDate ? dayjs(invoiceDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+    setRateDate(date)
+    setLoadingExchangeRate(true)
+    getExchangeRateForDate(watchCurr, date)
+      .then((result) => {
+        const rate = result.officialRate ?? (result.rate > 0 ? 1 / result.rate : 1)
+        setExchangeRate(Number(rate.toFixed(6)))
+        setExchangeRateMeta({ effectiveDate: result.effectiveDate, source: result.source })
+      })
+      .catch(() => {
+        message.warning('No se pudo cargar el tipo de cambio para la fecha seleccionada')
+      })
+      .finally(() => setLoadingExchangeRate(false))
+  }, [watchCurr, invoiceDate])
 
   // ── Vendor search ──────────────────────────────────────────────────────────
 
@@ -561,9 +588,6 @@ export default function FacturaProveedorFormPage() {
                   background: '#f0f9ff', borderRadius: 6,
                   border: '1px solid #bae6fd',
                 }}>
-                  <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
-                    (A partir del {rateDate})
-                  </span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#0369a1', whiteSpace: 'nowrap' }}>
                     1 {vendorCurrency} =
                   </span>
@@ -582,17 +606,22 @@ export default function FacturaProveedorFormPage() {
                     />
                   ) : (
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#0369a1', fontFamily: 'monospace' }}>
-                      {exchangeRate.toFixed(6)} GTQ
+                      {loadingExchangeRate ? '...' : exchangeRate.toFixed(6)} GTQ
                     </span>
                   )}
                   <Button
                     size="small" type="text" icon={<EditOutlined />}
-                    onClick={() => { setEditingRate(!editingRate); setRateDate(dayjs().format('YYYY-MM-DD')) }}
+                    onClick={() => setEditingRate(!editingRate)}
                     title="Editar tipo de cambio manualmente"
                     style={{ color: '#0369a1' }}
+                    disabled={loadingExchangeRate}
                   />
                   <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 4 }}>
-                    Futuro: actualización automática Banguat
+                    {loadingExchangeRate
+                      ? 'Consultando Banguat...'
+                      : exchangeRateMeta
+                        ? `Tasa del ${dayjs(exchangeRateMeta.effectiveDate).format('DD/MM/YYYY')} (${exchangeRateMeta.source})`
+                        : `Vigente al ${rateDate}`}
                   </span>
                 </div>
               )}

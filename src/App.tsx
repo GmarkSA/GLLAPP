@@ -24,6 +24,7 @@ const BankProfilesPage       = lazy(() => import('./pages/configuracion/empresas
 const PlatformAdminPage      = lazy(() => import('./pages/admin/PlatformAdminPage'))
 const CompanyUsersPage       = lazy(() => import('./pages/configuracion/empresas/CompanyUsersPage'))
 const OnboardingWizardPage   = lazy(() => import('./pages/onboarding/OnboardingWizardPage'))
+const SubscriptionPage       = lazy(() => import('./pages/billing/SubscriptionPage'))
 
 // Ventas
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
@@ -240,6 +241,7 @@ export default function App() {
           <Route path="admin"                                                  element={<Navigate to="/admin/platform" replace />} />
           <Route path="admin/platform"                                         element={<AdminRoute><PlatformAdminPage /></AdminRoute>} />
           <Route path="onboarding"                                             element={<AdminRoute><OnboardingWizardPage /></AdminRoute>} />
+          <Route path="configuracion/suscripcion"                              element={<SubscriptionPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
