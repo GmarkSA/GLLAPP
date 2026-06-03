@@ -357,19 +357,16 @@ export interface POSVentaItem {
   lineTotal: number
 }
 export const createPOSVenta = (dto: {
-  customerId: string
-  customerName: string
-  items: POSVentaItem[]
-  subtotal: number
-  taxAmount: number
-  total: number
-  paymentMethod: string
-  notes?: string
-  posId?: string
-}) => api.post('/ventas/facturas', {
-  ...dto,
-  invoiceDate: new Date().toISOString().split('T')[0],
-  status: 'paid',
-  paidAmount: dto.total,
-  balance: 0,
-}).then(unwrap)
+  customerId:       string
+  customerName:     string
+  customerTaxId?:   string
+  items:            POSVentaItem[]
+  subtotal:         number
+  taxAmount:        number
+  total:            number
+  paymentMethod:    string
+  bankAccountId?:   string   // se pasa aquí — el backend crea el movimiento bancario
+  notes?:           string
+  posId?:           string
+  lugarExpedicion?: string
+}) => api.post('/ventas/facturas/pos-venta', dto).then(unwrap)

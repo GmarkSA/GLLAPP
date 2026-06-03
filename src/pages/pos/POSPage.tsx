@@ -13,7 +13,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getProducts, type Product } from '../../api/inventario'
 import { getCustomers, createCustomer, type Customer } from '../../api/contactos'
 import { createPOSVenta, getUbicacion, type Ubicacion } from '../../api/expedientes'
-import { getBankAccounts, addTransaction, type BankAccount } from '../../api/bancos'
+import { getBankAccounts, type BankAccount } from '../../api/bancos'
 
 const { Text } = Typography
 
@@ -280,13 +280,29 @@ function CartRow({ item, onQty, onRemove }: {
 }
 
 // ─── Receipt Modal ────────────────────────────────────────────────────────────
+interface ReceiptData {
+  invoiceNumber?: string
+  felUuid?:       string
+  felStatus?:     string
+  felSerie?:      string
+  felNumero?:     string
+  felMensaje?:    string
+  total:          number
+  paymentMethod:  string
+  customerName:   string
+  items:          CartItem[]
+  change?:        number
+  received?:      number
+}
+
 function ReceiptModal({ open, data, onClose }: {
   open: boolean
-  data: { invoiceNumber?: string; felUuid?: string; total: number; paymentMethod: string; customerName: string; items: CartItem[]; change?: number; received?: number } | null
+  data: ReceiptData | null
   onClose: () => void
 }) {
   if (!data) return null
   const now = new Date()
+  const felOk = data.felStatus === 'certificada'
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={380} title={null} styles={{ body: { padding: 0 } }}>
       <div style={{ padding: '24px 28px', fontFamily: 'monospace' }}>
@@ -303,11 +319,30 @@ function ReceiptModal({ open, data, onClose }: {
             <Tag color="blue" style={{ fontSize: 13 }}>Factura: {data.invoiceNumber}</Tag>
           </div>
         )}
-        {data.felUuid && (
-          <div style={{ textAlign: 'center', marginBottom: 10 }}>
-            <Tag color="green" style={{ fontSize: 11 }}>FEL UUID: {data.felUuid.slice(0, 16)}...</Tag>
-          </div>
-        )}
+        {/* Estado FEL */}
+        <div style={{ textAlign: 'center', marginBottom: 10 }}>
+          {felOk ? (
+            <div>
+              <Tag color="green" style={{ fontSize: 11, marginBottom: 2 }}>
+                ✓ FEL Certificada — SAT
+              </Tag>
+              {data.felSerie && data.felNumero && (
+                <div style={{ fontSize: 10, color: '#52c41a' }}>
+                  Serie {data.felSerie} · No. {data.felNumero}
+                </div>
+              )}
+              {data.felUuid && (
+                <div style={{ fontSize: 9, color: '#8c8c8c', marginTop: 2 }}>
+                  UUID: {data.felUuid.slice(0, 20)}…
+                </div>
+              )}
+            </div>
+          ) : data.felStatus === 'error' ? (
+            <Tag color="orange" style={{ fontSize: 11 }}>
+              ⚠ FEL pendiente — certificar desde Facturas
+            </Tag>
+          ) : null}
+        </div>
         <div style={{ fontSize: 12, marginBottom: 8 }}>
           <Text type="secondary">Cliente: </Text><strong>{data.customerName}</strong>
         </div>
@@ -502,42 +537,43 @@ export default function POSPage() {
         lineTotal: Number(c.lineTotal.toFixed(2)),
       }))
 
+      // bankAccountId se pasa al backend — él crea el movimiento bancario
+      const linkedAccountId = bankConfig[paymentMethod as keyof POSBankConfig]
+
       const result: any = await createPOSVenta({
-        customerId: customer.id || 'consumidor-final',
+        customerId:   customer.id || 'consumidor-final',
         customerName: customer.name,
         items,
-        subtotal: Number(subtotalSinIva.toFixed(2)),
-        taxAmount: Number(ivaTotal.toFixed(2)),
-        total: Number(grandTotal.toFixed(2)),
+        subtotal:     Number(subtotalSinIva.toFixed(2)),
+        taxAmount:    Number(ivaTotal.toFixed(2)),
+        total:        Number(grandTotal.toFixed(2)),
         paymentMethod,
-        notes: posInfo ? `POS: ${posInfo.name}` : undefined,
-        posId: posId ?? undefined,
-      }).catch(() => null)
+        bankAccountId: linkedAccountId ?? undefined,
+        notes:  posInfo ? `POS: ${posInfo.name}` : undefined,
+        posId:  posId ?? undefined,
+      })
 
-      message.success('Venta procesada exitosamente')
-
-      // ── Register bank transaction (fire-and-forget, graceful) ──────────────
-      const linkedAccountId = bankConfig[paymentMethod as keyof POSBankConfig]
-      if (linkedAccountId) {
-        const today = new Date().toISOString().split('T')[0]
-        const invoiceRef = result?.invoiceNumber
-        addTransaction(linkedAccountId, {
-          transactionDate: today,
-          description: `POS - ${customer.name}${invoiceRef ? ` - ${invoiceRef}` : ''}`,
-          type: 'credit',
-          amount: Number(grandTotal.toFixed(2)),
-          reference: invoiceRef,
-        }).catch(() => {})   // never block the POS on bank errors
+      // Aviso según estado FEL
+      if (result?.felStatus === 'certificada') {
+        message.success(`Venta certificada ante SAT — UUID: ${result.felUuid?.slice(0, 8)}…`)
+      } else if (result?.felStatus === 'error') {
+        message.warning(`Venta procesada. FEL pendiente: ${result.felMensaje ?? 'Error de conexión con certificador'}`)
+      } else {
+        message.success('Venta procesada exitosamente')
       }
 
       setReceiptData({
         invoiceNumber: result?.invoiceNumber,
-        felUuid: result?.felUuid,
-        total: grandTotal,
+        felUuid:       result?.felUuid,
+        felStatus:     result?.felStatus,
+        felMensaje:    result?.felMensaje,
+        felSerie:      result?.felSerie,
+        felNumero:     result?.felNumero,
+        total:         grandTotal,
         paymentMethod,
-        customerName: customer.name,
-        items: [...cart],
-        received: receivedAmt,
+        customerName:  customer.name,
+        items:         [...cart],
+        received:      receivedAmt,
         change,
       })
       setReceiptOpen(true)
