@@ -13,7 +13,9 @@ export default function LoginPage() {
     try {
       await login(values.email, values.password)
       message.success('Bienvenido a ContaERP')
-      navigate('/dashboard')
+      const u = useAuthStore.getState().user
+      const isCajero = u?.roles?.includes('cajero') && !u?.isSuperAdmin
+      navigate(isCajero ? '/pos' : '/dashboard')
     } catch (err: any) {
       const status = err?.response?.status
       if (status === 401 || status === 400) {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
@@ -88,6 +88,12 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+
+  // Guard: cajero solo accede al POS — redirige si intenta entrar al ERP
+  const isCajero = !!(user?.roles?.includes('cajero') && !user?.isSuperAdmin)
+  useEffect(() => {
+    if (isCajero) navigate('/pos', { replace: true })
+  }, [isCajero])
 
   const visibleMenuItems = user?.isSuperAdmin
     ? menuItems
