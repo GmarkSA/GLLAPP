@@ -14,7 +14,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
-  getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, writeOffInvoice, emitirFelInvoice, deleteInvoice,
+  getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, writeOffInvoice, emitirFelInvoice, anularFelInvoice, deleteInvoice,
   recomputeJournalLines, reprocessPaymentJournal, getAnticipos, applyAnticipo,
   INVOICE_STATUS_CONFIG, PAYMENT_MODES,
   type Invoice, type InvoiceItem, type Anticipo,
@@ -171,12 +171,20 @@ export default function FacturaDetallePage() {
     const v = await voidForm.validateFields()
     setSaving(true)
     try {
-      await voidInvoice(invoice.id, v.reason)
-      message.success('Factura anulada')
+      if (isFelCertified) {
+        // Factura FEL: primero anula ante SAT, luego en el sistema
+        await anularFelInvoice(invoice.id, v.reason)
+        message.success('Factura anulada ante el SAT y en el sistema')
+      } else {
+        await voidInvoice(invoice.id, v.reason)
+        message.success('Factura anulada')
+      }
       setVoidModal(false)
+      voidForm.resetFields()
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al anular')
+      const raw = e?.response?.data?.message
+      message.error(Array.isArray(raw) ? raw.join(' | ') : (raw || 'Error al anular'), 8)
     } finally { setSaving(false) }
   }
 
@@ -352,7 +360,7 @@ export default function FacturaDetallePage() {
     }] : []),
     ...(canVoid ? [{
       key: 'void',
-      label: 'Anular factura',
+      label: isFelCertified ? 'Anular DTE ante SAT' : 'Anular factura',
       icon: <StopOutlined />,
       danger: true,
       onClick: () => setVoidModal(true),
@@ -999,13 +1007,39 @@ export default function FacturaDetallePage() {
 
       {/* \u0000\u0000 Void Modal \u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 */}
       <Modal
-        title={<><StopOutlined /> Anular factura</>}
-        open={voidModal} onOk={handleVoid} onCancel={() => setVoidModal(false)}
-        okText="Anular" okButtonProps={{ loading: saving, danger: true }}
+        title={<><StopOutlined /> {isFelCertified ? 'Anular DTE ante SAT' : 'Anular factura'}</>}
+        open={voidModal}
+        onOk={handleVoid}
+        onCancel={() => { setVoidModal(false); voidForm.resetFields() }}
+        okText={isFelCertified ? 'Anular ante SAT y en sistema' : 'Anular'}
+        okButtonProps={{ loading: saving, danger: true }}
+        width={480}
       >
-        <Alert type="warning" message="Esta acción no se puede deshacer." showIcon style={{ marginBottom: 16 }} />
+        {isFelCertified ? (
+          <Alert
+            type="error"
+            showIcon
+            message="Anulación de Factura Electrónica (FEL)"
+            description={
+              <span>
+                Esta factura está <strong>certificada ante el SAT</strong>. Al anular:<br />
+                1. Se enviará la solicitud de anulación a FELPlex/SAT con el UUID <code style={{ fontSize: 11 }}>{invoice?.felUuid}</code><br />
+                2. Si el SAT aprueba, la factura quedará anulada en el sistema.<br />
+                3. Si el SAT rechaza, no se realizará ningún cambio.
+              </span>
+            }
+            style={{ marginBottom: 16 }}
+          />
+        ) : (
+          <Alert type="warning" message="Esta acción no se puede deshacer." showIcon style={{ marginBottom: 16 }} />
+        )}
         <Form form={voidForm} layout="vertical">
-          <Form.Item name="reason" label="Motivo de anulación" rules={[{ required: true, message: 'El motivo es requerido' }]}>
+          <Form.Item
+            name="reason"
+            label="Motivo de anulación"
+            rules={[{ required: true, message: 'El motivo es requerido' }]}
+            extra={isFelCertified ? 'Este motivo se enviará al SAT como justificación de la anulación.' : undefined}
+          >
             <Input.TextArea rows={3} placeholder="Describe el motivo de la anulación…" />
           </Form.Item>
         </Form>

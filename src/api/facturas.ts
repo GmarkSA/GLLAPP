@@ -282,6 +282,9 @@ export const convertEstimateToInvoice = (estimateId: string) =>
 export const emitirFelInvoice = (id: string) =>
   api.post(`${BASE_INV}/${id}/emitir-fel`).then(unwrap) as Promise<Invoice>
 
+export const anularFelInvoice = (id: string, motivo: string) =>
+  api.post(`${BASE_INV}/${id}/anular-fel`, { motivo }).then(unwrap) as Promise<Invoice>
+
 export const writeOffInvoice = (id: string, reason: string) =>
   api.post(`${BASE_INV}/${id}/condonar`, { reason }).then(unwrap) as Promise<Invoice>
 
