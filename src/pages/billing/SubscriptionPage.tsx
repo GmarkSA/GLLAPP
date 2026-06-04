@@ -43,6 +43,13 @@ function detectCardType(num: string): CardType {
   return num.startsWith('4') ? 'visa' : 'mastercard'
 }
 
+function billingErrorMsg(e: any, fallback = 'Error inesperado'): string {
+  const data = e?.response?.data
+  const raw = data?.message ?? data?.error?.message ?? e?.message
+  if (Array.isArray(raw)) return raw.join(' · ')
+  return (typeof raw === 'string' && raw) ? raw : fallback
+}
+
 function formatCardInput(value: string): string {
   return value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
 }
@@ -178,8 +185,7 @@ function CardForm({
       message.success(`Suscripción a ${plan.displayName} activada`)
       onSuccess(result)
     } catch (e: any) {
-      const msg = e?.response?.data?.message ?? e?.message
-      if (msg) message.error(msg, 6)
+      message.error(billingErrorMsg(e, 'El cobro fue rechazado. Verifica los datos de tu tarjeta.'), 6)
     } finally {
       setSaving(false)
     }
@@ -414,8 +420,7 @@ function BillingFelModal({
         message.error(res.message)
       }
     } catch (e: any) {
-      const msg = e?.response?.data?.message ?? e?.message
-      if (msg) message.error(msg, 6)
+      message.error(billingErrorMsg(e, 'Error al emitir la factura electrónica'), 6)
     } finally {
       setLoading(false)
     }
@@ -649,7 +654,7 @@ export default function SubscriptionPage() {
       await load()
       if (Number(selectedPlan.priceMonthly) > 0) openFelModal(result, selectedPlan.displayName)
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al cambiar de plan')
+      message.error(billingErrorMsg(e, 'Error al cambiar de plan'), 6)
     } finally {
       setChangingPlan(false)
     }
@@ -661,7 +666,7 @@ export default function SubscriptionPage() {
       message.success(result.message)
       await load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al cancelar')
+      message.error(billingErrorMsg(e, 'Error al cancelar'), 6)
     }
   }
 
@@ -710,12 +715,25 @@ export default function SubscriptionPage() {
                     : '—'}
               </Text>
             </Col>
-            <Col xs={24} md={5}>
+            <Col xs={24} md={4}>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Auto-renovación</Text>
+              {sub.status === 'active' && hasCard ? (
+                <Space size={4}>
+                  <SyncOutlined style={{ color: '#16a34a', fontSize: 13 }} />
+                  <Text strong style={{ fontSize: 13, color: '#16a34a' }}>Activa</Text>
+                </Space>
+              ) : sub.status === 'cancelled' ? (
+                <Text type="secondary" style={{ fontSize: 13 }}>Cancelada</Text>
+              ) : (
+                <Text style={{ fontSize: 13, color: '#d97706' }}>Sin tarjeta</Text>
+              )}
+            </Col>
+            <Col xs={24} md={4}>
               <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Tarjeta registrada</Text>
               {hasCard ? (
                 <Space>
                   <CreditCardOutlined style={{ color: '#16a34a' }} />
-                  <Text strong style={{ fontSize: 14 }}>
+                  <Text strong style={{ fontSize: 13 }}>
                     {sub.qpayproCardBrand} ••••{sub.qpayproCardLast4}
                   </Text>
                 </Space>
@@ -723,7 +741,7 @@ export default function SubscriptionPage() {
                 <Text type="secondary" style={{ fontSize: 13 }}>Sin tarjeta</Text>
               )}
             </Col>
-            <Col xs={24} md={4} style={{ textAlign: 'right' }}>
+            <Col xs={24} md={3} style={{ textAlign: 'right' }}>
               {sub.status === 'active' && (
                 <Popconfirm
                   title="¿Cancelar suscripción?"
