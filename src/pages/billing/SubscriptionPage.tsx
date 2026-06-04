@@ -228,7 +228,14 @@ function CardForm({
         <Form.Item name="ccNumber" label="Número de tarjeta"
           rules={[
             { required: true, message: 'Ingresa el número de tarjeta' },
-            { pattern: /^[\d\s]{19}$/, message: 'Número de tarjeta inválido (16 dígitos)' },
+            {
+              validator: (_, value: string) => {
+                const digits = (value ?? '').replace(/\s/g, '')
+                return /^\d{16}$/.test(digits)
+                  ? Promise.resolve()
+                  : Promise.reject('Número de tarjeta inválido (16 dígitos)')
+              },
+            },
           ]}
         >
           <Input
