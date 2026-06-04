@@ -12,10 +12,10 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getBillingState, createHostedCheckout, changePlan, cancelSubscription, getGtqExchangeRate,
+  getBillingState, subscribePlan, changePlan, cancelSubscription, getGtqExchangeRate,
   requestBillingInvoice, deletePayment,
   type BillingState, type PlanConfig, type SubscriptionPayment,
-  type BillingCurrency, type BillingFelResult, type PaymentResponse,
+  type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
 } from '../../api/billing'
 
 const { Title, Text } = Typography
@@ -39,6 +39,9 @@ const RESULT_COLOR: Record<string, string> = {
   error:    'warning',
 }
 
+function detectCardType(num: string): CardType {
+  return num.startsWith('4') ? 'visa' : 'mastercard'
+}
 function billingErrorMsg(e: any, fallback = 'Error inesperado'): string {
   const data = e?.response?.data
   const raw = data?.message ?? data?.error?.message ?? e?.message
@@ -48,6 +51,9 @@ function billingErrorMsg(e: any, fallback = 'Error inesperado'): string {
 
 // ── PlanCard ──────────────────────────────────────────────────────────────────
 
+function formatCardInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
+}
 function PlanCard({
   plan, current, currency, exchangeRate, onSelect,
 }: {
@@ -151,21 +157,33 @@ function CardForm({
   onSuccess: (result: PaymentResponse) => void
   onCancel: () => void
 }) {
+  const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [cardDisplay, setCardDisplay] = useState('')
 
   const priceUSD = Number(plan.priceMonthly)
   const displayPrice = currency === 'GTQ' ? priceUSD * exchangeRate : priceUSD
 
-  const handleCheckout = async () => {
-    setSaving(true)
+  const handleSubmit = async () => {
     try {
-      const result = await createHostedCheckout({ plan: plan.plan, currency })
-      if (!result.checkoutUrl) throw new Error('QPayPro no devolvio URL de checkout')
-      message.success('Redirigiendo al checkout seguro de QPayPro')
+      const values = await form.validateFields()
+      const rawNum = values.ccNumber.replace(/\s/g, '')
+      setSaving(true)
+      const [expMonth, expYear] = (values.expiry as string).split('/')
+      const result = await subscribePlan({
+        plan:       plan.plan,
+        currency,
+        ccNumber:   rawNum,
+        expMonth:   expMonth.trim(),
+        expYear:    expYear.trim(),
+        cvv:        values.cvv,
+        cardType:   detectCardType(rawNum),
+        holderName: values.holderName,
+      })
+      message.success(`Suscripcion a ${plan.displayName} activada`)
       onSuccess(result)
-      window.location.assign(result.checkoutUrl)
     } catch (e: any) {
-      message.error(billingErrorMsg(e, 'No se pudo crear la sesion de pago QPayPro'), 6)
+      message.error(billingErrorMsg(e, 'El cobro fue rechazado. Verifica los datos de tu tarjeta.'), 6)
     } finally {
       setSaving(false)
     }
@@ -187,33 +205,120 @@ function CardForm({
           <LockOutlined style={{ fontSize: 28, color: '#1B3A6B', opacity: 0.4 }} />
         </div>
         <Text type="secondary" style={{ fontSize: 11 }}>
-          El pago se realiza en el checkout alojado de QPayPro. En esta etapa se usa el ambiente Sandbox.
+          Pago seguro procesado por QPayPro Sandbox. La tarjeta se envia al backend para tokenizacion/cobro y no se almacena completa.
         </Text>
       </div>
 
-      <Alert
-        type="info"
-        showIcon
-        icon={<LockOutlined />}
-        style={{ fontSize: 12, marginBottom: 16 }}
-        message="Checkout Sandbox QPayPro"
-        description="Al continuar, se generara un token de pago y se abrira la pagina segura de QPayPro para completar la prueba."
-      />
-
-      <div style={{ display: 'flex', gap: 10 }}>
-        <Button block onClick={onCancel} disabled={saving}>Cancelar</Button>
-        <Button type="primary" block loading={saving} onClick={handleCheckout}
-          style={{ background: '#1B3A6B', flex: 2 }}
-          icon={<LockOutlined />}
+      <Form form={form} layout="vertical" size="middle" autoComplete="on">
+        <Form.Item name="holderName" label="Nombre en la tarjeta"
+          rules={[{ required: true, message: 'Ingresa el nombre del titular' }]}
         >
-          Ir a QPayPro Sandbox
-        </Button>
-      </div>
+          <Input
+            autoComplete="cc-name"
+            name="ccname"
+            prefix={<CreditCardOutlined style={{ color: '#8c8c8c' }} />}
+            placeholder="JUAN GARCIA LOPEZ"
+            style={{ textTransform: 'uppercase' }}
+          />
+        </Form.Item>
+
+        <Form.Item name="ccNumber" label="Numero de tarjeta"
+          rules={[
+            { required: true, message: 'Ingresa el numero de tarjeta' },
+            {
+              validator: (_, value: string) => {
+                const digits = (value ?? '').replace(/\s/g, '')
+                return /^\d{16}$/.test(digits)
+                  ? Promise.resolve()
+                  : Promise.reject('Numero de tarjeta invalido (16 digitos)')
+              },
+            },
+          ]}
+        >
+          <Input
+            autoComplete="cc-number"
+            name="cardnumber"
+            inputMode="numeric"
+            prefix={
+              cardDisplay.startsWith('4')
+                ? <Tag color="blue" style={{ padding: '0 4px', fontSize: 11 }}>VISA</Tag>
+                : cardDisplay
+                  ? <Tag color="orange" style={{ padding: '0 4px', fontSize: 11 }}>MC</Tag>
+                  : <CreditCardOutlined style={{ color: '#8c8c8c' }} />
+            }
+            placeholder="0000 0000 0000 0000"
+            maxLength={19}
+            onChange={e => {
+              const formatted = formatCardInput(e.target.value)
+              setCardDisplay(formatted.replace(/\s/g, ''))
+              form.setFieldValue('ccNumber', formatted)
+            }}
+          />
+        </Form.Item>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Form.Item name="expiry" label="Vencimiento (MM/AA)"
+            rules={[
+              { required: true, message: 'Requerido' },
+              { pattern: /^(0[1-9]|1[0-2])\/\d{2}$/, message: 'Formato MM/AA' },
+            ]}
+          >
+            <Input
+              autoComplete="cc-exp"
+              name="ccexp"
+              inputMode="numeric"
+              placeholder="MM/AA"
+              maxLength={5}
+              onChange={e => {
+                let val = e.target.value.replace(/\D/g, '')
+                if (val.length >= 3) val = val.slice(0, 2) + '/' + val.slice(2, 4)
+                form.setFieldValue('expiry', val)
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item name="cvv" label="CVV / CVC"
+            rules={[
+              { required: true, message: 'Requerido' },
+              { pattern: /^\d{3,4}$/, message: '3 o 4 digitos' },
+            ]}
+          >
+            <Input
+              autoComplete="cc-csc"
+              name="cvc"
+              inputMode="numeric"
+              placeholder="000"
+              maxLength={4}
+              suffix={<LockOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />}
+              onChange={e => {
+                form.setFieldValue('cvv', e.target.value.replace(/\D/g, ''))
+              }}
+            />
+          </Form.Item>
+        </div>
+
+        <Alert
+          type="info" showIcon icon={<LockOutlined />}
+          style={{ fontSize: 12, marginBottom: 16 }}
+          message="Conexion segura con QPayPro Sandbox"
+          description="El cobro se procesa desde la APP contra el ambiente de pruebas de QPayPro."
+        />
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button block onClick={onCancel} disabled={saving}>Cancelar</Button>
+          <Button type="primary" block loading={saving} onClick={handleSubmit}
+            style={{ background: '#1B3A6B', flex: 2 }}
+            icon={<LockOutlined />}
+          >
+            Pagar {money(displayPrice, currency)} / mes
+          </Button>
+        </div>
+      </Form>
     </div>
   )
 }
-// ── PaymentHistory ────────────────────────────────────────────────────────────
 
+// PaymentHistory
 function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[]; onDelete: (id: string) => void }) {
   const cols: ColumnsType<SubscriptionPayment> = [
     {

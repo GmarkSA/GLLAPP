@@ -89,20 +89,10 @@ export interface PaymentResponse {
   message: string
   paymentId?: string
   amountCharged?: number
-  token?: string
-  checkoutUrl?: string
 }
 
 export const subscribePlan = (dto: SubscribeDto): Promise<PaymentResponse> =>
   api.post('/billing/subscribe', dto).then(unwrap)
-
-export const createHostedCheckout = (dto: {
-  plan: string
-  currency: BillingCurrency
-  email?: string
-  phone?: string
-}): Promise<PaymentResponse> =>
-  api.post('/billing/checkout-session', dto).then(unwrap)
 
 export const changePlan = (plan: string, currency: BillingCurrency): Promise<PaymentResponse> =>
   api.post('/billing/change-plan', { plan, currency }).then(unwrap)
