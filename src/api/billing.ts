@@ -63,6 +63,7 @@ export interface BillingState {
   plans: PlanConfig[]
   paymentHistory: SubscriptionPayment[]
   exchangeRateGTQ?: number
+  sandboxMode?: boolean
 }
 
 export interface SubscribeDto {
@@ -126,3 +127,9 @@ export interface BillingFelResult {
 
 export const requestBillingInvoice = (dto: RequestInvoiceDto): Promise<BillingFelResult> =>
   api.post('/billing/request-invoice', dto).then(unwrap)
+
+export const simulateSubscription = (plan: string): Promise<{ success: boolean; message: string }> =>
+  api.post('/billing/simulate', { plan }).then(unwrap)
+
+export const deletePayment = (id: string): Promise<{ deleted: boolean }> =>
+  api.delete(`/billing/payment/${id}`).then(unwrap)

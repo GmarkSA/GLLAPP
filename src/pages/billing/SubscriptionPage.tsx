@@ -13,7 +13,7 @@ import {
 import dayjs from 'dayjs'
 import {
   getBillingState, subscribePlan, changePlan, cancelSubscription, getGtqExchangeRate,
-  requestBillingInvoice,
+  requestBillingInvoice, simulateSubscription, deletePayment,
   type BillingState, type PlanConfig, type SubscriptionPayment,
   type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
 } from '../../api/billing'
@@ -322,7 +322,7 @@ function CardForm({
 
 // ── PaymentHistory ────────────────────────────────────────────────────────────
 
-function PaymentHistory({ payments }: { payments: SubscriptionPayment[] }) {
+function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[]; onDelete: (id: string) => void }) {
   const cols: ColumnsType<SubscriptionPayment> = [
     {
       title: 'Fecha',
@@ -364,6 +364,21 @@ function PaymentHistory({ payments }: { payments: SubscriptionPayment[] }) {
       title: 'Ref.',
       dataIndex: 'qpayproTransactionId',
       render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : '—',
+    },
+    {
+      title: '',
+      width: 48,
+      render: (_, r) => (
+        <Popconfirm
+          title="¿Eliminar este registro?"
+          description="Se eliminará del historial. No afecta cobros reales."
+          onConfirm={() => onDelete(r.id)}
+          okText="Eliminar" cancelText="Cancelar"
+          okButtonProps={{ danger: true }}
+        >
+          <Button size="small" danger type="text" icon={<span style={{ fontSize: 13 }}>🗑</span>} />
+        </Popconfirm>
+      ),
     },
   ]
 
@@ -602,6 +617,8 @@ export default function SubscriptionPage() {
   const [changingPlan, setChangingPlan] = useState(false)
   const [rateInfo, setRateInfo]     = useState<{ rate: number; updatedAt?: string; updatedBy?: string }>({ rate: 7.7 })
 
+  const [simulating, setSimulating] = useState(false)
+
   // Modal FEL post-pago
   const [felOpen,       setFelOpen]       = useState(false)
   const [felPaymentId,  setFelPaymentId]  = useState<string>('')
@@ -674,6 +691,30 @@ export default function SubscriptionPage() {
       await load()
     } catch (e: any) {
       message.error(billingErrorMsg(e, 'Error al cancelar'), 6)
+    }
+  }
+
+  const handleSimulate = async (plan: string) => {
+    setSimulating(true)
+    try {
+      const result = await simulateSubscription(plan)
+      message.success(result.message ?? 'Suscripción simulada activada')
+      setModalOpen(false)
+      await load()
+    } catch (e: any) {
+      message.error(billingErrorMsg(e, 'Error al simular'), 6)
+    } finally {
+      setSimulating(false)
+    }
+  }
+
+  const handleDeletePayment = async (id: string) => {
+    try {
+      await deletePayment(id)
+      message.success('Registro eliminado')
+      await load()
+    } catch (e: any) {
+      message.error(billingErrorMsg(e, 'Error al eliminar'), 4)
     }
   }
 
@@ -808,6 +849,38 @@ export default function SubscriptionPage() {
         ))}
       </Row>
 
+      {/* Alerta sandbox */}
+      {state?.sandboxMode && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Modo Sandbox — Los cobros son simulados (QPay Pro sandbox)"
+          description={
+            <div style={{ fontSize: 12 }}>
+              <div style={{ marginBottom: 6 }}>
+                Usa estas tarjetas de prueba:&nbsp;
+                <Text code>4111111111111111</Text> (Visa) &nbsp;·&nbsp;
+                <Text code>5500005555555559</Text> (MC) &nbsp;·&nbsp; Exp: <Text code>12/26</Text> &nbsp;·&nbsp; CVV: <Text code>123</Text>
+              </div>
+              <Space wrap>
+                {(state?.plans ?? []).filter(p => Number(p.priceMonthly) > 0).map(p => (
+                  <Button
+                    key={p.plan}
+                    size="small"
+                    type="dashed"
+                    loading={simulating}
+                    onClick={() => handleSimulate(p.plan)}
+                  >
+                    Simular {p.displayName} (sin cobro)
+                  </Button>
+                ))}
+              </Space>
+            </div>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       {/* Historial */}
       <Card
         style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}
@@ -820,7 +893,7 @@ export default function SubscriptionPage() {
         extra={<Button size="small" icon={<SyncOutlined />} onClick={load} loading={loading}>Actualizar</Button>}
       >
         <Spin spinning={loading}>
-          <PaymentHistory payments={state?.paymentHistory ?? []} />
+          <PaymentHistory payments={state?.paymentHistory ?? []} onDelete={handleDeletePayment} />
         </Spin>
       </Card>
 
