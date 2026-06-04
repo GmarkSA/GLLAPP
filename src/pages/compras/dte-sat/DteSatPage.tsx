@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert, Badge, Button, Card, Col, DatePicker, Form, Input, message, Row,
-  Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
+  Modal, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   FileTextOutlined, ReloadOutlined, SafetyCertificateOutlined, SearchOutlined,
-  WarningOutlined,
+  UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import {
+  createSatDteVendor,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
+  resolveSatDteVendor,
   startSatDteImport, syncSatDteJob,
   type SatDte, type SatDteStatus, type SatImportJob,
 } from '../../../api/compras'
@@ -58,6 +60,7 @@ export default function DteSatPage() {
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [syncingJob, setSyncingJob] = useState<string | null>(null)
+  const [vendorActionId, setVendorActionId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -164,6 +167,53 @@ export default function DteSatPage() {
 
   // ── Totales ────────────────────────────────────────────────────────────────
 
+  const handleResolveVendor = async (row: SatDte) => {
+    setVendorActionId(row.id)
+    try {
+      const result = await resolveSatDteVendor(row.id)
+      if (result?.vendor) {
+        message.success('Proveedor vinculado al DTE SAT')
+      } else {
+        message.info('No se encontro proveedor con ese NIT. Puedes crearlo desde el DTE.')
+      }
+      await load()
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudo resolver el proveedor'))
+    } finally {
+      setVendorActionId(null)
+    }
+  }
+
+  const handleCreateVendor = (row: SatDte) => {
+    Modal.confirm({
+      title: 'Crear proveedor desde DTE SAT',
+      content: (
+        <div>
+          <Text>Se creara un proveedor activo con los datos del emisor SAT.</Text>
+          <br />
+          <Text strong>{row.nombreEmisor ?? 'Sin nombre'}</Text>
+          <br />
+          <Text type="secondary">NIT: {row.nitEmisor ?? 'Sin NIT'} - Moneda: {row.moneda ?? 'GTQ'}</Text>
+        </div>
+      ),
+      okText: 'Crear proveedor',
+      cancelText: 'Cancelar',
+      async onOk() {
+        setVendorActionId(row.id)
+        try {
+          await createSatDteVendor(row.id)
+          message.success('Proveedor creado y vinculado al DTE SAT')
+          await load()
+        } catch (err: unknown) {
+          message.error(getErrorMessage(err, 'No se pudo crear el proveedor'))
+          throw err
+        } finally {
+          setVendorActionId(null)
+        }
+      },
+    })
+  }
+
   const totals = useMemo(() => ({
     pending:  { count: stats.pending?.count ?? 0,   amount: stats.pending?.total ?? 0 },
     ready:    { count: stats.ready?.count ?? 0,     amount: stats.ready?.total ?? 0 },
@@ -248,6 +298,15 @@ export default function DteSatPage() {
       ),
     },
     {
+      title: 'Proveedor ERP',
+      width: 150,
+      render: (_, row) => row.vendorId ? (
+        <Tag color="green" icon={<CheckCircleOutlined />}>Vinculado</Tag>
+      ) : (
+        <Tag color="gold" icon={<WarningOutlined />}>Pendiente</Tag>
+      ),
+    },
+    {
       title: 'Archivos',
       width: 90,
       render: (_, row) => (
@@ -262,22 +321,48 @@ export default function DteSatPage() {
       ),
     },
     {
-      title: 'Acción',
-      width: 130,
+      title: 'Accion',
+      width: 240,
       fixed: 'right',
       render: (_, row) => {
         const canPost = row.status === 'ready' || row.status === 'pending'
+        const vendorLoading = vendorActionId === row.id
         return (
-          <Tooltip title={canPost ? 'Fase 2 — Contabilización asistida (próximamente)' : undefined}>
-            <Button
-              size="small"
-              icon={<BookOutlined />}
-              disabled={true}
-              style={{ fontSize: 11 }}
-            >
-              Contabilizar
-            </Button>
-          </Tooltip>
+          <Space size={4} wrap>
+            {!row.vendorId && (
+              <>
+                <Button
+                  size="small"
+                  icon={<SearchOutlined />}
+                  loading={vendorLoading}
+                  onClick={() => void handleResolveVendor(row)}
+                  style={{ fontSize: 11 }}
+                >
+                  Resolver
+                </Button>
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<UserAddOutlined />}
+                  loading={vendorLoading}
+                  onClick={() => handleCreateVendor(row)}
+                  style={{ fontSize: 11 }}
+                >
+                  Crear
+                </Button>
+              </>
+            )}
+            <Tooltip title={canPost ? 'Fase 2 - Contabilizacion asistida (proximamente)' : undefined}>
+              <Button
+                size="small"
+                icon={<BookOutlined />}
+                disabled={true}
+                style={{ fontSize: 11 }}
+              >
+                Contabilizar
+              </Button>
+            </Tooltip>
+          </Space>
         )
       },
     },

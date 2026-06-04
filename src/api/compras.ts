@@ -375,6 +375,7 @@ export interface SatDte {
   id: string
   status: SatDteStatus
   uuid: string
+  tipoDocumento?: string
   serie?: string
   numeroDte?: string
   fechaEmision?: string
@@ -427,3 +428,16 @@ export const getSatDteJobs = (params?: { page?: number; limit?: number }) =>
 
 export const getSatDteStats = () =>
   api.get(`${DTE_SAT}/stats`).then(unwrap) as Promise<Record<SatDteStatus, { count: number; total: number }>>
+
+export const resolveSatDteVendor = (id: string) =>
+  api.post(`${DTE_SAT}/documentos/${id}/resolver-proveedor`).then(unwrap)
+
+export const createSatDteVendor = (id: string, dto?: {
+  name?: string
+  legalName?: string
+  currency?: string
+  paymentTerms?: string
+  paymentTermsDays?: number
+  payableAccountId?: string
+  expenseAccountId?: string
+}) => api.post(`${DTE_SAT}/documentos/${id}/crear-proveedor`, dto ?? {}).then(unwrap)
