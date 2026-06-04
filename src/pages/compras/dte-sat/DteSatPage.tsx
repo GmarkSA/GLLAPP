@@ -52,8 +52,12 @@ function money(value: unknown, currency = 'GTQ') {
 }
 
 function getErrorMessage(err: unknown, fallback: string) {
-  const msg = (err as any)?.response?.data?.message ?? (err as any)?.message
-  return msg ?? fallback
+  const data = (err as any)?.response?.data
+  // NestJS custom filter: { error: { message: string | string[] } }
+  // Algunos endpoints ponen message directo en data, otros dentro de data.error
+  const raw = data?.message ?? data?.error?.message ?? (err as any)?.message
+  if (Array.isArray(raw)) return raw.join(' · ')
+  return (typeof raw === 'string' && raw) ? raw : fallback
 }
 
 export default function DteSatPage() {
