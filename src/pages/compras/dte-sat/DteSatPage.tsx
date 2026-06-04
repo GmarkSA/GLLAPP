@@ -557,29 +557,6 @@ export default function DteSatPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#102a56' }}>
-            DTE SAT
-            {hasRunningJobs && (
-              <Spin size="small" style={{ marginLeft: 10 }} />
-            )}
-          </Title>
-          <Text type="secondary">
-            Bandeja de facturas de compras importadas desde SAT vía APIFY
-            {hasRunningJobs && (
-              <Text type="warning" style={{ marginLeft: 8, fontSize: 12 }}>
-                · Importación en progreso — sincronizando automáticamente
-              </Text>
-            )}
-          </Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
-          Actualizar
-        </Button>
-      </div>
-
       {/* Modal — Crear proveedor desde DTE SAT */}
       <Modal
         open={!!vendorModalDte}
@@ -727,22 +704,32 @@ export default function DteSatPage() {
         )}
       </Modal>
 
-      {/* Formulario de importación */}
+      {/* Header + Formulario de importación — bloque unificado */}
       <Card
         bordered={false}
         title={
-          <Space>
-            <ApiOutlined style={{ color: '#1B3A6B' }} />
-            <span style={{ color: '#1B3A6B', fontWeight: 600 }}>Importar desde Agencia Virtual SAT</span>
-          </Space>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <Title level={4} style={{ margin: 0, color: '#102a56' }}>
+              DTE SAT
+              {hasRunningJobs && <Spin size="small" style={{ marginLeft: 8 }} />}
+            </Title>
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+              Bandeja de facturas importadas desde SAT vía APIFY
+              {hasRunningJobs && (
+                <Text type="warning" style={{ marginLeft: 6, fontSize: 12 }}>
+                  · Importación en progreso — sincronizando automáticamente
+                </Text>
+              )}
+            </Text>
+          </div>
         }
+        extra={<Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading} size="small">Actualizar</Button>}
+        style={{ borderTop: '3px solid #1B3A6B' }}
       >
-        <Alert
-          type="warning"
-          showIcon
-          style={{ marginBottom: 14, fontSize: 12 }}
-          message="Seguridad: el password SAT se envía directamente al actor APIFY vía HTTPS y nunca se almacena en la base de datos."
-        />
+        <div style={{ marginBottom: 10, fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>⚠</span>
+          <span>Seguridad: el password SAT se envía directamente al actor APIFY vía HTTPS y nunca se almacena en la base de datos.</span>
+        </div>
         <Form form={form} layout="vertical" onFinish={handleImport}>
           <Row gutter={[16, 0]}>
             <Col xs={24} md={5}>
