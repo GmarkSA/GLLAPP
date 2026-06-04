@@ -7,12 +7,12 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
-  FileTextOutlined, ReloadOutlined, SafetyCertificateOutlined, SearchOutlined,
-  UserAddOutlined, WarningOutlined,
+  DeleteOutlined, FileTextOutlined, ReloadOutlined, SafetyCertificateOutlined,
+  SearchOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import {
-  createSatDteVendor,
+  createSatDteVendor, deleteSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   postSatDte,
   resolveSatDteVendor,
@@ -71,11 +71,14 @@ export default function DteSatPage() {
   const [vendorActionId, setVendorActionId] = useState<string | null>(null)
   const [postingDte, setPostingDte] = useState<SatDte | null>(null)
   const [postLoading, setPostLoading] = useState(false)
+  const [vendorModalDte, setVendorModalDte] = useState<SatDte | null>(null)
+  const [createVendorLoading, setCreateVendorLoading] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [postForm] = Form.useForm()
+  const [vendorForm] = Form.useForm()
 
   // ── Cuentas de gasto para el modal ────────────────────────────────────────
   useEffect(() => {
@@ -232,30 +235,60 @@ export default function DteSatPage() {
   }
 
   const handleCreateVendor = (row: SatDte) => {
+    vendorForm.setFieldsValue({ name: row.nombreEmisor ?? '', payableAccountId: undefined })
+    setVendorModalDte(row)
+  }
+
+  const handleCreateVendorSubmit = async (values: { name?: string; payableAccountId?: string }) => {
+    if (!vendorModalDte) return
+    setCreateVendorLoading(true)
+    try {
+      await createSatDteVendor(vendorModalDte.id, {
+        name: values.name || undefined,
+        payableAccountId: values.payableAccountId,
+      })
+      message.success('Proveedor creado y vinculado al DTE SAT')
+      setVendorModalDte(null)
+      vendorForm.resetFields()
+      await load()
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudo crear el proveedor'))
+    } finally {
+      setCreateVendorLoading(false)
+    }
+  }
+
+  const handleDeleteDte = (row: SatDte) => {
+    const hasInvoice = !!row.purchaseInvoiceId
     Modal.confirm({
-      title: 'Crear proveedor desde DTE SAT',
+      title: 'Eliminar DTE de la bandeja',
       content: (
         <div>
-          <Text>Se creara un proveedor activo con los datos del emisor SAT.</Text>
+          {hasInvoice && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 10, fontSize: 12 }}
+              message="Este DTE ya fue contabilizado. La factura de proveedor NO se elimina — debes hacerlo manualmente desde Compras → Facturas de Proveedor antes de reimportar."
+            />
+          )}
+          <Text>¿Eliminar <Text strong>{row.nombreEmisor}</Text> ({row.serie}/{row.numeroDte}) de la bandeja?</Text>
           <br />
-          <Text strong>{row.nombreEmisor ?? 'Sin nombre'}</Text>
-          <br />
-          <Text type="secondary">NIT: {row.nitEmisor ?? 'Sin NIT'} - Moneda: {row.moneda ?? 'GTQ'}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Al eliminar, podrás volver a importar el mismo DTE desde SAT.
+          </Text>
         </div>
       ),
-      okText: 'Crear proveedor',
+      okText: 'Eliminar',
+      okButtonProps: { danger: true },
       cancelText: 'Cancelar',
       async onOk() {
-        setVendorActionId(row.id)
         try {
-          await createSatDteVendor(row.id)
-          message.success('Proveedor creado y vinculado al DTE SAT')
+          await deleteSatDte(row.id)
+          message.success('DTE eliminado de la bandeja')
           await load()
         } catch (err: unknown) {
-          message.error(getErrorMessage(err, 'No se pudo crear el proveedor'))
-          throw err
-        } finally {
-          setVendorActionId(null)
+          message.error(getErrorMessage(err, 'No se pudo eliminar el DTE'))
         }
       },
     })
@@ -419,13 +452,31 @@ export default function DteSatPage() {
                 icon={<BookOutlined />}
                 disabled={row.status !== 'ready'}
                 onClick={() => {
-                  postForm.setFieldsValue({ invoiceType: 'services', paymentTerms: 'immediate', accountingDate: dayjs() })
+                  const lineas: any[] = Array.isArray(row.items) ? row.items : []
+                  const autoConcepto = lineas.length > 0
+                    ? lineas.map(l => l.descripcion || l.description).filter(Boolean).join(' / ')
+                    : ''
+                  postForm.setFieldsValue({
+                    invoiceType: 'goods',
+                    paymentTerms: 'immediate',
+                    accountingDate: dayjs(),
+                    concepto: autoConcepto,
+                  })
                   setPostingDte(row)
                 }}
                 style={{ fontSize: 11, ...(row.status === 'ready' ? { background: '#1B3A6B' } : {}) }}
               >
                 Contabilizar
               </Button>
+            </Tooltip>
+            <Tooltip title="Eliminar de la bandeja (permite reimportar)">
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteDte(row)}
+                style={{ fontSize: 11 }}
+              />
             </Tooltip>
           </Space>
         )
@@ -529,6 +580,47 @@ export default function DteSatPage() {
           Actualizar
         </Button>
       </div>
+
+      {/* Modal — Crear proveedor desde DTE SAT */}
+      <Modal
+        open={!!vendorModalDte}
+        title={<Space><UserAddOutlined style={{ color: '#1B3A6B' }} /><span>Crear proveedor desde DTE SAT</span></Space>}
+        okText="Crear proveedor"
+        cancelText="Cancelar"
+        confirmLoading={createVendorLoading}
+        onOk={() => vendorForm.submit()}
+        onCancel={() => { setVendorModalDte(null); vendorForm.resetFields() }}
+        width={520}
+        destroyOnClose
+      >
+        {vendorModalDte && (
+          <>
+            <div style={{ background: '#f8fafc', borderRadius: 6, padding: '10px 12px', marginBottom: 16 }}>
+              <Text strong>{vendorModalDte.nombreEmisor ?? '—'}</Text>
+              <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>NIT: {vendorModalDte.nitEmisor ?? '—'} · {vendorModalDte.moneda ?? 'GTQ'}</Text>
+            </div>
+            <Form form={vendorForm} layout="vertical" size="small" onFinish={handleCreateVendorSubmit}>
+              <Form.Item name="name" label="Nombre del proveedor">
+                <Input placeholder={vendorModalDte.nombreEmisor ?? 'Nombre'} />
+              </Form.Item>
+              <Form.Item
+                name="payableAccountId"
+                label="Cuenta por pagar (CxP)"
+                tooltip="Necesaria para generar la póliza contable automáticamente"
+              >
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="Busca por código o nombre (ej: 2101 Proveedores)"
+                  options={accounts
+                    .filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('21') || a.code?.startsWith('2')))
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                />
+              </Form.Item>
+            </Form>
+          </>
+        )}
+      </Modal>
 
       {/* Modal — Contabilizar DTE SAT */}
       <Modal

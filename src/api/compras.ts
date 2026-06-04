@@ -393,6 +393,7 @@ export interface SatDte {
   purchaseInvoiceId?: string
   expenseId?: string
   errorMessage?: string
+  items?: Array<{ descripcion?: string; description?: string; cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string }>
   createdAt: string
   updatedAt?: string
 }
@@ -441,6 +442,9 @@ export const createSatDteVendor = (id: string, dto?: {
   payableAccountId?: string
   expenseAccountId?: string
 }) => api.post(`${DTE_SAT}/documentos/${id}/crear-proveedor`, dto ?? {}).then(unwrap)
+
+export const deleteSatDte = (id: string) =>
+  api.post(`${DTE_SAT}/documentos/${id}/eliminar`).then(unwrap) as Promise<{ deleted: boolean; id: string }>
 
 export const postSatDte = (id: string, dto: {
   invoiceType: string
