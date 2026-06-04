@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Alert, Badge, Button, Card, Col, Divider, Form, Input, Modal,
-  Popconfirm, Row, Select, Space, Spin, Statistic, Table, Tag,
+  Popconfirm, Row, Select, Space, Spin, Table, Tag,
   Tooltip, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   CheckCircleOutlined, ClockCircleOutlined, CreditCardOutlined,
-  DollarOutlined, FileTextOutlined, LockOutlined, StarOutlined,
+  DollarOutlined, FileTextOutlined, LockOutlined,
   SyncOutlined, TeamOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getBillingState, subscribePlan, changePlan, cancelSubscription, getGtqExchangeRate,
+  getBillingState, subscribePlan, changePlan, getGtqExchangeRate,
   requestBillingInvoice, deletePayment,
   type BillingState, type PlanConfig, type SubscriptionPayment,
   type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
@@ -25,12 +25,6 @@ const { Title, Text } = Typography
 const money = (n: number, cur = 'USD') =>
   new Intl.NumberFormat('es-GT', { style: 'currency', currency: cur, minimumFractionDigits: 2 }).format(n)
 
-const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  active:    { label: 'Activa',         color: 'success' },
-  trialing:  { label: 'Período trial',  color: 'processing' },
-  past_due:  { label: 'Pago vencido',   color: 'error' },
-  cancelled: { label: 'Cancelada',      color: 'default' },
-}
 
 const RESULT_COLOR: Record<string, string> = {
   approved: 'success',
@@ -641,7 +635,7 @@ export default function SubscriptionPage() {
 
   const exchangeRate = rateInfo.rate
   const sub = state?.subscription
-  const statusMeta = STATUS_LABEL[sub?.status ?? 'trialing']
+  const activePlan = sub && sub.status !== 'cancelled' ? sub.plan : undefined
 
   const handleSelectPlan = (plan: PlanConfig) => {
     if (!sub?.qpayproCardToken && Number(plan.priceMonthly) > 0) {
@@ -679,15 +673,6 @@ export default function SubscriptionPage() {
     }
   }
 
-  const handleCancel = async () => {
-    try {
-      const result = await cancelSubscription()
-      message.success(result.message)
-      await load()
-    } catch (e: any) {
-      message.error(billingErrorMsg(e, 'Error al cancelar'), 6)
-    }
-  }
 
   const handleDeletePayment = async (id: string) => {
     try {
@@ -713,79 +698,6 @@ export default function SubscriptionPage() {
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Suscripción y Facturación</Title>
         <Text type="secondary">Gestiona tu plan, tarjeta de pago e historial de cobros</Text>
       </div>
-
-      {/* Estado actual */}
-      {sub && (
-        <Card style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)', marginBottom: 20 }}
-          bodyStyle={{ padding: '16px 24px' }}
-        >
-          <Row gutter={[24, 16]} align="middle">
-            <Col xs={24} md={6}>
-              <Statistic
-                title={<Text style={{ fontSize: 12, color: '#5f6b7a' }}>Plan activo</Text>}
-                value={sub.plan.toUpperCase()}
-                prefix={<StarOutlined style={{ color: '#1B3A6B' }} />}
-                valueStyle={{ fontSize: 20, fontWeight: 700, color: '#1B3A6B' }}
-              />
-            </Col>
-            <Col xs={24} md={4}>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Estado</Text>
-              <Badge status={statusMeta?.color as any} text={
-                <Text strong style={{ fontSize: 14 }}>{statusMeta?.label}</Text>
-              } />
-            </Col>
-            <Col xs={24} md={5}>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Próximo cobro</Text>
-              <Text strong style={{ fontSize: 14 }}>
-                {sub.nextChargeAt
-                  ? dayjs(sub.nextChargeAt).format('DD/MM/YYYY')
-                  : sub.status === 'trialing' && state?.tenant.trialEndsAt
-                    ? `Trial hasta ${dayjs(state.tenant.trialEndsAt).format('DD/MM/YYYY')}`
-                    : '—'}
-              </Text>
-            </Col>
-            <Col xs={24} md={4}>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Auto-renovación</Text>
-              {sub.status === 'active' && hasCard ? (
-                <Space size={4}>
-                  <SyncOutlined style={{ color: '#16a34a', fontSize: 13 }} />
-                  <Text strong style={{ fontSize: 13, color: '#16a34a' }}>Activa</Text>
-                </Space>
-              ) : sub.status === 'cancelled' ? (
-                <Text type="secondary" style={{ fontSize: 13 }}>Cancelada</Text>
-              ) : (
-                <Text style={{ fontSize: 13, color: '#d97706' }}>Sin tarjeta</Text>
-              )}
-            </Col>
-            <Col xs={24} md={4}>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Tarjeta registrada</Text>
-              {hasCard ? (
-                <Space>
-                  <CreditCardOutlined style={{ color: '#16a34a' }} />
-                  <Text strong style={{ fontSize: 13 }}>
-                    {sub.qpayproCardBrand} ••••{sub.qpayproCardLast4}
-                  </Text>
-                </Space>
-              ) : (
-                <Text type="secondary" style={{ fontSize: 13 }}>Sin tarjeta</Text>
-              )}
-            </Col>
-            <Col xs={24} md={3} style={{ textAlign: 'right' }}>
-              {sub.status === 'active' && (
-                <Popconfirm
-                  title="¿Cancelar suscripción?"
-                  description="Mantendrás acceso hasta el fin del período pagado."
-                  onConfirm={handleCancel}
-                  okText="Sí, cancelar" cancelText="No"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button size="small" danger>Cancelar suscripción</Button>
-                </Popconfirm>
-              )}
-            </Col>
-          </Row>
-        </Card>
-      )}
 
       {/* Selector de moneda */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -821,7 +733,7 @@ export default function SubscriptionPage() {
           <Col xs={24} md={8} key={plan.plan}>
             <PlanCard
               plan={plan}
-              current={sub?.plan}
+              current={activePlan}
               currency={currency}
               exchangeRate={exchangeRate}
               onSelect={handleSelectPlan}
