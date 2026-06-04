@@ -204,11 +204,11 @@ export default function DteSatPage() {
   }
 
   const handlePost = async (values: {
+    concepto: string
     invoiceType: string
     accountId?: string
     paymentTerms: string
     accountingDate?: Dayjs
-    notes?: string
   }) => {
     if (!postingDte) return
     setPostLoading(true)
@@ -218,7 +218,7 @@ export default function DteSatPage() {
         accountId:      values.accountId,
         paymentTerms:   values.paymentTerms,
         accountingDate: values.accountingDate?.format('YYYY-MM-DD'),
-        notes:          values.notes,
+        notes:          values.concepto,
       })
       message.success(`DTE contabilizado — Factura ${result.invoice.invoiceNumber} creada`)
       setPostingDte(null)
@@ -291,13 +291,12 @@ export default function DteSatPage() {
     },
     {
       title: 'Tipo / Serie / DTE',
-      width: 140,
+      width: 160,
       render: (_, row) => (
-        <div>
-          <Tag style={{ fontSize: 10 }}>{(row as any).tipoDocumento ?? 'FACT'}</Tag>
-          <br />
+        <Space size={4} wrap>
+          <Tag style={{ fontSize: 10, marginInlineEnd: 0 }}>{(row as any).tipoDocumento ?? 'FACT'}</Tag>
           <Text style={{ fontSize: 11 }}>{row.serie ?? '—'} / {row.numeroDte ?? '—'}</Text>
-        </div>
+        </Space>
       ),
     },
     {
@@ -355,16 +354,27 @@ export default function DteSatPage() {
     },
     {
       title: 'Archivos',
-      width: 90,
+      width: 100,
       render: (_, row) => (
-        <Space size={4}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {row.xmlUrl
-            ? <a href={row.xmlUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>XML</a>
+            ? <a href={row.xmlUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>XML ↗</a>
             : <Text type="secondary" style={{ fontSize: 12 }}>XML</Text>}
           {row.pdfUrl
-            ? <a href={row.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>PDF</a>
-            : <Text type="secondary" style={{ fontSize: 12 }}>PDF</Text>}
-        </Space>
+            ? <a href={row.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600 }}>PDF ↗</a>
+            : row.uuid
+              ? <Tooltip title="Ver en portal SAT (verificación FEL)">
+                  <a
+                    href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${row.uuid}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 12, color: '#d97706' }}
+                  >
+                    SAT ↗
+                  </a>
+                </Tooltip>
+              : <Text type="secondary" style={{ fontSize: 12 }}>PDF</Text>}
+        </div>
       ),
     },
     {
@@ -550,9 +560,32 @@ export default function DteSatPage() {
               <Descriptions.Item label="Total" span={2}>
                 <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>{money(postingDte.total, postingDte.moneda)}</Text>
               </Descriptions.Item>
+              <Descriptions.Item label="Factura PDF" span={2}>
+                {postingDte.pdfUrl
+                  ? <a href={postingDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>Ver PDF de la factura ↗</a>
+                  : <a
+                      href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${postingDte.uuid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#d97706' }}
+                    >
+                      Ver en portal SAT (verificación FEL) ↗
+                    </a>
+                }
+              </Descriptions.Item>
             </Descriptions>
 
             <Form form={postForm} layout="vertical" size="small" onFinish={handlePost}>
+              <Form.Item
+                name="concepto"
+                label="Concepto de la compra"
+                rules={[{ required: true, message: 'Describe brevemente qué se está comprando' }]}
+              >
+                <Input.TextArea
+                  rows={2}
+                  placeholder="Ej: Servicios de publicidad digital — Abril 2026 / Compra de materiales de oficina"
+                />
+              </Form.Item>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                 <Form.Item
                   name="invoiceType"
@@ -575,12 +608,15 @@ export default function DteSatPage() {
                   />
                 </Form.Item>
               </div>
-              <Form.Item name="accountId" label="Cuenta de gasto">
+              <Form.Item
+                name="accountId"
+                label="Cuenta de gasto"
+                rules={[{ required: true, message: 'Selecciona la cuenta contable de gasto' }]}
+              >
                 <Select
                   showSearch
                   allowClear
-                  placeholder="Selecciona cuenta (opcional si no aplica)"
-                  optionFilterProp="label"
+                  placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
                   options={accounts
                     .filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
                     .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
@@ -591,9 +627,6 @@ export default function DteSatPage() {
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
               </div>
-              <Form.Item name="notes" label="Notas">
-                <Input.TextArea rows={2} placeholder="Observaciones internas (opcional)" />
-              </Form.Item>
             </Form>
           </>
         )}
