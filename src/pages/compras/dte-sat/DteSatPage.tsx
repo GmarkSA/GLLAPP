@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert, Badge, Button, Card, Col, DatePicker, Form, Input, message, Row,
-  Modal, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
+  Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Form, Input,
+  message, Row, Modal, Select, Space, Spin, Statistic, Table, Tabs, Tag,
+  Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -13,10 +14,13 @@ import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatDteVendor,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
+  postSatDte,
   resolveSatDteVendor,
   startSatDteImport, syncSatDteJob,
   type SatDte, type SatDteStatus, type SatImportJob,
+  BILL_TYPE_CONFIG, PAYMENT_TERMS_CONFIG,
 } from '../../../api/compras'
+import { getAccounts, type Account } from '../../../api/catalogo'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -61,9 +65,20 @@ export default function DteSatPage() {
   const [importing, setImporting] = useState(false)
   const [syncingJob, setSyncingJob] = useState<string | null>(null)
   const [vendorActionId, setVendorActionId] = useState<string | null>(null)
+  const [postingDte, setPostingDte] = useState<SatDte | null>(null)
+  const [postLoading, setPostLoading] = useState(false)
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [postForm] = Form.useForm()
+
+  // ── Cuentas de gasto para el modal ────────────────────────────────────────
+  useEffect(() => {
+    getAccounts({ isActive: true, limit: 500 })
+      .then((res: any) => setAccounts(Array.isArray(res) ? res : (res?.data ?? [])))
+      .catch(() => {})
+  }, [])
 
   // ── Carga principal ────────────────────────────────────────────────────────
 
@@ -181,6 +196,34 @@ export default function DteSatPage() {
       message.error(getErrorMessage(err, 'No se pudo resolver el proveedor'))
     } finally {
       setVendorActionId(null)
+    }
+  }
+
+  const handlePost = async (values: {
+    invoiceType: string
+    accountId?: string
+    paymentTerms: string
+    accountingDate?: Dayjs
+    notes?: string
+  }) => {
+    if (!postingDte) return
+    setPostLoading(true)
+    try {
+      const result = await postSatDte(postingDte.id, {
+        invoiceType:    values.invoiceType,
+        accountId:      values.accountId,
+        paymentTerms:   values.paymentTerms,
+        accountingDate: values.accountingDate?.format('YYYY-MM-DD'),
+        notes:          values.notes,
+      })
+      message.success(`DTE contabilizado — Factura ${result.invoice.invoiceNumber} creada`)
+      setPostingDte(null)
+      postForm.resetFields()
+      await load()
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudo contabilizar el DTE'))
+    } finally {
+      setPostLoading(false)
     }
   }
 
@@ -325,7 +368,6 @@ export default function DteSatPage() {
       width: 240,
       fixed: 'right',
       render: (_, row) => {
-        const canPost = row.status === 'ready' || row.status === 'pending'
         const vendorLoading = vendorActionId === row.id
         return (
           <Space size={4} wrap>
@@ -352,12 +394,17 @@ export default function DteSatPage() {
                 </Button>
               </>
             )}
-            <Tooltip title={canPost ? 'Fase 2 - Contabilizacion asistida (proximamente)' : undefined}>
+            <Tooltip title={row.status === 'posted' ? 'Ya contabilizado' : !row.vendorId ? 'Requiere proveedor vinculado' : undefined}>
               <Button
                 size="small"
+                type={row.status === 'ready' ? 'primary' : 'default'}
                 icon={<BookOutlined />}
-                disabled={true}
-                style={{ fontSize: 11 }}
+                disabled={row.status !== 'ready'}
+                onClick={() => {
+                  postForm.setFieldsValue({ invoiceType: 'services', paymentTerms: 'immediate', accountingDate: dayjs() })
+                  setPostingDte(row)
+                }}
+                style={{ fontSize: 11, ...(row.status === 'ready' ? { background: '#1B3A6B' } : {}) }}
               >
                 Contabilizar
               </Button>
@@ -465,15 +512,98 @@ export default function DteSatPage() {
         </Button>
       </div>
 
+      {/* Modal — Contabilizar DTE SAT */}
+      <Modal
+        open={!!postingDte}
+        title={<Space><BookOutlined style={{ color: '#1B3A6B' }} /><span>Contabilizar DTE SAT</span></Space>}
+        okText="Contabilizar"
+        cancelText="Cancelar"
+        confirmLoading={postLoading}
+        onOk={() => postForm.submit()}
+        onCancel={() => { setPostingDte(null); postForm.resetFields() }}
+        width={620}
+        destroyOnClose
+      >
+        {postingDte && (
+          <>
+            <Descriptions
+              size="small"
+              column={2}
+              style={{ marginBottom: 16, background: '#f8fafc', padding: '10px 12px', borderRadius: 6 }}
+            >
+              <Descriptions.Item label="Proveedor SAT" span={2}>
+                <Text strong>{postingDte.nombreEmisor ?? '—'}</Text>
+                <Text type="secondary" style={{ marginLeft: 8, fontSize: 11 }}>NIT: {postingDte.nitEmisor ?? '—'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Fecha emisión">
+                {postingDte.fechaEmision ? dayjs(postingDte.fechaEmision).format('DD/MM/YYYY') : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Serie / DTE">
+                {postingDte.serie ?? '—'} / {postingDte.numeroDte ?? '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Subtotal">{money(postingDte.subtotal, postingDte.moneda)}</Descriptions.Item>
+              <Descriptions.Item label="IVA">{money(postingDte.totalIva, postingDte.moneda)}</Descriptions.Item>
+              <Descriptions.Item label="Total" span={2}>
+                <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>{money(postingDte.total, postingDte.moneda)}</Text>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Form form={postForm} layout="vertical" size="small" onFinish={handlePost}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                <Form.Item
+                  name="invoiceType"
+                  label="Tipo de factura"
+                  rules={[{ required: true, message: 'Selecciona el tipo' }]}
+                >
+                  <Select
+                    options={Object.entries(BILL_TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+                    placeholder="Selecciona tipo"
+                  />
+                </Form.Item>
+                <Form.Item
+                  name="paymentTerms"
+                  label="Términos de pago"
+                  rules={[{ required: true, message: 'Selecciona términos' }]}
+                >
+                  <Select
+                    options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))}
+                    placeholder="Contado / crédito"
+                  />
+                </Form.Item>
+              </div>
+              <Form.Item name="accountId" label="Cuenta de gasto">
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="Selecciona cuenta (opcional si no aplica)"
+                  optionFilterProp="label"
+                  options={accounts
+                    .filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                />
+              </Form.Item>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                <Form.Item name="accountingDate" label="Fecha contable">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </div>
+              <Form.Item name="notes" label="Notas">
+                <Input.TextArea rows={2} placeholder="Observaciones internas (opcional)" />
+              </Form.Item>
+            </Form>
+          </>
+        )}
+      </Modal>
+
       {/* Alerta de fase */}
       <Alert
-        type="info"
+        type="success"
         showIcon
-        message="Fase 1 — Bandeja DTE SAT activa"
-        description="Inicia el actor APIFY, sincroniza los resultados y guarda los DTE en la bandeja. La contabilización asistida (Fase 2) y la creación automática de proveedores (Fase 3) estarán disponibles en la próxima versión."
+        message="Fase 3 activa — Contabilización de DTE SAT"
+        description="Los DTEs en estado Listo (proveedor vinculado) se pueden contabilizar directamente desde la columna de acciones. Se crea una factura de proveedor con los datos SAT pre-cargados."
         action={
-          <Tag color="blue" style={{ fontSize: 11 }}>
-            Fases 2-6 en roadmap
+          <Tag color="green" style={{ fontSize: 11 }}>
+            Vinculación + Contabilización activas
           </Tag>
         }
       />

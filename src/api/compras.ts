@@ -441,3 +441,15 @@ export const createSatDteVendor = (id: string, dto?: {
   payableAccountId?: string
   expenseAccountId?: string
 }) => api.post(`${DTE_SAT}/documentos/${id}/crear-proveedor`, dto ?? {}).then(unwrap)
+
+export const postSatDte = (id: string, dto: {
+  invoiceType: string
+  accountId?: string
+  paymentTerms: string
+  paymentTermsDays?: number
+  accountingDate?: string
+  notes?: string
+}) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
+  invoice: PurchaseInvoice
+  dte: SatDte
+}>
