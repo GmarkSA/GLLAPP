@@ -368,25 +368,65 @@ export default function DteSatPage() {
       render: (v: number, row) => <Text strong>{money(v, row.moneda)}</Text>,
     },
     {
-      title: 'Estado',
-      dataIndex: 'status',
-      width: 160,
+      title: 'Proceso',
+      width: 140,
       filters: Object.entries(statusConfig).map(([k, v]) => ({ text: v.label, value: k })),
       onFilter: (val, row) => row.status === val,
-      render: (v: SatDteStatus) => (
-        <Tag color={statusConfig[v]?.color} icon={statusConfig[v]?.icon}>
-          {statusConfig[v]?.label ?? v}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Proveedor ERP',
-      width: 150,
-      render: (_, row) => row.vendorId ? (
-        <Tag color="green" icon={<CheckCircleOutlined />}>Vinculado</Tag>
-      ) : (
-        <Tag color="gold" icon={<WarningOutlined />}>Pendiente</Tag>
-      ),
+      render: (_, row) => {
+        if (row.status === 'error') return (
+          <Tag color="red" icon={<WarningOutlined />} style={{ fontSize: 10 }}>Error</Tag>
+        )
+        if (row.status === 'duplicate') return (
+          <Tag color="volcano" icon={<FileTextOutlined />} style={{ fontSize: 10 }}>Duplicado</Tag>
+        )
+
+        const s1 = true                                    // 1 Importado
+        const s2 = !!row.vendorId                         // 2 Proveedor vinculado
+        const s3 = false                                   // 3 OC (stepper pendiente)
+        const s4 = !!(row.purchaseInvoiceId || row.expenseId) // 4 Registrado
+        const s5 = row.status === 'posted'                 // 5 Contabilizado
+
+        const steps = [
+          { done: s1, tip: 'Importado desde SAT' },
+          { done: s2, tip: s2 ? `Proveedor vinculado` : 'Proveedor pendiente' },
+          { done: s3, tip: 'Orden de Compra (pendiente)' },
+          { done: s4, tip: s4 ? 'Factura registrada' : 'Sin registrar' },
+          { done: s5, tip: s5 ? 'Contabilizado ✓' : 'Sin contabilizar', last: true },
+        ]
+
+        const currentLabel =
+          s5 ? 'Contabilizado ✓' :
+          s4 ? 'Registrado' :
+          s2 ? 'Listo' :
+               'Proveedor pendiente'
+
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginBottom: 2 }}>
+              {steps.map((step, i) => (
+                <Tooltip key={i} title={step.tip}>
+                  <span style={{
+                    fontSize: 13,
+                    lineHeight: 1,
+                    cursor: 'default',
+                    color: step.done
+                      ? (step.last ? '#16a34a' : '#1B3A6B')
+                      : '#d1d5db',
+                  }}>
+                    {step.done ? '●' : '○'}
+                  </span>
+                </Tooltip>
+              ))}
+            </div>
+            <Text type={s5 ? undefined : 'secondary'} style={{
+              fontSize: 10,
+              color: s5 ? '#16a34a' : undefined,
+            }}>
+              {currentLabel}
+            </Text>
+          </div>
+        )
+      },
     },
     {
       title: 'Archivos',
