@@ -291,12 +291,16 @@ export default function DteSatPage() {
     },
     {
       title: 'Tipo / Serie / DTE',
-      width: 160,
+      width: 180,
       render: (_, row) => (
-        <Space size={4} wrap>
-          <Tag style={{ fontSize: 10, marginInlineEnd: 0 }}>{(row as any).tipoDocumento ?? 'FACT'}</Tag>
-          <Text style={{ fontSize: 11 }}>{row.serie ?? '—'} / {row.numeroDte ?? '—'}</Text>
-        </Space>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+          <Tag style={{ fontSize: 10, padding: '0 4px', margin: 0, lineHeight: '18px', flexShrink: 0 }}>
+            {(row as any).tipoDocumento ?? 'FACT'}
+          </Tag>
+          <Text style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+            {row.serie ?? '—'} / {row.numeroDte ?? '—'}
+          </Text>
+        </span>
       ),
     },
     {
