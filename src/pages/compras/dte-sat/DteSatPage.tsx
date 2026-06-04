@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Form, Input,
-  message, Row, Modal, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography,
+  Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Form, Input,
+  message, Row, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -13,10 +13,10 @@ import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatDteVendor, deleteSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
-  postSatDte,
+  getPurchaseOrders, postSatDte,
   resolveSatDteVendor,
   startSatDteImport, syncSatDteJob,
-  type SatDte, type SatDteStatus, type SatImportJob,
+  type PurchaseOrder, type SatDte, type SatDteStatus, type SatImportJob,
   BILL_TYPE_CONFIG, PAYMENT_TERMS_CONFIG,
 } from '../../../api/compras'
 import { getAccounts, type Account } from '../../../api/catalogo'
@@ -78,6 +78,17 @@ export default function DteSatPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [postForm] = Form.useForm()
   const [vendorForm] = Form.useForm()
+
+  // ── Stepper ────────────────────────────────────────────────────────────────
+  const [stepperDte, setStepperDte]           = useState<SatDte | null>(null)
+  const [stepperStep, setStepperStep]         = useState(0)
+  const [stepperLoading, setStepperLoading]   = useState(false)
+  const [stepperOcChoice, setStepperOcChoice] = useState<'select' | 'skip' | null>(null)
+  const [stepperOcId, setStepperOcId]         = useState<string | undefined>()
+  const [stepperPOs, setStepperPOs]           = useState<PurchaseOrder[]>()
+  const [stepperResult, setStepperResult]     = useState<{ invoice: any; dte: SatDte } | null>(null)
+  const [stepperForm]                         = Form.useForm()
+  const [stepperVendorForm]                   = Form.useForm()
 
   // ── Cuentas de gasto para el modal ────────────────────────────────────────
   useEffect(() => {
@@ -293,6 +304,85 @@ export default function DteSatPage() {
     })
   }
 
+  // ── Stepper handlers ───────────────────────────────────────────────────────
+
+  const openStepper = (row: SatDte) => {
+    const lineas: any[] = Array.isArray(row.items) ? row.items : []
+    const autoConcepto = lineas.length > 0
+      ? lineas.map(l => l.descripcion || l.description).filter(Boolean).join(' / ')
+      : ''
+    setStepperDte(row)
+    setStepperStep(0)
+    setStepperOcChoice(null)
+    setStepperOcId(undefined)
+    setStepperPOs(undefined)
+    setStepperResult(null)
+    stepperForm.setFieldsValue({ invoiceType: 'goods', paymentTerms: 'immediate', accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
+    stepperVendorForm.setFieldsValue({ name: row.nombreEmisor ?? '' })
+  }
+
+  const handleStepperResolveVendor = async () => {
+    if (!stepperDte) return
+    setStepperLoading(true)
+    try {
+      const result = await resolveSatDteVendor(stepperDte.id)
+      if (result?.dte) setStepperDte(result.dte as SatDte)
+      if (!result?.vendor) message.info('No se encontró proveedor — puedes crearlo abajo.')
+      await load(true)
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudo buscar el proveedor'))
+    } finally {
+      setStepperLoading(false)
+    }
+  }
+
+  const handleStepperCreateVendor = async (values: { name?: string; payableAccountId?: string }) => {
+    if (!stepperDte) return
+    setStepperLoading(true)
+    try {
+      const result = await createSatDteVendor(stepperDte.id, { name: values.name, payableAccountId: values.payableAccountId })
+      if ((result as any)?.dte) setStepperDte((result as any).dte as SatDte)
+      message.success('Proveedor creado y vinculado')
+      await load(true)
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudo crear el proveedor'))
+    } finally {
+      setStepperLoading(false)
+    }
+  }
+
+  const handleEnterOcStep = async () => {
+    if (!stepperDte?.vendorId || stepperPOs !== undefined) return
+    try {
+      const res = await getPurchaseOrders({ limit: 50 }) as any
+      const all: PurchaseOrder[] = res?.data ?? res ?? []
+      setStepperPOs(all.filter(po => po.vendorId === stepperDte.vendorId && ['sent', 'received'].includes(po.status)))
+    } catch { setStepperPOs([]) }
+  }
+
+  const handleStepperPost = async (values: { concepto: string; invoiceType: string; accountId?: string; paymentTerms: string; accountingDate?: Dayjs }) => {
+    if (!stepperDte) return
+    setStepperLoading(true)
+    try {
+      const result = await postSatDte(stepperDte.id, {
+        invoiceType:    values.invoiceType,
+        accountId:      values.accountId,
+        paymentTerms:   values.paymentTerms,
+        accountingDate: values.accountingDate?.format('YYYY-MM-DD'),
+        notes:          values.concepto,
+        purchaseOrderId: stepperOcId,
+      })
+      setStepperResult(result)
+      if (result?.dte) setStepperDte(result.dte as SatDte)
+      await load(true)
+      setStepperStep(4)
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudo contabilizar el DTE'))
+    } finally {
+      setStepperLoading(false)
+    }
+  }
+
   const totals = useMemo(() => ({
     pending:  { count: stats.pending?.count ?? 0,   amount: stats.pending?.total ?? 0 },
     ready:    { count: stats.ready?.count ?? 0,     amount: stats.ready?.total ?? 0 },
@@ -454,72 +544,31 @@ export default function DteSatPage() {
       ),
     },
     {
-      title: 'Accion',
-      width: 240,
+      title: 'Acción',
+      width: 110,
       fixed: 'right',
-      render: (_, row) => {
-        const vendorLoading = vendorActionId === row.id
-        return (
-          <Space size={4} wrap>
-            {!row.vendorId && (
-              <>
-                <Button
-                  size="small"
-                  icon={<SearchOutlined />}
-                  loading={vendorLoading}
-                  onClick={() => void handleResolveVendor(row)}
-                  style={{ fontSize: 11 }}
-                >
-                  Resolver
-                </Button>
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<UserAddOutlined />}
-                  loading={vendorLoading}
-                  onClick={() => handleCreateVendor(row)}
-                  style={{ fontSize: 11 }}
-                >
-                  Crear
-                </Button>
-              </>
-            )}
-            <Tooltip title={row.status === 'posted' ? 'Ya contabilizado' : !row.vendorId ? 'Requiere proveedor vinculado' : undefined}>
-              <Button
+      render: (_, row) => (
+        <Space size={4}>
+          {row.status === 'posted' || row.status === 'duplicate'
+            ? <Tag color={row.status === 'posted' ? 'blue' : 'volcano'} style={{ fontSize: 10 }}>
+                {row.status === 'posted' ? 'Procesado' : 'Duplicado'}
+              </Tag>
+            : <Button
                 size="small"
-                type={row.status === 'ready' ? 'primary' : 'default'}
+                type="primary"
                 icon={<BookOutlined />}
-                disabled={row.status !== 'ready'}
-                onClick={() => {
-                  const lineas: any[] = Array.isArray(row.items) ? row.items : []
-                  const autoConcepto = lineas.length > 0
-                    ? lineas.map(l => l.descripcion || l.description).filter(Boolean).join(' / ')
-                    : ''
-                  postForm.setFieldsValue({
-                    invoiceType: 'goods',
-                    paymentTerms: 'immediate',
-                    accountingDate: dayjs(),
-                    concepto: autoConcepto,
-                  })
-                  setPostingDte(row)
-                }}
-                style={{ fontSize: 11, ...(row.status === 'ready' ? { background: '#1B3A6B' } : {}) }}
+                onClick={() => openStepper(row)}
+                style={{ fontSize: 11, background: '#1B3A6B' }}
               >
-                Contabilizar
+                Procesar
               </Button>
-            </Tooltip>
-            <Tooltip title="Eliminar de la bandeja (permite reimportar)">
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => handleDeleteDte(row)}
-                style={{ fontSize: 11 }}
-              />
-            </Tooltip>
-          </Space>
-        )
-      },
+          }
+          <Tooltip title="Eliminar de la bandeja">
+            <Button size="small" danger icon={<DeleteOutlined />}
+              onClick={() => handleDeleteDte(row)} style={{ fontSize: 11 }} />
+          </Tooltip>
+        </Space>
+      ),
     },
   ]
 
@@ -596,6 +645,244 @@ export default function DteSatPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
+
+      {/* ── Modal Stepper — Procesar DTE SAT ─────────────────────────────── */}
+      <Modal
+        open={!!stepperDte}
+        width={740}
+        title={null}
+        footer={null}
+        closable
+        maskClosable={false}
+        onCancel={() => setStepperDte(null)}
+        destroyOnClose
+        styles={{ body: { padding: 0 } }}
+      >
+        {stepperDte && (() => {
+          const vendorLinked = !!stepperDte.vendorId
+          const canNext =
+            stepperStep === 0 ? true :
+            stepperStep === 1 ? vendorLinked :
+            stepperStep === 2 ? (stepperOcChoice === 'skip' || (stepperOcChoice === 'select' && !!stepperOcId)) :
+            false
+
+          return (
+            <div>
+              {/* Header fijo */}
+              <div style={{ padding: '20px 24px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div>
+                    <Text strong style={{ fontSize: 14 }}>{stepperDte.nombreEmisor ?? '—'}</Text>
+                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>NIT: {stepperDte.nitEmisor}</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {(stepperDte as any).tipoDocumento ?? 'FACT'} · {stepperDte.serie ?? '—'}/{stepperDte.numeroDte ?? '—'}
+                    </Text>
+                  </div>
+                  <Text strong style={{ fontSize: 18, color: '#1B3A6B' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                </div>
+                <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
+                  { title: 'DTE' },
+                  { title: 'Proveedor' },
+                  { title: 'Orden de Compra' },
+                  { title: 'Registrar' },
+                  { title: 'Listo' },
+                ]} />
+                <Divider style={{ margin: '0 0 16px' }} />
+              </div>
+
+              {/* Contenido del paso actual */}
+              <div style={{ padding: '0 24px 8px', minHeight: 200 }}>
+
+                {/* Paso 0 — Datos del DTE */}
+                {stepperStep === 0 && (
+                  <Descriptions size="small" column={2} style={{ background: '#f8fafc', padding: 12, borderRadius: 6 }}>
+                    <Descriptions.Item label="Emisor" span={2}><Text strong>{stepperDte.nombreEmisor}</Text></Descriptions.Item>
+                    <Descriptions.Item label="Fecha">{stepperDte.fechaEmision ? dayjs(stepperDte.fechaEmision).format('DD/MM/YYYY') : '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Serie / DTE">{stepperDte.serie ?? '—'} / {stepperDte.numeroDte ?? '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Subtotal">{money(stepperDte.subtotal, stepperDte.moneda)}</Descriptions.Item>
+                    <Descriptions.Item label="IVA">{money(stepperDte.totalIva, stepperDte.moneda)}</Descriptions.Item>
+                    <Descriptions.Item label="Total" span={2}>
+                      <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Archivos" span={2}>
+                      <Space size={16}>
+                        {stepperDte.xmlUrl ? <a href={stepperDte.xmlUrl} target="_blank" rel="noreferrer">XML ↗</a> : <Text type="secondary">XML</Text>}
+                        {stepperDte.pdfUrl
+                          ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
+                          : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#d97706' }}>Ver en SAT ↗</a>}
+                      </Space>
+                    </Descriptions.Item>
+                  </Descriptions>
+                )}
+
+                {/* Paso 1 — Proveedor */}
+                {stepperStep === 1 && (
+                  vendorLinked ? (
+                    <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                      <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
+                      <Text strong style={{ fontSize: 15 }}>Proveedor vinculado</Text>
+                      <br />
+                      <Text type="secondary">{stepperDte.nombreEmisor} · NIT: {stepperDte.nitEmisor}</Text>
+                    </div>
+                  ) : (
+                    <div>
+                      <Alert type="warning" showIcon style={{ marginBottom: 14, fontSize: 12 }}
+                        message={`NIT ${stepperDte.nitEmisor} no está registrado. Busca si existe o créalo.`} />
+                      <Button icon={<SearchOutlined />} loading={stepperLoading} style={{ marginBottom: 14 }} onClick={handleStepperResolveVendor}>
+                        Buscar proveedor por NIT {stepperDte.nitEmisor}
+                      </Button>
+                      <Divider plain style={{ fontSize: 12 }}>o crear nuevo proveedor</Divider>
+                      <Form form={stepperVendorForm} layout="vertical" size="small" onFinish={handleStepperCreateVendor}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                          <Form.Item name="name" label="Nombre">
+                            <Input placeholder={stepperDte.nombreEmisor ?? 'Nombre del proveedor'} />
+                          </Form.Item>
+                          <Form.Item name="payableAccountId" label="Cuenta por pagar (CxP)"
+                            tooltip="Requerida para generar la póliza automáticamente">
+                            <Select showSearch allowClear placeholder="2101 — Proveedores Nacionales"
+                              options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('2'))
+                                .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                          </Form.Item>
+                        </div>
+                        <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1B3A6B' }}>
+                          Crear y vincular proveedor
+                        </Button>
+                      </Form>
+                    </div>
+                  )
+                )}
+
+                {/* Paso 2 — Orden de Compra */}
+                {stepperStep === 2 && (
+                  <div>
+                    <Text style={{ display: 'block', marginBottom: 18, fontSize: 13 }}>
+                      ¿Este DTE está relacionado con una Orden de Compra?
+                    </Text>
+                    <Radio.Group value={stepperOcChoice} style={{ width: '100%' }}
+                      onChange={e => { setStepperOcChoice(e.target.value); if (e.target.value === 'skip') setStepperOcId(undefined) }}>
+                      <Space direction="vertical" size={14} style={{ width: '100%' }}>
+                        <Radio value="skip">
+                          <Text strong>Continuar sin Orden de Compra</Text>
+                          <br /><Text type="secondary" style={{ fontSize: 12 }}>La factura se registra como compra directa</Text>
+                        </Radio>
+                        <Radio value="select">
+                          <Text strong>Vincular a una Orden de Compra existente</Text>
+                          <br /><Text type="secondary" style={{ fontSize: 12 }}>Cierra la OC y vincula la factura</Text>
+                        </Radio>
+                      </Space>
+                    </Radio.Group>
+                    {stepperOcChoice === 'select' && (
+                      <div style={{ marginTop: 14 }}>
+                        {stepperPOs === undefined
+                          ? <Spin size="small" />
+                          : stepperPOs.length === 0
+                            ? <Alert type="info" showIcon style={{ fontSize: 12 }}
+                                message="No hay OC abiertas para este proveedor. Selecciona 'Continuar sin OC'." />
+                            : <Select showSearch style={{ width: '100%' }} placeholder="Selecciona una Orden de Compra"
+                                value={stepperOcId} onChange={setStepperOcId}
+                                options={stepperPOs.map(po => ({ value: po.id, label: `${po.orderNumber} — ${money(po.total, po.currency)}` }))} />
+                        }
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Paso 3 — Registrar */}
+                {stepperStep === 3 && (
+                  <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}>
+                    <Form.Item name="concepto" label="Concepto de la compra"
+                      rules={[{ required: true, message: 'Describe qué se está comprando' }]}>
+                      <Input.TextArea rows={2} placeholder="Ej: Alimentos para cafetería — Abril 2026" />
+                    </Form.Item>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                      <Form.Item name="invoiceType" label="Tipo de factura"
+                        rules={[{ required: true, message: 'Selecciona el tipo' }]}>
+                        <Select options={Object.entries(BILL_TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))} />
+                      </Form.Item>
+                      <Form.Item name="paymentTerms" label="Términos de pago"
+                        rules={[{ required: true, message: 'Selecciona términos' }]}>
+                        <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
+                      </Form.Item>
+                    </div>
+                    <Form.Item name="accountId" label="Cuenta de gasto"
+                      rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
+                      <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
+                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
+                          .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                    </Form.Item>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                      <Form.Item name="accountingDate" label="Fecha contable">
+                        <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                      </Form.Item>
+                      {stepperOcId && (
+                        <Form.Item label="OC vinculada">
+                          <Tag color="blue">{stepperPOs?.find(p => p.id === stepperOcId)?.orderNumber ?? 'OC seleccionada'}</Tag>
+                        </Form.Item>
+                      )}
+                    </div>
+                  </Form>
+                )}
+
+                {/* Paso 4 — Listo */}
+                {stepperStep === 4 && stepperResult && (
+                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                    <CheckCircleOutlined style={{ fontSize: 52, color: '#16a34a', marginBottom: 14 }} />
+                    <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>DTE Procesado Correctamente</Text>
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
+                      <div><Text type="secondary">Factura:</Text> <Text strong>{stepperResult.invoice?.invoiceNumber}</Text></div>
+                      {stepperResult.invoice?.journalEntryId && (
+                        <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#16a34a' }}>Generada automáticamente</Text></div>
+                      )}
+                      <div><Text type="secondary">Total:</Text> <Text strong>{money(stepperDte.total, stepperDte.moneda)}</Text></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer navegación */}
+              <div style={{ padding: '12px 24px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Button onClick={() => setStepperStep(s => s - 1)}
+                  disabled={stepperStep === 0 || stepperStep === 4 || stepperLoading}>
+                  ← Anterior
+                </Button>
+                <Space>
+                  {stepperStep < 3 && (
+                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                      disabled={!canNext || stepperLoading}
+                      onClick={async () => {
+                        if (stepperStep === 1) { setStepperStep(2); await handleEnterOcStep() }
+                        else setStepperStep(s => s + 1)
+                      }}
+                    >
+                      Siguiente →
+                    </Button>
+                  )}
+                  {stepperStep === 3 && (
+                    <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}
+                      style={{ background: '#1B3A6B' }} onClick={() => stepperForm.submit()}>
+                      Registrar y Contabilizar
+                    </Button>
+                  )}
+                  {stepperStep === 4 && (
+                    <Space>
+                      <Button onClick={() => {
+                        const next = documents.find(d => d.id !== stepperDte?.id && (d.status === 'pending' || d.status === 'ready'))
+                        if (next) openStepper(next); else setStepperDte(null)
+                      }}>
+                        Procesar siguiente DTE
+                      </Button>
+                      <Button type="primary" style={{ background: '#1B3A6B' }} onClick={() => setStepperDte(null)}>
+                        Cerrar
+                      </Button>
+                    </Space>
+                  )}
+                </Space>
+              </div>
+            </div>
+          )
+        })()}
+      </Modal>
 
       {/* Modal — Crear proveedor desde DTE SAT */}
       <Modal
