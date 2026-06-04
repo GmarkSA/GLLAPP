@@ -708,46 +708,43 @@ export default function DteSatPage() {
       <Card
         bordered={false}
         title={
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <Title level={4} style={{ margin: 0, color: '#102a56' }}>
-              DTE SAT
-              {hasRunningJobs && <Spin size="small" style={{ marginLeft: 8 }} />}
-            </Title>
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
-              Bandeja de facturas importadas desde SAT vía APIFY
-              {hasRunningJobs && (
-                <Text type="warning" style={{ marginLeft: 6, fontSize: 12 }}>
-                  · Importación en progreso — sincronizando automáticamente
-                </Text>
-              )}
-            </Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
+              <Title level={4} style={{ margin: 0, color: '#102a56' }}>
+                DTE SAT{hasRunningJobs && <Spin size="small" style={{ marginLeft: 8 }} />}
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+                Bandeja de facturas importadas desde SAT vía APIFY
+                {hasRunningJobs && <Text type="warning" style={{ marginLeft: 6, fontSize: 12 }}>· Importación en progreso</Text>}
+              </Text>
+            </div>
+            <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+              ⚠ Password SAT nunca se almacena — se envía directo a APIFY vía HTTPS
+            </div>
           </div>
         }
         extra={<Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading} size="small">Actualizar</Button>}
         style={{ borderTop: '3px solid #1B3A6B' }}
+        styles={{ body: { paddingTop: 10, paddingBottom: 10 } }}
       >
-        <div style={{ marginBottom: 10, fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span>⚠</span>
-          <span>Seguridad: el password SAT se envía directamente al actor APIFY vía HTTPS y nunca se almacena en la base de datos.</span>
-        </div>
-        <Form form={form} layout="vertical" onFinish={handleImport}>
-          <Row gutter={[16, 0]}>
+        <Form form={form} layout="vertical" size="small" onFinish={handleImport}>
+          <Row gutter={[16, 0]} align="bottom">
             <Col xs={24} md={5}>
-              <Form.Item name="satNit" label="NIT Agencia Virtual SAT"
+              <Form.Item name="satNit" label="NIT Agencia Virtual SAT" style={{ marginBottom: 0 }}
                 rules={[{ required: true, message: 'Ingresa el NIT SAT' }]}
               >
                 <Input placeholder="108285685" autoComplete="off" />
               </Form.Item>
             </Col>
             <Col xs={24} md={5}>
-              <Form.Item name="satPass" label="Contraseña Agencia Virtual"
+              <Form.Item name="satPass" label="Contraseña Agencia Virtual" style={{ marginBottom: 0 }}
                 rules={[{ required: true, message: 'Ingresa la contraseña SAT' }]}
               >
                 <Input.Password placeholder="••••••••" autoComplete="off" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="range" label="Rango de emisión"
+              <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
                 rules={[{ required: true, message: 'Selecciona el rango' }]}
               >
                 <RangePicker
@@ -761,18 +758,16 @@ export default function DteSatPage() {
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item label=" ">
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  icon={<ApiOutlined />}
-                  loading={importing}
-                  block
-                  style={{ background: '#1B3A6B' }}
-                >
-                  Iniciar importación SAT
-                </Button>
-              </Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<ApiOutlined />}
+                loading={importing}
+                block
+                style={{ background: '#1B3A6B' }}
+              >
+                Iniciar importación SAT
+              </Button>
             </Col>
           </Row>
         </Form>
