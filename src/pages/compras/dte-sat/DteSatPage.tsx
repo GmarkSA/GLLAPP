@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Form, Input,
-  message, Row, Modal, Select, Space, Spin, Statistic, Table, Tabs, Tag,
-  Tooltip, Typography,
+  message, Row, Modal, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
-  DeleteOutlined, FileTextOutlined, ReloadOutlined, SafetyCertificateOutlined,
+  DeleteOutlined, FileTextOutlined, ReloadOutlined,
   SearchOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
@@ -727,77 +726,6 @@ export default function DteSatPage() {
           </>
         )}
       </Modal>
-
-      {/* Alerta de fase */}
-      <Alert
-        type="success"
-        showIcon
-        message="Fase 3 activa — Contabilización de DTE SAT"
-        description="Los DTEs en estado Listo (proveedor vinculado) se pueden contabilizar directamente desde la columna de acciones. Se crea una factura de proveedor con los datos SAT pre-cargados."
-        action={
-          <Tag color="green" style={{ fontSize: 11 }}>
-            Vinculación + Contabilización activas
-          </Tag>
-        }
-      />
-
-      {/* Stats cards */}
-      <Row gutter={[12, 12]}>
-        <Col xs={12} md={4}>
-          <Card bordered={false} style={{ borderTop: '3px solid #d97706' }}>
-            <Statistic
-              title={<Text style={{ fontSize: 11 }}>Pendientes</Text>}
-              value={totals.pending.count}
-              prefix={<WarningOutlined style={{ color: '#d97706' }} />}
-              valueStyle={{ fontSize: 20, color: '#d97706' }}
-            />
-            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.pending.amount)}</Text>
-          </Card>
-        </Col>
-        <Col xs={12} md={4}>
-          <Card bordered={false} style={{ borderTop: '3px solid #16a34a' }}>
-            <Statistic
-              title={<Text style={{ fontSize: 11 }}>Listos</Text>}
-              value={totals.ready.count}
-              prefix={<CheckCircleOutlined style={{ color: '#16a34a' }} />}
-              valueStyle={{ fontSize: 20, color: '#16a34a' }}
-            />
-            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.ready.amount)}</Text>
-          </Card>
-        </Col>
-        <Col xs={12} md={4}>
-          <Card bordered={false} style={{ borderTop: '3px solid #6b7280' }}>
-            <Statistic
-              title={<Text style={{ fontSize: 11 }}>Duplicados</Text>}
-              value={totals.duplicate.count}
-              prefix={<ApiOutlined style={{ color: '#6b7280' }} />}
-              valueStyle={{ fontSize: 20, color: '#6b7280' }}
-            />
-            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.duplicate.amount)}</Text>
-          </Card>
-        </Col>
-        <Col xs={12} md={4}>
-          <Card bordered={false} style={{ borderTop: '3px solid #2563eb' }}>
-            <Statistic
-              title={<Text style={{ fontSize: 11 }}>Contabilizados</Text>}
-              value={totals.posted.count}
-              prefix={<BookOutlined style={{ color: '#2563eb' }} />}
-              valueStyle={{ fontSize: 20, color: '#2563eb' }}
-            />
-            <Text type="secondary" style={{ fontSize: 11 }}>{money(totals.posted.amount)}</Text>
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderTop: '3px solid #1B3A6B' }}>
-            <Statistic
-              title={<Text style={{ fontSize: 11 }}>Total importado (todas las facturas)</Text>}
-              value={money(totals.total)}
-              prefix={<SafetyCertificateOutlined style={{ color: '#1B3A6B' }} />}
-              valueStyle={{ fontSize: 18, color: '#1B3A6B', fontWeight: 700 }}
-            />
-          </Card>
-        </Col>
-      </Row>
 
       {/* Formulario de importación */}
       <Card
