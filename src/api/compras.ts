@@ -446,6 +446,9 @@ export const createSatDteVendor = (id: string, dto?: {
 export const deleteSatDte = (id: string) =>
   api.post(`${DTE_SAT}/documentos/${id}/eliminar`).then(unwrap) as Promise<{ deleted: boolean; id: string }>
 
+export const reactivateSatDte = (id: string) =>
+  api.post(`${DTE_SAT}/documentos/${id}/reactivar`).then(unwrap)
+
 export const postSatDte = (id: string, dto: {
   taxId?: string
   accountId?: string
