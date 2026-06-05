@@ -17,9 +17,10 @@ import {
   resolveSatDteVendor,
   startSatDteImport, syncSatDteJob,
   type PurchaseOrder, type SatDte, type SatDteStatus, type SatImportJob,
-  BILL_TYPE_CONFIG, PAYMENT_TERMS_CONFIG,
+  PAYMENT_TERMS_CONFIG,
 } from '../../../api/compras'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import { getTaxes, type Tax } from '../../../api/impuestos'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -73,6 +74,7 @@ export default function DteSatPage() {
   const [vendorModalDte, setVendorModalDte] = useState<SatDte | null>(null)
   const [createVendorLoading, setCreateVendorLoading] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [taxes, setTaxes] = useState<Tax[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -90,10 +92,16 @@ export default function DteSatPage() {
   const [stepperForm]                         = Form.useForm()
   const [stepperVendorForm]                   = Form.useForm()
 
-  // ── Cuentas de gasto para el modal ────────────────────────────────────────
+  // ── Cuentas e impuestos ────────────────────────────────────────────────────
   useEffect(() => {
     getAccounts({ isActive: true, limit: 500 })
       .then((res: any) => setAccounts(Array.isArray(res) ? res : (res?.data ?? [])))
+      .catch(() => {})
+    getTaxes()
+      .then((res: any) => {
+        const list: Tax[] = Array.isArray(res) ? res : (res?.data ?? [])
+        setTaxes(list.filter(t => t.applicability === 'purchases' || t.applicability === 'both'))
+      })
       .catch(() => {})
   }, [])
 
@@ -218,7 +226,7 @@ export default function DteSatPage() {
 
   const handlePost = async (values: {
     concepto: string
-    invoiceType: string
+    taxId?: string
     accountId?: string
     paymentTerms: string
     accountingDate?: Dayjs
@@ -227,7 +235,7 @@ export default function DteSatPage() {
     setPostLoading(true)
     try {
       const result = await postSatDte(postingDte.id, {
-        invoiceType:    values.invoiceType,
+        taxId:          values.taxId,
         accountId:      values.accountId,
         paymentTerms:   values.paymentTerms,
         accountingDate: values.accountingDate?.format('YYYY-MM-DD'),
@@ -317,7 +325,7 @@ export default function DteSatPage() {
     setStepperOcId(undefined)
     setStepperPOs(undefined)
     setStepperResult(null)
-    stepperForm.setFieldsValue({ invoiceType: 'goods', paymentTerms: 'immediate', accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
+    stepperForm.setFieldsValue({ taxId: undefined, paymentTerms: 'immediate', accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
     stepperVendorForm.setFieldsValue({ name: row.nombreEmisor ?? '' })
   }
 
@@ -360,12 +368,12 @@ export default function DteSatPage() {
     } catch { setStepperPOs([]) }
   }
 
-  const handleStepperPost = async (values: { concepto: string; invoiceType: string; accountId?: string; paymentTerms: string; accountingDate?: Dayjs }) => {
+  const handleStepperPost = async (values: { concepto: string; taxId?: string; accountId?: string; paymentTerms: string; accountingDate?: Dayjs }) => {
     if (!stepperDte) return
     setStepperLoading(true)
     try {
       const result = await postSatDte(stepperDte.id, {
-        invoiceType:    values.invoiceType,
+        taxId:          values.taxId,
         accountId:      values.accountId,
         paymentTerms:   values.paymentTerms,
         accountingDate: values.accountingDate?.format('YYYY-MM-DD'),
@@ -798,9 +806,12 @@ export default function DteSatPage() {
                       <Input.TextArea rows={2} placeholder="Ej: Alimentos para cafetería — Abril 2026" />
                     </Form.Item>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                      <Form.Item name="invoiceType" label="Tipo de factura"
-                        rules={[{ required: true, message: 'Selecciona el tipo' }]}>
-                        <Select options={Object.entries(BILL_TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))} />
+                      <Form.Item name="taxId" label="Impuesto"
+                        rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}>
+                        <Select
+                          placeholder="Selecciona el impuesto (IVA)"
+                          options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))}
+                        />
                       </Form.Item>
                       <Form.Item name="paymentTerms" label="Términos de pago"
                         rules={[{ required: true, message: 'Selecciona términos' }]}>
@@ -989,13 +1000,13 @@ export default function DteSatPage() {
               </Form.Item>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                 <Form.Item
-                  name="invoiceType"
-                  label="Tipo de factura"
-                  rules={[{ required: true, message: 'Selecciona el tipo' }]}
+                  name="taxId"
+                  label="Impuesto"
+                  rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}
                 >
                   <Select
-                    options={Object.entries(BILL_TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
-                    placeholder="Selecciona tipo"
+                    options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))}
+                    placeholder="Selecciona el impuesto (IVA)"
                   />
                 </Form.Item>
                 <Form.Item

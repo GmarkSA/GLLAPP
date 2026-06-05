@@ -447,7 +447,7 @@ export const deleteSatDte = (id: string) =>
   api.post(`${DTE_SAT}/documentos/${id}/eliminar`).then(unwrap) as Promise<{ deleted: boolean; id: string }>
 
 export const postSatDte = (id: string, dto: {
-  invoiceType: string
+  taxId?: string
   accountId?: string
   paymentTerms: string
   paymentTermsDays?: number
