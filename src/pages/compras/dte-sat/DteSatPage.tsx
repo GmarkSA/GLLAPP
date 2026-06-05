@@ -21,6 +21,7 @@ import {
 } from '../../../api/compras'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getTaxes, type Tax } from '../../../api/impuestos'
+import { getVendors } from '../../../api/contactos'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -85,12 +86,13 @@ export default function DteSatPage() {
   const [stepperDte, setStepperDte]           = useState<SatDte | null>(null)
   const [stepperStep, setStepperStep]         = useState(0)
   const [stepperLoading, setStepperLoading]   = useState(false)
-  const [stepperOcChoice, setStepperOcChoice] = useState<'select' | 'skip' | null>(null)
-  const [stepperOcId, setStepperOcId]         = useState<string | undefined>()
-  const [stepperPOs, setStepperPOs]           = useState<PurchaseOrder[]>()
-  const [stepperResult, setStepperResult]     = useState<{ invoice: any; dte: SatDte } | null>(null)
-  const [stepperForm]                         = Form.useForm()
-  const [stepperVendorForm]                   = Form.useForm()
+  const [stepperOcChoice, setStepperOcChoice]       = useState<'select' | 'skip' | 'reimbursement' | null>(null)
+  const [stepperOcId, setStepperOcId]               = useState<string | undefined>()
+  const [stepperPOs, setStepperPOs]                 = useState<PurchaseOrder[]>()
+  const [stepperResult, setStepperResult]           = useState<{ invoice: any; dte: SatDte } | null>(null)
+  const [stepperForm]                               = Form.useForm()
+  const [stepperVendorForm]                         = Form.useForm()
+  const [vendors, setVendors] = useState<{ value: string; label: string; type?: string }[]>([])
 
   // ── Cuentas e impuestos ────────────────────────────────────────────────────
   useEffect(() => {
@@ -101,6 +103,12 @@ export default function DteSatPage() {
       .then((res: any) => {
         const list: Tax[] = Array.isArray(res) ? res : (res?.data ?? [])
         setTaxes(list.filter(t => t.applicability === 'purchases' || t.applicability === 'both'))
+      })
+      .catch(() => {})
+    getVendors({ type: 'employee', limit: 200 })
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : (res?.data ?? [])
+        setVendors(list.map((v: any) => ({ value: v.id, label: v.name, type: 'employee' })))
       })
       .catch(() => {})
   }, [])
@@ -368,17 +376,24 @@ export default function DteSatPage() {
     } catch { setStepperPOs([]) }
   }
 
-  const handleStepperPost = async (values: { concepto: string; taxId?: string; accountId?: string; paymentTerms: string; accountingDate?: Dayjs }) => {
+  const handleStepperPost = async (values: {
+    concepto: string; taxId?: string; accountId?: string; paymentTerms: string
+    accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string
+  }) => {
     if (!stepperDte) return
     setStepperLoading(true)
     try {
+      const isReimbursement = stepperOcChoice === 'reimbursement'
       const result = await postSatDte(stepperDte.id, {
-        taxId:          values.taxId,
-        accountId:      values.accountId,
-        paymentTerms:   values.paymentTerms,
-        accountingDate: values.accountingDate?.format('YYYY-MM-DD'),
-        notes:          values.concepto,
-        purchaseOrderId: stepperOcId,
+        taxId:               values.taxId,
+        accountId:           values.accountId,
+        paymentTerms:        values.paymentTerms,
+        accountingDate:      values.accountingDate?.format('YYYY-MM-DD'),
+        notes:               values.concepto,
+        purchaseOrderId:     isReimbursement ? undefined : stepperOcId,
+        isExpenseReimbursement: isReimbursement,
+        employeeId:          isReimbursement ? values.employeeId : undefined,
+        idpAccountId:        values.idpAccountId,
       })
       setStepperResult(result)
       if (result?.dte) setStepperDte(result.dte as SatDte)
@@ -673,7 +688,11 @@ export default function DteSatPage() {
           const canNext =
             stepperStep === 0 ? true :
             stepperStep === 1 ? vendorLinked :
-            stepperStep === 2 ? (stepperOcChoice === 'skip' || (stepperOcChoice === 'select' && !!stepperOcId)) :
+            stepperStep === 2 ? (
+              stepperOcChoice === 'skip' ||
+              stepperOcChoice === 'reimbursement' ||
+              (stepperOcChoice === 'select' && !!stepperOcId)
+            ) :
             false
 
           return (
@@ -763,22 +782,26 @@ export default function DteSatPage() {
                   )
                 )}
 
-                {/* Paso 2 — Orden de Compra */}
+                {/* Paso 2 — Orden de Compra / Tipo de registro */}
                 {stepperStep === 2 && (
                   <div>
                     <Text style={{ display: 'block', marginBottom: 18, fontSize: 13 }}>
-                      ¿Este DTE está relacionado con una Orden de Compra?
+                      ¿Cómo se registra este DTE?
                     </Text>
                     <Radio.Group value={stepperOcChoice} style={{ width: '100%' }}
-                      onChange={e => { setStepperOcChoice(e.target.value); if (e.target.value === 'skip') setStepperOcId(undefined) }}>
+                      onChange={e => { setStepperOcChoice(e.target.value); if (e.target.value !== 'select') setStepperOcId(undefined) }}>
                       <Space direction="vertical" size={14} style={{ width: '100%' }}>
                         <Radio value="skip">
-                          <Text strong>Continuar sin Orden de Compra</Text>
-                          <br /><Text type="secondary" style={{ fontSize: 12 }}>La factura se registra como compra directa</Text>
+                          <Text strong>Compra directa</Text>
+                          <br /><Text type="secondary" style={{ fontSize: 12 }}>La factura se registra sin orden de compra</Text>
                         </Radio>
                         <Radio value="select">
                           <Text strong>Vincular a una Orden de Compra existente</Text>
                           <br /><Text type="secondary" style={{ fontSize: 12 }}>Cierra la OC y vincula la factura</Text>
+                        </Radio>
+                        <Radio value="reimbursement">
+                          <Text strong>Reembolso de Gastos (Empleado)</Text>
+                          <br /><Text type="secondary" style={{ fontSize: 12 }}>La deuda se reclasifica al empleado mediante un asiento de reclasificación</Text>
                         </Radio>
                       </Space>
                     </Radio.Group>
@@ -799,7 +822,16 @@ export default function DteSatPage() {
                 )}
 
                 {/* Paso 3 — Registrar */}
-                {stepperStep === 3 && (
+                {stepperStep === 3 && (() => {
+                  const isReimbursement = stepperOcChoice === 'reimbursement'
+                  const watchedTaxId = stepperForm.getFieldValue('taxId') as string | undefined
+                  const selectedTax = taxes.find(t => t.id === watchedTaxId)
+                  const isFuel = !!(selectedTax && (
+                    selectedTax.name.toLowerCase().includes('combustible') ||
+                    selectedTax.code.toLowerCase().includes('idp') ||
+                    selectedTax.code.toLowerCase().includes('fuel')
+                  ))
+                  return (
                   <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}>
                     <Form.Item name="concepto" label="Concepto de la compra"
                       rules={[{ required: true, message: 'Describe qué se está comprando' }]}>
@@ -811,6 +843,7 @@ export default function DteSatPage() {
                         <Select
                           placeholder="Selecciona el impuesto (IVA)"
                           options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))}
+                          onChange={() => stepperForm.setFieldValue('idpAccountId', undefined)}
                         />
                       </Form.Item>
                       <Form.Item name="paymentTerms" label="Términos de pago"
@@ -824,6 +857,42 @@ export default function DteSatPage() {
                         options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
                           .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                     </Form.Item>
+
+                    {/* IDP — visible solo cuando se selecciona un impuesto de Combustible */}
+                    {isFuel && (
+                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 6 }}>
+                          IDP — Combustible
+                        </Text>
+                        <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar"
+                          rules={[{ required: true, message: 'Ingresa la cuenta IDP' }]}
+                          style={{ marginBottom: 0 }}>
+                          <Select showSearch allowClear placeholder="Ej. 1106 — IDP por Acreditar"
+                            options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('1'))
+                              .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                        </Form.Item>
+                      </div>
+                    )}
+
+                    {/* Empleado — visible solo en modo Reembolso de Gastos */}
+                    {isReimbursement && (
+                      <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#5b21b6', display: 'block', marginBottom: 4 }}>
+                          Datos del Empleado
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
+                          Al aprobar se generan dos asientos: (1) Dr Gasto / Cr CxP Proveedor; (2) Dr CxP Proveedor / Cr Cuenta Transitoria Empleado
+                        </Text>
+                        <Form.Item name="employeeId" label="Empleado"
+                          rules={[{ required: true, message: 'Selecciona el empleado' }]}
+                          style={{ marginBottom: 0 }}>
+                          <Select showSearch allowClear placeholder="Buscar empleado…"
+                            options={vendors}
+                            notFoundContent="Sin empleados — regístralos en Compras → Proveedores (tipo Empleado)" />
+                        </Form.Item>
+                      </div>
+                    )}
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                       <Form.Item name="accountingDate" label="Fecha contable">
                         <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
@@ -835,7 +904,8 @@ export default function DteSatPage() {
                       )}
                     </div>
                   </Form>
-                )}
+                  )
+                })()}
 
                 {/* Paso 4 — Listo */}
                 {stepperStep === 4 && stepperResult && (
