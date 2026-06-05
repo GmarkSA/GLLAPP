@@ -383,7 +383,7 @@ export default function CatalogoPage() {
       title: 'Código',
       dataIndex: 'code',
       width: 90,
-      render: (v: string) => <Badge count={v} style={{ backgroundColor: '#f0f0f0', color: '#333', fontFamily: 'monospace' }} />,
+      render: (v: string) => <Tag style={{ fontFamily: 'monospace', fontSize: 12, margin: 0 }}>{v}</Tag>,
     },
     {
       title: 'Nombre',
