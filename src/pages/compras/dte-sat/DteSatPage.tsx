@@ -397,7 +397,7 @@ export default function DteSatPage() {
     {
       title: 'Fecha',
       dataIndex: 'fechaEmision',
-      width: 100,
+      width: 95,
       sorter: (a, b) => (a.fechaEmision ?? '').localeCompare(b.fechaEmision ?? ''),
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
     },
@@ -405,7 +405,7 @@ export default function DteSatPage() {
       title: 'Proveedor SAT',
       render: (_, row) => (
         <div>
-          <Text strong style={{ fontSize: 13 }}>{row.nombreEmisor ?? 'Sin nombre'}</Text>
+          <Text strong style={{ fontSize: 12 }}>{row.nombreEmisor ?? 'Sin nombre'}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 11 }}>NIT: {row.nitEmisor ?? '—'}</Text>
         </div>
@@ -413,13 +413,13 @@ export default function DteSatPage() {
     },
     {
       title: 'Tipo / Serie / DTE',
-      width: 180,
+      width: 200,
       render: (_, row) => (
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
           <Tag style={{ fontSize: 10, padding: '0 4px', margin: 0, lineHeight: '18px', flexShrink: 0 }}>
             {(row as any).tipoDocumento ?? 'FACT'}
           </Tag>
-          <Text style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+          <Text style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
             {row.serie ?? '—'} / {row.numeroDte ?? '—'}
           </Text>
         </span>
@@ -428,10 +428,12 @@ export default function DteSatPage() {
     {
       title: 'UUID',
       dataIndex: 'uuid',
-      width: 200,
+      width: 160,
       render: (v: string) => (
         <Tooltip title={v}>
-          <Text code style={{ fontSize: 10 }}>{v?.slice(0, 18)}…</Text>
+          <Text style={{ fontSize: 12, fontFamily: 'monospace', cursor: 'default' }}>
+            {v?.slice(0, 14)}…
+          </Text>
         </Tooltip>
       ),
     },
@@ -439,23 +441,23 @@ export default function DteSatPage() {
       title: 'Subtotal',
       dataIndex: 'subtotal',
       align: 'right',
-      width: 110,
+      width: 100,
       render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
       title: 'IVA',
       dataIndex: 'totalIva',
       align: 'right',
-      width: 100,
+      width: 90,
       render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
       title: 'Total',
       dataIndex: 'total',
       align: 'right',
-      width: 120,
+      width: 110,
       sorter: (a, b) => Number(a.total) - Number(b.total),
-      render: (v: number, row) => <Text strong>{money(v, row.moneda)}</Text>,
+      render: (v: number, row) => <Text strong style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
       title: 'Proceso',
@@ -1154,7 +1156,7 @@ export default function DteSatPage() {
                   rowKey="id"
                   loading={loading}
                   size="small"
-                  scroll={{ x: 1300 }}
+                  scroll={{ x: 'max-content' }}
                   pagination={{
                     pageSize: 15,
                     showSizeChanger: true,
