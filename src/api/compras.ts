@@ -460,6 +460,7 @@ export const postSatDte = (id: string, dto: {
   isExpenseReimbursement?: boolean
   employeeId?: string
   idpAccountId?: string
+  defaultUnit?: string
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: PurchaseInvoice
   dte: SatDte

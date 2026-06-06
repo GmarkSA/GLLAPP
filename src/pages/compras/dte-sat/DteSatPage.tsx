@@ -6,12 +6,12 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
-  DeleteOutlined, FileTextOutlined, ReloadOutlined, RollbackOutlined,
+  DeleteOutlined, FileTextOutlined, ReloadOutlined,
   SearchOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import {
-  createSatDteVendor, deleteSatDte, reactivateSatDte,
+  createSatDteVendor, deleteSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   getPurchaseOrders, postSatDte,
   resolveSatDteVendor,
@@ -378,7 +378,7 @@ export default function DteSatPage() {
 
   const handleStepperPost = async (values: {
     concepto: string; taxId?: string; accountId?: string; paymentTerms: string
-    accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string
+    accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; defaultUnit?: string
   }) => {
     if (!stepperDte) return
     setStepperLoading(true)
@@ -394,6 +394,7 @@ export default function DteSatPage() {
         isExpenseReimbursement: isReimbursement,
         employeeId:          isReimbursement ? values.employeeId : undefined,
         idpAccountId:        values.idpAccountId,
+        defaultUnit:         values.defaultUnit,
       })
       setStepperResult(result)
       if (result?.dte) setStepperDte(result.dte as SatDte)
@@ -574,37 +575,19 @@ export default function DteSatPage() {
       fixed: 'right',
       render: (_, row) => (
         <Space size={4}>
-          {row.status === 'duplicate'
-            ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
-            : row.status === 'posted'
-              ? <>
-                  <Tag color="blue" style={{ fontSize: 10 }}>Procesado</Tag>
-                  <Tooltip title="Reactivar — la factura fue eliminada, volver a estado Listo">
-                    <Button
-                      size="small"
-                      icon={<RollbackOutlined />}
-                      style={{ fontSize: 11 }}
-                      onClick={async () => {
-                        try {
-                          await reactivateSatDte(row.id)
-                          message.success('DTE reactivado — puedes volver a procesarlo')
-                          await load()
-                        } catch (err: unknown) {
-                          message.error(getErrorMessage(err, 'No se pudo reactivar el DTE'))
-                        }
-                      }}
-                    />
-                  </Tooltip>
-                </>
-              : <Button
-                  size="small"
-                  type="primary"
-                  icon={<BookOutlined />}
-                  onClick={() => openStepper(row)}
-                  style={{ fontSize: 11, background: '#1B3A6B' }}
-                >
-                  Procesar
-                </Button>
+          {row.status === 'posted' || row.status === 'duplicate'
+            ? <Tag color={row.status === 'posted' ? 'blue' : 'volcano'} style={{ fontSize: 10 }}>
+                {row.status === 'posted' ? 'Procesado' : 'Duplicado'}
+              </Tag>
+            : <Button
+                size="small"
+                type="primary"
+                icon={<BookOutlined />}
+                onClick={() => openStepper(row)}
+                style={{ fontSize: 11, background: '#1B3A6B' }}
+              >
+                Procesar
+              </Button>
           }
           <Tooltip title="Eliminar de la bandeja">
             <Button size="small" danger icon={<DeleteOutlined />}
