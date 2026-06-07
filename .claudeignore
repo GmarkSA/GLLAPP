@@ -1,0 +1,8 @@
+*.html
+SPRINT_MULTICOMPANY.md
+README.md
+fix-encoding.cjs
+fix-encoding2.cjs
+package-lock.json
+node_modules/
+dist/
