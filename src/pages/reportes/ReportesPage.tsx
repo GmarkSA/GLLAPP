@@ -99,6 +99,16 @@ const REPORTS = [
     path: '/reportes/libro-compras',
     color: '#fff7e6',
   },
+  {
+    key: 'libro-ventas',
+    icon: <LineChartOutlined style={{ fontSize: 28, color: '#cf1322' }} />,
+    title: 'Libro de Ventas',
+    subtitle: 'Registro de facturas emitidas',
+    description: 'Detalle de ventas del período con IVA, impuestos y totales. Requerido por el SAT.',
+    tags: ['SAT', 'Obligatorio'],
+    path: '/reportes/libro-ventas',
+    color: '#fff1f0',
+  },
 ]
 
 export default function ReportesPage() {

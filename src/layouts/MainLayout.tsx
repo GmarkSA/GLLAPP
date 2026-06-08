@@ -26,7 +26,6 @@ const menuItems = [
     { key: '/ventas/facturas',        label: 'Facturas de venta' },
     { key: '/ventas/notas-credito',   label: 'Notas de crédito' },
     { key: '/ventas/pagos-recibidos',          label: 'Pagos recibidos' },
-    { key: '/ventas/reportes/libro-ventas',    label: 'Libro de Ventas' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [
     { key: '/compras/proveedores',            label: 'Proveedores' },
@@ -64,6 +63,7 @@ const menuItems = [
     { key: '/reportes/movimiento-capital', label: 'Movimiento de Capital' },
     { key: '/reportes/balanza',            label: 'Balanza de Comprobación' },
     { key: '/reportes/libro-compras',      label: 'Libro de Compras' },
+    { key: '/reportes/libro-ventas',       label: 'Libro de Ventas' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
