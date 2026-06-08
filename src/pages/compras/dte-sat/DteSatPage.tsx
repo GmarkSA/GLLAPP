@@ -21,7 +21,8 @@ import {
 } from '../../../api/compras'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getTaxes, type Tax } from '../../../api/impuestos'
-import { getVendors } from '../../../api/contactos'
+import { getVendor, getVendors } from '../../../api/contactos'
+import { getUnidadesActivas, type UnidadMedida } from '../../../api/unidades-medida'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -93,6 +94,7 @@ export default function DteSatPage() {
   const [stepperForm]                               = Form.useForm()
   const [stepperVendorForm]                         = Form.useForm()
   const [vendors, setVendors] = useState<{ value: string; label: string; type?: string }[]>([])
+  const [unidades, setUnidades] = useState<UnidadMedida[]>([])
 
   // ── Cuentas e impuestos ────────────────────────────────────────────────────
   useEffect(() => {
@@ -105,11 +107,14 @@ export default function DteSatPage() {
         setTaxes(list.filter(t => t.applicability === 'purchases' || t.applicability === 'both'))
       })
       .catch(() => {})
-    getVendors({ type: 'employee', limit: 200 })
+    getVendors({ type: 'employee', limit: 100 })
       .then((res: any) => {
         const list = Array.isArray(res) ? res : (res?.data ?? [])
         setVendors(list.map((v: any) => ({ value: v.id, label: v.name, type: 'employee' })))
       })
+      .catch(() => {})
+    getUnidadesActivas()
+      .then((list) => setUnidades(list))
       .catch(() => {})
   }, [])
 
@@ -322,7 +327,7 @@ export default function DteSatPage() {
 
   // ── Stepper handlers ───────────────────────────────────────────────────────
 
-  const openStepper = (row: SatDte) => {
+  const openStepper = async (row: SatDte) => {
     const lineas: any[] = Array.isArray(row.items) ? row.items : []
     const autoConcepto = lineas.length > 0
       ? lineas.map(l => l.descripcion || l.description).filter(Boolean).join(' / ')
@@ -333,7 +338,15 @@ export default function DteSatPage() {
     setStepperOcId(undefined)
     setStepperPOs(undefined)
     setStepperResult(null)
-    stepperForm.setFieldsValue({ taxId: undefined, paymentTerms: 'immediate', accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
+    // Pre-llenar con términos de pago del proveedor si ya está vinculado
+    let vendorPaymentTerms = 'immediate'
+    if (row.vendorId) {
+      try {
+        const vendor = await getVendor(row.vendorId) as any
+        if (vendor?.paymentTerms) vendorPaymentTerms = vendor.paymentTerms
+      } catch { /* usa immediate como fallback */ }
+    }
+    stepperForm.setFieldsValue({ taxId: undefined, paymentTerms: vendorPaymentTerms, accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
     stepperVendorForm.setFieldsValue({ name: row.nombreEmisor ?? '' })
   }
 
@@ -860,18 +873,8 @@ export default function DteSatPage() {
                             .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                       </Form.Item>
                       <Form.Item name="defaultUnit" label="Unidad de medida">
-                        <Select allowClear placeholder="Unidad por defecto para las líneas"
-                          options={[
-                            { value: 'UND', label: 'UND — Unidad' },
-                            { value: 'SER', label: 'SER — Servicio' },
-                            { value: 'EXP', label: 'EXP — Exportación' },
-                            { value: 'EXE', label: 'EXE — Exento' },
-                            { value: 'KG',  label: 'KG — Kilogramo' },
-                            { value: 'MT',  label: 'MT — Metro' },
-                            { value: 'LT',  label: 'LT — Litro' },
-                            { value: 'HRS', label: 'HRS — Horas' },
-                            { value: 'MT2', label: 'MT2 — Metro cuadrado' },
-                          ]}
+                        <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
+                          options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
                         />
                       </Form.Item>
                     </div>
