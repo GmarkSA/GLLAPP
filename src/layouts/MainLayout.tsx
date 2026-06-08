@@ -89,6 +89,13 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
+
+  const handleOpenChange = (keys: string[]) => {
+    // Acordeón: al abrir un módulo, colapsa el anterior
+    const newKey = keys.find(k => !openKeys.includes(k))
+    setOpenKeys(newKey ? [newKey] : keys)
+  }
 
   // Guard: cajero solo accede al POS — redirige si intenta entrar al ERP
   const isCajero = !!(user?.roles?.includes('cajero') && !user?.isSuperAdmin)
@@ -184,7 +191,8 @@ export default function MainLayout() {
             theme="dark"
             mode="inline"
             selectedKeys={[location.pathname]}
-            defaultOpenKeys={getOpenKey(location.pathname)}
+            openKeys={openKeys}
+            onOpenChange={handleOpenChange}
             items={visibleMenuItems}
             onClick={({ key }) => navigate(key)}
             style={{
