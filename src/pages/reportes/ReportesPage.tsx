@@ -109,6 +109,16 @@ const REPORTS = [
     path: '/reportes/libro-ventas',
     color: '#fff1f0',
   },
+  {
+    key: 'ap-aging',
+    icon: <AuditOutlined style={{ fontSize: 28, color: '#7c3aed' }} />,
+    title: 'AP Aging — CxP',
+    subtitle: 'Antigüedad de Saldos por Pagar',
+    description: 'Cuentas por pagar clasificadas por antigüedad: vigentes, 1-30, 31-60, 61-90 y +90 días.',
+    tags: ['CxP', 'Análisis'],
+    path: '/reportes/ap-aging',
+    color: '#f5f3ff',
+  },
 ]
 
 export default function ReportesPage() {

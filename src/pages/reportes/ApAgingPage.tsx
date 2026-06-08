@@ -7,7 +7,7 @@ import {
   HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 
-import { getApAging, type ApAgingRow, type ApAgingBucket } from '../../../api/compras'
+import { getApAging, type ApAgingRow, type ApAgingBucket } from '../../api/compras'
 
 const { Title, Text } = Typography
 

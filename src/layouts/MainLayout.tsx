@@ -32,7 +32,6 @@ const menuItems = [
     { key: '/compras/ordenes',                label: 'Órdenes de compra' },
     { key: '/compras/facturas',               label: 'Facturas proveedor' },
     { key: '/compras/dte-sat',                label: 'DTE SAT' },
-    { key: '/compras/reportes/ap-aging',      label: 'AP Aging (CxP)' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
     { key: '/bancos',       label: 'Cuentas bancarias' },
@@ -64,6 +63,7 @@ const menuItems = [
     { key: '/reportes/balanza',            label: 'Balanza de Comprobación' },
     { key: '/reportes/libro-compras',      label: 'Libro de Compras' },
     { key: '/reportes/libro-ventas',       label: 'Libro de Ventas' },
+    { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
