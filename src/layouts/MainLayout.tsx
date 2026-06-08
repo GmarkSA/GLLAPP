@@ -50,7 +50,6 @@ const menuItems = [
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
     { key: '/contabilidad/catalogo', label: 'Catálogo de cuentas' },
-    { key: '/contabilidad/asientos', label: 'Libro diario' },
     { key: '/contabilidad/activos',  label: 'Activos fijos' },
   ]},
   { key: 'inventario',       icon: <InboxOutlined />,        label: 'Inventario', children: [
@@ -72,6 +71,7 @@ const menuItems = [
     { key: '/reportes/tasas-rendimiento',  label: 'Tasas de Rendimiento' },
     { key: '/reportes/movimiento-capital', label: 'Movimiento de Capital' },
     { key: '/reportes/balanza',            label: 'Balanza de Comprobación' },
+    { key: '/reportes/libro-diario',       label: 'Libro Diario' },
     { key: '/reportes/libro-compras',      label: 'Libro de Compras' },
     { key: '/reportes/libro-ventas',       label: 'Libro de Ventas' },
     { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },

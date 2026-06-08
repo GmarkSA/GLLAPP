@@ -189,7 +189,6 @@ export default function App() {
           <Route path="bancos/:id/editar" element={<BancoFormPage />} />
 
           <Route path="contabilidad/catalogo" element={<CatalogoPage />} />
-          <Route path="contabilidad/asientos" element={<LibroDiarioPage />} />
           <Route path="contabilidad/activos"  element={<ComingSoon title="Activos Fijos" />} />
 
           <Route path="inventario"                       element={<InventarioPage />} />
