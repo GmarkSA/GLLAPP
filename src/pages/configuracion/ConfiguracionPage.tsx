@@ -13,7 +13,7 @@ import {
   SecurityScanOutlined, ApiOutlined, BellOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
-  CreditCardOutlined,
+  CreditCardOutlined, LockOutlined,
 } from '@ant-design/icons'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
@@ -354,8 +354,14 @@ function FiscalSection({
 
   const handleSave = async () => {
     const values = await form.validateFields()
+    const existingSettings = (profile as any)?.settings ?? {}
     setSaving(true)
-    try { await onSave(values) }
+    try {
+      await onSave({
+        ...values,
+        settings: { ...existingSettings, ...values.settings },
+      })
+    }
     finally { setSaving(false) }
   }
 
@@ -434,6 +440,28 @@ function FiscalSection({
               <Col xs={24} md={12}>
                 <Form.Item name="legalName" label={`Nombre del emisor (como en ${fiscalMeta.authority})`}>
                   <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </SectionCard>
+
+          <SectionCard title="Acceso SAT — Agencia Virtual" icon={<LockOutlined />}>
+            <div style={{
+              background: '#fffbeb', borderRadius: 8, padding: '12px 16px',
+              border: '1px solid #fde68a', marginBottom: 16, fontSize: 13,
+            }}>
+              Estas credenciales se usan para importar DTE desde la Agencia Virtual del SAT.
+              Se guardan cifradas y solo se envían a APIFY vía HTTPS para ejecutar la consulta.
+            </div>
+            <Row gutter={20}>
+              <Col xs={24} md={12}>
+                <Form.Item name={['settings', 'satNit']} label="NIT — Agencia Virtual SAT">
+                  <Input placeholder="108285685" size="large" autoComplete="off" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name={['settings', 'satAgenciaPassword']} label="Contraseña — Agencia Virtual SAT">
+                  <Input.Password placeholder="••••••••" size="large" autoComplete="new-password" />
                 </Form.Item>
               </Col>
             </Row>
