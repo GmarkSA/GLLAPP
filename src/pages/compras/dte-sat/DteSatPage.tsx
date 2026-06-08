@@ -667,6 +667,15 @@ export default function DteSatPage() {
     },
   ]
 
+  // ── Valores reactivos del formulario del stepper ──────────────────────────
+  const watchedTaxId = Form.useWatch('taxId', stepperForm) as string | undefined
+  const selectedTaxForFuel = taxes.find(t => t.id === watchedTaxId)
+  const isFuelStep3 = !!(selectedTaxForFuel && (
+    selectedTaxForFuel.name.toLowerCase().includes('combustible') ||
+    selectedTaxForFuel.code.toLowerCase().includes('idp') ||
+    selectedTaxForFuel.code.toLowerCase().includes('fuel')
+  ))
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -823,16 +832,7 @@ export default function DteSatPage() {
                 )}
 
                 {/* Paso 3 — Registrar */}
-                {stepperStep === 3 && (() => {
-                  const isReimbursement = stepperOcChoice === 'reimbursement'
-                  const watchedTaxId = stepperForm.getFieldValue('taxId') as string | undefined
-                  const selectedTax = taxes.find(t => t.id === watchedTaxId)
-                  const isFuel = !!(selectedTax && (
-                    selectedTax.name.toLowerCase().includes('combustible') ||
-                    selectedTax.code.toLowerCase().includes('idp') ||
-                    selectedTax.code.toLowerCase().includes('fuel')
-                  ))
-                  return (
+                {stepperStep === 3 && (
                   <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}>
                     <Form.Item name="concepto" label="Concepto de la compra"
                       rules={[{ required: true, message: 'Describe qué se está comprando' }]}>
@@ -852,15 +852,32 @@ export default function DteSatPage() {
                         <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
                       </Form.Item>
                     </div>
-                    <Form.Item name="accountId" label="Cuenta de gasto"
-                      rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
-                      <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
-                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
-                          .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-                    </Form.Item>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                      <Form.Item name="accountId" label="Cuenta de gasto"
+                        rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
+                        <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
+                          options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
+                            .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                      </Form.Item>
+                      <Form.Item name="defaultUnit" label="Unidad de medida">
+                        <Select allowClear placeholder="Unidad por defecto para las líneas"
+                          options={[
+                            { value: 'UND', label: 'UND — Unidad' },
+                            { value: 'SER', label: 'SER — Servicio' },
+                            { value: 'EXP', label: 'EXP — Exportación' },
+                            { value: 'EXE', label: 'EXE — Exento' },
+                            { value: 'KG',  label: 'KG — Kilogramo' },
+                            { value: 'MT',  label: 'MT — Metro' },
+                            { value: 'LT',  label: 'LT — Litro' },
+                            { value: 'HRS', label: 'HRS — Horas' },
+                            { value: 'MT2', label: 'MT2 — Metro cuadrado' },
+                          ]}
+                        />
+                      </Form.Item>
+                    </div>
 
                     {/* IDP — visible solo cuando se selecciona un impuesto de Combustible */}
-                    {isFuel && (
+                    {isFuelStep3 && (
                       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
                         <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 6 }}>
                           IDP — Combustible
@@ -876,7 +893,7 @@ export default function DteSatPage() {
                     )}
 
                     {/* Empleado — visible solo en modo Reembolso de Gastos */}
-                    {isReimbursement && (
+                    {stepperOcChoice === 'reimbursement' && (
                       <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
                         <Text strong style={{ fontSize: 12, color: '#5b21b6', display: 'block', marginBottom: 4 }}>
                           Datos del Empleado
@@ -905,8 +922,7 @@ export default function DteSatPage() {
                       )}
                     </div>
                   </Form>
-                  )
-                })()}
+                )}
 
                 {/* Paso 4 — Listo */}
                 {stepperStep === 4 && stepperResult && (
