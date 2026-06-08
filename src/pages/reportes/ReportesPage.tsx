@@ -3,7 +3,7 @@ import { Card, Col, Row, Typography, Space, Tag } from 'antd'
 import {
   BarChartOutlined, LineChartOutlined, FundOutlined,
   AuditOutlined, RiseOutlined, AccountBookOutlined,
-  FileTextOutlined, BookOutlined,
+  FileTextOutlined, BookOutlined, ShopOutlined,
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
@@ -88,6 +88,16 @@ const REPORTS = [
     tags: ['SAT', 'Obligatorio'],
     path: '/reportes/libro-mayor',
     color: '#f6ffed',
+  },
+  {
+    key: 'libro-compras',
+    icon: <ShopOutlined style={{ fontSize: 28, color: '#d46b08' }} />,
+    title: 'Libro de Compras',
+    subtitle: 'Registro de facturas de proveedor',
+    description: 'Detalle de compras del período con IVA, impuestos y totales. Requerido por el SAT.',
+    tags: ['SAT', 'Obligatorio'],
+    path: '/reportes/libro-compras',
+    color: '#fff7e6',
   },
 ]
 
