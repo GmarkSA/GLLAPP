@@ -18,6 +18,17 @@ import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
 
+const getOpenKey = (pathname: string): string[] => {
+  if (pathname.startsWith('/ventas'))        return ['ventas']
+  if (pathname.startsWith('/compras'))       return ['compras']
+  if (pathname.startsWith('/bancos'))        return ['bancos']
+  if (pathname.startsWith('/contabilidad'))  return ['contabilidad']
+  if (pathname.startsWith('/inventario'))    return ['inventario']
+  if (pathname.startsWith('/reportes'))      return ['reportes']
+  if (pathname.startsWith('/configuracion')) return ['configuracion']
+  return []
+}
+
 const menuItems = [
   { key: '/dashboard',        icon: <DashboardOutlined />,    label: 'Dashboard' },
   { key: 'ventas',            icon: <ShoppingCartOutlined />, label: 'Ventas', children: [
@@ -106,17 +117,6 @@ export default function MainLayout() {
   const visibleMenuItems = user?.isSuperAdmin
     ? menuItems
     : menuItems.filter(item => item.key !== '/admin/platform')
-
-  const getOpenKey = (pathname: string) => {
-    if (pathname.startsWith('/ventas'))        return ['ventas']
-    if (pathname.startsWith('/compras'))       return ['compras']
-    if (pathname.startsWith('/bancos'))        return ['bancos']
-    if (pathname.startsWith('/contabilidad'))  return ['contabilidad']
-    if (pathname.startsWith('/inventario'))    return ['inventario']
-    if (pathname.startsWith('/reportes'))      return ['reportes']
-    if (pathname.startsWith('/configuracion')) return ['configuracion']
-    return []
-  }
 
   const userMenu = {
     items: [
