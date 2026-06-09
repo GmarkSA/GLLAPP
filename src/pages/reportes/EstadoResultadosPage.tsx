@@ -107,7 +107,8 @@ function buildERRows(md: Array<{ month: MonthRange; data: EstadoResultadosData |
   rows.push(sub('grand-uo', 'UTILIDAD DE OPERACIÓN', sVals(d => d.utilidadOperativa), 'grand'))
   rows.push(sub('grand-un', 'UTILIDAD NETA DEL PERÍODO', sVals(d => d.utilidadNeta), 'grand2'))
 
-  return rows
+  const nonZeroMonths = (r: AnyRow) => months.some(m => (r[m.yearMonth] ?? 0) !== 0)
+  return rows.filter(r => r._kind !== 'acct' || r._total !== 0 || nonZeroMonths(r))
 }
 
 function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: EstadoResultadosData | null }>; loading: boolean }) {
@@ -115,8 +116,9 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
   const n      = months.length
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
-  const cfg  = getColConfig(n)
-  const rows = buildERRows(monthData)
+  const cfg   = getColConfig(n)
+  const nameW = n <= 6 ? 180 : n <= 9 ? 165 : 150
+  const rows  = buildERRows(monthData)
 
   const cell = (v: number | null, kind: RowKind) => {
     if (v == null || kind === 'hdr') return null
@@ -131,7 +133,7 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
       render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#8c8c8c' }}>{v ?? ''}</span>,
     }] : []),
     {
-      key: '_name', dataIndex: '_name' as const, ellipsis: true,
+      key: '_name', dataIndex: '_name' as const, width: nameW, ellipsis: true,
       render: (v: string, row) => (
         <span style={{ fontSize: 11, fontWeight: row._kind === 'acct' ? 400 : 600, color: row._color ?? undefined, paddingLeft: row._kind === 'acct' ? 10 : 0 }}>
           {v}
@@ -173,6 +175,7 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
         rowKey="key"
         pagination={false}
         showHeader
+        scroll={{ x: 'max-content' }}
         onRow={row => ({
           style: {
             background: row._kind === 'grand2'

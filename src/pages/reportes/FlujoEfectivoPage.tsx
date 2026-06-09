@@ -91,7 +91,8 @@ function buildFlujoRows(md: Array<{ month: MonthRange; data: FlujoEfectivoData |
 
   rows.push(sub('grand-net', 'CAMBIO NETO EN EFECTIVO', sVals(d => d.netCashChange), 'grand'))
 
-  return rows
+  const nonZeroMonths = (r: FRow) => months.some(m => (r[m.yearMonth] ?? 0) !== 0)
+  return rows.filter(r => r._kind !== 'acct' || r._total !== 0 || nonZeroMonths(r))
 }
 
 function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: FlujoEfectivoData | null }>; loading: boolean }) {
@@ -99,8 +100,9 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
   const n      = months.length
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
-  const cfg  = getColConfig(n)
-  const rows = buildFlujoRows(monthData)
+  const cfg   = getColConfig(n)
+  const nameW = n <= 6 ? 180 : n <= 9 ? 165 : 150
+  const rows  = buildFlujoRows(monthData)
 
   const rowBg: Record<FKind, string | undefined> = {
     hdr:   '#f0f5ff',
@@ -118,7 +120,7 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
 
   const columns: ColumnsType<FRow> = [
     {
-      key: '_name', dataIndex: '_name' as const, ellipsis: true,
+      key: '_name', dataIndex: '_name' as const, width: nameW, ellipsis: true,
       render: (v: string, row) => (
         <span style={{ fontSize: 11, fontWeight: row._kind === 'acct' ? 400 : 600, color: row._color, paddingLeft: row._kind === 'acct' ? 14 : 0 }}>
           {v}
@@ -152,6 +154,7 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
         rowKey="key"
         pagination={false}
         showHeader
+        scroll={{ x: 'max-content' }}
         onRow={row => ({
           style: {
             background: row._kind === 'grand'

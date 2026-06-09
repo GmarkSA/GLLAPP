@@ -104,7 +104,8 @@ function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | n
 
   rows.push(sub('grand2-tpc', 'TOTAL PASIVO + CAPITAL', last(d => d.totalPasivoCapital), sVals(d => d.totalPasivoCapital), 'grand2'))
 
-  return rows
+  const nonZeroMonths = (r: BGRow) => months.some(m => (r[m.yearMonth] ?? 0) !== 0)
+  return rows.filter(r => r._kind !== 'acct' || r._total !== 0 || nonZeroMonths(r))
 }
 
 function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: BalanceGeneralData | null }>; loading: boolean }) {
@@ -112,8 +113,9 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
   const n      = months.length
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
-  const cfg  = getColConfig(n)
-  const rows = buildBGRows(monthData)
+  const cfg   = getColConfig(n)
+  const nameW = n <= 6 ? 180 : n <= 9 ? 165 : 150
+  const rows  = buildBGRows(monthData)
 
   const rowBg: Record<BGKind, string | undefined> = {
     hdr:    '#f0f5ff',
@@ -137,7 +139,7 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
       render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#8c8c8c' }}>{v ?? ''}</span>,
     }] : []),
     {
-      key: '_name', dataIndex: '_name' as const, ellipsis: true,
+      key: '_name', dataIndex: '_name' as const, width: nameW, ellipsis: true,
       render: (v: string, row) => (
         <span style={{
           fontSize: 11,
@@ -174,6 +176,7 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
         rowKey="key"
         pagination={false}
         showHeader
+        scroll={{ x: 'max-content' }}
         onRow={row => ({
           style: {
             background: rowBg[row._kind],
