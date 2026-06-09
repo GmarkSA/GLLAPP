@@ -26,15 +26,19 @@ export function getMonthRanges(fromDate: string, toDate: string): MonthRange[] {
 }
 
 export interface ColConfig {
-  codeW:       number | null
-  colW:        number
-  useDecimals: boolean
+  codeW:       number | null  // width of code column (null = hide)
+  colW:        number         // width of each month column
+  nameW:       number         // width of name column
+  useDecimals: boolean        // show decimal places in month cells
+  cellFont:    number         // font size for month value cells
+  nameFont:    number         // font size for account name column
 }
 
 export function getColConfig(n: number): ColConfig {
-  if (n <= 6)  return { codeW: 55,   colW: 88,  useDecimals: true  }
-  if (n <= 9)  return { codeW: 50,   colW: 72,  useDecimals: false }
-  return              { codeW: null, colW: 60,  useDecimals: false }
+  if (n <= 3)  return { codeW: 60,   colW: 100, nameW: 200, useDecimals: true,  cellFont: 13, nameFont: 13 }
+  if (n <= 6)  return { codeW: 55,   colW: 94,  nameW: 190, useDecimals: true,  cellFont: 12, nameFont: 12 }
+  if (n <= 9)  return { codeW: 50,   colW: 78,  nameW: 175, useDecimals: false, cellFont: 11, nameFont: 12 }
+  return              { codeW: null, colW: 63,  nameW: 160, useDecimals: false, cellFont: 10, nameFont: 11 }
 }
 
 export function fmtCol(n: number, useDecimals: boolean): string {

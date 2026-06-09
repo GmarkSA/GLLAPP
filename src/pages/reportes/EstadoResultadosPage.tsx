@@ -116,26 +116,25 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
   const n      = months.length
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
-  const cfg   = getColConfig(n)
-  const nameW = n <= 6 ? 180 : n <= 9 ? 165 : 150
-  const rows  = buildERRows(monthData)
+  const cfg  = getColConfig(n)
+  const rows = buildERRows(monthData)
 
   const cell = (v: number | null, kind: RowKind) => {
     if (v == null || kind === 'hdr') return null
     const bold = kind !== 'acct'
     const c    = bold ? (v < 0 ? '#cf1322' : v > 0 ? '#389e0d' : '#8c8c8c') : (v < 0 ? '#cf1322' : undefined)
-    return <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
+    return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
   const columns: ColumnsType<AnyRow> = [
     ...(cfg.codeW ? [{
       key: '_code', dataIndex: '_code' as const, width: cfg.codeW,
-      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#8c8c8c' }}>{v ?? ''}</span>,
+      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont - 1, color: '#8c8c8c' }}>{v ?? ''}</span>,
     }] : []),
     {
-      key: '_name', dataIndex: '_name' as const, width: nameW, ellipsis: true,
+      key: '_name', dataIndex: '_name' as const, width: cfg.nameW, ellipsis: true,
       render: (v: string, row) => (
-        <span style={{ fontSize: 11, fontWeight: row._kind === 'acct' ? 400 : 600, color: row._color ?? undefined, paddingLeft: row._kind === 'acct' ? 10 : 0 }}>
+        <span style={{ fontSize: cfg.nameFont, fontWeight: row._kind === 'acct' ? 400 : 600, color: row._color ?? undefined, paddingLeft: row._kind === 'acct' ? 10 : 0 }}>
           {v}
         </span>
       ),
@@ -143,17 +142,17 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
     ...months.map(m => ({
       key: m.yearMonth, dataIndex: m.yearMonth as keyof AnyRow,
       width: cfg.colW, align: 'right' as const,
-      title: <div style={{ fontSize: 10, textAlign: 'center' as const, lineHeight: 1.3 }}>{m.label}</div>,
+      title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3 }}>{m.label}</div>,
       render: (v: number | null, row: AnyRow) => cell(v, row._kind),
     })),
     {
       key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
-      title: <div style={{ fontSize: 10, textAlign: 'center' as const, lineHeight: 1.3, fontWeight: 700 }}>AÑO A<br />LA FECHA</div>,
+      title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3, fontWeight: 700 }}>AÑO A<br />LA FECHA</div>,
       render: (v: number, row) => {
         if (row._kind === 'hdr') return null
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#cf1322' : '#389e0d') : (v < 0 ? '#cf1322' : undefined)
-        return <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
       },
     },
   ]
