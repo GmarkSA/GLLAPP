@@ -249,6 +249,13 @@ export interface LibroMayorMovement {
   debit:       number
   credit:      number
   balance:     number
+  // enriched fields
+  reference?:   string | null
+  sourceType?:  string | null
+  sourceId?:    string | null
+  entryType?:   string | null
+  contactName?: string | null
+  docNumber?:   string | null
 }
 
 export interface LibroMayorData {
