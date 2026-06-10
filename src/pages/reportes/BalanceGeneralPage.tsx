@@ -4,6 +4,7 @@ import { CheckCircleOutlined, WarningOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import ReportLayout from '../../components/ReportLayout'
+import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getBalanceGeneral, type BalanceGeneralData, type AccountRow } from '../../api/reportes'
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
 
@@ -49,7 +50,7 @@ function SectionCard({ title, color, children, total }: { title: string; color: 
 // ─── Monthly table ─────────────────────────────────────────────────────────────
 
 type BGKind = 'hdr' | 'subhdr' | 'acct' | 'sub' | 'grand' | 'grand2'
-type BGRow  = { key: string; _kind: BGKind; _name: string; _code?: string; _color?: string; _total: number; [ym: string]: any }
+type BGRow  = { key: string; _kind: BGKind; _name: string; _code?: string; _color?: string; _accountId?: string; _total: number; [ym: string]: any }
 
 function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | null }>): BGRow[] {
   const months   = md.map(m => m.month)
@@ -74,8 +75,8 @@ function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | n
 
   const hdr    = (key: string, name: string, color?: string): BGRow => ({ key, _kind: 'hdr',    _name: name, _color: color, _total: 0,         ...empty })
   const subhdr = (key: string, name: string, color?: string): BGRow => ({ key, _kind: 'subhdr', _name: name, _color: color, _total: 0,         ...empty })
-  const acct   = (key: string, code: string, name: string, vals: Record<string, number>, tot: number): BGRow =>
-    ({ key, _kind: 'acct', _code: code, _name: name, _total: tot, ...vals })
+  const acct   = (key: string, id: string, code: string, name: string, vals: Record<string, number>, tot: number): BGRow =>
+    ({ key, _kind: 'acct', _code: code, _name: name, _accountId: id || undefined, _total: tot, ...vals })
   const sub    = (key: string, name: string, tot: number, vals: Record<string, number>, kind: BGKind = 'sub'): BGRow =>
     ({ key, _kind: kind, _name: name, _total: tot, ...vals })
 
@@ -83,23 +84,23 @@ function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | n
 
   rows.push(hdr('hdr-activos', 'ACTIVOS', '#1B3A6B'))
   rows.push(subhdr('sh-ac', 'Activo Circulante'))
-  collect(d => d.activo.accounts).forEach(a => rows.push(acct(`aac-${a.id}`, a.code, a.name, aVals(d => d.activo.accounts, a.id), lastA(d => d.activo.accounts, a.id))))
+  collect(d => d.activo.accounts).forEach(a => rows.push(acct(`aac-${a.id}`, a.id, a.code, a.name, aVals(d => d.activo.accounts, a.id), lastA(d => d.activo.accounts, a.id))))
   rows.push(sub('sub-ac', 'Total Activo Circulante', last(d => d.activo.total), sVals(d => d.activo.total)))
 
   rows.push(subhdr('sh-af', 'Activo Fijo'))
-  collect(d => d.activoFijo.accounts).forEach(a => rows.push(acct(`aaf-${a.id}`, a.code, a.name, aVals(d => d.activoFijo.accounts, a.id), lastA(d => d.activoFijo.accounts, a.id))))
+  collect(d => d.activoFijo.accounts).forEach(a => rows.push(acct(`aaf-${a.id}`, a.id, a.code, a.name, aVals(d => d.activoFijo.accounts, a.id), lastA(d => d.activoFijo.accounts, a.id))))
   rows.push(sub('sub-af', 'Total Activo Fijo', last(d => d.activoFijo.total), sVals(d => d.activoFijo.total)))
 
   rows.push(sub('grand-ta', 'TOTAL ACTIVOS', last(d => d.totalActivo), sVals(d => d.totalActivo), 'grand'))
 
   rows.push(hdr('hdr-pc', 'PASIVO Y CAPITAL', '#595959'))
   rows.push(subhdr('sh-pas', 'Pasivo', '#cf1322'))
-  collect(d => d.pasivo.accounts).forEach(a => rows.push(acct(`aps-${a.id}`, a.code, a.name, aVals(d => d.pasivo.accounts, a.id), lastA(d => d.pasivo.accounts, a.id))))
+  collect(d => d.pasivo.accounts).forEach(a => rows.push(acct(`aps-${a.id}`, a.id, a.code, a.name, aVals(d => d.pasivo.accounts, a.id), lastA(d => d.pasivo.accounts, a.id))))
   rows.push(sub('sub-pas', 'Total Pasivo', last(d => d.pasivo.total), sVals(d => d.pasivo.total)))
 
   rows.push(subhdr('sh-cap', 'Capital Contable', '#389e0d'))
-  collect(d => d.capital.accounts).forEach(a => rows.push(acct(`acap-${a.id}`, a.code, a.name, aVals(d => d.capital.accounts, a.id), lastA(d => d.capital.accounts, a.id))))
-  rows.push(acct('acap-ni', '', 'Utilidad del Período', sVals(d => d.netIncome), last(d => d.netIncome)))
+  collect(d => d.capital.accounts).forEach(a => rows.push(acct(`acap-${a.id}`, a.id, a.code, a.name, aVals(d => d.capital.accounts, a.id), lastA(d => d.capital.accounts, a.id))))
+  rows.push(acct('acap-ni', '', '', 'Utilidad del Período', sVals(d => d.netIncome), last(d => d.netIncome)))
   rows.push(sub('sub-cap', 'Total Capital', last(d => d.totalCapital), sVals(d => d.totalCapital)))
 
   rows.push(sub('grand2-tpc', 'TOTAL PASIVO + CAPITAL', last(d => d.totalPasivoCapital), sVals(d => d.totalPasivoCapital), 'grand2'))
@@ -111,6 +112,8 @@ function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | n
 function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: BalanceGeneralData | null }>; loading: boolean }) {
   const months = monthData.map(m => m.month)
   const n      = months.length
+  const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
+
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
   const cfg  = getColConfig(n)
@@ -132,6 +135,19 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
     return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
+  const clickable = (content: React.ReactNode, row: BGRow, fromDate: string, toDate: string) => {
+    if (!content || row._kind !== 'acct' || !row._accountId) return content
+    return (
+      <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+        onClick={() => setDrilldown({ accountId: row._accountId!, accountName: row._name, fromDate, toDate })}>
+        {content}
+      </span>
+    )
+  }
+
+  const yearFrom = months[0].from
+  const yearTo   = months[months.length - 1].to
+
   const columns: ColumnsType<BGRow> = [
     ...(cfg.codeW ? [{
       key: '_code', dataIndex: '_code' as const, width: cfg.codeW,
@@ -152,7 +168,7 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
       key: m.yearMonth, dataIndex: m.yearMonth as keyof BGRow,
       width: cfg.colW, align: 'right' as const,
       title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3 }}>{m.label}</div>,
-      render: (v: number | null, row: BGRow) => cell(v, row._kind),
+      render: (v: number | null, row: BGRow) => clickable(cell(v, row._kind), row, m.from, m.to),
     })),
     {
       key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
@@ -161,29 +177,33 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
         if (row._kind === 'hdr' || row._kind === 'subhdr') return null
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#cf1322' : '#1B3A6B') : (v < 0 ? '#cf1322' : undefined)
-        return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        const content = <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        return clickable(content, row, yearFrom, yearTo)
       },
     },
   ]
 
   return (
-    <Spin spinning={loading}>
-      <Table
-        size="small"
-        dataSource={rows}
-        columns={columns}
-        rowKey="key"
-        pagination={false}
-        showHeader
-        scroll={{ x: 'max-content' }}
-        onRow={row => ({
-          style: {
-            background: rowBg[row._kind],
-            borderTop: (row._kind === 'grand' || row._kind === 'grand2') ? '2px solid #d9d9d9' : undefined,
-          },
-        })}
-      />
-    </Spin>
+    <>
+      <Spin spinning={loading}>
+        <Table
+          size="small"
+          dataSource={rows}
+          columns={columns}
+          rowKey="key"
+          pagination={false}
+          showHeader
+          scroll={{ x: 'max-content' }}
+          onRow={row => ({
+            style: {
+              background: rowBg[row._kind],
+              borderTop: (row._kind === 'grand' || row._kind === 'grand2') ? '2px solid #d9d9d9' : undefined,
+            },
+          })}
+        />
+      </Spin>
+      <AccountDrilldownDrawer target={drilldown} onClose={() => setDrilldown(null)} />
+    </>
   )
 }
 

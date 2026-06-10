@@ -3,6 +3,7 @@ import { Card, Col, Row, Table, Typography, Divider, Statistic, Progress, Space,
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
+import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getEstadoResultados, type EstadoResultadosData, type AccountRow } from '../../api/reportes'
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
 
@@ -52,7 +53,7 @@ function AccountTable({ accounts, total, label, negate }: { accounts: AccountRow
 // ─── Monthly table ─────────────────────────────────────────────────────────────
 
 type RowKind = 'hdr' | 'acct' | 'sub' | 'grand' | 'grand2'
-type AnyRow  = { key: string; _kind: RowKind; _name: string; _code?: string; _color?: string; _total: number; [ym: string]: any }
+type AnyRow  = { key: string; _kind: RowKind; _name: string; _code?: string; _color?: string; _accountId?: string; _total: number; [ym: string]: any }
 
 function buildERRows(md: Array<{ month: MonthRange; data: EstadoResultadosData | null }>): AnyRow[] {
   const months = md.map(m => m.month)
@@ -72,34 +73,34 @@ function buildERRows(md: Array<{ month: MonthRange; data: EstadoResultadosData |
 
   const sum  = (v: Record<string, number>) => Object.values(v).filter(x => x != null).reduce((s, x) => s + x, 0)
   const hdr  = (key: string, name: string, color?: string): AnyRow => ({ key, _kind: 'hdr',  _name: name, _color: color, _total: 0, ...empty })
-  const acct = (key: string, code: string, name: string, vals: Record<string, number>): AnyRow => ({ key, _kind: 'acct', _code: code, _name: name, _total: sum(vals), ...vals })
+  const acct = (key: string, id: string, code: string, name: string, vals: Record<string, number>): AnyRow => ({ key, _kind: 'acct', _code: code, _name: name, _accountId: id || undefined, _total: sum(vals), ...vals })
   const sub  = (key: string, name: string, vals: Record<string, number>, kind: RowKind = 'sub'): AnyRow => ({ key, _kind: kind, _name: name, _total: sum(vals), ...vals })
 
   const rows: AnyRow[] = []
 
   rows.push(hdr('hdr-ing', 'INGRESOS ORDINARIOS', '#1B3A6B'))
-  collect(d => d.ingresos.accounts).forEach(a => rows.push(acct(`ai-${a.id}`, a.code, a.name, aVals(d => d.ingresos.accounts, a.id))))
+  collect(d => d.ingresos.accounts).forEach(a => rows.push(acct(`ai-${a.id}`, a.id, a.code, a.name, aVals(d => d.ingresos.accounts, a.id))))
 
   if (md.some(m => m.data && m.data.otrosIngresos.accounts.length > 0)) {
     rows.push(hdr('hdr-oing', 'OTROS INGRESOS', '#1B3A6B'))
-    collect(d => d.otrosIngresos.accounts).forEach(a => rows.push(acct(`aoi-${a.id}`, a.code, a.name, aVals(d => d.otrosIngresos.accounts, a.id))))
+    collect(d => d.otrosIngresos.accounts).forEach(a => rows.push(acct(`aoi-${a.id}`, a.id, a.code, a.name, aVals(d => d.otrosIngresos.accounts, a.id))))
   }
 
   const ingTot = Object.fromEntries(md.map(({ month: m, data }) => [m.yearMonth, (data?.ingresos.total ?? 0) + (data?.otrosIngresos.total ?? 0)]))
   rows.push(sub('sub-ing', 'Total Ingresos', ingTot))
 
   rows.push(hdr('hdr-cos', 'COSTOS DE VENTA', '#cf1322'))
-  collect(d => d.costos.accounts).forEach(a => rows.push(acct(`ac-${a.id}`, a.code, a.name, aVals(d => d.costos.accounts, a.id))))
+  collect(d => d.costos.accounts).forEach(a => rows.push(acct(`ac-${a.id}`, a.id, a.code, a.name, aVals(d => d.costos.accounts, a.id))))
   rows.push(sub('sub-cos', 'Total Costos', sVals(d => d.costos.total)))
 
   rows.push(sub('grand-ub', 'UTILIDAD BRUTA', sVals(d => d.utilidadBruta), 'grand'))
 
   rows.push(hdr('hdr-gas', 'GASTOS DE OPERACIÓN', '#d46b08'))
-  collect(d => d.gastos.accounts).forEach(a => rows.push(acct(`ag-${a.id}`, a.code, a.name, aVals(d => d.gastos.accounts, a.id))))
+  collect(d => d.gastos.accounts).forEach(a => rows.push(acct(`ag-${a.id}`, a.id, a.code, a.name, aVals(d => d.gastos.accounts, a.id))))
 
   if (md.some(m => m.data && m.data.otrosGastos.accounts.length > 0)) {
     rows.push(hdr('hdr-ogas', 'OTROS GASTOS', '#d46b08'))
-    collect(d => d.otrosGastos.accounts).forEach(a => rows.push(acct(`aog-${a.id}`, a.code, a.name, aVals(d => d.otrosGastos.accounts, a.id))))
+    collect(d => d.otrosGastos.accounts).forEach(a => rows.push(acct(`aog-${a.id}`, a.id, a.code, a.name, aVals(d => d.otrosGastos.accounts, a.id))))
   }
 
   const gasTot = Object.fromEntries(md.map(({ month: m, data }) => [m.yearMonth, (data?.gastos.total ?? 0) + (data?.otrosGastos.total ?? 0)]))
@@ -114,6 +115,8 @@ function buildERRows(md: Array<{ month: MonthRange; data: EstadoResultadosData |
 function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: EstadoResultadosData | null }>; loading: boolean }) {
   const months = monthData.map(m => m.month)
   const n      = months.length
+  const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
+
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
   const cfg  = getColConfig(n)
@@ -125,6 +128,19 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
     const c    = bold ? (v < 0 ? '#cf1322' : v > 0 ? '#389e0d' : '#8c8c8c') : (v < 0 ? '#cf1322' : undefined)
     return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
+
+  const clickable = (content: React.ReactNode, row: AnyRow, fromDate: string, toDate: string) => {
+    if (!content || row._kind !== 'acct' || !row._accountId) return content
+    return (
+      <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+        onClick={() => setDrilldown({ accountId: row._accountId!, accountName: row._name, fromDate, toDate })}>
+        {content}
+      </span>
+    )
+  }
+
+  const yearFrom = months[0].from
+  const yearTo   = months[months.length - 1].to
 
   const columns: ColumnsType<AnyRow> = [
     ...(cfg.codeW ? [{
@@ -143,7 +159,7 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
       key: m.yearMonth, dataIndex: m.yearMonth as keyof AnyRow,
       width: cfg.colW, align: 'right' as const,
       title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3 }}>{m.label}</div>,
-      render: (v: number | null, row: AnyRow) => cell(v, row._kind),
+      render: (v: number | null, row: AnyRow) => clickable(cell(v, row._kind), row, m.from, m.to),
     })),
     {
       key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
@@ -152,7 +168,8 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
         if (row._kind === 'hdr') return null
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#cf1322' : '#389e0d') : (v < 0 ? '#cf1322' : undefined)
-        return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        const content = <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        return clickable(content, row, yearFrom, yearTo)
       },
     },
   ]
@@ -162,29 +179,32 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
     acct:   undefined,
     sub:    '#fafafa',
     grand:  '#f0f0f0',
-    grand2: undefined, // dynamic by value
+    grand2: undefined,
   }
 
   return (
-    <Spin spinning={loading}>
-      <Table
-        size="small"
-        dataSource={rows}
-        columns={columns}
-        rowKey="key"
-        pagination={false}
-        showHeader
-        scroll={{ x: 'max-content' }}
-        onRow={row => ({
-          style: {
-            background: row._kind === 'grand2'
-              ? (row._total >= 0 ? '#f6ffed' : '#fff2f0')
-              : rowBg[row._kind],
-            borderTop: (row._kind === 'grand' || row._kind === 'grand2') ? '2px solid #d9d9d9' : undefined,
-          },
-        })}
-      />
-    </Spin>
+    <>
+      <Spin spinning={loading}>
+        <Table
+          size="small"
+          dataSource={rows}
+          columns={columns}
+          rowKey="key"
+          pagination={false}
+          showHeader
+          scroll={{ x: 'max-content' }}
+          onRow={row => ({
+            style: {
+              background: row._kind === 'grand2'
+                ? (row._total >= 0 ? '#f6ffed' : '#fff2f0')
+                : rowBg[row._kind],
+              borderTop: (row._kind === 'grand' || row._kind === 'grand2') ? '2px solid #d9d9d9' : undefined,
+            },
+          })}
+        />
+      </Spin>
+      <AccountDrilldownDrawer target={drilldown} onClose={() => setDrilldown(null)} />
+    </>
   )
 }
 
