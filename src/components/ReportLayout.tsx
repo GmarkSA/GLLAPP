@@ -32,6 +32,8 @@ interface ReportLayoutProps {
   extra?: ReactNode
   /** Export params to include (date, fromDate, toDate etc.) */
   exportParams?: Record<string, string>
+  /** Called when user clicks a year preset button; null when using custom range */
+  onPresetChange?: (label: string | null) => void
 }
 
 const YEAR_PRESETS = [
@@ -48,6 +50,7 @@ export default function ReportLayout({
   singleDate, date, fromDate, toDate,
   onDateChange, onRangeChange,
   extra, exportParams = {},
+  onPresetChange,
 }: ReportLayoutProps) {
   const navigate = useNavigate()
   const [exporting, setExporting] = useState(false)
@@ -144,7 +147,7 @@ export default function ReportLayout({
                 <Button
                   key={p.label} size="small"
                   type={fromDate === p.from && toDate === p.to ? 'primary' : 'default'}
-                  onClick={() => onRangeChange?.(p.from, p.to)}
+                  onClick={() => { onRangeChange?.(p.from, p.to); onPresetChange?.(p.label) }}
                   style={{ fontSize: 11, padding: '0 8px' }}
                 >
                   {p.label}
@@ -155,6 +158,7 @@ export default function ReportLayout({
                 onChange={vals => {
                   if (vals?.[0] && vals?.[1]) {
                     onRangeChange?.(vals[0].format('YYYY-MM-DD'), vals[1].format('YYYY-MM-DD'))
+                    onPresetChange?.(null)
                   }
                 }}
                 allowClear={false}

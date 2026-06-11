@@ -10,17 +10,17 @@ import dayjs, { Dayjs } from 'dayjs'
 import {
   getLibroCompras, downloadLibroComprasExcel,
   type LibroComprasReport,
-} from '../../../api/compras'
-import { printLibro } from '../../../components/ReportHeader/printLibro'
+} from '../../api/compras'
+import { printLibro } from '../../components/ReportHeader/printLibro'
 import {
   getEmpresaInfo, getCorrelativo, setCorrelativo,
   type EmpresaInfo,
-} from '../../../api/reportes'
-import ReportHeader from '../../../components/ReportHeader/ReportHeader'
+} from '../../api/reportes'
+import ReportHeader from '../../components/ReportHeader/ReportHeader'
 import {
   getLibroSATConfig, DEFAULT_CONFIG,
   type LibroColumn, type LibroSATConfig,
-} from '../../../api/libros-sat'
+} from '../../api/libros-sat'
 
 const { Title, Text } = Typography
 const { RangePicker }  = DatePicker

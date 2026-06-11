@@ -20,8 +20,10 @@ import {
   PAYMENT_TERMS_CONFIG,
 } from '../../../api/compras'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
-import { getVendors } from '../../../api/contactos'
+import { getVendor, getVendors } from '../../../api/contactos'
+import { getUnidadesActivas, type UnidadMedida } from '../../../api/unidades-medida'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -93,6 +95,8 @@ export default function DteSatPage() {
   const [stepperForm]                               = Form.useForm()
   const [stepperVendorForm]                         = Form.useForm()
   const [vendors, setVendors] = useState<{ value: string; label: string; type?: string }[]>([])
+  const [unidades, setUnidades] = useState<UnidadMedida[]>([])
+  const [satCredentials, setSatCredentials] = useState<{ satNit?: string; satAgenciaPassword?: string }>({})
 
   // ── Cuentas e impuestos ────────────────────────────────────────────────────
   useEffect(() => {
@@ -105,11 +109,20 @@ export default function DteSatPage() {
         setTaxes(list.filter(t => t.applicability === 'purchases' || t.applicability === 'both'))
       })
       .catch(() => {})
-    getVendors({ type: 'employee', limit: 200 })
+    getVendors({ type: 'employee', limit: 100 })
       .then((res: any) => {
         const list = Array.isArray(res) ? res : (res?.data ?? [])
         setVendors(list.map((v: any) => ({ value: v.id, label: v.name, type: 'employee' })))
       })
+      .catch(() => {})
+    getUnidadesActivas()
+      .then((list) => setUnidades(list))
+      .catch(() => {})
+    getOrganizationProfile()
+      .then((p: any) => setSatCredentials({
+        satNit: p?.settings?.satNit,
+        satAgenciaPassword: p?.settings?.satAgenciaPassword,
+      }))
       .catch(() => {})
   }, [])
 
@@ -171,17 +184,20 @@ export default function DteSatPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const handleImport = async (values: { satNit: string; satPass: string; range: [Dayjs, Dayjs] }) => {
+  const handleImport = async (values: { range: [Dayjs, Dayjs] }) => {
+    if (!satCredentials.satNit || !satCredentials.satAgenciaPassword) {
+      message.error('Configura el NIT y contraseña SAT en Configuración → Configuración fiscal antes de importar')
+      return
+    }
     setImporting(true)
     try {
       const job = await startSatDteImport({
-        satNit: values.satNit,
-        satPass: values.satPass,
+        satNit: satCredentials.satNit,
+        satPass: satCredentials.satAgenciaPassword,
         fechaInicio: values.range[0].format('YYYY-MM-DD'),
         fechaFin: values.range[1].format('YYYY-MM-DD'),
       })
       message.success(`Importación SAT iniciada — Run APIFY: ${job.apifyRunId ?? job.id}`)
-      form.setFieldValue('satPass', '')
       await load()
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'No se pudo iniciar la importación'))
@@ -322,7 +338,7 @@ export default function DteSatPage() {
 
   // ── Stepper handlers ───────────────────────────────────────────────────────
 
-  const openStepper = (row: SatDte) => {
+  const openStepper = async (row: SatDte) => {
     const lineas: any[] = Array.isArray(row.items) ? row.items : []
     const autoConcepto = lineas.length > 0
       ? lineas.map(l => l.descripcion || l.description).filter(Boolean).join(' / ')
@@ -333,7 +349,15 @@ export default function DteSatPage() {
     setStepperOcId(undefined)
     setStepperPOs(undefined)
     setStepperResult(null)
-    stepperForm.setFieldsValue({ taxId: undefined, paymentTerms: 'immediate', accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
+    // Pre-llenar con términos de pago del proveedor si ya está vinculado
+    let vendorPaymentTerms = 'immediate'
+    if (row.vendorId) {
+      try {
+        const vendor = await getVendor(row.vendorId) as any
+        if (vendor?.paymentTerms) vendorPaymentTerms = vendor.paymentTerms
+      } catch { /* usa immediate como fallback */ }
+    }
+    stepperForm.setFieldsValue({ taxId: undefined, paymentTerms: vendorPaymentTerms, accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
     stepperVendorForm.setFieldsValue({ name: row.nombreEmisor ?? '' })
   }
 
@@ -667,6 +691,15 @@ export default function DteSatPage() {
     },
   ]
 
+  // ── Valores reactivos del formulario del stepper ──────────────────────────
+  const watchedTaxId = Form.useWatch('taxId', stepperForm) as string | undefined
+  const selectedTaxForFuel = taxes.find(t => t.id === watchedTaxId)
+  const isFuelStep3 = !!(selectedTaxForFuel && (
+    selectedTaxForFuel.name.toLowerCase().includes('combustible') ||
+    selectedTaxForFuel.code.toLowerCase().includes('idp') ||
+    selectedTaxForFuel.code.toLowerCase().includes('fuel')
+  ))
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -823,16 +856,7 @@ export default function DteSatPage() {
                 )}
 
                 {/* Paso 3 — Registrar */}
-                {stepperStep === 3 && (() => {
-                  const isReimbursement = stepperOcChoice === 'reimbursement'
-                  const watchedTaxId = stepperForm.getFieldValue('taxId') as string | undefined
-                  const selectedTax = taxes.find(t => t.id === watchedTaxId)
-                  const isFuel = !!(selectedTax && (
-                    selectedTax.name.toLowerCase().includes('combustible') ||
-                    selectedTax.code.toLowerCase().includes('idp') ||
-                    selectedTax.code.toLowerCase().includes('fuel')
-                  ))
-                  return (
+                {stepperStep === 3 && (
                   <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}>
                     <Form.Item name="concepto" label="Concepto de la compra"
                       rules={[{ required: true, message: 'Describe qué se está comprando' }]}>
@@ -852,15 +876,22 @@ export default function DteSatPage() {
                         <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
                       </Form.Item>
                     </div>
-                    <Form.Item name="accountId" label="Cuenta de gasto"
-                      rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
-                      <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
-                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
-                          .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-                    </Form.Item>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                      <Form.Item name="accountId" label="Cuenta de gasto"
+                        rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
+                        <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
+                          options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
+                            .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                      </Form.Item>
+                      <Form.Item name="defaultUnit" label="Unidad de medida">
+                        <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
+                          options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
+                        />
+                      </Form.Item>
+                    </div>
 
                     {/* IDP — visible solo cuando se selecciona un impuesto de Combustible */}
-                    {isFuel && (
+                    {isFuelStep3 && (
                       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
                         <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 6 }}>
                           IDP — Combustible
@@ -876,7 +907,7 @@ export default function DteSatPage() {
                     )}
 
                     {/* Empleado — visible solo en modo Reembolso de Gastos */}
-                    {isReimbursement && (
+                    {stepperOcChoice === 'reimbursement' && (
                       <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
                         <Text strong style={{ fontSize: 12, color: '#5b21b6', display: 'block', marginBottom: 4 }}>
                           Datos del Empleado
@@ -905,8 +936,7 @@ export default function DteSatPage() {
                       )}
                     </div>
                   </Form>
-                  )
-                })()}
+                )}
 
                 {/* Paso 4 — Listo */}
                 {stepperStep === 4 && stepperResult && (
@@ -1129,9 +1159,15 @@ export default function DteSatPage() {
                 {hasRunningJobs && <Text type="warning" style={{ marginLeft: 6, fontSize: 12 }}>· Importación en progreso</Text>}
               </Text>
             </div>
-            <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
-              ⚠ Password SAT nunca se almacena — se envía directo a APIFY vía HTTPS
-            </div>
+            {!satCredentials.satNit || !satCredentials.satAgenciaPassword ? (
+              <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                ⚠ Configura credenciales SAT en <strong>Configuración → Configuración fiscal</strong>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                ✓ NIT {satCredentials.satNit} configurado
+              </div>
+            )}
           </div>
         }
         extra={<Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading} size="small">Actualizar</Button>}
@@ -1140,21 +1176,7 @@ export default function DteSatPage() {
       >
         <Form form={form} layout="vertical" size="small" onFinish={handleImport}>
           <Row gutter={[16, 0]} align="bottom">
-            <Col xs={24} md={5}>
-              <Form.Item name="satNit" label="NIT Agencia Virtual SAT" style={{ marginBottom: 0 }}
-                rules={[{ required: true, message: 'Ingresa el NIT SAT' }]}
-              >
-                <Input placeholder="108285685" autoComplete="off" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={5}>
-              <Form.Item name="satPass" label="Contraseña Agencia Virtual" style={{ marginBottom: 0 }}
-                rules={[{ required: true, message: 'Ingresa la contraseña SAT' }]}
-              >
-                <Input.Password placeholder="••••••••" autoComplete="off" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
+            <Col xs={24} md={14}>
               <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
                 rules={[{ required: true, message: 'Selecciona el rango' }]}
               >
@@ -1168,12 +1190,13 @@ export default function DteSatPage() {
                 />
               </Form.Item>
             </Col>
-            <Col xs={24} md={6}>
+            <Col xs={24} md={10}>
               <Button
                 type="primary"
                 htmlType="submit"
                 icon={<ApiOutlined />}
                 loading={importing}
+                disabled={!satCredentials.satNit || !satCredentials.satAgenciaPassword}
                 block
                 style={{ background: '#1B3A6B' }}
               >

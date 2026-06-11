@@ -18,6 +18,17 @@ import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
 
+const getOpenKey = (pathname: string): string[] => {
+  if (pathname.startsWith('/ventas'))        return ['ventas']
+  if (pathname.startsWith('/compras'))       return ['compras']
+  if (pathname.startsWith('/bancos'))        return ['bancos']
+  if (pathname.startsWith('/contabilidad'))  return ['contabilidad']
+  if (pathname.startsWith('/inventario'))    return ['inventario']
+  if (pathname.startsWith('/reportes'))      return ['reportes']
+  if (pathname.startsWith('/configuracion')) return ['configuracion']
+  return []
+}
+
 const menuItems = [
   { key: '/dashboard',        icon: <DashboardOutlined />,    label: 'Dashboard' },
   { key: 'ventas',            icon: <ShoppingCartOutlined />, label: 'Ventas', children: [
@@ -26,15 +37,12 @@ const menuItems = [
     { key: '/ventas/facturas',        label: 'Facturas de venta' },
     { key: '/ventas/notas-credito',   label: 'Notas de crédito' },
     { key: '/ventas/pagos-recibidos',          label: 'Pagos recibidos' },
-    { key: '/ventas/reportes/libro-ventas',    label: 'Libro de Ventas' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [
     { key: '/compras/proveedores',            label: 'Proveedores' },
     { key: '/compras/ordenes',                label: 'Órdenes de compra' },
     { key: '/compras/facturas',               label: 'Facturas proveedor' },
     { key: '/compras/dte-sat',                label: 'DTE SAT' },
-    { key: '/compras/reportes/ap-aging',      label: 'AP Aging (CxP)' },
-    { key: '/compras/reportes/libro-compras', label: 'Libro de Compras' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
     { key: '/bancos',       label: 'Cuentas bancarias' },
@@ -42,7 +50,6 @@ const menuItems = [
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
     { key: '/contabilidad/catalogo', label: 'Catálogo de cuentas' },
-    { key: '/contabilidad/asientos', label: 'Libro diario' },
     { key: '/contabilidad/activos',  label: 'Activos fijos' },
   ]},
   { key: 'inventario',       icon: <InboxOutlined />,        label: 'Inventario', children: [
@@ -64,6 +71,10 @@ const menuItems = [
     { key: '/reportes/tasas-rendimiento',  label: 'Tasas de Rendimiento' },
     { key: '/reportes/movimiento-capital', label: 'Movimiento de Capital' },
     { key: '/reportes/balanza',            label: 'Balanza de Comprobación' },
+    { key: '/reportes/libro-diario',       label: 'Libro Diario' },
+    { key: '/reportes/libro-compras',      label: 'Libro de Compras' },
+    { key: '/reportes/libro-ventas',       label: 'Libro de Ventas' },
+    { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
@@ -89,6 +100,13 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
+
+  const handleOpenChange = (keys: string[]) => {
+    // Acordeón: al abrir un módulo, colapsa el anterior
+    const newKey = keys.find(k => !openKeys.includes(k))
+    setOpenKeys(newKey ? [newKey] : keys)
+  }
 
   // Guard: cajero solo accede al POS — redirige si intenta entrar al ERP
   const isCajero = !!(user?.roles?.includes('cajero') && !user?.isSuperAdmin)
@@ -99,17 +117,6 @@ export default function MainLayout() {
   const visibleMenuItems = user?.isSuperAdmin
     ? menuItems
     : menuItems.filter(item => item.key !== '/admin/platform')
-
-  const getOpenKey = (pathname: string) => {
-    if (pathname.startsWith('/ventas'))        return ['ventas']
-    if (pathname.startsWith('/compras'))       return ['compras']
-    if (pathname.startsWith('/bancos'))        return ['bancos']
-    if (pathname.startsWith('/contabilidad'))  return ['contabilidad']
-    if (pathname.startsWith('/inventario'))    return ['inventario']
-    if (pathname.startsWith('/reportes'))      return ['reportes']
-    if (pathname.startsWith('/configuracion')) return ['configuracion']
-    return []
-  }
 
   const userMenu = {
     items: [
@@ -184,7 +191,8 @@ export default function MainLayout() {
             theme="dark"
             mode="inline"
             selectedKeys={[location.pathname]}
-            defaultOpenKeys={getOpenKey(location.pathname)}
+            openKeys={openKeys}
+            onOpenChange={handleOpenChange}
             items={visibleMenuItems}
             onClick={({ key }) => navigate(key)}
             style={{
