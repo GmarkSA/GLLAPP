@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Card, Table, Typography, Tag, Statistic, Row, Col, Space, Input } from 'antd'
 import { SearchOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -127,6 +127,7 @@ export default function BalanzaPage() {
               size="small"
               dataSource={filtered}
               rowKey="id"
+              scroll={{ x: "max-content", y: "calc(100vh - 300px)" }}
               pagination={{ pageSize: 50, showTotal: t => `${t} cuentas`, showSizeChanger: false }}
               summary={() => (
                 <Table.Summary fixed>
