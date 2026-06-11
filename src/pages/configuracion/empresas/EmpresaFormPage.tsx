@@ -2,12 +2,21 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Form, Input, Select, Button, Card, message, Spin, Typography,
-  Radio, Checkbox, Alert,
+  Radio, Checkbox, Alert, Switch, Tag, Space,
 } from 'antd'
-import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined } from '@ant-design/icons'
-import { companiesApi } from '../../../api/companies'
+import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { companiesApi, type CompanySettings } from '../../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
 import type { Company } from '../../../store/authStore'
+
+const ALL_MODULES = [
+  { key: 'ventas',        label: 'Ventas' },
+  { key: 'compras',       label: 'Compras' },
+  { key: 'contabilidad',  label: 'Contabilidad' },
+  { key: 'bancos',        label: 'Bancos y Tesorería' },
+  { key: 'inventario',    label: 'Inventario' },
+  { key: 'reportes',      label: 'Reportes' },
+]
 
 const { Title } = Typography
 const { Option } = Select
@@ -34,8 +43,11 @@ export default function EmpresaFormPage() {
   const [form]        = Form.useForm()
   const [loading, setLoading]   = useState(false)
   const [saving, setSaving]     = useState(false)
-  const [regimes, setRegimes]   = useState<FiscalRegime[]>([])
-  const [country, setCountry]   = useState<string>('GT')
+  const [regimes, setRegimes]           = useState<FiscalRegime[]>([])
+  const [country, setCountry]           = useState<string>('GT')
+  const [settings, setSettings]         = useState<CompanySettings | null>(null)
+  const [enabledMods, setEnabledMods]   = useState<string[]>([]) // vacío = todos
+  const [savingMods, setSavingMods]     = useState(false)
 
   // Template Engine state (solo en modo crear)
   const [createMode, setCreateMode]         = useState<'empty' | 'clone'>('empty')
@@ -49,16 +61,43 @@ export default function EmpresaFormPage() {
     fiscalRegimesApi.getAll().then(setRegimes).catch(() => {})
     if (isEdit) {
       setLoading(true)
-      companiesApi.getOne(id!).then(company => {
+      Promise.all([
+        companiesApi.getOne(id!),
+        companiesApi.getSettings(id!).catch(() => null),
+      ]).then(([company, s]) => {
         form.setFieldsValue(company)
         setCountry(company.countryCode)
+        if (s) {
+          setSettings(s)
+          setEnabledMods(Array.isArray(s.enabledModules) && s.enabledModules.length > 0 ? s.enabledModules : [])
+        }
       }).catch(() => message.error('Error al cargar empresa'))
         .finally(() => setLoading(false))
     } else {
-      // Cargar empresas existentes para poder clonar
       companiesApi.getAll().then(setAllCompanies).catch(() => {})
     }
   }, [id])
+
+  const handleToggleModule = async (modKey: string, enabled: boolean) => {
+    let updated: string[]
+    if (enabled) {
+      // Si activamos todos, mods vacío = todos habilitados
+      const next = enabledMods.includes(modKey) ? enabledMods : [...enabledMods, modKey]
+      updated = next.length === ALL_MODULES.length ? [] : next
+    } else {
+      // Al deshabilitar: si estaba vacío (todo hab.), inicializar con todos excepto este
+      const base = enabledMods.length === 0 ? ALL_MODULES.map(m => m.key) : enabledMods
+      updated = base.filter(k => k !== modKey)
+    }
+    setEnabledMods(updated)
+    setSavingMods(true)
+    try {
+      await companiesApi.updateSettings(id!, { enabledModules: updated } as any)
+      message.success('Módulos actualizados')
+    } catch {
+      message.error('Error al guardar módulos')
+    } finally { setSavingMods(false) }
+  }
 
   const onCountryChange = (code: string) => {
     const c = COUNTRIES.find(x => x.code === code)
@@ -252,6 +291,39 @@ export default function EmpresaFormPage() {
               </Form.Item>
             </div>
           </Card>
+
+          {/* ── Módulos habilitados (solo en edición) ───────────────────────── */}
+          {isEdit && (
+            <Card
+              title={<Space><AppstoreOutlined />Módulos habilitados</Space>}
+              style={{ marginBottom: 16 }}
+              extra={
+                enabledMods.length === 0
+                  ? <Tag color="green">Todos activos</Tag>
+                  : <Tag color="orange">{enabledMods.length} de {ALL_MODULES.length} activos</Tag>
+              }
+            >
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                Desactiva módulos que esta empresa no utiliza. Se ocultarán del menú lateral para todos sus usuarios.
+              </Typography.Text>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px 24px' }}>
+                {ALL_MODULES.map(mod => {
+                  const active = enabledMods.length === 0 || enabledMods.includes(mod.key)
+                  return (
+                    <div key={mod.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography.Text style={{ fontSize: 13 }}>{mod.label}</Typography.Text>
+                      <Switch
+                        size="small"
+                        checked={active}
+                        loading={savingMods}
+                        onChange={checked => handleToggleModule(mod.key, checked)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
 
           <div style={{ display: 'flex', gap: 8 }}>
             <Button onClick={() => navigate('/configuracion/empresas')}>Cancelar</Button>

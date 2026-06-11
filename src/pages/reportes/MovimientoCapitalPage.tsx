@@ -3,6 +3,7 @@ import { Card, Col, Row, Typography, Statistic, Tag, Table, Space, Divider } fro
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
+import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getMovimientoCapital, type MovimientoCapitalData } from '../../api/reportes'
 
 const { Text, Title } = Typography
@@ -12,22 +13,29 @@ const fmtQ = (n: number) =>
 
 const accentColor = (n: number) => (n >= 0 ? '#389e0d' : '#cf1322')
 
-function CapitalRow({ label, value, indent = 0, highlight = false, border = false }: {
-  label: string; value: number; indent?: number; highlight?: boolean; border?: boolean
+function CapitalRow({ label, value, indent = 0, highlight = false, border = false, onClick }: {
+  label: string; value: number; indent?: number; highlight?: boolean; border?: boolean; onClick?: () => void
 }) {
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: `${highlight ? 10 : 6}px ${16 + indent * 16}px`,
-      borderTop: border ? '2px solid #d9d9d9' : undefined,
-      background: highlight ? (value >= 0 ? '#f6ffed' : '#fff2f0') : undefined,
-      borderRadius: highlight ? 6 : 0,
-      margin: highlight ? '4px 0' : 0,
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: `${highlight ? 10 : 6}px ${16 + indent * 16}px`,
+        borderTop: border ? '2px solid #d9d9d9' : undefined,
+        background: highlight ? (value >= 0 ? '#f6ffed' : '#fff2f0') : undefined,
+        borderRadius: highlight ? 6 : 0,
+        margin: highlight ? '4px 0' : 0,
+        cursor: onClick ? 'pointer' : undefined,
+      }}>
       <Text strong={highlight} style={{ fontSize: highlight ? 13 : 12, color: highlight ? accentColor(value) : '#262626' }}>
         {label}
       </Text>
-      <Text strong={highlight} style={{ fontFamily: 'monospace', fontSize: highlight ? 14 : 12, color: accentColor(value) }}>
+      <Text strong={highlight} style={{
+        fontFamily: 'monospace', fontSize: highlight ? 14 : 12, color: accentColor(value),
+        textDecoration: onClick ? 'underline' : undefined,
+        textDecorationStyle: onClick ? 'dotted' : undefined,
+      }}>
         {fmtQ(value)}
       </Text>
     </div>
@@ -40,6 +48,7 @@ export default function MovimientoCapitalPage() {
   const [data,    setData]    = useState<MovimientoCapitalData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+  const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
 
   const fetch = async (f: string, t: string) => {
     setLoading(true); setError(null)
@@ -109,7 +118,8 @@ export default function MovimientoCapitalPage() {
                   CAPITAL APORTADO
                 </div>
                 {data.capitalContribuciones.accounts.map((a: any) => (
-                  <CapitalRow key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1} />
+                  <CapitalRow key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1}
+                    onClick={() => setDrilldown({ accountId: a.id, accountName: a.name, fromDate: from, toDate: to })} />
                 ))}
                 <CapitalRow label="Subtotal Capital Aportado" value={data.capitalContribuciones.total} indent={0} />
               </>
@@ -121,7 +131,8 @@ export default function MovimientoCapitalPage() {
                   UTILIDADES RETENIDAS
                 </div>
                 {data.utilidadesRetenidas.accounts.map((a: any) => (
-                  <CapitalRow key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1} />
+                  <CapitalRow key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1}
+                    onClick={() => setDrilldown({ accountId: a.id, accountName: a.name, fromDate: from, toDate: to })} />
                 ))}
                 <CapitalRow label="Subtotal Utilidades Retenidas" value={data.utilidadesRetenidas.total} indent={0} />
               </>
@@ -205,6 +216,7 @@ export default function MovimientoCapitalPage() {
               />
             </Card>
           )}
+          <AccountDrilldownDrawer target={drilldown} onClose={() => setDrilldown(null)} />
         </>
       )}
     </ReportLayout>

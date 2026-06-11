@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Table, Button, Tag, Avatar, Space, Typography, Modal, Form,
   Input, Select, Tooltip, Badge, Popconfirm, message, Checkbox,
-  Tabs, Drawer, Divider, Empty, Spin,
+  Tabs, Drawer, Divider, Empty, Spin, Collapse,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, UserOutlined, CrownOutlined,
   TeamOutlined, BankOutlined, KeyOutlined, DeleteOutlined,
-  LockOutlined, CheckSquareOutlined,
+  LockOutlined, CheckSquareOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -112,6 +112,9 @@ export default function UsuariosPage() {
   // Asignación de empresas
   const [assignedCompanyIds, setAssignedCompanyIds] = useState<string[]>([])
   const [loadingAssigned, setLoadingAssigned]       = useState(false)
+  // moduleOverrides por empresa: companyId → { module: 'full'|'read'|'none' }
+  const [companyOverrides, setCompanyOverrides] = useState<Record<string, Record<string, 'full' | 'read' | 'none'>>>({})
+  const [savingOverride, setSavingOverride]     = useState<string | null>(null) // companyId saving
 
   // Dropdown de roles (se cierra tras cada selección)
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
@@ -166,13 +169,18 @@ export default function UsuariosPage() {
     setSelected(u)
     setModal('companies')
     setLoadingAssigned(true)
+    setCompanyOverrides({})
     try {
       const results = await Promise.all(
-        companies.map(c =>
-          companiesApi.getCompanyUsers(c.id)
-            .then((cu: any[]) => cu.some((a: any) => a.userId === u.id) ? c.id : null)
-            .catch(() => null),
-        ),
+        companies.map(async c => {
+          const cu: any[] = await companiesApi.getCompanyUsers(c.id).catch(() => [])
+          const entry = cu.find((a: any) => a.userId === u.id)
+          if (entry) {
+            setCompanyOverrides(prev => ({ ...prev, [c.id]: entry.moduleOverrides ?? {} }))
+            return c.id
+          }
+          return null
+        }),
       )
       setAssignedCompanyIds(results.filter(Boolean) as string[])
     } catch { setAssignedCompanyIds([]) }
@@ -232,15 +240,29 @@ export default function UsuariosPage() {
       if (assign) {
         await companiesApi.assignUser(companyId, { userId: selected.id })
         setAssignedCompanyIds(prev => [...prev, companyId])
+        setCompanyOverrides(prev => ({ ...prev, [companyId]: {} }))
         message.success('Empresa asignada')
       } else {
         await companiesApi.removeCompanyUser(companyId, selected.id)
         setAssignedCompanyIds(prev => prev.filter(id => id !== companyId))
+        setCompanyOverrides(prev => { const n = { ...prev }; delete n[companyId]; return n })
         message.success('Empresa removida')
       }
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al actualizar empresas')
     }
+  }
+
+  const handleSaveModuleOverride = async (companyId: string, mod: string, val: 'full' | 'read' | 'none') => {
+    if (!selected) return
+    const updated = { ...(companyOverrides[companyId] ?? {}), [mod]: val }
+    setCompanyOverrides(prev => ({ ...prev, [companyId]: updated }))
+    setSavingOverride(companyId)
+    try {
+      await companiesApi.updateCompanyUser(companyId, selected.id, { moduleOverrides: updated })
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar permiso')
+    } finally { setSavingOverride(null) }
   }
 
   // ── Handlers de roles ─────────────────────────────────────────────────────
@@ -594,37 +616,79 @@ export default function UsuariosPage() {
         </Form>
       </Modal>
 
-      {/* Modal asignar empresas */}
+      {/* Modal asignar empresas + moduleOverrides */}
       <Modal
         title={<Space><BankOutlined />Empresas — {selected?.firstName} {selected?.lastName}</Space>}
         open={modal === 'companies'}
         onCancel={() => setModal(null)}
         footer={<Button onClick={() => setModal(null)}>Cerrar</Button>}
-        width={460}
+        width={560}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          Selecciona las empresas a las que tiene acceso:
+          Activa las empresas y ajusta el acceso por módulo para este usuario:
         </Text>
         {loadingAssigned
           ? <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
-          : companies.map(c => (
-            <div key={c.id} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '8px 0', borderBottom: '1px solid #f5f5f5',
-            }}>
-              <Space>
-                <BankOutlined style={{ color: '#1B3A6B' }} />
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>{c.legalName}</div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>{c.countryCode} · {c.currencyCode}</Text>
+          : companies.map(c => {
+              const assigned = assignedCompanyIds.includes(c.id)
+              const overrides = companyOverrides[c.id] ?? {}
+              const moduleItems = Object.entries(MODULE_LABELS).filter(([k]) => k !== 'platform')
+              return (
+                <div key={c.id} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 8, marginBottom: 8 }}>
+                  {/* Fila empresa + checkbox */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+                    <Space>
+                      <BankOutlined style={{ color: '#1B3A6B' }} />
+                      <div>
+                        <div style={{ fontWeight: 500, fontSize: 13 }}>{c.legalName}</div>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{c.countryCode} · {c.currencyCode}</Text>
+                      </div>
+                    </Space>
+                    <Checkbox
+                      checked={assigned}
+                      onChange={e => handleToggleCompany(c.id, e.target.checked)}
+                    />
+                  </div>
+                  {/* Panel de módulos — solo si está asignado */}
+                  {assigned && (
+                    <Collapse
+                      ghost
+                      size="small"
+                      items={[{
+                        key: 'mods',
+                        label: (
+                          <Space style={{ color: '#666', fontSize: 12 }}>
+                            <SettingOutlined />
+                            Acceso por módulo
+                            {savingOverride === c.id && <Spin size="small" />}
+                          </Space>
+                        ),
+                        children: (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', paddingTop: 4 }}>
+                            {moduleItems.map(([mod, label]) => (
+                              <div key={mod} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                                <span style={{ color: '#444' }}>{label}</span>
+                                <Select
+                                  size="small"
+                                  style={{ width: 120 }}
+                                  value={overrides[mod] ?? 'full'}
+                                  onChange={(val: 'full' | 'read' | 'none') => handleSaveModuleOverride(c.id, mod, val)}
+                                  options={[
+                                    { value: 'full',  label: 'Completo' },
+                                    { value: 'read',  label: 'Solo lectura' },
+                                    { value: 'none',  label: 'Sin acceso' },
+                                  ]}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ),
+                      }]}
+                    />
+                  )}
                 </div>
-              </Space>
-              <Checkbox
-                checked={assignedCompanyIds.includes(c.id)}
-                onChange={e => handleToggleCompany(c.id, e.target.checked)}
-              />
-            </div>
-          ))
+              )
+            })
         }
       </Modal>
 

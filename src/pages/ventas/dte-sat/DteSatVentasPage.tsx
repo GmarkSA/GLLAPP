@@ -1,0 +1,896 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Form, Input,
+  message, Modal, Row, Select, Space, Spin, Steps, Table, Tabs, Tag, Tooltip, Typography,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
+  DeleteOutlined, FileTextOutlined, ReloadOutlined,
+  SearchOutlined, UserAddOutlined, WarningOutlined,
+} from '@ant-design/icons'
+import dayjs, { Dayjs } from 'dayjs'
+import {
+  createSatEmitidosCustomer, deleteSatEmitidos,
+  getSatEmitidosDocuments, getSatEmitidosJobs, getSatEmitidosStats,
+  postSatEmitidos, resolveSatEmitidosCustomer,
+  startSatEmitidosImport, syncSatEmitidosJob,
+  type SatDteEmitidos, type SatEmitidosJob, type SatEmitidosStatus,
+} from '../../../api/facturas'
+import { getAccounts, type Account } from '../../../api/catalogo'
+import { getOrganizationProfile } from '../../../api/configuracion'
+import { getTaxes, type Tax } from '../../../api/impuestos'
+import { getEstimates, type Estimate } from '../../../api/facturas'
+import { getUnidadesActivas, type UnidadMedida } from '../../../api/unidades-medida'
+
+const { Title, Text } = Typography
+const { RangePicker } = DatePicker
+
+const POLL_INTERVAL_MS = 20_000
+
+const statusConfig: Record<SatEmitidosStatus, { label: string; color: string; icon: React.ReactNode }> = {
+  pending:   { label: 'Cliente pendiente', color: 'gold',    icon: <WarningOutlined /> },
+  ready:     { label: 'Listo',             color: 'green',   icon: <CheckCircleOutlined /> },
+  duplicate: { label: 'Duplicado',         color: 'volcano', icon: <FileTextOutlined /> },
+  posted:    { label: 'Contabilizado',     color: 'blue',    icon: <BookOutlined /> },
+  error:     { label: 'Error',             color: 'red',     icon: <WarningOutlined /> },
+}
+
+const jobStatusConfig: Record<string, { label: string; color: string }> = {
+  queued:    { label: 'En cola',    color: 'default' },
+  running:   { label: 'Ejecutando', color: 'processing' },
+  succeeded: { label: 'Finalizado', color: 'green' },
+  failed:    { label: 'Error',      color: 'red' },
+}
+
+function money(value: unknown) {
+  const n = Number(value ?? 0) || 0
+  return `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+}
+
+function getErrorMessage(err: unknown, fallback: string) {
+  const data = (err as any)?.response?.data
+  const raw = data?.message ?? data?.error?.message ?? (err as any)?.message
+  if (Array.isArray(raw)) return raw.join(' · ')
+  return (typeof raw === 'string' && raw) ? raw : fallback
+}
+
+export default function DteSatVentasPage() {
+  const [documents,  setDocuments]  = useState<SatDteEmitidos[]>([])
+  const [jobs,       setJobs]       = useState<SatEmitidosJob[]>([])
+  const [stats,      setStats]      = useState<Record<string, { count: number; total: number }>>({})
+  const [loading,    setLoading]    = useState(false)
+  const [importing,  setImporting]  = useState(false)
+  const [syncingJob, setSyncingJob] = useState<string | null>(null)
+  const [accounts,   setAccounts]   = useState<Account[]>([])
+  const [taxes,      setTaxes]      = useState<Tax[]>([])
+  const [estimates,  setEstimates]  = useState<Estimate[]>([])
+  const [unidades,   setUnidades]   = useState<UnidadMedida[]>([])
+  const [search,       setSearch]       = useState('')
+  const [statusFilter, setStatusFilter] = useState<string | undefined>()
+  const [satCredentials, setSatCredentials] = useState<{ satNit?: string; satAgenciaPassword?: string }>({})
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // ── Stepper ────────────────────────────────────────────────────────────────
+  const [stepperDte,     setStepperDte]     = useState<SatDteEmitidos | null>(null)
+  const [stepperStep,    setStepperStep]    = useState(0)
+  const [stepperLoading, setStepperLoading] = useState(false)
+  const [stepperResult,  setStepperResult]  = useState<{ invoice: any; dte: SatDteEmitidos } | null>(null)
+  const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string } | null>(null)
+  const [stepperSuggestion, setStepperSuggestion] = useState<{ name?: string; taxId?: string } | null>(null)
+  const [stepperForm]     = Form.useForm()
+  const [customerForm]    = Form.useForm()
+
+  // ── Carga inicial de catálogos ─────────────────────────────────────────────
+  useEffect(() => {
+    getAccounts({ isActive: true, limit: 500 })
+      .then((res: any) => setAccounts(Array.isArray(res) ? res : (res?.data ?? [])))
+      .catch(() => {})
+    getTaxes()
+      .then((res: any) => {
+        const list: Tax[] = Array.isArray(res) ? res : (res?.data ?? [])
+        setTaxes(list.filter(t => t.applicability === 'sales' || t.applicability === 'both'))
+      })
+      .catch(() => {})
+    getUnidadesActivas().then(setUnidades).catch(() => {})
+    getOrganizationProfile()
+      .then((p: any) => setSatCredentials({
+        satNit: p?.settings?.satNit,
+        satAgenciaPassword: p?.settings?.satAgenciaPassword,
+      }))
+      .catch(() => {})
+  }, [])
+
+  // ── Cargar documentos / jobs / stats ──────────────────────────────────────
+  const loadAll = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [docsRes, jobsRes, statsRes] = await Promise.all([
+        getSatEmitidosDocuments({ page: 1, limit: 200, search: search || undefined, status: statusFilter }),
+        getSatEmitidosJobs({ page: 1, limit: 20 }),
+        getSatEmitidosStats(),
+      ])
+      setDocuments(Array.isArray(docsRes) ? docsRes : (docsRes?.data ?? []))
+      setJobs(Array.isArray(jobsRes) ? jobsRes : (jobsRes?.data ?? []))
+      setStats(statsRes ?? {})
+    } catch {
+      message.error('Error cargando bandeja DTE SAT Emitidos')
+    } finally {
+      setLoading(false)
+    }
+  }, [search, statusFilter])
+
+  useEffect(() => { loadAll() }, [loadAll])
+
+  // ── Polling para jobs en ejecución ────────────────────────────────────────
+  useEffect(() => {
+    if (pollRef.current) clearInterval(pollRef.current)
+    const runningJobs = jobs.filter(j => j.status === 'running' || j.status === 'queued')
+    if (runningJobs.length > 0) {
+      pollRef.current = setInterval(async () => {
+        for (const job of runningJobs) {
+          try {
+            await syncSatEmitidosJob(job.id)
+          } catch {}
+        }
+        loadAll()
+      }, POLL_INTERVAL_MS)
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [jobs, loadAll])
+
+  // ── Importar desde SAT ─────────────────────────────────────────────────────
+  const [importForm] = Form.useForm()
+
+  const handleImport = async (values: { range: [Dayjs, Dayjs] }) => {
+    if (!satCredentials.satNit || !satCredentials.satAgenciaPassword) {
+      message.error('Configura el NIT y contraseña SAT en Configuración → Configuración fiscal antes de importar')
+      return
+    }
+    setImporting(true)
+    try {
+      const job = await startSatEmitidosImport({
+        satNit:      satCredentials.satNit,
+        satPass:     satCredentials.satAgenciaPassword,
+        fechaInicio: values.range[0].format('YYYY-MM-DD'),
+        fechaFin:    values.range[1].format('YYYY-MM-DD'),
+      })
+      message.success(`Importación SAT iniciada — Run APIFY: ${job.apifyRunId ?? job.id}`)
+      loadAll()
+    } catch (err) {
+      message.error(getErrorMessage(err, 'No se pudo iniciar la importación'))
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const handleSyncJob = async (jobId: string) => {
+    setSyncingJob(jobId)
+    try {
+      await syncSatEmitidosJob(jobId)
+      await loadAll()
+    } catch (err) {
+      message.error(getErrorMessage(err, 'Error sincronizando job'))
+    } finally {
+      setSyncingJob(null)
+    }
+  }
+
+  const handleDeleteDte = (row: SatDteEmitidos) => {
+    const hasInvoice = !!row.invoiceId
+    Modal.confirm({
+      title: 'Eliminar DTE de la bandeja',
+      content: (
+        <div>
+          {hasInvoice && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 10, fontSize: 12 }}
+              message="Este DTE ya fue contabilizado. La factura de venta NO se elimina — debes hacerlo manualmente desde Ventas → Facturas antes de reimportar."
+            />
+          )}
+          <Text>¿Eliminar <Text strong>{row.nombreReceptor ?? row.nitReceptor}</Text> ({row.serie}/{row.numeroDte}) de la bandeja?</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Al eliminar, podrás volver a importar el mismo DTE desde SAT.
+          </Text>
+        </div>
+      ),
+      okText: 'Eliminar',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancelar',
+      async onOk() {
+        try {
+          await deleteSatEmitidos(row.id)
+          message.success('DTE eliminado de la bandeja')
+          await loadAll()
+        } catch (err) {
+          message.error(getErrorMessage(err, 'No se pudo eliminar el DTE'))
+        }
+      },
+    })
+  }
+
+  // ── Abrir stepper ──────────────────────────────────────────────────────────
+  const openStepper = (dte: SatDteEmitidos) => {
+    setStepperDte(dte)
+    setStepperStep(0)
+    setStepperResult(null)
+    setStepperCustomer(dte.customerId ? { id: dte.customerId, name: dte.nombreReceptor ?? '' } : null)
+    setStepperSuggestion(null)
+    stepperForm.resetFields()
+    customerForm.resetFields()
+  }
+
+  const closeStepper = () => {
+    setStepperDte(null)
+    setStepperStep(0)
+    setStepperResult(null)
+    setStepperCustomer(null)
+    setStepperSuggestion(null)
+    stepperForm.resetFields()
+    customerForm.resetFields()
+  }
+
+  // ── Step 1: Resolver cliente ───────────────────────────────────────────────
+  const handleResolveCustomer = async () => {
+    if (!stepperDte) return
+    setStepperLoading(true)
+    try {
+      const res: any = await resolveSatEmitidosCustomer(stepperDte.id)
+      if (res.found) {
+        setStepperCustomer({ id: res.customer.id, name: res.customer.name })
+        setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
+        message.success(`Cliente vinculado: ${res.customer.name}`)
+      } else {
+        setStepperSuggestion(res.suggestion)
+        customerForm.setFieldsValue({
+          name:     res.suggestion?.name ?? '',
+          legalName: res.suggestion?.name ?? '',
+          taxId:    res.suggestion?.taxId ?? '',
+        })
+        message.warning('Cliente no encontrado. Puedes crearlo con los datos del DTE.')
+      }
+    } catch (err) {
+      message.error(getErrorMessage(err, 'Error resolviendo cliente'))
+    } finally {
+      setStepperLoading(false)
+    }
+  }
+
+  const handleCreateCustomer = async () => {
+    if (!stepperDte) return
+    const vals = customerForm.getFieldsValue()
+    setStepperLoading(true)
+    try {
+      const res: any = await createSatEmitidosCustomer(stepperDte.id, {
+        name:     vals.name,
+        legalName: vals.legalName ?? vals.name,
+        currency: 'GTQ',
+      })
+      setStepperCustomer({ id: res.customer.id, name: res.customer.name })
+      setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
+      message.success(`Cliente ${res.created ? 'creado' : 'vinculado'}: ${res.customer.name}`)
+    } catch (err) {
+      message.error(getErrorMessage(err, 'Error creando cliente'))
+    } finally {
+      setStepperLoading(false)
+    }
+  }
+
+  // ── Step 2: Contabilizar ───────────────────────────────────────────────────
+  const handlePost = async () => {
+    if (!stepperDte) return
+    const vals = stepperForm.getFieldsValue()
+    if (!vals.accountId) { message.warning('Selecciona la cuenta de ingreso'); return }
+
+    setStepperLoading(true)
+    try {
+      const res = await postSatEmitidos(stepperDte.id, {
+        accountId:      vals.accountId,
+        taxId:          vals.taxId,
+        accountingDate: vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
+        notes:          vals.notes,
+        estimateId:     vals.estimateId,
+      })
+      setStepperResult(res)
+      setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
+      setStepperStep(3)
+    } catch (err) {
+      message.error(getErrorMessage(err, 'Error contabilizando DTE'))
+    } finally {
+      setStepperLoading(false)
+    }
+  }
+
+  // Cargar estimaciones cuando se selecciona un cliente en step 2
+  const loadEstimates = (customerId: string) => {
+    getEstimates({ search: customerId, limit: 50, status: 'accepted' })
+      .then((res: any) => setEstimates(Array.isArray(res) ? res : (res?.data ?? [])))
+      .catch(() => {})
+  }
+
+  const incomeAccounts = accounts.filter(a => {
+    const code = a.code ?? ''
+    return code.startsWith('4') || a.balanceType?.toLowerCase().includes('ingreso')
+  })
+
+  // ─── Tabla de documentos ───────────────────────────────────────────────────
+  const cols: ColumnsType<SatDteEmitidos> = [
+    {
+      title: 'Fecha',
+      dataIndex: 'fechaEmision',
+      width: 95,
+      sorter: (a, b) => String(a.fechaEmision ?? '').localeCompare(String(b.fechaEmision ?? '')),
+      render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v ? String(v).substring(0, 10) : '—'}</Text>,
+    },
+    {
+      title: 'Tipo / Serie / No.',
+      key: 'serie',
+      width: 160,
+      render: (_: unknown, r: SatDteEmitidos) => (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+          <Tag style={{ fontSize: 10, padding: '0 4px', margin: 0, lineHeight: '18px', flexShrink: 0 }}>
+            {r.tipoDocumento ?? 'FACT'}
+          </Tag>
+          <Text style={{ fontSize: 11, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+            {r.serie ?? '—'} / {r.numeroDte ?? '—'}
+          </Text>
+        </span>
+      ),
+    },
+    {
+      title: 'UUID',
+      dataIndex: 'uuid',
+      width: 130,
+      render: (v: string) => (
+        <Tooltip title={v}>
+          <Text style={{ fontSize: 11, fontFamily: 'monospace', cursor: 'default' }}>
+            {v?.slice(0, 12)}…
+          </Text>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Receptor (Cliente)',
+      key: 'receptor',
+      ellipsis: true,
+      render: (_: unknown, r: SatDteEmitidos) => (
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block' }}>{r.nombreReceptor ?? 'Sin nombre'}</Text>
+          <Text type="secondary" style={{ fontSize: 10 }}>NIT: {r.nitReceptor ?? '—'}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Total',
+      dataIndex: 'total',
+      width: 115,
+      align: 'right' as const,
+      sorter: (a, b) => Number(a.total) - Number(b.total),
+      render: (v: number) => <Text strong style={{ fontSize: 12 }}>{money(v)}</Text>,
+    },
+    {
+      title: 'Proceso',
+      width: 150,
+      render: (_: unknown, r: SatDteEmitidos) => {
+        if (r.status === 'error') return (
+          <Tag color="red" icon={<WarningOutlined />} style={{ fontSize: 10 }}>Error</Tag>
+        )
+        if (r.status === 'duplicate') return (
+          <Tag color="volcano" icon={<FileTextOutlined />} style={{ fontSize: 10 }}>Duplicado</Tag>
+        )
+        const s1 = true
+        const s2 = !!r.customerId
+        const s3 = !!r.invoiceId
+        const s4 = r.status === 'posted'
+        const steps = [
+          { done: s1, tip: 'Importado desde SAT' },
+          { done: s2, tip: s2 ? 'Cliente vinculado' : 'Cliente pendiente' },
+          { done: s3, tip: s3 ? 'Venta registrada' : 'Sin registrar' },
+          { done: s4, tip: s4 ? 'Contabilizado ✓' : 'Sin contabilizar', last: true },
+        ]
+        const label = s4 ? 'Contabilizado ✓' : s3 ? 'Registrado' : s2 ? 'Listo' : 'Cliente pendiente'
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginBottom: 2 }}>
+              {steps.map((step, i) => (
+                <Tooltip key={i} title={step.tip}>
+                  <span style={{ fontSize: 13, lineHeight: 1, cursor: 'default',
+                    color: step.done ? (step.last ? '#16a34a' : '#1B3A6B') : '#d1d5db' }}>
+                    {step.done ? '●' : '○'}
+                  </span>
+                </Tooltip>
+              ))}
+            </div>
+            <Text type={s4 ? undefined : 'secondary'} style={{ fontSize: 10, color: s4 ? '#16a34a' : undefined }}>
+              {label}
+            </Text>
+          </div>
+        )
+      },
+    },
+    {
+      title: 'Archivos',
+      width: 90,
+      render: (_: unknown, r: SatDteEmitidos) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {r.xmlUrl
+            ? <a href={r.xmlUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>XML ↗</a>
+            : <Text type="secondary" style={{ fontSize: 12 }}>XML</Text>}
+          {r.pdfUrl
+            ? <a href={r.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600 }}>PDF ↗</a>
+            : r.uuid
+              ? <Tooltip title="Verificar en portal SAT (FEL)">
+                  <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${r.uuid}`}
+                    target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#d97706' }}>SAT ↗</a>
+                </Tooltip>
+              : <Text type="secondary" style={{ fontSize: 12 }}>PDF</Text>}
+        </div>
+      ),
+    },
+    {
+      title: 'Acción',
+      key: 'actions',
+      width: 115,
+      fixed: 'right' as const,
+      render: (_: unknown, r: SatDteEmitidos) => (
+        <Space size={4}>
+          {r.status === 'posted' || r.status === 'duplicate'
+            ? <Tag color={r.status === 'posted' ? 'blue' : 'volcano'} style={{ fontSize: 10 }}>
+                {r.status === 'posted' ? 'Procesado' : 'Duplicado'}
+              </Tag>
+            : <Button
+                size="small"
+                type="primary"
+                icon={<BookOutlined />}
+                onClick={() => openStepper(r)}
+                style={{ fontSize: 11, background: '#1B3A6B' }}
+              >
+                Procesar
+              </Button>
+          }
+          <Tooltip title="Eliminar de la bandeja">
+            <Button size="small" danger icon={<DeleteOutlined />}
+              onClick={() => handleDeleteDte(r)} style={{ fontSize: 11 }} />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ]
+
+  // ─── Tabla de jobs ─────────────────────────────────────────────────────────
+  const jobCols: ColumnsType<SatEmitidosJob> = [
+    {
+      title: 'Iniciado',
+      dataIndex: 'createdAt',
+      width: 160,
+      render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—'}</Text>,
+    },
+    {
+      title: 'Rango',
+      key: 'range',
+      render: (_: unknown, r: SatEmitidosJob) => (
+        <Text style={{ fontSize: 11 }}>
+          {r.fechaInicio ? String(r.fechaInicio).substring(0, 10) : ''} → {r.fechaFin ? String(r.fechaFin).substring(0, 10) : ''}
+        </Text>
+      ),
+    },
+    {
+      title: 'Estado',
+      dataIndex: 'status',
+      width: 120,
+      render: (v: string) => {
+        const cfg = jobStatusConfig[v] ?? { label: v, color: 'default' }
+        return <Badge status={cfg.color as any} text={cfg.label} />
+      },
+    },
+    {
+      title: 'Importados',
+      dataIndex: 'importedCount',
+      width: 100,
+      align: 'right' as const,
+      render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v ?? 0}</Text>,
+    },
+    {
+      title: 'Duplicados',
+      dataIndex: 'duplicateCount',
+      width: 100,
+      align: 'right' as const,
+      render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v ?? 0}</Text>,
+    },
+    {
+      title: '',
+      key: 'sync',
+      width: 80,
+      render: (_: unknown, r: SatEmitidosJob) =>
+        r.status === 'running' || r.status === 'queued' ? (
+          <Button
+            size="small"
+            icon={<CloudSyncOutlined />}
+            loading={syncingJob === r.id}
+            onClick={() => handleSyncJob(r.id)}
+          >
+            Sync
+          </Button>
+        ) : null,
+    },
+  ]
+
+  const hasRunningJobs = jobs.some(j => j.status === 'running' || j.status === 'queued')
+  const pendingToProcess = (stats.pending?.count ?? 0) + (stats.ready?.count ?? 0)
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+
+      {/* ─── Stepper Modal ────────────────────────────────────────────────── */}
+      <Modal
+        open={!!stepperDte}
+        width={660}
+        title={null}
+        footer={null}
+        closable
+        maskClosable={false}
+        onCancel={closeStepper}
+        destroyOnClose
+        styles={{ body: { padding: 0 } }}
+      >
+        {stepperDte && (
+          <div>
+            <div style={{ padding: '20px 24px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div>
+                  <Text strong style={{ fontSize: 14 }}>{stepperDte.nombreReceptor ?? '—'}</Text>
+                  <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>NIT: {stepperDte.nitReceptor}</Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    {stepperDte.tipoDocumento ?? 'FACT'} · {stepperDte.serie ?? '—'}/{stepperDte.numeroDte ?? '—'}
+                  </Text>
+                </div>
+                <Text strong style={{ fontSize: 18, color: '#1B3A6B' }}>{money(stepperDte.total)}</Text>
+              </div>
+              <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
+                { title: 'DTE' },
+                { title: 'Cliente' },
+                { title: 'Registrar' },
+                { title: 'Listo' },
+              ]} />
+              <Divider style={{ margin: '0 0 16px' }} />
+            </div>
+
+            <div style={{ padding: '0 24px 8px', minHeight: 200 }}>
+              {/* ── Step 0: Detalle del DTE ── */}
+              {stepperStep === 0 && (
+                <Descriptions size="small" column={2} style={{ background: '#f8fafc', padding: 12, borderRadius: 6 }}>
+                  <Descriptions.Item label="Tipo">{stepperDte.tipoDocumento ?? 'FACT'}</Descriptions.Item>
+                  <Descriptions.Item label="Fecha">
+                    {stepperDte.fechaEmision ? String(stepperDte.fechaEmision).substring(0, 10) : '—'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Serie">{stepperDte.serie ?? '—'}</Descriptions.Item>
+                  <Descriptions.Item label="No. DTE">{stepperDte.numeroDte ?? '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Receptor (Cliente)" span={2}>
+                    <Text strong>{stepperDte.nombreReceptor ?? '—'}</Text>
+                    {stepperDte.nitReceptor && (
+                      <Text type="secondary" style={{ marginLeft: 8 }}>NIT: {stepperDte.nitReceptor}</Text>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Subtotal">{money(stepperDte.subtotal)}</Descriptions.Item>
+                  <Descriptions.Item label="IVA">{money(stepperDte.totalIva)}</Descriptions.Item>
+                  <Descriptions.Item label="Total" span={2}>
+                    <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>{money(stepperDte.total)}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Archivos" span={2}>
+                    <Space size={16}>
+                      {stepperDte.xmlUrl
+                        ? <a href={stepperDte.xmlUrl} target="_blank" rel="noreferrer">XML ↗</a>
+                        : <Text type="secondary">XML</Text>}
+                      {stepperDte.pdfUrl
+                        ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
+                        : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#d97706' }}>Ver en SAT ↗</a>}
+                    </Space>
+                  </Descriptions.Item>
+                </Descriptions>
+              )}
+
+              {/* ── Step 1: Resolver cliente ── */}
+              {stepperStep === 1 && (
+                stepperCustomer ? (
+                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                    <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
+                    <Text strong style={{ fontSize: 15 }}>Cliente vinculado</Text>
+                    <br />
+                    <Text type="secondary">{stepperCustomer.name} · NIT: {stepperDte.nitReceptor}</Text>
+                  </div>
+                ) : (
+                  <div>
+                    <Alert type="warning" showIcon style={{ marginBottom: 14, fontSize: 12 }}
+                      message={`NIT ${stepperDte.nitReceptor} no está registrado. Búscalo o créalo.`} />
+                    <Button icon={<SearchOutlined />} loading={stepperLoading} style={{ marginBottom: 14 }}
+                      onClick={handleResolveCustomer}>
+                      Buscar cliente por NIT {stepperDte.nitReceptor}
+                    </Button>
+                    {stepperSuggestion && (
+                      <>
+                        <Divider plain style={{ fontSize: 12 }}>o crear nuevo cliente</Divider>
+                        <Form form={customerForm} layout="vertical" size="small">
+                          <Row gutter={12}>
+                            <Col span={12}>
+                              <Form.Item label="Nombre comercial" name="name" rules={[{ required: true }]}>
+                                <Input />
+                              </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                              <Form.Item label="Razón social" name="legalName">
+                                <Input />
+                              </Form.Item>
+                            </Col>
+                          </Row>
+                          <Form.Item label="NIT">
+                            <Input value={stepperDte.nitReceptor ?? ''} disabled />
+                          </Form.Item>
+                          <Button type="primary" icon={<UserAddOutlined />} loading={stepperLoading}
+                            onClick={handleCreateCustomer}>
+                            Crear y vincular cliente
+                          </Button>
+                        </Form>
+                      </>
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* ── Step 2: Registrar venta ── */}
+              {stepperStep === 2 && (
+                <Form form={stepperForm} layout="vertical" size="small">
+                  <Row gutter={12}>
+                    <Col span={14}>
+                      <Form.Item label="Cuenta de Ingreso" name="accountId"
+                        rules={[{ required: true, message: 'Selecciona cuenta de ingreso' }]}>
+                        <Select
+                          showSearch
+                          placeholder="Buscar cuenta..."
+                          options={incomeAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={10}>
+                      <Form.Item label="Impuesto" name="taxId">
+                        <Select allowClear placeholder="IVA 12%..."
+                          options={taxes.map(t => ({ value: t.id, label: t.name }))} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Row gutter={12}>
+                    <Col span={12}>
+                      <Form.Item label="Fecha contable" name="accountingDate">
+                        <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="Unidad de medida" name="defaultUnit">
+                        <Select allowClear placeholder="UND..."
+                          options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  {estimates.length > 0 && (
+                    <Form.Item label="Vincular cotización (opcional)" name="estimateId">
+                      <Select allowClear placeholder="Seleccionar cotización..."
+                        options={estimates.map(e => ({
+                          value: e.id,
+                          label: `${(e as any).estimateNumber ?? e.id} — Q ${Number((e as any).total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+                        }))} />
+                    </Form.Item>
+                  )}
+                  <Form.Item label="Notas" name="notes">
+                    <Input.TextArea rows={2} placeholder="Descripción del servicio o producto..." />
+                  </Form.Item>
+                </Form>
+              )}
+
+              {/* ── Step 3: Éxito ── */}
+              {stepperStep === 3 && stepperResult && (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <CheckCircleOutlined style={{ fontSize: 52, color: '#16a34a', marginBottom: 14 }} />
+                  <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>DTE Procesado Correctamente</Text>
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
+                    <div><Text type="secondary">Factura:</Text> <Text strong>{(stepperResult.invoice as any)?.invoiceNumber}</Text></div>
+                    {(stepperResult.invoice as any)?.journalEntryId && (
+                      <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#16a34a' }}>Generada automáticamente</Text></div>
+                    )}
+                    <div><Text type="secondary">Total:</Text> <Text strong>{money(stepperDte.total)}</Text></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer navegación */}
+            <div style={{ padding: '12px 24px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Button
+                onClick={() => { if (stepperStep > 0) setStepperStep(s => s - 1); else closeStepper() }}
+                disabled={stepperStep === 3 || stepperLoading}
+              >
+                {stepperStep === 0 ? 'Cancelar' : '← Anterior'}
+              </Button>
+              <Space>
+                {stepperStep === 0 && (
+                  <Button type="primary" style={{ background: '#1B3A6B' }} onClick={() => setStepperStep(1)}>
+                    Siguiente →
+                  </Button>
+                )}
+                {stepperStep === 1 && (
+                  <Button type="primary" style={{ background: '#1B3A6B' }}
+                    disabled={!stepperCustomer || stepperLoading}
+                    onClick={() => { if (stepperCustomer) { loadEstimates(stepperCustomer.id); setStepperStep(2) } }}>
+                    Siguiente →
+                  </Button>
+                )}
+                {stepperStep === 2 && (
+                  <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}
+                    style={{ background: '#1B3A6B' }} onClick={handlePost}>
+                    Registrar y Contabilizar
+                  </Button>
+                )}
+                {stepperStep === 3 && (
+                  <Space>
+                    <Button onClick={() => {
+                      const next = documents.find(d => (d.status === 'pending' || d.status === 'ready') && d.id !== stepperDte?.id)
+                      if (next) openStepper(next)
+                      else closeStepper()
+                    }}>
+                      Procesar siguiente DTE
+                    </Button>
+                    <Button type="primary" style={{ background: '#1B3A6B' }} onClick={closeStepper}>
+                      Cerrar
+                    </Button>
+                  </Space>
+                )}
+              </Space>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ─── Import Card ──────────────────────────────────────────────────── */}
+      <Card
+        bordered={false}
+        style={{ borderTop: '3px solid #1B3A6B' }}
+        styles={{ body: { paddingTop: 10, paddingBottom: 10 } }}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
+              <Title level={4} style={{ margin: 0, color: '#102a56' }}>
+                DTE SAT — Emitidos{hasRunningJobs && <Spin size="small" style={{ marginLeft: 8 }} />}
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+                Bandeja de facturas emitidas vía APIFY
+                {hasRunningJobs && <Text type="warning" style={{ marginLeft: 6, fontSize: 12 }}>· Importación en progreso</Text>}
+              </Text>
+            </div>
+            {!satCredentials.satNit || !satCredentials.satAgenciaPassword ? (
+              <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                ⚠ Configura credenciales SAT en <strong>Configuración → Configuración fiscal</strong>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                ✓ NIT {satCredentials.satNit} configurado
+              </div>
+            )}
+          </div>
+        }
+        extra={<Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading} size="small">Actualizar</Button>}
+      >
+        <Form form={importForm} layout="vertical" size="small" onFinish={handleImport}>
+          <Row gutter={[16, 0]} align="bottom">
+            <Col xs={24} md={14}>
+              <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
+                rules={[{ required: true, message: 'Selecciona el rango de fechas' }]}
+              >
+                <RangePicker
+                  style={{ width: '100%' }}
+                  presets={[
+                    { label: 'Este mes',      value: [dayjs().startOf('month'), dayjs()] },
+                    { label: 'Mes anterior',  value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+                    { label: 'Este trimestre', value: [dayjs().subtract(2, 'month').startOf('month'), dayjs()] },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={10}>
+              <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
+                disabled={!satCredentials.satNit || !satCredentials.satAgenciaPassword}
+                block style={{ background: '#1B3A6B' }}>
+                Importar Emitidos
+              </Button>
+            </Col>
+          </Row>
+        </Form>
+      </Card>
+
+      {/* ─── Tabs: Documentos / Historial ─────────────────────────────────── */}
+      <Tabs
+        type="card"
+        items={[
+          {
+            key: 'bandeja',
+            label: (
+              <Space size={4}>
+                <FileTextOutlined />
+                Documentos SAT
+                {pendingToProcess > 0 && (
+                  <Tag color="gold" style={{ fontSize: 10, marginInlineEnd: 0 }}>
+                    {pendingToProcess} por procesar
+                  </Tag>
+                )}
+              </Space>
+            ),
+            children: (
+              <Card bordered={false}>
+                <Space wrap style={{ marginBottom: 12 }}>
+                  <Input
+                    allowClear
+                    prefix={<SearchOutlined />}
+                    placeholder="Buscar UUID, NIT, nombre o No. DTE"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    style={{ width: 300 }}
+                    size="small"
+                  />
+                  <Button size="small" type={!statusFilter ? 'primary' : 'default'}
+                    onClick={() => setStatusFilter(undefined)}>
+                    Todos
+                  </Button>
+                  {(Object.entries(statusConfig) as [SatEmitidosStatus, typeof statusConfig[SatEmitidosStatus]][]).map(([key, cfg]) => (
+                    <Button key={key} size="small"
+                      type={statusFilter === key ? 'primary' : 'default'}
+                      onClick={() => setStatusFilter(statusFilter === key ? undefined : key)}>
+                      {cfg.label}{stats[key]?.count ? ` (${stats[key].count})` : ''}
+                    </Button>
+                  ))}
+                </Space>
+                <Table
+                  columns={cols}
+                  dataSource={documents}
+                  rowKey="id"
+                  loading={loading}
+                  size="small"
+                  scroll={{ x: 'max-content' }}
+                  pagination={{ pageSize: 50, showTotal: t => `${t} documentos`, showSizeChanger: false }}
+                  rowClassName={r => r.status === 'duplicate' ? 'ant-table-row-duplicate' : ''}
+                />
+              </Card>
+            ),
+          },
+          {
+            key: 'historial',
+            label: (
+              <Space size={4}>
+                <CloudSyncOutlined />
+                Historial
+                {hasRunningJobs && <Badge status="processing" />}
+              </Space>
+            ),
+            children: (
+              <Card bordered={false}>
+                {hasRunningJobs && (
+                  <Alert type="info" showIcon style={{ marginBottom: 12, fontSize: 12 }}
+                    message="Importación en curso — sincronizando automáticamente cada 20 segundos"
+                    action={<Spin size="small" />}
+                  />
+                )}
+                <Table
+                  size="small"
+                  dataSource={jobs}
+                  rowKey="id"
+                  columns={jobCols}
+                  pagination={{ pageSize: 20 }}
+                />
+              </Card>
+            ),
+          },
+        ]}
+      />
+    </Space>
+  )
+}

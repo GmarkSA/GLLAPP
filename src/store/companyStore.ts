@@ -10,24 +10,34 @@ interface CompanyStore {
   activeBranch:    Branch | null
   companies:       Company[]
   branches:        Branch[]
+  // null = todos los módulos habilitados; array = solo esos módulos visibles
+  enabledModules:  string[] | null
   isLoading:       boolean
   lastLoaded:      number | null
 
-  setActiveCompany: (company: Company) => Promise<void>
-  setActiveBranch:  (branch: Branch)  => void
-  loadCompanies:    ()                 => Promise<void>
-  clearCompany:     ()                 => void
+  setActiveCompany:  (company: Company) => Promise<void>
+  setActiveBranch:   (branch: Branch)  => void
+  loadCompanies:     ()                 => Promise<void>
+  clearCompany:      ()                 => void
+  isModuleEnabled:   (module: string)  => boolean
 }
 
 export const useCompanyStore = create<CompanyStore>()(
   persist(
     (set, get) => ({
-      activeCompany: null,
-      activeBranch:  null,
-      companies:     [],
-      branches:      [],
-      isLoading:     false,
-      lastLoaded:    null,
+      activeCompany:  null,
+      activeBranch:   null,
+      companies:      [],
+      branches:       [],
+      enabledModules: null,
+      isLoading:      false,
+      lastLoaded:     null,
+
+      isModuleEnabled: (module: string) => {
+        const { enabledModules } = get()
+        if (!enabledModules || enabledModules.length === 0) return true
+        return enabledModules.includes(module)
+      },
 
       loadCompanies: async () => {
         // Evitar recargas en menos de 30 segundos
@@ -56,15 +66,26 @@ export const useCompanyStore = create<CompanyStore>()(
         // Sync con localStorage para que el interceptor de axios lo lea
         localStorage.setItem('activeCompanyId', company.id)
         localStorage.setItem('activeCompany', JSON.stringify(company))
-        set({ activeCompany: company, activeBranch: null, branches: [] })
+        set({ activeCompany: company, activeBranch: null, branches: [], enabledModules: null })
 
-        // Cargar sucursales de la empresa seleccionada
-        try {
-          const branches = await branchesApi.getAll(company.id)
+        // Cargar sucursales y settings de la empresa seleccionada en paralelo
+        const [branchResult, settingsResult] = await Promise.allSettled([
+          branchesApi.getAll(company.id),
+          companiesApi.getSettings(company.id),
+        ])
+
+        if (branchResult.status === 'fulfilled') {
+          const branches = branchResult.value
           const defaultBranch = branches.find(b => b.isDefault && b.isActive) ?? branches.find(b => b.isActive) ?? null
           set({ branches, activeBranch: defaultBranch })
-        } catch {
+        } else {
           set({ branches: [], activeBranch: null })
+        }
+
+        if (settingsResult.status === 'fulfilled') {
+          const settings = settingsResult.value
+          const mods = settings?.enabledModules
+          set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null })
         }
       },
 
@@ -78,10 +99,11 @@ export const useCompanyStore = create<CompanyStore>()(
     }),
     {
       name: 'contaerp-company',
-      // Solo persiste empresa y sucursal activa — las listas se recargan
+      // Solo persiste empresa, sucursal y módulos activos — las listas se recargan
       partialize: (state) => ({
-        activeCompany: state.activeCompany,
-        activeBranch:  state.activeBranch,
+        activeCompany:  state.activeCompany,
+        activeBranch:   state.activeBranch,
+        enabledModules: state.enabledModules,
       }),
     },
   ),

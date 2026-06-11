@@ -11,6 +11,7 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
+import { useCompanyStore } from '../store/companyStore'
 import CompanySelector from '../components/CompanySelector'
 import CompanyContextBar from '../components/CompanyContextBar'
 import NoCompanyGuard from '../components/NoCompanyGuard'
@@ -37,6 +38,7 @@ const menuItems = [
     { key: '/ventas/facturas',        label: 'Facturas de venta' },
     { key: '/ventas/notas-credito',   label: 'Notas de crédito' },
     { key: '/ventas/pagos-recibidos',          label: 'Pagos recibidos' },
+    { key: '/ventas/dte-sat',                  label: 'DTE SAT Emitidos' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [
     { key: '/compras/proveedores',            label: 'Proveedores' },
@@ -100,7 +102,16 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const isModuleEnabled = useCompanyStore(s => s.isModuleEnabled)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
+
+  // Filtra el menú respetando enabledModules de la empresa activa.
+  // Dashboard, Configuración y Platform Admin nunca se ocultan.
+  const filteredMenuItems = menuItems.filter(item => {
+    const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform', '/proyectos', '/pos']
+    if (alwaysVisible.includes(item.key)) return true
+    return isModuleEnabled(item.key)
+  })
 
   const handleOpenChange = (keys: string[]) => {
     // Acordeón: al abrir un módulo, colapsa el anterior
@@ -114,9 +125,9 @@ export default function MainLayout() {
     if (isCajero) navigate('/pos', { replace: true })
   }, [isCajero])
 
-  const visibleMenuItems = user?.isSuperAdmin
-    ? menuItems
-    : menuItems.filter(item => item.key !== '/admin/platform')
+  // 1. Filtrar por enabledModules de la empresa activa
+  // 2. Filtrar Platform Admin solo para superadmin
+  const visibleMenuItems = (user?.isSuperAdmin ? filteredMenuItems : filteredMenuItems.filter(item => item.key !== '/admin/platform'))
 
   const userMenu = {
     items: [

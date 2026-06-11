@@ -3,6 +3,7 @@ import { Card, Table, Typography, Tag, Statistic, Row, Col, Space, Input } from 
 import { SearchOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
+import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getBalanza, type BalanzaData, type AccountRow } from '../../api/reportes'
 
 const { Text } = Typography
@@ -29,7 +30,8 @@ export default function BalanzaPage() {
   const [data,    setData]    = useState<BalanzaData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
-  const [search,  setSearch]  = useState('')
+  const [search,    setSearch]    = useState('')
+  const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
 
   const fetchData = async (f: string, t: string) => {
     setLoading(true); setError(null)
@@ -201,18 +203,24 @@ export default function BalanzaPage() {
                   width: 130,
                   align: 'right' as const,
                   sorter: (a, b) => a.balance - b.balance,
-                  render: (v: number) => (
-                    <Text strong style={{
-                      fontFamily: 'monospace', fontSize: 11,
-                      color: Math.abs(v) > 0.001 ? (v > 0 ? '#389e0d' : '#cf1322') : '#d9d9d9',
-                    }}>
-                      {v < 0 ? `(${fmtQ(Math.abs(v))})` : fmtQ(v)}
-                    </Text>
+                  render: (v: number, row: AccountRow) => (
+                    <span
+                      style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                      onClick={() => setDrilldown({ accountId: row.id, accountName: row.name, fromDate: from, toDate: to })}
+                    >
+                      <Text strong style={{
+                        fontFamily: 'monospace', fontSize: 11,
+                        color: Math.abs(v) > 0.001 ? (v > 0 ? '#389e0d' : '#cf1322') : '#d9d9d9',
+                      }}>
+                        {v < 0 ? `(${fmtQ(Math.abs(v))})` : fmtQ(v)}
+                      </Text>
+                    </span>
                   ),
                 },
               ]}
             />
           </Card>
+          <AccountDrilldownDrawer target={drilldown} onClose={() => setDrilldown(null)} />
         </>
       )}
     </ReportLayout>
