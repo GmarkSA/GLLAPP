@@ -422,3 +422,96 @@ export const PAYMENT_MODES = [
   { value: 'debit_card',    label: '💳 Tarjeta de débito' },
   { value: 'online',        label: '🌐 Pago en línea' },
 ]
+
+// ─── DTE SAT Emitidos ─────────────────────────────────────────────────────────
+
+export type SatEmitidosStatus = 'pending' | 'ready' | 'duplicate' | 'posted' | 'error'
+export type SatEmitidosJobStatus = 'queued' | 'running' | 'succeeded' | 'failed'
+
+export interface SatDteEmitidos {
+  id: string
+  status: SatEmitidosStatus
+  uuid: string
+  tipoDocumento?: string
+  serie?: string
+  numeroDte?: string
+  fechaEmision?: string
+  nitEmisor?: string
+  nombreEmisor?: string
+  nitReceptor?: string
+  nombreReceptor?: string
+  moneda: string
+  subtotal: number
+  totalIva: number
+  total: number
+  xmlUrl?: string
+  pdfUrl?: string
+  customerId?: string
+  invoiceId?: string
+  errorMessage?: string
+  items?: Array<{ descripcion?: string; description?: string; cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string }>
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface SatEmitidosJob {
+  id: string
+  status: SatEmitidosJobStatus
+  apifyRunId?: string
+  defaultDatasetId?: string
+  fechaInicio: string
+  fechaFin: string
+  satNit?: string
+  importedCount: number
+  duplicateCount: number
+  errorMessage?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+const DTE_EMIT = '/ventas/dte-sat'
+
+export const startSatEmitidosImport = (dto: { satNit: string; satPass: string; fechaInicio: string; fechaFin: string }) =>
+  api.post(`${DTE_EMIT}/importar`, dto).then(unwrap) as Promise<SatEmitidosJob>
+
+export const syncSatEmitidosJob = (id: string) =>
+  api.post(`${DTE_EMIT}/jobs/${id}/sincronizar`).then(unwrap) as Promise<SatEmitidosJob>
+
+export const getSatEmitidosDocuments = (params?: { page?: number; limit?: number; search?: string; status?: string }) =>
+  api.get(`${DTE_EMIT}/documentos`, { params }).then(unwrap) as Promise<{ data: SatDteEmitidos[]; total: number }>
+
+export const getSatEmitidosJobs = (params?: { page?: number; limit?: number }) =>
+  api.get(`${DTE_EMIT}/jobs`, { params }).then(unwrap) as Promise<{ data: SatEmitidosJob[]; total: number }>
+
+export const getSatEmitidosStats = () =>
+  api.get(`${DTE_EMIT}/stats`).then(unwrap) as Promise<Record<SatEmitidosStatus, { count: number; total: number }>>
+
+export const resolveSatEmitidosCustomer = (id: string) =>
+  api.post(`${DTE_EMIT}/documentos/${id}/resolver-cliente`).then(unwrap)
+
+export const createSatEmitidosCustomer = (id: string, dto?: {
+  name?: string
+  legalName?: string
+  currency?: string
+  paymentTerms?: string
+  paymentTermsDays?: number
+  receivableAccountId?: string
+}) => api.post(`${DTE_EMIT}/documentos/${id}/crear-cliente`, dto ?? {}).then(unwrap)
+
+export const deleteSatEmitidos = (id: string) =>
+  api.post(`${DTE_EMIT}/documentos/${id}/eliminar`).then(unwrap) as Promise<{ deleted: boolean; id: string }>
+
+export const reactivateSatEmitidos = (id: string) =>
+  api.post(`${DTE_EMIT}/documentos/${id}/reactivar`).then(unwrap)
+
+export const postSatEmitidos = (id: string, dto: {
+  taxId?: string
+  accountId?: string
+  accountingDate?: string
+  notes?: string
+  estimateId?: string
+  defaultUnit?: string
+}) => api.post(`${DTE_EMIT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
+  invoice: Invoice
+  dte: SatDteEmitidos
+}>

@@ -37,6 +37,7 @@ const menuItems = [
     { key: '/ventas/facturas',        label: 'Facturas de venta' },
     { key: '/ventas/notas-credito',   label: 'Notas de crédito' },
     { key: '/ventas/pagos-recibidos',          label: 'Pagos recibidos' },
+    { key: '/ventas/dte-sat',                  label: 'DTE SAT Emitidos' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [
     { key: '/compras/proveedores',            label: 'Proveedores' },
