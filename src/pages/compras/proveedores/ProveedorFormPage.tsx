@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Form, Input, Select, Button, Tabs, Row, Col, Switch,
@@ -9,12 +9,14 @@ import {
   SaveOutlined, ArrowLeftOutlined, UserOutlined, BankOutlined,
   PercentageOutlined, BookOutlined, EnvironmentOutlined,
   TeamOutlined, PlusOutlined, DeleteOutlined, IdcardOutlined,
+  SearchOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import {
   getVendor, createVendor, updateVendor,
   type Vendor, type ContactPerson, type Address,
 } from '../../../api/contactos'
 import { getTaxes, type Tax } from '../../../api/impuestos'
+import { satLookupApi } from '../../../api/satLookup'
 import AccountSelect from '../../../components/AccountSelect'
 import PaymentTermsSelect from '../../../components/PaymentTermsSelect'
 
@@ -176,6 +178,34 @@ export default function ProveedorFormPage() {
   const [contactCount, setContactCount] = useState(1)
   const [taxTreatment, setTaxTreatment] = useState<string>('taxable')
   const [vendorType,   setVendorType]   = useState<string>('company')
+  const [lookingUp,    setLookingUp]    = useState(false)
+  const [lookupStatus, setLookupStatus] = useState<'found' | 'not_found' | null>(null)
+
+  const handleSatLookup = async (tipo: 'NIT' | 'CUI') => {
+    const valor = form.getFieldValue('taxId')?.trim()
+    if (!valor) return
+    setLookingUp(true)
+    setLookupStatus(null)
+    try {
+      const res = await satLookupApi.lookup(tipo, valor)
+      if (res.found) {
+        form.setFieldsValue({
+          legalName: res.legalName,
+          name:      res.tradeName || res.legalName,
+          type:      res.type ?? form.getFieldValue('type'),
+          ...(res.address && { billingAddress: { ...form.getFieldValue('billingAddress'), address: res.address, city: res.city } }),
+          ...(res.phone   && { phone: res.phone }),
+        })
+        if (res.type) setVendorType(res.type === 'individual' ? 'individual' : 'company')
+        setLookupStatus('found')
+        message.success(`Datos cargados: ${res.legalName}`)
+      } else {
+        setLookupStatus('not_found')
+      }
+    } catch {
+      setLookupStatus('not_found')
+    } finally { setLookingUp(false) }
+  }
 
   // Cargar impuestos y datos del proveedor
   useEffect(() => {
@@ -408,8 +438,25 @@ export default function ProveedorFormPage() {
 
                     <Row gutter={16}>
                       <Col xs={24} md={8}>
-                        <Form.Item name="taxId" label={vendorType === 'employee' ? 'NIT (CF si no tiene)' : 'NIT'}>
-                          <Input placeholder="1234567-8" />
+                        <Form.Item label={vendorType === 'employee' ? 'NIT / CUI (CF si no tiene)' : 'NIT / CUI'}>
+                          <Space.Compact style={{ width: '100%' }}>
+                            <Form.Item name="taxId" noStyle>
+                              <Input placeholder="1234567-8 o CUI" onPressEnter={() => handleSatLookup('NIT')}
+                                onChange={() => setLookupStatus(null)} />
+                            </Form.Item>
+                            <Button loading={lookingUp} icon={<SearchOutlined />} onClick={() => handleSatLookup('NIT')} title="Buscar NIT en SAT" />
+                            <Button loading={lookingUp} onClick={() => handleSatLookup('CUI')} style={{ fontSize: 11 }} title="Buscar CUI en SAT">CUI</Button>
+                          </Space.Compact>
+                          {lookupStatus === 'found' && (
+                            <div style={{ marginTop: 4, fontSize: 11, color: '#52c41a' }}>
+                              <CheckCircleOutlined /> Datos cargados desde SAT
+                            </div>
+                          )}
+                          {lookupStatus === 'not_found' && (
+                            <div style={{ marginTop: 4, fontSize: 11, color: '#fa8c16' }}>
+                              <ExclamationCircleOutlined /> NIT/CUI no encontrado — completa manualmente
+                            </div>
+                          )}
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>

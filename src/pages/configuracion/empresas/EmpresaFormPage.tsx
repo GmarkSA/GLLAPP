@@ -4,9 +4,10 @@ import {
   Form, Input, Select, Button, Card, message, Spin, Typography,
   Radio, Checkbox, Alert, Switch, Tag, Space,
 } from 'antd'
-import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { companiesApi, type CompanySettings } from '../../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
+import { satLookupApi, type SatProviderConfig } from '../../../api/satLookup'
 import type { Company } from '../../../store/authStore'
 
 const ALL_MODULES = [
@@ -48,6 +49,10 @@ export default function EmpresaFormPage() {
   const [settings, setSettings]         = useState<CompanySettings | null>(null)
   const [enabledMods, setEnabledMods]   = useState<string[]>([]) // vacío = todos
   const [savingMods, setSavingMods]     = useState(false)
+  const [satConfig, setSatConfig]       = useState<SatProviderConfig>({ provider: 'felplex', apiUrl: 'https://app.felplex.com/api', entityId: '', apiKey: '', empresaId: '' })
+  const [savingSat, setSavingSat]       = useState(false)
+  const [testingSat, setTestingSat]     = useState(false)
+  const [satTestResult, setSatTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   // Template Engine state (solo en modo crear)
   const [createMode, setCreateMode]         = useState<'empty' | 'clone'>('empty')
@@ -70,6 +75,9 @@ export default function EmpresaFormPage() {
         if (s) {
           setSettings(s)
           setEnabledMods(Array.isArray(s.enabledModules) && s.enabledModules.length > 0 ? s.enabledModules : [])
+          if (s.settingsJson?.satProviderConfig) {
+            setSatConfig({ provider: 'felplex', apiUrl: 'https://app.felplex.com/api', entityId: '', apiKey: '', empresaId: '', ...s.settingsJson.satProviderConfig })
+          }
         }
       }).catch(() => message.error('Error al cargar empresa'))
         .finally(() => setLoading(false))
@@ -97,6 +105,28 @@ export default function EmpresaFormPage() {
     } catch {
       message.error('Error al guardar módulos')
     } finally { setSavingMods(false) }
+  }
+
+  const handleSaveSatConfig = async () => {
+    setSavingSat(true)
+    setSatTestResult(null)
+    try {
+      const current = await companiesApi.getSettings(id!).catch(() => null)
+      const existing = current?.settingsJson ?? {}
+      await companiesApi.updateSettings(id!, { settingsJson: { ...existing, satProviderConfig: satConfig } } as any)
+      message.success('Configuración SAT guardada')
+    } catch { message.error('Error al guardar') }
+    finally { setSavingSat(false) }
+  }
+
+  const handleTestSat = async () => {
+    setTestingSat(true)
+    setSatTestResult(null)
+    try {
+      const res = await satLookupApi.testConnection()
+      setSatTestResult(res)
+    } catch { setSatTestResult({ ok: false, message: 'Error al conectar' }) }
+    finally { setTestingSat(false) }
   }
 
   const onCountryChange = (code: string) => {
@@ -322,6 +352,78 @@ export default function EmpresaFormPage() {
                   )
                 })}
               </div>
+            </Card>
+          )}
+
+          {/* ── Proveedor SAT / RTU (solo en edición) ──────────────────────── */}
+          {isEdit && (
+            <Card
+              title={<Space><ApiOutlined />Proveedor SAT / RTU — Lookup de NIT y CUI</Space>}
+              style={{ marginBottom: 16 }}
+              extra={
+                satConfig.entityId && satConfig.apiKey
+                  ? <Tag color="green">Configurado</Tag>
+                  : <Tag color="orange">Sin configurar</Tag>
+              }
+            >
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                Al ingresar un NIT o CUI en Clientes, Proveedores o POS, el sistema buscará automáticamente los datos en este proveedor y los llenará en el formulario.
+              </Typography.Text>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                <div>
+                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>Proveedor</div>
+                  <Select
+                    size="small" style={{ width: '100%', marginBottom: 12 }}
+                    value={satConfig.provider}
+                    onChange={v => setSatConfig(p => ({ ...p, provider: v }))}
+                    options={[
+                      { value: 'felplex', label: 'FelPlex (Guatemala)' },
+                      { value: 'infile',  label: 'INFILE (Guatemala)' },
+                      { value: 'otro',    label: 'Otro proveedor' },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>URL Base de la API</div>
+                  <Input size="small" style={{ marginBottom: 12 }} value={satConfig.apiUrl}
+                    placeholder="https://app.felplex.com/api"
+                    onChange={e => setSatConfig(p => ({ ...p, apiUrl: e.target.value }))} />
+                </div>
+                <div>
+                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>Entity ID / Organización</div>
+                  <Input size="small" style={{ marginBottom: 12 }} value={satConfig.entityId}
+                    placeholder="3754"
+                    onChange={e => setSatConfig(p => ({ ...p, entityId: e.target.value }))} />
+                </div>
+                <div>
+                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>ID Empresa (header)</div>
+                  <Input size="small" style={{ marginBottom: 12 }} value={satConfig.empresaId ?? ''}
+                    placeholder="ID interno en Felplex (opcional)"
+                    onChange={e => setSatConfig(p => ({ ...p, empresaId: e.target.value }))} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>API Key (X-Authorization)</div>
+                  <Input.Password size="small" style={{ marginBottom: 12 }} value={satConfig.apiKey}
+                    placeholder="Token de autorización"
+                    onChange={e => setSatConfig(p => ({ ...p, apiKey: e.target.value }))} />
+                </div>
+              </div>
+              {satTestResult && (
+                <Alert
+                  type={satTestResult.ok ? 'success' : 'error'}
+                  icon={satTestResult.ok ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                  showIcon message={satTestResult.message} style={{ marginBottom: 12 }}
+                />
+              )}
+              <Space>
+                <Button size="small" loading={testingSat} onClick={handleTestSat}>
+                  Probar conexión
+                </Button>
+                <Button size="small" type="primary" loading={savingSat} onClick={handleSaveSatConfig}
+                  style={{ background: '#1B3A6B' }} icon={<SaveOutlined />}>
+                  Guardar configuración SAT
+                </Button>
+              </Space>
             </Card>
           )}
 
