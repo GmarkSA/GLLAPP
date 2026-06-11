@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
@@ -420,7 +420,7 @@ export default function FacturasPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,

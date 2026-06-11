@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import {
   Card, Table, DatePicker, Space, Typography, Tag, Input,
   Button, Row, Col, Statistic, Tooltip, InputNumber,
@@ -280,7 +280,7 @@ export default function LibroDiarioPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 1000 }}
+          scroll={{ x: 1000, y: 'calc(100vh - 280px)' }}
           pagination={{
             total,
             current: page,

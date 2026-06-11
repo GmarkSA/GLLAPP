@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+﻿import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
@@ -315,7 +315,7 @@ export default function EstimacionesPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/estimaciones/${r.id}`) })}
           pagination={{
             total,

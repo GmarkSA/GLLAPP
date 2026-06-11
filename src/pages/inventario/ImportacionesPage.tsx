@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Typography, Button, Table, Tag, Space, Input, Select,
@@ -235,7 +235,7 @@ export default function ImportacionesPage() {
           loading={loading}
           rowKey="id"
           size="small"
-          scroll={{ x: 1000 }}
+          scroll={{ x: 1000, y: 'calc(100vh - 280px)' }}
           pagination={{
             current: page,
             pageSize: 20,
