@@ -1261,7 +1261,8 @@ export default function DteSatPage() {
                   rowKey="id"
                   loading={loading}
                   size="small"
-                  scroll={{ x: true }}
+                  scroll={{ x: 'max-content' }}
+                  sticky={{ offsetHeader: 60 }}
                   pagination={{
                     pageSize: 15,
                     showSizeChanger: true,

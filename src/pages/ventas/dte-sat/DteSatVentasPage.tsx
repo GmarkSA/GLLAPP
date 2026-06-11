@@ -856,6 +856,7 @@ export default function DteSatVentasPage() {
                   loading={loading}
                   size="small"
                   scroll={{ x: 'max-content' }}
+                  sticky={{ offsetHeader: 60 }}
                   pagination={{ pageSize: 50, showTotal: t => `${t} documentos`, showSizeChanger: false }}
                   rowClassName={r => r.status === 'duplicate' ? 'ant-table-row-duplicate' : ''}
                 />
