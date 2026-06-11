@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Tag, Badge, Space, Typography, Statistic, Row, Col,
   Button, message, Modal, Descriptions, Spin, Popconfirm, Tabs,
-  Form, InputNumber, Input, Select,
+  Form, InputNumber, Input, Select, Tooltip,
 } from 'antd'
 import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
@@ -201,6 +201,11 @@ export default function PlatformAdminPage() {
   // Assign plan to tenant
   const [assigningTenantId, setAssigningTenantId] = useState<string | null>(null)
 
+  // Assign user to company (Platform Admin direct flow)
+  const [assigningCompanyId, setAssigningCompanyId] = useState<string | null>(null) // companyId being assigned
+  const [userToAssign, setUserToAssign]             = useState<string | null>(null)
+  const [savingAssign, setSavingAssign]             = useState(false)
+
 
   useEffect(() => {
     if (user && !user.isSuperAdmin) {
@@ -276,6 +281,30 @@ export default function PlatformAdminPage() {
       if (detail?.id === tenantId) await refreshDetail(tenantId)
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'No se pudo cambiar el estado del tenant')
+    }
+  }
+
+  const handleAssignUserToCompany = async (tenantId: string, companyId: string) => {
+    if (!userToAssign) { message.warning('Selecciona un usuario'); return }
+    setSavingAssign(true)
+    try {
+      await api.post(`/admin/tenants/${tenantId}/companies/${companyId}/users/${userToAssign}`)
+      message.success('Usuario asignado a la empresa')
+      setAssigningCompanyId(null)
+      setUserToAssign(null)
+      await refreshDetail(tenantId)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al asignar usuario')
+    } finally { setSavingAssign(false) }
+  }
+
+  const handleRemoveUserFromCompany = async (tenantId: string, companyId: string, userId: string) => {
+    try {
+      await api.delete(`/admin/tenants/${tenantId}/companies/${companyId}/users/${userId}`)
+      message.success('Usuario removido de la empresa')
+      await refreshDetail(tenantId)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al remover usuario')
     }
   }
 
@@ -638,7 +667,31 @@ export default function PlatformAdminPage() {
               {detail.companies?.length > 0 && (
                 <>
                   <Text strong style={{ fontSize: 12 }}><BankOutlined style={{ marginRight: 4 }} />Empresas ({detail.companies.length})</Text>
-                  <Table<AdminCompany> size="small" rowKey="id" style={{ marginTop: 8, marginBottom: 12 }} pagination={false} dataSource={detail.companies}
+                  <Table<AdminCompany> size="small" rowKey="id" style={{ marginTop: 8, marginBottom: 12 }} pagination={false}
+                    dataSource={detail.companies}
+                    expandable={{
+                      expandedRowRender: (c) => (
+                        <div style={{ padding: '8px 16px', background: '#fafafa' }}>
+                          <Text style={{ fontSize: 12, fontWeight: 500 }}>Asignar usuario a {c.legalName}:</Text>
+                          <Space style={{ marginTop: 8 }}>
+                            <Select
+                              size="small" style={{ width: 220 }} placeholder="Seleccionar usuario"
+                              value={assigningCompanyId === c.id ? userToAssign : null}
+                              onChange={val => { setAssigningCompanyId(c.id); setUserToAssign(val) }}
+                              options={detail.users?.map((u: any) => ({
+                                value: u.id,
+                                label: `${u.firstName} ${u.lastName} (${u.email})`,
+                              })) ?? []}
+                            />
+                            <Button size="small" type="primary" loading={savingAssign && assigningCompanyId === c.id}
+                              style={{ background: '#1B3A6B' }}
+                              onClick={() => handleAssignUserToCompany(detail.id, c.id)}>
+                              Asignar
+                            </Button>
+                          </Space>
+                        </div>
+                      ),
+                    }}
                     columns={[
                       {
                         title: 'Empresa',
@@ -655,15 +708,21 @@ export default function PlatformAdminPage() {
                       { title: 'Estado', dataIndex: 'status', width: 100, render: (v: string) => <Badge status={v === 'active' ? 'success' : 'warning'} text={v} /> },
                       {
                         title: '',
-                        width: 70,
+                        width: 90,
                         render: (_, c) => (
-                          <Popconfirm
-                            title={c.status === 'active' ? '¿Bloquear empresa?' : '¿Activar empresa?'}
-                            onConfirm={() => handleCompanyStatus(detail.id, c.id, c.status === 'active' ? 'suspended' : 'active')}
-                            okText="Sí"
-                          >
-                            <Button size="small" danger={c.status === 'active'} icon={c.status === 'active' ? <StopOutlined /> : <PlayCircleOutlined />} />
-                          </Popconfirm>
+                          <Space size={4}>
+                            <Tooltip title="Asignar usuario">
+                              <Button size="small" icon={<PlusOutlined />}
+                                onClick={() => setAssigningCompanyId(assigningCompanyId === c.id ? null : c.id)} />
+                            </Tooltip>
+                            <Popconfirm
+                              title={c.status === 'active' ? '¿Bloquear empresa?' : '¿Activar empresa?'}
+                              onConfirm={() => handleCompanyStatus(detail.id, c.id, c.status === 'active' ? 'suspended' : 'active')}
+                              okText="Sí"
+                            >
+                              <Button size="small" danger={c.status === 'active'} icon={c.status === 'active' ? <StopOutlined /> : <PlayCircleOutlined />} />
+                            </Popconfirm>
+                          </Space>
                         ),
                       },
                     ]}

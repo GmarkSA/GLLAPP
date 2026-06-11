@@ -25,6 +25,7 @@ export interface CompanySettings {
   autoPostJournalEntries: boolean
   felEnabled: boolean
   settingsJson: Record<string, any>
+  enabledModules: string[] | null
 }
 
 export interface DocumentSeries {
