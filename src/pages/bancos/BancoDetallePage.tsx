@@ -158,7 +158,7 @@ function ImportModal({ accountId, open, onClose, onSaved }: {
     if (!rows.length) return
     setSaving(true)
     try {
-      const res = await importStatement(accountId, rows)
+      const res = await importStatement(accountId, { rows })
       message.success(`Importados: ${res.imported} · Omitidos (duplicados): ${res.skipped}`)
       setRows([]); setPreview(false)
       onSaved(); onClose()
