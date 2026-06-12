@@ -63,6 +63,8 @@ const CuentaFormPage       = lazy(() => import('./pages/bancos/CuentaFormPage'))
 const TransaccionesPage    = lazy(() => import('./pages/bancos/TransaccionesPage'))
 const ConciliacionPage     = lazy(() => import('./pages/bancos/ConciliacionPage'))
 const TransferenciaPage    = lazy(() => import('./pages/bancos/TransferenciaPage'))
+const ImportarEstadoPage   = lazy(() => import('./pages/bancos/ImportarEstadoPage'))
+const ReglasBancariasPage  = lazy(() => import('./pages/bancos/ReglasBancariasPage'))
 
 // Contabilidad
 const CatalogoPage    = lazy(() => import('./pages/contabilidad/CatalogoPage'))
@@ -189,6 +191,8 @@ export default function App() {
 
           <Route path="bancos"                         element={<CuentasBancariasPage />} />
           <Route path="bancos/nuevo"                   element={<CuentaFormPage />} />
+          <Route path="bancos/importar"                 element={<ImportarEstadoPage />} />
+          <Route path="bancos/reglas"                   element={<ReglasBancariasPage />} />
           <Route path="bancos/transferencias/nueva"    element={<TransferenciaPage />} />
           <Route path="bancos/:id"                     element={<TransaccionesPage />} />
           <Route path="bancos/:id/editar"              element={<CuentaFormPage />} />

@@ -49,6 +49,8 @@ const menuItems = [
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
     { key: '/bancos',       label: 'Cuentas bancarias' },
     { key: '/bancos/nuevo', label: '+ Nueva cuenta' },
+    { key: '/bancos/importar', label: 'Importar estados' },
+    { key: '/bancos/reglas', label: 'Reglas bancarias' },
     { key: '/bancos/transferencias/nueva', label: 'Transferencias' },
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
@@ -330,3 +332,4 @@ export default function MainLayout() {
     </Layout>
   )
 }
+

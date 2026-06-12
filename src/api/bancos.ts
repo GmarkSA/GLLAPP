@@ -7,6 +7,8 @@ export type BankAccountStatus = 'active' | 'inactive'
 export type TransactionType = 'credit' | 'debit'
 export type TransactionStatus = 'pending' | 'categorized' | 'matched' | 'reconciled' | 'excluded' | 'voided'
 export type BankTransferStatus = 'draft' | 'posted' | 'voided'
+export type BankRuleApplyTo = 'all' | 'credit' | 'debit'
+export type BankRuleMatchMode = 'all' | 'any'
 
 export interface BankAccount {
   id: string
@@ -92,6 +94,53 @@ export interface BankTransfer extends BankTransferDto {
   createdAt: string
 }
 
+export interface BankImportBatch {
+  id: string
+  companyId: string
+  bankAccountId: string
+  fileName?: string
+  fileType?: string
+  totalRows: number
+  importedCount: number
+  skippedCount: number
+  rulesAppliedCount?: number
+  status: 'completed' | 'failed'
+  createdAt: string
+}
+
+export interface BankRuleCondition {
+  field: 'description' | 'reference' | 'amount' | 'type' | 'currency'
+  operator: 'contains' | 'equals' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte'
+  value: string | number
+}
+
+export interface BankRuleAction {
+  accountId?: string
+  accountCode?: string
+  accountName?: string
+  sourceDocumentType?: string
+  sourceDocumentId?: string
+  costCenterId?: string
+  projectId?: string
+  status?: TransactionStatus
+}
+
+export interface BankRule {
+  id: string
+  companyId: string
+  name: string
+  isActive: boolean
+  bankAccountId?: string
+  applyTo: BankRuleApplyTo
+  matchMode: BankRuleMatchMode
+  conditions: BankRuleCondition[]
+  action: BankRuleAction
+  timesApplied: number
+  lastAppliedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ReconciliationSummary {
   pending: number
   matched?: number
@@ -104,6 +153,7 @@ export interface ReconciliationSummary {
 const BASE = '/bancos/cuentas'
 const RECONCILIATION_BASE = '/bancos/conciliacion'
 const TRANSFERS_BASE = '/bancos/transferencias'
+const RULES_BASE = '/bancos/reglas'
 
 export const moneyGT = (n: number) =>
   `Q ${Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -163,8 +213,20 @@ export const updateTransaction = (id: string, txId: string, dto: Partial<BankTra
 export const deleteTransaction = (id: string, txId: string) =>
   api.delete(`${BASE}/${id}/movimientos/${txId}`)
 
-export const importStatement = (id: string, rows: Partial<BankTransaction>[]) =>
-  api.post(`${BASE}/${id}/importar`, { rows }).then(unwrap) as Promise<{ imported: number; skipped: number }>
+export const importStatement = (id: string, dto: {
+  rows: Partial<BankTransaction>[]
+  fileName?: string
+  fileType?: string
+}) =>
+  api.post(`${BASE}/${id}/importar`, dto).then(unwrap) as Promise<{ imported: number; skipped: number; importBatchId?: string }>
+
+export const getImportHistory = (id: string, params?: { page?: number; limit?: number }) =>
+  api.get(`${BASE}/${id}/importaciones`, { params }).then(unwrap) as Promise<{
+    data: BankImportBatch[]
+    total: number
+    page: number
+    limit: number
+  }>
 
 export const syncBankAccount = (id: string) =>
   api.post(`${BASE}/${id}/sincronizar`).then(unwrap)
@@ -202,6 +264,26 @@ export const getBankTransfers = (params?: { page?: number; limit?: number; searc
     page: number
     limit: number
   }>
+
+export const getBankRules = (params?: { page?: number; limit?: number; search?: string; bankAccountId?: string; isActive?: boolean }) =>
+  api.get(RULES_BASE, { params }).then(unwrap) as Promise<{
+    data: BankRule[]
+    total: number
+    page: number
+    limit: number
+  }>
+
+export const createBankRule = (dto: Partial<BankRule>) =>
+  api.post(RULES_BASE, dto).then(unwrap) as Promise<BankRule>
+
+export const updateBankRule = (id: string, dto: Partial<BankRule>) =>
+  api.patch(`${RULES_BASE}/${id}`, dto).then(unwrap) as Promise<BankRule>
+
+export const deleteBankRule = (id: string) =>
+  api.delete(`${RULES_BASE}/${id}`)
+
+export const applyBankRules = (dto: { bankAccountId?: string; ruleId?: string; transactionIds?: string[] }) =>
+  api.post(`${RULES_BASE}/aplicar`, dto).then(unwrap) as Promise<{ reviewed: number; applied: number }>
 
 export const ACCOUNT_TYPE_CONFIG: Record<BankAccountType, { label: string; color: string; icon: string }> = {
   checking: { label: 'Cuenta monetaria', color: '#1677ff', icon: 'B' },
