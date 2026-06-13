@@ -15,12 +15,13 @@ export interface AccountFilter {
 }
 
 interface AccountSelectProps {
-  filter:       AccountFilter
-  placeholder?: string
-  value?:       string
-  onChange?:    (value: string | undefined) => void
-  disabled?:    boolean
-  size?:        'small' | 'middle' | 'large'
+  filter:             AccountFilter
+  placeholder?:       string
+  value?:             string
+  onChange?:          (value: string | undefined) => void
+  onChangeAccount?:   (account: Account | undefined) => void
+  disabled?:          boolean
+  size?:              'small' | 'middle' | 'large'
 }
 
 const BALANCE_COLOR: Record<string, string> = {
@@ -37,7 +38,7 @@ const BALANCE_COLOR: Record<string, string> = {
 }
 
 export default function AccountSelect({
-  filter, placeholder = 'Selecciona una cuenta...', value, onChange, disabled, size,
+  filter, placeholder = 'Selecciona una cuenta...', value, onChange, onChangeAccount, disabled, size,
 }: AccountSelectProps) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading,  setLoading]  = useState(false)
@@ -70,7 +71,13 @@ export default function AccountSelect({
       disabled={disabled}
       size={size}
       value={value}
-      onChange={onChange}
+      onChange={(id, opt) => {
+        onChange?.(id)
+        if (onChangeAccount) {
+          const acc = id ? (opt as any)?.account as Account : undefined
+          onChangeAccount(acc)
+        }
+      }}
       placeholder={
         <Space>
           <BookOutlined style={{ color: '#bbb' }} />

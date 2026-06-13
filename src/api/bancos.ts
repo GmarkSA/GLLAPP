@@ -234,13 +234,16 @@ export const syncBankAccount = (id: string) =>
 export const getReconciliationSummary = (accountId: string) =>
   api.get(`${RECONCILIATION_BASE}/${accountId}/resumen`).then(unwrap) as Promise<ReconciliationSummary>
 
-export const getPendingReconciliation = (accountId: string, params?: { page?: number; limit?: number; search?: string }) =>
+export const getPendingReconciliation = (accountId: string, params?: { page?: number; limit?: number; search?: string; status?: string }) =>
   api.get(`${RECONCILIATION_BASE}/${accountId}/pendientes`, { params }).then(unwrap) as Promise<{
     data: BankTransaction[]
     total: number
     page: number
     limit: number
   }>
+
+export const unreconcileTransaction = (dto: { transactionId: string }) =>
+  api.post(`${RECONCILIATION_BASE}/desconciliar`, dto).then(unwrap)
 
 export const autoMatchReconciliation = (accountId: string) =>
   api.post(`${RECONCILIATION_BASE}/auto-match/${accountId}`).then(unwrap) as Promise<{ matched: number; message?: string }>

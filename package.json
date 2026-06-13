@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node -e \"const {execSync}=require('child_process');try{const r=execSync('netstat -ano | findstr :5173').toString();const pid=r.match(/\\s+(\\d+)\\s*$/m)?.[1];if(pid){execSync('taskkill /F /PID '+pid);console.log('Puerto 5173 liberado (PID '+pid+')')}}catch{}\"",
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -b",

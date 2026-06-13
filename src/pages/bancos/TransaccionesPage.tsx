@@ -8,11 +8,13 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Statistic,
   Table,
   Tag,
+  Tooltip,
   Typography,
   Upload,
   message,
@@ -22,20 +24,27 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
-  EditOutlined,
+  ControlOutlined,
+  DeleteOutlined,
   FileExcelOutlined,
+  FileTextOutlined,
   PlusOutlined,
   ReloadOutlined,
+  RollbackOutlined,
+  TagsOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import AccountSelect from '../../components/AccountSelect'
 import { useCompanyStore } from '../../store/companyStore'
+import CategorizarDrawer from './CategorizarDrawer'
+import { getAsiento, updateAsiento, postAsiento, type AsientoDetalle } from '../../api/asientos'
 import {
   ACCOUNT_TYPE_CONFIG,
   TRANSACTION_STATUS_CONFIG,
   addTransaction,
+  deleteTransaction,
   getBankAccount,
   getTransactions,
   importStatement,
@@ -143,23 +152,82 @@ function ImportModal({ open, account, onClose, onSaved }: {
   const [rows, setRows] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
 
-  const parseRows = (rawRows: any[][]) => {
-    const [, ...body] = rawRows
+  const parseDate = (raw: unknown): string => {
+    // XLSX serial number from an Excel file (not CSV) — convert via UTC
+    if (typeof raw === 'number' && raw > 40_000 && raw < 60_000) {
+      const dt = new Date(Math.round((raw - 25569) * 86_400_000))
+      const y = dt.getUTCFullYear(), mo = String(dt.getUTCMonth() + 1).padStart(2, '0'), d = String(dt.getUTCDate()).padStart(2, '0')
+      return `${y}-${mo}-${d}`
+    }
+    if (raw instanceof Date && !isNaN(raw.getTime())) {
+      const y = raw.getUTCFullYear(), mo = String(raw.getUTCMonth() + 1).padStart(2, '0'), d = String(raw.getUTCDate()).padStart(2, '0')
+      return `${y}-${mo}-${d}`
+    }
+    const s = String(raw || '').trim()
+    if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
+      const sep = s[2]; const [d, m, y] = s.split(sep)
+      return `${y}-${m}-${d}`
+    }
+    const p = dayjs(s); return p.isValid() ? p.format('YYYY-MM-DD') : ''
+  }
+
+  // Parsea CSV como texto plano para preservar las fechas exactamente como aparecen.
+  // XLSX auto-convierte fechas ambiguas (DD ≤ 12) a seriales numéricos cuando DD y MM
+  // son intercambiables (por ejemplo "01-06-2026" lo lee como MM-DD-YYYY = enero 6).
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = []
+    for (const line of text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')) {
+      const cols: string[] = []
+      let field = '', inQ = false
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i]
+        if (c === '"') {
+          if (inQ && line[i + 1] === '"') { field += '"'; i++ }
+          else inQ = !inQ
+        } else if (c === ',' && !inQ) {
+          cols.push(field); field = ''
+        } else field += c
+      }
+      cols.push(field)
+      if (cols.some(c => c.trim() !== '')) rows.push(cols)
+    }
+    return rows
+  }
+
+  const parseRows = (allRows: any[][]) => {
+    // Detectar fila de encabezado real (busca "Fecha" en col[0], max 20 filas)
+    const noEmpty = allRows.filter(r => r.some(c => c !== undefined && c !== null && c !== ''))
+    let headerIdx = 0
+    for (let i = 0; i < Math.min(noEmpty.length, 20); i++) {
+      if (String(noEmpty[i][0] || '').trim().toLowerCase() === 'fecha') { headerIdx = i; break }
+    }
+    const head = noEmpty[headerIdx] as string[]
+    const body = noEmpty.slice(headerIdx + 1)
+
+    // Mapear columnas por nombre (BI: Fecha,TT,Descripción,No. Doc,Debe,Haber,Saldo)
+    const col = (needle: string) => head.findIndex((h: string) => String(h || '').trim().toLowerCase().startsWith(needle.toLowerCase()))
+    const iDate = col('Fecha') >= 0 ? col('Fecha') : 0
+    const iDesc = col('Descrip') >= 0 ? col('Descrip') : 1
+    const iRef  = col('No. Doc') >= 0 ? col('No. Doc') : -1
+    const iDebe = col('Debe') >= 0 ? col('Debe') : 2
+    const iHaber = col('Haber') >= 0 ? col('Haber') : 3
+    const iSaldo = col('Saldo') >= 0 ? col('Saldo') : -1
+
     return body
       .map(cols => {
-        const [date, description, debit, credit, reference, balance] = cols
-        const debitAmount = Number(String(debit ?? '').replace(/[^0-9.-]/g, ''))
-        const creditAmount = Number(String(credit ?? '').replace(/[^0-9.-]/g, ''))
-        const amount = creditAmount > 0 ? creditAmount : Math.abs(debitAmount)
-        if (!date || !description || !amount) return null
+        const transactionDate = parseDate(cols[iDate])
+        const description = String(cols[iDesc] ?? '').trim()
+        const debitAmt  = Number(String(cols[iDebe]  ?? '').replace(/[^0-9.-]/g, ''))
+        const creditAmt = Number(String(cols[iHaber] ?? '').replace(/[^0-9.-]/g, ''))
+        const amount = creditAmt > 0 ? creditAmt : Math.abs(debitAmt)
+        if (!transactionDate || !description || !amount) return null
         return {
-          date: dayjs(date).isValid() ? dayjs(date).format('YYYY-MM-DD') : String(date),
-          transactionDate: dayjs(date).isValid() ? dayjs(date).format('YYYY-MM-DD') : String(date),
-          description: String(description),
+          transactionDate,
+          description,
           amount,
-          type: creditAmount > 0 ? 'credit' : 'debit',
-          reference: reference ? String(reference) : undefined,
-          runningBalance: balance ? Number(String(balance).replace(/[^0-9.-]/g, '')) : undefined,
+          type: creditAmt > 0 ? 'credit' : 'debit',
+          reference: iRef >= 0 && cols[iRef] ? String(cols[iRef]) : undefined,
+          runningBalance: iSaldo >= 0 && cols[iSaldo] ? Number(String(cols[iSaldo]).replace(/[^0-9.-]/g, '')) : undefined,
         }
       })
       .filter(Boolean)
@@ -167,9 +235,15 @@ function ImportModal({ open, account, onClose, onSaved }: {
 
   const beforeUpload = async (file: File) => {
     const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const parsed = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+    let parsed: any[][]
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      // Usar parser de texto para CSV para evitar que XLSX auto-convierta fechas DD-MM-YYYY
+      parsed = parseCSV(new TextDecoder().decode(buffer).replace(/^﻿/, ''))
+    } else {
+      const workbook = XLSX.read(buffer, { type: 'array' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      parsed = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+    }
     setRows(parseRows(parsed))
     return false
   }
@@ -216,8 +290,7 @@ function ImportModal({ open, account, onClose, onSaved }: {
           dataSource={rows}
           rowKey={(_, i) => String(i)}
           pagination={{ pageSize: 8 }}
-          scroll={{ x: 'max-content' }}
-          sticky={{ offsetHeader: 60 }}
+          scroll={{ x: 'max-content', y: 320 }}
           columns={[
             { title: 'Fecha', dataIndex: 'transactionDate', width: 100 },
             { title: 'Descripcion', dataIndex: 'description', ellipsis: true },
@@ -226,6 +299,133 @@ function ImportModal({ open, account, onClose, onSaved }: {
           ]}
         />
       )}
+    </Modal>
+  )
+}
+
+function PolizaModal({ jeId, isForeign, onClose }: {
+  jeId: string | null
+  isForeign: boolean
+  onClose: () => void
+}) {
+  const [je, setJe]           = useState<AsientoDetalle | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [date, setDate]       = useState('')
+  const [rate, setRate]       = useState<number>(1)
+  const [saving, setSaving]   = useState(false)
+
+  useEffect(() => {
+    if (!jeId) return
+    setLoading(true)
+    setEditing(false)
+    getAsiento(jeId).then(d => { setJe(d); setDate(String(d.entryDate).split('T')[0]); setRate(d.exchangeRate ?? 1) }).catch(() => setJe(null)).finally(() => setLoading(false))
+  }, [jeId])
+
+  const handleSave = async () => {
+    if (!jeId) return
+    setSaving(true)
+    try {
+      const updated = await updateAsiento(jeId, { entryDate: date || undefined, exchangeRate: isForeign ? rate : undefined })
+      setJe(updated)
+      setEditing(false)
+      message.success('Póliza actualizada')
+    } catch {
+      message.error('No se pudo actualizar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handlePublish = async () => {
+    if (!jeId) return
+    setSaving(true)
+    try {
+      const updated = await postAsiento(jeId)
+      setJe(updated)
+      message.success('Póliza publicada — ya impacta en reportes financieros')
+    } catch {
+      message.error('No se pudo publicar la póliza')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const fmtQ = (n: number) => n === 0 ? '—' : `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+  return (
+    <Modal
+      title={je ? `Póliza ${je.entryNumber}` : 'Póliza contable'}
+      open={!!jeId}
+      onCancel={onClose}
+      footer={null}
+      width={620}
+    >
+      {loading && <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>}
+      {!loading && je && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+            <div><Text type="secondary" style={{ fontSize: 11 }}>FECHA</Text><div><Text strong>{String(je.entryDate).split('T')[0].split('-').reverse().join('/')}</Text></div></div>
+            <div><Text type="secondary" style={{ fontSize: 11 }}>ESTADO</Text><div><Tag color={je.status === 'posted' ? 'green' : 'orange'}>{je.status}</Tag></div></div>
+            {isForeign && <div><Text type="secondary" style={{ fontSize: 11 }}>TIPO DE CAMBIO</Text><div><Text strong>{je.exchangeRate}</Text></div></div>}
+          </div>
+
+          {editing && (
+            <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isForeign ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 8 }}>
+                <div>
+                  <Text style={{ fontSize: 12 }}>Fecha del asiento</Text>
+                  <Input size="small" type="date" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+                {isForeign && (
+                  <div>
+                    <Text style={{ fontSize: 12 }}>Tipo de cambio (GTQ)</Text>
+                    <InputNumber size="small" min={0.000001} precision={6} value={rate} onChange={v => setRate(Number(v) || 1)} style={{ width: '100%' }} />
+                  </div>
+                )}
+              </div>
+              <Space>
+                <Button size="small" type="primary" loading={saving} style={{ background: NAVY }} onClick={handleSave}>Guardar</Button>
+                <Button size="small" onClick={() => setEditing(false)}>Cancelar</Button>
+              </Space>
+            </div>
+          )}
+
+          <Table
+            size="small"
+            dataSource={je.lines}
+            rowKey={(_, i) => String(i)}
+            pagination={false}
+            columns={[
+              { title: 'Cuenta', ellipsis: true, render: (_: any, l: any) => <Text style={{ fontSize: 12 }}>{l.accountCode} — {l.accountName}</Text> },
+              { title: 'Debe',  dataIndex: 'debit',  width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: v > 0 ? '#1B3A6B' : '#ccc' }}>{fmtQ(v)}</Text> },
+              { title: 'Haber', dataIndex: 'credit', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: v > 0 ? '#389e0d' : '#ccc' }}>{fmtQ(v)}</Text> },
+            ]}
+            style={{ marginBottom: 12 }}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Space>
+              <Button icon={<FileTextOutlined />} onClick={() => setEditing(v => !v)}>
+                {editing ? 'Cancelar edición' : 'Editar fecha / tipo de cambio'}
+              </Button>
+              {je.status === 'draft' && (
+                <Button
+                  type="primary"
+                  icon={<CheckCircleOutlined />}
+                  loading={saving}
+                  style={{ background: '#389e0d', borderColor: '#389e0d' }}
+                  onClick={handlePublish}
+                >
+                  Publicar póliza
+                </Button>
+              )}
+            </Space>
+            <Button onClick={onClose}>Cerrar</Button>
+          </div>
+        </>
+      )}
+      {!loading && !je && <Text type="secondary">No se encontró la póliza contable.</Text>}
     </Modal>
   )
 }
@@ -244,6 +444,8 @@ export default function TransaccionesPage() {
   const [dates, setDates] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
   const [transactionOpen, setTransactionOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [categorizarTx, setCategorizarTx] = useState<BankTransaction | null>(null)
+  const [polizaJeId, setPolizaJeId]       = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -259,17 +461,21 @@ export default function TransaccionesPage() {
     if (!id) return
     setLoading(true)
     try {
-      const res = await getTransactions(id, {
-        page,
-        limit: 50,
-        search: search || undefined,
-        status,
-        type,
-        fromDate: dates?.[0]?.format('YYYY-MM-DD'),
-        toDate: dates?.[1]?.format('YYYY-MM-DD'),
-      })
+      const [res, acc] = await Promise.all([
+        getTransactions(id, {
+          page,
+          limit: 50,
+          search: search || undefined,
+          status,
+          type,
+          fromDate: dates?.[0]?.format('YYYY-MM-DD'),
+          toDate: dates?.[1]?.format('YYYY-MM-DD'),
+        }),
+        getBankAccount(id),
+      ])
       setTransactions(Array.isArray(res.data) ? res.data : [])
       setTotal(res.total || 0)
+      setAccount(acc)
     } catch {
       setTransactions([])
       setTotal(0)
@@ -287,12 +493,36 @@ export default function TransaccionesPage() {
     return { incoming, outgoing, pending }
   }, [transactions])
 
+  const fmtDate = (d: string) => {
+    const s = String(d || '').split('T')[0]
+    if (!s || s <= '1970-01-01') return <Text type="secondary">—</Text>
+    const [y, m, day] = s.split('-')
+    return `${day}/${m}/${y}`
+  }
+
+  const handleDelete = async (txId: string) => {
+    try {
+      await deleteTransaction(id!, txId)
+      message.success('Movimiento eliminado')
+      loadTransactions()
+    } catch {
+      message.error('No se pudo eliminar')
+    }
+  }
+
   const columns: ColumnsType<BankTransaction> = [
-    { title: 'Fecha', dataIndex: 'transactionDate', width: 110, fixed: 'left', render: v => dayjs(v).format('DD/MM/YYYY') },
     {
-      title: 'Descripcion',
+      title: 'Fecha',
+      dataIndex: 'transactionDate',
+      width: 100,
+      fixed: 'left',
+      defaultSortOrder: 'ascend',
+      sorter: (a, b) => String(a.transactionDate).localeCompare(String(b.transactionDate)),
+      render: fmtDate,
+    },
+    {
+      title: 'Descripción / Referencia',
       dataIndex: 'description',
-      width: 360,
       ellipsis: true,
       render: (v, row) => (
         <div>
@@ -301,36 +531,87 @@ export default function TransaccionesPage() {
         </div>
       ),
     },
-    { title: 'Tipo', dataIndex: 'type', width: 100, render: v => <Tag color={v === 'credit' ? 'green' : 'red'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
-    { title: 'Monto', dataIndex: 'amount', width: 150, align: 'right', render: (v, row) => <Text strong style={{ fontFamily: 'monospace', color: row.type === 'credit' ? '#389e0d' : '#cf1322' }}>{row.type === 'credit' ? '+' : '-'} {moneyFmt(Number(v), account?.currency)}</Text> },
-    { title: 'Saldo', dataIndex: 'runningBalance', width: 140, align: 'right', render: v => v == null ? <Text type="secondary">-</Text> : <Text style={{ fontFamily: 'monospace' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
-    { title: 'Estado', dataIndex: 'status', width: 150, render: v => {
+    {
+      title: 'Haber (Ingreso)',
+      key: 'haber',
+      width: 150,
+      align: 'right',
+      render: (_, row) => row.type === 'credit'
+        ? <Text strong style={{ fontFamily: 'monospace', color: '#389e0d' }}>+ {moneyFmt(Number(row.amount), account?.currency)}</Text>
+        : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Debe (Egreso)',
+      key: 'debe',
+      width: 150,
+      align: 'right',
+      render: (_, row) => row.type === 'debit'
+        ? <Text strong style={{ fontFamily: 'monospace', color: '#cf1322' }}>- {moneyFmt(Number(row.amount), account?.currency)}</Text>
+        : <Text type="secondary">—</Text>,
+    },
+    { title: 'Saldo', dataIndex: 'runningBalance', width: 130, align: 'right', render: v => v == null ? <Text type="secondary">—</Text> : <Text style={{ fontFamily: 'monospace' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
+    { title: 'Estado', dataIndex: 'status', width: 120, render: v => {
       const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
       return <Tag color={cfg.color}>{cfg.label}</Tag>
     } },
-    { title: 'Cuenta contable', dataIndex: 'accountName', width: 220, render: (_, row) => row.accountName || row.accountCode ? <Tag color="purple">{row.accountCode || row.accountName}</Tag> : <Tag color="orange">Sin categorizar</Tag> },
+    { title: 'Cuenta contable', key: 'account', width: 180, render: (_, row) => row.accountName || row.accountCode ? <Tooltip title={row.accountName}><Tag color="purple">{row.accountCode || row.accountName}</Tag></Tooltip> : <Tag color="orange">Sin categorizar</Tag> },
     {
       title: '',
       key: 'actions',
-      width: 80,
+      width: 110,
       fixed: 'right',
+      align: 'center',
       render: (_, row) => (
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => {
-            Modal.confirm({
-              title: 'Marcar como conciliada',
-              content: 'Esta accion deja preparada la transaccion para conciliacion formal.',
-              okText: 'Confirmar',
-              okButtonProps: { style: { background: NAVY } },
-              onOk: async () => {
-                await updateTransaction(id!, row.id, { status: 'reconciled' })
-                loadTransactions()
-              },
-            })
-          }}
-        />
+        <Space size={4}>
+          {row.status === 'categorized' || row.status === 'reconciled' ? (
+            row.matchedJournalEntryId ? (
+              <Tooltip title="Ver / editar póliza contable">
+                <Button
+                  size="small" type="text"
+                  icon={<FileTextOutlined style={{ color: NAVY }} />}
+                  onClick={() => setPolizaJeId(row.matchedJournalEntryId!)}
+                />
+              </Tooltip>
+            ) : null
+          ) : null}
+          {row.status === 'categorized' ? (
+            <>
+              <Tooltip title="Marcar conciliada">
+                <Button
+                  size="small" type="text" icon={<CheckCircleOutlined style={{ color: '#389e0d' }} />}
+                  onClick={() => Modal.confirm({
+                    title: 'Marcar como conciliada',
+                    content: 'Esta accion deja preparada la transaccion para conciliacion formal.',
+                    okText: 'Confirmar',
+                    okButtonProps: { style: { background: NAVY } },
+                    onOk: async () => { await updateTransaction(id!, row.id, { status: 'reconciled' }); loadTransactions() },
+                  })}
+                />
+              </Tooltip>
+              <Tooltip title="Marcar pendiente">
+                <Button
+                  size="small" type="text" icon={<RollbackOutlined style={{ color: '#d46b08' }} />}
+                  onClick={() => Modal.confirm({
+                    title: 'Marcar como pendiente',
+                    content: 'La transaccion volvera a estado Pendiente para ser recategorizada.',
+                    okText: 'Confirmar',
+                    onOk: async () => { await updateTransaction(id!, row.id, { status: 'pending' }); loadTransactions() },
+                  })}
+                />
+              </Tooltip>
+            </>
+          ) : row.status !== 'reconciled' ? (
+            <Tooltip title="Categorizar">
+              <Button
+                size="small" type="text" icon={<TagsOutlined style={{ color: NAVY }} />}
+                onClick={() => setCategorizarTx(row)}
+              />
+            </Tooltip>
+          ) : null}
+          <Popconfirm title="¿Eliminar este movimiento?" onConfirm={() => handleDelete(row.id)} okText="Sí" cancelText="No">
+            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
       ),
     },
   ]
@@ -368,6 +649,7 @@ export default function TransaccionesPage() {
         <Space wrap>
           <Button icon={<CheckCircleOutlined />} onClick={() => navigate(`/bancos/${account.id}/conciliacion`)}>Conciliacion</Button>
           <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>Importar estado</Button>
+          <Button icon={<ControlOutlined />} onClick={() => navigate('/bancos/reglas')}>Reglas bancarias</Button>
           <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }} onClick={() => setTransactionOpen(true)}>Agregar transaccion</Button>
         </Space>
       </div>
@@ -399,14 +681,25 @@ export default function TransaccionesPage() {
           rowKey="id"
           size="small"
           loading={loading}
-          scroll={{ x: 'max-content' }}
-          sticky={{ offsetHeader: 60 }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
           pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
         />
       </Card>
 
       <TransactionModal open={transactionOpen} account={account} onClose={() => setTransactionOpen(false)} onSaved={loadTransactions} />
       <ImportModal open={importOpen} account={account} onClose={() => setImportOpen(false)} onSaved={loadTransactions} />
+      <CategorizarDrawer
+        open={!!categorizarTx}
+        transaction={categorizarTx}
+        account={account}
+        onClose={() => setCategorizarTx(null)}
+        onSaved={loadTransactions}
+      />
+      <PolizaModal
+        jeId={polizaJeId}
+        isForeign={account.currency !== 'GTQ'}
+        onClose={() => setPolizaJeId(null)}
+      />
     </div>
   )
 }

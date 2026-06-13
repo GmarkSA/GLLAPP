@@ -1,11 +1,12 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
 import {
   Card, Table, DatePicker, Space, Typography, Tag, Input,
-  Button, Row, Col, Statistic, Tooltip, InputNumber,
+  Button, Row, Col, Statistic, Tooltip, InputNumber, message,
 } from 'antd'
 import {
   SearchOutlined, FileTextOutlined, DownloadOutlined,
   FilePdfOutlined, PlusSquareOutlined, MinusSquareOutlined, ReloadOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -13,6 +14,7 @@ import {
   getLibroDiario, exportReporte,
   type LibroDiarioEntry, type LibroDiarioLine,
 } from '../../api/reportes'
+import { postAsiento } from '../../api/asientos'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -47,6 +49,20 @@ export default function LibroDiarioPage() {
   const [allExpanded,  setAllExpanded]  = useState(false)
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
   const [folio,     setFolio]     = useState<number>(1)
+  const [posting,   setPosting]   = useState<string | null>(null)
+
+  const handlePost = async (id: string) => {
+    setPosting(id)
+    try {
+      await postAsiento(id)
+      message.success('Póliza publicada — ahora aparece en todos los reportes')
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo publicar la póliza')
+    } finally {
+      setPosting(null)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -175,6 +191,23 @@ export default function LibroDiarioPage() {
       render: (v) => (
         <Text strong style={{ fontFamily: 'monospace', color: '#52c41a' }}>{fmtQ(v)}</Text>
       ),
+    },
+    {
+      key: 'actions', width: 100, align: 'center',
+      render: (_, row) => row.status === 'draft' ? (
+        <Tooltip title="Publicar para que aparezca en reportes financieros">
+          <Button
+            size="small"
+            type="primary"
+            ghost
+            icon={<CheckCircleOutlined />}
+            loading={posting === row.id}
+            onClick={() => handlePost(row.id)}
+          >
+            Publicar
+          </Button>
+        </Tooltip>
+      ) : null,
     },
   ]
 

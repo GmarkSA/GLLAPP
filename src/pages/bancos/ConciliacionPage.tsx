@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card, Empty, Input, Modal, Space, Statistic, Table, Tag, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   autoMatchReconciliation,
@@ -10,6 +10,7 @@ import {
   getPendingReconciliation,
   getReconciliationSummary,
   reconcileTransaction,
+  unreconcileTransaction,
   TRANSACTION_STATUS_CONFIG,
   type BankAccount,
   type BankTransaction,
@@ -20,6 +21,8 @@ import { moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
 
 const { Title, Text } = Typography
 
+type StatusFilter = 'pending' | 'categorized' | 'matched' | 'reconciled' | undefined
+
 export default function ConciliacionPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
@@ -29,6 +32,7 @@ export default function ConciliacionPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined)
   const [loading, setLoading] = useState(false)
   const [matching, setMatching] = useState(false)
 
@@ -42,7 +46,12 @@ export default function ConciliacionPage() {
     setLoading(true)
     try {
       const [pending, sum] = await Promise.all([
-        getPendingReconciliation(id, { page, limit: 50, search: search || undefined }),
+        getPendingReconciliation(id, {
+          page,
+          limit: 50,
+          search: search || undefined,
+          status: statusFilter ?? undefined,
+        }),
         getReconciliationSummary(id).catch(() => null),
       ])
       setRows(Array.isArray(pending.data) ? pending.data : [])
@@ -54,16 +63,21 @@ export default function ConciliacionPage() {
     } finally {
       setLoading(false)
     }
-  }, [id, page, search])
+  }, [id, page, search, statusFilter])
 
   useEffect(() => { load() }, [load])
 
   const totals = useMemo(() => ({
-    pending: summary?.pending ?? rows.length,
-    matched: summary?.matched ?? rows.filter(r => r.status === 'matched').length,
+    nonReconciled: (summary?.pending ?? 0) + (summary?.categorized ?? 0) + (summary?.matched ?? 0),
+    matched:    summary?.matched ?? 0,
     reconciled: summary?.reconciled ?? 0,
     difference: account?.bankBalance == null ? null : Number(account.bankBalance) - Number(account.currentBalance),
-  }), [account, rows, summary])
+  }), [account, summary])
+
+  const handleFilterClick = (filter: StatusFilter) => {
+    setStatusFilter(prev => prev === filter ? undefined : filter)
+    setPage(1)
+  }
 
   const handleAutoMatch = async () => {
     if (!id) return
@@ -93,6 +107,34 @@ export default function ConciliacionPage() {
     })
   }
 
+  const handleUnreconcile = (row: BankTransaction) => {
+    const isReconciled = row.status === 'reconciled'
+    Modal.confirm({
+      title: isReconciled ? 'Anular conciliacion' : 'Marcar como pendiente',
+      content: 'La transaccion volvera a estado Pendiente. Esta accion no anula el cobro o pago vinculado.',
+      okText: isReconciled ? 'Anular conciliacion' : 'Marcar pendiente',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await unreconcileTransaction({ transactionId: row.id })
+          message.success('Transaccion marcada como Pendiente')
+          setStatusFilter(undefined)
+          setPage(1)
+        } catch (e: any) {
+          message.error(e?.response?.data?.message || 'No se pudo actualizar la transaccion')
+          throw e
+        }
+      },
+    })
+  }
+
+  const cardStyle = (active: boolean) => ({
+    ...panelStyle,
+    cursor: 'pointer',
+    border: active ? `2px solid ${NAVY}` : '1px solid #f0f0f0',
+    transition: 'border 0.15s',
+  })
+
   const columns: ColumnsType<BankTransaction> = [
     { title: 'Fecha', dataIndex: 'transactionDate', width: 110, fixed: 'left', render: v => dayjs(v).format('DD/MM/YYYY') },
     {
@@ -113,8 +155,34 @@ export default function ConciliacionPage() {
       const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
       return <Tag color={cfg.color}>{cfg.label}</Tag>
     } },
-    { title: 'Sugerencia', key: 'match', width: 240, render: (_, row) => row.matchedPaymentId || row.matchedInvoiceId || row.matchedJournalEntryId ? <Tag color="purple">Coincidencia detectada</Tag> : <Text type="secondary">Sin coincidencia</Text> },
-    { title: '', key: 'actions', width: 120, fixed: 'right', render: (_, row) => <Button size="small" type="primary" icon={<CheckCircleOutlined />} style={{ background: NAVY }} onClick={() => handleReconcile(row)}>Conciliar</Button> },
+    { title: 'Sugerencia', key: 'match', width: 200, render: (_, row) => row.matchedPaymentId || row.matchedInvoiceId || row.matchedJournalEntryId ? <Tag color="purple">Coincidencia detectada</Tag> : <Text type="secondary">Sin coincidencia</Text> },
+    {
+      title: '',
+      key: 'actions',
+      width: 150,
+      fixed: 'right',
+      render: (_, row) => {
+        if (row.status === 'reconciled') {
+          return (
+            <Button size="small" danger icon={<RollbackOutlined />} onClick={() => handleUnreconcile(row)}>
+              Desconciliar
+            </Button>
+          )
+        }
+        if (row.status === 'categorized') {
+          return (
+            <Button size="small" icon={<RollbackOutlined />} onClick={() => handleUnreconcile(row)}>
+              Marcar pendiente
+            </Button>
+          )
+        }
+        return (
+          <Button size="small" type="primary" icon={<CheckCircleOutlined />} style={{ background: NAVY }} onClick={() => handleReconcile(row)}>
+            Conciliar
+          </Button>
+        )
+      },
+    },
   ]
 
   if (!account) {
@@ -144,10 +212,47 @@ export default function ConciliacionPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
-        <Card size="small" style={panelStyle}><Statistic title="Pendientes" value={totals.pending} valueStyle={{ color: '#d46b08', fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Con coincidencia" value={totals.matched} valueStyle={{ color: '#722ed1', fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Conciliadas" value={totals.reconciled} valueStyle={{ color: '#389e0d', fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Diferencia" value={totals.difference ?? 0} formatter={v => totals.difference == null ? 'Sin saldo banco' : moneyFmt(Number(v), account.currency)} valueStyle={{ color: totals.difference && Math.abs(totals.difference) > 0.01 ? '#cf1322' : NAVY, fontSize: 18 }} /></Card>
+        <Card
+          size="small"
+          style={cardStyle(statusFilter === undefined)}
+          onClick={() => handleFilterClick(undefined)}
+        >
+          <Statistic
+            title={<span>Pendientes{statusFilter === undefined && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
+            value={totals.nonReconciled}
+            valueStyle={{ color: '#d46b08', fontSize: 18 }}
+          />
+        </Card>
+        <Card
+          size="small"
+          style={cardStyle(statusFilter === 'matched')}
+          onClick={() => handleFilterClick('matched')}
+        >
+          <Statistic
+            title={<span>Con coincidencia{statusFilter === 'matched' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
+            value={totals.matched}
+            valueStyle={{ color: '#722ed1', fontSize: 18 }}
+          />
+        </Card>
+        <Card
+          size="small"
+          style={cardStyle(statusFilter === 'reconciled')}
+          onClick={() => handleFilterClick('reconciled')}
+        >
+          <Statistic
+            title={<span>Conciliadas{statusFilter === 'reconciled' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
+            value={totals.reconciled}
+            valueStyle={{ color: '#389e0d', fontSize: 18 }}
+          />
+        </Card>
+        <Card size="small" style={panelStyle}>
+          <Statistic
+            title="Diferencia"
+            value={totals.difference ?? 0}
+            formatter={v => totals.difference == null ? 'Sin saldo banco' : moneyFmt(Number(v), account.currency)}
+            valueStyle={{ color: totals.difference != null && Math.abs(totals.difference) > 0.01 ? '#cf1322' : NAVY, fontSize: 18 }}
+          />
+        </Card>
       </div>
 
       <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>
@@ -163,20 +268,24 @@ export default function ConciliacionPage() {
             style={{ width: 320 }}
           />
           <Button size="small" onClick={() => { setPage(1); load() }}>Filtrar</Button>
+          {statusFilter && (
+            <Button size="small" onClick={() => { setStatusFilter(undefined); setPage(1) }}>
+              Limpiar filtro
+            </Button>
+          )}
         </Space>
       </Card>
 
-      <Card size="small" style={panelStyle} bodyStyle={{ padding: 0 }}>
+      <Card size="small" style={panelStyle} styles={{ body: { padding: 0 } }}>
         <Table<BankTransaction>
           columns={columns}
           dataSource={rows}
           rowKey="id"
           size="small"
           loading={loading}
-          scroll={{ x: 'max-content' }}
-          sticky={{ offsetHeader: 60 }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 400px)' }}
           pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
-          locale={{ emptyText: <Empty description="Sin movimientos pendientes de conciliar" /> }}
+          locale={{ emptyText: <Empty description="Sin movimientos en este estado" /> }}
         />
       </Card>
     </div>

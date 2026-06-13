@@ -58,15 +58,26 @@ export default function ImportarEstadoPage() {
       .catch(() => setHistory([]))
   }, [selectedAccountId])
 
+  // Parsea fechas en DD-MM-YYYY, DD/MM/YYYY o ISO YYYY-MM-DD → siempre devuelve YYYY-MM-DD
+  const parseDate = (raw: unknown): string => {
+    const s = String(raw || '').trim()
+    if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
+      const sep = s[2]
+      const [d, m, y] = s.split(sep)
+      return `${y}-${m}-${d}`
+    }
+    const d = dayjs(s)
+    return d.isValid() ? d.format('YYYY-MM-DD') : ''
+  }
+
   const buildRows = (values: any) => {
     const parsed = rawRows
       .map(row => {
-        const debit = cleanNumber(row[values.debitField])
+        const debit  = cleanNumber(row[values.debitField])
         const credit = cleanNumber(row[values.creditField])
         const directAmount = cleanNumber(row[values.amountField])
         const amount = directAmount || credit || Math.abs(debit)
-        const dateRaw = row[values.dateField]
-        const parsedDate = dayjs(dateRaw).isValid() ? dayjs(dateRaw).format('YYYY-MM-DD') : String(dateRaw || '').slice(0, 10)
+        const parsedDate = parseDate(row[values.dateField])
         const description = String(row[values.descriptionField] ?? '').trim()
         if (!parsedDate || !description || !amount) return null
         return {
@@ -87,11 +98,44 @@ export default function ImportarEstadoPage() {
     const workbook = XLSX.read(buffer, { type: 'array' })
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
     const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
-    const [head = [], ...body] = matrix.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''))
-    setHeaders(head.map((h, index) => String(h || `Columna ${index + 1}`)))
+    const allRows = matrix.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''))
+
+    // Buscar la fila de encabezados real: primera fila cuya col[0] sea exactamente "Fecha"
+    // (maneja el formato BI que tiene varias filas de metadatos antes del header real)
+    let headerIdx = 0
+    for (let i = 0; i < Math.min(allRows.length, 20); i++) {
+      if (String(allRows[i][0] || '').trim().toLowerCase() === 'fecha') {
+        headerIdx = i
+        break
+      }
+    }
+
+    const head: any[] = allRows[headerIdx] ?? []
+    const body = allRows.slice(headerIdx + 1)
+
+    const labels = head.map((h, i) => String(h || `Columna ${i + 1}`))
+    setHeaders(labels)
     setRawRows(body)
     setFileName(file.name)
     setRows([])
+
+    // Auto-mapeo para formato Banco Industrial
+    const idx = (needle: string) =>
+      labels.findIndex(l => l.trim().toLowerCase().startsWith(needle.toLowerCase()))
+    const biMap = {
+      dateField:        idx('Fecha'),
+      descriptionField: idx('Descripci'),
+      referenceField:   idx('No. Doc'),
+      debitField:       idx('Debe'),
+      creditField:      idx('Haber'),
+      balanceField:     idx('Saldo'),
+    }
+    const detected = Object.values(biMap).filter(v => v >= 0).length >= 4
+    if (detected) {
+      form.setFieldsValue(biMap)
+      message.success('Formato Banco Industrial detectado — columnas auto-asignadas')
+    }
+
     return false
   }
 
@@ -209,7 +253,6 @@ export default function ImportarEstadoPage() {
             rowKey={(_, index) => String(index)}
             size="small"
             scroll={{ x: 'max-content' }}
-            sticky={{ offsetHeader: 60 }}
             pagination={{ pageSize: 50, showTotal: t => `${t} registros` }}
             locale={{ emptyText: 'Carga un archivo y genera la vista previa' }}
           />
@@ -222,7 +265,6 @@ export default function ImportarEstadoPage() {
           rowKey="id"
           size="small"
           scroll={{ x: 'max-content' }}
-          sticky={{ offsetHeader: 60 }}
           pagination={{ pageSize: 20, showTotal: t => `${t} registros` }}
           columns={[
             { title: 'Fecha', dataIndex: 'createdAt', width: 140, render: v => dayjs(v).format('DD/MM/YYYY HH:mm') },

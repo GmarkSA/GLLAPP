@@ -202,7 +202,12 @@ export default function CuentasBancariasPage() {
       title: 'Ultimo estado',
       dataIndex: 'lastStatementDate',
       width: 130,
-      render: v => v ? dayjs(v).format('DD/MM/YYYY') : <Text type="secondary">Sin importar</Text>,
+      render: v => {
+        if (!v) return <Text type="secondary">Sin importar</Text>
+        const d = dayjs(v)
+        if (!d.isValid() || d.year() < 2000 || d.year() > 2100) return <Text type="secondary">Sin importar</Text>
+        return d.format('DD/MM/YYYY')
+      },
     },
     {
       title: 'Estado',
@@ -255,7 +260,7 @@ export default function CuentasBancariasPage() {
           </Text>
         </div>
         <Space wrap>
-          <Button icon={<SwapOutlined />} onClick={() => navigate('/bancos/transferencias/nueva')}>Transferencia</Button>
+          <Button icon={<SwapOutlined />} onClick={() => navigate('/bancos/transferencias/nueva')}>Agregar transacción</Button>
           <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }} onClick={() => navigate('/bancos/nuevo')}>
             Nueva cuenta
           </Button>
@@ -312,8 +317,7 @@ export default function CuentasBancariasPage() {
           rowKey="id"
           size="small"
           loading={loading}
-          scroll={{ x: 'max-content' }}
-          sticky={{ offsetHeader: 60 }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
           pagination={{ pageSize: 50, showTotal: t => `${t} registros` }}
           locale={{ emptyText: <Empty description="Sin cuentas bancarias" /> }}
         />
