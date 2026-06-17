@@ -306,8 +306,10 @@ export default function CategorizarDrawer({
   const searchVendors = async (q: string) => {
     setVendorSearching(true)
     try {
-      const res = await getVendors({ search: q || undefined, isActive: true, limit: 30 })
-      setVendors(res.data ?? res ?? [])
+      const res = await getVendors({ search: q || undefined, limit: 30 })
+      // res puede ser Vendor[] directo o { data: Vendor[], meta: {...} }
+      const list: Vendor[] = Array.isArray(res) ? res : (res as any).data ?? []
+      setVendors(list)
     } catch { setVendors([]) }
     finally { setVendorSearching(false) }
   }
