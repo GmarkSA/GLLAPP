@@ -446,6 +446,8 @@ export interface SatDteEmitidos {
   total: number
   xmlUrl?: string
   pdfUrl?: string
+  xmlKey?: string
+  pdfKey?: string
   customerId?: string
   invoiceId?: string
   errorMessage?: string

@@ -9,6 +9,7 @@ import {
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
   SearchOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
+import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatEmitidosCustomer, deleteSatEmitidos,
@@ -413,11 +414,9 @@ export default function DteSatVentasPage() {
       width: 90,
       render: (_: unknown, r: SatDteEmitidos) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {r.xmlUrl
-            ? <a href={r.xmlUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>XML ↗</a>
-            : <Text type="secondary" style={{ fontSize: 12 }}>XML</Text>}
-          {r.pdfUrl
-            ? <a href={r.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600 }}>PDF ↗</a>
+          <DocumentLink documentKey={r.xmlKey} docType="fel-xml" label="XML" />
+          {r.pdfKey
+            ? <DocumentLink documentKey={r.pdfKey} docType="fel-pdf" label="PDF" />
             : r.uuid
               ? <Tooltip title="Verificar en portal SAT (FEL)">
                   <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${r.uuid}`}

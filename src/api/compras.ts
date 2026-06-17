@@ -389,6 +389,8 @@ export interface SatDte {
   total: number
   xmlUrl?: string
   pdfUrl?: string
+  xmlKey?: string
+  pdfKey?: string
   vendorId?: string
   purchaseInvoiceId?: string
   expenseId?: string
