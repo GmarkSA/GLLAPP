@@ -131,7 +131,6 @@ export default function PagoRecibidoFormPage() {
       const raw = errData?.error?.message ?? errData?.message ?? errData?.error
       const msg = Array.isArray(raw) ? raw.join(' | ') : (raw || 'Error al registrar el pago')
       message.error(msg, 8)
-      console.error('[PagoRecibido] error:', errData)
     } finally { setSaving(false) }
   }
 

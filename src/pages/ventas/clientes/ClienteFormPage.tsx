@@ -234,7 +234,6 @@ export default function ClienteFormPage() {
       const errMsg  = Array.isArray(raw) ? raw.join(' | ') : (typeof raw === 'string' ? raw : JSON.stringify(raw))
       const status  = e?.response?.status ? ` (HTTP ${e.response.status})` : ''
       message.error(errMsg ? `${errMsg}${status}` : `Error al guardar${status} — revisa la consola del navegador`, 8)
-      console.error('[ClienteForm] error:', e?.response?.data ?? e)
     } finally {
       setSaving(false)
     }

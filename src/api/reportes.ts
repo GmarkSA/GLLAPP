@@ -289,15 +289,6 @@ export const getCorrelativo = (tipo: string, year?: string) =>
 export const nextCorrelativo = (tipo: string, year?: string) =>
   api.post<any>(`${BASE}/correlativo/${tipo}/next`, null, { params: { year } }).then(unwrap) as Promise<CorrelativoData>
 
-// Export — returns a URL to trigger download
-export const buildExportUrl = (tipo: string, params: Record<string, string>) => {
-  const token = localStorage.getItem('access_token') || ''
-  const tenantId = localStorage.getItem('tenant_id') || ''
-  const qs = new URLSearchParams({ ...params, access_token: token }).toString()
-  const base = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api/v1'
-  return `${base}/reportes/exportar/${tipo}/excel?${qs}`
-}
-
 export const exportReporte = (tipo: string, formato: 'excel' | 'pdf', params: Record<string, string>) => {
   const qs = new URLSearchParams(params)
   return api.get(`${BASE}/exportar/${tipo}/${formato}`, {

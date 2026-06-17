@@ -183,7 +183,6 @@ export default function FacturaDetallePage() {
       voidForm.resetFields()
       load()
     } catch (e: any) {
-      console.error('[handleVoid] error completo:', e?.response?.data ?? e)
       const data   = e?.response?.data
       const raw    = data?.message ?? data?.error ?? data
       const errMsg = Array.isArray(raw) ? raw.join(' | ') : (typeof raw === 'string' ? raw : JSON.stringify(raw))

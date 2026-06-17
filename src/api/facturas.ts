@@ -471,7 +471,7 @@ export interface SatEmitidosJob {
 
 const DTE_EMIT = '/ventas/dte-sat'
 
-export const startSatEmitidosImport = (dto: { satNit: string; satPass: string; fechaInicio: string; fechaFin: string }) =>
+export const startSatEmitidosImport = (dto: { fechaInicio: string; fechaFin: string }) =>
   api.post(`${DTE_EMIT}/importar`, dto).then(unwrap) as Promise<SatEmitidosJob>
 
 export const syncSatEmitidosJob = (id: string) =>

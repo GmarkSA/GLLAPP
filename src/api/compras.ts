@@ -415,7 +415,7 @@ export interface SatImportJob {
 
 const DTE_SAT = '/compras/dte-sat'
 
-export const startSatDteImport = (dto: { satNit: string; satPass: string; fechaInicio: string; fechaFin: string }) =>
+export const startSatDteImport = (dto: { fechaInicio: string; fechaFin: string }) =>
   api.post(`${DTE_SAT}/importar`, dto).then(unwrap) as Promise<SatImportJob>
 
 export const syncSatDteJob = (id: string) =>

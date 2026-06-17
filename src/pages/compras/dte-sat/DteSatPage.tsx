@@ -96,7 +96,7 @@ export default function DteSatPage() {
   const [stepperVendorForm]                         = Form.useForm()
   const [vendors, setVendors] = useState<{ value: string; label: string; type?: string }[]>([])
   const [unidades, setUnidades] = useState<UnidadMedida[]>([])
-  const [satCredentials, setSatCredentials] = useState<{ satNit?: string; satAgenciaPassword?: string }>({})
+  const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
 
   // ── Cuentas e impuestos ────────────────────────────────────────────────────
   useEffect(() => {
@@ -121,7 +121,6 @@ export default function DteSatPage() {
     getOrganizationProfile()
       .then((p: any) => setSatCredentials({
         satNit: p?.settings?.satNit,
-        satAgenciaPassword: p?.settings?.satAgenciaPassword,
       }))
       .catch(() => {})
   }, [])
@@ -185,15 +184,13 @@ export default function DteSatPage() {
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleImport = async (values: { range: [Dayjs, Dayjs] }) => {
-    if (!satCredentials.satNit || !satCredentials.satAgenciaPassword) {
-      message.error('Configura el NIT y contraseña SAT en Configuración → Configuración fiscal antes de importar')
+    if (!satCredentials.satNit) {
+      message.error('Configura el NIT SAT en Configuración → Configuración fiscal antes de importar')
       return
     }
     setImporting(true)
     try {
       const job = await startSatDteImport({
-        satNit: satCredentials.satNit,
-        satPass: satCredentials.satAgenciaPassword,
         fechaInicio: values.range[0].format('YYYY-MM-DD'),
         fechaFin: values.range[1].format('YYYY-MM-DD'),
       })
@@ -1159,7 +1156,7 @@ export default function DteSatPage() {
                 {hasRunningJobs && <Text type="warning" style={{ marginLeft: 6, fontSize: 12 }}>· Importación en progreso</Text>}
               </Text>
             </div>
-            {!satCredentials.satNit || !satCredentials.satAgenciaPassword ? (
+            {!satCredentials.satNit ? (
               <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
                 ⚠ Configura credenciales SAT en <strong>Configuración → Configuración fiscal</strong>
               </div>
@@ -1196,7 +1193,7 @@ export default function DteSatPage() {
                 htmlType="submit"
                 icon={<ApiOutlined />}
                 loading={importing}
-                disabled={!satCredentials.satNit || !satCredentials.satAgenciaPassword}
+                disabled={!satCredentials.satNit}
                 block
                 style={{ background: '#1B3A6B' }}
               >
