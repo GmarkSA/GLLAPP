@@ -58,9 +58,13 @@ const OrdenesCompraPage        = lazy(() => import('./pages/compras/ordenes/Orde
 const OrdenCompraFormPage      = lazy(() => import('./pages/compras/ordenes/OrdenCompraFormPage'))
 
 // Bancos
-const BancosPage       = lazy(() => import('./pages/bancos/BancosPage'))
-const BancoFormPage    = lazy(() => import('./pages/bancos/BancoFormPage'))
-const BancoDetallePage = lazy(() => import('./pages/bancos/BancoDetallePage'))
+const CuentasBancariasPage = lazy(() => import('./pages/bancos/CuentasBancariasPage'))
+const CuentaFormPage       = lazy(() => import('./pages/bancos/CuentaFormPage'))
+const TransaccionesPage    = lazy(() => import('./pages/bancos/TransaccionesPage'))
+const ConciliacionPage     = lazy(() => import('./pages/bancos/ConciliacionPage'))
+const TransferenciaPage    = lazy(() => import('./pages/bancos/TransferenciaPage'))
+const ImportarEstadoPage   = lazy(() => import('./pages/bancos/ImportarEstadoPage'))
+const ReglasBancariasPage  = lazy(() => import('./pages/bancos/ReglasBancariasPage'))
 
 // Contabilidad
 const CatalogoPage    = lazy(() => import('./pages/contabilidad/CatalogoPage'))
@@ -185,10 +189,14 @@ export default function App() {
           <Route path="compras/ordenes/:id"         element={<OrdenCompraFormPage />} />
           <Route path="compras/ordenes/:id/editar"  element={<OrdenCompraFormPage />} />
 
-          <Route path="bancos"            element={<BancosPage />} />
-          <Route path="bancos/nuevo"      element={<BancoFormPage />} />
-          <Route path="bancos/:id"        element={<BancoDetallePage />} />
-          <Route path="bancos/:id/editar" element={<BancoFormPage />} />
+          <Route path="bancos"                      element={<CuentasBancariasPage />} />
+          <Route path="bancos/nuevo"               element={<CuentaFormPage />} />
+          <Route path="bancos/importar"            element={<ImportarEstadoPage />} />
+          <Route path="bancos/reglas"              element={<ReglasBancariasPage />} />
+          <Route path="bancos/transferencias/nueva" element={<TransferenciaPage />} />
+          <Route path="bancos/:id"                 element={<TransaccionesPage />} />
+          <Route path="bancos/:id/editar"          element={<CuentaFormPage />} />
+          <Route path="bancos/:id/conciliacion"    element={<ConciliacionPage />} />
 
           <Route path="contabilidad/catalogo" element={<CatalogoPage />} />
           <Route path="contabilidad/activos"  element={<ComingSoon title="Activos Fijos" />} />

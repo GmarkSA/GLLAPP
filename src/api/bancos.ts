@@ -5,73 +5,167 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 export type BankAccountType = 'checking' | 'savings' | 'credit_card' | 'petty_cash' | 'investment' | 'other'
 export type BankAccountStatus = 'active' | 'inactive'
 export type TransactionType = 'credit' | 'debit'
-export type TransactionStatus = 'pending' | 'reconciled' | 'excluded'
+export type TransactionStatus = 'pending' | 'categorized' | 'matched' | 'reconciled' | 'excluded' | 'voided'
+export type BankTransferStatus = 'draft' | 'posted' | 'voided'
+export type BankRuleApplyTo = 'all' | 'credit' | 'debit'
+export type BankRuleMatchMode = 'all' | 'any'
 
 export interface BankAccount {
-  id:                string
-  name:              string
-  description?:      string
-  type:              BankAccountType
-  status:            BankAccountStatus
-  isPrimary:         boolean
-  bankName?:         string
-  branchName?:       string
-  accountNumber?:    string
-  routingNumber?:    string
-  swiftCode?:        string
-  iban?:             string
-  currency:          string
-  openingBalance:    number
+  id: string
+  companyId: string
+  name: string
+  description?: string
+  type: BankAccountType
+  status: BankAccountStatus
+  isPrimary: boolean
+  bankName?: string
+  branchName?: string
+  accountNumber?: string
+  routingNumber?: string
+  swiftCode?: string
+  iban?: string
+  currency: string
+  openingBalance: number
   openingBalanceDate?: string
-  currentBalance:    number
-  bankBalance?:      number
-  glAccountId?:      string
-  glAccountCode?:    string
-  glAccountName?:    string
-  contactPerson?:    string
-  contactPhone?:     string
-  contactEmail?:     string
-  feedsEnabled:      boolean
+  currentBalance: number
+  bankBalance?: number
+  glAccountId?: string
+  glAccountCode?: string
+  glAccountName?: string
+  contactPerson?: string
+  contactPhone?: string
+  contactEmail?: string
+  feedsEnabled: boolean
   feedsLastRefreshAt?: string
-  lastStatementDate?:  string
+  lastStatementDate?: string
   uncategorizedCount?: number
-  notes?:            string
-  createdAt:         string
-  updatedAt:         string
+  notes?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface BankTransaction {
-  id:               string
-  bankAccountId:    string
-  transactionDate:  string
-  description:      string
-  type:             TransactionType
-  amount:           number
-  runningBalance?:  number
-  status:           TransactionStatus
-  reference?:       string
+  id: string
+  companyId: string
+  bankAccountId: string
+  transactionDate: string
+  description: string
+  type: TransactionType
+  amount: number
+  currency?: string
+  exchangeRate?: number
+  baseAmount?: number
+  runningBalance?: number
+  status: TransactionStatus
+  reference?: string
   matchedInvoiceId?: string
   matchedPaymentId?: string
   matchedJournalEntryId?: string
-  accountId?:       string
-  importedAt:       string
+  accountId?: string
+  accountCode?: string
+  accountName?: string
+  sourceDocumentType?: string
+  sourceDocumentId?: string
+  importedAt: string
 }
 
 export interface BankSummary {
-  totalAccounts:  number
-  totalBalance:   number
+  totalAccounts: number
+  totalBalance: number
   accountsByType: Record<string, { count: number; balance: number; currency: string }>
-  accounts:       BankAccount[]
+  accounts: BankAccount[]
+}
+
+export interface BankTransferDto {
+  companyId: string
+  fromAccountId: string
+  toAccountId: string
+  amount: number
+  currency: string
+  exchangeRate?: number
+  transferDate: string
+  reference?: string
+  notes?: string
+}
+
+export interface BankTransfer extends BankTransferDto {
+  id: string
+  status: BankTransferStatus
+  createdAt: string
+}
+
+export interface BankImportBatch {
+  id: string
+  companyId: string
+  bankAccountId: string
+  fileName?: string
+  fileType?: string
+  totalRows: number
+  importedCount: number
+  skippedCount: number
+  rulesAppliedCount?: number
+  status: 'completed' | 'failed'
+  createdAt: string
+}
+
+export interface BankRuleCondition {
+  field: 'description' | 'reference' | 'amount' | 'type' | 'currency'
+  operator: 'contains' | 'equals' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte'
+  value: string | number
+}
+
+export interface BankRuleAction {
+  accountId?: string
+  accountCode?: string
+  accountName?: string
+  sourceDocumentType?: string
+  sourceDocumentId?: string
+  costCenterId?: string
+  projectId?: string
+  status?: TransactionStatus
+}
+
+export interface BankRule {
+  id: string
+  companyId: string
+  name: string
+  isActive: boolean
+  bankAccountId?: string
+  applyTo: BankRuleApplyTo
+  matchMode: BankRuleMatchMode
+  conditions: BankRuleCondition[]
+  action: BankRuleAction
+  timesApplied: number
+  lastAppliedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReconciliationSummary {
+  pending: number
+  matched?: number
+  categorized?: number
+  reconciled: number
+  excluded?: number
+  total: number
 }
 
 const BASE = '/bancos/cuentas'
+const RECONCILIATION_BASE = '/bancos/conciliacion'
+const TRANSFERS_BASE = '/bancos/transferencias'
+const RULES_BASE = '/bancos/reglas'
 
-// ── Cuentas ───────────────────────────────────────────────────────────────────
-export const getBankAccounts = (params?: { search?: string; status?: string; type?: string }) =>
+export const moneyGT = (n: number) =>
+  `Q ${Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+export const money = (n: number, currency = 'GTQ') =>
+  `${currency === 'GTQ' ? 'Q' : currency} ${Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+export const getBankAccounts = (params?: { search?: string; status?: string; type?: string; companyId?: string }) =>
   api.get(BASE, { params }).then(unwrap) as Promise<BankAccount[]>
 
-export const getBankSummary = () =>
-  api.get(`${BASE}/resumen`).then(unwrap) as Promise<BankSummary>
+export const getBankSummary = (params?: { companyId?: string }) =>
+  api.get(`${BASE}/resumen`, { params }).then(unwrap) as Promise<BankSummary>
 
 export const getBankAccount = (id: string) =>
   api.get(`${BASE}/${id}`).then(unwrap) as Promise<BankAccount>
@@ -94,13 +188,20 @@ export const deactivateBankAccount = (id: string) =>
 export const refreshBankBalance = (id: string) =>
   api.post(`${BASE}/${id}/actualizar-saldo`).then(unwrap) as Promise<{ balance: number }>
 
-// ── Movimientos ───────────────────────────────────────────────────────────────
 export const getTransactions = (id: string, params?: {
-  page?: number; limit?: number; search?: string; status?: string;
-  fromDate?: string; toDate?: string;
+  page?: number
+  limit?: number
+  search?: string
+  status?: string
+  type?: string
+  fromDate?: string
+  toDate?: string
 }) =>
   api.get(`${BASE}/${id}/movimientos`, { params }).then(unwrap) as Promise<{
-    data: BankTransaction[]; total: number; page: number; limit: number;
+    data: BankTransaction[]
+    total: number
+    page: number
+    limit: number
   }>
 
 export const addTransaction = (id: string, dto: Partial<BankTransaction>) =>
@@ -112,20 +213,97 @@ export const updateTransaction = (id: string, txId: string, dto: Partial<BankTra
 export const deleteTransaction = (id: string, txId: string) =>
   api.delete(`${BASE}/${id}/movimientos/${txId}`)
 
-export const importStatement = (id: string, rows: Partial<BankTransaction>[]) =>
-  api.post(`${BASE}/${id}/importar`, { rows }).then(unwrap) as Promise<{ imported: number; skipped: number }>
+export const importStatement = (id: string, dto: {
+  rows: Partial<BankTransaction>[]
+  fileName?: string
+  fileType?: string
+}) =>
+  api.post(`${BASE}/${id}/importar`, dto).then(unwrap) as Promise<{ imported: number; skipped: number; importBatchId?: string }>
+
+export const getImportHistory = (id: string, params?: { page?: number; limit?: number }) =>
+  api.get(`${BASE}/${id}/importaciones`, { params }).then(unwrap) as Promise<{
+    data: BankImportBatch[]
+    total: number
+    page: number
+    limit: number
+  }>
 
 export const syncBankAccount = (id: string) =>
   api.post(`${BASE}/${id}/sincronizar`).then(unwrap)
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+export const getReconciliationSummary = (accountId: string) =>
+  api.get(`${RECONCILIATION_BASE}/${accountId}/resumen`).then(unwrap) as Promise<ReconciliationSummary>
+
+export const getPendingReconciliation = (accountId: string, params?: { page?: number; limit?: number; search?: string; status?: string }) =>
+  api.get(`${RECONCILIATION_BASE}/${accountId}/pendientes`, { params }).then(unwrap) as Promise<{
+    data: BankTransaction[]
+    total: number
+    page: number
+    limit: number
+  }>
+
+export const unreconcileTransaction = (dto: { transactionId: string }) =>
+  api.post(`${RECONCILIATION_BASE}/desconciliar`, dto).then(unwrap)
+
+export const autoMatchReconciliation = (accountId: string) =>
+  api.post(`${RECONCILIATION_BASE}/auto-match/${accountId}`).then(unwrap) as Promise<{ matched: number; message?: string }>
+
+export const reconcileTransaction = (dto: {
+  transactionId: string
+  invoiceId?: string
+  paymentId?: string
+  journalEntryId?: string
+  accountId?: string
+}) =>
+  api.post(`${RECONCILIATION_BASE}/conciliar`, dto).then(unwrap)
+
+export const createBankTransfer = (dto: BankTransferDto) =>
+  api.post(TRANSFERS_BASE, dto).then(unwrap) as Promise<BankTransfer>
+
+export const getBankTransfers = (params?: { page?: number; limit?: number; search?: string }) =>
+  api.get(TRANSFERS_BASE, { params }).then(unwrap) as Promise<{
+    data: BankTransfer[]
+    total: number
+    page: number
+    limit: number
+  }>
+
+export const getBankRules = (params?: { page?: number; limit?: number; search?: string; bankAccountId?: string; isActive?: boolean }) =>
+  api.get(RULES_BASE, { params }).then(unwrap) as Promise<{
+    data: BankRule[]
+    total: number
+    page: number
+    limit: number
+  }>
+
+export const createBankRule = (dto: Partial<BankRule>) =>
+  api.post(RULES_BASE, dto).then(unwrap) as Promise<BankRule>
+
+export const updateBankRule = (id: string, dto: Partial<BankRule>) =>
+  api.patch(`${RULES_BASE}/${id}`, dto).then(unwrap) as Promise<BankRule>
+
+export const deleteBankRule = (id: string) =>
+  api.delete(`${RULES_BASE}/${id}`)
+
+export const applyBankRules = (dto: { bankAccountId?: string; ruleId?: string; transactionIds?: string[] }) =>
+  api.post(`${RULES_BASE}/aplicar`, dto).then(unwrap) as Promise<{ reviewed: number; applied: number }>
+
 export const ACCOUNT_TYPE_CONFIG: Record<BankAccountType, { label: string; color: string; icon: string }> = {
-  checking:    { label: 'Cuenta Monetaria',    color: '#1677ff', icon: '🏦' },
-  savings:     { label: 'Cuenta de Ahorro',    color: '#52c41a', icon: '💰' },
-  credit_card: { label: 'Tarjeta de Crédito',  color: '#ff4d4f', icon: '💳' },
-  petty_cash:  { label: 'Caja Chica',          color: '#fa8c16', icon: '💵' },
-  investment:  { label: 'Inversión',           color: '#722ed1', icon: '📈' },
-  other:       { label: 'Otra',                color: '#8c8c8c', icon: '🏛️'  },
+  checking: { label: 'Cuenta monetaria', color: '#1677ff', icon: 'B' },
+  savings: { label: 'Cuenta de ahorro', color: '#52c41a', icon: 'A' },
+  credit_card: { label: 'Tarjeta de credito', color: '#ff4d4f', icon: 'T' },
+  petty_cash: { label: 'Caja chica', color: '#fa8c16', icon: 'C' },
+  investment: { label: 'Inversion', color: '#722ed1', icon: 'I' },
+  other: { label: 'Otra', color: '#8c8c8c', icon: 'O' },
+}
+
+export const TRANSACTION_STATUS_CONFIG: Record<TransactionStatus, { label: string; color: string }> = {
+  pending: { label: 'Pendiente', color: 'orange' },
+  categorized: { label: 'Categorizada', color: 'blue' },
+  matched: { label: 'Con coincidencia', color: 'purple' },
+  reconciled: { label: 'Conciliada', color: 'green' },
+  excluded: { label: 'Excluida', color: 'default' },
+  voided: { label: 'Anulada', color: 'red' },
 }
 
 export const BANK_NAMES_GT = [
@@ -140,8 +318,7 @@ export const BANK_NAMES_GT = [
   'Banco Azteca',
   'Banco Inmobiliario',
   'Citi Guatemala',
-  'HSBC Guatemala',
-  'Banco de América Central (BAC)',
+  'Banco de America Central (BAC)',
   'Vivibanco',
   'Otro',
 ]

@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 5173,
+    strictPort: true,   // falla con error claro si 5173 está ocupado — no se mueve a 5174
+    watch: {
+      usePolling: true, // más confiable en Windows (NTFS no siempre dispara eventos nativos)
+      interval: 300,
+    },
+  },
   build: {
     rollupOptions: {
       output: {

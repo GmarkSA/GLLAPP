@@ -7,7 +7,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  ArrowLeftOutlined, EditOutlined, ReloadOutlined, PlusOutlined,
+  ArrowLeftOutlined, ControlOutlined, EditOutlined, ReloadOutlined, PlusOutlined,
   UploadOutlined, DeleteOutlined, LinkOutlined, CheckCircleOutlined,
   FileTextOutlined, BankOutlined, SyncOutlined,
 } from '@ant-design/icons'
@@ -158,7 +158,7 @@ function ImportModal({ accountId, open, onClose, onSaved }: {
     if (!rows.length) return
     setSaving(true)
     try {
-      const res = await importStatement(accountId, rows)
+      const res = await importStatement(accountId, { rows })
       message.success(`Importados: ${res.imported} · Omitidos (duplicados): ${res.skipped}`)
       setRows([]); setPreview(false)
       onSaved(); onClose()
@@ -392,16 +392,23 @@ export default function BancoDetallePage() {
 
   const cfg = ACCOUNT_TYPE_CONFIG[account.type]
 
+  const fmtDate = (d: string) => {
+    const s = String(d || '').split('T')[0]
+    if (!s || s <= '1970-01-01') return <Text type="secondary">—</Text>
+    const [y, m, day] = s.split('-')
+    return `${day}/${m}/${y}`
+  }
+
   const columns: ColumnsType<BankTransaction> = [
     {
       title: 'Fecha',
       dataIndex: 'transactionDate',
       width: 100,
-      render: d => dayjs(d).format('DD/MM/YYYY'),
+      render: fmtDate,
       sorter: (a, b) => a.transactionDate.localeCompare(b.transactionDate),
     },
     {
-      title: 'Descripción',
+      title: 'Descripción / Referencia',
       dataIndex: 'description',
       ellipsis: true,
       render: (desc, row) => (
@@ -412,25 +419,34 @@ export default function BancoDetallePage() {
       ),
     },
     {
-      title: 'Tipo',
-      dataIndex: 'type',
-      width: 90,
-      render: t => (
-        <Tag color={t === 'credit' ? 'green' : 'red'}>
-          {t === 'credit' ? '↑ Entrada' : '↓ Salida'}
-        </Tag>
-      ),
+      title: 'Haber (Ingreso)',
+      key: 'haber',
+      width: 150,
+      align: 'right',
+      render: (_, row) => row.type === 'credit'
+        ? <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#389e0d' }}>
+            + {Number(row.amount).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </span>
+        : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Monto',
-      dataIndex: 'amount',
-      width: 130,
+      title: 'Debe (Egreso)',
+      key: 'debe',
+      width: 150,
       align: 'right',
-      render: (n, row) => (
-        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: row.type === 'credit' ? '#389e0d' : '#cf1322' }}>
-          {row.type === 'credit' ? '+' : '-'} {Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-        </span>
-      ),
+      render: (_, row) => row.type === 'debit'
+        ? <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#cf1322' }}>
+            - {Number(row.amount).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </span>
+        : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Cuenta contable',
+      key: 'account',
+      width: 180,
+      render: (_, row) => row.accountCode
+        ? <Tooltip title={row.accountName}><Tag color="purple">{row.accountCode}</Tag></Tooltip>
+        : <Tag color="orange">Sin categorizar</Tag>,
     },
     {
       title: 'Estado',
@@ -439,12 +455,14 @@ export default function BancoDetallePage() {
       render: s => <Tag color={STATUS_COLOR[s]}>{STATUS_LABEL[s]}</Tag>,
     },
     {
-      title: 'Acciones',
-      width: 120,
+      title: '',
+      key: 'actions',
+      width: 90,
+      fixed: 'right',
       align: 'center',
       render: (_, row) => (
         <Space size={4}>
-          <Tooltip title="Categorizar / vincular cuenta">
+          <Tooltip title="Categorizar">
             <Button
               size="small" type="text" icon={<LinkOutlined />}
               onClick={() => { setSelectedTx(row); setCategorizeOpen(true) }}
@@ -500,6 +518,12 @@ export default function BancoDetallePage() {
             onClick={handleRefreshBalance}
           >
             Actualizar saldo
+          </Button>
+          <Button
+            icon={<ControlOutlined />}
+            onClick={() => navigate('/bancos/reglas')}
+          >
+            Reglas bancarias
           </Button>
           <Button
             icon={<EditOutlined />}
@@ -617,7 +641,7 @@ export default function BancoDetallePage() {
           rowKey="id"
           loading={txLoad}
           size="small"
-          scroll={{ x: 700 }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 460px)' }}
           pagination={{
             current: page,
             pageSize: 25,

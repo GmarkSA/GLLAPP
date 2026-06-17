@@ -54,6 +54,12 @@ export const useCompanyStore = create<CompanyStore>()(
           if (!current && companies.length > 0) {
             const def = companies.find(c => c.isDefault) ?? companies[0]
             await get().setActiveCompany(def)
+          } else if (current && !localStorage.getItem('activeCompanyId')) {
+            // Zustand persist restauró activeCompany pero localStorage.activeCompanyId
+            // puede faltar (clave separada). El interceptor de axios la necesita para
+            // enviar X-Company-ID. Re-sincronizar sin llamar setActiveCompany completo.
+            localStorage.setItem('activeCompanyId', current.id)
+            localStorage.setItem('activeCompany', JSON.stringify(current))
           }
         } catch {
           // silent — no interrumpir la UI

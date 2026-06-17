@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Typography, Button, Table, Tag, Space, Input, Select,
@@ -307,7 +307,7 @@ export default function InventarioPage() {
           loading={loading}
           rowKey="id"
           size="small"
-          scroll={{ x: 900 }}
+          scroll={{ x: 900, y: 'calc(100vh - 280px)' }}
           pagination={{
             current: page,
             pageSize: limit,

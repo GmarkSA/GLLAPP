@@ -1,6 +1,56 @@
 import api from './axios'
+import { getOrganizationProfile } from './configuracion'
 
 const unwrap = (r: any) => r.data?.data ?? r.data
+
+// ─── Account Defaults ─────────────────────────────────────────────────────────
+export interface AccountDefaults {
+  customerAdvanceAccountCode?: string
+  vendorAdvanceAccountCode?:   string
+  employeeAdvanceAccountCode?: string
+}
+
+export const getAccountDefaults = async (): Promise<AccountDefaults> => {
+  const profile = await getOrganizationProfile().catch(() => ({} as any))
+  return (profile as any)?.settings?.accountDefaults ?? {}
+}
+
+// ─── Anticipos Proveedor ──────────────────────────────────────────────────────
+export interface VendorAdvance {
+  id:                 string
+  advanceNumber:      string
+  vendorId?:          string
+  vendorName?:        string
+  advanceDate:        string
+  amount:             number
+  currency:           string
+  exchangeRate:       number
+  amountGTQ:          number
+  balance:            number
+  status:             'open' | 'partial' | 'applied' | 'voided'
+  bankAccountId?:     string
+  advanceAccountCode?: string
+  advanceAccountName?: string
+  journalEntryId?:    string
+  reference?:         string
+  journalLines?:      { accountCode: string; accountName: string; debit: number; credit: number }[]
+}
+
+export const createVendorAdvance = (dto: {
+  vendorId?:           string
+  vendorName?:         string
+  amount:              number
+  date?:               string
+  currency?:           string
+  exchangeRate?:       number
+  reference?:          string
+  notes?:              string
+  bankAccountId?:      string
+  advanceAccountCode?: string
+}) => api.post('/compras/anticipos-proveedor', dto).then(unwrap) as Promise<VendorAdvance>
+
+export const getVendorAdvances = (params?: { vendorId?: string; status?: string; page?: number; limit?: number }) =>
+  api.get('/compras/anticipos-proveedor', { params }).then(unwrap) as Promise<{ data: VendorAdvance[]; total: number }>
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type BillStatus   = 'draft' | 'pending_approval' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'

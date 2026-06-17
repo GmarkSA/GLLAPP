@@ -47,8 +47,7 @@ const menuItems = [
     { key: '/compras/dte-sat',                label: 'DTE SAT' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
-    { key: '/bancos',       label: 'Cuentas bancarias' },
-    { key: '/bancos/nuevo', label: '+ Nueva cuenta' },
+    { key: '/bancos',                      label: 'Cuentas bancarias' },
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
     { key: '/contabilidad/catalogo', label: 'Catálogo de cuentas' },
