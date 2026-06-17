@@ -9,6 +9,7 @@ import {
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
   SearchOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
+import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatDteVendor, deleteSatDte,
@@ -570,11 +571,9 @@ export default function DteSatPage() {
       width: 100,
       render: (_, row) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {row.xmlUrl
-            ? <a href={row.xmlUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>XML ↗</a>
-            : <Text type="secondary" style={{ fontSize: 12 }}>XML</Text>}
-          {row.pdfUrl
-            ? <a href={row.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600 }}>PDF ↗</a>
+          <DocumentLink documentKey={row.xmlKey} docType="fel-xml-proveedor" label="XML" />
+          {row.pdfKey
+            ? <DocumentLink documentKey={row.pdfKey} docType="fel-pdf-proveedor" label="PDF" />
             : row.uuid
               ? <Tooltip title="Ver en portal SAT (verificación FEL)">
                   <a
