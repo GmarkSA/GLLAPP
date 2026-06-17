@@ -9,13 +9,24 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+const PUBLIC_PATHS = ['/auth/login', '/auth/refresh', '/auth/logout', '/public/']
+
 api.interceptors.request.use((config) => {
   const token           = localStorage.getItem('accessToken')
   const tenantId        = localStorage.getItem('tenantId')
   const activeCompanyId = localStorage.getItem('activeCompanyId')
+
   if (token)           config.headers.Authorization   = `Bearer ${token}`
-  if (tenantId)        config.headers['X-Tenant-ID']  = tenantId
   if (activeCompanyId) config.headers['X-Company-ID'] = activeCompanyId
+
+  const isPublicPath = PUBLIC_PATHS.some(p => config.url?.includes(p))
+  if (!isPublicPath && !tenantId) {
+    console.error('[Axios] Request bloqueado: X-Tenant-ID ausente —', config.url)
+    getAuthStore().then(store => store.getState().logout())
+    return Promise.reject(new axios.CanceledError('X-Tenant-ID ausente'))
+  }
+
+  if (tenantId) config.headers['X-Tenant-ID'] = tenantId
   return config
 })
 
@@ -27,6 +38,8 @@ let refreshingPromise: Promise<string> | null = null
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
+    if (axios.isCancel(error)) return Promise.reject(error)
+
     const original = error.config
 
     const isAuthEndpoint = original.url?.includes('/auth/login') || original.url?.includes('/auth/refresh')

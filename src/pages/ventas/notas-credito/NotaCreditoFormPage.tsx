@@ -147,14 +147,10 @@ export default function NotaCreditoFormPage() {
         else if (Array.isArray(body?.data?.data)) list = body.data.data // { data: { data:[...] } } ← formato real
         else if (Array.isArray(body?.data))       list = body.data      // { data: [...] }
 
-        console.log('[NC-Form] total rows before filter:', list.length, 'customerId:', customerId)
-
         // Excluir solo credit_notes y anuladas
         const activas = list.filter(
           (inv: any) => inv.type !== 'credit_note' && inv.status !== 'voided'
         )
-
-        console.log('[NC-Form] rows after filter:', activas.length, activas.map((i: any) => i.invoiceNumber))
 
         setInvoiceOptions(
           activas.map((inv: any) => ({
@@ -168,7 +164,6 @@ export default function NotaCreditoFormPage() {
         )
       })
       .catch((err: any) => {
-        console.error('[NC-Form] fetchInvoices error:', err?.response?.data ?? err?.message)
       })
       .finally(() => setLoadingInvoices(false))
   }

@@ -274,7 +274,6 @@ export default function FacturaFormPage() {
       const raw = err?.response?.data?.message
       const msg = Array.isArray(raw) ? raw.join(' | ') : (raw ?? 'Error al guardar la factura')
       message.error(msg, 6)
-      console.error('[FacturaForm] save error:', err?.response?.data)
     } finally { setSaving(false) }
   }
 

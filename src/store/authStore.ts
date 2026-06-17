@@ -30,8 +30,6 @@ export interface Company {
 interface AuthState {
   user: User | null
   tenantId: string | null
-  activeCompanyId: string | null
-  activeCompany: Company | null
   tenantGroupName: string | null
   isAuthenticated: boolean
   isLoading: boolean
@@ -39,7 +37,6 @@ interface AuthState {
   register: (data: RegisterData) => Promise<void>
   logout: () => void
   setTenant: (tenantId: string) => void
-  setActiveCompany: (company: Company) => void
   setTenantGroupName: (name: string | null) => void
   bootstrapAuth: () => Promise<void>
 }
@@ -55,10 +52,6 @@ interface RegisterData {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   tenantId: localStorage.getItem('tenantId'),
-  activeCompanyId: localStorage.getItem('activeCompanyId'),
-  activeCompany: (() => {
-    try { return JSON.parse(localStorage.getItem('activeCompany') || 'null') } catch { return null }
-  })(),
   tenantGroupName: localStorage.getItem('tenantGroupName'),
   isAuthenticated: !!localStorage.getItem('accessToken'),
   isLoading: false,
@@ -114,18 +107,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.clear()
-    set({ user: null, isAuthenticated: false, tenantId: null, activeCompanyId: null, activeCompany: null, tenantGroupName: null })
+    set({ user: null, isAuthenticated: false, tenantId: null, tenantGroupName: null })
   },
 
   setTenant: (tenantId) => {
     localStorage.setItem('tenantId', tenantId)
     set({ tenantId })
-  },
-
-  setActiveCompany: (company) => {
-    localStorage.setItem('activeCompanyId', company.id)
-    localStorage.setItem('activeCompany', JSON.stringify(company))
-    set({ activeCompanyId: company.id, activeCompany: company })
   },
 
   setTenantGroupName: (name) => {
