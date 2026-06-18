@@ -11,6 +11,7 @@ import {
   ExclamationCircleOutlined, CheckCircleOutlined,
   CheckSquareOutlined, SettingOutlined,
 } from '@ant-design/icons'
+import { PageHeader } from '../../../components/ui/PageHeader'
 import type { ColumnsType } from 'antd/es/table'
 import type { RangePickerProps } from 'antd/es/date-picker'
 import dayjs from 'dayjs'
@@ -318,19 +319,16 @@ export default function FacturasPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <FileTextOutlined style={{ fontSize: 24, color: '#1B3A6B' }} />
-          <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Facturas de venta</Title>
-            <Text type="secondary">Gestión de facturas emitidas a clientes</Text>
-          </div>
-        </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1B3A6B' }}>
-          Nueva factura
-        </Button>
-      </div>
+      <PageHeader
+        icon={<FileTextOutlined />}
+        title="Facturas de venta"
+        subtitle="Gestión de facturas emitidas a clientes"
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1B3A6B' }}>
+            Nueva factura
+          </Button>
+        }
+      />
 
       {/* Stats */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
