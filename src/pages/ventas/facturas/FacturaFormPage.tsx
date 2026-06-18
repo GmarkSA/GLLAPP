@@ -6,9 +6,10 @@ import {
 } from 'antd'
 import {
   SaveOutlined, SendOutlined, HomeOutlined,
-  GlobalOutlined, SafetyCertificateOutlined,
+  GlobalOutlined, SafetyCertificateOutlined, FileTextOutlined,
   CheckCircleFilled, CloseCircleFilled, LoadingOutlined, LinkOutlined,
 } from '@ant-design/icons'
+import { PageHeader } from '../../../components/ui/PageHeader'
 import dayjs from 'dayjs'
 
 import {
@@ -319,13 +320,10 @@ export default function FacturaFormPage() {
 
   return (
     <div style={{ padding: '12px 16px', background: '#f5f5f5', minHeight: '100vh' }}>
-      <Breadcrumb
-        style={{ marginBottom: 8 }}
-        items={[
-          { title: <Link to="/"><HomeOutlined /></Link> },
-          { title: <Link to="/ventas/facturas">Facturas</Link> },
-          { title: id ? 'Editar Factura' : 'Nueva Factura' },
-        ]}
+      <PageHeader
+        icon={<FileTextOutlined />}
+        title={id ? 'Editar Factura' : 'Nueva Factura'}
+        subtitle={<Link to="/ventas/facturas">← Volver a facturas</Link>}
       />
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>

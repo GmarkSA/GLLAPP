@@ -4,6 +4,7 @@ import {
   InputNumber, DatePicker, Select, Input, Divider, Statistic, Row, Col,
   message, Spin, Typography, Badge, Alert, Dropdown, Tooltip, Progress, Popconfirm,
 } from 'antd'
+import { PageHeader } from '../../../components/ui/PageHeader'
 import {
   ArrowLeftOutlined, DollarOutlined, SendOutlined, StopOutlined,
   PrinterOutlined, CopyOutlined, CheckCircleOutlined,
@@ -462,60 +463,43 @@ export default function FacturaDetallePage() {
     <div style={{ maxWidth: 1140, margin: '0 auto' }}>
 
       {/* \u0000\u0000 Header + action bar \u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 12, flexWrap: 'wrap', gap: 8,
-      }}>
-        <Space wrap>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/facturas')}>
-            Facturas
-          </Button>
-          <Text type="secondary">/</Text>
-          <Text strong style={{ color: '#1B3A6B', fontSize: 15 }}>
-            <FileTextOutlined style={{ marginRight: 6 }} />
-            {invoice.invoiceNumber}
-          </Text>
-          <Tag color={cfg.color}>{cfg.label}</Tag>
-          {isFelCertified && <Tag color="green" icon={<SafetyCertificateOutlined />}>FEL Certificada</Tag>}
-          {invoice.felTipoDocumento && <Tag>{invoice.felTipoDocumento}</Tag>}
-        </Space>
-
-        <Space wrap>
-          {isEditable && (
-            <Button onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`)}>
-              Editar
+      <PageHeader
+        icon={<FileTextOutlined />}
+        title={invoice.invoiceNumber}
+        actions={
+          <Space wrap>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/facturas')}>
+              Facturas
             </Button>
-          )}
-          {isEditable && (
-            <Button danger onClick={handleDelete}>
-              Eliminar
-            </Button>
-          )}
-          {/* Emitir FEL — visible si no está certificada aún */}
-          {!isVoided && !isWritten && !isFelCertified && (
-            <Tooltip title="Certificar esta factura ante el SAT vía FelPlex">
-              <Button
-                icon={<SafetyCertificateOutlined />}
-                onClick={() => setEmitirFelModal(true)}
-                style={{ borderColor: '#1B3A6B', color: '#1B3A6B', fontWeight: 600 }}
-              >
-                Emitir FEL
-              </Button>
-            </Tooltip>
-          )}
-          {!isVoided && !isWritten && (
-            <Button icon={<SendOutlined />} onClick={() => setSendModal(true)}>Enviar</Button>
-          )}
-          {/* Solo mostramos Enviar y Emitir FEL en la barra superior.
-              Pago, Anticipo y Condonar quedan en Acciones Rápidas del sidebar. */}
-          <span id="__print_btn__">
-            <PrintInvoiceButton invoice={invoice} company={company} />
-          </span>
-          <Dropdown menu={{ items: moreItems }} placement="bottomRight">
-            <Button icon={<MoreOutlined />}>Más acciones</Button>
-          </Dropdown>
-        </Space>
-      </div>
+            <Tag color={cfg.color}>{cfg.label}</Tag>
+            {isFelCertified && <Tag color="green" icon={<SafetyCertificateOutlined />}>FEL Certificada</Tag>}
+            {invoice.felTipoDocumento && <Tag>{invoice.felTipoDocumento}</Tag>}
+            {isEditable && (
+              <Button onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`)}>Editar</Button>
+            )}
+            {isEditable && (
+              <Button danger onClick={handleDelete}>Eliminar</Button>
+            )}
+            {!isVoided && !isWritten && !isFelCertified && (
+              <Tooltip title="Certificar esta factura ante el SAT vía FelPlex">
+                <Button icon={<SafetyCertificateOutlined />} onClick={() => setEmitirFelModal(true)}
+                  style={{ borderColor: '#1B3A6B', color: '#1B3A6B', fontWeight: 600 }}>
+                  Emitir FEL
+                </Button>
+              </Tooltip>
+            )}
+            {!isVoided && !isWritten && (
+              <Button icon={<SendOutlined />} onClick={() => setSendModal(true)}>Enviar</Button>
+            )}
+            <span id="__print_btn__">
+              <PrintInvoiceButton invoice={invoice} company={company} />
+            </span>
+            <Dropdown menu={{ items: moreItems }} placement="bottomRight">
+              <Button icon={<MoreOutlined />}>Más acciones</Button>
+            </Dropdown>
+          </Space>
+        }
+      />
 
       {/* \u0000\u0000 Alerta si vencida \u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 */}
       {invoice.status === 'overdue' && (
