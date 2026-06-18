@@ -271,6 +271,7 @@ export default function CategorizarDrawer({
           exchangeRate:       isForeign ? exchangeRate : 1,
           sourceDocumentId:   transaction.id,
           sourceDocumentType: 'bank_transaction',
+          autoPost:           true,
         })
 
         jeId = asiento.id; jeNumber = asiento.entryNumber
