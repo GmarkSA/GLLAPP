@@ -53,23 +53,28 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   tenantId: localStorage.getItem('tenantId'),
   tenantGroupName: localStorage.getItem('tenantGroupName'),
-  // sessionActive es un hint no-secreto: el token real vive en cookie httpOnly
-  isAuthenticated: !!localStorage.getItem('sessionActive'),
+  isAuthenticated: !!localStorage.getItem('accessToken'),
   isLoading: false,
 
   login: async (email, password) => {
     set({ isLoading: true })
     try {
       const { data: raw } = await api.post('/auth/login', { email, password })
+      // El backend puede devolver { data: {...} } o directamente {...}
       const payload = raw?.data ?? raw
-      const user    = payload?.user
+      const accessToken  = payload?.accessToken
+      const refreshToken = payload?.refreshToken
+      const user         = payload?.user
 
+      if (!accessToken) throw new Error('Token no recibido')
+
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
       const tenantId = user?.tenantIds?.[0]
       if (tenantId) {
         localStorage.setItem('tenantId', tenantId)
         set({ tenantId })
       }
-      localStorage.setItem('sessionActive', '1')
       set({ user, isAuthenticated: true })
     } finally {
       set({ isLoading: false })
@@ -81,14 +86,19 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data: raw } = await api.post('/auth/register', data)
       const payload = raw?.data ?? raw
-      const user    = payload?.user
+      const accessToken  = payload?.accessToken
+      const refreshToken = payload?.refreshToken
+      const user         = payload?.user
 
+      if (!accessToken) throw new Error('Token no recibido')
+
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
       const tenantId = user?.tenantIds?.[0]
       if (tenantId) {
         localStorage.setItem('tenantId', tenantId)
         set({ tenantId })
       }
-      localStorage.setItem('sessionActive', '1')
       set({ user, isAuthenticated: true })
     } finally {
       set({ isLoading: false })
@@ -96,10 +106,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('tenantId')
-    localStorage.removeItem('tenantGroupName')
-    localStorage.removeItem('activeCompanyId')
-    localStorage.removeItem('sessionActive')
+    localStorage.clear()
     set({ user: null, isAuthenticated: false, tenantId: null, tenantGroupName: null })
   },
 
@@ -115,7 +122,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   bootstrapAuth: async () => {
-    if (!localStorage.getItem('sessionActive')) return
+    if (!localStorage.getItem('accessToken')) return
     set({ isLoading: true })
     try {
       const { data: raw } = await api.get('/auth/me')
@@ -127,14 +134,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       set({ user })
 
+      // Cargar grupo empresarial del tenant
       const profile = await tenantsApi.getProfile().catch(() => null)
       const groupName = profile?.settings?.groupName ?? null
       if (groupName) localStorage.setItem('tenantGroupName', groupName)
       else localStorage.removeItem('tenantGroupName')
       set({ tenantGroupName: groupName })
     } catch {
-      localStorage.removeItem('sessionActive')
-      set({ isAuthenticated: false })
+      // Token inválido — el interceptor de 401 maneja el logout
     } finally {
       set({ isLoading: false })
     }
