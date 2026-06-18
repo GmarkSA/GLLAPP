@@ -49,3 +49,6 @@ export const updateAsiento = (id: string, dto: { entryDate?: string; description
 
 export const postAsiento = (id: string) =>
   api.post(`/contabilidad/asientos/${id}/publicar`).then(unwrap) as Promise<AsientoDetalle>
+
+export const deleteAsiento = (id: string) =>
+  api.delete(`/contabilidad/asientos/${id}`)
