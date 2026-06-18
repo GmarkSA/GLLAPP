@@ -7,16 +7,15 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 const PUBLIC_PATHS = ['/auth/login', '/auth/refresh', '/auth/logout', '/public/']
 
 api.interceptors.request.use((config) => {
-  const token           = localStorage.getItem('accessToken')
   const tenantId        = localStorage.getItem('tenantId')
   const activeCompanyId = localStorage.getItem('activeCompanyId')
 
-  if (token)           config.headers.Authorization   = `Bearer ${token}`
   if (activeCompanyId) config.headers['X-Company-ID'] = activeCompanyId
 
   const isPublicPath = PUBLIC_PATHS.some(p => config.url?.includes(p))
@@ -33,7 +32,7 @@ api.interceptors.request.use((config) => {
 // Singleton refresh promise — evita que múltiples 401 simultáneos
 // lancen varios refresh en paralelo, lo que rota el token y deja
 // el segundo intento con un refresh token ya revocado → logout falso.
-let refreshingPromise: Promise<string> | null = null
+let refreshingPromise: Promise<void> | null = null
 
 api.interceptors.response.use(
   (res) => res,
@@ -50,25 +49,20 @@ api.interceptors.response.use(
         // Todos los requests que fallan con 401 al mismo tiempo
         // comparten UNA sola petición de refresh.
         if (!refreshingPromise) {
-          const refreshToken = localStorage.getItem('refreshToken')
           refreshingPromise = axios
-            .post<any>(`${BASE_URL}/auth/refresh`, { refreshToken })
-            .then((r) => {
-              const payload = r.data?.data ?? r.data
-              localStorage.setItem('accessToken',  payload.accessToken)
-              localStorage.setItem('refreshToken', payload.refreshToken)
-              return payload.accessToken
-            })
+            .post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+            .then(() => undefined)
             .finally(() => { refreshingPromise = null })
         }
 
-        const newToken = await refreshingPromise
-        original.headers.Authorization = `Bearer ${newToken}`
+        await refreshingPromise
         return api(original)
       } catch {
-        // Refresh falló → cerrar sesión de forma limpia
         refreshingPromise = null
-        localStorage.clear()
+        localStorage.removeItem('tenantId')
+        localStorage.removeItem('tenantGroupName')
+        localStorage.removeItem('activeCompanyId')
+        localStorage.removeItem('sessionActive')
         getAuthStore().then(store => store.getState().logout())
         return Promise.reject(error)
       }
