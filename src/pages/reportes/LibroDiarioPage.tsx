@@ -1,12 +1,12 @@
 ﻿import { useEffect, useState, useCallback } from 'react'
 import {
   Card, Table, DatePicker, Space, Typography, Tag, Input,
-  Button, Row, Col, Statistic, Tooltip, InputNumber, message,
+  Button, Row, Col, Statistic, Tooltip, InputNumber, message, Popconfirm,
 } from 'antd'
 import {
   SearchOutlined, FileTextOutlined, DownloadOutlined,
   FilePdfOutlined, PlusSquareOutlined, MinusSquareOutlined, ReloadOutlined,
-  CheckCircleOutlined,
+  CheckCircleOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -14,7 +14,7 @@ import {
   getLibroDiario, exportReporte,
   type LibroDiarioEntry, type LibroDiarioLine,
 } from '../../api/reportes'
-import { postAsiento } from '../../api/asientos'
+import { postAsiento, deleteAsiento } from '../../api/asientos'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -23,9 +23,9 @@ const fmtQ = (n: number) =>
   n === 0 ? '—' : `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const STATUS_COLOR: Record<string, string> = {
-  posted:  'green',
-  draft:   'orange',
-  voided:  'red',
+  posted: 'green',
+  draft:  'orange',
+  void:   'red',
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -50,6 +50,7 @@ export default function LibroDiarioPage() {
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
   const [folio,     setFolio]     = useState<number>(1)
   const [posting,   setPosting]   = useState<string | null>(null)
+  const [deleting,  setDeleting]  = useState<string | null>(null)
 
   const handlePost = async (id: string) => {
     setPosting(id)
@@ -61,6 +62,19 @@ export default function LibroDiarioPage() {
       message.error(e?.response?.data?.message || 'No se pudo publicar la póliza')
     } finally {
       setPosting(null)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    setDeleting(id)
+    try {
+      await deleteAsiento(id)
+      message.success('Póliza eliminada permanentemente')
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo eliminar la póliza')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -193,21 +207,47 @@ export default function LibroDiarioPage() {
       ),
     },
     {
-      key: 'actions', width: 100, align: 'center',
-      render: (_, row) => row.status === 'draft' ? (
-        <Tooltip title="Publicar para que aparezca en reportes financieros">
-          <Button
-            size="small"
-            type="primary"
-            ghost
-            icon={<CheckCircleOutlined />}
-            loading={posting === row.id}
-            onClick={() => handlePost(row.id)}
-          >
-            Publicar
-          </Button>
-        </Tooltip>
-      ) : null,
+      key: 'actions', width: 120, align: 'center',
+      render: (_, row) => {
+        if (row.status === 'draft') {
+          return (
+            <Tooltip title="Publicar para que aparezca en reportes financieros">
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                icon={<CheckCircleOutlined />}
+                loading={posting === row.id}
+                onClick={() => handlePost(row.id)}
+              >
+                Publicar
+              </Button>
+            </Tooltip>
+          )
+        }
+        if (row.status === 'void') {
+          return (
+            <Popconfirm
+              title="¿Eliminar póliza anulada?"
+              description="Esta acción es permanente y no se puede deshacer."
+              okText="Eliminar"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleDelete(row.id)}
+            >
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                loading={deleting === row.id}
+              >
+                Eliminar
+              </Button>
+            </Popconfirm>
+          )
+        }
+        return null
+      },
     },
   ]
 
@@ -313,6 +353,7 @@ export default function LibroDiarioPage() {
           rowKey="id"
           loading={loading}
           size="middle"
+          rowClassName={(row) => row.status === 'void' ? 'row-void' : ''}
           scroll={{ x: 1000, y: 'calc(100vh - 280px)' }}
           pagination={{
             total,
@@ -360,6 +401,7 @@ export default function LibroDiarioPage() {
           locale={{ emptyText: 'Sin asientos en el período' }}
         />
       </Card>
+      <style>{`.row-void td { opacity: 0.5; text-decoration: line-through; }`}</style>
     </div>
   )
 }
