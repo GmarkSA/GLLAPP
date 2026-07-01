@@ -93,6 +93,9 @@ export interface ExecutiveAgingSection {
   buckets: Record<string, number>
   rows: ExecutiveAgingRow[]
   topCritical: ExecutiveAgingRow[]
+  advances?: { vendor_id: string; vendor_name: string; advance_number: string; advance_balance: number }[]
+  totalAdvances?: number
+  apNetTotal?: number
 }
 
 export interface ExecutiveDashboardData {
@@ -116,6 +119,8 @@ export interface ExecutiveDashboardData {
     apOverduePct: number
     commercialLeverage: number | null
     overdueInvoices: number
+    totalAdvances?: number
+    apNetTotal?: number
   }
   receivables: ExecutiveAgingSection
   payables: ExecutiveAgingSection
@@ -250,12 +255,13 @@ export interface LibroMayorMovement {
   credit:      number
   balance:     number
   // enriched fields
-  reference?:   string | null
-  sourceType?:  string | null
-  sourceId?:    string | null
-  entryType?:   string | null
-  contactName?: string | null
-  docNumber?:   string | null
+  reference?:       string | null
+  sourceType?:      string | null
+  sourceId?:        string | null
+  entryType?:       string | null
+  contactName?:     string | null
+  docNumber?:       string | null
+  journalEntryId?:  string | null
 }
 
 export interface LibroMayorData {

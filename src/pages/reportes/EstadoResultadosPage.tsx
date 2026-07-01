@@ -29,7 +29,7 @@ function SubtotalRow({ label, value, highlight, border }: { label: string; value
   )
 }
 
-function AccountTable({ accounts, total, label, negate }: { accounts: AccountRow[]; total: number; label: string; negate?: boolean }) {
+function AccountTable({ accounts, total, label, negate, onDrilldown }: { accounts: AccountRow[]; total: number; label: string; negate?: boolean; onDrilldown?: (id: string, name: string) => void }) {
   if (!accounts || accounts.length === 0) return null
   return (
     <Table size="small" dataSource={accounts} rowKey="id" pagination={false} showHeader={false} style={{ marginBottom: 0 }}
@@ -44,7 +44,16 @@ function AccountTable({ accounts, total, label, negate }: { accounts: AccountRow
       columns={[
         { dataIndex: 'code', width: 110, render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>{v}</Text> },
         { dataIndex: 'name', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-        { dataIndex: 'balance', width: 140, align: 'right' as const, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{negate ? `(${fmtQ(v)})` : fmtQ(v)}</Text> },
+        { dataIndex: 'balance', width: 140, align: 'right' as const, render: (v: number, row: AccountRow) => {
+          const txt = <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{negate ? `(${fmtQ(v)})` : fmtQ(v)}</Text>
+          if (!onDrilldown || !row.id) return txt
+          return (
+            <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+              onClick={() => onDrilldown(row.id, row.name)}>
+              {txt}
+            </span>
+          )
+        }},
       ]}
     />
   )
@@ -219,6 +228,7 @@ export default function EstadoResultadosPage() {
   const [single,  setSingle]  = useState<EstadoResultadosData | null>(null)
   const [sLoading, setSLoading] = useState(false)
   const [sError,   setSError]   = useState<string | null>(null)
+  const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
 
   const [monthly,  setMonthly]  = useState<Array<{ month: MonthRange; data: EstadoResultadosData | null }>>([])
   const [mLoading, setMLoading] = useState(false)
@@ -254,7 +264,11 @@ export default function EstadoResultadosPage() {
     { label: 'Margen Neto',    value: single.margenNeto,       color: accent(single.margenNeto), suffix: '%', precision: 1 },
   ]
 
+  const openDrilldown = (id: string, name: string) =>
+    setDrilldown({ accountId: id, accountName: name, fromDate: from, toDate: to })
+
   return (
+    <>
     <ReportLayout
       title="Estado de Resultados"
       subtitle="Estado de Pérdidas y Ganancias · SAT Guatemala"
@@ -324,31 +338,31 @@ export default function EstadoResultadosPage() {
               <div style={{ padding: '10px 16px 4px', borderBottom: '1px solid #f0f0f0' }}>
                 <Text strong style={{ color: '#1B3A6B', fontSize: 12 }}>INGRESOS ORDINARIOS</Text>
               </div>
-              <AccountTable accounts={single.ingresos.accounts} total={single.ingresos.total} label="Ingresos" />
+              <AccountTable accounts={single.ingresos.accounts} total={single.ingresos.total} label="Ingresos" onDrilldown={openDrilldown} />
               {single.otrosIngresos.accounts.length > 0 && <>
                 <div style={{ padding: '10px 16px 4px', borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0' }}>
                   <Text strong style={{ color: '#1B3A6B', fontSize: 12 }}>OTROS INGRESOS</Text>
                 </div>
-                <AccountTable accounts={single.otrosIngresos.accounts} total={single.otrosIngresos.total} label="Otros Ingresos" />
+                <AccountTable accounts={single.otrosIngresos.accounts} total={single.otrosIngresos.total} label="Otros Ingresos" onDrilldown={openDrilldown} />
               </>}
               <SubtotalRow label="Total Ingresos" value={single.ingresos.total + single.otrosIngresos.total} />
               <Divider style={{ margin: 0 }} />
               <div style={{ padding: '10px 16px 4px', borderBottom: '1px solid #f0f0f0' }}>
                 <Text strong style={{ color: '#cf1322', fontSize: 12 }}>COSTOS DE VENTA</Text>
               </div>
-              <AccountTable accounts={single.costos.accounts} total={single.costos.total} label="Costos" negate />
+              <AccountTable accounts={single.costos.accounts} total={single.costos.total} label="Costos" negate onDrilldown={openDrilldown} />
               <SubtotalRow label="Total Costos" value={-single.costos.total} />
               <SubtotalRow label="UTILIDAD BRUTA" value={single.utilidadBruta} highlight border />
               <Divider style={{ margin: 0 }} />
               <div style={{ padding: '10px 16px 4px', borderBottom: '1px solid #f0f0f0' }}>
                 <Text strong style={{ color: '#d46b08', fontSize: 12 }}>GASTOS DE OPERACIÓN</Text>
               </div>
-              <AccountTable accounts={single.gastos.accounts} total={single.gastos.total} label="Gastos" negate />
+              <AccountTable accounts={single.gastos.accounts} total={single.gastos.total} label="Gastos" negate onDrilldown={openDrilldown} />
               {single.otrosGastos.accounts.length > 0 && <>
                 <div style={{ padding: '6px 16px 4px', borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0' }}>
                   <Text strong style={{ color: '#d46b08', fontSize: 12 }}>OTROS GASTOS</Text>
                 </div>
-                <AccountTable accounts={single.otrosGastos.accounts} total={single.otrosGastos.total} label="Otros Gastos" negate />
+                <AccountTable accounts={single.otrosGastos.accounts} total={single.otrosGastos.total} label="Otros Gastos" negate onDrilldown={openDrilldown} />
               </>}
               <SubtotalRow label="Total Gastos" value={-(single.gastos.total + single.otrosGastos.total)} />
               <SubtotalRow label="UTILIDAD DE OPERACIÓN" value={single.utilidadOperativa} highlight border />
@@ -359,5 +373,7 @@ export default function EstadoResultadosPage() {
         )
       )}
     </ReportLayout>
+    <AccountDrilldownDrawer target={drilldown} onClose={() => setDrilldown(null)} />
+    </>
   )
 }

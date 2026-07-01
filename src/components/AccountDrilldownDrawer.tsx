@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Drawer, Table, Typography, Row, Col, Spin, Card, Statistic, Tag, Button } from 'antd'
 import { FileExcelOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -88,6 +89,27 @@ function exportToExcel(data: LibroMayorData, accountName: string, fromDate: stri
   XLSX.writeFile(wb, fileName)
 }
 
+// ─── Navigation to source document ──────────────────────────────────────────────
+
+function getSourceUrl(sourceType?: string | null, sourceId?: string | null): string | null {
+  if (!sourceType || !sourceId) return null
+  switch (sourceType) {
+    case 'invoice':
+    case 'invoice_cost':
+    case 'invoice_writeoff':
+      return `/ventas/facturas/${sourceId}`
+    case 'invoice_payment':
+      return `/ventas/pagos-recibidos/${sourceId}`
+    case 'credit_note':
+    case 'credit_note_refund':
+      return `/ventas/notas-credito/${sourceId}`
+    case 'purchase_invoice':
+      return `/compras/facturas/${sourceId}`
+    default:
+      return null
+  }
+}
+
 // ─── Exported types ─────────────────────────────────────────────────────────────
 
 export interface DrilldownTarget {
@@ -105,6 +127,7 @@ interface Props {
 // ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function AccountDrilldownDrawer({ target, onClose }: Props) {
+  const navigate = useNavigate()
   const [data,    setData]    = useState<LibroMayorData | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -140,15 +163,29 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
       ),
     },
     {
-      title: 'No. Documento', key: 'docNumber', width: 125,
+      title: 'No. Documento', key: 'docNumber', width: 130,
       sorter: (a, b) => (a.docNumber || a.entryNumber || '').localeCompare(b.docNumber || b.entryNumber || ''),
       render: (_: unknown, row: LibroMayorMovement) => {
         const num = row.docNumber || row.entryNumber
+        const url = getSourceUrl(row.sourceType, row.sourceId)
+        if (url) {
+          return (
+            <span
+              role="button"
+              style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff', cursor: 'pointer', textDecoration: 'none' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}
+              onClick={() => { onClose(); navigate(url) }}
+            >
+              {num} →
+            </span>
+          )
+        }
         return <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>{num}</Text>
       },
     },
     ...(hasRef ? [{
-      title: 'Referencia',
+      title: 'FEL / Ref.',
       dataIndex: 'reference' as keyof LibroMayorMovement,
       width: 105,
       sorter: (a: LibroMayorMovement, b: LibroMayorMovement) =>

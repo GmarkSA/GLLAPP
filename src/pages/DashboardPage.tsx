@@ -276,13 +276,124 @@ function AgingPanel({ title, section, kind, currency }: {
         </Card>
       )}
 
-      {/* Tabla aging completa */}
-      <Card bordered={false} style={cardStyle} title={`Aging ${title} — detalle por ${kind === 'ar' ? 'cliente' : 'proveedor'}`}>
-        {section.rows.length
-          ? <AgingTable rows={section.rows} kind={kind} currency={currency} />
-          : <Empty description="Sin saldos abiertos" />
+      {/* Tabla aging — unificada con netting cuando hay anticipos */}
+      {(() => {
+        const hasAdv = kind === 'ap' && (section.advances?.length ?? 0) > 0
+
+        // Construir lookup de anticipos por vendorId
+        const advByVendor = new Map<string, { anticipo: number; nums: string[] }>()
+        if (hasAdv) {
+          for (const adv of section.advances!) {
+            const k = adv.vendor_id || '__sin__'
+            if (!advByVendor.has(k)) advByVendor.set(k, { anticipo: 0, nums: [] })
+            advByVendor.get(k)!.anticipo += toNum(adv.advance_balance)
+            advByVendor.get(k)!.nums.push(adv.advance_number)
+          }
         }
-      </Card>
+
+        type MergedRow = ExecutiveAgingRow & { anticipo: number; advanceNums: string[]; neto: number }
+        const mergedRows: MergedRow[] = hasAdv
+          ? section.rows.map(row => {
+              const adv = advByVendor.get(row.vendor_id ?? '__sin__') ?? { anticipo: 0, nums: [] }
+              return { ...row, anticipo: adv.anticipo, advanceNums: adv.nums, neto: toNum(row.total) - adv.anticipo }
+            })
+          : []
+
+        const titleText = hasAdv
+          ? `CxP por proveedor — posición neta`
+          : `Aging ${title} — detalle por ${kind === 'ar' ? 'cliente' : 'proveedor'}`
+
+        return (
+          <Card
+            bordered={false}
+            style={hasAdv ? { ...cardStyle, borderLeft: '3px solid #16a34a' } : cardStyle}
+            title={
+              hasAdv ? (
+                <Space>
+                  <span style={{ fontWeight: 600 }}>{titleText}</span>
+                  <Tag color="success" style={{ fontSize: 11 }}>
+                    Anticipos: {money(section.totalAdvances, currency)} · Neto: {money(section.apNetTotal, currency)}
+                  </Tag>
+                </Space>
+              ) : titleText
+            }
+          >
+            {hasAdv ? (
+              mergedRows.length > 0 ? (
+                <Table<MergedRow>
+                  rowKey={r => `ap-${r.vendor_id ?? entityName(r, 'ap')}`}
+                  dataSource={mergedRows}
+                  size="small"
+                  pagination={{ pageSize: 8, size: 'small' }}
+                  scroll={{ x: 1100 }}
+                  columns={[
+                    {
+                      title: 'Proveedor',
+                      render: (_, r) => (
+                        <div>
+                          <Text strong style={{ fontSize: 13 }}>{entityName(r, 'ap')}</Text>
+                          {r.documents != null && r.documents > 0 && (
+                            <Badge count={r.documents} color="#6b7280" overflowCount={999}
+                              style={{ marginLeft: 6, fontSize: 10 }} />
+                          )}
+                        </div>
+                      ),
+                    },
+                    ...bucketMeta.map(b => ({
+                      title: <span style={{ color: b.color, fontWeight: 600 }}>{b.label}</span>,
+                      dataIndex: b.key as keyof MergedRow,
+                      align: 'right' as const,
+                      width: 88,
+                      render: (v: number) => v > 0
+                        ? <Text style={{ color: b.color, fontSize: 12 }}>{money(v, currency)}</Text>
+                        : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
+                    })),
+                    {
+                      title: <span style={{ color: '#16a34a', fontWeight: 600 }}>Anticipos</span>,
+                      dataIndex: 'anticipo' as keyof MergedRow,
+                      width: 170,
+                      align: 'right' as const,
+                      render: (_: any, r: MergedRow) => r.anticipo > 0 ? (
+                        <div style={{ textAlign: 'right' }}>
+                          {r.advanceNums.map(n => (
+                            <div key={n} style={{ fontSize: 10, color: '#16a34a', fontWeight: 600 }}>{n}</div>
+                          ))}
+                          <Text style={{ color: '#16a34a', fontWeight: 700 }}>({money(r.anticipo, currency)})</Text>
+                        </div>
+                      ) : <Text type="secondary">—</Text>,
+                    },
+                    {
+                      title: 'Saldo neto',
+                      dataIndex: 'neto' as keyof MergedRow,
+                      width: 140,
+                      align: 'right' as const,
+                      render: (_: any, r: MergedRow) => (
+                        <Tag
+                          color={r.neto < 0 ? 'success' : r.neto === 0 ? 'default' : 'purple'}
+                          style={{ fontWeight: 700 }}
+                        >
+                          {r.neto < 0
+                            ? `A favor ${money(Math.abs(r.neto), currency)}`
+                            : r.neto === 0 ? 'Saldado' : money(r.neto, currency)}
+                        </Tag>
+                      ),
+                    },
+                    {
+                      title: 'Distribución',
+                      width: 150,
+                      render: (_: any, r: MergedRow) => <BucketBar row={r} currency={currency} />,
+                    },
+                  ]}
+                />
+              ) : <Empty description="Sin saldos abiertos" />
+            ) : (
+              section.rows.length
+                ? <AgingTable rows={section.rows} kind={kind} currency={currency} />
+                : <Empty description="Sin saldos abiertos" />
+            )}
+          </Card>
+        )
+      })()}
     </Space>
   )
 }
@@ -414,14 +525,43 @@ function ratioColor(item: RatioItem): string {
   return v > 0 ? '#16a34a' : v === 0 ? '#8c8c8c' : '#dc2626'
 }
 
-function KpiPanel({ ratios }: { ratios: ExecutiveDashboardData['ratios'] }) {
+function KpiPanel({ ratios, payables, currency }: { ratios: ExecutiveDashboardData['ratios']; payables: ExecutiveDashboardData['payables']; currency: string }) {
   if (!ratios) return <Empty description="Sin KPIs financieros" />
+
+  const totalAdv = payables?.totalAdvances ?? 0
+  const apNetTotal = payables?.apNetTotal ?? payables?.total ?? 0
+  const apGross    = payables?.total ?? 0
+
+  const cxpNettingItems: RatioItem[] = totalAdv > 0 ? [
+    {
+      nombre: 'CxP bruta (facturas)',
+      valor: apGross,
+      unidad: ` ${currency}`,
+      ideal: 'Menor es mejor',
+      descripcion: 'Saldo pendiente de pago a proveedores (facturas)',
+    },
+    {
+      nombre: 'Anticipos disponibles',
+      valor: totalAdv,
+      unidad: ` ${currency}`,
+      ideal: 'Crédito a favor',
+      descripcion: 'Pagos anticipados a proveedores — reducen la obligación neta',
+    },
+    {
+      nombre: 'Neto CxP real',
+      valor: apNetTotal,
+      unidad: ` ${currency}`,
+      ideal: '< CxP bruta',
+      descripcion: 'Obligación real con proveedores después de descontar anticipos',
+    },
+  ] : []
 
   const groups: Array<{ title: string; items: RatioItem[]; icon: React.ReactNode }> = [
     { title: 'Liquidez',       items: ratios.liquidez,       icon: <DollarOutlined /> },
     { title: 'Endeudamiento',  items: ratios.endeudamiento,  icon: <WarningOutlined /> },
     { title: 'Rentabilidad',   items: ratios.rentabilidad,   icon: <RiseOutlined /> },
     { title: 'Eficiencia',     items: ratios.eficiencia,     icon: <BarChartOutlined /> },
+    ...(cxpNettingItems.length > 0 ? [{ title: 'Posición CxP neta', items: cxpNettingItems, icon: <WarningOutlined /> }] : []),
   ]
 
   return (
@@ -561,8 +701,33 @@ function ResumenTab({ data, currency, loading }: {
             subtitle={`Vencido: ${money(s.arOverdue, currency)}`} />
         </Col>
         <Col xs={12} md={6}>
-          <SummaryCard loading={loading} title="CxP total" value={s.apTotal} icon={<WarningOutlined />} color="#7c3aed" currency={currency}
-            subtitle={`Vencido: ${money(s.apOverdue, currency)}`} />
+          <Card bordered={false} style={cardStyle}>
+            <Spin spinning={loading} size="small">
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <Text style={{ fontSize: 12, color: '#5f6b7a' }}>CxP total</Text>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#102a56' }}>{money(s.apTotal, currency)}</div>
+                  {(s.totalAdvances ?? 0) > 0 && (
+                    <div style={{ marginTop: 2 }}>
+                      <Text style={{ fontSize: 11, color: '#16a34a' }}>
+                        Anticipos: ({money(s.totalAdvances, currency)})
+                      </Text>
+                      <br />
+                      <Text style={{ fontSize: 12, fontWeight: 700, color: (s.apNetTotal ?? s.apTotal) <= 0 ? '#16a34a' : '#7c3aed' }}>
+                        Neto: {money(s.apNetTotal ?? s.apTotal, currency)}
+                      </Text>
+                    </div>
+                  )}
+                  {!(s.totalAdvances ?? 0) && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>Vencido: {money(s.apOverdue, currency)}</Text>
+                  )}
+                </div>
+                <div style={{ width: 42, height: 42, borderRadius: 8, background: '#7c3aed14', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+                  <WarningOutlined />
+                </div>
+              </div>
+            </Spin>
+          </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card bordered={false} style={cardStyle}>
@@ -742,7 +907,7 @@ export default function DashboardPage() {
     {
       key: 'kpis',
       label: <Space><BarChartOutlined />KPIs Financieros</Space>,
-      children: <KpiPanel ratios={data.ratios} />,
+      children: <KpiPanel ratios={data.ratios} payables={data.payables} currency={currency} />,
     },
   ] : [], [data, currency, loading])
 

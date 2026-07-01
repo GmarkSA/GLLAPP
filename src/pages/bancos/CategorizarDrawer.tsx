@@ -307,7 +307,7 @@ export default function CategorizarDrawer({
   const searchVendors = async (q: string) => {
     setVendorSearching(true)
     try {
-      const res = await getVendors({ search: q || undefined, limit: 30 })
+      const res = await getVendors({ search: q || undefined, limit: 100 })
       // res puede ser Vendor[] directo o { data: Vendor[], meta: {...} }
       const list: Vendor[] = Array.isArray(res) ? res : (res as any).data ?? []
       setVendors(list)
@@ -357,7 +357,10 @@ export default function CategorizarDrawer({
         journalLines,
       })
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo registrar el anticipo')
+      const raw = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'No se pudo registrar el anticipo'
+      const msg = Array.isArray(raw) ? raw.join(', ') : typeof raw === 'string' ? raw : 'No se pudo registrar el anticipo'
+      message.error(msg)
+      console.error('[AnticipoProveedor]', e?.response?.data ?? e)
     } finally {
       setSavingAdvance(false)
     }

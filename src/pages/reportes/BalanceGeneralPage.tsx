@@ -15,7 +15,7 @@ const accColor  = (n: number) => (n >= 0 ? '#1B3A6B' : '#cf1322')
 
 // ─── Single-period components ─────────────────────────────────────────────────
 
-function AccountTable({ accounts, total, label }: { accounts: AccountRow[]; total: number; label: string }) {
+function AccountTable({ accounts, total, label, onDrilldown }: { accounts: AccountRow[]; total: number; label: string; onDrilldown?: (id: string, name: string) => void }) {
   if (accounts.length === 0)
     return <div style={{ padding: '8px 16px', color: '#8c8c8c', fontSize: 12 }}>Sin cuentas para {label}</div>
   return (
@@ -31,7 +31,16 @@ function AccountTable({ accounts, total, label }: { accounts: AccountRow[]; tota
       columns={[
         { dataIndex: 'code', width: 110, render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>{v}</Text> },
         { dataIndex: 'name', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-        { dataIndex: 'balance', width: 140, align: 'right' as const, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: accColor(v) }}>{fmtQ(v)}</Text> },
+        { dataIndex: 'balance', width: 140, align: 'right' as const, render: (v: number, row: AccountRow) => {
+          const txt = <Text style={{ fontFamily: 'monospace', fontSize: 12, color: accColor(v) }}>{fmtQ(v)}</Text>
+          if (!onDrilldown || !row.id) return txt
+          return (
+            <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+              onClick={() => onDrilldown(row.id, row.name)}>
+              {txt}
+            </span>
+          )
+        }},
       ]}
     />
   )
@@ -218,6 +227,7 @@ export default function BalanceGeneralPage() {
   const [single,   setSingle]   = useState<BalanceGeneralData | null>(null)
   const [sLoading, setSLoading] = useState(false)
   const [sError,   setSError]   = useState<string | null>(null)
+  const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
 
   const [monthly,  setMonthly]  = useState<Array<{ month: MonthRange; data: BalanceGeneralData | null }>>([])
   const [mLoading, setMLoading] = useState(false)
@@ -244,7 +254,11 @@ export default function BalanceGeneralPage() {
       .finally(() => setMLoading(false))
   }, [from, to, isMonthly])
 
+  const openDrilldown = (id: string, name: string) =>
+    setDrilldown({ accountId: id, accountName: name, fromDate: from, toDate: to })
+
   return (
+    <>
     <ReportLayout
       title="Balance General"
       subtitle="Estado de Situación Financiera · NIC 1 · SAT Guatemala"
@@ -305,10 +319,10 @@ export default function BalanceGeneralPage() {
               <Col xs={24} lg={12}>
                 <Title level={5} style={{ color: '#1B3A6B', marginBottom: 8 }}>ACTIVOS</Title>
                 <SectionCard title="Activo Circulante" color="#1677ff" total={single.activo.total}>
-                  <AccountTable accounts={single.activo.accounts} total={single.activo.total} label="Activo Circulante" />
+                  <AccountTable accounts={single.activo.accounts} total={single.activo.total} label="Activo Circulante" onDrilldown={openDrilldown} />
                 </SectionCard>
                 <SectionCard title="Activo Fijo" color="#1677ff" total={single.activoFijo.total}>
-                  <AccountTable accounts={single.activoFijo.accounts} total={single.activoFijo.total} label="Activo Fijo" />
+                  <AccountTable accounts={single.activoFijo.accounts} total={single.activoFijo.total} label="Activo Fijo" onDrilldown={openDrilldown} />
                 </SectionCard>
                 <Divider dashed style={{ margin: '8px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', background: '#e6f4ff', borderRadius: 6 }}>
@@ -320,10 +334,10 @@ export default function BalanceGeneralPage() {
               <Col xs={24} lg={12}>
                 <Title level={5} style={{ color: '#1B3A6B', marginBottom: 8 }}>PASIVO Y CAPITAL</Title>
                 <SectionCard title="Pasivo" color="#cf1322" total={single.pasivo.total}>
-                  <AccountTable accounts={single.pasivo.accounts} total={single.pasivo.total} label="Pasivo" />
+                  <AccountTable accounts={single.pasivo.accounts} total={single.pasivo.total} label="Pasivo" onDrilldown={openDrilldown} />
                 </SectionCard>
                 <SectionCard title="Capital Contable" color="#389e0d" total={single.totalCapital}>
-                  <AccountTable accounts={single.capital.accounts} total={single.capital.total} label="Capital" />
+                  <AccountTable accounts={single.capital.accounts} total={single.capital.total} label="Capital" onDrilldown={openDrilldown} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 16px', borderTop: '1px solid #f0f0f0' }}>
                     <Text style={{ fontSize: 12 }}>Utilidad del Período</Text>
                     <Text style={{ fontFamily: 'monospace', fontSize: 12, color: accColor(single.netIncome) }}>{fmtQ(single.netIncome)}</Text>
@@ -344,5 +358,7 @@ export default function BalanceGeneralPage() {
         )
       )}
     </ReportLayout>
+    <AccountDrilldownDrawer target={drilldown} onClose={() => setDrilldown(null)} />
+    </>
   )
 }

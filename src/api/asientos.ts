@@ -52,3 +52,6 @@ export const postAsiento = (id: string) =>
 
 export const deleteAsiento = (id: string) =>
   api.delete(`/contabilidad/asientos/${id}`)
+
+export const voidAsiento = (id: string) =>
+  api.post(`/contabilidad/asientos/${id}/anular`)
