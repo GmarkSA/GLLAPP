@@ -39,7 +39,7 @@ import * as XLSX from 'xlsx'
 import AccountSelect from '../../components/AccountSelect'
 import { useCompanyStore } from '../../store/companyStore'
 import CategorizarDrawer from './CategorizarDrawer'
-import { getAsiento, updateAsiento, postAsiento, type AsientoDetalle } from '../../api/asientos'
+import { getAsiento, updateAsiento, postAsiento, voidAsiento, type AsientoDetalle } from '../../api/asientos'
 import {
   ACCOUNT_TYPE_CONFIG,
   TRANSACTION_STATUS_CONFIG,
@@ -558,22 +558,21 @@ export default function TransaccionesPage() {
     {
       title: '',
       key: 'actions',
-      width: 110,
+      width: 130,
       fixed: 'right',
       align: 'center',
       render: (_, row) => (
         <Space size={4}>
-          {row.status === 'categorized' || row.status === 'reconciled' ? (
-            row.matchedJournalEntryId ? (
-              <Tooltip title="Ver / editar póliza contable">
-                <Button
-                  size="small" type="text"
-                  icon={<FileTextOutlined style={{ color: NAVY }} />}
-                  onClick={() => setPolizaJeId(row.matchedJournalEntryId!)}
-                />
-              </Tooltip>
-            ) : null
-          ) : null}
+          {(row.status === 'categorized' || row.status === 'reconciled') && (
+            <Tooltip title={row.matchedJournalEntryId ? 'Ver póliza contable' : 'Sin póliza registrada'}>
+              <Button
+                size="small" type="text"
+                icon={<FileTextOutlined style={{ color: row.matchedJournalEntryId ? NAVY : '#d9d9d9' }} />}
+                disabled={!row.matchedJournalEntryId}
+                onClick={() => row.matchedJournalEntryId && setPolizaJeId(row.matchedJournalEntryId)}
+              />
+            </Tooltip>
+          )}
           {row.status === 'categorized' ? (
             <>
               <Tooltip title="Marcar conciliada">
@@ -593,9 +592,25 @@ export default function TransaccionesPage() {
                   size="small" type="text" icon={<RollbackOutlined style={{ color: '#d46b08' }} />}
                   onClick={() => Modal.confirm({
                     title: 'Marcar como pendiente',
-                    content: 'La transaccion volvera a estado Pendiente para ser recategorizada.',
+                    content: row.matchedJournalEntryId
+                      ? 'La transacción volverá a Pendiente y su póliza contable será anulada.'
+                      : 'La transacción volverá a estado Pendiente para ser recategorizada.',
                     okText: 'Confirmar',
-                    onOk: async () => { await updateTransaction(id!, row.id, { status: 'pending' }); loadTransactions() },
+                    onOk: async () => {
+                      if (row.matchedJournalEntryId) {
+                        await voidAsiento(row.matchedJournalEntryId).catch(() => null)
+                      }
+                      await updateTransaction(id!, row.id, {
+                        status: 'pending',
+                        matchedJournalEntryId: null,
+                        matchedInvoiceId: null,
+                        matchedPaymentId: null,
+                        accountId: null,
+                        accountCode: null,
+                        accountName: null,
+                      } as any)
+                      loadTransactions()
+                    },
                   })}
                 />
               </Tooltip>

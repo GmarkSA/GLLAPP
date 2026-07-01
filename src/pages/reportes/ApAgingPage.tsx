@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic, Row, Col,
+  Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic, Row, Col, Divider,
 } from 'antd'
 import {
-  HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
+  HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined, SwapOutlined,
 } from '@ant-design/icons'
 
 import { getApAging, type ApAgingRow, type ApAgingBucket } from '../../api/compras'
@@ -152,10 +152,41 @@ function BucketCard({ label, bucket, color, expanded, onToggle }: BucketCardProp
   )
 }
 
+function buildVendorNetting(data: any): { key: string; vendorName: string; cxp: number; anticipo: number; neto: number }[] {
+  const byVendor = new Map<string, { name: string; cxp: number; anticipo: number }>()
+
+  const ensure = (key: string, name: string) => {
+    if (!byVendor.has(key)) byVendor.set(key, { name, cxp: 0, anticipo: 0 })
+    return byVendor.get(key)!
+  }
+
+  for (const bucket of Object.values(data.buckets) as any[]) {
+    for (const item of bucket.items ?? []) {
+      const key = item.vendorId || '__sin__'
+      ensure(key, item.vendorName || '—').cxp += Number(item.balanceGTQ ?? item.balance ?? 0)
+    }
+  }
+  for (const adv of data.advances ?? []) {
+    const key = adv.vendorId || '__sin__'
+    ensure(key, adv.vendorName || '—').anticipo += Number(adv.balanceGTQ ?? adv.balance ?? 0)
+  }
+
+  return [...byVendor.entries()]
+    .map(([key, v]) => ({
+      key,
+      vendorName: v.name,
+      cxp:        Math.round(v.cxp * 100) / 100,
+      anticipo:   Math.round(v.anticipo * 100) / 100,
+      neto:       Math.round((v.cxp - v.anticipo) * 100) / 100,
+    }))
+    .sort((a, b) => a.vendorName.localeCompare(b.vendorName, 'es'))
+}
+
 export default function ApAgingPage() {
-  const [data, setData]       = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+  const [data, setData]           = useState<any>(null)
+  const [loading, setLoading]     = useState(false)
+  const [showAdvances, setShowAdvances] = useState(false)
+  const [expanded, setExpanded]   = useState<Record<string, boolean>>({
     current: false, days_30: false, days_60: false, days_90: false, over_90: false,
   })
 
@@ -187,9 +218,19 @@ export default function ApAgingPage() {
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
           AP Aging — Cuentas por Pagar
         </Title>
-        <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-          Actualizar
-        </Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button
+            icon={<SwapOutlined />}
+            type={showAdvances ? 'primary' : 'default'}
+            style={showAdvances ? { background: '#16a34a', borderColor: '#16a34a' } : {}}
+            onClick={() => setShowAdvances(v => !v)}
+          >
+            {showAdvances ? 'Ocultar anticipos' : 'Incluir anticipos'}
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {loading && !data && (
@@ -270,6 +311,41 @@ export default function ApAgingPage() {
             </Col>
           </Row>
 
+          {/* Stats neto — visible solo cuando showAdvances */}
+          {showAdvances && (
+            <Row gutter={12} style={{ marginBottom: 20 }}>
+              <Col span={6}>
+                <Card size="small" style={{ textAlign: 'center', borderColor: '#16a34a44', background: '#f0fdf4' }}>
+                  <Statistic
+                    title={<span style={{ fontSize: 11, color: '#16a34a' }}>Anticipos (crédito a favor)</span>}
+                    value={data.totalAdvances ?? 0}
+                    prefix="Q"
+                    precision={2}
+                    valueStyle={{ fontSize: 15, color: '#16a34a', fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+              <Col span={6}>
+                <Card size="small" style={{
+                  textAlign: 'center',
+                  background: (data.netTotal ?? data.grandTotal) <= 0 ? '#f0fdf4' : '#fef2f2',
+                  borderColor: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a44' : '#dc262644',
+                }}>
+                  <Statistic
+                    title={<span style={{ fontSize: 11, color: '#6b7280' }}>Neto CxP (factura − anticipo)</span>}
+                    value={Math.abs(data.netTotal ?? data.grandTotal)}
+                    prefix={(data.netTotal ?? data.grandTotal) < 0 ? '(A favor) Q' : 'Q'}
+                    precision={2}
+                    valueStyle={{
+                      fontSize: 15, fontWeight: 700,
+                      color: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a' : '#dc2626',
+                    }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+          )}
+
           {/* Overdue alert */}
           {(data.buckets.days_90.total + data.buckets.over_90.total) > 0 && (
             <div style={{
@@ -302,6 +378,91 @@ export default function ApAgingPage() {
               onToggle={() => toggle(key)}
             />
           ))}
+
+          {/* Tabla neta por proveedor */}
+          {showAdvances && (
+            <>
+              <Divider orientation={'left' as any} style={{ marginTop: 8, marginBottom: 12 }}>
+                <Text style={{ color: '#1B3A6B', fontWeight: 600, fontSize: 13 }}>
+                  Posición neta por proveedor (CxP − Anticipos)
+                </Text>
+              </Divider>
+              <Table
+                size="small"
+                pagination={false}
+                dataSource={buildVendorNetting(data)}
+                rowKey="key"
+                style={{ marginBottom: 16 }}
+                summary={rows => {
+                  const totCxp = rows.reduce((s, r) => s + r.cxp, 0)
+                  const totAdv = rows.reduce((s, r) => s + r.anticipo, 0)
+                  const totNet = rows.reduce((s, r) => s + r.neto, 0)
+                  return (
+                    <Table.Summary.Row style={{ background: '#f8fafc', fontWeight: 700 }}>
+                      <Table.Summary.Cell index={0}>
+                        <Text strong>TOTAL</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right">
+                        <Text strong style={{ color: '#1B3A6B' }}>{fmt(totCxp)}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right">
+                        <Text strong style={{ color: '#16a34a' }}>({fmt(totAdv)})</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right">
+                        <Text strong style={{ color: totNet <= 0 ? '#16a34a' : '#dc2626', fontSize: 14 }}>
+                          {totNet < 0 ? `(A favor) ${fmt(Math.abs(totNet))}` : fmt(totNet)}
+                        </Text>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )
+                }}
+                columns={[
+                  {
+                    title: 'Proveedor',
+                    dataIndex: 'vendorName',
+                    ellipsis: true,
+                  },
+                  {
+                    title: 'Facturas CxP',
+                    dataIndex: 'cxp',
+                    width: 160,
+                    align: 'right' as const,
+                    render: (v: number) => v > 0
+                      ? <Text style={{ color: '#1B3A6B', fontWeight: 600 }}>{fmt(v)}</Text>
+                      : <Text type="secondary">—</Text>,
+                  },
+                  {
+                    title: 'Anticipos (crédito)',
+                    dataIndex: 'anticipo',
+                    width: 170,
+                    align: 'right' as const,
+                    render: (v: number) => v > 0
+                      ? <Text style={{ color: '#16a34a', fontWeight: 600 }}>({fmt(v)})</Text>
+                      : <Text type="secondary">—</Text>,
+                  },
+                  {
+                    title: 'Saldo neto',
+                    dataIndex: 'neto',
+                    width: 180,
+                    align: 'right' as const,
+                    render: (v: number) => (
+                      <Text style={{
+                        fontWeight: 700, fontSize: 13,
+                        color: v < 0 ? '#16a34a' : v === 0 ? '#6b7280' : '#dc2626',
+                      }}>
+                        {v < 0
+                          ? <Tag color="success" style={{ fontWeight: 700 }}>A favor {fmt(Math.abs(v))}</Tag>
+                          : v === 0
+                            ? <Tag color="default">Saldado</Tag>
+                            : fmt(v)
+                        }
+                      </Text>
+                    ),
+                  },
+                ]}
+              />
+            </>
+          )}
 
           <Text style={{ fontSize: 11, color: '#9ca3af' }}>
             Generado: {new Date(data.generatedAt).toLocaleString('es-GT')}

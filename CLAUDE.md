@@ -4,9 +4,61 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## ONBOARDING — Leer antes de hacer cualquier cosa
+
+### Identidad y repositorios
+- **Owner:** GmarkSA / chogui23@gmail.com
+- **Socio revisor:** cesargomez-211 (aprueba PRs antes de merge a master)
+- **Frontend repo:** https://github.com/GmarkSA/GLLAPP.git
+- **Backend repo:** https://github.com/GmarkSA/contaerp-backend.git
+- **Branch protection:** master bloqueado — nunca push directo a master
+
+### START OF SESSION (hacer siempre primero)
+1. Verificar identidad git local:
+   ```bash
+   git config --local user.name   # debe ser: GmarkSA
+   git config --local user.email  # debe ser: chogui23@gmail.com
+   ```
+   Si no está configurado:
+   ```bash
+   git config --local user.name "GmarkSA"
+   git config --local user.email "chogui23@gmail.com"
+   ```
+2. Traer últimos cambios:
+   ```bash
+   git checkout master
+   git pull origin master
+   ```
+3. Mostrar `git status` y los últimos 3 commits.
+
+### DURANTE EL TRABAJO
+- Nunca trabajar directamente en master
+- Crear rama feature antes de cualquier cambio:
+  ```bash
+  git checkout -b feature/descripcion-del-cambio
+  ```
+- Una rama por feature o fix — nunca mezclar cambios no relacionados
+
+### END OF SESSION (hacer siempre al final)
+1. `git add .`
+2. Mostrar `git status` para confirmar qué se va a commitear
+3. `npm run typecheck` — verificar que no hay errores TypeScript
+4. `git commit -m "feat: [descripción de lo realizado]"`
+5. `git push origin feature/descripcion-del-cambio`
+6. Dar la URL directa para abrir el Pull Request hacia master:
+   `https://github.com/GmarkSA/GLLAPP/compare/master...feature/descripcion-del-cambio`
+
+### NUNCA
+- Push directo a master (`git push origin master`)
+- Commitear `node_modules/`, `dist/`, o archivos `.env`
+- Mezclar cambios no relacionados en un solo commit
+- Mover o eliminar archivos en `docs/archive/`
+
+---
+
 ## Proyecto: ConTaERP — Frontend
 
-Sistema de contabilidad y ERP para Guatemala. Desarrollado íntegramente por Claude Code junto con el propietario (GLL Consulting). El backend está en `C:\Users\l_cha\contaerp-backend`.
+Sistema de contabilidad y ERP para Guatemala. Desarrollado íntegramente por Claude Code junto con el propietario (GLL Consulting). El backend está en `/Users/luischajon/Documents/GLLAPP/contaerp-backend` (Mac).
 
 ## Comandos
 
