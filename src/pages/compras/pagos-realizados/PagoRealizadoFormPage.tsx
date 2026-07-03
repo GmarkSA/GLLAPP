@@ -143,10 +143,10 @@ export default function PagoRealizadoFormPage() {
 
       if (payment.mode === 'check' && payment.checkNumber) {
         const print = window.confirm(`¿Desea imprimir el cheque ${payment.checkNumber}?`)
-        if (print) window.open(`/compras/pagos-realizados/${payment.id}/cheque`, '_blank')
+        if (print) window.open(`/bancos/pagos-realizados/${payment.id}/cheque`, '_blank')
       }
 
-      navigate('/compras/pagos-realizados')
+      navigate('/bancos/pagos-realizados')
     } catch (e: any) {
       const d = e?.response?.data
       message.error(d?.error?.message || d?.message || 'Error al registrar el pago')
@@ -293,7 +293,7 @@ export default function PagoRealizadoFormPage() {
 
         {/* Acciones */}
         <Space>
-          <Button onClick={() => navigate('/compras/pagos-realizados')}>
+          <Button onClick={() => navigate('/bancos/pagos-realizados')}>
             Cancelar
           </Button>
           <Button

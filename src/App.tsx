@@ -71,7 +71,8 @@ const TransaccionesPage    = lazy(() => import('./pages/bancos/TransaccionesPage
 const ConciliacionPage     = lazy(() => import('./pages/bancos/ConciliacionPage'))
 const TransferenciaPage    = lazy(() => import('./pages/bancos/TransferenciaPage'))
 const ImportarEstadoPage   = lazy(() => import('./pages/bancos/ImportarEstadoPage'))
-const ReglasBancariasPage  = lazy(() => import('./pages/bancos/ReglasBancariasPage'))
+const ReglasBancariasPage    = lazy(() => import('./pages/bancos/ReglasBancariasPage'))
+const BankPaymentConfigPage  = lazy(() => import('./pages/bancos/BankPaymentConfigPage'))
 
 // Contabilidad
 const CatalogoPage    = lazy(() => import('./pages/contabilidad/CatalogoPage'))
@@ -152,7 +153,7 @@ export default function App() {
         <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
         <Route path="/ventas/facturas/:id/imprimir"     element={<PrivateRoute><FacturaImprimirPage /></PrivateRoute>} />
-        <Route path="/compras/pagos-realizados/:id/cheque" element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
+        <Route path="/bancos/pagos-realizados/:id/cheque" element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
 
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
@@ -192,8 +193,9 @@ export default function App() {
           <Route path="compras/dte-sat"                     element={<DteSatPage />} />
           <Route path="ventas/dte-sat"                      element={<DteSatVentasPage />} />
 
-          <Route path="compras/pagos-realizados"              element={<PagosRealizadosPage />} />
-          <Route path="compras/pagos-realizados/nuevo"      element={<PagoRealizadoFormPage />} />
+          <Route path="bancos/pagos-realizados"       element={<PagosRealizadosPage />} />
+          <Route path="bancos/pagos-realizados/nuevo" element={<PagoRealizadoFormPage />} />
+          <Route path="bancos/config-pagos"            element={<BankPaymentConfigPage />} />
 
           <Route path="compras/ordenes"             element={<OrdenesCompraPage />} />
           <Route path="compras/ordenes/nueva"       element={<OrdenCompraFormPage />} />

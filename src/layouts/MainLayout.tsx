@@ -44,11 +44,12 @@ const menuItems = [
     { key: '/compras/proveedores',            label: 'Proveedores' },
     { key: '/compras/ordenes',                label: 'Órdenes de compra' },
     { key: '/compras/facturas',               label: 'Facturas proveedor' },
-    { key: '/compras/pagos-realizados',       label: 'Pagos a proveedores' },
     { key: '/compras/dte-sat',                label: 'DTE SAT' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
-    { key: '/bancos',                      label: 'Cuentas bancarias' },
+    { key: '/bancos',                         label: 'Cuentas bancarias' },
+    { key: '/bancos/pagos-realizados',        label: 'Pagos a proveedores' },
+    { key: '/bancos/config-pagos',            label: 'Config. cheques y ACH' },
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
     { key: '/contabilidad/catalogo', label: 'Catálogo de cuentas' },

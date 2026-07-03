@@ -100,3 +100,36 @@ export const getVendor       = (id: string)   => api.get(`/compras/proveedores/$
 export const createVendor    = (dto: Vendor)  => api.post('/compras/proveedores', dto).then(unwrap)
 export const updateVendor    = (id: string, dto: Partial<Vendor>) => api.patch(`/compras/proveedores/${id}`, dto).then(unwrap)
 export const deleteVendor    = (id: string)   => api.delete(`/compras/proveedores/${id}`)
+
+// ── Cuentas bancarias del proveedor (guateACH) ────────────────────────────
+export interface VendorBankAccount {
+  id?:                 string
+  vendorId?:           string
+  bankName?:           string
+  bankShortName?:      string
+  bankCodeGTQ?:        string
+  bankCodeUSD?:        string
+  accountType?:        string
+  accountNumber?:      string
+  currency?:           string
+  isAchEnabled?:       boolean
+  isDefault?:          boolean
+  maxAmount?:          number
+  maxPerTransaction?:  number
+  notificationEmail?:  string
+  alias?:              string
+  notes?:              string
+  isActive?:           boolean
+}
+
+export const getVendorBankAccounts   = (vendorId: string) =>
+  api.get(`/compras/proveedores/${vendorId}/bank-accounts`).then(r => r.data?.data ?? r.data ?? [])
+
+export const createVendorBankAccount = (vendorId: string, dto: VendorBankAccount) =>
+  api.post(`/compras/proveedores/${vendorId}/bank-accounts`, dto).then(r => r.data?.data ?? r.data)
+
+export const updateVendorBankAccount = (vendorId: string, id: string, dto: Partial<VendorBankAccount>) =>
+  api.put(`/compras/proveedores/${vendorId}/bank-accounts/${id}`, dto).then(r => r.data?.data ?? r.data)
+
+export const deleteVendorBankAccount = (vendorId: string, id: string) =>
+  api.delete(`/compras/proveedores/${vendorId}/bank-accounts/${id}`)

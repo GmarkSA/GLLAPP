@@ -100,7 +100,7 @@ export default function ReporteProyectadoPagosPage() {
             type="primary"
             ghost
             icon={<ArrowRightOutlined />}
-            onClick={() => navigate('/compras/pagos-realizados/nuevo', { state: { vendorId: r.vendorId } })}
+            onClick={() => navigate('/bancos/pagos-realizados/nuevo', { state: { vendorId: r.vendorId } })}
           >
             Pagar
           </Button>

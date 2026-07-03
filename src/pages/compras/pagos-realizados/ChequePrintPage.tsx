@@ -1,6 +1,6 @@
 /**
  * Página de impresión de cheque físico Guatemala.
- * Ruta: /compras/pagos-realizados/:id/cheque  (sin MainLayout)
+ * Ruta: /bancos/pagos-realizados/:id/cheque  (sin MainLayout)
  *
  * Formatos soportados por banco:
  *   - generic: formato universal (para bancos no configurados)

@@ -134,3 +134,43 @@ export const getCashFlowProjection = async (refDate?: string): Promise<CashFlowP
   })
   return unwrap(res)
 }
+
+// ── Configuración de cheques y ACH por cuenta bancaria ────────────────────
+export type CheckFormat    = 'generic' | 'bi' | 'bac' | 'gt' | 'banrural' | 'banoro' | 'citi'
+export type AchFileFormat  = 'txt_fixed' | 'csv' | 'xlsx' | 'xml'
+
+export interface BankPaymentConfig {
+  id?:                  string
+  bankAccountId:        string
+  bankAccountName?:     string
+  bankName?:            string
+  checkPrefix?:         string
+  currentCheckSeq?:     number
+  checkRangeFrom?:      number
+  checkRangeTo?:        number
+  checkFormat?:         CheckFormat
+  checkFieldPositions?: Record<string, any> | null
+  achEnabled?:          boolean
+  achBankCode?:         string
+  achCompanyId?:        string
+  achCompanyName?:      string
+  achFileFormat?:       AchFileFormat | null
+  achNomenclature?:     string
+  notes?:               string
+  isActive?:            boolean
+}
+
+export const getBankPaymentConfigs      = () =>
+  api.get('/bancos/config-pagos').then(r => unwrap(r) ?? [])
+
+export const getBankPaymentConfigByAccount = (bankAccountId: string) =>
+  api.get(`/bancos/config-pagos/by-account/${bankAccountId}`).then(r => unwrap(r))
+
+export const createBankPaymentConfig    = (dto: BankPaymentConfig) =>
+  api.post('/bancos/config-pagos', dto).then(r => unwrap(r))
+
+export const updateBankPaymentConfig    = (id: string, dto: Partial<BankPaymentConfig>) =>
+  api.put(`/bancos/config-pagos/${id}`, dto).then(r => unwrap(r))
+
+export const deleteBankPaymentConfig    = (id: string) =>
+  api.delete(`/bancos/config-pagos/${id}`)

@@ -145,7 +145,7 @@ export default function PagosRealizadosPage() {
               <Button
                 size="small"
                 icon={<PrinterOutlined />}
-                onClick={() => window.open(`/compras/pagos-realizados/${r.id}/cheque`, '_blank')}
+                onClick={() => window.open(`/bancos/pagos-realizados/${r.id}/cheque`, '_blank')}
               />
             </Tooltip>
           )}
@@ -183,7 +183,7 @@ export default function PagosRealizadosPage() {
           type="primary"
           icon={<PlusOutlined />}
           style={{ background: '#1B3A6B' }}
-          onClick={() => navigate('/compras/pagos-realizados/nuevo')}
+          onClick={() => navigate('/bancos/pagos-realizados/nuevo')}
         >
           Nuevo pago
         </Button>
