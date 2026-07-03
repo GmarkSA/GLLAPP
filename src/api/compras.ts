@@ -54,7 +54,7 @@ export const getVendorAdvances = (params?: { vendorId?: string; status?: string;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type BillStatus   = 'draft' | 'pending_approval' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'
-export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel'
+export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel' | 'credit_note'
 export type PaymentTerms = 'immediate' | 'net_15' | 'net_30' | 'net_60' | 'net_90' | 'custom'
 export type POStatus     = 'draft' | 'sent' | 'received' | 'billed' | 'cancelled'
 
@@ -392,7 +392,20 @@ export const BILL_TYPE_CONFIG: Record<BillType, { label: string }> = {
   reimbursement: { label: 'Reembolso de gastos'       },
   special:       { label: 'Factura Especial (SAT)'    },
   fuel:          { label: 'Combustible (con IDP)'     },
+  credit_note:   { label: 'Nota de Crédito'           },
 }
+
+// ─── Notas de crédito de proveedor ───────────────────────────────────────────
+const CREDIT_NOTE = `${BILL}/notas-credito`
+
+export const getCreditNotes = (params?: { page?: number; limit?: number; search?: string; status?: string; vendorId?: string }) =>
+  api.get(CREDIT_NOTE, { params }).then(unwrap) as Promise<{ data: PurchaseInvoice[]; total: number }>
+
+export const createCreditNote = (dto: Partial<PurchaseInvoice>) =>
+  api.post(CREDIT_NOTE, dto).then(unwrap) as Promise<PurchaseInvoice>
+
+export const approveCreditNote = (id: string) =>
+  api.post(`${CREDIT_NOTE}/${id}/aprobar`).then(unwrap) as Promise<PurchaseInvoice>
 
 export const PAYMENT_TERMS_CONFIG: Record<PaymentTerms, string> = {
   immediate: 'Contado',
