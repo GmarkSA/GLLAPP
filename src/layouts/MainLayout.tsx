@@ -15,6 +15,8 @@ import { useCompanyStore } from '../store/companyStore'
 import CompanySelector from '../components/CompanySelector'
 import CompanyContextBar from '../components/CompanyContextBar'
 import NoCompanyGuard from '../components/NoCompanyGuard'
+import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
+import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
@@ -251,6 +253,7 @@ export default function MainLayout() {
               />
             </Tooltip>
             <CompanyContextBar />
+            <OnboardingProgressBadge />
           </Space>
 
           {/* Right */}
@@ -329,6 +332,8 @@ export default function MainLayout() {
           </NoCompanyGuard>
         </Content>
       </Layout>
+
+      <OnboardingChatDrawer />
     </Layout>
   )
 }
