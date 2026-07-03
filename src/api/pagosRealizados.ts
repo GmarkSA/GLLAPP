@@ -176,16 +176,38 @@ export const getPendingInvoicesAllVendors = async (): Promise<PendingInvoicesByV
   return unwrap(res) ?? []
 }
 
-export const getAvailableAdvancesByVendor = async (vendorId: string): Promise<AdvancePayment[]> => {
-  const res = await api.get(`/compras/pagos-realizados/advances/vendor/${vendorId}`)
+// ── Anticipos a proveedores (módulo dedicado) ─────────────────────────────────
+export interface VendorAdvance {
+  id:            string
+  advanceNumber: string
+  advanceDate:   string
+  amount:        number
+  balance:       number
+  currency:      string
+  status:        string
+  reference?:    string
+  notes?:        string
+}
+
+export const getAvailableAdvancesByVendor = async (vendorId: string): Promise<VendorAdvance[]> => {
+  const res = await api.get(`/compras/anticipos-proveedor/available/vendor/${vendorId}`)
   return unwrap(res) ?? []
+}
+
+export const createVendorAdvance = async (dto: {
+  vendorId?: string; vendorName?: string; amount: number; date?: string
+  currency?: string; exchangeRate?: number; reference?: string; notes?: string
+  bankAccountId?: string; advanceAccountCode?: string
+}): Promise<any> => {
+  const res = await api.post('/compras/anticipos-proveedor', dto)
+  return unwrap(res)
 }
 
 export const applyAdvanceToInvoices = async (
   advanceId: string,
   dto: { invoiceIds: string[]; amounts?: Record<string, number> },
-): Promise<VendorPayment> => {
-  const res = await api.post(`/compras/pagos-realizados/${advanceId}/aplicar-anticipo`, dto)
+): Promise<any> => {
+  const res = await api.post(`/compras/anticipos-proveedor/${advanceId}/apply`, dto)
   return unwrap(res)
 }
 

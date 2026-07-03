@@ -10,8 +10,8 @@ import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
   createPagoRealizado, getPendingInvoicesByVendor,
-  getAvailableAdvancesByVendor, applyAdvanceToInvoices,
-  type PendingInvoice, type CreateVendorPaymentDto, type AdvancePayment,
+  getAvailableAdvancesByVendor, applyAdvanceToInvoices, createVendorAdvance,
+  type PendingInvoice, type CreateVendorPaymentDto, type VendorAdvance,
 } from '../../../api/pagosRealizados'
 import { getVendors } from '../../../api/compras'
 import { getBankAccounts } from '../../../api/bancos'
@@ -31,7 +31,7 @@ export default function PagoRealizadoFormPage() {
   const [vendors,        setVendors]        = useState<any[]>([])
   const [bankAccounts,   setBankAccounts]   = useState<any[]>([])
   const [pendingInvs,    setPendingInvs]    = useState<PendingInvoice[]>([])
-  const [advances,       setAdvances]       = useState<AdvancePayment[]>([])
+  const [advances,       setAdvances]       = useState<VendorAdvance[]>([])
   const [selectedIds,    setSelectedIds]    = useState<string[]>([])
   const [amounts,        setAmounts]        = useState<Record<string, number>>({})
   const [selectedAdv,    setSelectedAdv]    = useState<string | null>(null)
@@ -86,8 +86,8 @@ export default function PagoRealizadoFormPage() {
 
   const totalSelected = selectedIds.reduce((s, id) => s + (amounts[id] ?? 0), 0)
 
-  const selectedAdvance = advances.find(a => a.id === selectedAdv)
-  const totalAdvApplied = selectedIds.reduce((s, id) => s + (advAmounts[id] ?? 0), 0)
+  const selectedAdvance  = advances.find(a => a.id === selectedAdv)
+  const totalAdvApplied  = selectedIds.reduce((s, id) => s + (advAmounts[id] ?? 0), 0)
 
   // ── Columnas tabla facturas (pago regular) ───────────────────────────────────
   const invoiceColumns: ColumnsType<PendingInvoice> = [
@@ -166,7 +166,7 @@ export default function PagoRealizadoFormPage() {
       render: (_, r) => selectedIds.includes(r.id) ? (
         <InputNumber
           size="small" min={0.01}
-          max={Math.min(r.balance, selectedAdvance ? Number(selectedAdvance.advanceBalance) : r.balance)}
+          max={Math.min(r.balance, selectedAdvance ? Number(selectedAdvance.balance) : r.balance)}
           value={advAmounts[r.id] ?? r.balance} precision={2} style={{ width: 120 }}
           onChange={v => setAdvAmounts(a => ({ ...a, [r.id]: v ?? r.balance }))}
           onClick={e => e.stopPropagation()}
@@ -213,25 +213,18 @@ export default function PagoRealizadoFormPage() {
     if (!values.amount || Number(values.amount) <= 0) { message.warning('Ingresa el monto del anticipo'); return }
     setSubmitting(true)
     try {
-      const dto: CreateVendorPaymentDto = {
-        type:          'advance',
+      const vendorName = vendors.find(v => v.id === values.vendorId)?.name
+      const advance = await createVendorAdvance({
         vendorId:      values.vendorId,
+        vendorName,
         amount:        Number(values.amount),
-        concept:       values.concept || 'Anticipo a proveedor',
-        paymentDate:   values.paymentDate.format('YYYY-MM-DD'),
-        mode:          values.mode,
+        date:          values.paymentDate.format('YYYY-MM-DD'),
         currency:      'GTQ',
         reference:     values.reference || undefined,
-        checkType:     values.checkType || undefined,
         bankAccountId: values.bankAccountId || undefined,
-        notes:         values.notes || undefined,
-      }
-      const payment = await createPagoRealizado(dto)
-      message.success(`Anticipo ${payment.paymentNumber} registrado — Saldo disponible: ${fmtQ(Number(payment.advanceBalance ?? payment.amount))}`)
-      if (payment.mode === 'check' && payment.checkNumber) {
-        const print = window.confirm(`¿Imprimir el cheque ${payment.checkNumber}?`)
-        if (print) window.open(`/bancos/pagos-realizados/${payment.id}/cheque`, '_blank')
-      }
+        notes:         values.concept || values.notes || undefined,
+      })
+      message.success(`Anticipo ${advance.advanceNumber} registrado — Saldo disponible: ${fmtQ(Number(advance.balance ?? advance.amount))}`)
       navigate('/bancos/pagos-realizados')
     } catch (e: any) {
       const d = e?.response?.data
@@ -489,17 +482,17 @@ export default function PagoRealizadoFormPage() {
                   dataSource={advances}
                   rowKey="id"
                   columns={[
-                    { title: 'No. Pago', dataIndex: 'paymentNumber', width: 150,
+                    { title: 'No. Anticipo', dataIndex: 'advanceNumber', width: 150,
                       render: (v) => <Text style={{ fontFamily: 'monospace' }}>{v}</Text> },
-                    { title: 'Fecha', dataIndex: 'paymentDate', width: 110,
+                    { title: 'Fecha', dataIndex: 'advanceDate', width: 110,
                       render: (v) => dayjs(v).format('DD/MM/YYYY') },
-                    { title: 'Concepto', dataIndex: 'concept' },
+                    { title: 'Referencia', dataIndex: 'reference' },
                     { title: 'Monto original', dataIndex: 'amount', align: 'right' as const,
-                      render: (v, r) => fmtQ(Number(v), r.currency) },
-                    { title: 'Saldo disponible', dataIndex: 'advanceBalance', align: 'right' as const,
-                      render: (v, r) => (
+                      render: (v, r: VendorAdvance) => fmtQ(Number(v)) },
+                    { title: 'Saldo disponible', dataIndex: 'balance', align: 'right' as const,
+                      render: (v, r: VendorAdvance) => (
                         <Badge
-                          count={fmtQ(Number(v), r.currency)}
+                          count={fmtQ(Number(v))}
                           style={{ backgroundColor: Number(v) > 0 ? '#52c41a' : '#d9d9d9', fontSize: 11 }}
                         />
                       ) },
@@ -518,9 +511,9 @@ export default function PagoRealizadoFormPage() {
                       setSelectedAdv(v ?? null)
                       setSelectedIds([]); setAdvAmounts({})
                     }}
-                    options={advances.filter(a => Number(a.advanceBalance) > 0).map(a => ({
+                    options={advances.filter(a => Number(a.balance) > 0).map(a => ({
                       value: a.id,
-                      label: `${a.paymentNumber} — Saldo: ${fmtQ(Number(a.advanceBalance))} — ${a.concept ?? ''}`,
+                      label: `${a.advanceNumber} — Saldo: ${fmtQ(Number(a.balance))}${a.reference ? ` — ${a.reference}` : ''}`,
                     }))}
                   />
                 </div>
@@ -530,7 +523,7 @@ export default function PagoRealizadoFormPage() {
                     <Alert
                       type="success"
                       style={{ marginBottom: 12 }}
-                      message={`Saldo disponible del anticipo: ${fmtQ(Number(selectedAdvance?.advanceBalance ?? 0))} — Aplicado: ${fmtQ(totalAdvApplied)}`}
+                      message={`Saldo disponible del anticipo: ${fmtQ(Number(selectedAdvance?.balance ?? 0))} — Aplicado: ${fmtQ(totalAdvApplied)}`}
                     />
                     <Table
                       size="small"
