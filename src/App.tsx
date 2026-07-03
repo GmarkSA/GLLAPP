@@ -72,7 +72,8 @@ const ConciliacionPage     = lazy(() => import('./pages/bancos/ConciliacionPage'
 const TransferenciaPage    = lazy(() => import('./pages/bancos/TransferenciaPage'))
 const ImportarEstadoPage   = lazy(() => import('./pages/bancos/ImportarEstadoPage'))
 const ReglasBancariasPage    = lazy(() => import('./pages/bancos/ReglasBancariasPage'))
-const BankPaymentConfigPage  = lazy(() => import('./pages/bancos/BankPaymentConfigPage'))
+const BankPaymentConfigPage    = lazy(() => import('./pages/bancos/BankPaymentConfigPage'))
+const EmisionLoteChequesPage   = lazy(() => import('./pages/bancos/EmisionLoteChequesPage'))
 
 // Contabilidad
 const CatalogoPage    = lazy(() => import('./pages/contabilidad/CatalogoPage'))
@@ -193,9 +194,10 @@ export default function App() {
           <Route path="compras/dte-sat"                     element={<DteSatPage />} />
           <Route path="ventas/dte-sat"                      element={<DteSatVentasPage />} />
 
-          <Route path="bancos/pagos-realizados"       element={<PagosRealizadosPage />} />
-          <Route path="bancos/pagos-realizados/nuevo" element={<PagoRealizadoFormPage />} />
-          <Route path="bancos/config-pagos"            element={<BankPaymentConfigPage />} />
+          <Route path="bancos/pagos-realizados"              element={<PagosRealizadosPage />} />
+          <Route path="bancos/pagos-realizados/nuevo"     element={<PagoRealizadoFormPage />} />
+          <Route path="bancos/pagos-realizados/lote"      element={<EmisionLoteChequesPage />} />
+          <Route path="bancos/config-pagos"               element={<BankPaymentConfigPage />} />
 
           <Route path="compras/ordenes"             element={<OrdenesCompraPage />} />
           <Route path="compras/ordenes/nueva"       element={<OrdenCompraFormPage />} />

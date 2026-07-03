@@ -1,8 +1,9 @@
 import api from './axios'
 
-export type VendorPaymentMode = 'cash' | 'bank_transfer' | 'check' | 'credit_card' | 'debit_card' | 'other'
+export type VendorPaymentMode   = 'cash' | 'bank_transfer' | 'check' | 'credit_card' | 'debit_card' | 'other'
 export type VendorPaymentStatus = 'draft' | 'issued' | 'cleared' | 'voided'
-export type CheckType = 'physical' | 'electronic'
+export type VendorPaymentType   = 'regular' | 'advance'
+export type CheckType           = 'physical' | 'electronic'
 
 export interface AppliedInvoice {
   purchaseInvoiceId: string
@@ -13,10 +14,13 @@ export interface AppliedInvoice {
 export interface VendorPayment {
   id:                string
   paymentNumber:     string
+  type:              VendorPaymentType
   vendorId?:         string
   vendorName?:       string
   purchaseInvoiceId?: string
   appliedInvoices?:  AppliedInvoice[]
+  concept?:          string
+  advanceBalance?:   number
   paymentDate:       string
   amount:            number
   currency:          string
@@ -33,6 +37,23 @@ export interface VendorPayment {
   createdAt:         string
 }
 
+export interface AdvancePayment {
+  id:             string
+  paymentNumber:  string
+  paymentDate:    string
+  amount:         number
+  advanceBalance: number
+  concept?:       string
+  currency:       string
+  mode:           VendorPaymentMode
+}
+
+export interface PendingInvoicesByVendor {
+  vendorId:   string
+  vendorName: string
+  invoices:   PendingInvoice[]
+}
+
 export interface PendingInvoice {
   id:            string
   invoiceNumber: string
@@ -46,9 +67,12 @@ export interface PendingInvoice {
 }
 
 export interface CreateVendorPaymentDto {
+  type?:          VendorPaymentType
   vendorId:       string
-  invoiceIds:     string[]           // Una o varias facturas
-  amounts?:       Record<string, number>  // Si se pagan montos parciales distintos
+  invoiceIds?:    string[]
+  amounts?:       Record<string, number>
+  concept?:       string              // Requerido para anticipos
+  amount?:        number              // Requerido para anticipos
   paymentDate:    string
   mode:           VendorPaymentMode
   currency?:      string
@@ -57,6 +81,11 @@ export interface CreateVendorPaymentDto {
   checkType?:     CheckType
   bankAccountId?: string
   notes?:         string
+}
+
+export interface BatchPaymentResult {
+  payments: VendorPayment[]
+  checks:   { id: string; paymentNumber: string; checkNumber: string | null; vendorName: string }[]
 }
 
 export interface CashFlowBucketItem {
@@ -132,6 +161,31 @@ export const getCashFlowProjection = async (refDate?: string): Promise<CashFlowP
   const res = await api.get('/compras/pagos-realizados/cash-flow-projection', {
     params: refDate ? { refDate } : undefined,
   })
+  return unwrap(res)
+}
+
+export const createBatchPayment = async (
+  payments: CreateVendorPaymentDto[],
+): Promise<BatchPaymentResult> => {
+  const res = await api.post('/compras/pagos-realizados/batch', { payments })
+  return unwrap(res)
+}
+
+export const getPendingInvoicesAllVendors = async (): Promise<PendingInvoicesByVendor[]> => {
+  const res = await api.get('/compras/pagos-realizados/pending-all-vendors')
+  return unwrap(res) ?? []
+}
+
+export const getAvailableAdvancesByVendor = async (vendorId: string): Promise<AdvancePayment[]> => {
+  const res = await api.get(`/compras/pagos-realizados/advances/vendor/${vendorId}`)
+  return unwrap(res) ?? []
+}
+
+export const applyAdvanceToInvoices = async (
+  advanceId: string,
+  dto: { invoiceIds: string[]; amounts?: Record<string, number> },
+): Promise<VendorPayment> => {
+  const res = await api.post(`/compras/pagos-realizados/${advanceId}/aplicar-anticipo`, dto)
   return unwrap(res)
 }
 

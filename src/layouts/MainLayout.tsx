@@ -51,6 +51,7 @@ const menuItems = [
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
     { key: '/bancos',                         label: 'Cuentas bancarias' },
     { key: '/bancos/pagos-realizados',        label: 'Pagos a proveedores' },
+    { key: '/bancos/pagos-realizados/lote',  label: 'Emisión lote de cheques' },
     { key: '/bancos/config-pagos',            label: 'Config. cheques y ACH' },
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
