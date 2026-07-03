@@ -14,7 +14,8 @@
  */
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getPagoRealizado, type VendorPayment } from '../../../api/pagosRealizados'
+import { getPagoRealizado, getBankPaymentConfigByAccount, type VendorPayment } from '../../../api/pagosRealizados'
+import type { CheckLayoutPositions } from '../../../components/CheckLayoutEditor'
 
 // ── Conversión de número a letras (quetzales guatemaltecos) ─────────────────────
 
@@ -73,14 +74,16 @@ function numToWords(n: number): string {
 
 type CheckFormat = {
   label:      string
-  width:      string  // CSS width de la página
-  height:     string  // CSS height de la página
-  paddingTop: string  // Espacio antes del primer campo
+  width:      string
+  height:     string
+  paddingTop: string
   fields: {
     beneficiario: { top: string; left: string; width: string }
     fecha:        { top: string; left: string }
     monto:        { top: string; left: string }
     letras:       { top: string; left: string; width: string }
+    firma?:        { top: string; left: string; width?: string; show?: boolean } | null
+    noNegociable?: { top: string; left: string; show?: boolean } | null
   }
 }
 
@@ -151,14 +154,25 @@ function detectFormat(bankName?: string): string {
 
 export default function ChequePrintPage() {
   const { id } = useParams<{ id: string }>()
-  const [payment, setPayment] = useState<VendorPayment | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState<string | null>(null)
+  const [payment,  setPayment]  = useState<VendorPayment | null>(null)
+  const [customPos, setCustomPos] = useState<CheckLayoutPositions | null>(null)
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
     getPagoRealizado(id)
-      .then(p => { setPayment(p); setLoading(false) })
+      .then(async p => {
+        setPayment(p)
+        // Cargar configuración personalizada del banco si existe
+        if (p.bankAccountId) {
+          try {
+            const cfg = await getBankPaymentConfigByAccount(p.bankAccountId)
+            if (cfg?.checkFieldPositions) setCustomPos(cfg.checkFieldPositions)
+          } catch { /* no config = usar defaults */ }
+        }
+        setLoading(false)
+      })
       .catch(() => { setError('No se pudo cargar el pago'); setLoading(false) })
   }, [id])
 
@@ -172,7 +186,23 @@ export default function ChequePrintPage() {
   if (error || !payment) return <div style={{ padding: 40, color: 'red' }}>{error ?? 'Error'}</div>
 
   const formatKey  = detectFormat(payment.bankName)
-  const fmt        = CHECK_FORMATS[formatKey]
+  const baseFmt    = CHECK_FORMATS[formatKey]
+
+  // Fusionar posiciones base con overrides del usuario
+  const mp = (base: any, over: any) => over ? { ...base, ...over } : base
+  const cp     = customPos
+  const fmtW   = cp?.width  ?? baseFmt.width
+  const fmtH   = cp?.height ?? baseFmt.height
+  const fields: CheckFormat['fields'] = {
+    beneficiario: mp(baseFmt.fields.beneficiario, cp?.beneficiario),
+    fecha:        mp(baseFmt.fields.fecha,        cp?.fecha),
+    monto:        mp(baseFmt.fields.monto,        cp?.monto),
+    letras:       mp(baseFmt.fields.letras,       cp?.letras),
+    firma:        cp?.firma        ?? null,
+    noNegociable: cp?.noNegociable ?? null,
+  }
+
+  const fmt: CheckFormat = { ...baseFmt, width: fmtW, height: fmtH, fields }
   const amount     = Number(payment.amount)
   const amountStr  = `Q ${amount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
   const letras     = numToWords(amount)
@@ -208,6 +238,20 @@ export default function ChequePrintPage() {
           font-weight: 500;
           white-space: normal;
           line-height: 1.3;
+        }
+        .field-firma-line {
+          border-bottom: 1px solid #000;
+          width: 100%;
+          margin-top: 10px;
+        }
+        .field-no-negociable {
+          font-size: 7pt;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          border: 1.5px solid #000;
+          padding: 2px 6px;
+          border-radius: 3px;
+          white-space: nowrap;
         }
         .screen-controls {
           padding: 16px;
@@ -285,6 +329,37 @@ export default function ChequePrintPage() {
           >
             {letras} ****
           </div>
+
+          {/* Firma (opcional — se muestra si show !== false) */}
+          {fmt.fields.firma && fmt.fields.firma.show !== false && (
+            <div
+              className="field"
+              style={{
+                top:   fmt.fields.firma.top,
+                left:  fmt.fields.firma.left,
+                width: fmt.fields.firma.width ?? '8cm',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <div className="field-firma-line" />
+              <span style={{ fontSize: '7pt', fontWeight: 400, marginTop: 2 }}>FIRMA AUTORIZADA</span>
+            </div>
+          )}
+
+          {/* Sello NO NEGOCIABLE (opcional) */}
+          {fmt.fields.noNegociable && fmt.fields.noNegociable.show !== false && (
+            <div
+              className="field field-no-negociable"
+              style={{
+                top:  fmt.fields.noNegociable.top,
+                left: fmt.fields.noNegociable.left,
+              }}
+            >
+              NO NEGOCIABLE
+            </div>
+          )}
         </div>
       </div>
 

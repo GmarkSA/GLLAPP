@@ -14,6 +14,7 @@ import {
   updateBankPaymentConfig, deleteBankPaymentConfig,
   type BankPaymentConfig, type CheckFormat, type AchFileFormat,
 } from '../../api/pagosRealizados'
+import CheckLayoutEditor from '../../components/CheckLayoutEditor'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -260,12 +261,21 @@ export default function BankPaymentConfigPage() {
 
           {/* Formato cheque */}
           <Divider orientation={"left" as any} plain style={{ fontSize: 12 }}>Formato de impresión del cheque</Divider>
-          <Form.Item label="Formato" name="checkFormat">
+          <Form.Item label="Formato base" name="checkFormat">
             <Select>
               {CHECK_FORMATS.map(f => (
                 <Option key={f.value} value={f.value}>{f.label}</Option>
               ))}
             </Select>
+          </Form.Item>
+
+          {/* Editor visual de layout */}
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.checkFormat !== cur.checkFormat}>
+            {({ getFieldValue }) => (
+              <Form.Item name="checkFieldPositions" noStyle>
+                <CheckLayoutEditor baseFormat={getFieldValue('checkFormat') ?? 'generic'} />
+              </Form.Item>
+            )}
           </Form.Item>
 
           {/* ACH */}
