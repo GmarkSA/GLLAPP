@@ -1,19 +1,20 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Button, Space, Typography, Tag, Input,
-  DatePicker, Tooltip, Popconfirm, message, Row, Col, Statistic, Popover,
+  DatePicker, Tooltip, Popconfirm, message, Row, Col, Statistic, Popover, Modal, Descriptions,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, DollarOutlined, EyeOutlined, DeleteOutlined,
-  ClearOutlined, BankOutlined, SettingOutlined,
+  ClearOutlined, BankOutlined, SettingOutlined, BookOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  getPagosRecibidos, deletePagoRecibido,
+  getPagosRecibidos, deletePagoRecibido, reprocessPagoJournal,
   type PagoRecibido, PAYMENT_MODE_LABELS,
 } from '../../../api/pagos-recibidos'
+import { getAsiento, type AsientoDetalle } from '../../../api/asientos'
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
@@ -57,12 +58,19 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+const COL_WIDTHS: Record<string, number> = {
+  paymentNumber: 175, paymentDate: 105, customer: 200,
+  customerTaxId: 120, documento: 165, invoiceTotal: 120,
+  currency: 80, mode: 160, reference: 140,
+  amount: 130, isAdvance: 90, notes: 150,
+}
+
 // ── Definiciones de columna ───────────────────────────────────────────────────
 function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
   const base = { key }
   switch (key) {
     case 'paymentNumber':
-      return { ...base, title: 'N° Pago', dataIndex: 'paymentNumber', width: 175,
+      return { ...base, title: 'N° Pago', dataIndex: 'paymentNumber', width: 175, fixed: 'left' as const,
         render: (v: string, r: PagoRecibido) => (
           <Space direction="vertical" size={2}>
             <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12 }}>{v}</Text>
@@ -149,6 +157,11 @@ export default function PagosRecibidosPage() {
   const [total,    setTotal]    = useState(0)
   const [loading,  setLoading]  = useState(false)
 
+  // Póliza modal
+  const [polizaData,    setPolizaData]    = useState<AsientoDetalle | null>(null)
+  const [polizaLoading, setPolizaLoading] = useState(false)
+  const [reprocessing,  setReprocessing]  = useState<string | null>(null)
+
   // Column config
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
@@ -170,9 +183,40 @@ export default function PagosRecibidosPage() {
     catch (e: any) { message.error(e?.response?.data?.message || 'Error al eliminar') }
   }
 
+  const handleVerPoliza = async (journalEntryId: string) => {
+    setPolizaLoading(true)
+    try {
+      const entry = await getAsiento(journalEntryId)
+      setPolizaData(entry)
+    } catch { message.error('No se pudo cargar la póliza') }
+    finally { setPolizaLoading(false) }
+  }
+
+  const handleGenerarPoliza = async (id: string) => {
+    setReprocessing(id)
+    try {
+      await reprocessPagoJournal(id)
+      message.success('Póliza generada correctamente')
+      load()
+    } catch (e: any) {
+      const d = e?.response?.data
+      const msg = d?.error?.message || d?.message || 'Error al generar póliza'
+      message.error(msg)
+    }
+    finally { setReprocessing(null) }
+  }
+
   const totalMonto     = data.reduce((s, p) => s + Number(p.amount), 0)
   const totalAnticipos = data.filter(p => p.isAdvance).reduce((s, p) => s + Number(p.amount), 0)
   const pagosHoy       = data.filter(p => dayjs(p.paymentDate).isSame(dayjs(), 'day')).length
+
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 100 // +acciones
+  }, [colConfig])
 
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<PagoRecibido> = [
@@ -184,14 +228,30 @@ export default function PagosRecibidosPage() {
     {
       key: '_actions',
       title: 'Acciones',
-      width: 100,
+      width: 130,
       align: 'center' as const,
+      fixed: 'right' as const,
       render: (_: any, r: PagoRecibido) => (
         <Space size={4}>
           <Tooltip title="Ver detalle">
             <Button size="small" type="text" icon={<EyeOutlined />}
               onClick={() => navigate(`/ventas/pagos-recibidos/${r.id}`)} />
           </Tooltip>
+          {r.journalEntryId
+            ? (
+              <Tooltip title="Ver póliza contable">
+                <Button size="small" type="text" icon={<BookOutlined style={{ color: '#1B3A6B' }} />}
+                  loading={polizaLoading}
+                  onClick={() => handleVerPoliza(r.journalEntryId!)} />
+              </Tooltip>
+            ) : (
+              <Tooltip title="Generar póliza contable">
+                <Button size="small" type="text" icon={<SyncOutlined style={{ color: '#d97706' }} />}
+                  loading={reprocessing === r.id}
+                  onClick={() => handleGenerarPoliza(r.id)} />
+              </Tooltip>
+            )
+          }
           <Tooltip title="Eliminar pago">
             <Popconfirm
               title="¿Eliminar este pago?"
@@ -303,11 +363,52 @@ export default function PagosRecibidosPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} pagos`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay pagos registrados en el período' }}
         />
       </Card>
+
+      {/* Modal póliza contable */}
+      <Modal
+        open={!!polizaData}
+        onCancel={() => setPolizaData(null)}
+        footer={<Button onClick={() => setPolizaData(null)}>Cerrar</Button>}
+        title={polizaData ? `Póliza ${polizaData.entryNumber} — ${dayjs(polizaData.entryDate).format('DD/MM/YYYY')}` : 'Póliza contable'}
+        width={700}
+      >
+        {polizaData && (
+          <>
+            <Descriptions size="small" bordered column={2} style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="Descripción" span={2}>{polizaData.description}</Descriptions.Item>
+              <Descriptions.Item label="Referencia">{polizaData.reference || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Estado">
+                <Tag color={polizaData.status === 'posted' ? 'green' : 'orange'}>
+                  {polizaData.status === 'posted' ? 'Publicada' : polizaData.status}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Total Débito">
+                <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(polizaData.totalDebit)}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Total Crédito">
+                <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(polizaData.totalCredit)}</Text>
+              </Descriptions.Item>
+            </Descriptions>
+            <Table
+              size="small"
+              pagination={false}
+              dataSource={polizaData.lines}
+              rowKey={(_, i) => String(i)}
+              columns={[
+                { title: 'Cuenta', dataIndex: 'accountCode', width: 100, render: (v: string, r: any) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v} — {r.accountName}</span> },
+                { title: 'Descripción', dataIndex: 'description', ellipsis: true },
+                { title: 'Débito',  dataIndex: 'debit',  align: 'right' as const, width: 110, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+                { title: 'Crédito', dataIndex: 'credit', align: 'right' as const, width: 110, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+              ]}
+            />
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

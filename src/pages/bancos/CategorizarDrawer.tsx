@@ -7,6 +7,7 @@ import type { Account } from '../../api/catalogo'
 import { updateTransaction, type BankAccount, type BankTransaction } from '../../api/bancos'
 import { getInvoices, createAnticipo, type Invoice } from '../../api/facturas'
 import { getBills, getJournalEntry, recordBillPayment, getAccountDefaults, createVendorAdvance, getVendors, type PurchaseInvoice, type AccountDefaults, type Vendor } from '../../api/compras'
+import { getCustomers, type Customer } from '../../api/contactos'
 import { createPagoRecibido, getPagoRecibido, reprocessPagoJournal } from '../../api/pagos-recibidos'
 import { createAsiento, updateAsiento } from '../../api/asientos'
 import { getExchangeRateForDate } from '../../api/monedas'
@@ -45,6 +46,11 @@ export default function CategorizarDrawer({
   const [vendorSearching, setVendorSearching] = useState(false)
   const [selectedVendorId, setSelectedVendorId]     = useState<string | undefined>()
   const [selectedVendorName, setSelectedVendorName] = useState<string | undefined>()
+  const [showCustomerForm, setShowCustomerForm]   = useState(false)
+  const [customers, setCustomers]                 = useState<Customer[]>([])
+  const [customerSearching, setCustomerSearching] = useState(false)
+  const [selectedCustomerId, setSelectedCustomerId]     = useState<string | undefined>()
+  const [selectedCustomerName, setSelectedCustomerName] = useState<string | undefined>()
   const [exchangeRate, setExchangeRate]       = useState<number>(1)
   const [resultado, setResultado]             = useState<Resultado | null>(null)
   const [accountDefaults, setAccountDefaults] = useState<AccountDefaults>({})
@@ -71,6 +77,10 @@ export default function CategorizarDrawer({
     setSelectedVendorId(undefined)
     setSelectedVendorName(undefined)
     setVendors([])
+    setShowCustomerForm(false)
+    setSelectedCustomerId(undefined)
+    setSelectedCustomerName(undefined)
+    setCustomers([])
     fetchMatches('')
     if (account?.currency && account.currency !== 'GTQ') {
       const txDate = String(transaction.transactionDate || '').split('T')[0]
@@ -93,11 +103,8 @@ export default function CategorizarDrawer({
     setLoadingList(true)
     try {
       if (isCredit) {
-        const [r1, r2] = await Promise.all([
-          getInvoices({ status: 'pending', search: q || undefined, limit: 15 }),
-          getInvoices({ status: 'partial', search: q || undefined, limit: 10 }),
-        ])
-        setInvoices([...r1.data, ...r2.data])
+        const r = await getInvoices({ status: 'sent,pending,partial,overdue', search: q || undefined, limit: 50 })
+        setInvoices(r.data)
       } else {
         const [r1, r2] = await Promise.all([
           getBills({ status: 'open', search: q || undefined, limit: 15 }),
@@ -304,6 +311,16 @@ export default function CategorizarDrawer({
     }
   }
 
+  const searchCustomers = async (q: string) => {
+    setCustomerSearching(true)
+    try {
+      const res = await getCustomers({ search: q || undefined, limit: 100 })
+      const list: Customer[] = Array.isArray(res) ? res : (res as any).data ?? []
+      setCustomers(list)
+    } catch { setCustomers([]) }
+    finally { setCustomerSearching(false) }
+  }
+
   const searchVendors = async (q: string) => {
     setVendorSearching(true)
     try {
@@ -368,13 +385,14 @@ export default function CategorizarDrawer({
 
   const applyAsCustomerAdvance = async () => {
     if (!transaction || !account) return
+    if (!selectedCustomerId) { message.warning('Selecciona el cliente'); return }
     setSavingAdvance(true)
     try {
       const txDate    = String(transaction.transactionDate || '').split('T')[0]
       const amountGTQ = Number(transaction.amount) * (isForeign ? exchangeRate : 1)
 
       const advance = await createAnticipo({
-        customerId:    '',
+        customerId:    selectedCustomerId,
         amount:        Number(transaction.amount),
         date:          txDate,
         currency:      account.currency,
@@ -396,7 +414,7 @@ export default function CategorizarDrawer({
 
       message.success(`Anticipo registrado — ${advance.invoiceNumber}`)
       setResultado({
-        titulo: `Anticipo de cliente — ${advance.invoiceNumber}`,
+        titulo: `Anticipo de cliente — ${advance.invoiceNumber}${selectedCustomerName ? ` (${selectedCustomerName})` : ''}`,
         journalLines,
       })
     } catch (e: any) {
@@ -719,21 +737,58 @@ export default function CategorizarDrawer({
           </Divider>
 
           {/* ── Anticipo ─────────────────────────────────────────────── */}
-          {isCredit ? (
-            <Tooltip title={`Cuenta: ${accountDefaults.customerAdvanceAccountCode || '2110'} — Anticipo de clientes`}>
-              <Button
-                block
-                icon={<ClockCircleOutlined />}
-                loading={savingAdvance}
-                style={{ marginBottom: 8, borderColor: '#722ed1', color: '#722ed1' }}
-                onClick={applyAsCustomerAdvance}
-              >
-                Anticipo de cliente
-                <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
-                  ({accountDefaults.customerAdvanceAccountCode || '2110'})
-                </Text>
-              </Button>
-            </Tooltip>
+          {isCredit ? showCustomerForm ? (
+            <div style={{ border: '1px solid #722ed1', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+              <Text strong style={{ fontSize: 12, color: '#722ed1', display: 'block', marginBottom: 6 }}>
+                Cliente para el anticipo (cta {accountDefaults.customerAdvanceAccountCode || '2110'})
+              </Text>
+              <Select
+                showSearch
+                allowClear
+                placeholder="Buscar cliente..."
+                size="small"
+                style={{ width: '100%', marginBottom: 8 }}
+                filterOption={false}
+                onSearch={searchCustomers}
+                onFocus={() => searchCustomers('')}
+                loading={customerSearching}
+                value={selectedCustomerId}
+                onChange={(val, opt: any) => {
+                  setSelectedCustomerId(val)
+                  setSelectedCustomerName(opt?.label ?? '')
+                }}
+                options={customers.map(c => ({ value: c.id, label: c.name }))}
+                notFoundContent={customerSearching ? 'Buscando…' : 'Sin resultados'}
+              />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<ClockCircleOutlined />}
+                  loading={savingAdvance}
+                  disabled={!selectedCustomerId}
+                  style={{ flex: 1, background: '#722ed1', borderColor: '#722ed1' }}
+                  onClick={applyAsCustomerAdvance}
+                >
+                  Registrar anticipo
+                </Button>
+                <Button size="small" onClick={() => { setShowCustomerForm(false); setSelectedCustomerId(undefined); setSelectedCustomerName(undefined) }}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              block
+              icon={<ClockCircleOutlined />}
+              style={{ marginBottom: 8, borderColor: '#722ed1', color: '#722ed1' }}
+              onClick={() => { setShowCustomerForm(true); searchCustomers('') }}
+            >
+              Anticipo de cliente
+              <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
+                ({accountDefaults.customerAdvanceAccountCode || '2110'})
+              </Text>
+            </Button>
           ) : showVendorForm ? (
             <div style={{ border: '1px solid #722ed1', borderRadius: 6, padding: 10, marginBottom: 8 }}>
               <Text strong style={{ fontSize: 12, color: '#722ed1', display: 'block', marginBottom: 6 }}>

@@ -242,6 +242,59 @@ export interface LibroVentasReport {
   count:            number
 }
 
+// ─── AR Aging (CxC) ──────────────────────────────────────────────────────────
+
+export interface ArAgingPayment {
+  paymentNumber: string
+  paymentDate:   string | null
+  amount:        number
+  mode:          string | null
+  reference:     string | null
+}
+
+export interface ArAgingRow {
+  id:           string
+  invoiceNumber: string
+  customerId:   string
+  customerName: string
+  invoiceDate:  string
+  dueDate?:     string
+  currency:     string
+  exchangeRate: number
+  total:        number
+  totalGTQ:     number
+  paidAmount:   number
+  balance:      number
+  balanceGTQ:   number
+  daysOverdue:  number
+  payments:     ArAgingPayment[]
+}
+
+export interface ArAgingBucket {
+  label: string
+  total: number
+  count: number
+  items: ArAgingRow[]
+}
+
+export interface ArAgingReport {
+  buckets: {
+    current:  ArAgingBucket
+    days_30:  ArAgingBucket
+    days_60:  ArAgingBucket
+    days_90:  ArAgingBucket
+    over_90:  ArAgingBucket
+  }
+  grandTotal:    number
+  advances:      any[]
+  totalAdvances: number
+  netTotal:      number
+  generatedAt:   string
+}
+
+export const getArAging = (asOf?: string) =>
+  api.get(`${BASE_INV}/reportes/ar-aging`, { params: asOf ? { asOf } : undefined }).then(unwrap) as Promise<ArAgingReport>
+
 export const getLibroVentas = (from: string, to: string) =>
   api.get(`${BASE_INV}/reportes/libro-ventas`, { params: { from, to } }).then(unwrap) as Promise<LibroVentasReport>
 
@@ -498,10 +551,15 @@ export const createSatEmitidosCustomer = (id: string, dto?: {
   paymentTerms?: string
   paymentTermsDays?: number
   receivableAccountId?: string
+  incomeAccountId?: string
+  taxCode?: string
 }) => api.post(`${DTE_EMIT}/documentos/${id}/crear-cliente`, dto ?? {}).then(unwrap)
 
 export const deleteSatEmitidos = (id: string) =>
   api.post(`${DTE_EMIT}/documentos/${id}/eliminar`).then(unwrap) as Promise<{ deleted: boolean; id: string }>
+
+export const clearAllSatEmitidos = () =>
+  api.post(`${DTE_EMIT}/limpiar-todo`).then(unwrap) as Promise<{ deletedDtes: number; deletedJobs: number }>
 
 export const reactivateSatEmitidos = (id: string) =>
   api.post(`${DTE_EMIT}/documentos/${id}/reactivar`).then(unwrap)

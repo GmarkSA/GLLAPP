@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Card, Button, Table, Typography, Breadcrumb, DatePicker, Space,
+  Card, Button, Table, Typography, Breadcrumb, Select, Space,
   Tag, InputNumber, message,
 } from 'antd'
 import { HomeOutlined, SearchOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons'
-import dayjs, { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 
 import {
   getLibroCompras, downloadLibroComprasExcel,
@@ -23,7 +23,17 @@ import {
 } from '../../api/libros-sat'
 
 const { Title, Text } = Typography
-const { RangePicker }  = DatePicker
+
+const MESES = [
+  { value: 1,  label: 'Enero' },   { value: 2,  label: 'Febrero' },
+  { value: 3,  label: 'Marzo' },   { value: 4,  label: 'Abril' },
+  { value: 5,  label: 'Mayo' },    { value: 6,  label: 'Junio' },
+  { value: 7,  label: 'Julio' },   { value: 8,  label: 'Agosto' },
+  { value: 9,  label: 'Septiembre' }, { value: 10, label: 'Octubre' },
+  { value: 11, label: 'Noviembre' },  { value: 12, label: 'Diciembre' },
+]
+const CUR_YEAR = dayjs().year()
+const ANIOS = Array.from({ length: 6 }, (_, i) => ({ value: CUR_YEAR - i, label: String(CUR_YEAR - i) }))
 
 const fmt  = (n: number) => (n ?? 0) === 0 ? '—' : (n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })
 const fmtQ = (n: number) => `Q ${(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -57,12 +67,14 @@ const FIXED_HEADER_COLS = [
     dataIndex: 'folio',
     width: 48,
     align: 'center' as const,
+    sorter: (a: any, b: any) => (a.folio ?? 0) - (b.folio ?? 0),
     render: (v: number) => <Text style={{ fontSize: 11, color: '#6b7280' }}>{v}</Text>,
   },
   {
     title: 'Tipo Doc.',
     dataIndex: 'tipoDocumento',
     width: 90,
+    sorter: (a: any, b: any) => (a.tipoDocumento || '').localeCompare(b.tipoDocumento || ''),
     render: (v: string) => (
       <Tag style={{ fontSize: 10, padding: '0 4px' }}>
         {v === 'goods' ? 'FACT' : v === 'services' ? 'SERV' : v === 'fuel' ? 'COMB' : v === 'special' ? 'FE' : v === 'reimbursement' ? 'REEM' : v.toUpperCase()}
@@ -73,12 +85,14 @@ const FIXED_HEADER_COLS = [
     title: 'Fecha Factura',
     dataIndex: 'fecha',
     width: 95,
+    sorter: (a: any, b: any) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
     render: (v: string) => <span style={{ fontSize: 11 }}>{fmtD(v)}</span>,
   },
   {
     title: 'Fecha Contabiliz.',
     dataIndex: 'fechaContabilizacion',
     width: 105,
+    sorter: (a: any, b: any) => new Date(a.fechaContabilizacion || a.fecha).getTime() - new Date(b.fechaContabilizacion || b.fecha).getTime(),
     render: (v: string, r: any) => {
       const isDiff = v && r.fecha && new Date(v).toDateString() !== new Date(r.fecha).toDateString()
       return (
@@ -88,11 +102,10 @@ const FIXED_HEADER_COLS = [
       )
     },
   },
-  { title: 'Serie',         dataIndex: 'felSerie',   width: 55,  render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
-  { title: 'No. Documento', dataIndex: 'felNumero',  width: 100, render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
-  { title: 'Referencia',    dataIndex: 'referencia', width: 90, ellipsis: true, render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
-  { title: 'NIT Contribuyente',    dataIndex: 'nitProveedor',    width: 110, render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
-  { title: 'Nombre del Contribuyente', dataIndex: 'nombreProveedor', ellipsis: true, width: 180, render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span> },
+  { title: 'Serie',         dataIndex: 'felSerie',   width: 55,  sorter: (a: any, b: any) => (a.felSerie || '').localeCompare(b.felSerie || ''),   render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
+  { title: 'No. Documento', dataIndex: 'felNumero',  width: 100, sorter: (a: any, b: any) => (a.felNumero || '').localeCompare(b.felNumero || ''), render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
+  { title: 'NIT Contribuyente',    dataIndex: 'nitProveedor',    width: 110, sorter: (a: any, b: any) => (a.nitProveedor || '').localeCompare(b.nitProveedor || ''),    render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
+  { title: 'Nombre del Contribuyente', dataIndex: 'nombreProveedor', ellipsis: true, width: 180, sorter: (a: any, b: any) => (a.nombreProveedor || '').localeCompare(b.nombreProveedor || ''), render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span> },
 ]
 
 // ── Columnas fijas de cola (después de las categorías) ───────────────────────
@@ -102,6 +115,7 @@ const FIXED_TAIL_COLS = [
     dataIndex: 'idp',
     width: 72,
     align: 'right' as const,
+    sorter: (a: any, b: any) => (a.idp ?? 0) - (b.idp ?? 0),
     render: (v: number) => v > 0
       ? <span style={{ fontSize: 11, color: '#d97706' }}>{fmt(v)}</span>
       : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span>,
@@ -111,6 +125,7 @@ const FIXED_TAIL_COLS = [
     dataIndex: 'iva',
     width: 80,
     align: 'right' as const,
+    sorter: (a: any, b: any) => (a.iva ?? 0) - (b.iva ?? 0),
     render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v)}</span>,
   },
   {
@@ -118,6 +133,7 @@ const FIXED_TAIL_COLS = [
     dataIndex: 'total',
     width: 95,
     align: 'right' as const,
+    sorter: (a: any, b: any) => (a.total ?? 0) - (b.total ?? 0),
     render: (v: number) => <span style={{ fontSize: 12, fontWeight: 600 }}>{fmt(v)}</span>,
   },
 ]
@@ -132,6 +148,7 @@ function buildColumns(colsConfig: LibroColumn[]) {
       dataIndex: FIELD_MAP[col.key] ?? col.key,
       width: 90,
       align: 'right' as const,
+      sorter: (a: any, b: any) => ((a[FIELD_MAP[col.key] ?? col.key] ?? 0) - (b[FIELD_MAP[col.key] ?? col.key] ?? 0)),
       render: (v: number) => <span style={{ fontSize: 11 }}>{fmt(v ?? 0)}</span>,
     }))
   return [...FIXED_HEADER_COLS, ...dynamicCols, ...FIXED_TAIL_COLS]
@@ -146,13 +163,13 @@ function TotalsRow({ data, colsConfig }: { data: LibroComprasReport; colsConfig:
 
   return (
     <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
-      <Table.Summary.Cell index={0} colSpan={9}>
+      <Table.Summary.Cell index={0} colSpan={8}>
         <Text strong style={{ fontSize: 11, color: '#1B3A6B' }}>
           TOTALES — {data.count} documentos
         </Text>
       </Table.Summary.Cell>
       {vals.map((v, i) => (
-        <Table.Summary.Cell key={i} index={9 + i} align="right">
+        <Table.Summary.Cell key={i} index={8 + i} align="right">
           <Text strong style={{ fontSize: 11, color: v > 0 ? '#1B3A6B' : '#d1d5db' }}>
             {v > 0 ? fmt(v) : '—'}
           </Text>
@@ -254,21 +271,22 @@ function ResumenIVA({
 
 // ── Página principal ─────────────────────────────────────────────────────────
 export default function LibroComprasPage() {
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().startOf('month'),
-    dayjs().endOf('month'),
-  ])
+  const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1)
+  const [selectedYear,  setSelectedYear]  = useState(dayjs().year())
   const [data,        setData]        = useState<LibroComprasReport | null>(null)
   const [loading,     setLoading]     = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [empresa,     setEmpresa]     = useState<EmpresaInfo | null>(null)
   const [folioInicio, setFolioInicio] = useState<number>(1)
   const [libroConfig, setLibroConfig] = useState<LibroSATConfig>(DEFAULT_CONFIG)
+  const dragCol    = useRef(-1)
+  const [overCol,  setOverCol]  = useState(-1)
+  const [colOrder, setColOrder] = useState<number[] | null>(null)
 
   useEffect(() => {
     getEmpresaInfo().then(setEmpresa).catch(() => {})
     getLibroSATConfig().then(setLibroConfig).catch(() => {})
-    getCorrelativo('libro-compras', dayjs().format('YYYY'))
+    getCorrelativo('libro-compras', String(dayjs().year()))
       .then(r => setFolioInicio((r.current_correlativo ?? 0) + 1))
       .catch(() => {})
   }, [])
@@ -277,13 +295,16 @@ export default function LibroComprasPage() {
   const folioFin = folioInicio + pages - 1
   const activeCols = libroConfig.compras.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
 
+  const fromDate = dayjs().year(selectedYear).month(selectedMonth - 1).startOf('month')
+  const toDate   = dayjs().year(selectedYear).month(selectedMonth - 1).endOf('month')
+
   const load = () => {
     setLoading(true)
-    getLibroCompras(dateRange[0].format('YYYY-MM-DD'), dateRange[1].format('YYYY-MM-DD'))
+    getLibroCompras(fromDate.format('YYYY-MM-DD'), toDate.format('YYYY-MM-DD'))
       .then(result => {
         setData(result)
         const pags = Math.max(1, Math.ceil(result.count / ROWS_PER_PAGE))
-        setCorrelativo('libro-compras', folioInicio + pags - 1, dateRange[0].format('YYYY')).catch(() => {})
+        setCorrelativo('libro-compras', folioInicio + pags - 1, String(selectedYear)).catch(() => {})
       })
       .catch(() => message.error('No se pudo cargar el Libro de Compras'))
       .finally(() => setLoading(false))
@@ -294,9 +315,9 @@ export default function LibroComprasPage() {
     setDownloading(true)
     try {
       await downloadLibroComprasExcel(
-        dateRange[0].format('YYYY-MM-DD'),
-        dateRange[1].format('YYYY-MM-DD'),
-        `libro-compras-${dateRange[0].format('YYYY-MM')}.xlsx`,
+        fromDate.format('YYYY-MM-DD'),
+        toDate.format('YYYY-MM-DD'),
+        `libro-compras-${fromDate.format('YYYY-MM')}.xlsx`,
       )
     } catch { message.error('Error al descargar Excel') }
     finally { setDownloading(false) }
@@ -304,7 +325,6 @@ export default function LibroComprasPage() {
 
   const handlePrint = () => {
     if (!data) return
-    // Hasta 6 columnas dinámicas → col1-col6 del printLibro
     const printRows = data.items.map(r => {
       const base: any = {
         folio: r.folio, tipoDocumento: r.tipoDocumento, fecha: String(r.fecha),
@@ -347,7 +367,43 @@ export default function LibroComprasPage() {
     ? `Del ${dayjs(data.from).format('DD/MM/YYYY')} al ${dayjs(data.to).format('DD/MM/YYYY')}`
     : ''
 
-  const tableColumns = buildColumns(libroConfig.compras)
+  const rawCols        = buildColumns(libroConfig.compras)
+  const effectiveOrder = (colOrder && colOrder.length === rawCols.length)
+    ? colOrder
+    : rawCols.map((_, i) => i)
+  const tableColumns   = effectiveOrder.map((origIdx, displayIdx) => ({
+    ...rawCols[origIdx],
+    onHeaderCell: () => ({
+      draggable: true,
+      style: {
+        background:  overCol === displayIdx ? '#dbeafe' : undefined,
+        cursor:      'grab',
+        transition:  'background 0.15s',
+        userSelect:  'none' as const,
+      },
+      onDragStart: (e: any) => {
+        dragCol.current = displayIdx
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', String(displayIdx))
+      },
+      onDragOver:  (e: any) => { e.preventDefault(); setOverCol(displayIdx) },
+      onDragLeave: () => setOverCol(-1),
+      onDrop: (e: any) => {
+        e.preventDefault()
+        setOverCol(-1)
+        const from = dragCol.current
+        if (from < 0 || from === displayIdx) return
+        setColOrder(prev => {
+          const base = (prev && prev.length === rawCols.length)
+            ? [...prev]
+            : rawCols.map((_, i) => i)
+          base.splice(displayIdx, 0, base.splice(from, 1)[0])
+          return base
+        })
+      },
+      onDragEnd: () => { dragCol.current = -1; setOverCol(-1) },
+    }),
+  }))
 
   return (
     <div>
@@ -369,11 +425,19 @@ export default function LibroComprasPage() {
             <Text style={{ fontSize: 12, color: '#6b7280' }}>Folio inicial:</Text>
             <InputNumber min={1} value={folioInicio} size="small" style={{ width: 72 }} onChange={v => setFolioInicio(v ?? 1)} />
           </Space>
-          <RangePicker
-            value={dateRange}
-            onChange={(v) => { if (v?.[0] && v?.[1]) setDateRange([v[0], v[1]]) }}
-            format="DD/MM/YYYY"
-            allowClear={false}
+          <Select
+            value={selectedMonth}
+            onChange={setSelectedMonth}
+            options={MESES}
+            style={{ width: 130 }}
+            size="middle"
+          />
+          <Select
+            value={selectedYear}
+            onChange={setSelectedYear}
+            options={ANIOS}
+            style={{ width: 90 }}
+            size="middle"
           />
           <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={load}>Generar</Button>
           {data && (

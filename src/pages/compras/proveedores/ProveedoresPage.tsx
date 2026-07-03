@@ -1,13 +1,13 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  Dropdown, Avatar, Badge, Popconfirm, message,
+  Avatar, Badge, Popconfirm, message,
   Select, Tooltip, Popover,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
-  MoreOutlined, UserOutlined, BankOutlined, MailOutlined,
+  EyeOutlined, UserOutlined, BankOutlined, MailOutlined,
   PhoneOutlined, IdcardOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -69,6 +69,14 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+const COL_WIDTHS: Record<string, number> = {
+  nombre: 260, vendorNumber: 120, type: 130, legalName: 200,
+  taxId: 110, contacto: 200, email: 180, phone: 120,
+  mobile: 120, currency: 80, paymentTerms: 140,
+  taxTreatment: 145, impuesto: 120, taxCode: 110,
+  balance: 110, status: 100, ciudad: 120, notes: 160,
+}
+
 const fmtQ = (n: number) =>
   `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
@@ -77,7 +85,7 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
   const base = { key }
   switch (key) {
     case 'nombre':
-      return { ...base, title: 'Proveedor', width: 260,
+      return { ...base, title: 'Proveedor', width: 260, fixed: 'left' as const,
         render: (_: any, r: Vendor) => (
           <Space>
             <Avatar
@@ -212,6 +220,14 @@ export default function ProveedoresPage() {
     catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo eliminar') }
   }
 
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 120 // +acciones
+  }, [colConfig])
+
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<Vendor> = [
     ...[...colConfig]
@@ -221,36 +237,31 @@ export default function ProveedoresPage() {
       .filter((c): c is ColumnsType<Vendor>[number] => c !== null),
     {
       key: '_actions',
-      title: '',
-      width: 60,
+      title: 'Acciones',
+      align: 'center' as const,
+      width: 120,
+      fixed: 'right' as const,
       render: (_: any, r: Vendor) => (
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'edit', label: 'Editar', icon: <EditOutlined /> },
-              { type: 'divider' },
-              {
-                key: 'delete',
-                label: (
-                  <Popconfirm
-                    title="¿Eliminar este proveedor?"
-                    onConfirm={() => handleDelete(r.id!)}
-                    okText="Sí" cancelText="No"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <span style={{ color: '#ff4d4f' }}>Eliminar</span>
-                  </Popconfirm>
-                ),
-              },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'edit') navigate(`/compras/proveedores/${r.id}`)
-            },
-          }}
-          trigger={['click']}
-        >
-          <Button type="text" size="small" icon={<MoreOutlined />} />
-        </Dropdown>
+        <Space size={6}>
+          <Tooltip title="Ver detalle">
+            <Button size="small" icon={<EyeOutlined />}
+              onClick={() => navigate(`/compras/proveedores/${r.id}`)} />
+          </Tooltip>
+          <Tooltip title="Editar">
+            <Button size="small" icon={<EditOutlined />}
+              onClick={() => navigate(`/compras/proveedores/${r.id}`)} />
+          </Tooltip>
+          <Tooltip title="Eliminar">
+            <Popconfirm
+              title="¿Eliminar este proveedor?"
+              onConfirm={() => handleDelete(r.id!)}
+              okText="Sí" cancelText="No"
+              okButtonProps={{ danger: true }}
+            >
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
+        </Space>
       ),
     },
   ]
@@ -326,7 +337,7 @@ export default function ProveedoresPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/proveedores/${r.id}`) })}
           pagination={{
             total,

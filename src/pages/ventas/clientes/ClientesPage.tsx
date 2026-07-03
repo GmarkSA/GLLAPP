@@ -1,13 +1,13 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  Dropdown, Avatar, Badge, Tooltip, Popconfirm, message,
+  Avatar, Badge, Tooltip, Popconfirm, message,
   Select, Popover,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
-  MoreOutlined, UserOutlined, BankOutlined, MailOutlined,
+  EyeOutlined, UserOutlined, BankOutlined, MailOutlined,
   PhoneOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -72,6 +72,14 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+const COL_WIDTHS: Record<string, number> = {
+  nombre: 260, customerNumber: 110, type: 130, legalName: 200,
+  taxId: 110, contacto: 200, email: 180, phone: 120,
+  mobile: 120, website: 160, currency: 80, paymentTerms: 140,
+  creditLimit: 120, taxTreatment: 145, impuesto: 120, taxCode: 110,
+  balance: 110, status: 100, ciudad: 120, notes: 160,
+}
+
 const fmtQ = (n: number) =>
   `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
@@ -80,7 +88,7 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
   const base = { key }
   switch (key) {
     case 'nombre':
-      return { ...base, title: 'Cliente', width: 260,
+      return { ...base, title: 'Cliente', width: 260, fixed: 'left' as const,
         render: (_: any, r: Customer) => (
           <Space>
             <Avatar
@@ -218,6 +226,14 @@ export default function ClientesPage() {
     catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo eliminar') }
   }
 
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 120 // +acciones
+  }, [colConfig])
+
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<Customer> = [
     ...[...colConfig]
@@ -227,37 +243,31 @@ export default function ClientesPage() {
       .filter((c): c is ColumnsType<Customer>[number] => c !== null),
     {
       key: '_actions',
-      title: '',
-      width: 60,
+      title: 'Acciones',
+      align: 'center' as const,
+      width: 120,
+      fixed: 'right' as const,
       render: (_: any, r: Customer) => (
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'edit', label: 'Editar', icon: <EditOutlined /> },
-              { key: 'statement', label: 'Estado de cuenta' },
-              { type: 'divider' },
-              {
-                key: 'delete',
-                label: (
-                  <Popconfirm
-                    title="¿Eliminar este cliente?"
-                    onConfirm={() => handleDelete(r.id!)}
-                    okText="Sí" cancelText="No"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <span style={{ color: '#ff4d4f' }}>Eliminar</span>
-                  </Popconfirm>
-                ),
-              },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'edit') navigate(`/ventas/clientes/${r.id}`)
-            },
-          }}
-          trigger={['click']}
-        >
-          <Button type="text" size="small" icon={<MoreOutlined />} />
-        </Dropdown>
+        <Space size={6}>
+          <Tooltip title="Ver detalle">
+            <Button size="small" icon={<EyeOutlined />}
+              onClick={() => navigate(`/ventas/clientes/${r.id}`)} />
+          </Tooltip>
+          <Tooltip title="Editar">
+            <Button size="small" icon={<EditOutlined />}
+              onClick={() => navigate(`/ventas/clientes/${r.id}`)} />
+          </Tooltip>
+          <Tooltip title="Eliminar">
+            <Popconfirm
+              title="¿Eliminar este cliente?"
+              onConfirm={() => handleDelete(r.id!)}
+              okText="Sí" cancelText="No"
+              okButtonProps={{ danger: true }}
+            >
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
+        </Space>
       ),
     },
   ]
@@ -333,7 +343,7 @@ export default function ClientesPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/clientes/${r.id}`) })}
           pagination={{
             total,

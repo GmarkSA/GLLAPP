@@ -1,11 +1,12 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
+﻿import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  Dropdown, Modal, message, Tabs, Popover, Tooltip,
+  Modal, message, Tabs, Popover, Tooltip,
 } from 'antd'
 import {
-  PlusOutlined, SearchOutlined, FileOutlined, MoreOutlined,
+  PlusOutlined, SearchOutlined, FileOutlined,
+  EyeOutlined, EditOutlined, DeleteOutlined, FileAddOutlined,
   SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -49,12 +50,20 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+const COL_WIDTHS: Record<string, number> = {
+  estimateNumber: 140, customer: 200, customerTaxId: 120,
+  estimateDate: 105, expiryDate: 105, currency: 80,
+  exchangeRate: 90, subtotal: 110, discountAmount: 100,
+  taxAmount: 100, total: 130, itemsCount: 80,
+  status: 120, notes: 160,
+}
+
 // ── Definiciones de columna por clave ─────────────────────────────────────────
 function buildColDef(key: string): ColumnsType<Estimate>[number] | null {
   const base = { key }
   switch (key) {
     case 'estimateNumber':
-      return { ...base, title: '# Cotización', dataIndex: 'estimateNumber', width: 140,
+      return { ...base, title: '# Cotización', dataIndex: 'estimateNumber', width: 140, fixed: 'left' as const,
         render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
     case 'customer':
       return { ...base, title: 'Cliente',
@@ -196,6 +205,14 @@ export default function EstimacionesPage() {
     } finally { setConvertLoading(false) }
   }
 
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 160 // +acciones
+  }, [colConfig])
+
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<Estimate> = [
     ...[...colConfig]
@@ -205,31 +222,37 @@ export default function EstimacionesPage() {
       .filter((c): c is ColumnsType<Estimate>[number] => c !== null),
     {
       key: '_actions',
-      title: '',
-      width: 50,
+      title: 'Acciones',
+      align: 'center' as const,
+      width: 160,
+      fixed: 'right' as const,
       render: (_: any, r: Estimate) => {
         const canEdit    = r.status === 'draft' || r.status === 'sent'
         const canConvert = r.status !== 'invoiced' && r.status !== 'declined'
-        const items: any[] = [{ key: 'view', label: 'Ver' }]
-        if (canEdit)    items.push({ key: 'edit', label: 'Editar' })
-        if (canConvert) items.push({ key: 'convert', label: 'Convertir a Factura' })
-        items.push({ type: 'divider' })
-        items.push({ key: 'delete', label: <span style={{ color: '#ff4d4f' }}>Eliminar</span> })
         return (
-          <Dropdown
-            menu={{
-              items,
-              onClick: ({ key }) => {
-                if (key === 'view')    navigate(`/ventas/estimaciones/${r.id}`)
-                if (key === 'edit')    navigate(`/ventas/estimaciones/${r.id}/editar`)
-                if (key === 'convert') openConvert(r)
-                if (key === 'delete')  handleDelete(r.id)
-              },
-            }}
-            trigger={['click']}
-          >
-            <Button type="text" size="small" icon={<MoreOutlined />} />
-          </Dropdown>
+          <Space size={6}>
+            <Tooltip title="Ver detalle">
+              <Button size="small" icon={<EyeOutlined />}
+                onClick={() => navigate(`/ventas/estimaciones/${r.id}`)} />
+            </Tooltip>
+            {canEdit && (
+              <Tooltip title="Editar">
+                <Button size="small" icon={<EditOutlined />}
+                  onClick={() => navigate(`/ventas/estimaciones/${r.id}/editar`)} />
+              </Tooltip>
+            )}
+            {canConvert && (
+              <Tooltip title="Convertir a Factura">
+                <Button size="small" icon={<FileAddOutlined />}
+                  style={{ color: '#1B3A6B', borderColor: '#1B3A6B' }}
+                  onClick={() => openConvert(r)} />
+              </Tooltip>
+            )}
+            <Tooltip title="Eliminar">
+              <Button size="small" danger icon={<DeleteOutlined />}
+                onClick={() => handleDelete(r.id)} />
+            </Tooltip>
+          </Space>
         )
       },
     },
@@ -315,7 +338,7 @@ export default function EstimacionesPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/estimaciones/${r.id}`) })}
           pagination={{
             total,

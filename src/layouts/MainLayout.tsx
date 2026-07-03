@@ -76,6 +76,7 @@ const menuItems = [
     { key: '/reportes/libro-compras',      label: 'Libro de Compras' },
     { key: '/reportes/libro-ventas',       label: 'Libro de Ventas' },
     { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },
+    { key: '/reportes/ar-aging',           label: 'AR Aging (CxC)' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Form, Input,
   message, Modal, Row, Select, Space, Spin, Steps, Table, Tabs, Tag, Tooltip, Typography,
@@ -7,7 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
-  SearchOutlined, UserAddOutlined, WarningOutlined,
+  SearchOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
@@ -15,7 +16,7 @@ import {
   createSatEmitidosCustomer, deleteSatEmitidos,
   getSatEmitidosDocuments, getSatEmitidosJobs, getSatEmitidosStats,
   postSatEmitidos, resolveSatEmitidosCustomer,
-  startSatEmitidosImport, syncSatEmitidosJob,
+  startSatEmitidosImport, syncSatEmitidosJob, clearAllSatEmitidos,
   type SatDteEmitidos, type SatEmitidosJob, type SatEmitidosStatus,
 } from '../../../api/facturas'
 import { getAccounts, type Account } from '../../../api/catalogo'
@@ -57,6 +58,7 @@ function getErrorMessage(err: unknown, fallback: string) {
 }
 
 export default function DteSatVentasPage() {
+  const navigate = useNavigate()
   const [documents,  setDocuments]  = useState<SatDteEmitidos[]>([])
   const [jobs,       setJobs]       = useState<SatEmitidosJob[]>([])
   const [stats,      setStats]      = useState<Record<string, { count: number; total: number }>>({})
@@ -77,7 +79,7 @@ export default function DteSatVentasPage() {
   const [stepperStep,    setStepperStep]    = useState(0)
   const [stepperLoading, setStepperLoading] = useState(false)
   const [stepperResult,  setStepperResult]  = useState<{ invoice: any; dte: SatDteEmitidos } | null>(null)
-  const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string } | null>(null)
+  const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string; receivableAccountId?: string } | null>(null)
   const [stepperSuggestion, setStepperSuggestion] = useState<{ name?: string; taxId?: string } | null>(null)
   const [stepperForm]     = Form.useForm()
   const [customerForm]    = Form.useForm()
@@ -210,6 +212,24 @@ export default function DteSatVentasPage() {
     })
   }
 
+  // ── Preferencias por cliente (localStorage) ───────────────────────────────
+  const saveDtePrefs = (customerId: string, vals: Record<string, any>) => {
+    try {
+      localStorage.setItem(`dte_prefs_${customerId}`, JSON.stringify({
+        accountId: vals.accountId, taxId: vals.taxId, defaultUnit: vals.defaultUnit,
+      }))
+    } catch { /* silent */ }
+  }
+
+  // Carga prefs cuando el usuario llega al paso "Registrar" (step 2) y el cliente está vinculado
+  useEffect(() => {
+    if (stepperStep !== 2 || !stepperCustomer?.id) return
+    try {
+      const raw = localStorage.getItem(`dte_prefs_${stepperCustomer.id}`)
+      if (raw) stepperForm.setFieldsValue(JSON.parse(raw))
+    } catch { /* silent */ }
+  }, [stepperStep, stepperCustomer?.id])   // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Abrir stepper ──────────────────────────────────────────────────────────
   const openStepper = (dte: SatDteEmitidos) => {
     setStepperDte(dte)
@@ -238,7 +258,7 @@ export default function DteSatVentasPage() {
     try {
       const res: any = await resolveSatEmitidosCustomer(stepperDte.id)
       if (res.found) {
-        setStepperCustomer({ id: res.customer.id, name: res.customer.name })
+        setStepperCustomer({ id: res.customer.id, name: res.customer.name, receivableAccountId: res.customer.receivableAccountId })
         setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
         message.success(`Cliente vinculado: ${res.customer.name}`)
       } else {
@@ -263,12 +283,23 @@ export default function DteSatVentasPage() {
     setStepperLoading(true)
     try {
       const res: any = await createSatEmitidosCustomer(stepperDte.id, {
-        name:     vals.name,
-        legalName: vals.legalName ?? vals.name,
-        currency: 'GTQ',
+        name:               vals.name,
+        legalName:          vals.legalName ?? vals.name,
+        currency:           'GTQ',
+        receivableAccountId: vals.receivableAccountId,
+        incomeAccountId:    vals.incomeAccountId,
+        taxCode:            vals.taxCode,
       })
-      setStepperCustomer({ id: res.customer.id, name: res.customer.name })
+      setStepperCustomer({ id: res.customer.id, name: res.customer.name, receivableAccountId: vals.receivableAccountId })
       setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
+      // Pre-llenar paso Registrar: cuenta de ingresos + taxId (UUID) que corresponde al código seleccionado
+      if (res.customer.id) {
+        const matchedTax = taxes.find(t => t.code === vals.taxCode)
+        saveDtePrefs(res.customer.id, {
+          accountId: vals.incomeAccountId,
+          taxId:     matchedTax?.id,
+        })
+      }
       message.success(`Cliente ${res.created ? 'creado' : 'vinculado'}: ${res.customer.name}`)
     } catch (err) {
       message.error(getErrorMessage(err, 'Error creando cliente'))
@@ -291,7 +322,10 @@ export default function DteSatVentasPage() {
         accountingDate: vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
         notes:          vals.notes,
         estimateId:     vals.estimateId,
+        defaultUnit:    vals.defaultUnit,
       })
+      // Guardar preferencias para próximas facturas del mismo cliente
+      if (stepperCustomer?.id) saveDtePrefs(stepperCustomer.id, vals)
       setStepperResult(res)
       setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
       setStepperStep(3)
@@ -414,13 +448,18 @@ export default function DteSatVentasPage() {
       width: 90,
       render: (_: unknown, r: SatDteEmitidos) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <DocumentLink documentKey={r.xmlKey} docType="fel-xml" label="XML" />
+          {r.xmlKey
+            ? <DocumentLink documentKey={r.xmlKey} docType="fel-xml" label="XML" />
+            : r.xmlUrl
+              ? <Tooltip title="XML descargado del SAT (temporal)">
+                  <a href={r.xmlUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>XML ↗</a>
+                </Tooltip>
+              : <Text type="secondary" style={{ fontSize: 12 }}>XML</Text>}
           {r.pdfKey
             ? <DocumentLink documentKey={r.pdfKey} docType="fel-pdf" label="PDF" />
-            : r.uuid
-              ? <Tooltip title="Verificar en portal SAT (FEL)">
-                  <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${r.uuid}`}
-                    target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#d97706' }}>SAT ↗</a>
+            : r.pdfUrl
+              ? <Tooltip title="PDF descargado del SAT (temporal)">
+                  <a href={r.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600 }}>PDF ↗</a>
                 </Tooltip>
               : <Text type="secondary" style={{ fontSize: 12 }}>PDF</Text>}
         </div>
@@ -433,19 +472,28 @@ export default function DteSatVentasPage() {
       fixed: 'right' as const,
       render: (_: unknown, r: SatDteEmitidos) => (
         <Space size={4}>
-          {r.status === 'posted' || r.status === 'duplicate'
-            ? <Tag color={r.status === 'posted' ? 'blue' : 'volcano'} style={{ fontSize: 10 }}>
-                {r.status === 'posted' ? 'Procesado' : 'Duplicado'}
-              </Tag>
-            : <Button
-                size="small"
-                type="primary"
-                icon={<BookOutlined />}
-                onClick={() => openStepper(r)}
-                style={{ fontSize: 11, background: '#1B3A6B' }}
-              >
-                Procesar
-              </Button>
+          {r.status === 'posted'
+            ? <Tooltip title="Ver factura y póliza contable">
+                <Button
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => r.invoiceId && navigate(`/ventas/facturas/${r.invoiceId}`)}
+                  style={{ fontSize: 11, borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                >
+                  Ver factura
+                </Button>
+              </Tooltip>
+            : r.status === 'duplicate'
+              ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
+              : <Button
+                  size="small"
+                  type="primary"
+                  icon={<BookOutlined />}
+                  onClick={() => openStepper(r)}
+                  style={{ fontSize: 11, background: '#1B3A6B' }}
+                >
+                  Procesar
+                </Button>
           }
           <Tooltip title="Eliminar de la bandeja">
             <Button size="small" danger icon={<DeleteOutlined />}
@@ -592,11 +640,22 @@ export default function DteSatVentasPage() {
               {/* ── Step 1: Resolver cliente ── */}
               {stepperStep === 1 && (
                 stepperCustomer ? (
-                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
-                    <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
-                    <Text strong style={{ fontSize: 15 }}>Cliente vinculado</Text>
-                    <br />
-                    <Text type="secondary">{stepperCustomer.name} · NIT: {stepperDte.nitReceptor}</Text>
+                  <div style={{ padding: '16px 0' }}>
+                    <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                      <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
+                      <Text strong style={{ fontSize: 15 }}>Cliente vinculado</Text>
+                      <br />
+                      <Text type="secondary">{stepperCustomer.name} · NIT: {stepperDte.nitReceptor}</Text>
+                    </div>
+                    {!stepperCustomer.receivableAccountId && (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        style={{ fontSize: 12 }}
+                        message="Este cliente no tiene Cuenta CxC configurada"
+                        description="La póliza contable no podrá generarse automáticamente. Configura la cuenta en el maestro de clientes antes de continuar, o crea el cliente desde DTE SAT para poder configurarla ahora."
+                      />
+                    )}
                   </div>
                 ) : (
                   <div>
@@ -625,6 +684,52 @@ export default function DteSatVentasPage() {
                           <Form.Item label="NIT">
                             <Input value={stepperDte.nitReceptor ?? ''} disabled />
                           </Form.Item>
+                          <Divider plain style={{ fontSize: 11, margin: '8px 0' }}>Cuentas contables (requeridas para póliza automática)</Divider>
+                          <Row gutter={12}>
+                            <Col span={12}>
+                              <Form.Item
+                                label="Cuenta por cobrar (CxC)"
+                                name="receivableAccountId"
+                                rules={[{ required: true, message: 'Requerida para generar póliza' }]}
+                                tooltip="Se usará como débito en la póliza de venta">
+                                <Select
+                                  showSearch
+                                  allowClear
+                                  placeholder="Ej: 1130 — Clientes"
+                                  optionFilterProp="label"
+                                  options={accounts
+                                    .filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('1')))
+                                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                                />
+                              </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                              <Form.Item
+                                label="Cuenta de ingresos"
+                                name="incomeAccountId"
+                                tooltip="Crédito en póliza de venta. Si se omite, se selecciona en el paso siguiente.">
+                                <Select
+                                  showSearch
+                                  allowClear
+                                  placeholder="Ej: 4110 — Ingresos por Ventas"
+                                  optionFilterProp="label"
+                                  options={accounts
+                                    .filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('4') || a.balanceType?.toLowerCase().includes('ingreso')))
+                                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                                />
+                              </Form.Item>
+                            </Col>
+                          </Row>
+                          <Form.Item
+                            label="Impuesto IVA"
+                            name="taxCode"
+                            tooltip="Se guardará en el maestro de cliente y se pre-llenará al registrar la factura">
+                            <Select
+                              allowClear
+                              placeholder="Selecciona impuesto IVA"
+                              options={taxes.map(t => ({ value: t.code, label: `${t.code} — ${t.name}` }))}
+                            />
+                          </Form.Item>
                           <Button type="primary" icon={<UserAddOutlined />} loading={stepperLoading}
                             onClick={handleCreateCustomer}>
                             Crear y vincular cliente
@@ -639,6 +744,15 @@ export default function DteSatVentasPage() {
               {/* ── Step 2: Registrar venta ── */}
               {stepperStep === 2 && (
                 <Form form={stepperForm} layout="vertical" size="small">
+                  {!stepperCustomer?.receivableAccountId && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      style={{ fontSize: 12, marginBottom: 12 }}
+                      message="Sin Cuenta CxC — la póliza no se generará"
+                      description={<>Para generar la póliza contable, configura la cuenta CxC del cliente en <strong>Ventas → Clientes</strong> y luego usa <em>"Recalcular partida contable"</em> en la factura generada.</>}
+                    />
+                  )}
                   <Row gutter={12}>
                     <Col span={14}>
                       <Form.Item label="Cuenta de Ingreso" name="accountId"
@@ -775,7 +889,26 @@ export default function DteSatVentasPage() {
             )}
           </div>
         }
-        extra={<Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading} size="small">Actualizar</Button>}
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading} size="small">Actualizar</Button>
+            <Button
+              size="small" danger icon={<DeleteOutlined />}
+              onClick={() => Modal.confirm({
+                title: 'Limpiar todo',
+                content: 'Se eliminarán todos los DTEs importados y el historial de importaciones. ¿Continuar?',
+                okText: 'Sí, limpiar', okButtonProps: { danger: true }, cancelText: 'Cancelar',
+                onOk: async () => {
+                  const r = await clearAllSatEmitidos()
+                  message.success(`Eliminados: ${r.deletedDtes} DTEs y ${r.deletedJobs} jobs`)
+                  loadAll()
+                },
+              })}
+            >
+              Limpiar todo
+            </Button>
+          </Space>
+        }
       >
         <Form form={importForm} layout="vertical" size="small" onFinish={handleImport}>
           <Row gutter={[16, 0]} align="bottom">

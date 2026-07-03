@@ -325,8 +325,8 @@ export const voidBill = (id: string, reason?: string) =>
 export const deleteBill = (id: string) =>
   api.delete(`${BILL}/${id}`)
 
-export const getApAging = () =>
-  api.get(`${BILL}/reportes/ap-aging`).then(unwrap) as Promise<ApAgingReport>
+export const getApAging = (asOf?: string) =>
+  api.get(`${BILL}/reportes/ap-aging`, { params: asOf ? { asOf } : undefined }).then(unwrap) as Promise<ApAgingReport>
 
 export const getLibroCompras = (from: string, to: string) =>
   api.get(`${BILL}/reportes/libro-compras`, { params: { from, to } }).then(unwrap) as Promise<LibroComprasReport>

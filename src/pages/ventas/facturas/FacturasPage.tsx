@@ -1,15 +1,15 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react'
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  Dropdown, Statistic, Row, Col, Modal, Form, DatePicker,
+  Statistic, Row, Col, Modal, Form, DatePicker,
   message, Tabs, Popover, Tooltip,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, FileTextOutlined,
-  MoreOutlined, DollarOutlined, ClockCircleOutlined,
+  EyeOutlined, DollarOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, CheckCircleOutlined,
-  CheckSquareOutlined, SettingOutlined,
+  CheckSquareOutlined, SettingOutlined, StopOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import type { ColumnsType } from 'antd/es/table'
@@ -59,6 +59,16 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+// Anchos de cada columna para calcular scroll.x dinámicamente
+const COL_WIDTHS: Record<string, number> = {
+  invoiceNumber: 120, customer: 220, customerTaxId: 120,
+  invoiceDate: 110, accountingDate: 115, felSerie: 80,
+  felNumero: 100, currency: 80, exchangeRate: 90,
+  dueDate: 105, subtotal: 120, discountAmount: 105,
+  taxAmount: 105, total: 130, paidAmount: 120,
+  balance: 120, status: 105, notes: 160,
+}
+
 // ── Definiciones de columna ───────────────────────────────────────────────────
 function buildColDef(
   key: string,
@@ -69,10 +79,10 @@ function buildColDef(
   const base = { key }
   switch (key) {
     case 'invoiceNumber':
-      return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 140,
+      return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 120, fixed: 'left' as const,
         render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
     case 'customer':
-      return { ...base, title: 'Cliente',
+      return { ...base, title: 'Cliente', width: 220,
         render: (_: any, r: Invoice) => (
           <div>
             <div style={{ fontWeight: 600, fontSize: 13 }}>{r.customerName}</div>
@@ -144,7 +154,7 @@ function buildColDef(
           </Text>
         ) }
     case 'status':
-      return { ...base, title: 'Estado', dataIndex: 'status', width: 120,
+      return { ...base, title: 'Estado', dataIndex: 'status', width: 105,
         render: (v: InvoiceStatus) => {
           const cfg = INVOICE_STATUS_CONFIG[v]
           return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>
@@ -271,6 +281,14 @@ export default function FacturasPage() {
     } finally { setBulkLoading(false) }
   }
 
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 160 + 50 // +acciones +checkbox
+  }, [colConfig])
+
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<Invoice> = [
     ...[...colConfig]
@@ -280,33 +298,37 @@ export default function FacturasPage() {
       .filter((c): c is ColumnsType<Invoice>[number] => c !== null),
     {
       key: '_actions',
-      title: '',
-      width: 50,
+      title: 'Acciones',
+      align: 'center' as const,
+      width: 160,
+      fixed: 'right' as const,
       render: (_: any, r: Invoice) => {
-        const isDraft  = r.status === 'draft'
         const isPaid   = r.status === 'paid'
         const isVoided = r.status === 'voided'
-        const items: any[] = [{ key: 'view', label: 'Ver detalle' }]
-        if (isDraft) items.push({ key: 'edit', label: 'Editar' })
-        if (isDraft || isVoided) { items.push({ type: 'divider' }); items.push({ key: 'delete', label: <span style={{ color: '#ff4d4f' }}>Eliminar</span> }) }
-        if (!isPaid && !isVoided) items.push({ key: 'pay', label: 'Registrar pago' })
-        if (!isVoided) items.push({ key: 'void', label: 'Anular' })
         return (
-          <Dropdown
-            menu={{
-              items,
-              onClick: ({ key }) => {
-                if (key === 'view')   navigate(`/ventas/facturas/${r.id}`)
-                if (key === 'edit')   navigate(`/ventas/facturas/${r.id}/editar`)
-                if (key === 'pay')    navigate(`/ventas/facturas/${r.id}?accion=pago`)
-                if (key === 'void')   openVoid(r)
-                if (key === 'delete') handleDelete(r)
-              },
-            }}
-            trigger={['click']}
-          >
-            <Button type="text" size="small" icon={<MoreOutlined />} />
-          </Dropdown>
+          <Space size={6}>
+            <Tooltip title="Ver detalle">
+              <Button size="small" icon={<EyeOutlined />}
+                onClick={() => navigate(`/ventas/facturas/${r.id}`)} />
+            </Tooltip>
+            {!isPaid && !isVoided && (
+              <Tooltip title="Registrar pago">
+                <Button size="small" icon={<DollarOutlined />}
+                  onClick={() => navigate(`/ventas/facturas/${r.id}?accion=pago`)}
+                  style={{ color: '#52c41a', borderColor: '#52c41a' }} />
+              </Tooltip>
+            )}
+            {!isVoided && (
+              <Tooltip title="Anular factura">
+                <Button size="small" danger icon={<StopOutlined />}
+                  onClick={() => openVoid(r)} />
+              </Tooltip>
+            )}
+            <Tooltip title="Eliminar permanentemente">
+              <Button size="small" danger icon={<DeleteOutlined />}
+                onClick={() => handleDelete(r)} />
+            </Tooltip>
+          </Space>
         )
       },
     },
@@ -418,7 +440,7 @@ export default function FacturasPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 340px)' }}
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,
