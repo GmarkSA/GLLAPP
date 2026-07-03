@@ -71,6 +71,7 @@ body {
   letter-spacing: 0.03em !important;
   color: #6b7280 !important;
   text-transform: uppercase !important;
+  text-align: center !important;
 }
 .ant-table-tbody > tr:hover > td {
   background: #f5f7ff !important;

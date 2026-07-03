@@ -336,6 +336,24 @@ export default function DteSatPage() {
 
   // ── Stepper handlers ───────────────────────────────────────────────────────
 
+  // ── Preferencias por proveedor (localStorage) ─────────────────────────────
+  const saveDtePrefs = (vendorId: string, vals: Record<string, any>) => {
+    try {
+      localStorage.setItem(`dte_compras_prefs_${vendorId}`, JSON.stringify({
+        taxId: vals.taxId, accountId: vals.accountId, defaultUnit: vals.defaultUnit,
+      }))
+    } catch { /* silent */ }
+  }
+
+  // Carga prefs cuando el usuario llega al paso "Registrar" (step 3) y el proveedor está vinculado
+  useEffect(() => {
+    if (stepperStep !== 3 || !stepperDte?.vendorId) return
+    try {
+      const raw = localStorage.getItem(`dte_compras_prefs_${stepperDte.vendorId}`)
+      if (raw) stepperForm.setFieldsValue(JSON.parse(raw))
+    } catch { /* silent */ }
+  }, [stepperStep, stepperDte?.vendorId])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const openStepper = async (row: SatDte) => {
     const lineas: any[] = Array.isArray(row.items) ? row.items : []
     const autoConcepto = lineas.length > 0
@@ -418,6 +436,7 @@ export default function DteSatPage() {
         idpAccountId:        values.idpAccountId,
         defaultUnit:         values.defaultUnit,
       })
+      if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
       setStepperResult(result)
       if (result?.dte) setStepperDte(result.dte as SatDte)
       await load(true)

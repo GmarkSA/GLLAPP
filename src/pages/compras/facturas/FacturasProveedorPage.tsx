@@ -1,12 +1,13 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
+﻿import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  Dropdown, Modal, Form, InputNumber, DatePicker, Select,
+  Modal, Form, InputNumber, DatePicker, Select,
   message, Tabs, Popover, Tooltip,
 } from 'antd'
 import {
-  PlusOutlined, SearchOutlined, ShopOutlined, MoreOutlined,
+  PlusOutlined, SearchOutlined, ShopOutlined,
+  EyeOutlined, EditOutlined, DeleteOutlined, DollarOutlined, StopOutlined,
   SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -84,6 +85,16 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+const COL_WIDTHS: Record<string, number> = {
+  invoiceNumber: 140, vendorInvoiceNumber: 140, vendor: 200,
+  vendorTaxId: 120, invoiceType: 130, invoiceDate: 105,
+  accountingDate: 115, felSerie: 80, felNumber: 100,
+  currency: 75, exchangeRate: 90, paymentTerms: 130,
+  dueDate: 105, subtotal: 110, taxAmount: 100,
+  idpAmount: 90, isrRetentionAmount: 100, ivaRetentionAmount: 100,
+  total: 130, paidAmount: 110, balance: 130,
+  status: 110, notes: 160,
+}
 
 // ── Definiciones de columna por clave ────────────────────────────────────────
 function buildColDef(
@@ -97,7 +108,7 @@ function buildColDef(
   const base = { key }
   switch (key) {
     case 'invoiceNumber':
-      return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 140,
+      return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 140, fixed: 'left' as const,
         render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
     case 'vendorInvoiceNumber':
       return { ...base, title: '# Fact. Proveedor', dataIndex: 'vendorInvoiceNumber', width: 140,
@@ -334,6 +345,14 @@ export default function FacturasProveedorPage() {
     setPayModal(true)
   }
 
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 200 // +acciones (5 botones posibles)
+  }, [colConfig])
+
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<PurchaseInvoice> = [
     // Columnas configuradas por el usuario
@@ -345,34 +364,44 @@ export default function FacturasProveedorPage() {
     // Columna de acciones siempre al final
     {
       key: '_actions',
-      title: '',
-      width: 50,
+      title: 'Acciones',
+      align: 'center' as const,
+      width: 200,
+      fixed: 'right' as const,
       render: (_: any, r: PurchaseInvoice) => {
         const isDraft  = r.status === 'draft'
         const isPaid   = r.status === 'paid'
         const isVoided = r.status === 'voided'
-        const items: any[] = [{ key: 'view', label: 'Ver' }]
-        if (isDraft) items.push({ key: 'edit', label: 'Editar' })
-        if (!isPaid && !isVoided) items.push({ key: 'pay', label: 'Registrar pago' })
-        if (!isVoided) items.push({ key: 'void', label: 'Anular' })
-        items.push({ type: 'divider' })
-        items.push({ key: 'delete', label: <span style={{ color: '#ff4d4f' }}>Eliminar</span> })
         return (
-          <Dropdown
-            menu={{
-              items,
-              onClick: ({ key }) => {
-                if (key === 'view')   navigate(`/compras/facturas/${r.id}`)
-                if (key === 'edit')   navigate(`/compras/facturas/${r.id}/editar`)
-                if (key === 'pay')    openPay(r)
-                if (key === 'void')   { setVoidTarget(r); setVoidModal(true) }
-                if (key === 'delete') handleDelete(r.id)
-              },
-            }}
-            trigger={['click']}
-          >
-            <Button type="text" size="small" icon={<MoreOutlined />} />
-          </Dropdown>
+          <Space size={6}>
+            <Tooltip title="Ver detalle">
+              <Button size="small" icon={<EyeOutlined />}
+                onClick={() => navigate(`/compras/facturas/${r.id}`)} />
+            </Tooltip>
+            {isDraft && (
+              <Tooltip title="Editar">
+                <Button size="small" icon={<EditOutlined />}
+                  onClick={() => navigate(`/compras/facturas/${r.id}/editar`)} />
+              </Tooltip>
+            )}
+            {!isPaid && !isVoided && (
+              <Tooltip title="Registrar pago">
+                <Button size="small" icon={<DollarOutlined />}
+                  style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={() => openPay(r)} />
+              </Tooltip>
+            )}
+            {!isVoided && (
+              <Tooltip title="Anular factura">
+                <Button size="small" danger icon={<StopOutlined />}
+                  onClick={() => { setVoidTarget(r); setVoidModal(true) }} />
+              </Tooltip>
+            )}
+            <Tooltip title="Eliminar permanentemente">
+              <Button size="small" danger icon={<DeleteOutlined />}
+                onClick={() => handleDelete(r.id)} />
+            </Tooltip>
+          </Space>
         )
       },
     },
@@ -467,7 +496,7 @@ export default function FacturasProveedorPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/facturas/${r.id}`) })}
           pagination={{
             total,

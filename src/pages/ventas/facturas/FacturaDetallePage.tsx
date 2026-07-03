@@ -513,6 +513,34 @@ export default function FacturaDetallePage() {
         />
       )}
 
+      {!isVoided && !invoice.journalEntryId && invoice.status !== 'draft' && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<SyncOutlined />}
+          message="Esta factura no tiene póliza contable"
+          description={
+            <Space direction="vertical" size={4} style={{ fontSize: 12 }}>
+              <span>
+                La póliza no se generó porque el cliente no tenía <strong>Cuenta CxC</strong> configurada.
+                Para corregirlo: (1) configura la cuenta CxC en <strong>Ventas → Clientes → {invoice.customerName}</strong>,
+                luego (2) haz clic en <em>Regenerar póliza</em>.
+              </span>
+              <Button
+                size="small"
+                icon={<SyncOutlined />}
+                loading={saving}
+                onClick={handleRecompute}
+                style={{ marginTop: 4 }}
+              >
+                Regenerar póliza ahora
+              </Button>
+            </Space>
+          }
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
       <Row gutter={16}>
         {/* \u0000\u0000 LEFT: document \u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 */}
         <Col flex="1">

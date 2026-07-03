@@ -10,9 +10,80 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
-import { getApAging, type ApAgingRow, type ApAgingBucket } from '../../api/compras'
+import { getArAging, type ArAgingRow, type ArAgingBucket, type ArAgingPayment } from '../../api/facturas'
 
 const { Title, Text } = Typography
+
+const PAYMENT_MODE_LABELS: Record<string, string> = {
+  cash:            'Efectivo',
+  bank_transfer:   'Transferencia',
+  check:           'Cheque',
+  credit_card:     'Tarjeta crédito',
+  debit_card:      'Tarjeta débito',
+  online_payment:  'Pago en línea',
+  other:           'Otro',
+}
+
+function PaymentsSubTable({ payments, currency }: { payments: ArAgingPayment[]; currency: string }) {
+  return (
+    <div style={{ padding: '8px 48px 8px 48px', background: '#f8fafc', borderTop: '1px dashed #e2e8f0' }}>
+      <Text style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, display: 'block', marginBottom: 6 }}>
+        ABONOS APLICADOS
+      </Text>
+      <Table<ArAgingPayment>
+        size="small"
+        pagination={false}
+        dataSource={payments}
+        rowKey={(_, i) => String(i)}
+        style={{ maxWidth: 700 }}
+        columns={[
+          {
+            title: 'N° Pago',
+            dataIndex: 'paymentNumber',
+            width: 160,
+            render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B', fontWeight: 600 }}>{v || '—'}</Text>,
+          },
+          {
+            title: 'Fecha de abono',
+            dataIndex: 'paymentDate',
+            width: 120,
+            render: (v: string) => v
+              ? <Text style={{ fontSize: 12 }}>{new Date(v).toLocaleDateString('es-GT')}</Text>
+              : <Text type="secondary">—</Text>,
+          },
+          {
+            title: 'Monto abonado',
+            dataIndex: 'amount',
+            width: 140,
+            align: 'right' as const,
+            render: (v: number) => (
+              <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#16a34a', fontWeight: 700 }}>
+                {currency !== 'GTQ' ? `${currency} ` : 'Q '}
+                {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            ),
+          },
+          {
+            title: 'Forma de pago',
+            dataIndex: 'mode',
+            width: 140,
+            render: (v: string) => v
+              ? <Tag style={{ fontSize: 11 }}>{PAYMENT_MODE_LABELS[v] ?? v}</Tag>
+              : <Text type="secondary">—</Text>,
+          },
+          {
+            title: 'Referencia',
+            dataIndex: 'reference',
+            ellipsis: true,
+            render: (v: string) => v
+              ? <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text>
+              : <Text type="secondary">—</Text>,
+          },
+        ]}
+      />
+    </div>
+  )
+}
 
 const MESES = [
   { value: 1,  label: 'Enero' },   { value: 2,  label: 'Febrero' },
@@ -32,7 +103,7 @@ const ageBucketColor: Record<string, string> = {
   days_30: '#2563eb',
   days_60: '#d97706',
   days_90: '#dc2626',
-  over_90:  '#7c3aed',
+  over_90: '#7c3aed',
 }
 
 const invoiceColumns = [
@@ -40,24 +111,14 @@ const invoiceColumns = [
     title: 'Factura',
     dataIndex: 'invoiceNumber',
     width: 160,
-    render: (v: string, row: ApAgingRow) => (
-      <Link to={`/compras/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{v}</Link>
+    render: (v: string, row: ArAgingRow) => (
+      <Link to={`/ventas/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{v}</Link>
     ),
   },
   {
-    title: 'Acreedor',
-    dataIndex: 'vendorName',
+    title: 'Cliente',
+    dataIndex: 'customerName',
     ellipsis: true,
-    render: (v: string, row: ApAgingRow) => (
-      <span>
-        {v}
-        {row.isExpenseReimbursement && (
-          <Tag color="purple" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
-            Reembolso
-          </Tag>
-        )}
-      </span>
-    ),
   },
   {
     title: 'Fecha',
@@ -81,11 +142,11 @@ const invoiceColumns = [
       : <Tag color={v > 90 ? 'purple' : v > 60 ? 'red' : v > 30 ? 'orange' : 'blue'}>{v} días</Tag>,
   },
   {
-    title: 'Total',
+    title: 'Total factura',
     dataIndex: 'total',
-    width: 140,
+    width: 130,
     align: 'right' as const,
-    render: (v: number, row: ApAgingRow) => (
+    render: (v: number, row: ArAgingRow) => (
       <div style={{ textAlign: 'right' }}>
         {row.currency && row.currency !== 'GTQ' ? (
           <>
@@ -104,11 +165,23 @@ const invoiceColumns = [
     ),
   },
   {
-    title: 'Saldo',
+    title: 'Abonado',
+    dataIndex: 'paidAmount',
+    width: 120,
+    align: 'right' as const,
+    render: (v: number, row: ArAgingRow) => v > 0 ? (
+      <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+        {row.currency !== 'GTQ' ? `${row.currency} ` : 'Q '}
+        {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+      </Text>
+    ) : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>,
+  },
+  {
+    title: 'Saldo pendiente',
     dataIndex: 'balance',
     width: 150,
     align: 'right' as const,
-    render: (v: number, row: ApAgingRow) => (
+    render: (v: number, row: ArAgingRow) => (
       <div style={{ textAlign: 'right' }}>
         {row.currency && row.currency !== 'GTQ' ? (
           <>
@@ -138,8 +211,8 @@ const advanceColumns = [
     ),
   },
   {
-    title: 'Proveedor',
-    dataIndex: 'vendorName',
+    title: 'Cliente',
+    dataIndex: 'customerName',
     ellipsis: true,
   },
   {
@@ -160,7 +233,7 @@ const advanceColumns = [
     render: () => <Tag color="green" style={{ fontWeight: 600 }}>Anticipo</Tag>,
   },
   {
-    title: 'Pagado',
+    title: 'Recibido',
     dataIndex: 'amount',
     width: 140,
     align: 'right' as const,
@@ -180,12 +253,12 @@ const advanceColumns = [
 ]
 
 interface BucketCardProps {
-  label: string
-  bucket: ApAgingBucket
-  color: string
-  expanded: boolean
-  onToggle: () => void
-  advances?: any[]
+  label:       string
+  bucket:      ArAgingBucket
+  color:       string
+  expanded:    boolean
+  onToggle:    () => void
+  advances?:   any[]
   showAdvances?: boolean
 }
 
@@ -224,6 +297,14 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
           pagination={false}
           size="small"
           style={{ marginTop: 4 }}
+          expandable={{
+            expandedRowRender: (row: ArAgingRow) =>
+              row.payments && row.payments.length > 0
+                ? <PaymentsSubTable payments={row.payments} currency={row.currency} />
+                : <div style={{ padding: '8px 48px', color: '#9ca3af', fontSize: 12 }}>Sin abonos registrados al corte.</div>,
+            rowExpandable: (row: ArAgingRow) => (row.paidAmount ?? 0) > 0,
+            expandRowByClick: false,
+          }}
         />
       )}
 
@@ -231,7 +312,7 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
         <>
           <Divider style={{ margin: '8px 0', borderColor: '#16a34a44' }}>
             <Text style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
-              Anticipos a proveedor — crédito disponible ({fmt(totalAdv)})
+              Anticipos de clientes — crédito disponible ({fmt(totalAdv)})
             </Text>
           </Divider>
           <Table
@@ -254,48 +335,48 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
 }
 
 interface NettingRow {
-  key: string
-  vendorName: string
-  cxp: number
-  anticipo: number
-  neto: number
+  key:            string
+  customerName:   string
+  cxc:            number
+  anticipo:       number
+  neto:           number
   advanceNumbers: string[]
 }
 
-function buildVendorNetting(data: any): NettingRow[] {
-  const byVendor = new Map<string, { name: string; cxp: number; anticipo: number; advanceNumbers: string[] }>()
+function buildCustomerNetting(data: any): NettingRow[] {
+  const byCustomer = new Map<string, { name: string; cxc: number; anticipo: number; advanceNumbers: string[] }>()
 
   const ensure = (key: string, name: string) => {
-    if (!byVendor.has(key)) byVendor.set(key, { name, cxp: 0, anticipo: 0, advanceNumbers: [] })
-    return byVendor.get(key)!
+    if (!byCustomer.has(key)) byCustomer.set(key, { name, cxc: 0, anticipo: 0, advanceNumbers: [] })
+    return byCustomer.get(key)!
   }
 
   for (const bucket of Object.values(data.buckets) as any[]) {
     for (const item of bucket.items ?? []) {
-      const key = item.vendorId || '__sin__'
-      ensure(key, item.vendorName || '—').cxp += Number(item.balanceGTQ ?? item.balance ?? 0)
+      const key = item.customerId || '__sin__'
+      ensure(key, item.customerName || '—').cxc += Number(item.balanceGTQ ?? item.balance ?? 0)
     }
   }
   for (const adv of data.advances ?? []) {
-    const key = adv.vendorId || '__sin__'
-    const entry = ensure(key, adv.vendorName || '—')
+    const key = adv.customerId || '__sin__'
+    const entry = ensure(key, adv.customerName || '—')
     entry.anticipo += Number(adv.balance ?? 0)
     if (adv.advanceNumber) entry.advanceNumbers.push(adv.advanceNumber)
   }
 
-  return [...byVendor.entries()]
+  return [...byCustomer.entries()]
     .map(([key, v]) => ({
       key,
-      vendorName:     v.name,
-      cxp:            Math.round(v.cxp * 100) / 100,
+      customerName:   v.name,
+      cxc:            Math.round(v.cxc * 100) / 100,
       anticipo:       Math.round(v.anticipo * 100) / 100,
-      neto:           Math.round((v.cxp - v.anticipo) * 100) / 100,
+      neto:           Math.round((v.cxc - v.anticipo) * 100) / 100,
       advanceNumbers: v.advanceNumbers,
     }))
-    .sort((a, b) => a.vendorName.localeCompare(b.vendorName, 'es'))
+    .sort((a, b) => a.customerName.localeCompare(b.customerName, 'es'))
 }
 
-export default function ApAgingPage() {
+export default function ArAgingPage() {
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1)
   const [selectedYear,  setSelectedYear]  = useState(dayjs().year())
   const [data,          setData]          = useState<any>(null)
@@ -311,7 +392,7 @@ export default function ApAgingPage() {
 
   const load = () => {
     setLoading(true)
-    getApAging(asOf)
+    getArAging(asOf)
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -325,14 +406,14 @@ export default function ApAgingPage() {
         style={{ marginBottom: 16 }}
         items={[
           { title: <Link to="/"><HomeOutlined /></Link> },
-          { title: 'Compras' },
-          { title: 'AP Aging — Antigüedad de Saldos' },
+          { title: 'Ventas' },
+          { title: 'AR Aging — Antigüedad de Saldos' },
         ]}
       />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
-          AP Aging — Cuentas por Pagar
+          AR Aging — Cuentas por Cobrar
         </Title>
         <Space>
           <Select value={selectedMonth} onChange={setSelectedMonth} options={MESES} style={{ width: 130 }} />
@@ -370,7 +451,7 @@ export default function ApAgingPage() {
             borderRadius: 6, border: '1px solid #bfdbfe', display: 'inline-flex', alignItems: 'center', gap: 8,
           }}>
             <Text style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 600 }}>
-              Saldo CxP al cierre de {periodLabel}
+              Saldo CxC al cierre de {periodLabel}
             </Text>
             <Text style={{ fontSize: 11, color: '#6b7280' }}>
               (corte {data.asOf})
@@ -379,11 +460,11 @@ export default function ApAgingPage() {
 
           <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
             {[
-              { label: 'Vigente',    value: data.buckets.current.total,  color: '#16a34a' },
-              { label: '1-30 días',  value: data.buckets.days_30.total,  color: '#2563eb' },
-              { label: '31-60 días', value: data.buckets.days_60.total,  color: '#d97706' },
-              { label: '61-90 días', value: data.buckets.days_90.total,  color: '#dc2626' },
-              { label: '+90 días',   value: data.buckets.over_90.total,  color: '#7c3aed' },
+              { label: 'Vigente',    value: data.buckets.current.total, color: '#16a34a' },
+              { label: '1-30 días',  value: data.buckets.days_30.total, color: '#2563eb' },
+              { label: '31-60 días', value: data.buckets.days_60.total, color: '#d97706' },
+              { label: '61-90 días', value: data.buckets.days_90.total, color: '#dc2626' },
+              { label: '+90 días',   value: data.buckets.over_90.total, color: '#7c3aed' },
             ].map(({ label, value, color }) => (
               <Col key={label} span={showAdvances ? 3 : 4}>
                 <Card size="small" style={{ textAlign: 'center', borderColor: `${color}22` }}>
@@ -400,7 +481,7 @@ export default function ApAgingPage() {
             <Col span={showAdvances ? 3 : 4}>
               <Card size="small" style={{ textAlign: 'center', background: '#1B3A6B', borderColor: '#1B3A6B' }}>
                 <Statistic
-                  title={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>TOTAL CxP</span>}
+                  title={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>TOTAL CxC</span>}
                   value={data.grandTotal}
                   prefix="Q"
                   precision={2}
@@ -424,17 +505,17 @@ export default function ApAgingPage() {
                 <Col span={3}>
                   <Card size="small" style={{
                     textAlign: 'center',
-                    background: (data.netTotal ?? data.grandTotal) <= 0 ? '#f0fdf4' : '#fef2f2',
-                    borderColor: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a44' : '#dc262644',
+                    background: (data.netTotal ?? data.grandTotal) <= 0 ? '#f0fdf4' : '#eff6ff',
+                    borderColor: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a44' : '#2563eb44',
                   }}>
                     <Statistic
-                      title={<span style={{ fontSize: 11, color: '#6b7280' }}>Neto CxP</span>}
+                      title={<span style={{ fontSize: 11, color: '#6b7280' }}>Neto CxC</span>}
                       value={Math.abs(data.netTotal ?? data.grandTotal)}
                       prefix={(data.netTotal ?? data.grandTotal) < 0 ? '(A fav) Q' : 'Q'}
                       precision={2}
                       valueStyle={{
                         fontSize: 14, fontWeight: 700,
-                        color: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a' : '#dc2626',
+                        color: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a' : '#2563eb',
                       }}
                     />
                   </Card>
@@ -447,41 +528,41 @@ export default function ApAgingPage() {
             <>
               <Divider orientation={'left' as any} style={{ marginTop: 4, marginBottom: 10 }}>
                 <Text style={{ color: '#1B3A6B', fontWeight: 600, fontSize: 13 }}>
-                  Posición neta por proveedor (CxP − Anticipos)
+                  Posición neta por cliente (CxC − Anticipos)
                 </Text>
               </Divider>
               <Table
                 size="small"
                 pagination={false}
-                dataSource={buildVendorNetting(data)}
+                dataSource={buildCustomerNetting(data)}
                 rowKey="key"
                 style={{ marginBottom: 20 }}
                 summary={rows => {
-                  const totCxp = rows.reduce((s, r) => s + r.cxp, 0)
+                  const totCxc = rows.reduce((s, r) => s + r.cxc, 0)
                   const totAdv = rows.reduce((s, r) => s + r.anticipo, 0)
                   const totNet = rows.reduce((s, r) => s + r.neto, 0)
                   return (
                     <Table.Summary.Row style={{ background: '#f8fafc', fontWeight: 700 }}>
                       <Table.Summary.Cell index={0}><Text strong>TOTAL</Text></Table.Summary.Cell>
                       <Table.Summary.Cell index={1} align="right">
-                        <Text strong style={{ color: '#1B3A6B' }}>{fmt(totCxp)}</Text>
+                        <Text strong style={{ color: '#1B3A6B' }}>{fmt(totCxc)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
                         <Text strong style={{ color: '#16a34a' }}>({fmt(totAdv)})</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ color: totNet <= 0 ? '#16a34a' : '#dc2626', fontSize: 14 }}>
-                          {totNet < 0 ? `(A favor) ${fmt(Math.abs(totNet))}` : fmt(totNet)}
+                        <Text strong style={{ color: totNet <= 0 ? '#16a34a' : '#2563eb', fontSize: 14 }}>
+                          {totNet < 0 ? `(A fav) ${fmt(Math.abs(totNet))}` : fmt(totNet)}
                         </Text>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>
                   )
                 }}
                 columns={[
-                  { title: 'Proveedor', dataIndex: 'vendorName', ellipsis: true },
+                  { title: 'Cliente', dataIndex: 'customerName', ellipsis: true },
                   {
-                    title: 'Facturas CxP',
-                    dataIndex: 'cxp',
+                    title: 'Facturas CxC',
+                    dataIndex: 'cxc',
                     width: 160,
                     align: 'right' as const,
                     render: (v: number) => v > 0
@@ -508,7 +589,7 @@ export default function ApAgingPage() {
                     width: 180,
                     align: 'right' as const,
                     render: (v: number) => (
-                      <Text style={{ fontWeight: 700, fontSize: 13, color: v < 0 ? '#16a34a' : v === 0 ? '#6b7280' : '#dc2626' }}>
+                      <Text style={{ fontWeight: 700, fontSize: 13, color: v < 0 ? '#16a34a' : v === 0 ? '#6b7280' : '#2563eb' }}>
                         {v < 0
                           ? <Tag color="success" style={{ fontWeight: 700 }}>A favor {fmt(Math.abs(v))}</Tag>
                           : v === 0 ? <Tag color="default">Saldado</Tag> : fmt(v)
@@ -529,7 +610,7 @@ export default function ApAgingPage() {
             }}>
               <WarningOutlined style={{ color: '#dc2626' }} />
               <Text style={{ color: '#dc2626', fontWeight: 500, fontSize: 13 }}>
-                Tiene saldos vencidos por más de 60 días: {fmt(data.buckets.days_90.total + data.buckets.over_90.total)}
+                Tiene cuentas vencidas por más de 60 días: {fmt(data.buckets.days_90.total + data.buckets.over_90.total)}
               </Text>
             </div>
           )}
@@ -537,11 +618,11 @@ export default function ApAgingPage() {
           {(data.buckets.current.total + data.buckets.days_30.total + data.buckets.days_60.total + data.buckets.days_90.total + data.buckets.over_90.total) === 0 && (
             <div style={{ padding: '24px', textAlign: 'center' }}>
               <CheckCircleOutlined style={{ fontSize: 40, color: '#16a34a', marginBottom: 12 }} />
-              <div><Text style={{ color: '#16a34a', fontSize: 15 }}>No hay saldos pendientes de pago al cierre de {periodLabel}.</Text></div>
+              <div><Text style={{ color: '#16a34a', fontSize: 15 }}>No hay saldos pendientes de cobro al cierre de {periodLabel}.</Text></div>
             </div>
           )}
 
-          {(Object.entries(data.buckets) as [string, ApAgingBucket][]).map(([key, bucket]) => (
+          {(Object.entries(data.buckets) as [string, ArAgingBucket][]).map(([key, bucket]) => (
             <BucketCard
               key={key}
               label={bucket.label}
@@ -564,7 +645,7 @@ export default function ApAgingPage() {
       {!data && !loading && (
         <Card>
           <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
-            Seleccione el mes de cierre y presione <strong>Generar</strong> para ver las Cuentas por Pagar.
+            Seleccione el mes de cierre y presione <strong>Generar</strong> para ver las Cuentas por Cobrar.
           </div>
         </Card>
       )}

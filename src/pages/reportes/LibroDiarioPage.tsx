@@ -1,12 +1,11 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
-  Card, Table, DatePicker, Space, Typography, Tag, Input,
-  Button, Row, Col, Statistic, Tooltip, InputNumber, message, Popconfirm,
+  Card, Table, Select, Space, Typography, Tag, Input,
+  Button, Row, Col, Statistic, InputNumber, message, Popconfirm,
 } from 'antd'
 import {
   SearchOutlined, FileTextOutlined, DownloadOutlined,
-  FilePdfOutlined, PlusSquareOutlined, MinusSquareOutlined, ReloadOutlined,
-  CheckCircleOutlined, DeleteOutlined,
+  FilePdfOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -17,7 +16,17 @@ import {
 import { postAsiento, deleteAsiento } from '../../api/asientos'
 
 const { Text, Title } = Typography
-const { RangePicker } = DatePicker
+
+const MESES = [
+  { value: 1,  label: 'Enero' },   { value: 2,  label: 'Febrero' },
+  { value: 3,  label: 'Marzo' },   { value: 4,  label: 'Abril' },
+  { value: 5,  label: 'Mayo' },    { value: 6,  label: 'Junio' },
+  { value: 7,  label: 'Julio' },   { value: 8,  label: 'Agosto' },
+  { value: 9,  label: 'Septiembre' }, { value: 10, label: 'Octubre' },
+  { value: 11, label: 'Noviembre' },  { value: 12, label: 'Diciembre' },
+]
+const CUR_YEAR = dayjs().year()
+const ANIOS = Array.from({ length: 6 }, (_, i) => ({ value: CUR_YEAR - i, label: String(CUR_YEAR - i) }))
 
 const fmtQ = (n: number) =>
   n === 0 ? '—' : `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -38,19 +47,20 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default function LibroDiarioPage() {
   const today = dayjs()
-  const [fromDate, setFromDate] = useState(today.startOf('month').format('YYYY-MM-DD'))
-  const [toDate,   setToDate]   = useState(today.format('YYYY-MM-DD'))
+  const [selectedMonth, setSelectedMonth] = useState(today.month() + 1)
+  const [selectedYear,  setSelectedYear]  = useState(today.year())
   const [search,   setSearch]   = useState('')
   const [page,     setPage]     = useState(1)
   const [data,     setData]     = useState<LibroDiarioEntry[]>([])
   const [total,    setTotal]    = useState(0)
   const [loading,  setLoading]  = useState(false)
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([])
-  const [allExpanded,  setAllExpanded]  = useState(false)
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
   const [folio,     setFolio]     = useState<number>(1)
   const [posting,   setPosting]   = useState<string | null>(null)
   const [deleting,  setDeleting]  = useState<string | null>(null)
+
+  const fromDate = dayjs().year(selectedYear).month(selectedMonth - 1).startOf('month').format('YYYY-MM-DD')
+  const toDate   = dayjs().year(selectedYear).month(selectedMonth - 1).endOf('month').format('YYYY-MM-DD')
 
   const handlePost = async (id: string) => {
     setPosting(id)
@@ -59,7 +69,8 @@ export default function LibroDiarioPage() {
       message.success('Póliza publicada — ahora aparece en todos los reportes')
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo publicar la póliza')
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'No se pudo publicar la póliza')
     } finally {
       setPosting(null)
     }
@@ -72,7 +83,8 @@ export default function LibroDiarioPage() {
       message.success('Póliza eliminada permanentemente')
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo eliminar la póliza')
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'No se pudo eliminar la póliza')
     } finally {
       setDeleting(null)
     }
@@ -80,31 +92,18 @@ export default function LibroDiarioPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    setData([])      // limpiar estado antes de cargar para evitar datos en caché
+    setData([])
     setTotal(0)
     try {
       const res = await getLibroDiario({ fromDate, toDate, page, limit: 50, search: search || undefined })
       setData(res.entries ?? [])
       setTotal(res.total ?? 0)
-      setExpandedKeys([])
-      setAllExpanded(false)
     } catch {
       setData([]); setTotal(0)
     } finally { setLoading(false) }
   }, [fromDate, toDate, page, search])
 
   useEffect(() => { load() }, [load])
-
-  // Toggle expand all / collapse all
-  const toggleExpandAll = () => {
-    if (allExpanded) {
-      setExpandedKeys([])
-      setAllExpanded(false)
-    } else {
-      setExpandedKeys(data.map(e => e.id))
-      setAllExpanded(true)
-    }
-  }
 
   const handleExport = async (fmt: 'excel' | 'pdf') => {
     setExporting(fmt)
@@ -120,7 +119,7 @@ export default function LibroDiarioPage() {
 
   const lineColumns: ColumnsType<LibroDiarioLine> = [
     {
-      title: 'Cuenta', width: 280,
+      title: 'Cuenta', width: 300,
       render: (_, l) => (
         <span>
           <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#888', marginRight: 6 }}>{l.accountCode}</Text>
@@ -148,25 +147,9 @@ export default function LibroDiarioPage() {
 
   const columns: ColumnsType<LibroDiarioEntry> = [
     {
+      title: 'Póliza',
       dataIndex: 'entryNumber',
-      width: 155,
-      title: () => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Tooltip title={allExpanded ? 'Colapsar todos' : 'Expandir todos'}>
-            <Button
-              type="text"
-              size="small"
-              icon={allExpanded
-                ? <MinusSquareOutlined style={{ color: '#1B3A6B', fontSize: 14 }} />
-                : <PlusSquareOutlined  style={{ color: '#1B3A6B', fontSize: 14 }} />
-              }
-              onClick={toggleExpandAll}
-              style={{ padding: '0 2px', height: 20 }}
-            />
-          </Tooltip>
-          <span>Póliza</span>
-        </div>
-      ),
+      width: 145,
       render: (v) => (
         <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>
       ),
@@ -211,18 +194,16 @@ export default function LibroDiarioPage() {
       render: (_, row) => {
         if (row.status === 'draft') {
           return (
-            <Tooltip title="Publicar para que aparezca en reportes financieros">
-              <Button
-                size="small"
-                type="primary"
-                ghost
-                icon={<CheckCircleOutlined />}
-                loading={posting === row.id}
-                onClick={() => handlePost(row.id)}
-              >
-                Publicar
-              </Button>
-            </Tooltip>
+            <Button
+              size="small"
+              type="primary"
+              ghost
+              icon={<CheckCircleOutlined />}
+              loading={posting === row.id}
+              onClick={() => handlePost(row.id)}
+            >
+              Publicar
+            </Button>
           )
         }
         if (row.status === 'void') {
@@ -296,12 +277,19 @@ export default function LibroDiarioPage() {
         bodyStyle={{ padding: '12px 16px' }}
       >
         <Space wrap>
-          <RangePicker
-            format="YYYY-MM-DD"
-            value={[dayjs(fromDate), dayjs(toDate)]}
-            onChange={(_, strs) => {
-              if (strs[0] && strs[1]) { setFromDate(strs[0]); setToDate(strs[1]); setPage(1) }
-            }}
+          <Select
+            value={selectedMonth}
+            onChange={v => { setSelectedMonth(v); setPage(1) }}
+            options={MESES}
+            style={{ width: 130 }}
+            size="middle"
+          />
+          <Select
+            value={selectedYear}
+            onChange={v => { setSelectedYear(v); setPage(1) }}
+            options={ANIOS}
+            style={{ width: 90 }}
+            size="middle"
           />
           <Input
             prefix={<SearchOutlined />}
@@ -311,11 +299,7 @@ export default function LibroDiarioPage() {
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             allowClear
           />
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => load()}
-            loading={loading}
-          >
+          <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
             Actualizar
           </Button>
         </Space>
@@ -354,7 +338,7 @@ export default function LibroDiarioPage() {
           loading={loading}
           size="middle"
           rowClassName={(row) => row.status === 'void' ? 'row-void' : ''}
-          scroll={{ x: 1000, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: 1000 }}
           pagination={{
             total,
             current: page,
@@ -364,12 +348,9 @@ export default function LibroDiarioPage() {
             showSizeChanger: false,
           }}
           expandable={{
-            expandedRowKeys: expandedKeys,
-            onExpandedRowsChange: (keys) => {
-              setExpandedKeys(keys as string[])
-              setAllExpanded(keys.length === data.length && data.length > 0)
-            },
-            expandIcon: () => null,   // ocultamos el ícono nativo — el control está en el header
+            expandedRowKeys: data.map(e => e.id),
+            onExpandedRowsChange: () => {},
+            showExpandColumn: false,
             expandedRowRender: (entry) => (
               <Table
                 columns={lineColumns}

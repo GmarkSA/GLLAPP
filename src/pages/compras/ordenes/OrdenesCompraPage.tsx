@@ -1,11 +1,12 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
+﻿import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  Dropdown, Modal, message, Tabs, Popover, Tooltip,
+  Modal, message, Tabs, Popover, Tooltip,
 } from 'antd'
 import {
-  PlusOutlined, SearchOutlined, ShoppingOutlined, MoreOutlined,
+  PlusOutlined, SearchOutlined, ShoppingOutlined,
+  EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined,
   SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -46,6 +47,12 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+const COL_WIDTHS: Record<string, number> = {
+  orderNumber: 140, vendorName: 200, orderDate: 110,
+  expectedDeliveryDate: 140, currency: 80, paymentTerms: 140,
+  itemsCount: 80, total: 130, status: 120, notes: 160,
+}
+
 // ── Definiciones de columna por clave ────────────────────────────────────────
 function buildColDef(
   key: string,
@@ -54,7 +61,7 @@ function buildColDef(
   const base = { key }
   switch (key) {
     case 'orderNumber':
-      return { ...base, title: '# OC', dataIndex: 'orderNumber', width: 140,
+      return { ...base, title: '# OC', dataIndex: 'orderNumber', width: 140, fixed: 'left' as const,
         render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
     case 'vendorName':
       return { ...base, title: 'Proveedor', dataIndex: 'vendorName',
@@ -173,6 +180,14 @@ export default function OrdenesCompraPage() {
     } finally { setApproveLoading(false) }
   }
 
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 160 // +acciones
+  }, [colConfig])
+
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<PurchaseOrder> = [
     ...[...colConfig]
@@ -183,35 +198,41 @@ export default function OrdenesCompraPage() {
     // Acciones — siempre al final
     {
       key: '_actions',
-      title: '',
-      width: 50,
+      title: 'Acciones',
+      align: 'center' as const,
+      width: 160,
+      fixed: 'right' as const,
       render: (_: any, r: PurchaseOrder) => {
         const isDraft     = r.status === 'draft'
         const isCancelled = r.status === 'cancelled'
         const isBilled    = r.status === 'billed'
         const canApprove  = r.status === 'draft' || r.status === 'sent'
-        const items: any[] = [{ key: 'view', label: 'Ver' }]
-        if (isDraft)   items.push({ key: 'edit', label: 'Editar' })
-        if (canApprove) items.push({ key: 'approve', label: 'Aprobar' })
-        if (!isCancelled && !isBilled) {
-          items.push({ type: 'divider' })
-          items.push({ key: 'delete', label: <span style={{ color: '#ff4d4f' }}>Eliminar</span> })
-        }
         return (
-          <Dropdown
-            menu={{
-              items,
-              onClick: ({ key }) => {
-                if (key === 'view')    navigate(`/compras/ordenes/${r.id}`)
-                if (key === 'edit')    navigate(`/compras/ordenes/${r.id}/editar`)
-                if (key === 'approve') { setApproveTarget(r); setApproveModal(true) }
-                if (key === 'delete')  handleDelete(r.id)
-              },
-            }}
-            trigger={['click']}
-          >
-            <Button type="text" size="small" icon={<MoreOutlined />} />
-          </Dropdown>
+          <Space size={6}>
+            <Tooltip title="Ver detalle">
+              <Button size="small" icon={<EyeOutlined />}
+                onClick={() => navigate(`/compras/ordenes/${r.id}`)} />
+            </Tooltip>
+            {isDraft && (
+              <Tooltip title="Editar">
+                <Button size="small" icon={<EditOutlined />}
+                  onClick={() => navigate(`/compras/ordenes/${r.id}/editar`)} />
+              </Tooltip>
+            )}
+            {canApprove && (
+              <Tooltip title="Aprobar">
+                <Button size="small" icon={<CheckCircleOutlined />}
+                  style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={() => { setApproveTarget(r); setApproveModal(true) }} />
+              </Tooltip>
+            )}
+            {!isCancelled && !isBilled && (
+              <Tooltip title="Eliminar">
+                <Button size="small" danger icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(r.id)} />
+              </Tooltip>
+            )}
+          </Space>
         )
       },
     },
@@ -297,7 +318,7 @@ export default function OrdenesCompraPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/ordenes/${r.id}`) })}
           pagination={{
             total,

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Button, Space, Typography, Tag, Input,
@@ -56,12 +56,21 @@ const DEFAULT_COL_CONFIG: ColConfig[] = ALL_COL_META.map((c, i) => ({
   sortOrder: i + 1,
 }))
 
+const COL_WIDTHS: Record<string, number> = {
+  invoiceNumber: 155, invoiceDate: 105, customer: 200,
+  customerTaxId: 120, originalInvoice: 150, creditNoteReason: 160,
+  currency: 80, subtotal: 110, taxAmount: 100,
+  total: 120, creditBalance: 120, appliedCreditAmount: 130,
+  status: 130, felStatus: 100, felSerie: 80,
+  felNumero: 100, notes: 150, itemsCount: 80,
+}
+
 // ── Definiciones de columna ───────────────────────────────────────────────────
 function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
   const base = { key }
   switch (key) {
     case 'invoiceNumber':
-      return { ...base, title: 'N° NC', dataIndex: 'invoiceNumber', width: 155,
+      return { ...base, title: 'N° NC', dataIndex: 'invoiceNumber', width: 155, fixed: 'left' as const,
         render: (v: string) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12 }}>{v}</Text> }
     case 'invoiceDate':
       return { ...base, title: 'Fecha', dataIndex: 'invoiceDate', width: 105,
@@ -199,6 +208,14 @@ export default function NotasCreditoPage() {
   const totalMonto   = data.reduce((s, nc) => s + Number(nc.total), 0)
   const totalCredito = data.reduce((s, nc) => s + Number(nc.creditBalance), 0)
 
+  // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
+  const scrollX = useMemo(() => {
+    const dataWidth = colConfig
+      .filter(c => c.visible)
+      .reduce((sum, c) => sum + (COL_WIDTHS[c.key] ?? 120), 0)
+    return dataWidth + 150 // +acciones
+  }, [colConfig])
+
   // ── Columnas dinámicas ──────────────────────────────────────────────────────
   const activeColumns: ColumnsType<NotaCredito> = [
     ...[...colConfig]
@@ -212,6 +229,7 @@ export default function NotasCreditoPage() {
       title: 'Acciones',
       width: 150,
       align: 'center' as const,
+      fixed: 'right' as const,
       render: (_: any, r: NotaCredito) => (
         <Space size={4}>
           <Tooltip title="Ver detalle">
@@ -336,7 +354,7 @@ export default function NotasCreditoPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} notas de crédito`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay notas de crédito en el período' }}
         />
