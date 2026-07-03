@@ -215,6 +215,8 @@ export const applyAdvanceToInvoices = async (
 export type CheckFormat    = 'generic' | 'bi' | 'bac' | 'gt' | 'banrural' | 'banoro' | 'citi'
 export type AchFileFormat  = 'txt_fixed' | 'csv' | 'xlsx' | 'xml'
 
+export type PrinterType = 'matrix' | 'laser'
+
 export interface BankPaymentConfig {
   id?:                  string
   bankAccountId:        string
@@ -226,6 +228,8 @@ export interface BankPaymentConfig {
   checkRangeTo?:        number
   checkFormat?:         CheckFormat
   checkFieldPositions?: Record<string, any> | null
+  printerType?:         PrinterType
+  matrixCpi?:           number
   achEnabled?:          boolean
   achBankCode?:         string
   achCompanyId?:        string

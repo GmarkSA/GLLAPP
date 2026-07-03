@@ -14,8 +14,17 @@
  */
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getPagoRealizado, getBankPaymentConfigByAccount, type VendorPayment } from '../../../api/pagosRealizados'
+import { getPagoRealizado, getBankPaymentConfigByAccount, type VendorPayment, type PrinterType } from '../../../api/pagosRealizados'
 import type { CheckLayoutPositions } from '../../../components/CheckLayoutEditor'
+
+// CPI → font-size pt mapping (monospace chars per inch)
+const CPI_FONT: Record<number, string> = {
+  10: '11pt',
+  12: '9pt',
+  15: '7.5pt',
+  17: '6.5pt',
+  20: '5.5pt',
+}
 
 // ── Conversión de número a letras (quetzales guatemaltecos) ─────────────────────
 
@@ -154,21 +163,24 @@ function detectFormat(bankName?: string): string {
 
 export default function ChequePrintPage() {
   const { id } = useParams<{ id: string }>()
-  const [payment,  setPayment]  = useState<VendorPayment | null>(null)
-  const [customPos, setCustomPos] = useState<CheckLayoutPositions | null>(null)
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState<string | null>(null)
+  const [payment,     setPayment]     = useState<VendorPayment | null>(null)
+  const [customPos,   setCustomPos]   = useState<CheckLayoutPositions | null>(null)
+  const [printerType, setPrinterType] = useState<PrinterType>('matrix')
+  const [matrixCpi,   setMatrixCpi]   = useState<number>(10)
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
     getPagoRealizado(id)
       .then(async p => {
         setPayment(p)
-        // Cargar configuración personalizada del banco si existe
         if (p.bankAccountId) {
           try {
             const cfg = await getBankPaymentConfigByAccount(p.bankAccountId)
             if (cfg?.checkFieldPositions) setCustomPos(cfg.checkFieldPositions)
+            if (cfg?.printerType) setPrinterType(cfg.printerType)
+            if (cfg?.matrixCpi)   setMatrixCpi(cfg.matrixCpi)
           } catch { /* no config = usar defaults */ }
         }
         setLoading(false)
@@ -209,6 +221,13 @@ export default function ChequePrintPage() {
   const date       = new Date(payment.paymentDate)
   const dateStr    = date.toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
+  const isMatrix   = printerType === 'matrix'
+  const monoFont   = "'Courier New', Courier, monospace"
+  const propFont   = "'Arial', sans-serif"
+  const bodyFont   = isMatrix ? monoFont : propFont
+  const fieldSize  = isMatrix ? (CPI_FONT[matrixCpi] ?? '11pt') : '11pt'
+  const letrasSize = isMatrix ? (CPI_FONT[matrixCpi] ?? '11pt') : '9.5pt'
+
   return (
     <>
       <style>{`
@@ -222,22 +241,24 @@ export default function ChequePrintPage() {
           position: relative;
           width: ${fmt.width};
           height: ${fmt.height};
-          font-family: 'Arial', sans-serif;
+          font-family: ${bodyFont};
           overflow: hidden;
+          ${isMatrix ? 'background: transparent !important;' : ''}
         }
         .field {
           position: absolute;
-          font-size: 11pt;
-          font-weight: 600;
+          font-size: ${fieldSize};
+          font-weight: ${isMatrix ? '400' : '600'};
           color: #000;
           white-space: nowrap;
-          letter-spacing: 0.03em;
+          letter-spacing: ${isMatrix ? '0.05em' : '0.03em'};
+          ${isMatrix ? 'text-shadow: none; -webkit-print-color-adjust: exact;' : ''}
         }
         .field-letras {
-          font-size: 9.5pt;
-          font-weight: 500;
+          font-size: ${letrasSize};
+          font-weight: ${isMatrix ? '400' : '500'};
           white-space: normal;
-          line-height: 1.3;
+          line-height: ${isMatrix ? '1.2' : '1.3'};
         }
         .field-firma-line {
           border-bottom: 1px solid #000;
@@ -246,11 +267,11 @@ export default function ChequePrintPage() {
         }
         .field-no-negociable {
           font-size: 7pt;
-          font-weight: 800;
+          font-weight: ${isMatrix ? '400' : '800'};
           letter-spacing: 0.1em;
-          border: 1.5px solid #000;
+          border: ${isMatrix ? '1px solid #000' : '1.5px solid #000'};
           padding: 2px 6px;
-          border-radius: 3px;
+          border-radius: ${isMatrix ? '0' : '3px'};
           white-space: nowrap;
         }
         .screen-controls {
@@ -271,6 +292,12 @@ export default function ChequePrintPage() {
           color: #1B3A6B;
           font-weight: 600;
         }
+        .screen-controls .printer-badge {
+          background: rgba(255,255,255,0.15);
+          border-radius: 4px;
+          padding: 3px 8px;
+          font-size: 12px;
+        }
         .check-preview {
           border: 2px dashed #ccc;
           margin: 16px;
@@ -279,6 +306,10 @@ export default function ChequePrintPage() {
         @media print {
           .screen-controls { display: none; }
           .check-preview { border: none; margin: 0; }
+          ${isMatrix ? `
+            * { -webkit-print-color-adjust: exact; }
+            body { background: transparent !important; }
+          ` : ''}
         }
       `}</style>
 
@@ -287,6 +318,9 @@ export default function ChequePrintPage() {
           Cheque: <strong>{payment.checkNumber ?? payment.paymentNumber}</strong>
           &nbsp;| Banco: {payment.bankName ?? '(sin banco)'}
           &nbsp;| Formato: {fmt.label}
+        </span>
+        <span className="printer-badge">
+          {isMatrix ? `🖨 Matriz ${matrixCpi} cpi` : '🖨 Láser'}
         </span>
         <button onClick={() => window.print()}>🖨 Imprimir</button>
         <button onClick={() => window.close()}>✕ Cerrar</button>

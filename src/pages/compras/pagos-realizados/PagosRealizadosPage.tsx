@@ -149,6 +149,15 @@ export default function PagosRealizadosPage() {
               />
             </Tooltip>
           )}
+          {r.mode !== 'check' && r.status !== 'voided' && (
+            <Tooltip title="Comprobante de pago">
+              <Button
+                size="small"
+                icon={<PrinterOutlined />}
+                onClick={() => window.open(`/bancos/pagos-realizados/${r.id}/comprobante`, '_blank')}
+              />
+            </Tooltip>
+          )}
           {r.status !== 'voided' && (
             <Popconfirm
               title="¿Anular pago?"

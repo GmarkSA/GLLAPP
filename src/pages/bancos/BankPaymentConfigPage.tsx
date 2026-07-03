@@ -12,7 +12,7 @@ import { getBankAccounts, type BankAccount } from '../../api/bancos'
 import {
   getBankPaymentConfigs, createBankPaymentConfig,
   updateBankPaymentConfig, deleteBankPaymentConfig,
-  type BankPaymentConfig, type CheckFormat, type AchFileFormat,
+  type BankPaymentConfig, type CheckFormat, type AchFileFormat, type PrinterType,
 } from '../../api/pagosRealizados'
 import CheckLayoutEditor from '../../components/CheckLayoutEditor'
 
@@ -66,6 +66,8 @@ export default function BankPaymentConfigPage() {
     form.resetFields()
     form.setFieldsValue({
       checkFormat: 'generic',
+      printerType: 'matrix',
+      matrixCpi: 10,
       currentCheckSeq: 1,
       achEnabled: false,
       achFileFormat: 'csv',
@@ -142,10 +144,15 @@ export default function BankPaymentConfigPage() {
       ),
     },
     {
-      title: 'Formato cheque',
-      dataIndex: 'checkFormat',
-      render: (v: CheckFormat) => (
-        <Tag>{CHECK_FORMATS.find(f => f.value === v)?.label ?? v}</Tag>
+      title: 'Formato / Impresora',
+      key: 'fmt',
+      render: (_: any, r: BankPaymentConfig) => (
+        <Space direction="vertical" size={0}>
+          <Tag>{CHECK_FORMATS.find(f => f.value === r.checkFormat)?.label ?? r.checkFormat}</Tag>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {r.printerType === 'laser' ? '🖨 Láser' : '🖨 Matriz'}{r.matrixCpi ? ` ${r.matrixCpi} cpi` : ''}
+          </Text>
+        </Space>
       ),
     },
     {
@@ -261,13 +268,44 @@ export default function BankPaymentConfigPage() {
 
           {/* Formato cheque */}
           <Divider orientation={"left" as any} plain style={{ fontSize: 12 }}>Formato de impresión del cheque</Divider>
-          <Form.Item label="Formato base" name="checkFormat">
-            <Select>
-              {CHECK_FORMATS.map(f => (
-                <Option key={f.value} value={f.value}>{f.label}</Option>
-              ))}
-            </Select>
-          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+            <Form.Item label="Formato base" name="checkFormat">
+              <Select>
+                {CHECK_FORMATS.map(f => (
+                  <Option key={f.value} value={f.value}>{f.label}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label="Tipo de impresora"
+              name="printerType"
+              extra="Matriz: Courier monoespaciado, sin colores. Láser: fuente proporcional, con sombras."
+            >
+              <Select>
+                <Option value="matrix">🖨 Matriz de puntos (cinta)</Option>
+                <Option value="laser">🖨 Láser / Inkjet</Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item noStyle shouldUpdate={(p, c) => p.printerType !== c.printerType}>
+              {({ getFieldValue }) => getFieldValue('printerType') === 'matrix' ? (
+                <Form.Item
+                  label="Caracteres por pulgada (CPI)"
+                  name="matrixCpi"
+                  extra="10 cpi = estándar. 12/15/17 = comprimido. Afecta al ancho efectivo de los campos."
+                >
+                  <Select>
+                    <Option value={10}>10 cpi — Normal</Option>
+                    <Option value={12}>12 cpi — Condensado</Option>
+                    <Option value={15}>15 cpi — Semi-fino</Option>
+                    <Option value={17}>17 cpi — Fino</Option>
+                    <Option value={20}>20 cpi — Ultra-fino</Option>
+                  </Select>
+                </Form.Item>
+              ) : null}
+            </Form.Item>
+          </div>
 
           {/* Editor visual de layout */}
           <Form.Item noStyle shouldUpdate={(prev, cur) => prev.checkFormat !== cur.checkFormat}>

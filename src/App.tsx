@@ -47,6 +47,7 @@ const PagoRecibidoDetallePage = lazy(() => import('./pages/ventas/pagos-recibido
 const PagosRealizadosPage      = lazy(() => import('./pages/compras/pagos-realizados/PagosRealizadosPage'))
 const PagoRealizadoFormPage    = lazy(() => import('./pages/compras/pagos-realizados/PagoRealizadoFormPage'))
 const ChequePrintPage          = lazy(() => import('./pages/compras/pagos-realizados/ChequePrintPage'))
+const TransferenciaPrintPage   = lazy(() => import('./pages/bancos/TransferenciaPrintPage'))
 const ReporteProyectadoPagosPage = lazy(() => import('./pages/reportes/ReporteProyectadoPagosPage'))
 
 // Compras
@@ -154,7 +155,8 @@ export default function App() {
         <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
         <Route path="/ventas/facturas/:id/imprimir"     element={<PrivateRoute><FacturaImprimirPage /></PrivateRoute>} />
-        <Route path="/bancos/pagos-realizados/:id/cheque" element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
+        <Route path="/bancos/pagos-realizados/:id/cheque"      element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
+        <Route path="/bancos/pagos-realizados/:id/comprobante" element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
 
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
