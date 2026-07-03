@@ -44,6 +44,7 @@ const menuItems = [
     { key: '/compras/proveedores',            label: 'Proveedores' },
     { key: '/compras/ordenes',                label: 'Órdenes de compra' },
     { key: '/compras/facturas',               label: 'Facturas proveedor' },
+    { key: '/compras/pagos-realizados',       label: 'Pagos a proveedores' },
     { key: '/compras/dte-sat',                label: 'DTE SAT' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
@@ -77,6 +78,7 @@ const menuItems = [
     { key: '/reportes/libro-ventas',       label: 'Libro de Ventas' },
     { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },
     { key: '/reportes/ar-aging',           label: 'AR Aging (CxC)' },
+    { key: '/reportes/proyectado-pagos',   label: 'Proyectado de Pagos' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
