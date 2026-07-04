@@ -5,7 +5,7 @@ import {
   message, Radio, Segmented, Badge,
 } from 'antd'
 import { BankOutlined, FileTextOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -25,6 +25,7 @@ type PaymentMode = 'regular' | 'advance'
 
 export default function PagoRealizadoFormPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [form] = Form.useForm()
 
   const [paymentMode,    setPaymentMode]    = useState<PaymentMode>('regular')
@@ -56,6 +57,29 @@ export default function PagoRealizadoFormPage() {
       .then(r => setBankAccounts(Array.isArray(r) ? r : (r as any)?.data ?? []))
       .catch(() => {})
   }, [fetchVendors])
+
+  // Pre-fill from URL params (vendorId + invoiceId coming from Facturas de Proveedor)
+  useEffect(() => {
+    const vendorId  = searchParams.get('vendorId')
+    const invoiceId = searchParams.get('invoiceId')
+    if (!vendorId) return
+    form.setFieldValue('vendorId', vendorId)
+    setLoadingInvs(true)
+    getPendingInvoicesByVendor(vendorId)
+      .then(invs => {
+        setPendingInvs(invs)
+        if (invoiceId) {
+          const inv = invs.find(i => i.id === invoiceId)
+          if (inv) {
+            setSelectedIds([invoiceId])
+            setAmounts({ [invoiceId]: inv.balance })
+          }
+        }
+      })
+      .catch(() => message.error('No se pudieron cargar las facturas del proveedor'))
+      .finally(() => setLoadingInvs(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onVendorChange = useCallback(async (vendorId: string) => {
     if (!vendorId) {

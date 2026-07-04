@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  Modal, Form, InputNumber, DatePicker, Select,
+  Modal, Form,
   message, Tabs, Popover, Tooltip,
 } from 'antd'
 import {
@@ -13,7 +13,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
-  getBills, deleteBill, voidBill, recordBillPayment,
+  getBills, deleteBill, voidBill,
   BILL_STATUS_CONFIG, BILL_TYPE_CONFIG,
   type PurchaseInvoice, type BillStatus,
 } from '../../../api/compras'
@@ -24,7 +24,7 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 
 const { Title, Text } = Typography
-const { Option } = Select
+
 
 // ── Formato moneda ────────────────────────────────────────────────────────────
 const fmtGTQ = (x: number | string) =>
@@ -223,14 +223,6 @@ function buildColDef(
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
-const PAYMENT_MODES = [
-  { value: 'cash',          label: 'Efectivo'               },
-  { value: 'bank_transfer', label: 'Transferencia bancaria'  },
-  { value: 'check',         label: 'Cheque'                  },
-  { value: 'credit_card',   label: 'Tarjeta de crédito'     },
-  { value: 'debit_card',    label: 'Tarjeta de débito'      },
-]
-
 const STATUS_TABS = [
   { key: 'all',     label: 'Todos'        },
   { key: 'draft',   label: 'Borrador'     },
@@ -263,14 +255,6 @@ export default function FacturasProveedorPage() {
   const [voidTarget, setVoidTarget]   = useState<PurchaseInvoice | null>(null)
   const [voidReason, setVoidReason]   = useState('')
   const [voidLoading, setVoidLoading] = useState(false)
-
-  // Pay modal
-  const [payModal, setPayModal]       = useState(false)
-  const [payTarget, setPayTarget]     = useState<PurchaseInvoice | null>(null)
-  const [payLoading, setPayLoading]   = useState(false)
-  const [payForm]                     = Form.useForm()
-  const [payExchangeRate, setPayExchangeRate] = useState<number>(1)
-  const payAmount = Form.useWatch('amount', payForm) as number | undefined
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -314,35 +298,8 @@ export default function FacturasProveedorPage() {
     finally { setVoidLoading(false) }
   }
 
-  const handlePay = async () => {
-    if (!payTarget) return
-    try {
-      const values = await payForm.validateFields()
-      setPayLoading(true)
-      const isFx = (payTarget.currency ?? 'GTQ') !== 'GTQ'
-      await recordBillPayment(payTarget.id, {
-        amount:        values.amount,
-        currency:      payTarget.currency ?? 'GTQ',
-        exchangeRate:  isFx ? payExchangeRate : 1,
-        paymentDate:   values.paymentDate.format('YYYY-MM-DD'),
-        mode:          values.mode,
-        reference:     values.reference,
-        bankAccountId: values.bankAccountId,
-      })
-      message.success('Pago registrado')
-      setPayModal(false); payForm.resetFields(); setPayTarget(null)
-      fetchBills()
-    } catch (e: any) {
-      if (e?.response) message.error(e?.response?.data?.message || 'No se pudo registrar el pago')
-    } finally { setPayLoading(false) }
-  }
-
   const openPay = (bill: PurchaseInvoice) => {
-    setPayTarget(bill)
-    const fx = Number(bill.exchangeRate ?? 1)
-    setPayExchangeRate(fx > 1 ? fx : 1)
-    payForm.setFieldsValue({ amount: bill.balance, paymentDate: dayjs(), mode: 'bank_transfer' })
-    setPayModal(true)
+    navigate(`/bancos/pagos-realizados/nuevo?vendorId=${bill.vendorId}&invoiceId=${bill.id}`)
   }
 
   // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
@@ -385,7 +342,7 @@ export default function FacturasProveedorPage() {
               </Tooltip>
             )}
             {!isPaid && !isVoided && (
-              <Tooltip title="Registrar pago">
+              <Tooltip title="Ir a Pagos a Proveedores">
                 <Button size="small" icon={<DollarOutlined />}
                   style={{ color: '#52c41a', borderColor: '#52c41a' }}
                   onClick={() => openPay(r)} />
@@ -526,77 +483,6 @@ export default function FacturasProveedorPage() {
             <Input.TextArea rows={3} value={voidReason} onChange={e => setVoidReason(e.target.value)} placeholder="Ingresa el motivo..." />
           </Form.Item>
         </Form>
-      </Modal>
-
-      {/* Pay Modal */}
-      <Modal
-        title={`Registrar pago — ${payTarget?.invoiceNumber}`}
-        open={payModal}
-        onCancel={() => { setPayModal(false); payForm.resetFields(); setPayTarget(null) }}
-        onOk={handlePay}
-        okText="Registrar pago"
-        okButtonProps={{ loading: payLoading, style: { background: '#1B3A6B' } }}
-        cancelText="Cancelar"
-        width={480}
-      >
-        {payTarget && (() => {
-          const isFx  = (payTarget.currency ?? 'GTQ') !== 'GTQ'
-          const cur   = payTarget.currency ?? 'GTQ'
-          const gtqEq = isFx ? Number(payTarget.balance) * payExchangeRate : Number(payTarget.balance)
-          const amountGTQ = isFx && payAmount ? payAmount * payExchangeRate : undefined
-          return (
-            <>
-              <div style={{ background: isFx ? '#eff6ff' : '#f0f5ff', border: `1px solid ${isFx ? '#bfdbfe' : '#d6e4ff'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Saldo pendiente:</Text>
-                  <div style={{ textAlign: 'right' }}>
-                    <Text strong style={{ fontSize: 14, color: isFx ? '#0369a1' : '#1B3A6B' }}>
-                      {isFx ? `${cur} ` : 'Q '}{Number(payTarget.balance).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-                    </Text>
-                    {isFx && <><br /><Text style={{ fontSize: 11, color: '#6b7280' }}>Q {gtqEq.toLocaleString('es-GT', { minimumFractionDigits: 2 })} (al tipo de cambio actual)</Text></>}
-                  </div>
-                </div>
-              </div>
-              <Form form={payForm} layout="vertical" size="small">
-                <Form.Item name="amount" label={`Monto a pagar${isFx ? ` (${cur})` : ''}`} rules={[{ required: true, message: 'Ingresa el monto' }]}>
-                  <InputNumber style={{ width: '100%' }} min={0.01} step={0.01} prefix={isFx ? cur : 'Q'} formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
-                </Form.Item>
-                {isFx && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-                    <Form.Item label={`Tipo de cambio (${cur} → GTQ)`}>
-                      <InputNumber style={{ width: '100%' }} value={payExchangeRate} min={0.000001} step={0.01} precision={6} onChange={v => setPayExchangeRate(Number(v ?? 1))} />
-                    </Form.Item>
-                    <Form.Item label="Equivalente en GTQ">
-                      <div style={{ height: 32, padding: '4px 11px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: 6, display: 'flex', alignItems: 'center' }}>
-                        <Text strong style={{ color: '#1B3A6B', fontSize: 13 }}>
-                          Q {amountGTQ ? amountGTQ.toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '—'}
-                        </Text>
-                      </div>
-                    </Form.Item>
-                  </div>
-                )}
-                {isFx && payExchangeRate !== Number(payTarget.exchangeRate ?? 1) && (
-                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px', marginBottom: 8, fontSize: 11, color: '#92400e' }}>
-                    ⚠️ El tipo de cambio difiere del registrado en la factura ({Number(payTarget.exchangeRate ?? 1).toFixed(6)}). Se generará un asiento de <strong>diferencial cambiario</strong> automáticamente.
-                  </div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-                  <Form.Item name="paymentDate" label="Fecha de pago" rules={[{ required: true, message: 'Selecciona la fecha' }]}>
-                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                  </Form.Item>
-                  <Form.Item name="mode" label="Forma de pago">
-                    <Select placeholder="Selecciona...">
-                      {PAYMENT_MODES.map(m => <Option key={m.value} value={m.value}>{m.label}</Option>)}
-                    </Select>
-                  </Form.Item>
-                </div>
-                <Form.Item name="reference" label="Referencia / No. documento">
-                  <Input placeholder="Número de transferencia, cheque..." />
-                </Form.Item>
-              </Form>
-            </>
-          )
-        })()}
       </Modal>
     </div>
   )
