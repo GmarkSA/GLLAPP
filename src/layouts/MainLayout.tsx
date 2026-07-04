@@ -15,6 +15,8 @@ import { useCompanyStore } from '../store/companyStore'
 import CompanySelector from '../components/CompanySelector'
 import CompanyContextBar from '../components/CompanyContextBar'
 import NoCompanyGuard from '../components/NoCompanyGuard'
+import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
+import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
@@ -41,13 +43,17 @@ const menuItems = [
     { key: '/ventas/dte-sat',                  label: 'DTE SAT Emitidos' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [
-    { key: '/compras/proveedores',            label: 'Proveedores' },
-    { key: '/compras/ordenes',                label: 'Órdenes de compra' },
-    { key: '/compras/facturas',               label: 'Facturas proveedor' },
-    { key: '/compras/dte-sat',                label: 'DTE SAT' },
+    { key: '/compras/proveedores',                 label: 'Proveedores' },
+    { key: '/compras/ordenes',                     label: 'Órdenes de compra' },
+    { key: '/compras/facturas',                    label: 'Facturas proveedor' },
+    { key: '/compras/notas-credito-proveedor',     label: 'Notas de crédito' },
+    { key: '/compras/dte-sat',                     label: 'DTE SAT Recibidos' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
-    { key: '/bancos',                      label: 'Cuentas bancarias' },
+    { key: '/bancos',                         label: 'Cuentas bancarias' },
+    { key: '/bancos/pagos-realizados',        label: 'Pagos a proveedores' },
+    { key: '/bancos/pagos-realizados/lote',  label: 'Emisión lote de cheques' },
+    { key: '/bancos/config-pagos',            label: 'Config. cheques y ACH' },
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
     { key: '/contabilidad/catalogo', label: 'Catálogo de cuentas' },
@@ -77,6 +83,7 @@ const menuItems = [
     { key: '/reportes/libro-ventas',       label: 'Libro de Ventas' },
     { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },
     { key: '/reportes/ar-aging',           label: 'AR Aging (CxC)' },
+    { key: '/reportes/proyectado-pagos',   label: 'Proyectado de Pagos' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
@@ -248,6 +255,7 @@ export default function MainLayout() {
               />
             </Tooltip>
             <CompanyContextBar />
+            <OnboardingProgressBadge />
           </Space>
 
           {/* Right */}
@@ -326,6 +334,8 @@ export default function MainLayout() {
           </NoCompanyGuard>
         </Content>
       </Layout>
+
+      <OnboardingChatDrawer />
     </Layout>
   )
 }

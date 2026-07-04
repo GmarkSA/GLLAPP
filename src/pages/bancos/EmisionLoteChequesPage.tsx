@@ -1,0 +1,349 @@
+import { useState, useEffect } from 'react'
+import {
+  Card, Button, Select, DatePicker, Checkbox, InputNumber, Input,
+  Typography, Space, Tag, Alert, Collapse, Table, message,
+  Divider, Form, Radio,
+} from 'antd'
+import { PrinterOutlined, ThunderboltOutlined, BankOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  getPendingInvoicesAllVendors, createBatchPayment,
+  type PendingInvoice, type PendingInvoicesByVendor,
+} from '../../api/pagosRealizados'
+import { getBankAccounts } from '../../api/bancos'
+
+const { Title, Text } = Typography
+const { Panel } = Collapse
+
+const fmtQ = (n: number) =>
+  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+interface VendorSelection {
+  vendorId:   string
+  vendorName: string
+  invoiceIds: string[]
+  amounts:    Record<string, number>
+  total:      number
+}
+
+export default function EmisionLoteChequesPage() {
+  const navigate  = useNavigate()
+  const [form]    = Form.useForm()
+
+  const [allVendors,   setAllVendors]   = useState<PendingInvoicesByVendor[]>([])
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
+  const [selections,   setSelections]   = useState<Record<string, VendorSelection>>({})
+  const [loading,      setLoading]      = useState(true)
+  const [submitting,   setSubmitting]   = useState(false)
+  const [mode,         setMode]         = useState<string>('check')
+
+  useEffect(() => {
+    Promise.all([
+      getPendingInvoicesAllVendors(),
+      getBankAccounts({ status: 'active' }),
+    ]).then(([vendors, accs]) => {
+      setAllVendors(vendors)
+      setBankAccounts(Array.isArray(accs) ? accs : (accs as any)?.data ?? [])
+    }).catch(() => message.error('Error al cargar facturas pendientes'))
+    .finally(() => setLoading(false))
+  }, [])
+
+  const toggleInvoice = (vendorId: string, vendorName: string, inv: PendingInvoice) => {
+    setSelections(prev => {
+      const vendor = prev[vendorId] ?? { vendorId, vendorName, invoiceIds: [], amounts: {}, total: 0 }
+      const already = vendor.invoiceIds.includes(inv.id)
+      const newIds     = already ? vendor.invoiceIds.filter(x => x !== inv.id) : [...vendor.invoiceIds, inv.id]
+      const newAmounts = { ...vendor.amounts }
+      if (already) delete newAmounts[inv.id]
+      else newAmounts[inv.id] = inv.balance
+      const newTotal = newIds.reduce((s, id) => s + (newAmounts[id] ?? 0), 0)
+      const next = { ...prev }
+      if (newIds.length === 0) delete next[vendorId]
+      else next[vendorId] = { ...vendor, invoiceIds: newIds, amounts: newAmounts, total: newTotal }
+      return next
+    })
+  }
+
+  const setAmount = (vendorId: string, invId: string, val: number | null, invBalance: number) => {
+    setSelections(prev => {
+      const vendor = prev[vendorId]
+      if (!vendor) return prev
+      const newAmounts = { ...vendor.amounts, [invId]: val ?? invBalance }
+      const newTotal   = vendor.invoiceIds.reduce((s, id) => s + (newAmounts[id] ?? 0), 0)
+      return { ...prev, [vendorId]: { ...vendor, amounts: newAmounts, total: newTotal } }
+    })
+  }
+
+  const selectAllVendor = (v: PendingInvoicesByVendor) => {
+    setSelections(prev => {
+      const ids     = v.invoices.map(i => i.id)
+      const amounts = Object.fromEntries(v.invoices.map(i => [i.id, i.balance]))
+      const total   = v.invoices.reduce((s, i) => s + i.balance, 0)
+      return { ...prev, [v.vendorId]: { vendorId: v.vendorId, vendorName: v.vendorName, invoiceIds: ids, amounts, total } }
+    })
+  }
+
+  const clearVendor = (vendorId: string) => {
+    setSelections(prev => { const n = { ...prev }; delete n[vendorId]; return n })
+  }
+
+  const selectedVendors = Object.values(selections)
+  const totalChecks     = selectedVendors.length
+  const grandTotal      = selectedVendors.reduce((s, v) => s + v.total, 0)
+
+  const invoiceColumns = (v: PendingInvoicesByVendor): ColumnsType<PendingInvoice> => [
+    {
+      title: '', key: 'sel', width: 40,
+      render: (_, r) => (
+        <Checkbox
+          checked={selections[v.vendorId]?.invoiceIds.includes(r.id) ?? false}
+          onChange={() => toggleInvoice(v.vendorId, v.vendorName, r)}
+        />
+      ),
+    },
+    { title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
+      render: (val) => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{val}</Text> },
+    { title: 'Vencimiento', dataIndex: 'dueDate', width: 110,
+      render: (d) => {
+        if (!d) return <Text type="secondary">—</Text>
+        const days = dayjs(d).diff(dayjs(), 'day')
+        return <Tag color={days < 0 ? 'red' : days <= 7 ? 'orange' : 'green'}>{dayjs(d).format('DD/MM/YYYY')}</Tag>
+      } },
+    { title: 'Saldo', dataIndex: 'balance', width: 130, align: 'right' as const,
+      render: (val) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(Number(val))}</Text> },
+    {
+      title: 'Monto a pagar', key: 'amt', width: 150, align: 'right' as const,
+      render: (_, r) => {
+        const sel = selections[v.vendorId]
+        if (!sel?.invoiceIds.includes(r.id)) return <Text type="secondary">—</Text>
+        return (
+          <InputNumber
+            size="small" min={0.01} max={r.balance}
+            value={sel.amounts[r.id] ?? r.balance}
+            precision={2} style={{ width: 120 }}
+            onChange={val => setAmount(v.vendorId, r.id, val, r.balance)}
+            onClick={e => e.stopPropagation()}
+          />
+        )
+      },
+    },
+  ]
+
+  const handleSubmit = async (values: any) => {
+    if (selectedVendors.length === 0) { message.warning('Selecciona al menos una factura de algún proveedor'); return }
+
+    setSubmitting(true)
+    try {
+      const payments = selectedVendors.map(v => ({
+        type:          'regular' as const,
+        vendorId:      v.vendorId,
+        vendorName:    v.vendorName,
+        invoiceIds:    v.invoiceIds,
+        amounts:       v.amounts,
+        paymentDate:   values.paymentDate.format('YYYY-MM-DD'),
+        mode:          values.mode,
+        currency:      'GTQ',
+        bankAccountId: values.bankAccountId || undefined,
+        reference:     values.reference || undefined,
+        checkType:     values.mode === 'check' ? (values.checkType || 'physical') : undefined,
+        notes:         values.notes || undefined,
+      }))
+
+      const result = await createBatchPayment(payments)
+      message.success(`${result.payments.length} pago(s) generados correctamente`)
+
+      if (result.checks.length > 0) {
+        const printAll = window.confirm(
+          `Se generaron ${result.checks.length} cheque(s):\n${result.checks.map(c => `• ${c.vendorName}: ${c.checkNumber}`).join('\n')}\n\n¿Imprimir todos?`
+        )
+        if (printAll) {
+          for (const chk of result.checks) {
+            window.open(`/bancos/pagos-realizados/${chk.id}/cheque`, '_blank')
+          }
+        }
+      }
+
+      navigate('/bancos/pagos-realizados')
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al procesar el lote')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <Space>
+          <PrinterOutlined style={{ fontSize: 20, color: '#1B3A6B' }} />
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Emisión de cheques en lote</Title>
+        </Space>
+        {totalChecks > 0 && (
+          <Tag color="blue" style={{ fontSize: 13, padding: '4px 12px' }}>
+            {totalChecks} proveedor{totalChecks > 1 ? 'es' : ''} seleccionado{totalChecks > 1 ? 's' : ''} — {fmtQ(grandTotal)}
+          </Tag>
+        )}
+      </div>
+
+      <Form
+        form={form}
+        layout="vertical"
+        size="small"
+        onFinish={handleSubmit}
+        initialValues={{ paymentDate: dayjs(), mode: 'check', checkType: 'physical' }}
+      >
+        {/* Parámetros globales del lote */}
+        <Card
+          title="Parámetros del lote"
+          bordered={false}
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+            <Form.Item label="Fecha de pago" name="paymentDate" rules={[{ required: true }]}>
+              <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+            </Form.Item>
+
+            <Form.Item label="Modo de pago" name="mode" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: 'check',         label: 'Cheque' },
+                  { value: 'bank_transfer', label: 'Transferencia' },
+                  { value: 'cash',          label: 'Efectivo' },
+                  { value: 'other',         label: 'Otro' },
+                ]}
+                onChange={v => setMode(v)}
+              />
+            </Form.Item>
+
+            <Form.Item label="Cuenta bancaria emisora" name="bankAccountId">
+              <Select
+                allowClear placeholder="Seleccionar cuenta"
+                options={bankAccounts.map((b: any) => ({
+                  value: b.id,
+                  label: `${b.name}${b.bankName ? ` — ${b.bankName}` : ''}`,
+                }))}
+              />
+            </Form.Item>
+
+            {mode === 'check' && (
+              <Form.Item label="Tipo de cheque" name="checkType">
+                <Radio.Group>
+                  <Radio value="physical">Físico</Radio>
+                  <Radio value="electronic">Electrónico</Radio>
+                </Radio.Group>
+              </Form.Item>
+            )}
+          </div>
+          <Form.Item label="Notas generales" name="notes" style={{ marginBottom: 0 }}>
+            <Input.TextArea rows={2} placeholder="Observaciones del lote..." />
+          </Form.Item>
+        </Card>
+
+        {/* Proveedores con facturas pendientes */}
+        {loading ? (
+          <Card loading style={{ borderRadius: 10 }} />
+        ) : allVendors.length === 0 ? (
+          <Alert type="success" showIcon message="No hay facturas pendientes de pago en ningún proveedor." />
+        ) : (
+          <Collapse
+            defaultActiveKey={[]}
+            style={{ borderRadius: 10, overflow: 'hidden' }}
+          >
+            {allVendors.map(v => {
+              const sel      = selections[v.vendorId]
+              const selCount = sel?.invoiceIds.length ?? 0
+              const selTotal = sel?.total ?? 0
+              return (
+                <Panel
+                  key={v.vendorId}
+                  header={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <Space>
+                        <BankOutlined />
+                        <Text strong>{v.vendorName}</Text>
+                        <Tag>{v.invoices.length} factura{v.invoices.length > 1 ? 's' : ''}</Tag>
+                      </Space>
+                      <Space>
+                        {selCount > 0 && (
+                          <Tag color="blue">
+                            <ThunderboltOutlined /> {selCount} selec. — {fmtQ(selTotal)}
+                          </Tag>
+                        )}
+                        <Button
+                          size="small"
+                          onClick={e => { e.stopPropagation(); selectAllVendor(v) }}
+                        >Selec. todas</Button>
+                        {selCount > 0 && (
+                          <Button size="small" danger onClick={e => { e.stopPropagation(); clearVendor(v.vendorId) }}>
+                            Limpiar
+                          </Button>
+                        )}
+                      </Space>
+                    </div>
+                  }
+                >
+                  <Table
+                    size="small"
+                    columns={invoiceColumns(v)}
+                    dataSource={v.invoices}
+                    rowKey="id"
+                    pagination={false}
+                    onRow={(r) => ({ onClick: () => toggleInvoice(v.vendorId, v.vendorName, r), style: { cursor: 'pointer' } })}
+                    summary={() => selCount > 0 ? (
+                      <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+                        <Table.Summary.Cell index={0} colSpan={3}>
+                          <Text strong>{selCount} factura{selCount > 1 ? 's' : ''} seleccionada{selCount > 1 ? 's' : ''}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={3} />
+                        <Table.Summary.Cell index={4} align="right">
+                          <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(selTotal)}</Text>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    ) : null}
+                  />
+                </Panel>
+              )
+            })}
+          </Collapse>
+        )}
+
+        {/* Resumen del lote y botón */}
+        {totalChecks > 0 && (
+          <Card
+            style={{ marginTop: 16, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', background: '#f0f5ff' }}
+            bordered={false}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Space direction="vertical" size={4}>
+                <Text strong style={{ fontSize: 14 }}>Resumen del lote</Text>
+                {selectedVendors.map(v => (
+                  <Text key={v.vendorId} style={{ fontSize: 12 }}>
+                    • {v.vendorName}: {v.invoiceIds.length} factura{v.invoiceIds.length > 1 ? 's' : ''} — {fmtQ(v.total)}
+                  </Text>
+                ))}
+                <Divider style={{ margin: '6px 0' }} />
+                <Text strong>Total lote: {fmtQ(grandTotal)}</Text>
+              </Space>
+              <Space>
+                <Button onClick={() => navigate('/bancos/pagos-realizados')}>Cancelar</Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={submitting}
+                  icon={<PrinterOutlined />}
+                  style={{ background: '#1B3A6B' }}
+                  size="middle"
+                >
+                  Generar {totalChecks} {mode === 'check' ? `cheque${totalChecks > 1 ? 's' : ''}` : `pago${totalChecks > 1 ? 's' : ''}`} — {fmtQ(grandTotal)}
+                </Button>
+              </Space>
+            </div>
+          </Card>
+        )}
+      </Form>
+    </div>
+  )
+}

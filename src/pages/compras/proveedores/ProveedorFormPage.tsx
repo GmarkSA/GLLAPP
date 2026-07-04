@@ -19,6 +19,7 @@ import { getTaxes, type Tax } from '../../../api/impuestos'
 import { satLookupApi } from '../../../api/satLookup'
 import AccountSelect from '../../../components/AccountSelect'
 import PaymentTermsSelect from '../../../components/PaymentTermsSelect'
+import VendorBankAccountsSection from '../../../components/VendorBankAccountsSection'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -832,34 +833,8 @@ export default function ProveedorFormPage() {
                       </Col>
                     </Row>
 
-                    <Divider titlePlacement="left">Cuenta bancaria del proveedor</Divider>
-                    <Row gutter={16}>
-                      <Col xs={24} md={8}>
-                        <Form.Item name={['bankAccount', 'bankName']} label="Banco">
-                          <Input placeholder="Banco Industrial, Banrural..." />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name={['bankAccount', 'accountNumber']} label="No. de cuenta">
-                          <Input placeholder="001-123456-7" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={4}>
-                        <Form.Item name={['bankAccount', 'accountType']} label="Tipo">
-                          <Select allowClear>
-                            <Option value="monetaria">Monetaria</Option>
-                            <Option value="ahorro">Ahorro</Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={4}>
-                        <Form.Item name={['bankAccount', 'currency']} label="Moneda">
-                          <Select allowClear>
-                            {CURRENCIES.map(c => <Option key={c} value={c}>{c}</Option>)}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <Divider titlePlacement="left">Cuentas bancarias del proveedor (guateACH)</Divider>
+                    <VendorBankAccountsSection vendorId={id} />
                   </div>
                 ),
               },

@@ -19,6 +19,7 @@ import {
   startSatEmitidosImport, syncSatEmitidosJob, clearAllSatEmitidos,
   type SatDteEmitidos, type SatEmitidosJob, type SatEmitidosStatus,
 } from '../../../api/facturas'
+import { PAYMENT_TERMS_CONFIG } from '../../../api/compras'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
@@ -286,6 +287,7 @@ export default function DteSatVentasPage() {
         name:               vals.name,
         legalName:          vals.legalName ?? vals.name,
         currency:           'GTQ',
+        paymentTerms:       vals.paymentTerms,
         receivableAccountId: vals.receivableAccountId,
         incomeAccountId:    vals.incomeAccountId,
         taxCode:            vals.taxCode,
@@ -681,9 +683,19 @@ export default function DteSatVentasPage() {
                               </Form.Item>
                             </Col>
                           </Row>
-                          <Form.Item label="NIT">
-                            <Input value={stepperDte.nitReceptor ?? ''} disabled />
-                          </Form.Item>
+                          <Row gutter={12}>
+                            <Col span={12}>
+                              <Form.Item label="NIT">
+                                <Input value={stepperDte.nitReceptor ?? ''} disabled />
+                              </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                              <Form.Item name="paymentTerms" label="Términos de pago">
+                                <Select placeholder="Neto 30 días"
+                                  options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
+                              </Form.Item>
+                            </Col>
+                          </Row>
                           <Divider plain style={{ fontSize: 11, margin: '8px 0' }}>Cuentas contables (requeridas para póliza automática)</Divider>
                           <Row gutter={12}>
                             <Col span={12}>

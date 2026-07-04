@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
@@ -309,13 +309,26 @@ export default function ApAgingPage() {
   const asOf = dayjs().year(selectedYear).month(selectedMonth - 1).endOf('month').format('YYYY-MM-DD')
   const periodLabel = MESES.find(m => m.value === selectedMonth)?.label + ' ' + selectedYear
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true)
     getApAging(asOf)
-      .then(setData)
+      .then(d => {
+        setData(d)
+        // Auto-expandir buckets con saldo
+        setExpanded(prev => ({
+          current:  prev.current  || (d.buckets?.current?.count  ?? 0) > 0,
+          days_30:  prev.days_30  || (d.buckets?.days_30?.count  ?? 0) > 0,
+          days_60:  prev.days_60  || (d.buckets?.days_60?.count  ?? 0) > 0,
+          days_90:  prev.days_90  || (d.buckets?.days_90?.count  ?? 0) > 0,
+          over_90:  prev.over_90  || (d.buckets?.over_90?.count  ?? 0) > 0,
+        }))
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }
+  }, [asOf])
+
+  // Auto-cargar al abrir la página y al cambiar mes/año
+  useEffect(() => { load() }, [load])
 
   const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
 

@@ -43,6 +43,15 @@ const PagosRecibidosPage     = lazy(() => import('./pages/ventas/pagos-recibidos
 const PagoRecibidoFormPage   = lazy(() => import('./pages/ventas/pagos-recibidos/PagoRecibidoFormPage'))
 const PagoRecibidoDetallePage = lazy(() => import('./pages/ventas/pagos-recibidos/PagoRecibidoDetallePage'))
 
+// Compras — Pagos Realizados
+const PagosRealizadosPage      = lazy(() => import('./pages/compras/pagos-realizados/PagosRealizadosPage'))
+const PagoRealizadoFormPage    = lazy(() => import('./pages/compras/pagos-realizados/PagoRealizadoFormPage'))
+const ChequePrintPage          = lazy(() => import('./pages/compras/pagos-realizados/ChequePrintPage'))
+const TransferenciaPrintPage   = lazy(() => import('./pages/bancos/TransferenciaPrintPage'))
+const NotasCreditoProveedorPage     = lazy(() => import('./pages/compras/notas-credito-proveedor/NotasCreditoProveedorPage'))
+const NotaCreditoProveedorFormPage  = lazy(() => import('./pages/compras/notas-credito-proveedor/NotaCreditoProveedorFormPage'))
+const ReporteProyectadoPagosPage = lazy(() => import('./pages/reportes/ReporteProyectadoPagosPage'))
+
 // Compras
 const LibroVentasPage          = lazy(() => import('./pages/reportes/LibroVentasPage'))
 
@@ -65,7 +74,9 @@ const TransaccionesPage    = lazy(() => import('./pages/bancos/TransaccionesPage
 const ConciliacionPage     = lazy(() => import('./pages/bancos/ConciliacionPage'))
 const TransferenciaPage    = lazy(() => import('./pages/bancos/TransferenciaPage'))
 const ImportarEstadoPage   = lazy(() => import('./pages/bancos/ImportarEstadoPage'))
-const ReglasBancariasPage  = lazy(() => import('./pages/bancos/ReglasBancariasPage'))
+const ReglasBancariasPage    = lazy(() => import('./pages/bancos/ReglasBancariasPage'))
+const BankPaymentConfigPage    = lazy(() => import('./pages/bancos/BankPaymentConfigPage'))
+const EmisionLoteChequesPage   = lazy(() => import('./pages/bancos/EmisionLoteChequesPage'))
 
 // Contabilidad
 const CatalogoPage    = lazy(() => import('./pages/contabilidad/CatalogoPage'))
@@ -146,6 +157,8 @@ export default function App() {
         <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
         <Route path="/ventas/facturas/:id/imprimir"     element={<PrivateRoute><FacturaImprimirPage /></PrivateRoute>} />
+        <Route path="/bancos/pagos-realizados/:id/cheque"      element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
+        <Route path="/bancos/pagos-realizados/:id/comprobante" element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
 
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
@@ -181,9 +194,17 @@ export default function App() {
           <Route path="compras/facturas"            element={<FacturasProveedorPage />} />
           <Route path="compras/facturas/nueva"      element={<FacturaProveedorFormPage />} />
           <Route path="compras/facturas/:id"        element={<FacturaProveedorFormPage />} />
-          <Route path="compras/facturas/:id/editar"         element={<FacturaProveedorFormPage />} />
+          <Route path="compras/facturas/:id/editar" element={<FacturaProveedorFormPage />} />
+          <Route path="compras/notas-credito-proveedor"          element={<NotasCreditoProveedorPage />} />
+          <Route path="compras/notas-credito-proveedor/nueva"    element={<NotaCreditoProveedorFormPage />} />
+          <Route path="compras/notas-credito-proveedor/:id"      element={<NotaCreditoProveedorFormPage />} />
           <Route path="compras/dte-sat"                     element={<DteSatPage />} />
           <Route path="ventas/dte-sat"                      element={<DteSatVentasPage />} />
+
+          <Route path="bancos/pagos-realizados"              element={<PagosRealizadosPage />} />
+          <Route path="bancos/pagos-realizados/nuevo"     element={<PagoRealizadoFormPage />} />
+          <Route path="bancos/pagos-realizados/lote"      element={<EmisionLoteChequesPage />} />
+          <Route path="bancos/config-pagos"               element={<BankPaymentConfigPage />} />
 
           <Route path="compras/ordenes"             element={<OrdenesCompraPage />} />
           <Route path="compras/ordenes/nueva"       element={<OrdenCompraFormPage />} />
@@ -231,8 +252,9 @@ export default function App() {
             <Route path="libro-mayor"        element={<LibroMayorPage />} />
             <Route path="libro-compras"      element={<LibroComprasPage />} />
             <Route path="libro-ventas"       element={<LibroVentasPage />} />
-            <Route path="ap-aging"           element={<ApAgingPage />} />
-            <Route path="ar-aging"           element={<ArAgingPage />} />
+            <Route path="ap-aging"                   element={<ApAgingPage />} />
+            <Route path="ar-aging"                   element={<ArAgingPage />} />
+            <Route path="proyectado-pagos"           element={<ReporteProyectadoPagosPage />} />
           </Route>
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />

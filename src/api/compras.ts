@@ -52,9 +52,18 @@ export const createVendorAdvance = (dto: {
 export const getVendorAdvances = (params?: { vendorId?: string; status?: string; page?: number; limit?: number }) =>
   api.get('/compras/anticipos-proveedor', { params }).then(unwrap) as Promise<{ data: VendorAdvance[]; total: number }>
 
+export const applyVendorAdvanceToBill = (
+  advanceId: string,
+  invoiceId: string,
+  amount?: number,
+) => api.post(`/compras/anticipos-proveedor/${advanceId}/apply`, {
+  invoiceIds: [invoiceId],
+  ...(amount !== undefined ? { amounts: { [invoiceId]: amount } } : {}),
+}).then(unwrap) as Promise<VendorAdvance>
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type BillStatus   = 'draft' | 'pending_approval' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'
-export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel'
+export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel' | 'credit_note'
 export type PaymentTerms = 'immediate' | 'net_15' | 'net_30' | 'net_60' | 'net_90' | 'custom'
 export type POStatus     = 'draft' | 'sent' | 'received' | 'billed' | 'cancelled'
 
@@ -392,7 +401,20 @@ export const BILL_TYPE_CONFIG: Record<BillType, { label: string }> = {
   reimbursement: { label: 'Reembolso de gastos'       },
   special:       { label: 'Factura Especial (SAT)'    },
   fuel:          { label: 'Combustible (con IDP)'     },
+  credit_note:   { label: 'Nota de Crédito'           },
 }
+
+// ─── Notas de crédito de proveedor ───────────────────────────────────────────
+const CREDIT_NOTE = `${BILL}/notas-credito`
+
+export const getCreditNotes = (params?: { page?: number; limit?: number; search?: string; status?: string; vendorId?: string }) =>
+  api.get(CREDIT_NOTE, { params }).then(unwrap) as Promise<{ data: PurchaseInvoice[]; total: number }>
+
+export const createCreditNote = (dto: Partial<PurchaseInvoice>) =>
+  api.post(CREDIT_NOTE, dto).then(unwrap) as Promise<PurchaseInvoice>
+
+export const approveCreditNote = (id: string) =>
+  api.post(`${CREDIT_NOTE}/${id}/aprobar`).then(unwrap) as Promise<PurchaseInvoice>
 
 export const PAYMENT_TERMS_CONFIG: Record<PaymentTerms, string> = {
   immediate: 'Contado',
@@ -493,6 +515,7 @@ export const createSatDteVendor = (id: string, dto?: {
   paymentTermsDays?: number
   payableAccountId?: string
   expenseAccountId?: string
+  defaultPurchaseTaxId?: string
 }) => api.post(`${DTE_SAT}/documentos/${id}/crear-proveedor`, dto ?? {}).then(unwrap)
 
 export const deleteSatDte = (id: string) =>
@@ -500,6 +523,9 @@ export const deleteSatDte = (id: string) =>
 
 export const reactivateSatDte = (id: string) =>
   api.post(`${DTE_SAT}/documentos/${id}/reactivar`).then(unwrap)
+
+export const resubirR2SatDte = (id: string) =>
+  api.post(`${DTE_SAT}/documentos/${id}/re-subir-r2`).then(unwrap)
 
 export const postSatDte = (id: string, dto: {
   taxId?: string

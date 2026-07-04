@@ -353,70 +353,44 @@ export default function NotaCreditoFormPage() {
   const isNabn = docType === 'NABN'
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      {/* Breadcrumb */}
-      <Breadcrumb style={{ marginBottom: 16 }} items={[
-        { title: <Link to="/"><HomeOutlined /></Link> },
-        { title: <Link to="/ventas/notas-credito">Notas de Crédito</Link> },
-        { title: isEditMode ? 'Editar' : 'Nueva' },
-      ]} />
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
-              {isEditMode
-                ? `Editar ${isNabn ? 'Nota de Abono' : 'Nota de Crédito'}`
-                : isNabn ? 'Nueva Nota de Abono' : 'Nueva Nota de Crédito'}
-            </Title>
-            <Tag color={isNabn ? 'orange' : 'blue'} style={{ fontSize: 12 }}>
-              FEL: {docType}
-            </Tag>
-            {isEditMode && <Tag color="gold">Modo edición</Tag>}
-          </div>
-          <Text type="secondary">
-            {isNabn
-              ? 'Nota de abono (NABN) — factura original supera 60 días'
-              : 'Nota de crédito (NCRE) — dentro del plazo fiscal de 60 días'}
-          </Text>
-        </div>
-        <Space>
-          <Button icon={<RollbackOutlined />} onClick={() => navigate('/ventas/notas-credito')}>
+    <div>
+      {/* ── Barra superior: breadcrumb + título + acciones ─────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <Space size={8} wrap>
+          <Breadcrumb items={[
+            { title: <Link to="/"><HomeOutlined /></Link> },
+            { title: <Link to="/ventas/notas-credito">Notas de Crédito</Link> },
+            { title: isEditMode ? 'Editar' : 'Nueva' },
+          ]} />
+          <Tag color={isNabn ? 'orange' : 'blue'} style={{ fontSize: 11 }}>FEL: {docType}</Tag>
+          {isEditMode && <Tag color="gold" style={{ fontSize: 11 }}>Edición</Tag>}
+        </Space>
+        <Space size={6}>
+          <Button size="small" icon={<RollbackOutlined />} onClick={() => navigate('/ventas/notas-credito')}>
             Cancelar
           </Button>
-          <Button icon={<SaveOutlined />} onClick={handleSave} loading={saving && !emitting}>
-            Guardar borrador
+          <Button size="small" icon={<SaveOutlined />} onClick={handleSave} loading={saving && !emitting}>
+            Borrador
           </Button>
-          <Button
-            type="primary" icon={<SendOutlined />}
-            onClick={handleSaveAndEmit}
-            loading={saving && emitting}
-            style={{ background: isNabn ? '#d46b08' : '#1B3A6B' }}
-          >
-            Guardar y Emitir FEL ({docType})
+          <Button size="small" type="primary" icon={<SendOutlined />}
+            onClick={handleSaveAndEmit} loading={saving && emitting}
+            style={{ background: isNabn ? '#d46b08' : '#1B3A6B', borderColor: isNabn ? '#d46b08' : '#1B3A6B' }}>
+            Emitir FEL ({docType})
           </Button>
         </Space>
       </div>
 
-      <Alert
-        type="info" showIcon icon={<InfoCircleOutlined />}
-        style={{ marginBottom: 16 }}
-        message="El tipo de documento FEL se determina automáticamente según la fecha de la factura original: NCRE dentro de 60 días, NABN después de 60 días (norma SAT Guatemala)."
-      />
+      <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceDate: dayjs() }}>
 
-      <Form form={form} layout="vertical" initialValues={{ currency: 'GTQ', invoiceDate: dayjs() }}>
+        {/* ── Card principal: datos + FEL ─────────────────────────────────── */}
+        <Card styles={{ body: { padding: '10px 16px 2px' } }} style={{ marginBottom: 8 }}>
 
-        {/* ── Datos principales ────────────────────────────────────────────── */}
-        <Card
-          title="Datos del documento"
-          bordered={false}
-          style={{ borderRadius: 10, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            <Form.Item name="customerId" label="Cliente" rules={[{ required: true, message: 'Selecciona un cliente' }]}>
-              <Select
-                showSearch filterOption={false}
-                placeholder="Buscar por Razón Social o nombre comercial..."
+          {/* Fila: Cliente | Fecha | Moneda */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 10px' }}>
+            <Form.Item name="customerId" label="Cliente" style={{ marginBottom: 8 }}
+              rules={[{ required: true, message: 'Selecciona un cliente' }]}>
+              <Select showSearch filterOption={false}
+                placeholder="Buscar cliente..."
                 loading={loadingCustomers}
                 onSearch={handleCustomerSearch}
                 onChange={handleCustomerChange}
@@ -436,92 +410,53 @@ export default function NotaCreditoFormPage() {
                 options={customers.map(c => ({ value: c.value, label: c.label }))}
               />
             </Form.Item>
-
-            <Form.Item name="invoiceDate" label="Fecha del documento" rules={[{ required: true }]}>
+            <Form.Item name="invoiceDate" label="Fecha" style={{ marginBottom: 8 }}
+              rules={[{ required: true }]}>
               <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
             </Form.Item>
-
-            <Form.Item name="currency" label="Moneda">
-              <Select options={[
-                { value: 'GTQ', label: 'GTQ — Quetzal' },
-                { value: 'USD', label: 'USD — Dólar' },
-              ]} />
+            <Form.Item name="currency" label="Moneda" style={{ marginBottom: 8 }}>
+              <Select options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]} />
             </Form.Item>
           </div>
 
-          {/* ── Selector de factura original ─────────────────────────────── */}
-          <Form.Item
-            name="originalInvoiceId"
+          {/* Factura original */}
+          <Form.Item name="originalInvoiceId" style={{ marginBottom: 6 }}
             label={
-              <Space>
-                <span>Factura original que se acredita</span>
-                <Tooltip title="Seleccionar la factura determina automáticamente si el documento será NCRE (≤60 días) o NABN (>60 días)">
-                  <InfoCircleOutlined style={{ color: '#888' }} />
+              <Space size={4}>
+                <span>Factura original</span>
+                <Tooltip title="NCRE ≤60 días · NABN >60 días (SAT Guatemala)">
+                  <InfoCircleOutlined style={{ color: '#888', fontSize: 11 }} />
                 </Tooltip>
               </Space>
-            }
-          >
-            <Select
-              showSearch
-              filterOption={(input, opt) =>
-                (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
-              }
+            }>
+            <Select showSearch
+              filterOption={(input, opt) => (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
               placeholder={
                 selectedCustomerId
-                  ? loadingInvoices
-                    ? 'Cargando facturas...'
-                    : invoiceOptions.length === 0
-                      ? 'No hay facturas emitidas para este cliente'
-                      : 'Seleccionar factura...'
+                  ? loadingInvoices ? 'Cargando...' : invoiceOptions.length === 0 ? 'Sin facturas' : 'Seleccionar factura...'
                   : 'Selecciona primero un cliente'
               }
               disabled={!selectedCustomerId || loadingInvoices}
-              loading={loadingInvoices}
-              allowClear
+              loading={loadingInvoices} allowClear
               onChange={handleInvoiceSelect}
-              onClear={() => {
-                setSelectedInvoice(null)
-                setDiasTranscurridos(null)
-                setDocType('NCRE')
-                setItems([newLineItem()])
-              }}
+              onClear={() => { setSelectedInvoice(null); setDiasTranscurridos(null); setDocType('NCRE'); setItems([newLineItem()]) }}
               optionLabelProp="label"
-              options={invoiceOptions.map(inv => {
-                const dias = dayjs().diff(dayjs(inv.invoiceDate), 'day')
-                const enPlazo = dias <= LIMITE_DIAS_NCRE
-                return {
-                  value: inv.value,
-                  label: inv.invoiceNumber,
-                  // el dropdown muestra info completa
-                  'data-date': inv.invoiceDate,
-                  children: undefined,
-                }
-              })}
-              // Render personalizado del dropdown
+              options={invoiceOptions.map(inv => ({ value: inv.value, label: inv.invoiceNumber, 'data-date': inv.invoiceDate, children: undefined }))}
               optionRender={(opt) => {
                 const inv = invoiceOptions.find(i => i.value === opt.value)
                 if (!inv) return opt.label
                 const dias = dayjs().diff(dayjs(inv.invoiceDate), 'day')
                 const enPlazo = dias <= LIMITE_DIAS_NCRE
-                const diasRestantes = LIMITE_DIAS_NCRE - dias
                 return (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '2px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <div>
-                      <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{inv.invoiceNumber}</Text>
-                      <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>
-                        {dayjs(inv.invoiceDate).format('DD/MM/YYYY')}
-                      </Text>
+                      <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12 }}>{inv.invoiceNumber}</Text>
+                      <Text type="secondary" style={{ fontSize: 10, marginLeft: 6 }}>{dayjs(inv.invoiceDate).format('DD/MM/YYYY')}</Text>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <Tag color={statusColor[inv.status] ?? 'default'} style={{ fontSize: 10, margin: 0 }}>
-                        {statusLabel[inv.status] ?? inv.status}
-                      </Tag>
-                      <Tag color={enPlazo ? 'green' : 'orange'} style={{ fontSize: 10, margin: 0 }}>
-                        {enPlazo
-                          ? `${diasRestantes}d para NCRE`
-                          : `NABN (${dias}d)`}
-                      </Tag>
-                      <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmt(inv.total)}</Text>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Tag color={statusColor[inv.status] ?? 'default'} style={{ fontSize: 10, margin: 0 }}>{statusLabel[inv.status] ?? inv.status}</Tag>
+                      <Tag color={enPlazo ? 'green' : 'orange'} style={{ fontSize: 10, margin: 0 }}>{enPlazo ? `${LIMITE_DIAS_NCRE - dias}d NCRE` : `NABN ${dias}d`}</Tag>
+                      <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmt(inv.total)}</Text>
                     </div>
                   </div>
                 )
@@ -529,98 +464,67 @@ export default function NotaCreditoFormPage() {
             />
           </Form.Item>
 
-          {/* Alerta 60 días */}
+          {/* Alerta 60 días — compacta */}
           {renderDiasAlert()}
 
-          <div style={{ marginTop: 16 }}>
-            <Form.Item
-              name="reason"
-              label="Motivo del documento"
-              rules={[{ required: true, message: 'El motivo es requerido' }]}
-            >
-              <Input.TextArea
-                rows={2}
-                placeholder={isNabn
-                  ? 'Ej: Ajuste de precio acordado con el cliente'
-                  : 'Ej: Devolución de mercadería por defecto de fabricación'}
-              />
+          {/* Fila: Motivo | Notas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+            <Form.Item name="reason" label="Motivo" style={{ marginBottom: 8 }}
+              rules={[{ required: true, message: 'El motivo es requerido' }]}>
+              <Input placeholder={isNabn ? 'Ajuste de precio...' : 'Devolución de mercadería...'} />
             </Form.Item>
+            <Form.Item name="notes" label="Notas internas" style={{ marginBottom: 8 }}>
+              <Input placeholder="Observaciones adicionales..." />
+            </Form.Item>
+          </div>
 
-            <Form.Item name="notes" label="Notas internas">
-              <Input.TextArea rows={2} placeholder="Observaciones adicionales..." />
-            </Form.Item>
+          {/* FEL config (fusionado) */}
+          <div style={{ borderTop: '1px dashed #e5e7eb', paddingTop: 6, marginTop: 4 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 10px', alignItems: 'end' }}>
+              <Form.Item name="lugarExpedicion" label="Lugar de Expedición" style={{ marginBottom: 8 }}>
+                <Input placeholder="Ciudad de Guatemala" />
+              </Form.Item>
+              <Form.Item label="Frases FEL" style={{ marginBottom: 8 }}>
+                <Select mode="multiple" placeholder="Frases fiscales..."
+                  options={FEL_TIPOS_FRASE.map(f => ({ value: `${f.tipoFrase}-${f.codigoEscenario}`, label: f.label }))}
+                  onChange={(vals: string[]) => setFelFrases(vals.map(v => { const [t, c] = v.split('-'); return { tipoFrase: Number(t), codigoEscenario: Number(c) } }))}
+                />
+              </Form.Item>
+              <Form.Item label=" " style={{ marginBottom: 8 }}>
+                <Checkbox checked={isExenta} onChange={e => setIsExenta(e.target.checked)}>
+                  Exento de IVA
+                </Checkbox>
+              </Form.Item>
+            </div>
           </div>
         </Card>
 
         {/* ── Líneas ──────────────────────────────────────────────────────── */}
         <Card
-          title={`Líneas del documento (${docType})`}
-          bordered={false}
-          style={{ borderRadius: 10, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          title={<span style={{ fontSize: 13, fontWeight: 600 }}>Líneas ({docType})</span>}
+          styles={{ body: { padding: '8px 14px' } }}
         >
           <LineItemsEditor items={items} onChange={setItems} taxes={taxes} />
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-            <div style={{ width: 320 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                <Text type="secondary">Subtotal</Text>
-                <Text strong style={{ fontFamily: 'monospace' }}>{fmt(subtotal)}</Text>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <div style={{ width: 300 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Subtotal</Text>
+                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmt(subtotal)}</Text>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                <Text type="secondary">IVA (12%)</Text>
-                <Text strong style={{ fontFamily: 'monospace' }}>{fmt(taxAmount)}</Text>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>IVA (12%)</Text>
+                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmt(taxAmount)}</Text>
               </div>
-              <Divider style={{ margin: '8px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                <Text strong style={{ fontSize: 15 }}>Total {docType}</Text>
-                <Text strong style={{ fontFamily: 'monospace', fontSize: 15, color: isNabn ? '#d46b08' : '#cf1322' }}>
+              <Divider style={{ margin: '4px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+                <Text strong style={{ fontSize: 13 }}>Total {docType}</Text>
+                <Text strong style={{ fontFamily: 'monospace', fontSize: 13, color: isNabn ? '#d46b08' : '#cf1322' }}>
                   {fmt(total)}
                 </Text>
               </div>
             </div>
           </div>
-        </Card>
-
-        {/* ── Configuración FEL ────────────────────────────────────────────── */}
-        <Card
-          title={
-            <Space>
-              <SafetyCertificateOutlined style={{ color: '#1B3A6B' }} />
-              <span>Configuración FEL</span>
-              <Tag color={isNabn ? 'orange' : 'blue'}>{docType}</Tag>
-            </Space>
-          }
-          bordered={false}
-          style={{ borderRadius: 10, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="lugarExpedicion" label="Lugar de Expedición">
-              <Input placeholder="Ciudad de Guatemala, Guatemala" />
-            </Form.Item>
-            <div style={{ display: 'flex', alignItems: 'center', paddingTop: 30 }}>
-              <Checkbox checked={isExenta} onChange={e => setIsExenta(e.target.checked)}>
-                Documento exento de IVA
-              </Checkbox>
-            </div>
-          </div>
-
-          <Form.Item label="Frases FEL (opcional)">
-            <Select
-              mode="multiple"
-              placeholder="Seleccionar frases fiscales..."
-              style={{ width: '100%' }}
-              options={FEL_TIPOS_FRASE.map(f => ({
-                value: `${f.tipoFrase}-${f.codigoEscenario}`,
-                label: f.label,
-              }))}
-              onChange={(vals: string[]) =>
-                setFelFrases(vals.map(v => {
-                  const [t, c] = v.split('-')
-                  return { tipoFrase: Number(t), codigoEscenario: Number(c) }
-                }))
-              }
-            />
-          </Form.Item>
         </Card>
       </Form>
     </div>
