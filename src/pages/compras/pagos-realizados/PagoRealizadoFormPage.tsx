@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Card, Form, Button, Select, DatePicker, InputNumber, Input,
   Table, Checkbox, Typography, Space, Tag, Alert, Divider,
@@ -29,6 +29,7 @@ export default function PagoRealizadoFormPage() {
 
   const [paymentMode,    setPaymentMode]    = useState<PaymentMode>('regular')
   const [vendors,        setVendors]        = useState<any[]>([])
+  const [loadingVendors, setLoadingVendors] = useState(false)
   const [bankAccounts,   setBankAccounts]   = useState<any[]>([])
   const [pendingInvs,    setPendingInvs]    = useState<PendingInvoice[]>([])
   const [advances,       setAdvances]       = useState<VendorAdvance[]>([])
@@ -39,15 +40,22 @@ export default function PagoRealizadoFormPage() {
   const [loadingInvs,    setLoadingInvs]    = useState(false)
   const [submitting,     setSubmitting]     = useState(false)
   const [mode,           setMode]           = useState<string>('bank_transfer')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  useEffect(() => {
-    getVendors({ limit: 200 })
+  const fetchVendors = useCallback((search = '') => {
+    setLoadingVendors(true)
+    getVendors({ search, limit: 50 })
       .then(r => setVendors(Array.isArray(r) ? r : (r as any)?.data ?? []))
       .catch(() => {})
+      .finally(() => setLoadingVendors(false))
+  }, [])
+
+  useEffect(() => {
+    fetchVendors('')
     getBankAccounts({ status: 'active' })
       .then(r => setBankAccounts(Array.isArray(r) ? r : (r as any)?.data ?? []))
       .catch(() => {})
-  }, [])
+  }, [fetchVendors])
 
   const onVendorChange = useCallback(async (vendorId: string) => {
     if (!vendorId) {
@@ -261,8 +269,13 @@ export default function PagoRealizadoFormPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         <Form.Item label="Proveedor" name="vendorId" rules={[{ required: true }]}>
           <Select
-            showSearch placeholder="Seleccionar proveedor"
-            filterOption={(input, opt) => (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
+            showSearch placeholder="Buscar proveedor..."
+            filterOption={false}
+            loading={loadingVendors}
+            onSearch={v => {
+              clearTimeout(debounceRef.current)
+              debounceRef.current = setTimeout(() => fetchVendors(v), 300)
+            }}
             options={vendors.map((v: any) => ({ value: v.id, label: v.name }))}
             onChange={onVendorChange}
           />

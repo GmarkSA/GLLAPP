@@ -15,7 +15,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
-  getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, writeOffInvoice, emitirFelInvoice, anularFelInvoice, deleteInvoice,
+  getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, emitirFelInvoice, anularFelInvoice, deleteInvoice,
   recomputeJournalLines, reprocessPaymentJournal, getAnticipos, applyAnticipo,
   INVOICE_STATUS_CONFIG, PAYMENT_MODES,
   type Invoice, type InvoiceItem, type Anticipo,
@@ -92,7 +92,6 @@ export default function FacturaDetallePage() {
   const [payModal,       setPayModal]       = useState(false)
   const [voidModal,      setVoidModal]      = useState(false)
   const [sendModal,      setSendModal]      = useState(false)
-  const [writeOffModal,  setWriteOffModal]  = useState(false)
   const [anticipoModal,  setAnticipoModal]  = useState(false)
   const [emitirFelModal, setEmitirFelModal] = useState(false)
   const [saving,         setSaving]         = useState(false)
@@ -106,8 +105,6 @@ export default function FacturaDetallePage() {
   const [payForm]      = Form.useForm()
   const [voidForm]     = Form.useForm()
   const [sendForm]     = Form.useForm()
-  const [writeOffForm] = Form.useForm()
-
   const load = async () => {
     if (!id) return
     setLoading(true)
@@ -138,7 +135,6 @@ export default function FacturaDetallePage() {
   const isSent     = invoice.status === 'sent' || invoice.status === 'partial' || invoice.status === 'overdue'
   const canPay     = !isPaid && !isVoided && !isWritten && Number(invoice.balance) > 0
   const canVoid    = !isVoided && !isPaid && !isWritten
-  const canWriteOff = isSent && Number(invoice.balance) > 0
   const balancePct = invoice.total > 0 ? Math.round((Number(invoice.paidAmount) / Number(invoice.total)) * 100) : 0
 
   const isFelCertified = !!invoice.felUuid
@@ -230,19 +226,6 @@ export default function FacturaDetallePage() {
     } finally {
       setEmittingFel(false)
     }
-  }
-
-  const handleWriteOff = async () => {
-    const v = await writeOffForm.validateFields()
-    setSaving(true)
-    try {
-      await writeOffInvoice(invoice.id, v.reason)
-      message.success('Saldo condonado')
-      setWriteOffModal(false)
-      load()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al condonar')
-    } finally { setSaving(false) }
   }
 
   const handleDelete = () => {
@@ -355,13 +338,6 @@ export default function FacturaDetallePage() {
       onClick: handleRecompute,
     }] : []),
     { type: 'divider' as const },
-    ...(canWriteOff ? [{
-      key: 'writeoff',
-      label: 'Condonar saldo pendiente',
-      icon: <ExclamationCircleOutlined />,
-      danger: true,
-      onClick: () => setWriteOffModal(true),
-    }] : []),
     ...(canVoid ? [{
       key: 'void',
       label: isFelCertified ? 'Anular DTE ante SAT' : 'Anular factura',
@@ -813,11 +789,6 @@ export default function FacturaDetallePage() {
                 <Button block icon={<SendOutlined />} onClick={() => setSendModal(true)}>
                   Reenviar por email
                 </Button>
-                {canWriteOff && (
-                  <Button block danger icon={<ExclamationCircleOutlined />} onClick={() => setWriteOffModal(true)}>
-                    Condonar saldo
-                  </Button>
-                )}
               </Space>
             </Card>
           )}
@@ -1000,27 +971,7 @@ export default function FacturaDetallePage() {
         )}
       </Modal>
 
-      {/* \u0000\u0000 Write-off Modal \u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 */}
-      <Modal
-        title={<><ExclamationCircleOutlined style={{ color: '#ff4d4f' }} /> Condonar saldo</>}
-        open={writeOffModal} onOk={handleWriteOff} onCancel={() => setWriteOffModal(false)}
-        okText="Condonar saldo" okButtonProps={{ loading: saving, danger: true }}
-      >
-        <Alert
-          type="warning"
-          showIcon
-          message={`Se condonará el saldo pendiente de ${fmt(invoice.balance)}.`}
-          description="Esta acción marca la factura como 'Condonada', registra el saldo como incobrable y genera automáticamente el asiento contable: Dr Gastos por Cuentas Incobrables → Cr Cuentas por Cobrar. No se puede deshacer."
-          style={{ marginBottom: 16 }}
-        />
-        <Form form={writeOffForm} layout="vertical">
-          <Form.Item name="reason" label="Motivo de condonación" rules={[{ required: true, message: 'El motivo es requerido' }]}>
-            <Input.TextArea rows={3} placeholder="Describe el motivo de la condonación del saldo…" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* \u0000\u0000 Void Modal \u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 */}
+      {/*\u0000\u0000 Void Modal \u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 */}
       <Modal
         title={<><StopOutlined /> {isFelCertified ? 'Anular DTE ante SAT' : 'Anular factura'}</>}
         open={voidModal}

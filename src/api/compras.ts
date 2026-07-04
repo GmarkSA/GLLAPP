@@ -506,6 +506,7 @@ export const createSatDteVendor = (id: string, dto?: {
   paymentTermsDays?: number
   payableAccountId?: string
   expenseAccountId?: string
+  defaultPurchaseTaxId?: string
 }) => api.post(`${DTE_SAT}/documentos/${id}/crear-proveedor`, dto ?? {}).then(unwrap)
 
 export const deleteSatDte = (id: string) =>
@@ -513,6 +514,9 @@ export const deleteSatDte = (id: string) =>
 
 export const reactivateSatDte = (id: string) =>
   api.post(`${DTE_SAT}/documentos/${id}/reactivar`).then(unwrap)
+
+export const resubirR2SatDte = (id: string) =>
+  api.post(`${DTE_SAT}/documentos/${id}/re-subir-r2`).then(unwrap)
 
 export const postSatDte = (id: string, dto: {
   taxId?: string

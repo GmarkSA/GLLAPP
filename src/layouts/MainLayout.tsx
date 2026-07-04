@@ -47,7 +47,7 @@ const menuItems = [
     { key: '/compras/ordenes',                     label: 'Órdenes de compra' },
     { key: '/compras/facturas',                    label: 'Facturas proveedor' },
     { key: '/compras/notas-credito-proveedor',     label: 'Notas de crédito' },
-    { key: '/compras/dte-sat',                     label: 'DTE SAT' },
+    { key: '/compras/dte-sat',                     label: 'DTE SAT Recibidos' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
     { key: '/bancos',                         label: 'Cuentas bancarias' },

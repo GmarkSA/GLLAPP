@@ -7,7 +7,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
-  SearchOutlined, UserAddOutlined, WarningOutlined,
+  SearchOutlined, SyncOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
@@ -15,7 +15,7 @@ import {
   createSatDteVendor, deleteSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   getPurchaseOrders, postSatDte,
-  resolveSatDteVendor,
+  resolveSatDteVendor, resubirR2SatDte,
   startSatDteImport, syncSatDteJob,
   type PurchaseOrder, type SatDte, type SatDteStatus, type SatImportJob,
   PAYMENT_TERMS_CONFIG,
@@ -77,6 +77,7 @@ export default function DteSatPage() {
   const [postLoading, setPostLoading] = useState(false)
   const [vendorModalDte, setVendorModalDte] = useState<SatDte | null>(null)
   const [createVendorLoading, setCreateVendorLoading] = useState(false)
+  const [resubirId, setResubirId] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [taxes, setTaxes] = useState<Tax[]>([])
   const [search, setSearch] = useState('')
@@ -334,6 +335,19 @@ export default function DteSatPage() {
     })
   }
 
+  const handleResubirR2 = async (row: SatDte) => {
+    setResubirId(row.id)
+    try {
+      await resubirR2SatDte(row.id)
+      message.success('Documentos subidos a R2 correctamente')
+      await load()
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudieron re-subir los documentos. Las URLs APIFY pueden haber expirado — reimporta el período.'))
+    } finally {
+      setResubirId(null)
+    }
+  }
+
   // ── Stepper handlers ───────────────────────────────────────────────────────
 
   // ── Preferencias por proveedor (localStorage) ─────────────────────────────
@@ -365,16 +379,26 @@ export default function DteSatPage() {
     setStepperOcId(undefined)
     setStepperPOs(undefined)
     setStepperResult(null)
-    // Pre-llenar con términos de pago del proveedor si ya está vinculado
+    // Pre-llenar desde datos maestros del proveedor (términos, cuenta de gasto, IVA)
     let vendorPaymentTerms = 'immediate'
+    let vendorExpenseAccountId: string | undefined
+    let vendorDefaultTaxId: string | undefined
     if (row.vendorId) {
       try {
         const vendor = await getVendor(row.vendorId) as any
-        if (vendor?.paymentTerms) vendorPaymentTerms = vendor.paymentTerms
-      } catch { /* usa immediate como fallback */ }
+        if (vendor?.paymentTerms)        vendorPaymentTerms    = vendor.paymentTerms
+        if (vendor?.expenseAccountId)    vendorExpenseAccountId = vendor.expenseAccountId
+        if (vendor?.defaultPurchaseTaxId) vendorDefaultTaxId   = vendor.defaultPurchaseTaxId
+      } catch { /* usa defaults como fallback */ }
     }
-    stepperForm.setFieldsValue({ taxId: undefined, paymentTerms: vendorPaymentTerms, accountingDate: dayjs(), concepto: autoConcepto, accountId: undefined })
-    stepperVendorForm.setFieldsValue({ name: row.nombreEmisor ?? '' })
+    stepperForm.setFieldsValue({
+      taxId:           vendorDefaultTaxId,
+      paymentTerms:    vendorPaymentTerms,
+      accountingDate:  dayjs(),
+      concepto:        autoConcepto,
+      accountId:       vendorExpenseAccountId,
+    })
+    stepperVendorForm.setFieldsValue({ name: row.nombreEmisor ?? '', paymentTerms: 'net_30' })
   }
 
   const handleStepperResolveVendor = async () => {
@@ -392,11 +416,17 @@ export default function DteSatPage() {
     }
   }
 
-  const handleStepperCreateVendor = async (values: { name?: string; payableAccountId?: string }) => {
+  const handleStepperCreateVendor = async (values: { name?: string; payableAccountId?: string; expenseAccountId?: string; defaultPurchaseTaxId?: string; paymentTerms?: string }) => {
     if (!stepperDte) return
     setStepperLoading(true)
     try {
-      const result = await createSatDteVendor(stepperDte.id, { name: values.name, payableAccountId: values.payableAccountId })
+      const result = await createSatDteVendor(stepperDte.id, {
+        name:                values.name,
+        payableAccountId:    values.payableAccountId,
+        expenseAccountId:    values.expenseAccountId,
+        defaultPurchaseTaxId: values.defaultPurchaseTaxId,
+        paymentTerms:        values.paymentTerms,
+      })
       if ((result as any)?.dte) setStepperDte((result as any).dte as SatDte)
       message.success('Proveedor creado y vinculado')
       await load(true)
@@ -593,18 +623,32 @@ export default function DteSatPage() {
           <DocumentLink documentKey={row.xmlKey} docType="fel-xml-proveedor" label="XML" />
           {row.pdfKey
             ? <DocumentLink documentKey={row.pdfKey} docType="fel-pdf-proveedor" label="PDF" />
-            : row.uuid
-              ? <Tooltip title="Ver en portal SAT (verificación FEL)">
-                  <a
-                    href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${row.uuid}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ fontSize: 12, color: '#d97706' }}
-                  >
-                    SAT ↗
-                  </a>
+            : (
+              <Space size={4}>
+                {row.uuid && (
+                  <Tooltip title="Ver en portal SAT (verificación FEL)">
+                    <a
+                      href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${row.uuid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 12, color: '#d97706' }}
+                    >
+                      SAT ↗
+                    </a>
+                  </Tooltip>
+                )}
+                <Tooltip title="Re-subir PDF a R2 (requiere URL APIFY vigente)">
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={<SyncOutlined spin={resubirId === row.id} />}
+                    loading={resubirId === row.id}
+                    onClick={() => handleResubirR2(row)}
+                    style={{ padding: 0, fontSize: 11, color: '#6b7280' }}
+                  />
                 </Tooltip>
-              : <Text type="secondary" style={{ fontSize: 12 }}>PDF</Text>}
+              </Space>
+            )}
         </div>
       ),
     },
@@ -812,15 +856,34 @@ export default function DteSatPage() {
                       </Button>
                       <Divider plain style={{ fontSize: 12 }}>o crear nuevo proveedor</Divider>
                       <Form form={stepperVendorForm} layout="vertical" size="small" onFinish={handleStepperCreateVendor}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                          <Form.Item name="name" label="Nombre">
+                        {/* Fila 1: Nombre | Cuenta CxP | Términos de pago */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+                          <Form.Item name="name" label="Nombre" style={{ marginBottom: 8 }}>
                             <Input placeholder={stepperDte.nombreEmisor ?? 'Nombre del proveedor'} />
                           </Form.Item>
-                          <Form.Item name="payableAccountId" label="Cuenta por pagar (CxP)"
+                          <Form.Item name="payableAccountId" label="Cuenta por pagar (CxP)" style={{ marginBottom: 8 }}
                             tooltip="Requerida para generar la póliza automáticamente">
-                            <Select showSearch allowClear placeholder="2101 — Proveedores Nacionales"
+                            <Select showSearch allowClear placeholder="2101 — Proveedores"
                               options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('2'))
                                 .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                          </Form.Item>
+                          <Form.Item name="paymentTerms" label="Términos de pago" style={{ marginBottom: 8 }}>
+                            <Select placeholder="Neto 30 días"
+                              options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
+                          </Form.Item>
+                        </div>
+                        {/* Fila 2: Cuenta de gasto | Impuesto IVA */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                          <Form.Item name="expenseAccountId" label="Cuenta de gasto" style={{ marginBottom: 8 }}
+                            tooltip="Cuenta de gasto o activo que se debita en la póliza">
+                            <Select showSearch allowClear placeholder="6101 — Compras locales"
+                              options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.code?.startsWith('5') || a.type === 'expense'))
+                                .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                          </Form.Item>
+                          <Form.Item name="defaultPurchaseTaxId" label="Impuesto IVA" style={{ marginBottom: 8 }}
+                            tooltip="Impuesto predeterminado al registrar facturas de este proveedor">
+                            <Select showSearch allowClear placeholder="IVA12 — Tasa general 12%"
+                              options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
                           </Form.Item>
                         </div>
                         <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1B3A6B' }}>

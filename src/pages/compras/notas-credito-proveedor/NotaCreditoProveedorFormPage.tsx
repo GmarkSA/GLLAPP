@@ -296,320 +296,232 @@ export default function NotaCreditoProveedorFormPage() {
   const canApprove  = ['draft', 'pending_approval'].includes(docStatus) || !id
 
   return (
-    <div style={{ padding: 24, background: '#f5f5f5', minHeight: '100vh' }}>
-      <Breadcrumb
-        style={{ marginBottom: 16 }}
-        items={[
+    <div>
+      {/* ── Barra superior: breadcrumb + acciones ──────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <Breadcrumb items={[
           { title: <Link to="/"><HomeOutlined /></Link> },
           { title: <Link to="/compras/notas-credito-proveedor">Notas de Crédito Proveedor</Link> },
-          { title: id ? 'Editar' : 'Nueva Nota de Crédito' },
-        ]}
-      />
-
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-
-        {/* ── COLUMNA IZQUIERDA ─────────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          <Card title={
-            <span style={{ color: '#dc2626', fontWeight: 600 }}>
-              {id ? 'Editar Nota de Crédito Proveedor' : 'Nueva Nota de Crédito Proveedor'}
-            </span>
-          }>
-            <Form form={form} layout="vertical" size="small"
-              initialValues={{ currency: 'GTQ', paymentTerms: 'immediate', accountingDate: dayjs() }}>
-
-              {/* Proveedor */}
-              <Form.Item name="vendorId" label="Proveedor"
-                rules={[{ required: true, message: 'Seleccione un proveedor' }]}>
-                <Select
-                  showSearch placeholder="Buscar proveedor..."
-                  filterOption={false}
-                  loading={loadingVendors}
-                  onSearch={v => {
-                    clearTimeout(debounceRef.current)
-                    debounceRef.current = setTimeout(() => fetchVendors(v), 300)
-                  }}
-                  options={vendors.map(v => ({ value: v.value, label: v.label }))}
-                />
-              </Form.Item>
-
-              {/* Tipo de cambio — solo si moneda extranjera */}
-              {vendorCurrency !== 'GTQ' && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px',
-                  marginBottom: 12, background: '#f0f9ff', borderRadius: 6, border: '1px solid #bae6fd',
-                }}>
-                  <span style={{ fontWeight: 600, color: '#0369a1' }}>1 {vendorCurrency} =</span>
-                  {editingRate ? (
-                    <input
-                      type="number" value={exchangeRate} step={0.000001}
-                      style={{ width: 120, border: '1px solid #bae6fd', borderRadius: 4, padding: '2px 6px' }}
-                      onChange={e => setExchangeRate(Number(e.target.value))}
-                      onBlur={() => setEditingRate(false)}
-                      autoFocus
-                    />
-                  ) : (
-                    <span style={{ fontWeight: 700, color: '#0369a1', fontFamily: 'monospace' }}>
-                      {loadingFx ? '...' : exchangeRate.toFixed(6)} GTQ
-                    </span>
-                  )}
-                  <Button size="small" type="text" icon={<EditOutlined />}
-                    onClick={() => setEditingRate(!editingRate)} style={{ color: '#0369a1' }} />
-                  <span style={{ fontSize: 11, color: '#9ca3af' }}>
-                    {fxMeta ? `Tasa del ${dayjs(fxMeta.effectiveDate).format('DD/MM/YYYY')} (${fxMeta.source})` : ''}
-                  </span>
-                </div>
-              )}
-
-              {/* Fechas + Serie FEL + No. SAT + Moneda */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 12px' }}>
-                <Form.Item name="invoiceDate" label="Fecha" rules={[{ required: true, message: 'Ingrese la fecha' }]}>
-                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                </Form.Item>
-                <Form.Item name="felSerie" label="Serie FEL">
-                  <Input placeholder="A" />
-                </Form.Item>
-                <Form.Item name="felNumber" label="Número SAT">
-                  <Input placeholder="00001" />
-                </Form.Item>
-                <Form.Item name="currency" label="Moneda">
-                  <Select options={[
-                    { value: 'GTQ', label: 'GTQ — Quetzal' },
-                    { value: 'USD', label: 'USD — Dólar' },
-                  ]} />
-                </Form.Item>
-              </div>
-
-              {/* Autorización + Términos de pago + Vencimiento + Contabilización */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0 12px' }}>
-                <Form.Item name="felAuthNumber" label="Autorización SAT">
-                  <Input placeholder="Número de autorización SAT" />
-                </Form.Item>
-                <Form.Item name="paymentTerms" label="Términos de pago">
-                  <PaymentTermsSelect size="small" />
-                </Form.Item>
-                <Form.Item name="dueDate" label="Vencimiento">
-                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                </Form.Item>
-                <Form.Item name="accountingDate" label="Fecha contabilización">
-                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                </Form.Item>
-              </div>
-
-              {/* Número documento proveedor */}
-              <Form.Item name="vendorInvoiceNumber" label="No. documento proveedor">
-                <Input placeholder="Número de nota de crédito del proveedor" />
-              </Form.Item>
-
-            </Form>
-          </Card>
-
-          {/* Líneas */}
-          <Card title="Líneas de la Nota de Crédito" styles={{ body: { padding: '12px 16px' } }}>
-            <LineItemsEditor
-              items={items}
-              taxes={taxes}
-              onChange={setItems}
-              docType="bill"
-              vendorDefaultTaxId={vendorDefaultTaxId}
-              currency={watchCurr}
-            />
-
-            {/* Totales */}
-            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 12 }}>
-              <div style={{ maxWidth: 400, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#6b7280' }}>Subtotal (base)</Text>
-                  <Text style={{ fontFamily: 'monospace' }}>Q {fmt(totals.subtotal)}</Text>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#6b7280' }}>IVA</Text>
-                  <Text style={{ fontFamily: 'monospace' }}>Q {fmt(totals.taxAmount)}</Text>
-                </div>
-                <Divider style={{ margin: '4px 0' }} />
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  background: '#dc2626', borderRadius: 8, padding: '8px 16px',
-                }}>
-                  <Text style={{ color: '#fff', fontWeight: 600 }}>Total Nota de Crédito</Text>
-                  <Text style={{ color: '#fff', fontWeight: 800, fontFamily: 'monospace', fontSize: 15 }}>
-                    {watchCurr} {fmt(totals.total)}
-                  </Text>
-                </div>
-                {vendorCurrency !== 'GTQ' && exchangeRate > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280', fontSize: 12 }}>
-                    <span>Equivalente GTQ</span>
-                    <span style={{ fontFamily: 'monospace' }}>Q {fmt(Math.round(totals.total * exchangeRate * 100) / 100)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          {/* Póliza contable */}
-          {journalEntry && (
-            <Card
-              title={<span style={{ color: '#dc2626', fontWeight: 600 }}>Póliza de Reversión — {journalEntry.entryNumber}</span>}
-              styles={{ body: { padding: '8px 0 0 0' } }}
-              extra={
-                <Space>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>{dayjs(journalEntry.entryDate).format('DD/MM/YYYY')}</Text>
-                  <Tag color={journalEntry.status === 'posted' ? 'green' : 'default'}>
-                    {journalEntry.status === 'posted' ? 'Publicado' : journalEntry.status}
-                  </Tag>
-                </Space>
-              }
-            >
-              <Table<JournalEntryLine>
-                dataSource={journalEntry.lines ?? []}
-                rowKey="id"
-                size="small"
-                pagination={false}
-                style={{ borderRadius: 0 }}
-                columns={[
-                  {
-                    title: 'Cuenta', width: 220,
-                    render: (_: any, l: JournalEntryLine) => (
-                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {l.accountCode} — {l.accountName}
-                      </span>
-                    ),
-                  },
-                  {
-                    title: 'Descripción', dataIndex: 'description',
-                    render: (v: string) => <span style={{ fontSize: 12, color: '#6b7280' }}>{v || '—'}</span>,
-                  },
-                  {
-                    title: 'Débito', dataIndex: 'debit', align: 'right', width: 120,
-                    render: (v: number) => Number(v) > 0
-                      ? <span style={{ fontWeight: 600, color: '#1B3A6B', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
-                      : <span style={{ color: '#d9d9d9' }}>—</span>,
-                  },
-                  {
-                    title: 'Crédito', dataIndex: 'credit', align: 'right', width: 120,
-                    render: (v: number) => Number(v) > 0
-                      ? <span style={{ fontWeight: 600, color: '#dc2626', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
-                      : <span style={{ color: '#d9d9d9' }}>—</span>,
-                  },
-                ]}
-                summary={() => (
-                  <Table.Summary fixed>
-                    <Table.Summary.Row style={{ background: '#fff5f5' }}>
-                      <Table.Summary.Cell index={0} colSpan={2}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase' }}>Totales</span>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={2} align="right">
-                        <span style={{ fontWeight: 800, color: '#1B3A6B', fontFamily: 'monospace' }}>Q {fmt(Number(journalEntry.totalDebit))}</span>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={3} align="right">
-                        <span style={{ fontWeight: 800, color: '#dc2626', fontFamily: 'monospace' }}>Q {fmt(Number(journalEntry.totalCredit))}</span>
-                      </Table.Summary.Cell>
-                    </Table.Summary.Row>
-                  </Table.Summary>
-                )}
-              />
-            </Card>
+          { title: <span style={{ color: '#dc2626' }}>{id ? 'Editar' : 'Nueva'}</span> },
+        ]} />
+        <Space size={6}>
+          {canApprove && (
+            <Button size="small" icon={<SaveOutlined />} loading={saving} onClick={handleSaveDraft}
+              style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}>
+              Borrador
+            </Button>
           )}
-
-          {/* Notas */}
-          <Card title="Notas">
-            <Form form={form} layout="vertical" size="small">
-              <Form.Item name="notes">
-                <Input.TextArea rows={3} placeholder="Notas internas sobre esta nota de crédito..." />
-              </Form.Item>
-            </Form>
-          </Card>
-        </div>
-
-        {/* ── COLUMNA DERECHA ──────────────────────────────────────────────── */}
-        <div style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          <Card title="Acciones">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-              {canApprove && (
-                <Button block icon={<SaveOutlined />} loading={saving}
-                  onClick={handleSaveDraft}
-                  style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}>
-                  Guardar como borrador
-                </Button>
-              )}
-
-              {canApprove && (
-                <>
-                  <Button block type="primary" icon={<CheckOutlined />} loading={approving}
-                    onClick={handleSaveAndOpen}
-                    style={{ background: '#dc2626', borderColor: '#dc2626' }}>
-                    Guardar y abrir
-                  </Button>
-                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
-                    Genera póliza de reversión automáticamente
-                  </div>
-                </>
-              )}
-
-              {!!id && docStatus === 'open' && (
-                <>
-                  <Button block icon={<SyncOutlined />} loading={regenerating}
-                    onClick={handleRegenerate}
-                    style={{ borderColor: '#7c3aed', color: '#7c3aed' }}>
-                    Regenerar póliza
-                  </Button>
-                  <Button block danger onClick={handleVoid}>
-                    Anular nota de crédito
-                  </Button>
-                </>
-              )}
-
-              {docStatus && (
-                <Tag color={
-                  docStatus === 'paid'   ? 'green' :
-                  docStatus === 'voided' ? 'volcano' :
-                  docStatus === 'open'   ? 'orange' : 'default'
-                } style={{ width: '100%', textAlign: 'center', marginTop: 4 }}>
-                  Estado: {docStatus === 'pending_approval' ? 'Pendiente aprobación' : docStatus}
-                </Tag>
-              )}
-            </div>
-          </Card>
-
-          {/* Ayuda contable */}
-          <Card
-            title={<span style={{ color: '#dc2626', fontSize: 13 }}>Póliza de Reversión</span>}
-            styles={{ body: { padding: '12px 16px' } }}
-          >
-            <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
-              Al aprobar se genera automáticamente:
-              <br /><br />
-              <strong>Dr.</strong> CxP Proveedor — reduce saldo adeudado<br />
-              <strong>Cr.</strong> Gasto / Activo — revierte el gasto<br />
-              <strong>Cr.</strong> IVA Crédito Fiscal — reduce IVA CF
-            </div>
-            <div style={{ marginTop: 10, padding: '8px 10px', background: '#fff5f5', borderRadius: 6, fontSize: 11, color: '#b91c1c' }}>
-              Impacta en el Libro de Compras y en el Estado de Cuenta por Pagar del proveedor.
-            </div>
-          </Card>
-
-          {/* Info de cuentas contables */}
-          <Card title="Cuenta de gasto" styles={{ body: { padding: '12px 16px' } }}>
-            <Form form={form} layout="vertical" size="small">
-              <Form.Item
-                name="accountId"
-                label="Cuenta de gasto/activo a revertir"
-                tooltip="Opcional — si no se especifica, usa la cuenta del ítem o la predeterminada del proveedor"
-              >
-                <Select
-                  showSearch allowClear
-                  placeholder="6101 — Compras locales..."
-                  filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
-                  options={allAccounts}
-                />
-              </Form.Item>
-            </Form>
-          </Card>
-        </div>
+          {canApprove && (
+            <Button size="small" type="primary" icon={<CheckOutlined />} loading={approving}
+              onClick={handleSaveAndOpen}
+              style={{ background: '#dc2626', borderColor: '#dc2626' }}>
+              Guardar y abrir
+            </Button>
+          )}
+          {!!id && docStatus === 'open' && <>
+            <Button size="small" icon={<SyncOutlined />} loading={regenerating} onClick={handleRegenerate}
+              style={{ borderColor: '#7c3aed', color: '#7c3aed' }}>
+              Regenerar póliza
+            </Button>
+            <Button size="small" danger onClick={handleVoid}>Anular</Button>
+          </>}
+          {docStatus && (
+            <Tag color={docStatus === 'paid' ? 'green' : docStatus === 'voided' ? 'volcano' : docStatus === 'open' ? 'orange' : 'default'}>
+              {docStatus === 'pending_approval' ? 'Pendiente' : docStatus}
+            </Tag>
+          )}
+        </Space>
       </div>
+
+      {/* ── Tipo de cambio (solo moneda extranjera) ─────────────────────────── */}
+      {vendorCurrency !== 'GTQ' && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '4px 12px',
+          marginBottom: 8, background: '#f0f9ff', borderRadius: 6, border: '1px solid #bae6fd',
+        }}>
+          <span style={{ fontWeight: 600, color: '#0369a1', fontSize: 12 }}>1 {vendorCurrency} =</span>
+          {editingRate ? (
+            <input type="number" value={exchangeRate} step={0.000001} autoFocus
+              style={{ width: 110, border: '1px solid #bae6fd', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}
+              onChange={e => setExchangeRate(Number(e.target.value))}
+              onBlur={() => setEditingRate(false)}
+            />
+          ) : (
+            <span style={{ fontWeight: 700, color: '#0369a1', fontFamily: 'monospace', fontSize: 12 }}>
+              {loadingFx ? '...' : exchangeRate.toFixed(6)} GTQ
+            </span>
+          )}
+          <Button size="small" type="text" icon={<EditOutlined />}
+            onClick={() => setEditingRate(!editingRate)} style={{ color: '#0369a1' }} />
+          <span style={{ fontSize: 11, color: '#9ca3af' }}>
+            {fxMeta ? `${dayjs(fxMeta.effectiveDate).format('DD/MM/YYYY')} — ${fxMeta.source}` : ''}
+          </span>
+        </div>
+      )}
+
+      <Form form={form} layout="vertical" size="small"
+        initialValues={{ currency: 'GTQ', paymentTerms: 'immediate', accountingDate: dayjs() }}>
+
+        {/* ── Card principal: todos los campos del encabezado ─────────────────── */}
+        <Card styles={{ body: { padding: '10px 16px 2px' } }} style={{ marginBottom: 8 }}>
+          {/* Fila 1: Proveedor | Fecha | Serie | No.SAT | Moneda */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '0 10px' }}>
+            <Form.Item name="vendorId" label="Proveedor" style={{ marginBottom: 8 }}
+              rules={[{ required: true, message: 'Seleccione un proveedor' }]}>
+              <Select showSearch placeholder="Buscar proveedor..." filterOption={false}
+                loading={loadingVendors}
+                onSearch={v => { clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => fetchVendors(v), 300) }}
+                options={vendors.map(v => ({ value: v.value, label: v.label }))}
+              />
+            </Form.Item>
+            <Form.Item name="invoiceDate" label="Fecha" style={{ marginBottom: 8 }}
+              rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="felSerie" label="Serie FEL" style={{ marginBottom: 8 }}>
+              <Input placeholder="A" />
+            </Form.Item>
+            <Form.Item name="felNumber" label="No. SAT" style={{ marginBottom: 8 }}>
+              <Input placeholder="00001" />
+            </Form.Item>
+            <Form.Item name="currency" label="Moneda" style={{ marginBottom: 8 }}>
+              <Select options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]} />
+            </Form.Item>
+          </div>
+
+          {/* Fila 2: Autorización | Términos | Vencimiento | Contabilización | No.Doc */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '0 10px' }}>
+            <Form.Item name="felAuthNumber" label="Autorización SAT" style={{ marginBottom: 8 }}>
+              <Input placeholder="Número de autorización" />
+            </Form.Item>
+            <Form.Item name="paymentTerms" label="Términos de pago" style={{ marginBottom: 8 }}>
+              <PaymentTermsSelect size="small" />
+            </Form.Item>
+            <Form.Item name="dueDate" label="Vencimiento" style={{ marginBottom: 8 }}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="accountingDate" label="Contabilización" style={{ marginBottom: 8 }}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="vendorInvoiceNumber" label="No. Doc. Proveedor" style={{ marginBottom: 8 }}>
+              <Input placeholder="Ref. proveedor" />
+            </Form.Item>
+          </div>
+
+          {/* Fila 3: Cuenta de gasto | UUID | Notas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 10px' }}>
+            <Form.Item name="accountId" label="Cuenta de gasto/activo" style={{ marginBottom: 8 }}
+              tooltip="Opcional — cuenta a revertir en la póliza">
+              <Select showSearch allowClear placeholder="6101 — Compras locales..."
+                filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
+                options={allAccounts}
+              />
+            </Form.Item>
+            <Form.Item name="felUuid" label="UUID SAT" style={{ marginBottom: 8 }}>
+              <Input placeholder="UUID de autorización" />
+            </Form.Item>
+            <Form.Item name="notes" label="Notas internas" style={{ marginBottom: 8 }}>
+              <Input placeholder="Observaciones..." />
+            </Form.Item>
+          </div>
+        </Card>
+
+        {/* ── Líneas ──────────────────────────────────────────────────────────── */}
+        <Card
+          title={<span style={{ fontSize: 13, fontWeight: 600 }}>Líneas de la Nota de Crédito</span>}
+          styles={{ body: { padding: '8px 14px' } }}
+        >
+          <LineItemsEditor
+            items={items} taxes={taxes} onChange={setItems}
+            docType="bill" vendorDefaultTaxId={vendorDefaultTaxId} currency={watchCurr}
+          />
+          <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 10, paddingTop: 8 }}>
+            <div style={{ maxWidth: 360, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#6b7280', fontSize: 12 }}>Subtotal</Text>
+                <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>Q {fmt(totals.subtotal)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#6b7280', fontSize: 12 }}>IVA</Text>
+                <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>Q {fmt(totals.taxAmount)}</Text>
+              </div>
+              <Divider style={{ margin: '3px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#dc2626', borderRadius: 6, padding: '5px 14px' }}>
+                <Text style={{ color: '#fff', fontWeight: 600, fontSize: 12 }}>Total N/C</Text>
+                <Text style={{ color: '#fff', fontWeight: 800, fontFamily: 'monospace', fontSize: 13 }}>
+                  {watchCurr} {fmt(totals.total)}
+                </Text>
+              </div>
+              {vendorCurrency !== 'GTQ' && exchangeRate > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280', fontSize: 11 }}>
+                  <span>Equivalente GTQ</span>
+                  <span style={{ fontFamily: 'monospace' }}>Q {fmt(Math.round(totals.total * exchangeRate * 100) / 100)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      </Form>
+
+      {/* ── Póliza contable (solo cuando está aprobada) ─────────────────────── */}
+      {journalEntry && (
+        <Card
+          title={<span style={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>Póliza — {journalEntry.entryNumber}</span>}
+          styles={{ body: { padding: '4px 0 0 0' } }}
+          style={{ marginTop: 8 }}
+          extra={
+            <Space size={4}>
+              <Text style={{ fontSize: 11, color: '#6b7280' }}>{dayjs(journalEntry.entryDate).format('DD/MM/YYYY')}</Text>
+              <Tag color={journalEntry.status === 'posted' ? 'green' : 'default'} style={{ fontSize: 10 }}>
+                {journalEntry.status === 'posted' ? 'Publicado' : journalEntry.status}
+              </Tag>
+            </Space>
+          }
+        >
+          <Table<JournalEntryLine>
+            dataSource={journalEntry.lines ?? []} rowKey="id" size="small" pagination={false}
+            columns={[
+              {
+                title: 'Cuenta', width: 220,
+                render: (_: any, l: JournalEntryLine) => (
+                  <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{l.accountCode} — {l.accountName}</span>
+                ),
+              },
+              {
+                title: 'Descripción', dataIndex: 'description',
+                render: (v: string) => <span style={{ fontSize: 11, color: '#6b7280' }}>{v || '—'}</span>,
+              },
+              {
+                title: 'Débito', dataIndex: 'debit', align: 'right', width: 110,
+                render: (v: number) => Number(v) > 0
+                  ? <span style={{ fontWeight: 600, color: '#1B3A6B', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(v))}</span>
+                  : <span style={{ color: '#d9d9d9' }}>—</span>,
+              },
+              {
+                title: 'Crédito', dataIndex: 'credit', align: 'right', width: 110,
+                render: (v: number) => Number(v) > 0
+                  ? <span style={{ fontWeight: 600, color: '#dc2626', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(v))}</span>
+                  : <span style={{ color: '#d9d9d9' }}>—</span>,
+              },
+            ]}
+            summary={() => (
+              <Table.Summary fixed>
+                <Table.Summary.Row style={{ background: '#fff5f5' }}>
+                  <Table.Summary.Cell index={0} colSpan={2}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase' }}>Totales</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={2} align="right">
+                    <span style={{ fontWeight: 800, color: '#1B3A6B', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(journalEntry.totalDebit))}</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={3} align="right">
+                    <span style={{ fontWeight: 800, color: '#dc2626', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(journalEntry.totalCredit))}</span>
+                  </Table.Summary.Cell>
+                </Table.Summary.Row>
+              </Table.Summary>
+            )}
+          />
+        </Card>
+      )}
     </div>
   )
 }
