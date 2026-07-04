@@ -52,6 +52,15 @@ export const createVendorAdvance = (dto: {
 export const getVendorAdvances = (params?: { vendorId?: string; status?: string; page?: number; limit?: number }) =>
   api.get('/compras/anticipos-proveedor', { params }).then(unwrap) as Promise<{ data: VendorAdvance[]; total: number }>
 
+export const applyVendorAdvanceToBill = (
+  advanceId: string,
+  invoiceId: string,
+  amount?: number,
+) => api.post(`/compras/anticipos-proveedor/${advanceId}/apply`, {
+  invoiceIds: [invoiceId],
+  ...(amount !== undefined ? { amounts: { [invoiceId]: amount } } : {}),
+}).then(unwrap) as Promise<VendorAdvance>
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type BillStatus   = 'draft' | 'pending_approval' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'
 export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel' | 'credit_note'

@@ -3,18 +3,19 @@ import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import {
   Form, Select, DatePicker, InputNumber, Input, Button,
   Card, Breadcrumb, Typography, Spin, Divider, message,
-  Tag, Alert, Space, Table, Checkbox,
+  Tag, Alert, Space, Table, Checkbox, Modal,
 } from 'antd'
 import {
   SaveOutlined, CheckOutlined, HomeOutlined, ThunderboltOutlined,
-  SwapOutlined, EditOutlined, SyncOutlined, TeamOutlined,
+  SwapOutlined, EditOutlined, SyncOutlined, TeamOutlined, DollarOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 import {
   createBill, updateBill, getBill, approveBill, getVendors,
   getJournalEntry, regenerateBillJournalEntry,
-  type BillType, type PaymentTerms, type JournalEntry, type JournalEntryLine,
+  getVendorAdvances, applyVendorAdvanceToBill,
+  type BillType, type PaymentTerms, type JournalEntry, type JournalEntryLine, type VendorAdvance,
   BILL_TYPE_CONFIG, IDP_RATES,
 } from '../../../api/compras'
 import { getTaxes, type Tax } from '../../../api/impuestos'
@@ -80,6 +81,14 @@ export default function FacturaProveedorFormPage() {
   const [approving, setApproving]       = useState(false)
   const [regenerating, setRegenerating] = useState(false)
   const [billStatus, setBillStatus]         = useState<string>('draft')
+  const [billBalance, setBillBalance]       = useState<number>(0)
+  const [billInvoiceNumber, setBillInvoiceNumber] = useState<string>('')
+  const [antModal, setAntModal]             = useState(false)
+  const [advances, setAdvances]             = useState<VendorAdvance[]>([])
+  const [loadingAdv, setLoadingAdv]         = useState(false)
+  const [selectedAdvId, setSelectedAdvId]   = useState<string | undefined>()
+  const [antAmount, setAntAmount]           = useState<number>(0)
+  const [applyingAdv, setApplyingAdv]       = useState(false)
   const [purchaseOrderId, setPurchaseOrderId]         = useState<string | undefined>(fromPO?.purchaseOrderId)
   const [vendorDefaultTaxId, setVendorDefaultTaxId]   = useState<string | undefined>()
   const [vendorIsrTax, setVendorIsrTax]               = useState<Tax | undefined>()
@@ -160,6 +169,8 @@ export default function FacturaProveedorFormPage() {
     getBill(id)
       .then((bill) => {
         setBillStatus(bill.status)
+        setBillBalance(Number(bill.balance ?? 0))
+        setBillInvoiceNumber(bill.invoiceNumber ?? '')
         form.setFieldsValue({
           vendorId:            bill.vendorId,
           invoiceType:         bill.invoiceType    ?? 'goods',
@@ -507,7 +518,38 @@ export default function FacturaProveedorFormPage() {
     }
   }
 
-  const canApprove = !!id && ['draft', 'pending_approval'].includes(billStatus)
+  const canApprove  = !!id && ['draft', 'pending_approval'].includes(billStatus)
+  const canPayBill  = !!id && ['open', 'partial', 'overdue'].includes(billStatus) && billBalance > 0
+
+  const openAnticipoModal = async () => {
+    if (!watchVendorId) return
+    setSelectedAdvId(undefined)
+    setAntAmount(0)
+    setLoadingAdv(true)
+    setAntModal(true)
+    try {
+      const res = await getVendorAdvances({ vendorId: watchVendorId, status: 'open', limit: 50 })
+      const partials = await getVendorAdvances({ vendorId: watchVendorId, status: 'partial', limit: 50 })
+      setAdvances([...(res.data ?? []), ...(partials.data ?? [])])
+    } catch { message.error('No se pudieron cargar los anticipos') }
+    finally { setLoadingAdv(false) }
+  }
+
+  const handleApplyAnticipo = async () => {
+    if (!selectedAdvId || !id) return
+    setApplyingAdv(true)
+    try {
+      await applyVendorAdvanceToBill(selectedAdvId, id, antAmount || undefined)
+      message.success('Anticipo aplicado correctamente — póliza contable generada')
+      setAntModal(false)
+      // Reload bill to reflect new balance/status
+      const updated = await getBill(id)
+      setBillStatus(updated.status)
+      setBillBalance(Number(updated.balance ?? 0))
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al aplicar el anticipo')
+    } finally { setApplyingAdv(false) }
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -1114,6 +1156,20 @@ export default function FacturaProveedorFormPage() {
                   </div>
                 </>
               )}
+              {/* Aplicar Anticipo — facturas abiertas/parciales con saldo */}
+              {canPayBill && (
+                <>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <Button
+                    block icon={<DollarOutlined />}
+                    style={{ borderColor: '#722ed1', color: '#722ed1' }}
+                    onClick={openAnticipoModal}
+                  >
+                    Aplicar anticipo
+                  </Button>
+                </>
+              )}
+
               {billStatus && (
                 <Tag color={
                   billStatus === 'paid' ? 'green' :
@@ -1128,6 +1184,74 @@ export default function FacturaProveedorFormPage() {
           </Card>
         </div>
       </div>
+
+      {/* ── Anticipo Modal ─────────────────────────────────────────────────── */}
+      <Modal
+        title={<><DollarOutlined style={{ color: '#722ed1' }} /> Aplicar anticipo — {billInvoiceNumber}</>}
+        open={antModal}
+        onCancel={() => setAntModal(false)}
+        onOk={handleApplyAnticipo}
+        okText="Aplicar anticipo"
+        okButtonProps={{ loading: applyingAdv, style: { background: '#722ed1', borderColor: '#722ed1' }, disabled: !selectedAdvId || antAmount <= 0 }}
+        width={520}
+      >
+        {loadingAdv ? (
+          <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+        ) : advances.length === 0 ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Sin anticipos disponibles"
+            description="Este proveedor no tiene anticipos con saldo disponible. Los anticipos se registran en el módulo de Pagos a Proveedores seleccionando 'Anticipo a proveedor'."
+          />
+        ) : (
+          <Form layout="vertical" style={{ marginTop: 8 }}>
+            <Form.Item label="Anticipo a aplicar" required>
+              <Select
+                placeholder="Seleccionar anticipo..."
+                style={{ width: '100%' }}
+                value={selectedAdvId}
+                onChange={(val) => {
+                  setSelectedAdvId(val)
+                  const adv = advances.find(a => a.id === val)
+                  if (adv) setAntAmount(Math.min(Number(adv.balance), billBalance))
+                }}
+                options={advances.map(a => ({
+                  value: a.id,
+                  label: `${a.advanceNumber} — Q ${Number(a.balance).toLocaleString('es-GT', { minimumFractionDigits: 2 })} disponible`,
+                }))}
+              />
+            </Form.Item>
+            {selectedAdvId && (() => {
+              const adv = advances.find(a => a.id === selectedAdvId)!
+              const maxAmt = Math.min(Number(adv.balance), billBalance)
+              return (
+                <>
+                  <Form.Item label={`Monto a aplicar (máx Q ${maxAmt.toLocaleString('es-GT', { minimumFractionDigits: 2 })})`}>
+                    <InputNumber
+                      style={{ width: '100%' }}
+                      value={antAmount}
+                      min={0.01}
+                      max={maxAmt}
+                      step={0.01}
+                      precision={2}
+                      prefix="Q"
+                      onChange={v => setAntAmount(Number(v ?? 0))}
+                    />
+                  </Form.Item>
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginTop: 4 }}
+                    message={`Saldo pendiente factura: Q ${billBalance.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`}
+                    description="Póliza: Dr CxP Proveedor → Cr Anticipos a Proveedores"
+                  />
+                </>
+              )
+            })()}
+          </Form>
+        )}
+      </Modal>
     </div>
   )
 }
