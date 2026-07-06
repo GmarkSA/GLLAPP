@@ -141,6 +141,8 @@ export interface PurchaseInvoice {
   reclassificationJournalEntryId?: string
 
   purchaseOrderId?:        string
+  originalInvoiceId?:      string
+  creditNoteReason?:       string
   notes?:                  string
   items:                   BillItem[]
   attachments?:            any[]
@@ -539,6 +541,8 @@ export const postSatDte = (id: string, dto: {
   employeeId?: string
   idpAccountId?: string
   defaultUnit?: string
+  originalInvoiceId?: string
+  creditNoteReason?: string
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: PurchaseInvoice
   dte: SatDte

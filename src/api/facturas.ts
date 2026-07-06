@@ -571,6 +571,8 @@ export const postSatEmitidos = (id: string, dto: {
   notes?: string
   estimateId?: string
   defaultUnit?: string
+  creditNoteReason?: string
+  originalInvoiceId?: string
 }) => api.post(`${DTE_EMIT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: Invoice
   dte: SatDteEmitidos

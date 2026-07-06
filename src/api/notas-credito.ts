@@ -81,6 +81,11 @@ export interface CreateNotaCreditoDto {
   items:              Omit<NcItem, 'id' | 'discountAmount' | 'taxAmount' | 'lineTotal'>[]
   notes?:             string
   felTipoDocumento?:  'NCRE' | 'NABN'   // NCRE (≤60 días) | NABN (>60 días) — regla SAT Guatemala
+  felSerie?:          string
+  felNumero?:         string
+  felAutorizacion?:   string
+  felUrl?:            string
+  felUuid?:           string
   lugarExpedicion?:   string
   facturaExenta?:     boolean
   felFrases?:         Array<{ tipoFrase: number; codigoEscenario: number }>

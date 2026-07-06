@@ -8,7 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
-  SearchOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
+  SearchOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
@@ -23,7 +23,7 @@ import { PAYMENT_TERMS_CONFIG } from '../../../api/compras'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
-import { getEstimates, type Estimate } from '../../../api/facturas'
+import { getEstimates, getInvoices, type Estimate } from '../../../api/facturas'
 import { getUnidadesActivas, type UnidadMedida } from '../../../api/unidades-medida'
 
 const { Title, Text } = Typography
@@ -84,6 +84,20 @@ export default function DteSatVentasPage() {
   const [stepperSuggestion, setStepperSuggestion] = useState<{ name?: string; taxId?: string } | null>(null)
   const [stepperForm]     = Form.useForm()
   const [customerForm]    = Form.useForm()
+  const [originalInvoices, setOriginalInvoices] = useState<{ value: string; label: string }[]>([])
+
+  // ── Batch (registro masivo) ────────────────────────────────────────────────
+  type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
+  interface BatchRow { id: string; label: string; total: number; status: BatchRowStatus; result?: string; error?: string }
+  const [batchOpen,    setBatchOpen]    = useState(false)
+  const [batchRows,    setBatchRows]    = useState<BatchRow[]>([])
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [selectedIds,  setSelectedIds]  = useState<string[]>([])
+  const [batchForm]                     = Form.useForm()
+
+  const isBatchable = (dte: SatDteEmitidos) =>
+    dte.status === 'ready' &&
+    !['NCRE', 'NABN'].includes((dte.tipoDocumento ?? '').toUpperCase())
 
   // ── Carga inicial de catálogos ─────────────────────────────────────────────
   useEffect(() => {
@@ -314,17 +328,21 @@ export default function DteSatVentasPage() {
   const handlePost = async () => {
     if (!stepperDte) return
     const vals = stepperForm.getFieldsValue()
-    if (!vals.accountId) { message.warning('Selecciona la cuenta de ingreso'); return }
+    const isNC = ['NCRE', 'NABN'].includes((stepperDte.tipoDocumento ?? '').toUpperCase())
+    if (!vals.accountId) { message.warning(isNC ? 'Selecciona la cuenta de NC' : 'Selecciona la cuenta de ingreso'); return }
+    if (isNC && !vals.creditNoteReason) { message.warning('Ingresa el motivo de la nota de crédito'); return }
 
     setStepperLoading(true)
     try {
       const res = await postSatEmitidos(stepperDte.id, {
-        accountId:      vals.accountId,
-        taxId:          vals.taxId,
-        accountingDate: vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
-        notes:          vals.notes,
-        estimateId:     vals.estimateId,
-        defaultUnit:    vals.defaultUnit,
+        accountId:         vals.accountId,
+        taxId:             vals.taxId,
+        accountingDate:    vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
+        notes:             vals.notes,
+        estimateId:        vals.estimateId,
+        defaultUnit:       vals.defaultUnit,
+        creditNoteReason:  isNC ? vals.creditNoteReason : undefined,
+        originalInvoiceId: isNC ? vals.originalInvoiceId : undefined,
       })
       // Guardar preferencias para próximas facturas del mismo cliente
       if (stepperCustomer?.id) saveDtePrefs(stepperCustomer.id, vals)
@@ -343,6 +361,80 @@ export default function DteSatVentasPage() {
     getEstimates({ search: customerId, limit: 50, status: 'accepted' })
       .then((res: any) => setEstimates(Array.isArray(res) ? res : (res?.data ?? [])))
       .catch(() => {})
+  }
+
+  const loadOriginalInvoices = (customerId: string) => {
+    getInvoices({ customerId, limit: 100 })
+      .then(res => {
+        const list = res?.data ?? []
+        setOriginalInvoices(
+          list
+            .filter((inv: any) => inv.type !== 'credit_note' && inv.type !== 'advance')
+            .map((inv: any) => ({
+              value: inv.id,
+              label: `${inv.invoiceNumber} — Q ${Number(inv.total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })} (${inv.status})`,
+            }))
+        )
+      })
+      .catch(() => {})
+  }
+
+  // ── Batch: abrir modal ────────────────────────────────────────────────────
+  const openBatchModal = () => {
+    const selected = documents.filter(d => selectedIds.includes(d.id) && isBatchable(d))
+    if (selected.length === 0) { message.warning('Selecciona al menos un DTE Listo para registrar en masa'); return }
+    const rows: typeof batchRows = selected.map(d => ({
+      id: d.id,
+      label: `${d.nombreReceptor ?? d.nitReceptor ?? '—'} · ${d.serie}/${d.numeroDte}`,
+      total: Number(d.total ?? 0),
+      status: 'pending',
+    }))
+    setBatchRows(rows)
+    // Pre-cargar prefs del primer cliente
+    const first = selected.find(d => d.customerId)
+    if (first?.customerId) {
+      try {
+        const raw = localStorage.getItem(`dte_prefs_${first.customerId}`)
+        if (raw) batchForm.setFieldsValue(JSON.parse(raw))
+      } catch { /* silent */ }
+    }
+    setBatchOpen(true)
+  }
+
+  // ── Batch: procesar en masa ───────────────────────────────────────────────
+  const handleBatchPost = async (values: any) => {
+    setBatchRunning(true)
+    let successCount = 0
+    let errorCount = 0
+    for (const row of batchRows) {
+      setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'processing' } : r))
+      try {
+        const res = await postSatEmitidos(row.id, {
+          accountId:   values.accountId,
+          taxId:       values.taxId,
+          defaultUnit: values.defaultUnit,
+        })
+        const invoiceNumber = (res as any)?.invoice?.invoiceNumber ?? ''
+        // Guardar prefs del cliente de este DTE
+        const dte = documents.find(d => d.id === row.id)
+        if (dte?.customerId) saveDtePrefs(dte.customerId, values)
+        setBatchRows(prev => prev.map(r =>
+          r.id === row.id ? { ...r, status: 'ok', result: invoiceNumber } : r))
+        successCount++
+      } catch (err) {
+        const errMsg = getErrorMessage(err, 'Error al registrar')
+        setBatchRows(prev => prev.map(r =>
+          r.id === row.id ? { ...r, status: 'error', error: errMsg } : r))
+        errorCount++
+      }
+    }
+    setBatchRunning(false)
+    if (successCount > 0) {
+      message.success(`${successCount} DTE(s) registrado(s) correctamente`)
+      setSelectedIds([])
+      await loadAll()
+    }
+    if (errorCount > 0) message.error(`${errorCount} DTE(s) fallaron — revisa el detalle`)
   }
 
   const incomeAccounts = accounts.filter(a => {
@@ -607,7 +699,15 @@ export default function DteSatVentasPage() {
 
             <div style={{ padding: '0 24px 8px', minHeight: 200 }}>
               {/* ── Step 0: Detalle del DTE ── */}
-              {stepperStep === 0 && (
+              {stepperStep === 0 && (() => {
+                const isNC0 = ['NCRE', 'NABN'].includes((stepperDte.tipoDocumento ?? '').toUpperCase())
+                return (
+                <>
+                {isNC0 && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
+                    <strong>Nota de Crédito SAT</strong> — Este DTE ({stepperDte.tipoDocumento}) se registrará como Nota de Crédito (NC-XXXX).
+                  </div>
+                )}
                 <Descriptions size="small" column={2} style={{ background: '#f8fafc', padding: 12, borderRadius: 6 }}>
                   <Descriptions.Item label="Tipo">{stepperDte.tipoDocumento ?? 'FACT'}</Descriptions.Item>
                   <Descriptions.Item label="Fecha">
@@ -637,7 +737,9 @@ export default function DteSatVentasPage() {
                     </Space>
                   </Descriptions.Item>
                 </Descriptions>
-              )}
+                </>
+                )
+              })()}
 
               {/* ── Step 1: Resolver cliente ── */}
               {stepperStep === 1 && (
@@ -754,9 +856,16 @@ export default function DteSatVentasPage() {
               )}
 
               {/* ── Step 2: Registrar venta ── */}
-              {stepperStep === 2 && (
+              {stepperStep === 2 && (() => {
+                const isNC2 = ['NCRE', 'NABN'].includes((stepperDte?.tipoDocumento ?? '').toUpperCase())
+                return (
                 <Form form={stepperForm} layout="vertical" size="small">
-                  {!stepperCustomer?.receivableAccountId && (
+                  {isNC2 && (
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#92400e' }}>
+                      <strong>Nota de Crédito</strong> — Se creará como NC-XXXX con saldo acreditado al cliente.
+                    </div>
+                  )}
+                  {!stepperCustomer?.receivableAccountId && !isNC2 && (
                     <Alert
                       type="warning"
                       showIcon
@@ -765,10 +874,24 @@ export default function DteSatVentasPage() {
                       description={<>Para generar la póliza contable, configura la cuenta CxC del cliente en <strong>Ventas → Clientes</strong> y luego usa <em>"Recalcular partida contable"</em> en la factura generada.</>}
                     />
                   )}
+                  {isNC2 && (
+                    <>
+                    <Form.Item label="Factura original que se acredita (opcional)" name="originalInvoiceId">
+                      <Select allowClear showSearch placeholder="Buscar factura del cliente..."
+                        optionFilterProp="label"
+                        options={originalInvoices}
+                        notFoundContent={originalInvoices.length === 0 ? 'Sin facturas — se puede vincular después' : 'No encontrada'} />
+                    </Form.Item>
+                    <Form.Item label="Motivo de la Nota de Crédito" name="creditNoteReason"
+                      rules={[{ required: true, message: 'Describe el motivo de la NC' }]}>
+                      <Input.TextArea rows={2} placeholder="Ej: Devolución de mercadería defectuosa" />
+                    </Form.Item>
+                    </>
+                  )}
                   <Row gutter={12}>
                     <Col span={14}>
-                      <Form.Item label="Cuenta de Ingreso" name="accountId"
-                        rules={[{ required: true, message: 'Selecciona cuenta de ingreso' }]}>
+                      <Form.Item label={isNC2 ? 'Cuenta contable NC' : 'Cuenta de Ingreso'} name="accountId"
+                        rules={[{ required: true, message: isNC2 ? 'Selecciona cuenta de NC' : 'Selecciona cuenta de ingreso' }]}>
                         <Select
                           showSearch
                           placeholder="Buscar cuenta..."
@@ -796,7 +919,7 @@ export default function DteSatVentasPage() {
                       </Form.Item>
                     </Col>
                   </Row>
-                  {estimates.length > 0 && (
+                  {!isNC2 && estimates.length > 0 && (
                     <Form.Item label="Vincular cotización (opcional)" name="estimateId">
                       <Select allowClear placeholder="Seleccionar cotización..."
                         options={estimates.map(e => ({
@@ -809,22 +932,38 @@ export default function DteSatVentasPage() {
                     <Input.TextArea rows={2} placeholder="Descripción del servicio o producto..." />
                   </Form.Item>
                 </Form>
-              )}
+                )
+              })()}
 
               {/* ── Step 3: Éxito ── */}
-              {stepperStep === 3 && stepperResult && (
+              {stepperStep === 3 && stepperResult && (() => {
+                const isNC3 = ['NCRE', 'NABN'].includes((stepperDte?.tipoDocumento ?? '').toUpperCase())
+                const invoiceNumber = (stepperResult.invoice as any)?.invoiceNumber ?? ''
+                const invoiceId = (stepperResult.invoice as any)?.id
+                return (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
                   <CheckCircleOutlined style={{ fontSize: 52, color: '#16a34a', marginBottom: 14 }} />
                   <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>DTE Procesado Correctamente</Text>
                   <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
-                    <div><Text type="secondary">Factura:</Text> <Text strong>{(stepperResult.invoice as any)?.invoiceNumber}</Text></div>
+                    <div>
+                      <Text type="secondary">{isNC3 ? 'Nota de Crédito:' : 'Factura:'}</Text>{' '}
+                      <Text strong>{invoiceNumber}</Text>
+                    </div>
                     {(stepperResult.invoice as any)?.journalEntryId && (
                       <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#16a34a' }}>Generada automáticamente</Text></div>
                     )}
-                    <div><Text type="secondary">Total:</Text> <Text strong>{money(stepperDte.total)}</Text></div>
+                    <div><Text type="secondary">Total:</Text> <Text strong>{money(stepperDte?.total)}</Text></div>
                   </div>
+                  {isNC3 && invoiceId && (
+                    <div style={{ marginTop: 12 }}>
+                      <Button type="link" onClick={() => { navigate(`/ventas/notas-credito/${invoiceId}`); closeStepper() }}>
+                        Ver Nota de Crédito →
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
+                )
+              })()}
             </div>
 
             {/* Footer navegación */}
@@ -844,7 +983,14 @@ export default function DteSatVentasPage() {
                 {stepperStep === 1 && (
                   <Button type="primary" style={{ background: '#1B3A6B' }}
                     disabled={!stepperCustomer || stepperLoading}
-                    onClick={() => { if (stepperCustomer) { loadEstimates(stepperCustomer.id); setStepperStep(2) } }}>
+                    onClick={() => {
+                      if (stepperCustomer) {
+                        const isNC = ['NCRE', 'NABN'].includes((stepperDte?.tipoDocumento ?? '').toUpperCase())
+                        loadEstimates(stepperCustomer.id)
+                        if (isNC) loadOriginalInvoices(stepperCustomer.id)
+                        setStepperStep(2)
+                      }
+                    }}>
                     Siguiente →
                   </Button>
                 )}
@@ -872,6 +1018,110 @@ export default function DteSatVentasPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ─── Batch Modal ──────────────────────────────────────────────────── */}
+      <Modal
+        open={batchOpen}
+        width={680}
+        title={<Space><ThunderboltOutlined style={{ color: '#16a34a' }} />Registro masivo — {batchRows.length} DTE{batchRows.length > 1 ? 's' : ''}</Space>}
+        footer={null}
+        maskClosable={false}
+        onCancel={() => { if (!batchRunning) { setBatchOpen(false); batchForm.resetFields() } }}
+        destroyOnClose
+      >
+        <Form form={batchForm} layout="vertical" size="small" onFinish={handleBatchPost}>
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
+            Los mismos parámetros se aplicarán a todos los DTEs seleccionados. El proceso es secuencial y puedes ver el avance en tiempo real.
+          </div>
+          <Row gutter={12}>
+            <Col span={14}>
+              <Form.Item label="Cuenta de ingreso" name="accountId" rules={[{ required: true, message: 'Selecciona la cuenta de ingreso' }]}>
+                <Select showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
+                  options={incomeAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+              </Form.Item>
+            </Col>
+            <Col span={10}>
+              <Form.Item label="Impuesto IVA" name="taxId" rules={[{ required: true, message: 'Selecciona el impuesto' }]}>
+                <Select allowClear placeholder="IVA 12%..."
+                  options={taxes.map(t => ({ value: t.id, label: t.name }))} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="Unidad de medida (opcional)" name="defaultUnit">
+            <Select allowClear placeholder="UND..."
+              options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))} />
+          </Form.Item>
+
+          {/* Tabla de progreso */}
+          {batchRows.length > 0 && (
+            <Table
+              size="small"
+              dataSource={batchRows}
+              rowKey="id"
+              pagination={false}
+              style={{ marginBottom: 12 }}
+              columns={[
+                {
+                  title: 'DTE',
+                  dataIndex: 'label',
+                  ellipsis: true,
+                  render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
+                },
+                {
+                  title: 'Total',
+                  dataIndex: 'total',
+                  width: 100,
+                  align: 'right' as const,
+                  render: (v: number) => <Text style={{ fontSize: 11 }}>{money(v)}</Text>,
+                },
+                {
+                  title: 'Estado',
+                  key: 'status',
+                  width: 160,
+                  render: (_: unknown, r: typeof batchRows[0]) => {
+                    if (r.status === 'pending')    return <Tag color="default">Pendiente</Tag>
+                    if (r.status === 'processing') return <Tag color="processing">Procesando…</Tag>
+                    if (r.status === 'ok')         return <Tag color="success">✓ {r.result}</Tag>
+                    if (r.status === 'error')      return <Tooltip title={r.error}><Tag color="error">Error</Tag></Tooltip>
+                    return null
+                  },
+                },
+              ]}
+            />
+          )}
+
+          {/* Resumen tras correr */}
+          {!batchRunning && batchRows.some(r => r.status === 'ok' || r.status === 'error') && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontSize: 12 }}>
+              <strong>{batchRows.filter(r => r.status === 'ok').length}</strong> registrado(s) correctamente
+              {batchRows.some(r => r.status === 'error') && (
+                <span style={{ color: '#dc2626', marginLeft: 8 }}>
+                  · <strong>{batchRows.filter(r => r.status === 'error').length}</strong> con error
+                </span>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            {batchRows.every(r => r.status === 'pending') ? (
+              <>
+                <Button onClick={() => { setBatchOpen(false); batchForm.resetFields() }}>Cancelar</Button>
+                <Button type="primary" htmlType="submit" icon={<ThunderboltOutlined />}
+                  style={{ background: '#16a34a', borderColor: '#16a34a' }}>
+                  Registrar {batchRows.length} DTE{batchRows.length > 1 ? 's' : ''}
+                </Button>
+              </>
+            ) : batchRunning ? (
+              <Button disabled loading>Procesando…</Button>
+            ) : (
+              <Button type="primary" style={{ background: '#1B3A6B' }}
+                onClick={() => { setBatchOpen(false); batchForm.resetFields() }}>
+                Cerrar
+              </Button>
+            )}
+          </div>
+        </Form>
       </Modal>
 
       {/* ─── Import Card ──────────────────────────────────────────────────── */}
@@ -968,28 +1218,40 @@ export default function DteSatVentasPage() {
             ),
             children: (
               <Card bordered={false}>
-                <Space wrap style={{ marginBottom: 12 }}>
-                  <Input
-                    allowClear
-                    prefix={<SearchOutlined />}
-                    placeholder="Buscar UUID, NIT, nombre o No. DTE"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    style={{ width: 300 }}
-                    size="small"
-                  />
-                  <Button size="small" type={!statusFilter ? 'primary' : 'default'}
-                    onClick={() => setStatusFilter(undefined)}>
-                    Todos
-                  </Button>
-                  {(Object.entries(statusConfig) as [SatEmitidosStatus, typeof statusConfig[SatEmitidosStatus]][]).map(([key, cfg]) => (
-                    <Button key={key} size="small"
-                      type={statusFilter === key ? 'primary' : 'default'}
-                      onClick={() => setStatusFilter(statusFilter === key ? undefined : key)}>
-                      {cfg.label}{stats[key]?.count ? ` (${stats[key].count})` : ''}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                  <Space wrap>
+                    <Input
+                      allowClear
+                      prefix={<SearchOutlined />}
+                      placeholder="Buscar UUID, NIT, nombre o No. DTE"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      style={{ width: 300 }}
+                      size="small"
+                    />
+                    <Button size="small" type={!statusFilter ? 'primary' : 'default'}
+                      onClick={() => setStatusFilter(undefined)}>
+                      Todos
                     </Button>
-                  ))}
-                </Space>
+                    {(Object.entries(statusConfig) as [SatEmitidosStatus, typeof statusConfig[SatEmitidosStatus]][]).map(([key, cfg]) => (
+                      <Button key={key} size="small"
+                        type={statusFilter === key ? 'primary' : 'default'}
+                        onClick={() => setStatusFilter(statusFilter === key ? undefined : key)}>
+                        {cfg.label}{stats[key]?.count ? ` (${stats[key].count})` : ''}
+                      </Button>
+                    ))}
+                  </Space>
+                  {selectedIds.length > 0 && (
+                    <Button
+                      size="small"
+                      icon={<ThunderboltOutlined />}
+                      style={{ background: '#16a34a', borderColor: '#16a34a', color: '#fff' }}
+                      onClick={openBatchModal}
+                    >
+                      Registrar {selectedIds.length} seleccionado{selectedIds.length > 1 ? 's' : ''}
+                    </Button>
+                  )}
+                </div>
                 <Table
                   columns={cols}
                   dataSource={documents}
@@ -999,6 +1261,11 @@ export default function DteSatVentasPage() {
                   scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
                   pagination={{ pageSize: 50, showTotal: t => `${t} documentos`, showSizeChanger: false }}
                   rowClassName={r => r.status === 'duplicate' ? 'ant-table-row-duplicate' : ''}
+                  rowSelection={{
+                    selectedRowKeys: selectedIds,
+                    onChange: keys => setSelectedIds(keys as string[]),
+                    getCheckboxProps: r => ({ disabled: !isBatchable(r) }),
+                  }}
                 />
               </Card>
             ),
