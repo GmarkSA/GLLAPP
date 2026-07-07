@@ -13,7 +13,7 @@ import {
   SecurityScanOutlined, ApiOutlined, BellOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
-  CreditCardOutlined, LockOutlined,
+  CreditCardOutlined, LockOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
@@ -31,6 +31,7 @@ import {
 } from '../../api/monedas'
 import { getAccounts, type Account } from '../../api/catalogo'
 import { useCompanyStore } from '../../store/companyStore'
+import { companiesApi } from '../../api/companies'
 
 const { Sider, Content } = Layout
 const { Title, Text } = Typography
@@ -45,7 +46,8 @@ const sections = [
   { key: 'librosSAT',       icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
   { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
   { key: 'accountDefaults', icon: <ApiOutlined />,          label: 'Cuentas por defecto' },
-  { key: 'users',           icon: <TeamOutlined />,         label: 'Usuarios y roles' },
+  { key: 'preferences',    icon: <SettingOutlined />,      label: 'Preferencias' },
+  { key: 'users',          icon: <TeamOutlined />,          label: 'Usuarios y roles' },
   { key: 'subscription',    icon: <CreditCardOutlined />,   label: 'Suscripción y Facturación' },
   { key: 'notifications',   icon: <BellOutlined />,         label: 'Notificaciones' },
   { key: 'integrations',    icon: <ApiOutlined />,          label: 'Integraciones' },
@@ -986,6 +988,75 @@ function AccountDefaultsSection() {
   )
 }
 
+function PreferencesSection() {
+  const { activeCompany } = useCompanyStore()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [preventDuplicates, setPreventDuplicates] = useState(false)
+
+  useEffect(() => {
+    if (!activeCompany?.id) { setLoading(false); return }
+    companiesApi.getSettings(activeCompany.id)
+      .then(s => setPreventDuplicates(!!s?.settingsJson?.preventDuplicateInvoices))
+      .catch(() => null)
+      .finally(() => setLoading(false))
+  }, [activeCompany?.id])
+
+  const handleSave = async () => {
+    if (!activeCompany?.id) return
+    setSaving(true)
+    try {
+      const current = await companiesApi.getSettings(activeCompany.id).catch(() => ({} as any))
+      await companiesApi.updateSettings(activeCompany.id, {
+        settingsJson: { ...(current?.settingsJson ?? {}), preventDuplicateInvoices: preventDuplicates },
+      })
+      message.success('Preferencias guardadas correctamente')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Spin spinning={loading}>
+      <div style={{ maxWidth: 860 }}>
+        <div style={{ marginBottom: 28 }}>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Preferencias</Title>
+          <Text type="secondary">Opciones de comportamiento del sistema para esta empresa</Text>
+        </div>
+
+        <SectionCard title="Documentos" icon={<FileTextOutlined />}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '8px 0' }}>
+            <Switch checked={preventDuplicates} onChange={setPreventDuplicates} />
+            <div>
+              <Text strong style={{ fontSize: 14 }}>No permitir facturas duplicadas (misma Serie y Número)</Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Al activar esta opción, el sistema bloqueará el registro de una factura de compra o venta
+                si ya existe otra con la misma Serie y Número para el mismo proveedor o cliente.
+              </Text>
+            </div>
+          </div>
+        </SectionCard>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <Button
+            type="primary"
+            size="large"
+            icon={<SaveOutlined />}
+            loading={saving}
+            onClick={handleSave}
+            style={{ background: '#1B3A6B', minWidth: 160 }}
+          >
+            Guardar cambios
+          </Button>
+        </div>
+      </div>
+    </Spin>
+  )
+}
+
 function ComingSoonSection({ title, description }: { title: string; description: string }) {
   return (
     <div style={{ maxWidth: 860 }}>
@@ -1082,6 +1153,8 @@ export default function ConfiguracionPage() {
         return <LibroSATPage />
       case 'accountDefaults':
         return <AccountDefaultsSection />
+      case 'preferences':
+        return <PreferencesSection />
       case 'users':
         navigate('/configuracion/usuarios')
         return null
