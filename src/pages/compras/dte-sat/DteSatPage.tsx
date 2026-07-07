@@ -104,12 +104,19 @@ export default function DteSatPage() {
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
-  interface BatchRow { id: string; label: string; total: number; moneda: string; status: BatchRowStatus; result?: string; error?: string }
-  const [batchOpen,  setBatchOpen]  = useState(false)
-  const [batchRows,  setBatchRows]  = useState<BatchRow[]>([])
+  interface BatchRow {
+    id: string; label: string; total: number; moneda: string; status: BatchRowStatus
+    accountId?: string; accountLabel?: string
+    taxId?: string; taxLabel?: string
+    paymentTerms?: string; paymentTermsLabel?: string
+    defaultUnit?: string
+    result?: string; error?: string; missing?: string
+  }
+  const [batchOpen,    setBatchOpen]    = useState(false)
+  const [batchRows,    setBatchRows]    = useState<BatchRow[]>([])
   const [batchRunning, setBatchRunning] = useState(false)
+  const [batchLoading, setBatchLoading] = useState(false)
   const [selectedIds,  setSelectedIds]  = useState<string[]>([])
-  const [batchForm]                     = Form.useForm()
 
   const isBatchable = (dte: SatDte) =>
     dte.status === 'ready' &&
@@ -518,43 +525,69 @@ export default function DteSatPage() {
   }
 
   // ── Registro masivo ────────────────────────────────────────────────────────
-  const openBatchModal = () => {
+  const openBatchModal = async () => {
     const dtes = documents.filter(d => selectedIds.includes(d.id) && isBatchable(d))
     if (!dtes.length) { message.warning('Selecciona al menos un DTE listo para procesar'); return }
-    // Pre-llenar con preferencias del primer vendorId seleccionado
-    const firstVendorId = dtes[0].vendorId
-    if (firstVendorId) {
-      try {
-        const raw = localStorage.getItem(`dte_prefs_${firstVendorId}`)
-        if (raw) batchForm.setFieldsValue(JSON.parse(raw))
-      } catch { /* silent */ }
-    }
-    setBatchRows(dtes.map(d => ({
-      id: d.id,
-      label: `${d.nombreEmisor ?? 'Sin nombre'} · ${d.serie ?? '—'}/${d.numeroDte ?? '—'}`,
-      total: Number(d.total),
-      moneda: d.moneda ?? 'GTQ',
-      status: 'pending',
-    })))
+    setBatchLoading(true)
     setBatchOpen(true)
+    const rows: BatchRow[] = []
+    for (const d of dtes) {
+      let accountId: string | undefined
+      let taxId: string | undefined
+      let paymentTerms: string | undefined
+      // 1. Preferencias guardadas de sesiones anteriores (más recientes)
+      if (d.vendorId) {
+        try {
+          const raw = localStorage.getItem(`dte_prefs_${d.vendorId}`)
+          if (raw) { const p = JSON.parse(raw); accountId = p.accountId; taxId = p.taxId }
+        } catch {}
+      }
+      // 2. Datos maestros del proveedor como fallback
+      if (d.vendorId && (!accountId || !paymentTerms)) {
+        try {
+          const v = await getVendor(d.vendorId) as any
+          if (!accountId && v?.expenseAccountId) accountId = v.expenseAccountId
+          if (!taxId && v?.defaultPurchaseTaxId) taxId = v.defaultPurchaseTaxId
+          paymentTerms = v?.paymentTerms ?? 'immediate'
+        } catch {}
+      }
+      const accObj = accounts.find(a => a.id === accountId)
+      const taxObj = taxes.find(t => t.id === taxId)
+      rows.push({
+        id: d.id,
+        label: `${d.nombreEmisor ?? 'Sin nombre'} · ${d.serie ?? '—'}/${d.numeroDte ?? '—'}`,
+        total: Number(d.total),
+        moneda: d.moneda ?? 'GTQ',
+        status: 'pending',
+        accountId,
+        accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
+        taxId,
+        taxLabel: taxObj ? `${taxObj.code} (${taxObj.rate}%)` : undefined,
+        paymentTerms: paymentTerms ?? 'immediate',
+        paymentTermsLabel: PAYMENT_TERMS_CONFIG[(paymentTerms ?? 'immediate') as keyof typeof PAYMENT_TERMS_CONFIG] ?? paymentTerms ?? 'Inmediato',
+        missing: !accountId ? 'Falta cuenta de gasto — configúrala en el maestro del proveedor' : undefined,
+      })
+    }
+    setBatchRows(rows)
+    setBatchLoading(false)
   }
 
-  const handleBatchPost = async (values: { taxId?: string; accountId?: string; paymentTerms: string; defaultUnit?: string }) => {
+  const handleBatchPost = async () => {
+    const processable = batchRows.filter(r => !r.missing)
+    if (!processable.length) { message.error('Ningún DTE tiene datos completos para procesar'); return }
     setBatchRunning(true)
-    const rows = [...batchRows]
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i]
+    for (const row of batchRows) {
+      if (row.missing) continue
       setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'processing' } : r))
       try {
         const dte = documents.find(d => d.id === row.id)!
         const result = await postSatDte(row.id, {
-          taxId:        values.taxId,
-          accountId:    values.accountId,
-          paymentTerms: values.paymentTerms,
-          defaultUnit:  values.defaultUnit,
-          notes:        `Registro masivo DTE SAT — ${row.label}`,
+          taxId:        row.taxId,
+          accountId:    row.accountId,
+          paymentTerms: row.paymentTerms ?? 'immediate',
+          defaultUnit:  row.defaultUnit,
         })
-        if (dte.vendorId) saveDtePrefs(dte.vendorId, values)
+        if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId })
         setBatchRows(prev => prev.map(r => r.id === row.id
           ? { ...r, status: 'ok', result: result.invoice?.invoiceNumber ?? 'OK' }
           : r))
@@ -1224,104 +1257,146 @@ export default function DteSatPage() {
       </Modal>
 
       {/* ── Modal Registro Masivo ─────────────────────────────────────────── */}
-      <Modal
-        open={batchOpen}
-        title={<Space><ThunderboltOutlined style={{ color: '#16a34a' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
-        width={720}
-        footer={null}
-        onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
-        maskClosable={false}
-        destroyOnClose
-      >
-        {/* Formulario de parámetros compartidos */}
-        {batchRows.every(r => r.status === 'pending') && (
-          <Form form={batchForm} layout="vertical" size="small" onFinish={handleBatchPost} style={{ marginBottom: 16 }}>
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '12px 16px', marginBottom: 14 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Estos parámetros se aplican a todos los documentos seleccionados. Los DTEs de combustible y Notas de Crédito deben registrarse individualmente.
-              </Text>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Form.Item name="taxId" label="Impuesto IVA" rules={[{ required: true, message: 'Selecciona el impuesto' }]}>
-                <Select placeholder="IVA12 — 12%"
-                  options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
-              </Form.Item>
-              <Form.Item name="paymentTerms" label="Términos de pago" rules={[{ required: true, message: 'Requerido' }]}>
-                <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
-              </Form.Item>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Form.Item name="accountId" label="Cuenta de gasto" rules={[{ required: true, message: 'Selecciona la cuenta' }]}>
-                <Select showSearch allowClear placeholder="6101 — Compras locales"
-                  options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
-                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-              </Form.Item>
-              <Form.Item name="defaultUnit" label="Unidad de medida">
-                <Select allowClear placeholder="UND"
-                  options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))} />
-              </Form.Item>
-            </div>
-            <Button type="primary" htmlType="submit" icon={<ThunderboltOutlined />}
-              style={{ background: '#16a34a', width: '100%' }}>
-              Procesar {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}
-            </Button>
-          </Form>
-        )}
+      {(() => {
+        const expenseAccounts = accounts.filter(a => !a.isHeader && a.isActive &&
+          (a.code?.startsWith('6') || (a as any).type === 'expense'))
+        const allDone = batchRows.length > 0 && batchRows.every(r => r.status === 'ok' || r.status === 'error' || r.missing)
+        const canProcess = !batchRunning && batchRows.some(r => !r.missing && r.accountId && r.status === 'pending')
+        return (
+        <Modal
+          open={batchOpen}
+          title={<Space><ThunderboltOutlined style={{ color: '#16a34a' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
+          width={820}
+          footer={null}
+          onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
+          maskClosable={false}
+          destroyOnClose
+        >
+          {batchLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin />  <Text type="secondary" style={{ marginLeft: 8 }}>Cargando datos de proveedores…</Text></div>
+          ) : (
+            <>
+              {/* Parámetros compartidos: IVA + Términos + Unidad */}
+              {!allDone && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px', marginBottom: 12,
+                  background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Impuesto IVA <span style={{ color: '#ef4444' }}>*</span></div>
+                    <Select size="small" style={{ width: '100%' }} placeholder="IVA12 — 12%"
+                      defaultValue={taxes.find(t => t.code === 'IVA12')?.id}
+                      onChange={val => setBatchRows(prev => prev.map(r => ({
+                        ...r, taxId: val, taxLabel: taxes.find(t => t.id === val) ? `${taxes.find(t => t.id === val)!.code} (${taxes.find(t => t.id === val)!.rate}%)` : undefined,
+                      })))}
+                      options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Términos de pago <span style={{ color: '#ef4444' }}>*</span></div>
+                    <Select size="small" style={{ width: '100%' }} placeholder="Seleccionar…"
+                      onChange={val => setBatchRows(prev => prev.map(r => ({
+                        ...r, paymentTerms: val, paymentTermsLabel: PAYMENT_TERMS_CONFIG[val as keyof typeof PAYMENT_TERMS_CONFIG] ?? val,
+                      })))}
+                      options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Unidad (opcional)</div>
+                    <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND"
+                      onChange={val => setBatchRows(prev => prev.map(r => ({ ...r, defaultUnit: val })))}
+                      options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))} />
+                  </div>
+                </div>
+              )}
 
-        {/* Tabla de progreso */}
-        {batchRows.some(r => r.status !== 'pending') && (
-          <div style={{ marginBottom: 12 }}>
-            {batchRows.every(r => r.status === 'ok' || r.status === 'error') && !batchRunning && (
-              <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 12 }}>
-                <Text strong style={{ color: '#16a34a' }}>
-                  ✓ {batchRows.filter(r => r.status === 'ok').length} registrado{batchRows.filter(r => r.status === 'ok').length !== 1 ? 's' : ''}
-                </Text>
-                {batchRows.some(r => r.status === 'error') && (
-                  <Text style={{ color: '#dc2626', marginLeft: 12 }}>
-                    · {batchRows.filter(r => r.status === 'error').length} con error
-                  </Text>
-                )}
-              </div>
-            )}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600 }}>Documento</th>
-                  <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>Total</th>
-                  <th style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 600, width: 100 }}>Estado</th>
-                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600 }}>Resultado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {batchRows.map(row => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '6px 10px' }}>{row.label}</td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace' }}>{money(row.total, row.moneda)}</td>
-                    <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                      {row.status === 'pending'    && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
-                      {row.status === 'processing' && <Tag color="processing" style={{ fontSize: 10 }}>Procesando…</Tag>}
-                      {row.status === 'ok'         && <Tag color="success" style={{ fontSize: 10 }}>✓ OK</Tag>}
-                      {row.status === 'error'      && <Tag color="error" style={{ fontSize: 10 }}>✗ Error</Tag>}
-                    </td>
-                    <td style={{ padding: '6px 10px', color: row.status === 'error' ? '#dc2626' : '#16a34a', fontFamily: row.status === 'ok' ? 'monospace' : undefined }}>
-                      {row.result ?? row.error ?? '—'}
-                    </td>
+              {/* Tabla con cuenta editable por fila */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Proveedor / DTE</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 220 }}>Cuenta de gasto</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 100 }}>Total</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 120 }}>Estado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {batchRows.map(row => (
+                    <tr key={row.id} style={{ borderBottom: '1px solid #f0f0f0', background: row.missing ? '#fff7ed' : undefined }}>
+                      <td style={{ padding: '6px 10px' }}>
+                        <Text style={{ fontSize: 12 }}>{row.label}</Text>
+                      </td>
+                      <td style={{ padding: '4px 10px' }}>
+                        {row.status === 'pending' ? (
+                          <Select
+                            size="small"
+                            style={{ width: '100%' }}
+                            showSearch
+                            placeholder="Seleccionar cuenta…"
+                            optionFilterProp="label"
+                            value={row.accountId}
+                            status={!row.accountId ? 'error' : undefined}
+                            onChange={val => {
+                              const acc = expenseAccounts.find(a => a.id === val)
+                              setBatchRows(prev => prev.map(r => r.id === row.id
+                                ? { ...r, accountId: val, accountLabel: acc ? `${acc.code} — ${acc.name}` : val, missing: undefined }
+                                : r))
+                            }}
+                            options={expenseAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountLabel ?? '—'}</Text>
+                        )}
+                        {row.missing && row.status === 'pending' && (
+                          <div style={{ color: '#d97706', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                        {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
+                        {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
+                        {row.status === 'processing'              && <Tag color="processing" style={{ fontSize: 10 }}>Procesando…</Tag>}
+                        {row.status === 'ok'                      && <Tag color="success" style={{ fontSize: 10 }}>✓ {row.result}</Tag>}
+                        {row.status === 'error'                   && <Tooltip title={row.error}><Tag color="error" style={{ fontSize: 10 }}>✗ Error</Tag></Tooltip>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-        {batchRows.every(r => r.status === 'ok' || r.status === 'error') && !batchRunning && (
-          <div style={{ textAlign: 'right' }}>
-            <Button type="primary" style={{ background: '#1B3A6B' }}
-              onClick={() => { setBatchOpen(false); setBatchRows([]) }}>
-              Cerrar
-            </Button>
-          </div>
-        )}
-      </Modal>
+              {/* Resumen + botones */}
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  {batchRows.filter(r => r.missing).length > 0 && (
+                    <Text type="warning" style={{ fontSize: 12 }}>
+                      {batchRows.filter(r => r.missing).length} sin cuenta — se omitirán
+                    </Text>
+                  )}
+                  {allDone && (
+                    <Text style={{ fontSize: 12, color: '#16a34a' }}>
+                      ✓ {batchRows.filter(r => r.status === 'ok').length} registrado{batchRows.filter(r => r.status === 'ok').length !== 1 ? 's' : ''}
+                      {batchRows.some(r => r.status === 'error') && <span style={{ color: '#dc2626' }}> · {batchRows.filter(r => r.status === 'error').length} con error</span>}
+                    </Text>
+                  )}
+                </div>
+                <Space>
+                  {!allDone && <Button onClick={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}>Cancelar</Button>}
+                  {!allDone ? (
+                    <Button type="primary" icon={<ThunderboltOutlined />} loading={batchRunning}
+                      disabled={!canProcess}
+                      style={{ background: canProcess ? '#16a34a' : undefined, borderColor: canProcess ? '#16a34a' : undefined }}
+                      onClick={handleBatchPost}>
+                      Registrar {batchRows.filter(r => !r.missing && r.accountId).length} DTE{batchRows.filter(r => !r.missing && r.accountId).length !== 1 ? 's' : ''}
+                    </Button>
+                  ) : (
+                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                      onClick={() => { setBatchOpen(false); setBatchRows([]) }}>
+                      Cerrar
+                    </Button>
+                  )}
+                </Space>
+              </div>
+            </>
+          )}
+        </Modal>
+        )
+      })()}
 
       {/* Modal — Crear proveedor desde DTE SAT */}
       <Modal
