@@ -8,6 +8,7 @@ import {
   SaveOutlined, SendOutlined, HomeOutlined,
   SafetyCertificateOutlined, RollbackOutlined,
   WarningOutlined, CheckCircleOutlined, InfoCircleOutlined,
+  GlobalOutlined, LinkOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -16,7 +17,7 @@ import {
   type CreateNotaCreditoDto,
 } from '../../../api/notas-credito'
 import { getCustomers } from '../../../api/contactos'
-import { FEL_TIPOS_FRASE } from '../../../api/facturas'
+import { FEL_TIPOS_FRASE, FEL_TIPOS_DOCUMENTO } from '../../../api/facturas'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import api from '../../../api/axios'
 import LineItemsEditor, {
@@ -64,6 +65,7 @@ export default function NotaCreditoFormPage() {
   const [selectedInvoice,    setSelectedInvoice]    = useState<InvoiceOption | null>(null)
   const [docType,            setDocType]            = useState<'NCRE' | 'NABN'>('NCRE')
   const [diasTranscurridos,  setDiasTranscurridos]  = useState<number | null>(null)
+  const [felCertResult,      setFelCertResult]      = useState<{ uuid?: string; serie?: string; numero?: string; url?: string } | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -86,16 +88,23 @@ export default function NotaCreditoFormPage() {
         await fetchInvoices(nc.customerId)
 
         form.setFieldsValue({
-          customerId:       nc.customerId,
+          customerId:        nc.customerId,
           originalInvoiceId: nc.originalInvoiceId,
-          invoiceDate:      nc.invoiceDate ? dayjs(nc.invoiceDate) : dayjs(),
-          reason:           nc.creditNoteReason ?? '',
-          notes:            nc.notes ?? '',
-          lugarExpedicion:  nc.lugarExpedicion ?? '',
-          facturaExenta:    nc.facturaExenta ?? false,
+          invoiceDate:       nc.invoiceDate ? dayjs(nc.invoiceDate) : dayjs(),
+          reason:            nc.creditNoteReason ?? '',
+          notes:             nc.notes ?? '',
+          lugarExpedicion:   nc.lugarExpedicion ?? '',
+          facturaExenta:     nc.facturaExenta ?? false,
+          felSerie:          nc.felSerie ?? '',
+          felNumero:         nc.felNumero ?? '',
+          felAutorizacion:   nc.felAutorizacion ?? '',
+          felUrl:            nc.felUrl ?? '',
+          felUuid:           nc.felUuid ?? '',
+          felCertificadaAt:  nc.felCertificadaAt ? dayjs(nc.felCertificadaAt) : undefined,
         })
         setIsExenta(nc.facturaExenta ?? false)
         setDocType((nc.felTipoDocumento as 'NCRE' | 'NABN') ?? 'NCRE')
+        if (nc.felUuid) setFelCertResult({ uuid: nc.felUuid, serie: nc.felSerie, numero: nc.felNumero, url: nc.felUrl })
 
         if (nc.items?.length) {
           setItems(nc.items.map((it: any) => newLineItem({
@@ -246,6 +255,11 @@ export default function NotaCreditoFormPage() {
       facturaExenta:     isExenta,
       felTipoDocumento:  docType,
       felFrases,
+      felSerie:          vals.felSerie || undefined,
+      felNumero:         vals.felNumero || undefined,
+      felAutorizacion:   vals.felAutorizacion || undefined,
+      felUrl:            vals.felUrl || undefined,
+      felUuid:           vals.felUuid || undefined,
       items: items.map(it => ({
         productId:       it.productId || undefined,
         description:     it.description,
@@ -295,7 +309,13 @@ export default function NotaCreditoFormPage() {
         ncId = nc.id
       }
       const emitted = await emitirNotaCredito(ncId)
-      message.success(`${docType} ${emitted.invoiceNumber} emitida exitosamente`)
+      if (emitted.felUuid) {
+        setFelCertResult({ uuid: emitted.felUuid, serie: emitted.felSerie, numero: emitted.felNumero, url: emitted.felUrl })
+        form.setFieldsValue({ felUuid: emitted.felUuid, felSerie: emitted.felSerie, felNumero: emitted.felNumero, felAutorizacion: emitted.felAutorizacion, felUrl: emitted.felUrl })
+        message.success(`¡${docType} certificada ante SAT! UUID: ${emitted.felUuid?.substring(0, 8)}...`)
+      } else {
+        message.success(`${docType} ${emitted.invoiceNumber} emitida exitosamente`)
+      }
       navigate(`/ventas/notas-credito/${emitted.id}`)
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al emitir')
@@ -349,6 +369,9 @@ export default function NotaCreditoFormPage() {
       />
     )
   }
+
+  const watchUuid  = Form.useWatch('felUuid',  form)
+  const watchSerie = Form.useWatch('felSerie', form)
 
   const isNabn = docType === 'NABN'
 
@@ -478,9 +501,24 @@ export default function NotaCreditoFormPage() {
             </Form.Item>
           </div>
 
-          {/* FEL config (fusionado) */}
+          {/* FEL — datos pre-emisión */}
           <div style={{ borderTop: '1px dashed #e5e7eb', paddingTop: 6, marginTop: 4 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 10px', alignItems: 'end' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <SafetyCertificateOutlined style={{ color: '#1B3A6B', fontSize: 12 }} />
+              <span style={{ color: '#1B3A6B', fontWeight: 600, fontSize: 12 }}>
+                Datos FEL — Factura Electrónica SAT Guatemala
+              </span>
+              <Tag color="blue" style={{ fontSize: 10 }}>SAT</Tag>
+              {watchSerie && <Tag color="green" style={{ fontSize: 10 }}>Certificada</Tag>}
+            </div>
+
+            {/* Fila 1: Tipo Doc (read-only) | Lugar Expedición | Frases | Exenta */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 10px', alignItems: 'end' }}>
+              <Form.Item label="Tipo Documento" style={{ marginBottom: 8 }}>
+                <Tag color={isNabn ? 'orange' : 'blue'} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4 }}>
+                  {docType} — {isNabn ? 'Nota de Abono' : 'Nota de Crédito'}
+                </Tag>
+              </Form.Item>
               <Form.Item name="lugarExpedicion" label="Lugar de Expedición" style={{ marginBottom: 8 }}>
                 <Input placeholder="Ciudad de Guatemala" />
               </Form.Item>
@@ -496,6 +534,47 @@ export default function NotaCreditoFormPage() {
                 </Checkbox>
               </Form.Item>
             </div>
+
+            {/* Fila 2: Serie | Número SAT | Autorización | Fecha Certificación */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 10px' }}>
+              <Form.Item name="felSerie" label="Serie FEL" style={{ marginBottom: 8 }}>
+                <Input placeholder="Serie certificador" />
+              </Form.Item>
+              <Form.Item name="felNumero" label="Número SAT" style={{ marginBottom: 8 }}>
+                <Input placeholder="Número SAT" />
+              </Form.Item>
+              <Form.Item name="felAutorizacion" label="Autorización" style={{ marginBottom: 8 }}>
+                <Input placeholder="No. autorización SAT" />
+              </Form.Item>
+              <Form.Item name="felCertificadaAt" label="Fecha Certificación" style={{ marginBottom: 8 }}>
+                <DatePicker showTime style={{ width: '100%' }} format="DD/MM/YY HH:mm" />
+              </Form.Item>
+            </div>
+
+            {/* Fila 3: UUID | URL Verificación */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Form.Item name="felUuid" label="UUID" style={{ marginBottom: 8 }}>
+                <Input placeholder="UUID SAT" style={{ fontFamily: 'monospace', fontSize: 11 }} />
+              </Form.Item>
+              <Form.Item name="felUrl" label="URL Verificación" style={{ marginBottom: 4 }}>
+                <Input placeholder="https://report.feel.com.gt/..." prefix={<GlobalOutlined style={{ color: '#8c8c8c' }} />} />
+              </Form.Item>
+            </div>
+
+            {/* Link SAT cuando está certificada */}
+            {(felCertResult?.uuid || watchUuid) && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                {(felCertResult?.url || form.getFieldValue('felUrl')) && (
+                  <a href={felCertResult?.url || form.getFieldValue('felUrl')} target="_blank" rel="noreferrer"
+                    style={{ fontSize: 11, color: '#1B3A6B' }}>
+                    <LinkOutlined /> Ver en SAT
+                  </a>
+                )}
+                <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+                  UUID: {felCertResult?.uuid || watchUuid}
+                </span>
+              </div>
+            )}
           </div>
         </Card>
 

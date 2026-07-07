@@ -7,14 +7,14 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
-  SearchOutlined, SyncOutlined, UserAddOutlined, WarningOutlined,
+  SearchOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatDteVendor, deleteSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
-  getPurchaseOrders, postSatDte,
+  getPurchaseOrders, getBills, postSatDte,
   resolveSatDteVendor, resubirR2SatDte,
   startSatDteImport, syncSatDteJob,
   type PurchaseOrder, type SatDte, type SatDteStatus, type SatImportJob,
@@ -96,9 +96,31 @@ export default function DteSatPage() {
   const [stepperResult, setStepperResult]           = useState<{ invoice: any; dte: SatDte } | null>(null)
   const [stepperForm]                               = Form.useForm()
   const [stepperVendorForm]                         = Form.useForm()
+  const [stepperVendorPayableMissing, setStepperVendorPayableMissing] = useState(false)
   const [vendors, setVendors] = useState<{ value: string; label: string; type?: string }[]>([])
   const [unidades, setUnidades] = useState<UnidadMedida[]>([])
   const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
+  const [originalBills, setOriginalBills] = useState<{ value: string; label: string }[]>([])
+
+  // ── Batch (registro masivo) ────────────────────────────────────────────────
+  type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
+  interface BatchRow {
+    id: string; label: string; total: number; moneda: string; status: BatchRowStatus
+    accountId?: string; accountLabel?: string
+    taxId?: string; taxLabel?: string
+    paymentTerms?: string; paymentTermsLabel?: string
+    defaultUnit?: string
+    result?: string; error?: string; missing?: string
+  }
+  const [batchOpen,    setBatchOpen]    = useState(false)
+  const [batchRows,    setBatchRows]    = useState<BatchRow[]>([])
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchLoading, setBatchLoading] = useState(false)
+  const [selectedIds,  setSelectedIds]  = useState<string[]>([])
+
+  const isBatchable = (dte: SatDte) =>
+    dte.status === 'ready' &&
+    !['NCRE', 'NABN'].includes(((dte as any).tipoDocumento ?? '').toUpperCase())
 
   // ── Cuentas e impuestos ────────────────────────────────────────────────────
   useEffect(() => {
@@ -389,7 +411,10 @@ export default function DteSatPage() {
         if (vendor?.paymentTerms)        vendorPaymentTerms    = vendor.paymentTerms
         if (vendor?.expenseAccountId)    vendorExpenseAccountId = vendor.expenseAccountId
         if (vendor?.defaultPurchaseTaxId) vendorDefaultTaxId   = vendor.defaultPurchaseTaxId
-      } catch { /* usa defaults como fallback */ }
+        setStepperVendorPayableMissing(!vendor?.payableAccountId)
+      } catch { setStepperVendorPayableMissing(false) }
+    } else {
+      setStepperVendorPayableMissing(false)
     }
     stepperForm.setFieldsValue({
       taxId:           vendorDefaultTaxId,
@@ -428,6 +453,7 @@ export default function DteSatPage() {
         paymentTerms:        values.paymentTerms,
       })
       if ((result as any)?.dte) setStepperDte((result as any).dte as SatDte)
+      setStepperVendorPayableMissing(!values.payableAccountId)
       message.success('Proveedor creado y vinculado')
       await load(true)
     } catch (err: unknown) {
@@ -435,6 +461,22 @@ export default function DteSatPage() {
     } finally {
       setStepperLoading(false)
     }
+  }
+
+  const loadOriginalBills = (vendorId: string) => {
+    getBills({ vendorId, limit: 100 })
+      .then(res => {
+        const list = res?.data ?? []
+        setOriginalBills(
+          list
+            .filter((b: any) => b.invoiceType !== 'credit_note')
+            .map((b: any) => ({
+              value: b.id,
+              label: `${b.invoiceNumber} — Q ${Number(b.total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })} (${b.status})`,
+            }))
+        )
+      })
+      .catch(() => {})
   }
 
   const handleEnterOcStep = async () => {
@@ -449,10 +491,12 @@ export default function DteSatPage() {
   const handleStepperPost = async (values: {
     concepto: string; taxId?: string; accountId?: string; paymentTerms: string
     accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; defaultUnit?: string
+    originalInvoiceId?: string; creditNoteReason?: string
   }) => {
     if (!stepperDte) return
     setStepperLoading(true)
     try {
+      const isNC = ['NCRE', 'NABN'].includes(((stepperDte as any).tipoDocumento ?? '').toUpperCase())
       const isReimbursement = stepperOcChoice === 'reimbursement'
       const result = await postSatDte(stepperDte.id, {
         taxId:               values.taxId,
@@ -460,11 +504,13 @@ export default function DteSatPage() {
         paymentTerms:        values.paymentTerms,
         accountingDate:      values.accountingDate?.format('YYYY-MM-DD'),
         notes:               values.concepto,
-        purchaseOrderId:     isReimbursement ? undefined : stepperOcId,
+        purchaseOrderId:     isReimbursement || isNC ? undefined : stepperOcId,
         isExpenseReimbursement: isReimbursement,
         employeeId:          isReimbursement ? values.employeeId : undefined,
         idpAccountId:        values.idpAccountId,
         defaultUnit:         values.defaultUnit,
+        originalInvoiceId:   isNC ? values.originalInvoiceId : undefined,
+        creditNoteReason:    isNC ? values.creditNoteReason : undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
       setStepperResult(result)
@@ -476,6 +522,84 @@ export default function DteSatPage() {
     } finally {
       setStepperLoading(false)
     }
+  }
+
+  // ── Registro masivo ────────────────────────────────────────────────────────
+  const openBatchModal = async () => {
+    const dtes = documents.filter(d => selectedIds.includes(d.id) && isBatchable(d))
+    if (!dtes.length) { message.warning('Selecciona al menos un DTE listo para procesar'); return }
+    setBatchLoading(true)
+    setBatchOpen(true)
+    const rows: BatchRow[] = []
+    for (const d of dtes) {
+      let accountId: string | undefined
+      let taxId: string | undefined
+      let paymentTerms: string | undefined
+      // 1. Preferencias guardadas de sesiones anteriores (más recientes)
+      if (d.vendorId) {
+        try {
+          const raw = localStorage.getItem(`dte_prefs_${d.vendorId}`)
+          if (raw) { const p = JSON.parse(raw); accountId = p.accountId; taxId = p.taxId }
+        } catch {}
+      }
+      // 2. Datos maestros del proveedor como fallback
+      if (d.vendorId && (!accountId || !paymentTerms)) {
+        try {
+          const v = await getVendor(d.vendorId) as any
+          if (!accountId && v?.expenseAccountId) accountId = v.expenseAccountId
+          if (!taxId && v?.defaultPurchaseTaxId) taxId = v.defaultPurchaseTaxId
+          paymentTerms = v?.paymentTerms ?? 'immediate'
+        } catch {}
+      }
+      const accObj = accounts.find(a => a.id === accountId)
+      const taxObj = taxes.find(t => t.id === taxId)
+      rows.push({
+        id: d.id,
+        label: `${d.nombreEmisor ?? 'Sin nombre'} · ${d.serie ?? '—'}/${d.numeroDte ?? '—'}`,
+        total: Number(d.total),
+        moneda: d.moneda ?? 'GTQ',
+        status: 'pending',
+        accountId,
+        accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
+        taxId,
+        taxLabel: taxObj ? `${taxObj.code} (${taxObj.rate}%)` : undefined,
+        paymentTerms: paymentTerms ?? 'immediate',
+        paymentTermsLabel: PAYMENT_TERMS_CONFIG[(paymentTerms ?? 'immediate') as keyof typeof PAYMENT_TERMS_CONFIG] ?? paymentTerms ?? 'Inmediato',
+        missing: !accountId ? 'Falta cuenta de gasto — configúrala en el maestro del proveedor' : undefined,
+      })
+    }
+    setBatchRows(rows)
+    setBatchLoading(false)
+  }
+
+  const handleBatchPost = async () => {
+    const processable = batchRows.filter(r => !r.missing)
+    if (!processable.length) { message.error('Ningún DTE tiene datos completos para procesar'); return }
+    setBatchRunning(true)
+    for (const row of batchRows) {
+      if (row.missing) continue
+      setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'processing' } : r))
+      try {
+        const dte = documents.find(d => d.id === row.id)!
+        const result = await postSatDte(row.id, {
+          taxId:        row.taxId,
+          accountId:    row.accountId,
+          paymentTerms: row.paymentTerms ?? 'immediate',
+          defaultUnit:  row.defaultUnit,
+        })
+        if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId })
+        setBatchRows(prev => prev.map(r => r.id === row.id
+          ? { ...r, status: 'ok', result: result.invoice?.invoiceNumber ?? 'OK' }
+          : r))
+      } catch (err) {
+        setBatchRows(prev => prev.map(r => r.id === row.id
+          ? { ...r, status: 'error', error: getErrorMessage(err, 'Error al registrar') }
+          : r))
+      }
+    }
+    setBatchRunning(false)
+    setSelectedIds([])
+    await load(true)
   }
 
   const totals = useMemo(() => ({
@@ -778,10 +902,12 @@ export default function DteSatPage() {
       >
         {stepperDte && (() => {
           const vendorLinked = !!stepperDte.vendorId
+          const isNC = ['NCRE', 'NABN'].includes(((stepperDte as any).tipoDocumento ?? '').toUpperCase())
           const canNext =
             stepperStep === 0 ? true :
-            stepperStep === 1 ? vendorLinked :
+            stepperStep === 1 ? (vendorLinked && !stepperVendorPayableMissing) :
             stepperStep === 2 ? (
+              isNC ||
               stepperOcChoice === 'skip' ||
               stepperOcChoice === 'reimbursement' ||
               (stepperOcChoice === 'select' && !!stepperOcId)
@@ -817,7 +943,14 @@ export default function DteSatPage() {
               <div style={{ padding: '0 24px 8px', minHeight: 200 }}>
 
                 {/* Paso 0 — Datos del DTE */}
-                {stepperStep === 0 && (
+                {stepperStep === 0 && (() => {
+                  const isNC0 = ['NCRE', 'NABN'].includes(((stepperDte as any).tipoDocumento ?? '').toUpperCase())
+                  return (<>
+                  {isNC0 && (
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
+                      <strong>Nota de Crédito Proveedor</strong> — Este DTE ({(stepperDte as any).tipoDocumento}) se registrará como Nota de Crédito de Proveedor.
+                    </div>
+                  )}
                   <Descriptions size="small" column={2} style={{ background: '#f8fafc', padding: 12, borderRadius: 6 }}>
                     <Descriptions.Item label="Emisor" span={2}><Text strong>{stepperDte.nombreEmisor}</Text></Descriptions.Item>
                     <Descriptions.Item label="Fecha">{stepperDte.fechaEmision ? dayjs(stepperDte.fechaEmision).format('DD/MM/YYYY') : '—'}</Descriptions.Item>
@@ -836,16 +969,26 @@ export default function DteSatPage() {
                       </Space>
                     </Descriptions.Item>
                   </Descriptions>
-                )}
+                  </>)
+                })()}
 
                 {/* Paso 1 — Proveedor */}
                 {stepperStep === 1 && (
                   vendorLinked ? (
-                    <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
                       <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
                       <Text strong style={{ fontSize: 15 }}>Proveedor vinculado</Text>
                       <br />
                       <Text type="secondary">{stepperDte.nombreEmisor} · NIT: {stepperDte.nitEmisor}</Text>
+                      {stepperVendorPayableMissing && (
+                        <Alert
+                          type="error"
+                          showIcon
+                          style={{ marginTop: 16, textAlign: 'left', fontSize: 12 }}
+                          message="Falta la Cuenta por Pagar (CxP) en este proveedor"
+                          description={<>No se puede registrar el DTE ni generar la póliza sin esta cuenta. Ve a <strong>Compras → Proveedores</strong>, abre el proveedor y configura su Cuenta por Pagar antes de continuar.</>}
+                        />
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -895,7 +1038,16 @@ export default function DteSatPage() {
                 )}
 
                 {/* Paso 2 — Orden de Compra / Tipo de registro */}
-                {stepperStep === 2 && (
+                {stepperStep === 2 && (() => {
+                  const isNC2 = ['NCRE', 'NABN'].includes(((stepperDte as any).tipoDocumento ?? '').toUpperCase())
+                  if (isNC2) return (
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '12px 16px', fontSize: 13, color: '#92400e' }}>
+                      <strong>Nota de Crédito Proveedor</strong> — No aplica Orden de Compra.
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 12 }}>Continúa para registrar la nota de crédito.</Text>
+                    </div>
+                  )
+                  return (
                   <div>
                     <Text style={{ display: 'block', marginBottom: 18, fontSize: 13 }}>
                       ¿Cómo se registra este DTE?
@@ -931,11 +1083,25 @@ export default function DteSatPage() {
                       </div>
                     )}
                   </div>
-                )}
+                  )
+                })()}
 
                 {/* Paso 3 — Registrar */}
                 {stepperStep === 3 && (
                   <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}>
+                    {isNC && (
+                      <>
+                      <Form.Item name="originalInvoiceId" label="Factura original del proveedor (opcional)">
+                        <Select allowClear showSearch placeholder="Buscar factura del proveedor..."
+                          optionFilterProp="label"
+                          options={originalBills}
+                          notFoundContent={originalBills.length === 0 ? 'Sin facturas — se puede vincular después' : 'No encontrada'} />
+                      </Form.Item>
+                      <Form.Item name="creditNoteReason" label="Motivo de la Nota de Crédito">
+                        <Input.TextArea rows={2} placeholder="Ej: Devolución de mercadería defectuosa" />
+                      </Form.Item>
+                      </>
+                    )}
                     <Form.Item name="concepto" label="Concepto de la compra"
                       rules={[{ required: true, message: 'Describe qué se está comprando' }]}>
                       <Input.TextArea rows={2} placeholder="Ej: Alimentos para cafetería — Abril 2026" />
@@ -1022,7 +1188,10 @@ export default function DteSatPage() {
                     <CheckCircleOutlined style={{ fontSize: 52, color: '#16a34a', marginBottom: 14 }} />
                     <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>DTE Procesado Correctamente</Text>
                     <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
-                      <div><Text type="secondary">Factura:</Text> <Text strong>{stepperResult.invoice?.invoiceNumber}</Text></div>
+                      <div>
+                        <Text type="secondary">{isNC ? 'Nota de Crédito:' : 'Factura:'}</Text>{' '}
+                        <Text strong>{stepperResult.invoice?.invoiceNumber}</Text>
+                      </div>
                       {stepperResult.invoice?.journalEntryId && (
                         <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#16a34a' }}>Generada automáticamente</Text></div>
                       )}
@@ -1040,15 +1209,26 @@ export default function DteSatPage() {
                 </Button>
                 <Space>
                   {stepperStep < 3 && (
+                    <Tooltip title={stepperStep === 1 && vendorLinked && stepperVendorPayableMissing
+                      ? 'Configura la Cuenta CxP del proveedor antes de continuar'
+                      : undefined}>
                     <Button type="primary" style={{ background: '#1B3A6B' }}
                       disabled={!canNext || stepperLoading}
                       onClick={async () => {
-                        if (stepperStep === 1) { setStepperStep(2); await handleEnterOcStep() }
-                        else setStepperStep(s => s + 1)
+                        if (stepperStep === 1) {
+                          setStepperStep(2)
+                          await handleEnterOcStep()
+                        } else if (stepperStep === 2) {
+                          if (isNC && stepperDte?.vendorId) loadOriginalBills(stepperDte.vendorId)
+                          setStepperStep(3)
+                        } else {
+                          setStepperStep(s => s + 1)
+                        }
                       }}
                     >
                       Siguiente →
                     </Button>
+                    </Tooltip>
                   )}
                   {stepperStep === 3 && (
                     <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}
@@ -1075,6 +1255,129 @@ export default function DteSatPage() {
           )
         })()}
       </Modal>
+
+      {/* ── Modal Registro Masivo ─────────────────────────────────────────── */}
+      {(() => {
+        const expenseAccounts = accounts.filter(a => !a.isHeader && a.isActive &&
+          (a.code?.startsWith('6') || (a as any).type === 'expense'))
+        const allDone = batchRows.length > 0 && batchRows.every(r => r.status === 'ok' || r.status === 'error' || r.missing)
+        const canProcess = !batchRunning && batchRows.some(r => !r.missing && r.accountId && r.status === 'pending')
+        return (
+        <Modal
+          open={batchOpen}
+          title={<Space><ThunderboltOutlined style={{ color: '#16a34a' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
+          width={820}
+          footer={null}
+          onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
+          maskClosable={false}
+          destroyOnClose
+        >
+          {batchLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin />  <Text type="secondary" style={{ marginLeft: 8 }}>Cargando datos de proveedores…</Text></div>
+          ) : (
+            <>
+              {/* Tabla con cuenta y unidad editables por fila */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Proveedor / DTE</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 200 }}>Cuenta de gasto</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Unidad</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 90 }}>Total</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 120 }}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {batchRows.map(row => (
+                    <tr key={row.id} style={{ borderBottom: '1px solid #f0f0f0', background: row.missing ? '#fff7ed' : undefined }}>
+                      <td style={{ padding: '6px 10px' }}>
+                        <Text style={{ fontSize: 12 }}>{row.label}</Text>
+                      </td>
+                      <td style={{ padding: '4px 6px' }}>
+                        {row.status === 'pending' ? (
+                          <Select
+                            size="small"
+                            style={{ width: '100%' }}
+                            showSearch
+                            placeholder="Seleccionar cuenta…"
+                            optionFilterProp="label"
+                            value={row.accountId}
+                            status={!row.accountId ? 'error' : undefined}
+                            onChange={val => {
+                              const acc = expenseAccounts.find(a => a.id === val)
+                              setBatchRows(prev => prev.map(r => r.id === row.id
+                                ? { ...r, accountId: val, accountLabel: acc ? `${acc.code} — ${acc.name}` : val, missing: undefined }
+                                : r))
+                            }}
+                            options={expenseAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountLabel ?? '—'}</Text>
+                        )}
+                        {row.missing && row.status === 'pending' && (
+                          <div style={{ color: '#d97706', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '4px 6px' }}>
+                        {row.status === 'pending' ? (
+                          <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND"
+                            value={row.defaultUnit}
+                            onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, defaultUnit: val ?? undefined } : r))}
+                            options={unidades.map(u => ({ value: u.code, label: u.code }))} />
+                        ) : (
+                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.defaultUnit ?? '—'}</Text>
+                        )}
+                      </td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                        {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
+                        {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
+                        {row.status === 'processing'              && <Tag color="processing" style={{ fontSize: 10 }}>Procesando…</Tag>}
+                        {row.status === 'ok'                      && <Tag color="success" style={{ fontSize: 10 }}>✓ {row.result}</Tag>}
+                        {row.status === 'error'                   && <Tooltip title={row.error}><Tag color="error" style={{ fontSize: 10 }}>✗ Error</Tag></Tooltip>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Resumen + botones */}
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  {batchRows.filter(r => r.missing).length > 0 && (
+                    <Text type="warning" style={{ fontSize: 12 }}>
+                      {batchRows.filter(r => r.missing).length} sin cuenta — se omitirán
+                    </Text>
+                  )}
+                  {allDone && (
+                    <Text style={{ fontSize: 12, color: '#16a34a' }}>
+                      ✓ {batchRows.filter(r => r.status === 'ok').length} registrado{batchRows.filter(r => r.status === 'ok').length !== 1 ? 's' : ''}
+                      {batchRows.some(r => r.status === 'error') && <span style={{ color: '#dc2626' }}> · {batchRows.filter(r => r.status === 'error').length} con error</span>}
+                    </Text>
+                  )}
+                </div>
+                <Space>
+                  {!allDone && <Button onClick={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}>Cancelar</Button>}
+                  {!allDone ? (
+                    <Button type="primary" icon={<ThunderboltOutlined />} loading={batchRunning}
+                      disabled={!canProcess}
+                      style={{ background: canProcess ? '#16a34a' : undefined, borderColor: canProcess ? '#16a34a' : undefined }}
+                      onClick={handleBatchPost}>
+                      Registrar {batchRows.filter(r => !r.missing && r.accountId).length} DTE{batchRows.filter(r => !r.missing && r.accountId).length !== 1 ? 's' : ''}
+                    </Button>
+                  ) : (
+                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                      onClick={() => { setBatchOpen(false); setBatchRows([]) }}>
+                      Cerrar
+                    </Button>
+                  )}
+                </Space>
+              </div>
+            </>
+          )}
+        </Modal>
+        )
+      })()}
 
       {/* Modal — Crear proveedor desde DTE SAT */}
       <Modal
@@ -1305,34 +1608,46 @@ export default function DteSatPage() {
             children: (
               <Card bordered={false}>
                 {/* Barra de filtros */}
-                <Space wrap style={{ marginBottom: 12 }}>
-                  <Input
-                    allowClear
-                    prefix={<SearchOutlined />}
-                    placeholder="Buscar UUID, NIT, proveedor o DTE"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    style={{ width: 300 }}
-                  />
-                  <Button
-                    size="small"
-                    type={!statusFilter ? 'primary' : 'default'}
-                    onClick={() => setStatusFilter(undefined)}
-                  >
-                    Todos
-                  </Button>
-                  {Object.entries(statusConfig).map(([key, cfg]) => (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <Space wrap>
+                    <Input
+                      allowClear
+                      prefix={<SearchOutlined />}
+                      placeholder="Buscar UUID, NIT, proveedor o DTE"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      style={{ width: 300 }}
+                    />
                     <Button
-                      key={key}
                       size="small"
-                      type={statusFilter === key ? 'primary' : 'default'}
-                      onClick={() => setStatusFilter(key)}
+                      type={!statusFilter ? 'primary' : 'default'}
+                      onClick={() => setStatusFilter(undefined)}
                     >
-                      {cfg.label}
-                      {stats[key]?.count ? ` (${stats[key].count})` : ''}
+                      Todos
                     </Button>
-                  ))}
-                </Space>
+                    {Object.entries(statusConfig).map(([key, cfg]) => (
+                      <Button
+                        key={key}
+                        size="small"
+                        type={statusFilter === key ? 'primary' : 'default'}
+                        onClick={() => setStatusFilter(key)}
+                      >
+                        {cfg.label}
+                        {stats[key]?.count ? ` (${stats[key].count})` : ''}
+                      </Button>
+                    ))}
+                  </Space>
+                  {selectedIds.length > 0 && (
+                    <Button
+                      type="primary"
+                      icon={<ThunderboltOutlined />}
+                      style={{ background: '#16a34a', flexShrink: 0 }}
+                      onClick={openBatchModal}
+                    >
+                      Registrar {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}
+                    </Button>
+                  )}
+                </div>
                 <Table
                   columns={columns}
                   dataSource={documents}
@@ -1349,6 +1664,12 @@ export default function DteSatPage() {
                     row.status === 'ready' ? 'ant-table-row-ready' :
                     row.status === 'error' ? 'ant-table-row-error' : ''
                   }
+                  rowSelection={{
+                    selectedRowKeys: selectedIds,
+                    onChange: keys => setSelectedIds(keys as string[]),
+                    getCheckboxProps: row => ({ disabled: !isBatchable(row) }),
+                    columnWidth: 36,
+                  }}
                 />
               </Card>
             ),
