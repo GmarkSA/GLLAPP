@@ -1276,43 +1276,14 @@ export default function DteSatPage() {
             <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin />  <Text type="secondary" style={{ marginLeft: 8 }}>Cargando datos de proveedores…</Text></div>
           ) : (
             <>
-              {/* Parámetros compartidos: IVA + Términos + Unidad */}
-              {!allDone && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px', marginBottom: 12,
-                  background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Impuesto IVA <span style={{ color: '#ef4444' }}>*</span></div>
-                    <Select size="small" style={{ width: '100%' }} placeholder="IVA12 — 12%"
-                      defaultValue={taxes.find(t => t.code === 'IVA12')?.id}
-                      onChange={val => setBatchRows(prev => prev.map(r => ({
-                        ...r, taxId: val, taxLabel: taxes.find(t => t.id === val) ? `${taxes.find(t => t.id === val)!.code} (${taxes.find(t => t.id === val)!.rate}%)` : undefined,
-                      })))}
-                      options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Términos de pago <span style={{ color: '#ef4444' }}>*</span></div>
-                    <Select size="small" style={{ width: '100%' }} placeholder="Seleccionar…"
-                      onChange={val => setBatchRows(prev => prev.map(r => ({
-                        ...r, paymentTerms: val, paymentTermsLabel: PAYMENT_TERMS_CONFIG[val as keyof typeof PAYMENT_TERMS_CONFIG] ?? val,
-                      })))}
-                      options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Unidad (opcional)</div>
-                    <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND"
-                      onChange={val => setBatchRows(prev => prev.map(r => ({ ...r, defaultUnit: val })))}
-                      options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))} />
-                  </div>
-                </div>
-              )}
-
-              {/* Tabla con cuenta editable por fila */}
+              {/* Tabla con cuenta y unidad editables por fila */}
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Proveedor / DTE</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 220 }}>Cuenta de gasto</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 100 }}>Total</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 200 }}>Cuenta de gasto</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Unidad</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 90 }}>Total</th>
                     <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 120 }}>Estado</th>
                   </tr>
                 </thead>
@@ -1322,7 +1293,7 @@ export default function DteSatPage() {
                       <td style={{ padding: '6px 10px' }}>
                         <Text style={{ fontSize: 12 }}>{row.label}</Text>
                       </td>
-                      <td style={{ padding: '4px 10px' }}>
+                      <td style={{ padding: '4px 6px' }}>
                         {row.status === 'pending' ? (
                           <Select
                             size="small"
@@ -1345,6 +1316,16 @@ export default function DteSatPage() {
                         )}
                         {row.missing && row.status === 'pending' && (
                           <div style={{ color: '#d97706', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '4px 6px' }}>
+                        {row.status === 'pending' ? (
+                          <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND"
+                            value={row.defaultUnit}
+                            onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, defaultUnit: val ?? undefined } : r))}
+                            options={unidades.map(u => ({ value: u.code, label: u.code }))} />
+                        ) : (
+                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.defaultUnit ?? '—'}</Text>
                         )}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11 }}>{money(row.total, row.moneda)}</td>

@@ -1069,35 +1069,14 @@ export default function DteSatVentasPage() {
             </div>
           ) : (
             <>
-              {/* Parámetros compartidos: IVA + Unidad */}
-              {!allDone && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginBottom: 12,
-                  background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Impuesto IVA (aplica a todos)</div>
-                    <Select size="small" style={{ width: '100%' }} allowClear placeholder="IVA 12%..."
-                      onChange={val => setBatchRows(prev => prev.map(r => ({
-                        ...r, taxId: val ?? undefined,
-                        taxLabel: val ? taxes.find(t => t.id === val) ? `${taxes.find(t => t.id === val)!.code} (${taxes.find(t => t.id === val)!.rate}%)` : undefined : undefined,
-                      })))}
-                      options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Unidad de medida (opcional)</div>
-                    <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND..."
-                      onChange={val => setBatchRows(prev => prev.map(r => ({ ...r, defaultUnit: val ?? undefined })))}
-                      options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))} />
-                  </div>
-                </div>
-              )}
-
-              {/* Tabla con cuenta editable por fila */}
+              {/* Tabla con cuenta y unidad editables por fila */}
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Cliente / DTE</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 220 }}>Cuenta de ingreso</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 100 }}>Total</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 200 }}>Cuenta de ingreso</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Unidad</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 90 }}>Total</th>
                     <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 120 }}>Estado</th>
                   </tr>
                 </thead>
@@ -1105,7 +1084,7 @@ export default function DteSatVentasPage() {
                   {batchRows.map(row => (
                     <tr key={row.id} style={{ borderBottom: '1px solid #f0f0f0', background: row.missing ? '#fff7ed' : undefined }}>
                       <td style={{ padding: '6px 10px' }}><Text style={{ fontSize: 12 }}>{row.label}</Text></td>
-                      <td style={{ padding: '4px 10px' }}>
+                      <td style={{ padding: '4px 6px' }}>
                         {row.status === 'pending' ? (
                           <Select
                             size="small"
@@ -1128,6 +1107,16 @@ export default function DteSatVentasPage() {
                         )}
                         {row.missing && row.status === 'pending' && (
                           <div style={{ color: '#d97706', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '4px 6px' }}>
+                        {row.status === 'pending' ? (
+                          <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND"
+                            value={row.defaultUnit}
+                            onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, defaultUnit: val ?? undefined } : r))}
+                            options={unidades.map(u => ({ value: u.code, label: u.code }))} />
+                        ) : (
+                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.defaultUnit ?? '—'}</Text>
                         )}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11 }}>{money(row.total)}</td>
