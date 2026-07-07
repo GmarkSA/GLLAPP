@@ -110,6 +110,7 @@ export default function DteSatPage() {
     taxId?: string; taxLabel?: string
     paymentTerms?: string; paymentTermsLabel?: string
     defaultUnit?: string
+    accountingDate?: Dayjs
     result?: string; error?: string; missing?: string
   }
   const [batchOpen,    setBatchOpen]    = useState(false)
@@ -565,6 +566,7 @@ export default function DteSatPage() {
         taxLabel: taxObj ? `${taxObj.code} (${taxObj.rate}%)` : undefined,
         paymentTerms: paymentTerms ?? 'immediate',
         paymentTermsLabel: PAYMENT_TERMS_CONFIG[(paymentTerms ?? 'immediate') as keyof typeof PAYMENT_TERMS_CONFIG] ?? paymentTerms ?? 'Inmediato',
+        accountingDate: dayjs(),
         missing: !accountId ? 'Falta cuenta de gasto — configúrala en el maestro del proveedor' : undefined,
       })
     }
@@ -582,10 +584,11 @@ export default function DteSatPage() {
       try {
         const dte = documents.find(d => d.id === row.id)!
         const result = await postSatDte(row.id, {
-          taxId:        row.taxId,
-          accountId:    row.accountId,
-          paymentTerms: row.paymentTerms ?? 'immediate',
-          defaultUnit:  row.defaultUnit,
+          taxId:          row.taxId,
+          accountId:      row.accountId,
+          paymentTerms:   row.paymentTerms ?? 'immediate',
+          defaultUnit:    row.defaultUnit,
+          accountingDate: row.accountingDate?.format('YYYY-MM-DD'),
         })
         if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId })
         setBatchRows(prev => prev.map(r => r.id === row.id
@@ -1283,6 +1286,7 @@ export default function DteSatPage() {
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Proveedor / DTE</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 200 }}>Cuenta de gasto</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Unidad</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Fecha contable</th>
                     <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 90 }}>Total</th>
                     <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 120 }}>Estado</th>
                   </tr>
@@ -1326,6 +1330,19 @@ export default function DteSatPage() {
                             options={unidades.map(u => ({ value: u.code, label: u.code }))} />
                         ) : (
                           <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.defaultUnit ?? '—'}</Text>
+                        )}
+                      </td>
+                      <td style={{ padding: '4px 6px' }}>
+                        {row.status === 'pending' ? (
+                          <DatePicker
+                            size="small"
+                            style={{ width: '100%' }}
+                            format="DD/MM/YYYY"
+                            value={row.accountingDate}
+                            onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, accountingDate: val ?? dayjs() } : r))}
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountingDate?.format('DD/MM/YYYY') ?? '—'}</Text>
                         )}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
