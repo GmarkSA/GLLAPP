@@ -96,6 +96,7 @@ export default function DteSatPage() {
   const [stepperResult, setStepperResult]           = useState<{ invoice: any; dte: SatDte } | null>(null)
   const [stepperForm]                               = Form.useForm()
   const [stepperVendorForm]                         = Form.useForm()
+  const [stepperVendorPayableMissing, setStepperVendorPayableMissing] = useState(false)
   const [vendors, setVendors] = useState<{ value: string; label: string; type?: string }[]>([])
   const [unidades, setUnidades] = useState<UnidadMedida[]>([])
   const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
@@ -403,7 +404,10 @@ export default function DteSatPage() {
         if (vendor?.paymentTerms)        vendorPaymentTerms    = vendor.paymentTerms
         if (vendor?.expenseAccountId)    vendorExpenseAccountId = vendor.expenseAccountId
         if (vendor?.defaultPurchaseTaxId) vendorDefaultTaxId   = vendor.defaultPurchaseTaxId
-      } catch { /* usa defaults como fallback */ }
+        setStepperVendorPayableMissing(!vendor?.payableAccountId)
+      } catch { setStepperVendorPayableMissing(false) }
+    } else {
+      setStepperVendorPayableMissing(false)
     }
     stepperForm.setFieldsValue({
       taxId:           vendorDefaultTaxId,
@@ -442,6 +446,7 @@ export default function DteSatPage() {
         paymentTerms:        values.paymentTerms,
       })
       if ((result as any)?.dte) setStepperDte((result as any).dte as SatDte)
+      setStepperVendorPayableMissing(!values.payableAccountId)
       message.success('Proveedor creado y vinculado')
       await load(true)
     } catch (err: unknown) {
@@ -867,7 +872,7 @@ export default function DteSatPage() {
           const isNC = ['NCRE', 'NABN'].includes(((stepperDte as any).tipoDocumento ?? '').toUpperCase())
           const canNext =
             stepperStep === 0 ? true :
-            stepperStep === 1 ? vendorLinked :
+            stepperStep === 1 ? (vendorLinked && !stepperVendorPayableMissing) :
             stepperStep === 2 ? (
               isNC ||
               stepperOcChoice === 'skip' ||
@@ -937,11 +942,20 @@ export default function DteSatPage() {
                 {/* Paso 1 — Proveedor */}
                 {stepperStep === 1 && (
                   vendorLinked ? (
-                    <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
                       <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
                       <Text strong style={{ fontSize: 15 }}>Proveedor vinculado</Text>
                       <br />
                       <Text type="secondary">{stepperDte.nombreEmisor} · NIT: {stepperDte.nitEmisor}</Text>
+                      {stepperVendorPayableMissing && (
+                        <Alert
+                          type="error"
+                          showIcon
+                          style={{ marginTop: 16, textAlign: 'left', fontSize: 12 }}
+                          message="Falta la Cuenta por Pagar (CxP) en este proveedor"
+                          description={<>No se puede registrar el DTE ni generar la póliza sin esta cuenta. Ve a <strong>Compras → Proveedores</strong>, abre el proveedor y configura su Cuenta por Pagar antes de continuar.</>}
+                        />
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -1162,6 +1176,9 @@ export default function DteSatPage() {
                 </Button>
                 <Space>
                   {stepperStep < 3 && (
+                    <Tooltip title={stepperStep === 1 && vendorLinked && stepperVendorPayableMissing
+                      ? 'Configura la Cuenta CxP del proveedor antes de continuar'
+                      : undefined}>
                     <Button type="primary" style={{ background: '#1B3A6B' }}
                       disabled={!canNext || stepperLoading}
                       onClick={async () => {
@@ -1178,6 +1195,7 @@ export default function DteSatPage() {
                     >
                       Siguiente →
                     </Button>
+                    </Tooltip>
                   )}
                   {stepperStep === 3 && (
                     <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}

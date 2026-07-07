@@ -981,18 +981,22 @@ export default function DteSatVentasPage() {
                   </Button>
                 )}
                 {stepperStep === 1 && (
-                  <Button type="primary" style={{ background: '#1B3A6B' }}
-                    disabled={!stepperCustomer || stepperLoading}
-                    onClick={() => {
-                      if (stepperCustomer) {
-                        const isNC = ['NCRE', 'NABN'].includes((stepperDte?.tipoDocumento ?? '').toUpperCase())
-                        loadEstimates(stepperCustomer.id)
-                        if (isNC) loadOriginalInvoices(stepperCustomer.id)
-                        setStepperStep(2)
-                      }
-                    }}>
-                    Siguiente →
-                  </Button>
+                  <Tooltip title={stepperCustomer && !stepperCustomer.receivableAccountId
+                    ? 'Configura la Cuenta CxC del cliente antes de continuar'
+                    : undefined}>
+                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                      disabled={!stepperCustomer || !stepperCustomer.receivableAccountId || stepperLoading}
+                      onClick={() => {
+                        if (stepperCustomer) {
+                          const isNC = ['NCRE', 'NABN'].includes((stepperDte?.tipoDocumento ?? '').toUpperCase())
+                          loadEstimates(stepperCustomer.id)
+                          if (isNC) loadOriginalInvoices(stepperCustomer.id)
+                          setStepperStep(2)
+                        }
+                      }}>
+                      Siguiente →
+                    </Button>
+                  </Tooltip>
                 )}
                 {stepperStep === 2 && (
                   <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}
