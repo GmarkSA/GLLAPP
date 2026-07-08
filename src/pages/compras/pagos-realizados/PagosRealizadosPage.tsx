@@ -193,9 +193,8 @@ export default function PagosRealizadosPage() {
 
   const handlePrintSelected = () => {
     if (selectedChecks.length === 0) { message.warning('Selecciona cheques para imprimir'); return }
-    for (const chk of selectedChecks) {
-      window.open(`/bancos/pagos-realizados/${chk.id}/cheque`, '_blank')
-    }
+    const ids = selectedChecks.map(c => c.id).join(',')
+    window.open(`/bancos/cheques/imprimir-lote?ids=${ids}`, '_blank')
   }
 
   return (
