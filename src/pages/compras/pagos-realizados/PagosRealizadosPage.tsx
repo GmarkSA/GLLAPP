@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Card, Table, Button, Space, Typography, Tag, Input,
-  Select, message, Popconfirm, Tooltip, Modal, Descriptions,
+  Select, message, Popconfirm, Tooltip, Modal, Descriptions, Alert,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   PrinterOutlined, StopOutlined, BookOutlined, DollarOutlined,
+  EyeOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -52,8 +53,10 @@ export default function PagosRealizadosPage() {
   const [search,   setSearch]   = useState('')
   const [status,   setStatus]   = useState<string | undefined>()
   const [mode,     setMode]     = useState<string | undefined>()
-  const [voiding,  setVoiding]  = useState<string | null>(null)
-  const [detail,   setDetail]   = useState<VendorPayment | null>(null)
+  const [voiding,      setVoiding]      = useState<string | null>(null)
+  const [detail,       setDetail]       = useState<VendorPayment | null>(null)
+  const [previewId,    setPreviewId]    = useState<string | null>(null)
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -134,12 +137,21 @@ export default function PagosRealizadosPage() {
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{STATUS_LABEL[v] ?? v}</Tag>,
     },
     {
-      key: 'actions', width: 150, align: 'center',
+      key: 'actions', width: 160, align: 'center',
       render: (_, r) => (
         <Space size={4}>
           <Tooltip title="Ver detalle">
             <Button size="small" icon={<BookOutlined />} onClick={() => setDetail(r)} />
           </Tooltip>
+          {r.mode === 'check' && r.status !== 'voided' && (
+            <Tooltip title="Vista previa cheque">
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => setPreviewId(r.id)}
+              />
+            </Tooltip>
+          )}
           {r.mode === 'check' && r.status !== 'voided' && (
             <Tooltip title="Imprimir cheque">
               <Button
@@ -177,6 +189,14 @@ export default function PagosRealizadosPage() {
     },
   ]
 
+  const selectedChecks = data.filter(r => selectedKeys.includes(r.id) && r.mode === 'check' && r.status !== 'voided')
+
+  const handlePrintSelected = () => {
+    if (selectedChecks.length === 0) { message.warning('Selecciona cheques para imprimir'); return }
+    const ids = selectedChecks.map(c => c.id).join(',')
+    window.open(`/bancos/cheques/imprimir-lote?ids=${ids}`, '_blank')
+  }
+
   return (
     <div>
       {/* Header */}
@@ -188,14 +208,25 @@ export default function PagosRealizadosPage() {
             <Text type="secondary">Registro de cheques, transferencias y pagos masivos</Text>
           </div>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          style={{ background: '#1B3A6B' }}
-          onClick={() => navigate('/bancos/pagos-realizados/nuevo')}
-        >
-          Nuevo pago
-        </Button>
+        <Space>
+          {selectedChecks.length > 0 && (
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={handlePrintSelected}
+              style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+            >
+              Imprimir {selectedChecks.length} cheque{selectedChecks.length > 1 ? 's' : ''}
+            </Button>
+          )}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ background: '#1B3A6B' }}
+            onClick={() => navigate('/bancos/pagos-realizados/nuevo')}
+          >
+            Nuevo pago
+          </Button>
+        </Space>
       </div>
 
       {/* Filtros */}
@@ -250,24 +281,35 @@ export default function PagosRealizadosPage() {
         style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: 0 }}
       >
-        <Table
-          columns={columns}
-          dataSource={data}
-          rowKey="id"
-          loading={loading}
-          size="middle"
-          scroll={{ x: 1100 }}
-          rowClassName={(r) => r.status === 'voided' ? 'row-void' : ''}
-          pagination={{
-            total,
-            current: page,
-            pageSize: 50,
-            onChange: setPage,
-            showTotal: t => `${t} pagos`,
-            showSizeChanger: false,
-          }}
-          locale={{ emptyText: 'Sin pagos registrados' }}
-        />
+        <div className="pagos-table">
+          <Table
+            columns={columns}
+            dataSource={data}
+            rowKey="id"
+            loading={loading}
+            size="middle"
+            scroll={{ x: 1200 }}
+            rowClassName={(r) => r.status === 'voided' ? 'row-void' : ''}
+            rowSelection={{
+              type: 'checkbox',
+              selectedRowKeys: selectedKeys,
+              onChange: (keys) => setSelectedKeys(keys as string[]),
+              getCheckboxProps: (r) => ({
+                disabled: r.status === 'voided',
+                title: r.status === 'voided' ? 'Pago anulado' : undefined,
+              }),
+            }}
+            pagination={{
+              total,
+              current: page,
+              pageSize: 50,
+              onChange: setPage,
+              showTotal: t => `${t} pagos`,
+              showSizeChanger: false,
+            }}
+            locale={{ emptyText: 'Sin pagos registrados' }}
+          />
+        </div>
       </Card>
 
       {/* Modal detalle */}
@@ -312,7 +354,68 @@ export default function PagosRealizadosPage() {
         )}
       </Modal>
 
-      <style>{`.row-void td { opacity: 0.45; text-decoration: line-through; }`}</style>
+      {/* Modal: vista previa inline del cheque */}
+      <Modal
+        open={!!previewId}
+        onCancel={() => setPreviewId(null)}
+        footer={null}
+        title="Vista previa del cheque"
+        width={900}
+        destroyOnClose
+      >
+        {previewId && (
+          <>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12, fontSize: 12 }}
+              message={
+                <span>
+                  ¿Los campos no coinciden con tu cheque físico?{' '}
+                  Ajusta las posiciones en{' '}
+                  <a onClick={() => { setPreviewId(null); navigate('/bancos/configuracion-pagos') }}>
+                    <SettingOutlined /> Bancos → Configuración de impresión
+                  </a>
+                </span>
+              }
+            />
+            <iframe
+              src={`/bancos/pagos-realizados/${previewId}/cheque?preview=true`}
+              style={{ width: '100%', height: 480, border: 'none', borderRadius: 6 }}
+              title="Vista previa cheque"
+            />
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => setPreviewId(null)}>Cerrar</Button>
+              <Button
+                type="primary"
+                icon={<PrinterOutlined />}
+                style={{ background: '#1B3A6B' }}
+                onClick={() => {
+                  window.open(`/bancos/pagos-realizados/${previewId}/cheque`, '_blank')
+                  setPreviewId(null)
+                }}
+              >
+                Imprimir
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      <style>{`
+        .row-void td { opacity: 0.45; text-decoration: line-through; }
+        .pagos-table .ant-checkbox-inner {
+          border: 2px solid #1B3A6B !important;
+          border-radius: 3px !important;
+        }
+        .pagos-table .ant-checkbox-checked .ant-checkbox-inner {
+          background-color: #1B3A6B !important;
+          border-color: #1B3A6B !important;
+        }
+        .pagos-table .ant-checkbox:hover .ant-checkbox-inner {
+          border-color: #1B3A6B !important;
+        }
+      `}</style>
     </div>
   )
 }

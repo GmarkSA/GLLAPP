@@ -13,7 +13,7 @@
  * CSS @page garantiza que el browser no añada headers/footers.
  */
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { getPagoRealizado, getBankPaymentConfigByAccount, type VendorPayment, type PrinterType } from '../../../api/pagosRealizados'
 import type { CheckLayoutPositions } from '../../../components/CheckLayoutEditor'
 
@@ -101,10 +101,10 @@ const CHECK_FORMATS: Record<string, CheckFormat> = {
     label: 'Genérico',
     width: '21cm', height: '9cm', paddingTop: '1.2cm',
     fields: {
-      beneficiario: { top: '1.6cm', left: '2cm',   width: '14cm' },
-      fecha:        { top: '1.6cm', left: '17cm' },
+      beneficiario: { top: '1.6cm', left: '2cm',    width: '14cm' },
+      fecha:        { top: '0.8cm', left: '14.5cm' },
       monto:        { top: '1.6cm', left: '17.5cm' },
-      letras:       { top: '3.0cm', left: '0.8cm', width: '18cm' },
+      letras:       { top: '3.0cm', left: '0.8cm',  width: '18cm' },
     },
   },
   bi: {
@@ -112,8 +112,8 @@ const CHECK_FORMATS: Record<string, CheckFormat> = {
     width: '21cm', height: '9cm', paddingTop: '0',
     fields: {
       beneficiario: { top: '1.8cm', left: '2.2cm',  width: '13cm' },
-      fecha:        { top: '1.8cm', left: '16.5cm' },
-      monto:        { top: '1.8cm', left: '18.0cm' },
+      fecha:        { top: '0.9cm', left: '14.5cm' },
+      monto:        { top: '1.8cm', left: '17.5cm' },
       letras:       { top: '3.2cm', left: '1.0cm',  width: '17.5cm' },
     },
   },
@@ -122,8 +122,8 @@ const CHECK_FORMATS: Record<string, CheckFormat> = {
     width: '21cm', height: '9.5cm', paddingTop: '0',
     fields: {
       beneficiario: { top: '2.0cm', left: '2.5cm',  width: '13cm' },
-      fecha:        { top: '2.0cm', left: '16.8cm' },
-      monto:        { top: '2.0cm', left: '18.2cm' },
+      fecha:        { top: '1.0cm', left: '14.5cm' },
+      monto:        { top: '2.0cm', left: '17.8cm' },
       letras:       { top: '3.5cm', left: '1.2cm',  width: '17.5cm' },
     },
   },
@@ -132,8 +132,8 @@ const CHECK_FORMATS: Record<string, CheckFormat> = {
     width: '21cm', height: '9cm', paddingTop: '0',
     fields: {
       beneficiario: { top: '1.9cm', left: '2.0cm',  width: '13.5cm' },
-      fecha:        { top: '1.9cm', left: '16.8cm' },
-      monto:        { top: '1.9cm', left: '18.0cm' },
+      fecha:        { top: '0.9cm', left: '14.5cm' },
+      monto:        { top: '1.9cm', left: '17.5cm' },
       letras:       { top: '3.3cm', left: '1.0cm',  width: '18cm' },
     },
   },
@@ -142,8 +142,8 @@ const CHECK_FORMATS: Record<string, CheckFormat> = {
     width: '21cm', height: '9cm', paddingTop: '0',
     fields: {
       beneficiario: { top: '1.7cm', left: '2.0cm',  width: '13cm' },
-      fecha:        { top: '1.7cm', left: '16.5cm' },
-      monto:        { top: '1.7cm', left: '18.0cm' },
+      fecha:        { top: '0.8cm', left: '14.5cm' },
+      monto:        { top: '1.7cm', left: '17.5cm' },
       letras:       { top: '3.1cm', left: '0.8cm',  width: '17.8cm' },
     },
   },
@@ -163,6 +163,8 @@ function detectFormat(bankName?: string): string {
 
 export default function ChequePrintPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const isPreview = searchParams.get('preview') === 'true'
   const [payment,     setPayment]     = useState<VendorPayment | null>(null)
   const [customPos,   setCustomPos]   = useState<CheckLayoutPositions | null>(null)
   const [printerType, setPrinterType] = useState<PrinterType>('matrix')
@@ -189,10 +191,10 @@ export default function ChequePrintPage() {
   }, [id])
 
   useEffect(() => {
-    if (payment && !loading) {
+    if (payment && !loading && !isPreview) {
       setTimeout(() => window.print(), 600)
     }
-  }, [payment, loading])
+  }, [payment, loading, isPreview])
 
   if (loading) return <div style={{ padding: 40 }}>Cargando...</div>
   if (error || !payment) return <div style={{ padding: 40, color: 'red' }}>{error ?? 'Error'}</div>
