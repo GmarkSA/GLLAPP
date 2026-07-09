@@ -6,7 +6,7 @@ import {
   Tabs, Statistic, Select, Empty, Tooltip, Popconfirm, message, Modal, Input,
 } from 'antd'
 import {
-  ArrowLeftOutlined, EditOutlined, PlusOutlined, UserOutlined, BankOutlined,
+  ArrowLeftOutlined, LeftOutlined, RightOutlined, EditOutlined, PlusOutlined, UserOutlined, BankOutlined,
   MailOutlined, PhoneOutlined, MobileOutlined, GlobalOutlined,
   EnvironmentOutlined, FileTextOutlined, DeleteOutlined, PrinterOutlined,
   SendOutlined, CommentOutlined, MessageOutlined,
@@ -56,6 +56,9 @@ export default function ProveedorDetallePage() {
   const [creditNotes, setCreditNotes] = useState<PurchaseInvoice[]>([])
   const [comments,    setComments]    = useState<ActivityComment[]>([])
   const [loading,     setLoading]     = useState(true)
+
+  // Gráfico: offset en períodos de 12 meses (0 = actual, 1 = año anterior, ...)
+  const [chartOffset, setChartOffset] = useState(0)
 
   const [stmtMonth, setStmtMonth] = useState(dayjs().month())
   const [stmtYear,  setStmtYear]  = useState(dayjs().year())
@@ -139,13 +142,14 @@ export default function ProveedorDetallePage() {
 
   const facturasVencidas = bills.filter(b => b.status === 'overdue').length
 
-  // ── Gráfico compras últimos 6 meses ───────────────────────────────────────
+  // ── Gráfico compras: 12 meses con navegación de períodos ─────────────────
 
-  const chartOption = useMemo(() => {
+  const chartData = useMemo(() => {
     const months: string[] = []
     const data: number[]   = []
-    for (let i = 5; i >= 0; i--) {
-      const m = dayjs().subtract(i, 'month')
+    const endMonth = dayjs().subtract(chartOffset * 12, 'month')
+    for (let i = 11; i >= 0; i--) {
+      const m = endMonth.subtract(i, 'month')
       months.push(m.format('MMM YY'))
       const total = bills
         .filter(b => {
@@ -156,21 +160,26 @@ export default function ProveedorDetallePage() {
         .reduce((s, b) => s + Number(b.total ?? 0), 0)
       data.push(Math.round(total * 100) / 100)
     }
-    return {
-      tooltip: {
-        trigger: 'axis',
-        formatter: (params: any[]) => `${params[0].name}<br/>Q ${Number(params[0].value).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
-      },
-      grid: { left: 16, right: 16, top: 12, bottom: 28, containLabel: true },
-      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#888' }, axisLine: { lineStyle: { color: '#e8e8e8' } } },
-      yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#888', formatter: (v: number) => `Q${(v/1000).toFixed(0)}k` } },
-      series: [{
-        type: 'bar', data, barMaxWidth: 40,
-        itemStyle: { color: '#fa8c16', borderRadius: [4, 4, 0, 0] },
-        emphasis: { itemStyle: { color: '#d46b08' } },
-      }],
-    }
-  }, [bills])
+    const periodTotal = data.reduce((s, v) => s + v, 0)
+    const startLabel  = dayjs(endMonth).subtract(11, 'month').format('MMM YY')
+    const endLabel    = endMonth.format('MMM YY')
+    return { months, data, periodTotal, startLabel, endLabel }
+  }, [bills, chartOffset])
+
+  const chartOption = useMemo(() => ({
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any[]) => `${params[0].name}<br/>Q ${Number(params[0].value).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+    },
+    grid: { left: 16, right: 16, top: 12, bottom: 28, containLabel: true },
+    xAxis: { type: 'category', data: chartData.months, axisLabel: { fontSize: 10, color: '#888' }, axisLine: { lineStyle: { color: '#e8e8e8' } } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#888', formatter: (v: number) => `Q${(v/1000).toFixed(0)}k` } },
+    series: [{
+      type: 'bar', data: chartData.data, barMaxWidth: 32,
+      itemStyle: { color: '#fa8c16', borderRadius: [4, 4, 0, 0] },
+      emphasis: { itemStyle: { color: '#d46b08' } },
+    }],
+  }), [chartData])
 
   // ── Estado de cuenta ───────────────────────────────────────────────────────
 
@@ -476,14 +485,19 @@ export default function ProveedorDetallePage() {
                 </div>
 
                 <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Compras (últimos 6 meses)</Text>
-                    <Text style={{ fontSize: 18, fontWeight: 800, color: '#fa8c16', fontFamily: 'monospace' }}>
-                      {fmtQ(bills.filter(b => {
-                        const d = dayjs(b.invoiceDate ?? b.createdAt)
-                        return d.isAfter(dayjs().subtract(6, 'month')) && b.status !== 'voided' && b.invoiceType !== 'credit_note'
-                      }).reduce((s, b) => s + Number(b.total ?? 0), 0))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Compras ({chartData.startLabel} – {chartData.endLabel})
                     </Text>
+                    <Text style={{ fontSize: 18, fontWeight: 800, color: '#fa8c16', fontFamily: 'monospace' }}>
+                      {fmtQ(chartData.periodTotal)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: 6 }}>
+                    <Button size="small" icon={<LeftOutlined />} onClick={() => setChartOffset(o => o + 1)}
+                      title="Período anterior" style={{ fontSize: 11 }} />
+                    <Button size="small" icon={<RightOutlined />} onClick={() => setChartOffset(o => Math.max(0, o - 1))}
+                      disabled={chartOffset === 0} title="Período siguiente" style={{ fontSize: 11 }} />
                   </div>
                   {bills.length > 0
                     ? <ReactECharts option={chartOption} style={{ height: 180 }} />
