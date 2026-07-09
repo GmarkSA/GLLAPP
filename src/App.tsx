@@ -34,6 +34,7 @@ const FacturaFormPage        = lazy(() => import('./pages/ventas/facturas/Factur
 const FacturaDetallePage     = lazy(() => import('./pages/ventas/facturas/FacturaDetallePage'))
 const EstimacionesPage       = lazy(() => import('./pages/ventas/estimaciones/EstimacionesPage'))
 const EstimacionFormPage     = lazy(() => import('./pages/ventas/estimaciones/EstimacionFormPage'))
+const EstimacionDetallePage  = lazy(() => import('./pages/ventas/estimaciones/EstimacionDetallePage'))
 const EstimacionPrintPage    = lazy(() => import('./pages/ventas/estimaciones/EstimacionPrintPage'))
 const FacturaImprimirPage    = lazy(() => import('./pages/ventas/facturas/FacturaImprimirPage'))
 const NotasCreditoPage       = lazy(() => import('./pages/ventas/notas-credito/NotasCreditoPage'))
@@ -49,8 +50,9 @@ const PagoRealizadoFormPage    = lazy(() => import('./pages/compras/pagos-realiz
 const ChequePrintPage          = lazy(() => import('./pages/compras/pagos-realizados/ChequePrintPage'))
 const ChequeLotePrintPage      = lazy(() => import('./pages/compras/pagos-realizados/ChequeLotePrintPage'))
 const TransferenciaPrintPage   = lazy(() => import('./pages/bancos/TransferenciaPrintPage'))
-const NotasCreditoProveedorPage     = lazy(() => import('./pages/compras/notas-credito-proveedor/NotasCreditoProveedorPage'))
-const NotaCreditoProveedorFormPage  = lazy(() => import('./pages/compras/notas-credito-proveedor/NotaCreditoProveedorFormPage'))
+const NotasCreditoProveedorPage          = lazy(() => import('./pages/compras/notas-credito-proveedor/NotasCreditoProveedorPage'))
+const NotaCreditoProveedorFormPage       = lazy(() => import('./pages/compras/notas-credito-proveedor/NotaCreditoProveedorFormPage'))
+const NotaCreditoProveedorDetallePage    = lazy(() => import('./pages/compras/notas-credito-proveedor/NotaCreditoProveedorDetallePage'))
 const ReporteProyectadoPagosPage = lazy(() => import('./pages/reportes/ReporteProyectadoPagosPage'))
 
 // Compras
@@ -58,8 +60,9 @@ const LibroVentasPage          = lazy(() => import('./pages/reportes/LibroVentas
 
 const ProveedoresPage          = lazy(() => import('./pages/compras/proveedores/ProveedoresPage'))
 const ProveedorFormPage        = lazy(() => import('./pages/compras/proveedores/ProveedorFormPage'))
-const FacturasProveedorPage    = lazy(() => import('./pages/compras/facturas/FacturasProveedorPage'))
-const FacturaProveedorFormPage = lazy(() => import('./pages/compras/facturas/FacturaProveedorFormPage'))
+const FacturasProveedorPage         = lazy(() => import('./pages/compras/facturas/FacturasProveedorPage'))
+const FacturaProveedorFormPage      = lazy(() => import('./pages/compras/facturas/FacturaProveedorFormPage'))
+const FacturaProveedorDetallePage   = lazy(() => import('./pages/compras/facturas/FacturaProveedorDetallePage'))
 const DteSatPage               = lazy(() => import('./pages/compras/dte-sat/DteSatPage'))
 const DteSatVentasPage         = lazy(() => import('./pages/ventas/dte-sat/DteSatVentasPage'))
 const AnticiposProveedorPage   = lazy(() => import('./pages/compras/anticipos-proveedor/AnticiposProveedorPage'))
@@ -68,6 +71,7 @@ const ArAgingPage              = lazy(() => import('./pages/reportes/ArAgingPage
 const LibroComprasPage         = lazy(() => import('./pages/reportes/LibroComprasPage'))
 const OrdenesCompraPage        = lazy(() => import('./pages/compras/ordenes/OrdenesCompraPage'))
 const OrdenCompraFormPage      = lazy(() => import('./pages/compras/ordenes/OrdenCompraFormPage'))
+const OrdenCompraDetallePage   = lazy(() => import('./pages/compras/ordenes/OrdenCompraDetallePage'))
 
 // Bancos
 const CuentasBancariasPage = lazy(() => import('./pages/bancos/CuentasBancariasPage'))
@@ -178,7 +182,7 @@ export default function App() {
 
           <Route path="ventas/estimaciones"            element={<EstimacionesPage />} />
           <Route path="ventas/estimaciones/nueva"      element={<EstimacionFormPage />} />
-          <Route path="ventas/estimaciones/:id"        element={<EstimacionFormPage />} />
+          <Route path="ventas/estimaciones/:id"        element={<EstimacionDetallePage />} />
           <Route path="ventas/estimaciones/:id/editar" element={<EstimacionFormPage />} />
 
           <Route path="ventas/notas-credito"           element={<NotasCreditoPage />} />
@@ -194,13 +198,14 @@ export default function App() {
           <Route path="compras/proveedores/nuevo"   element={<ProveedorFormPage />} />
           <Route path="compras/proveedores/:id"     element={<ProveedorFormPage />} />
 
-          <Route path="compras/facturas"            element={<FacturasProveedorPage />} />
-          <Route path="compras/facturas/nueva"      element={<FacturaProveedorFormPage />} />
-          <Route path="compras/facturas/:id"        element={<FacturaProveedorFormPage />} />
-          <Route path="compras/facturas/:id/editar" element={<FacturaProveedorFormPage />} />
-          <Route path="compras/notas-credito-proveedor"          element={<NotasCreditoProveedorPage />} />
-          <Route path="compras/notas-credito-proveedor/nueva"    element={<NotaCreditoProveedorFormPage />} />
-          <Route path="compras/notas-credito-proveedor/:id"      element={<NotaCreditoProveedorFormPage />} />
+          <Route path="compras/facturas"                element={<FacturasProveedorPage />} />
+          <Route path="compras/facturas/nueva"          element={<FacturaProveedorFormPage />} />
+          <Route path="compras/facturas/:id"            element={<FacturaProveedorDetallePage />} />
+          <Route path="compras/facturas/:id/editar"     element={<FacturaProveedorFormPage />} />
+          <Route path="compras/notas-credito-proveedor"              element={<NotasCreditoProveedorPage />} />
+          <Route path="compras/notas-credito-proveedor/nueva"        element={<NotaCreditoProveedorFormPage />} />
+          <Route path="compras/notas-credito-proveedor/:id"          element={<NotaCreditoProveedorDetallePage />} />
+          <Route path="compras/notas-credito-proveedor/:id/editar"   element={<NotaCreditoProveedorFormPage />} />
           <Route path="compras/dte-sat"                     element={<DteSatPage />} />
           <Route path="compras/anticipos-proveedor"         element={<AnticiposProveedorPage />} />
           <Route path="ventas/dte-sat"                      element={<DteSatVentasPage />} />
@@ -212,7 +217,7 @@ export default function App() {
 
           <Route path="compras/ordenes"             element={<OrdenesCompraPage />} />
           <Route path="compras/ordenes/nueva"       element={<OrdenCompraFormPage />} />
-          <Route path="compras/ordenes/:id"         element={<OrdenCompraFormPage />} />
+          <Route path="compras/ordenes/:id"         element={<OrdenCompraDetallePage />} />
           <Route path="compras/ordenes/:id/editar"  element={<OrdenCompraFormPage />} />
 
           <Route path="bancos"                      element={<CuentasBancariasPage />} />

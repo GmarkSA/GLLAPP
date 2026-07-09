@@ -1,21 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Card, Descriptions, Typography, Space, Button, Tag, Spin,
-  Table, Popconfirm, message, Row, Col, Divider, Alert,
+  Typography, Space, Button, Tag, Spin,
+  Table, Popconfirm, message, Alert, Divider,
 } from 'antd'
 import {
-  ArrowLeftOutlined, DeleteOutlined, DollarOutlined, BookOutlined,
-  FileTextOutlined, BankOutlined, SyncOutlined,
+  ArrowLeftOutlined, DeleteOutlined, SyncOutlined,
+  BankOutlined, FileTextOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
-import { getPagoRecibido, deletePagoRecibido, reprocessPagoJournal, type PagoRecibido, PAYMENT_MODE_LABELS } from '../../../api/pagos-recibidos'
+import {
+  getPagoRecibido, deletePagoRecibido, reprocessPagoJournal,
+  type PagoRecibido, PAYMENT_MODE_LABELS,
+} from '../../../api/pagos-recibidos'
 
 const { Title, Text } = Typography
 
-const fmtQ = (n: number | undefined | null) =>
-  n != null ? `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
+const fmtQ = (n: number | undefined | null, cur = 'GTQ') =>
+  n != null ? `${cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
 
 const INVOICE_STATUS_COLOR: Record<string, string> = {
   sent: 'blue', partial: 'geekblue', paid: 'green', voided: 'red', overdue: 'red', draft: 'default',
@@ -25,22 +28,22 @@ const INVOICE_STATUS_LABEL: Record<string, string> = {
   voided: 'Anulada', overdue: 'Vencida', draft: 'Borrador',
 }
 
+interface JeLine { id: string; accountCode: string; accountName: string; description?: string; debit: number; credit: number }
+
 export default function PagoRecibidoDetallePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const [pago,        setPago]        = useState<PagoRecibido | null>(null)
-  const [loading,     setLoading]     = useState(true)
-  const [deleting,    setDeleting]    = useState(false)
+  const [pago,         setPago]         = useState<PagoRecibido | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [deleting,     setDeleting]     = useState(false)
   const [reprocessing, setReprocessing] = useState(false)
 
   const load = async () => {
     if (!id) return
     setLoading(true)
-    try {
-      const data = await getPagoRecibido(id)
-      setPago(data)
-    } catch { message.error('No se pudo cargar el pago') }
+    try { setPago(await getPagoRecibido(id)) }
+    catch { message.error('No se pudo cargar el pago') }
     finally { setLoading(false) }
   }
 
@@ -74,14 +77,49 @@ export default function PagoRecibidoDetallePage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
   if (!pago)  return <div style={{ textAlign: 'center', padding: 80 }}><Text type="secondary">Pago no encontrado</Text></div>
 
-  const invoice    = pago.invoice
-  const customer   = pago.customer
-  const bankAcc    = pago.bankAccount
-  const je         = pago.journalEntry
+  const invoice  = pago.invoice
+  const customer = pago.customer
+  const bankAcc  = pago.bankAccount
+  const je       = pago.journalEntry
 
-  // ── Journal entry table
-  interface JeLine { id: string; accountCode: string; accountName: string; description?: string; debit: number; credit: number }
-  const jeColumns: ColumnsType<JeLine> = [
+  const invoiceRows = invoice ? [{
+    key:     invoice.id,
+    number:  invoice.invoiceNumber,
+    date:    invoice.invoiceDate,
+    total:   invoice.total,
+    paid:    pago.amount,
+    id:      invoice.id,
+    status:  invoice.status,
+  }] : []
+
+  const invoiceCols = [
+    {
+      title: 'Número de factura', dataIndex: 'number',
+      render: (v: string, r: any) => (
+        <a onClick={() => navigate(`/ventas/facturas/${r.id}`)} style={{ color: '#1B3A6B', fontFamily: 'monospace' }}>
+          {v}
+        </a>
+      ),
+    },
+    {
+      title: 'Fecha de la factura', dataIndex: 'date', width: 150,
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
+    },
+    {
+      title: 'Importe de la factura', dataIndex: 'total', width: 180, align: 'right' as const,
+      render: (v: number) => <Text style={{ fontFamily: 'monospace' }}>{fmtQ(v, pago.currency)}</Text>,
+    },
+    {
+      title: 'Importe del pago', dataIndex: 'paid', width: 160, align: 'right' as const,
+      render: (v: number) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(v, pago.currency)}</Text>,
+    },
+    {
+      title: 'Estado', dataIndex: 'status', width: 120,
+      render: (v: string) => <Tag color={INVOICE_STATUS_COLOR[v] ?? 'default'}>{INVOICE_STATUS_LABEL[v] ?? v}</Tag>,
+    },
+  ]
+
+  const jeCols: ColumnsType<JeLine> = [
     {
       title: 'Cuenta',
       render: (_, r) => (
@@ -92,42 +130,35 @@ export default function PagoRecibidoDetallePage() {
       ),
     },
     {
-      title: 'Debe', dataIndex: 'debit', width: 130, align: 'right',
-      render: (v) => Number(v) > 0
-        ? <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(v)}</Text>
-        : <Text type="secondary">—</Text>,
+      title: 'Ubicación', width: 140,
+      render: () => <Text type="secondary" style={{ fontSize: 12 }}>{customer?.name ?? pago.customerName ?? '—'}</Text>,
     },
     {
-      title: 'Haber', dataIndex: 'credit', width: 130, align: 'right',
+      title: 'Débito', dataIndex: 'debit', width: 130, align: 'right' as const,
       render: (v) => Number(v) > 0
-        ? <Text strong style={{ fontFamily: 'monospace', color: '#52c41a' }}>{fmtQ(v)}</Text>
-        : <Text type="secondary">—</Text>,
+        ? <Text strong style={{ fontFamily: 'monospace' }}>{Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+        : <Text type="secondary">0.00</Text>,
+    },
+    {
+      title: 'Crédito', dataIndex: 'credit', width: 130, align: 'right' as const,
+      render: (v) => Number(v) > 0
+        ? <Text strong style={{ fontFamily: 'monospace', color: '#389e0d' }}>{Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+        : <Text type="secondary">0.00</Text>,
     },
   ]
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <DollarOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
-          <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
-              {pago.paymentNumber}
-            </Title>
-            <Text type="secondary">
-              {dayjs(pago.paymentDate).format('DD/MM/YYYY')}
-              {pago.mode ? ` · ${PAYMENT_MODE_LABELS[pago.mode] ?? pago.mode}` : ''}
-            </Text>
-          </div>
-        </div>
+    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+
+      {/* ── Barra de acciones ─────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/pagos-recibidos')}>
+          Volver
+        </Button>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/pagos-recibidos')}>
-            Volver
-          </Button>
           <Popconfirm
             title="¿Reprocesar póliza contable?"
-            description="Esto eliminará la póliza actual y creará una nueva con las cuentas correctas del catálogo."
+            description="Elimina la póliza actual y crea una nueva con las cuentas del catálogo."
             onConfirm={handleReprocess}
             okText="Reprocesar" cancelText="Cancelar"
           >
@@ -141,197 +172,255 @@ export default function PagoRecibidoDetallePage() {
             onConfirm={handleDelete}
             okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
           >
-            <Button danger icon={<DeleteOutlined />} loading={deleting}>
-              Eliminar
-            </Button>
+            <Button danger icon={<DeleteOutlined />} loading={deleting}>Eliminar</Button>
           </Popconfirm>
         </Space>
       </div>
 
-      <Row gutter={16}>
-        {/* Datos del pago */}
-        <Col xs={24} lg={14}>
-          <Card
-            title={<Space><DollarOutlined style={{ color: '#1B3A6B' }} />Datos del pago</Space>}
-            bordered={false}
-            style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}
-          >
-            <Descriptions column={2} size="small" labelStyle={{ color: '#888', fontSize: 12 }}>
-              <Descriptions.Item label="N° Pago">
-                <Text strong style={{ fontFamily: 'monospace' }}>{pago.paymentNumber}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Fecha">
-                {dayjs(pago.paymentDate).format('DD/MM/YYYY')}
-              </Descriptions.Item>
-              <Descriptions.Item label="Cliente">
-                <Space direction="vertical" size={0}>
-                  <Text strong>{customer?.name ?? pago.customerName ?? pago.customerId}</Text>
-                  {(customer?.taxId ?? pago.customerTaxId) && (
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      NIT: {customer?.taxId ?? pago.customerTaxId}
-                    </Text>
-                  )}
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="Monto">
-                <Text strong style={{ fontSize: 16, color: '#1B3A6B', fontFamily: 'monospace' }}>
-                  {fmtQ(pago.amount)}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Forma de pago">
-                {pago.mode ? <Tag>{PAYMENT_MODE_LABELS[pago.mode] ?? pago.mode}</Tag> : '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Referencia">
-                {pago.reference ?? <Text type="secondary">—</Text>}
-              </Descriptions.Item>
-              {bankAcc && (
-                <Descriptions.Item label="Cuenta bancaria" span={2}>
-                  <Space>
-                    <BankOutlined />
-                    <Text>{bankAcc.name}</Text>
-                    {bankAcc.bankName && <Text type="secondary">— {bankAcc.bankName}</Text>}
-                    {bankAcc.accountNumber && <Text type="secondary">({bankAcc.accountNumber})</Text>}
-                  </Space>
-                </Descriptions.Item>
-              )}
-              {pago.notes && (
-                <Descriptions.Item label="Notas" span={2}>
-                  <Text type="secondary">{pago.notes}</Text>
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-          </Card>
+      {/* ── Documento recibo ──────────────────────────────────────────────── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 12,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+        overflow: 'hidden',
+      }}>
 
-          {/* Partida contable */}
-          <Card
-            title={<Space><BookOutlined style={{ color: '#1B3A6B' }} />Póliza contable</Space>}
-            extra={je ? <Text type="secondary" style={{ fontSize: 12 }}>{je.entryNumber}</Text> : null}
-            bordered={false}
-            style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-          >
-            {je ? (
-              <>
-                <div style={{ marginBottom: 8 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{je.description}</Text>
-                </div>
-                <Table
-                  columns={jeColumns}
-                  dataSource={(je.lines ?? []) as JeLine[]}
-                  rowKey="id"
-                  size="small"
-                  pagination={false}
-                  summary={() => (
-                    <Table.Summary fixed>
-                      <Table.Summary.Row style={{ background: '#fafafa' }}>
-                        <Table.Summary.Cell index={0}>
-                          <Text strong>Total</Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={1} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>
-                            {fmtQ(je.totalDebit)}
-                          </Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={2} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', color: '#52c41a' }}>
-                            {fmtQ(je.totalCredit)}
-                          </Text>
-                        </Table.Summary.Cell>
-                      </Table.Summary.Row>
-                    </Table.Summary>
-                  )}
-                />
-                {(je.lines ?? []).length === 0 && (
-                  <Alert
-                    style={{ marginTop: 12 }}
-                    type="warning"
-                    showIcon
-                    message="La póliza existe pero no tiene líneas contables"
-                    description={
-                      <span>
-                        Las cuentas no estaban configuradas al crear el pago. Use el botón{' '}
-                        <strong>Reprocesar póliza</strong> para regenerarlas con las cuentas del catálogo actual.
-                      </span>
-                    }
-                  />
-                )}
-              </>
-            ) : (
-              <Alert
-                type="warning"
-                showIcon
-                message="Sin póliza contable"
-                description={
-                  <span>
-                    Este pago no tiene una póliza contable. Use el botón{' '}
-                    <strong>Reprocesar póliza</strong> en la barra superior para generarla.
-                  </span>
-                }
+        {/* Encabezado del recibo */}
+        <div style={{
+          background: '#1B3A6B',
+          padding: '20px 32px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div>
+            <Title level={3} style={{ margin: 0, color: '#fff', letterSpacing: 2, fontWeight: 700 }}>
+              RECIBO DE PAGOS
+            </Title>
+            <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>
+              {pago.paymentNumber}
+            </Text>
+          </div>
+          <div style={{
+            background: '#22c55e',
+            borderRadius: 10,
+            padding: '10px 24px',
+            textAlign: 'center',
+            minWidth: 180,
+          }}>
+            <div style={{ color: '#fff', fontSize: 11, fontWeight: 600, letterSpacing: 1, marginBottom: 2 }}>
+              IMPORTE RECIBIDO
+            </div>
+            <div style={{ color: '#fff', fontSize: 22, fontWeight: 800, fontFamily: 'monospace', lineHeight: 1.2 }}>
+              {fmtQ(pago.amount, pago.currency)}
+            </div>
+          </div>
+        </div>
+
+        {/* Cuerpo del recibo */}
+        <div style={{ padding: '28px 32px' }}>
+
+          {/* Fila de metadatos del pago */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: '20px 32px',
+            marginBottom: 28,
+          }}>
+            <div>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Fecha de pago
+              </Text>
+              <Text strong style={{ fontSize: 14 }}>{dayjs(pago.paymentDate).format('DD MMM YYYY')}</Text>
+            </div>
+            <div>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Número de referencia
+              </Text>
+              <Text strong style={{ fontSize: 14, fontFamily: 'monospace' }}>{pago.reference ?? '—'}</Text>
+            </div>
+            <div>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Modo de pago
+              </Text>
+              <Text strong style={{ fontSize: 14 }}>
+                {pago.mode ? PAYMENT_MODE_LABELS[pago.mode] ?? pago.mode : '—'}
+              </Text>
+            </div>
+          </div>
+
+          <Divider style={{ margin: '0 0 24px' }} />
+
+          {/* Recibido de */}
+          <div style={{ marginBottom: 28 }}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Recibido de
+            </Text>
+            <Text strong style={{ fontSize: 16, color: '#1B3A6B' }}>
+              {customer?.name ?? pago.customerName ?? pago.customerId}
+            </Text>
+            {(customer?.taxId ?? pago.customerTaxId) && (
+              <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
+                NIT: {customer?.taxId ?? pago.customerTaxId}
+              </Text>
+            )}
+          </div>
+
+          {/* Tabla de facturas */}
+          {invoiceRows.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <Text style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
+                Pago de
+              </Text>
+              <Table
+                columns={invoiceCols}
+                dataSource={invoiceRows}
+                rowKey="key"
+                size="small"
+                pagination={false}
+                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
               />
-            )}
-          </Card>
-        </Col>
+            </div>
+          )}
 
-        {/* Panel factura */}
-        <Col xs={24} lg={10}>
-          <Card
-            title={<Space><FileTextOutlined style={{ color: '#1B3A6B' }} />Factura aplicada</Space>}
-            bordered={false}
-            style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-          >
-            {invoice ? (
-              <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary">N° Factura</Text>
-                  <Text
-                    strong
-                    style={{ fontFamily: 'monospace', color: '#1B3A6B', cursor: 'pointer' }}
-                    onClick={() => navigate(`/ventas/facturas/${invoice.id}`)}
-                  >
-                    {invoice.invoiceNumber}
-                  </Text>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary">Fecha</Text>
-                  <Text>{invoice.invoiceDate ? dayjs(invoice.invoiceDate).format('DD/MM/YYYY') : '—'}</Text>
-                </div>
-                <Divider style={{ margin: '6px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary">Total factura</Text>
-                  <Text>{fmtQ(invoice.total)}</Text>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary">Pagado</Text>
-                  <Text>{fmtQ(invoice.paidAmount)}</Text>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary">Saldo actual</Text>
-                  <Text strong style={{ color: Number(invoice.balance) > 0 ? '#fa541c' : '#52c41a' }}>
-                    {fmtQ(invoice.balance)}
-                  </Text>
-                </div>
-                <Divider style={{ margin: '6px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary">Estado</Text>
-                  <Tag color={INVOICE_STATUS_COLOR[invoice.status] ?? 'default'}>
-                    {INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}
-                  </Tag>
-                </div>
-                <Button
-                  block
-                  type="default"
-                  icon={<FileTextOutlined />}
-                  style={{ marginTop: 8 }}
-                  onClick={() => navigate(`/ventas/facturas/${invoice.id}`)}
-                >
-                  Ver factura
-                </Button>
-              </Space>
-            ) : (
-              <Text type="secondary">No se encontró la factura</Text>
+          {/* Footer del recibo */}
+          <div style={{
+            background: '#f8fafc',
+            borderRadius: 8,
+            padding: '14px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 8,
+          }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Fecha de contabilización de transacción :{' '}
+              <Text strong style={{ color: '#555' }}>
+                {dayjs(pago.paymentDate).format('DD MMM YYYY')}
+              </Text>
+            </Text>
+            {je && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Póliza:{' '}
+                <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{je.entryNumber}</Text>
+              </Text>
             )}
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </div>
+
+        {/* ── Más información ───────────────────────────────────────────────── */}
+        {(bankAcc || pago.notes) && (
+          <>
+            <Divider style={{ margin: 0 }} />
+            <div style={{ padding: '20px 32px', background: '#fafafa' }}>
+              <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+                Más información
+              </Text>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 32px' }}>
+                {bankAcc && (
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 3 }}>Depósito para</Text>
+                    <Space size={6}>
+                      <BankOutlined style={{ color: '#1B3A6B' }} />
+                      <Text strong style={{ fontSize: 13 }}>{bankAcc.name}</Text>
+                      {bankAcc.bankName && <Text type="secondary" style={{ fontSize: 12 }}>— {bankAcc.bankName}</Text>}
+                      {bankAcc.accountNumber && <Text type="secondary" style={{ fontSize: 12 }}>({bankAcc.accountNumber})</Text>}
+                    </Space>
+                  </div>
+                )}
+                {invoice && (
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 3 }}>Factura</Text>
+                    <Space size={6}>
+                      <FileTextOutlined style={{ color: '#1B3A6B' }} />
+                      <a
+                        onClick={() => navigate(`/ventas/facturas/${invoice.id}`)}
+                        style={{ color: '#1B3A6B', fontSize: 13, fontFamily: 'monospace' }}
+                      >
+                        {invoice.invoiceNumber}
+                      </a>
+                      <Tag color={INVOICE_STATUS_COLOR[invoice.status] ?? 'default'} style={{ fontSize: 11 }}>
+                        {INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}
+                      </Tag>
+                    </Space>
+                  </div>
+                )}
+                {pago.notes && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 3 }}>Notas</Text>
+                    <Text style={{ fontSize: 13 }}>{pago.notes}</Text>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Diario / Póliza contable ──────────────────────────────────────── */}
+        <Divider style={{ margin: 0 }} />
+        <div style={{ padding: '20px 32px' }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+            Diario
+          </Text>
+
+          {je ? (
+            <>
+              <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>{je.description}</Text>
+                <Space>
+                  <Button size="small" style={{ borderColor: '#d9d9d9', fontSize: 12 }}>Acumulación</Button>
+                  <Button size="small" style={{ borderColor: '#d9d9d9', fontSize: 12 }}>Efectivo</Button>
+                </Space>
+              </div>
+              <Table
+                columns={jeCols}
+                dataSource={(je.lines ?? []) as JeLine[]}
+                rowKey="id"
+                size="small"
+                pagination={false}
+                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+                summary={() => (
+                  <Table.Summary fixed>
+                    <Table.Summary.Row style={{ background: '#fafafa' }}>
+                      <Table.Summary.Cell index={0} colSpan={2}>
+                        <Text strong style={{ fontSize: 12 }}>Total</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right">
+                        <Text strong style={{ fontFamily: 'monospace' }}>
+                          {Number(je.totalDebit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                        </Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right">
+                        <Text strong style={{ fontFamily: 'monospace', color: '#389e0d' }}>
+                          {Number(je.totalCredit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                        </Text>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  </Table.Summary>
+                )}
+              />
+              {(je.lines ?? []).length === 0 && (
+                <Alert
+                  style={{ marginTop: 12 }}
+                  type="warning"
+                  showIcon
+                  message="La póliza existe pero no tiene líneas contables"
+                  description="Use el botón Reprocesar póliza para regenerarlas con las cuentas del catálogo actual."
+                />
+              )}
+            </>
+          ) : (
+            <Alert
+              type="warning"
+              showIcon
+              message="Sin póliza contable"
+              description="Este pago no tiene póliza contable. Use el botón Reprocesar póliza para generarla."
+            />
+          )}
+        </div>
+
+      </div>
     </div>
   )
 }
