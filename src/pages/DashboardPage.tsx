@@ -311,8 +311,15 @@ function AgingPanel({ title, section, kind, currency }: {
               hasAdv ? (
                 <Space>
                   <span style={{ fontWeight: 600 }}>{titleText}</span>
-                  <Tag color="success" style={{ fontSize: 11 }}>
-                    Anticipos: {money(section.totalAdvances, currency)} · Neto: {money(section.apNetTotal, currency)}
+                  <Tag
+                    color={(section.apNetTotal ?? 0) < 0 ? 'blue' : 'success'}
+                    style={{ fontSize: 11 }}
+                  >
+                    Anticipos: {money(section.totalAdvances, currency)}
+                    {' · '}
+                    {(section.apNetTotal ?? 0) < 0
+                      ? `A favor: ${money(Math.abs(section.apNetTotal ?? 0), currency)}`
+                      : `Neto: ${money(section.apNetTotal ?? 0, currency)}`}
                   </Tag>
                 </Space>
               ) : titleText
