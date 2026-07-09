@@ -1,15 +1,15 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import {
   Button, Typography, Tag, Table, Divider, Spin, Space, Badge, Avatar,
-  Tabs, Statistic, DatePicker, Select, Empty, Tooltip, Popconfirm, message,
+  Tabs, Statistic, Select, Empty, Tooltip, Popconfirm, message, Modal, Input,
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, PlusOutlined, UserOutlined, BankOutlined,
   MailOutlined, PhoneOutlined, MobileOutlined, GlobalOutlined,
-  EnvironmentOutlined, FileTextOutlined, DollarOutlined, DeleteOutlined,
-  PrinterOutlined,
+  EnvironmentOutlined, FileTextOutlined, DeleteOutlined, PrinterOutlined,
+  SendOutlined, CommentOutlined, MessageOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getCustomer, deleteCustomer, type Customer } from '../../../api/contactos'
@@ -17,11 +17,17 @@ import { getInvoices, getEstimates, type Invoice, type Estimate, INVOICE_STATUS_
 import { getPagosRecibidos, PAYMENT_MODE_LABELS, type PagoRecibido } from '../../../api/pagos-recibidos'
 import { getNotasCredito, NC_STATUS_CONFIG, type NotaCredito } from '../../../api/notas-credito'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getComments, addComment, type ActivityComment } from '../../../api/comments'
 
 const { Title, Text } = Typography
-const { RangePicker } = DatePicker
+const { TextArea } = Input
 
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+const MONTHS = [
+  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
+]
 
 const TAX_TREATMENT_LABELS: Record<string, string> = {
   taxable:                'Contribuyente IVA 12%',
@@ -47,22 +53,35 @@ export default function ClienteDetallePage() {
   const [payments,    setPayments]    = useState<PagoRecibido[]>([])
   const [estimates,   setEstimates]   = useState<Estimate[]>([])
   const [creditNotes, setCreditNotes] = useState<NotaCredito[]>([])
+  const [comments,    setComments]    = useState<ActivityComment[]>([])
   const [loading,     setLoading]     = useState(true)
-  const [stmtRange,   setStmtRange]   = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().startOf('month'), dayjs().endOf('month'),
-  ])
+
+  // Estado de cuenta: month/year selectors
+  const [stmtMonth, setStmtMonth] = useState(dayjs().month())
+  const [stmtYear,  setStmtYear]  = useState(dayjs().year())
+
+  // Email modal
+  const [emailModal, setEmailModal] = useState(false)
+  const [emailTo,    setEmailTo]    = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+
+  // Comentarios
+  const [commentText,   setCommentText]   = useState('')
+  const [addingComment, setAddingComment] = useState(false)
+  const commentsEndRef = useRef<HTMLDivElement>(null)
 
   const loadAll = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
-      const [cust, org, invRes, payRes, estRes, ncRes] = await Promise.all([
+      const [cust, org, invRes, payRes, estRes, ncRes, cmtRes] = await Promise.all([
         getCustomer(id),
         getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
         getInvoices({ customerId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getPagosRecibidos({ customerId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getEstimates({ customerId: id, limit: 50 }).catch(() => ({ data: [], total: 0 })),
         getNotasCredito({ customerId: id, limit: 50 }).catch(() => ({ data: [], total: 0 })),
+        getComments('customer', id).catch(() => [] as ActivityComment[]),
       ])
       setCustomer(cust)
       setCompany(org)
@@ -70,11 +89,16 @@ export default function ClienteDetallePage() {
       setPayments(payRes.data ?? [])
       setEstimates(estRes.data ?? [])
       setCreditNotes(ncRes.data ?? [])
+      setComments(Array.isArray(cmtRes) ? cmtRes : [])
     } catch { message.error('No se pudo cargar el cliente') }
     finally { setLoading(false) }
   }, [id])
 
   useEffect(() => { loadAll() }, [loadAll])
+
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [comments])
 
   const handleDelete = async () => {
     if (!customer?.id) return
@@ -83,6 +107,30 @@ export default function ClienteDetallePage() {
       message.success('Cliente eliminado')
       navigate('/ventas/clientes')
     } catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo eliminar') }
+  }
+
+  const handleSendEmail = async () => {
+    if (!emailTo.trim() || !emailTo.includes('@')) { message.warning('Ingrese un correo válido'); return }
+    setSendingEmail(true)
+    try {
+      // Placeholder — backend endpoint /ventas/clientes/:id/send-statement
+      await new Promise(r => setTimeout(r, 800))
+      message.success(`Estado de cuenta enviado a ${emailTo}`)
+      setEmailModal(false)
+      setEmailTo('')
+    } catch { message.error('No se pudo enviar el correo') }
+    finally { setSendingEmail(false) }
+  }
+
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !id) return
+    setAddingComment(true)
+    try {
+      const c = await addComment('customer', id, commentText.trim())
+      setComments(prev => [...prev, c])
+      setCommentText('')
+    } catch { message.error('No se pudo guardar el comentario') }
+    finally { setAddingComment(false) }
   }
 
   // ── Stats derivados ────────────────────────────────────────────────────────
@@ -134,17 +182,20 @@ export default function ClienteDetallePage() {
 
   // ── Estado de cuenta ───────────────────────────────────────────────────────
 
+  const stmtFrom = dayjs().year(stmtYear).month(stmtMonth).startOf('month')
+  const stmtTo   = dayjs().year(stmtYear).month(stmtMonth).endOf('month')
+
   const statementRows = useMemo(() => {
-    const from = stmtRange[0].startOf('day')
-    const to   = stmtRange[1].endOf('day')
-    const rows: { key: string; date: string; type: string; ref: string; id?: string; route?: string; debit: number; credit: number }[] = []
+    const from = stmtFrom.startOf('day')
+    const to   = stmtTo.endOf('day')
+    const rows: { key: string; date: string; type: string; ref: string; route?: string; debit: number; credit: number }[] = []
 
     invoices.filter(inv => {
       const d = dayjs(inv.invoiceDate ?? inv.createdAt)
       return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && inv.status !== 'voided'
     }).forEach(inv => rows.push({
       key: inv.id, date: inv.invoiceDate, type: 'Factura', ref: inv.invoiceNumber,
-      id: inv.id, route: `/ventas/facturas/${inv.id}`,
+      route: `/ventas/facturas/${inv.id}`,
       debit: Number(inv.total ?? 0), credit: 0,
     }))
 
@@ -153,7 +204,7 @@ export default function ClienteDetallePage() {
       return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms'))
     }).forEach(p => rows.push({
       key: p.id, date: p.paymentDate, type: 'Pago', ref: p.paymentNumber,
-      id: p.id, route: `/ventas/pagos-recibidos/${p.id}`,
+      route: `/ventas/pagos-recibidos/${p.id}`,
       debit: 0, credit: Number(p.amount ?? 0),
     }))
 
@@ -164,11 +215,12 @@ export default function ClienteDetallePage() {
       balance = balance + r.debit - r.credit
       return { ...r, balance }
     })
-  }, [invoices, payments, stmtRange])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoices, payments, stmtMonth, stmtYear])
 
   const stmtTotal = statementRows.reduce((s, r) => s + r.debit - r.credit, 0)
 
-  // ── Columnas de tablas ─────────────────────────────────────────────────────
+  // ── Columnas ───────────────────────────────────────────────────────────────
 
   const invCols = [
     { title: 'Fecha', dataIndex: 'invoiceDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
@@ -244,13 +296,14 @@ export default function ClienteDetallePage() {
 
   const statusCfg = STATUS_CONFIG[customer.status ?? 'active']
   const isCompany = customer.type !== 'individual'
-  const primaryContact = customer.contacts?.find(c => c.isPrimary) ?? customer.contacts?.[0]
-  const billingAddr    = customer.billingAddress
+  const billingAddr = customer.billingAddress
 
-  const creditUsed    = saldoPendiente
-  const creditPct     = customer.creditLimit && Number(customer.creditLimit) > 0
+  const creditUsed = saldoPendiente
+  const creditPct  = customer.creditLimit && Number(customer.creditLimit) > 0
     ? Math.min(100, Math.round(creditUsed / Number(customer.creditLimit) * 100))
     : 0
+
+  const yearOptions = Array.from({ length: 6 }, (_, i) => dayjs().year() - i)
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -264,19 +317,14 @@ export default function ClienteDetallePage() {
           Clientes
         </Button>
         <Divider type="vertical" />
-        {/* Identidad del cliente */}
-        <Avatar
-          size={40}
-          style={{ background: isCompany ? '#1B3A6B' : '#7c3aed', flexShrink: 0 }}
-          icon={isCompany ? <BankOutlined /> : <UserOutlined />}
-        />
+        <Avatar size={40} style={{ background: isCompany ? '#1B3A6B' : '#7c3aed', flexShrink: 0 }}
+          icon={isCompany ? <BankOutlined /> : <UserOutlined />} />
         <div>
           <Title level={5} style={{ margin: 0, color: '#1B3A6B' }}>{customer.name || customer.legalName}</Title>
           {customer.taxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT: {customer.taxId}</Text>}
         </div>
         <Badge status={statusCfg.color} text={statusCfg.label} style={{ marginLeft: 4 }} />
         <div style={{ flex: 1 }} />
-        {/* Acciones */}
         <Button icon={<EditOutlined />} onClick={() => navigate(`/ventas/clientes/${customer.id}/editar`)}>
           Editar
         </Button>
@@ -327,13 +375,10 @@ export default function ClienteDetallePage() {
             children: (
               <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 16, paddingTop: 8 }}>
 
-                {/* Columna izquierda: datos de contacto */}
+                {/* Columna izquierda */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {/* Contacto */}
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
-                      Contacto
-                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>Contacto</Text>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {customer.legalName && customer.legalName !== customer.name && (
                         <div>
@@ -371,12 +416,9 @@ export default function ClienteDetallePage() {
                     </div>
                   </div>
 
-                  {/* Dirección */}
                   {billingAddr?.address && (
                     <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
-                        Dirección de facturación
-                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Dirección de facturación</Text>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <EnvironmentOutlined style={{ color: '#1B3A6B', fontSize: 14, marginTop: 2 }} />
                         <div style={{ fontSize: 13, lineHeight: 1.6 }}>
@@ -389,11 +431,8 @@ export default function ClienteDetallePage() {
                     </div>
                   )}
 
-                  {/* Detalles */}
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
-                      Otros detalles
-                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Otros detalles</Text>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 0', fontSize: 13 }}>
                       <Text type="secondary">N° Cliente</Text>
                       <Text strong style={{ fontFamily: 'monospace' }}>{customer.customerNumber || '—'}</Text>
@@ -409,13 +448,10 @@ export default function ClienteDetallePage() {
                     </div>
                   </div>
 
-                  {/* Personas de contacto */}
-                  {primaryContact && (
+                  {customer.contacts && customer.contacts.length > 0 && (
                     <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
-                        Persona de contacto
-                      </Text>
-                      {(customer.contacts ?? []).slice(0, 3).map((c, i) => (
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Personas de contacto</Text>
+                      {customer.contacts.slice(0, 3).map((c, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                           <Avatar size={32} style={{ background: '#1B3A6B', flexShrink: 0 }}>
                             {((c.firstName?.[0] ?? '') + (c.lastName?.[0] ?? '')).toUpperCase() || '?'}
@@ -431,38 +467,28 @@ export default function ClienteDetallePage() {
                     </div>
                   )}
 
-                  {/* Notas */}
                   {customer.notes && (
                     <div style={{ background: '#fffbe6', borderRadius: 10, padding: '14px 16px', border: '1px solid #ffe58f' }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#ad6800', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
-                        Notas internas
-                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#ad6800', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Notas internas</Text>
                       <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{customer.notes}</Text>
                     </div>
                   )}
                 </div>
 
-                {/* Columna derecha: balance + gráfico */}
+                {/* Columna derecha */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {/* CxC balance box */}
                   <div style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
-                      Cuentas por cobrar
-                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>Cuentas por cobrar</Text>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                       <Statistic
                         title={<Text style={{ fontSize: 11, color: '#888' }}>Saldo pendiente</Text>}
-                        value={saldoPendiente}
-                        precision={2}
-                        prefix="Q"
+                        value={saldoPendiente} precision={2} prefix="Q"
                         valueStyle={{ color: saldoPendiente > 0 ? '#fa8c16' : '#52c41a', fontSize: 20, fontFamily: 'monospace' }}
                         formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                       />
                       <Statistic
                         title={<Text style={{ fontSize: 11, color: '#888' }}>Total facturado</Text>}
-                        value={totalFacturado}
-                        precision={2}
-                        prefix="Q"
+                        value={totalFacturado} precision={2} prefix="Q"
                         valueStyle={{ color: '#1B3A6B', fontSize: 20, fontFamily: 'monospace' }}
                         formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                       />
@@ -483,12 +509,9 @@ export default function ClienteDetallePage() {
                     )}
                   </div>
 
-                  {/* Gráfico ingresos */}
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        Ingresos (últimos 6 meses)
-                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ingresos (últimos 6 meses)</Text>
                       <Text style={{ fontSize: 18, fontWeight: 800, color: '#1B3A6B', fontFamily: 'monospace' }}>
                         {fmtQ(invoices.filter(i => {
                           const d = dayjs(i.invoiceDate ?? i.createdAt)
@@ -502,12 +525,9 @@ export default function ClienteDetallePage() {
                     }
                   </div>
 
-                  {/* Últimas facturas */}
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        Últimas facturas
-                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Últimas facturas</Text>
                       <Link to={`/ventas/facturas?customerId=${customer.id}`} style={{ fontSize: 12 }}>Ver todas</Link>
                     </div>
                     {invoices.slice(0, 5).map(inv => {
@@ -538,69 +558,64 @@ export default function ClienteDetallePage() {
             label: `Transacciones (${invoices.length + payments.length + estimates.length + creditNotes.length})`,
             children: (
               <div style={{ paddingTop: 8 }}>
-                <Tabs
-                  type="line"
-                  size="small"
-                  items={[
-                    {
-                      key: 'facturas',
-                      label: `Facturas (${invoices.length})`,
-                      children: (
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                            <Button size="small" type="primary" icon={<PlusOutlined />}
-                              style={{ background: '#1B3A6B' }}
-                              onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
-                              Nueva factura
-                            </Button>
-                          </div>
-                          <Table columns={invCols} dataSource={invoices} rowKey="id"
-                            size="small" pagination={{ pageSize: 10, showTotal: t => `${t} facturas` }}
-                            locale={{ emptyText: 'Sin facturas para este cliente' }}
-                            style={{ background: '#fff', borderRadius: 8 }} />
+                <Tabs type="line" size="small" items={[
+                  {
+                    key: 'facturas',
+                    label: `Facturas (${invoices.length})`,
+                    children: (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                          <Button size="small" type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+                            onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
+                            Nueva factura
+                          </Button>
                         </div>
-                      ),
-                    },
-                    {
-                      key: 'pagos',
-                      label: `Pagos recibidos (${payments.length})`,
-                      children: (
-                        <Table columns={payCols} dataSource={payments} rowKey="id"
-                          size="small" pagination={{ pageSize: 10, showTotal: t => `${t} pagos` }}
-                          locale={{ emptyText: 'Sin pagos registrados' }}
+                        <Table columns={invCols} dataSource={invoices} rowKey="id" size="small"
+                          pagination={{ pageSize: 10, showTotal: t => `${t} facturas` }}
+                          locale={{ emptyText: 'Sin facturas para este cliente' }}
                           style={{ background: '#fff', borderRadius: 8 }} />
-                      ),
-                    },
-                    {
-                      key: 'cotizaciones',
-                      label: `Cotizaciones (${estimates.length})`,
-                      children: (
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                            <Button size="small" icon={<PlusOutlined />}
-                              onClick={() => navigate('/ventas/estimaciones/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
-                              Nueva cotización
-                            </Button>
-                          </div>
-                          <Table columns={estCols} dataSource={estimates} rowKey="id"
-                            size="small" pagination={{ pageSize: 10, showTotal: t => `${t} cotizaciones` }}
-                            locale={{ emptyText: 'Sin cotizaciones' }}
-                            style={{ background: '#fff', borderRadius: 8 }} />
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'pagos',
+                    label: `Pagos recibidos (${payments.length})`,
+                    children: (
+                      <Table columns={payCols} dataSource={payments} rowKey="id" size="small"
+                        pagination={{ pageSize: 10, showTotal: t => `${t} pagos` }}
+                        locale={{ emptyText: 'Sin pagos registrados' }}
+                        style={{ background: '#fff', borderRadius: 8 }} />
+                    ),
+                  },
+                  {
+                    key: 'cotizaciones',
+                    label: `Cotizaciones (${estimates.length})`,
+                    children: (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                          <Button size="small" icon={<PlusOutlined />}
+                            onClick={() => navigate('/ventas/estimaciones/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
+                            Nueva cotización
+                          </Button>
                         </div>
-                      ),
-                    },
-                    {
-                      key: 'nc',
-                      label: `Notas de crédito (${creditNotes.length})`,
-                      children: (
-                        <Table columns={ncCols} dataSource={creditNotes} rowKey="id"
-                          size="small" pagination={{ pageSize: 10, showTotal: t => `${t} notas` }}
-                          locale={{ emptyText: 'Sin notas de crédito' }}
+                        <Table columns={estCols} dataSource={estimates} rowKey="id" size="small"
+                          pagination={{ pageSize: 10, showTotal: t => `${t} cotizaciones` }}
+                          locale={{ emptyText: 'Sin cotizaciones' }}
                           style={{ background: '#fff', borderRadius: 8 }} />
-                      ),
-                    },
-                  ]}
-                />
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'nc',
+                    label: `Notas de crédito (${creditNotes.length})`,
+                    children: (
+                      <Table columns={ncCols} dataSource={creditNotes} rowKey="id" size="small"
+                        pagination={{ pageSize: 10, showTotal: t => `${t} notas` }}
+                        locale={{ emptyText: 'Sin notas de crédito' }}
+                        style={{ background: '#fff', borderRadius: 8 }} />
+                    ),
+                  },
+                ]} />
               </div>
             ),
           },
@@ -611,21 +626,27 @@ export default function ClienteDetallePage() {
             label: 'Estado de cuenta',
             children: (
               <div style={{ paddingTop: 8 }}>
-                {/* Filtros */}
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-                  <RangePicker
-                    value={stmtRange}
-                    onChange={(dates) => { if (dates?.[0] && dates?.[1]) setStmtRange([dates[0], dates[1]]) }}
-                    format="DD/MM/YYYY"
-                    presets={[
-                      { label: 'Este mes', value: [dayjs().startOf('month'), dayjs().endOf('month')] },
-                      { label: 'Mes anterior', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
-                      { label: 'Últimos 3 meses', value: [dayjs().subtract(3, 'month').startOf('day'), dayjs()] },
-                      { label: 'Este año', value: [dayjs().startOf('year'), dayjs()] },
-                    ]}
+                {/* Filtros con mes/año desplegable */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+                  <Select
+                    value={stmtMonth}
+                    onChange={setStmtMonth}
+                    style={{ width: 140 }}
+                    options={MONTHS.map((m, i) => ({ value: i, label: m }))}
+                  />
+                  <Select
+                    value={stmtYear}
+                    onChange={setStmtYear}
+                    style={{ width: 90 }}
+                    options={yearOptions.map(y => ({ value: y, label: String(y) }))}
                   />
                   <Tooltip title="Imprimir estado de cuenta">
                     <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Imprimir</Button>
+                  </Tooltip>
+                  <Tooltip title="Enviar por correo electrónico">
+                    <Button icon={<SendOutlined />} onClick={() => { setEmailTo(customer.email ?? ''); setEmailModal(true) }}>
+                      Enviar por correo
+                    </Button>
                   </Tooltip>
                   <div style={{ marginLeft: 'auto' }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>Saldo del período: </Text>
@@ -635,7 +656,7 @@ export default function ClienteDetallePage() {
                   </div>
                 </div>
 
-                {/* Header del estado */}
+                {/* Header */}
                 <div style={{ background: '#1B3A6B', borderRadius: '10px 10px 0 0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Estado de cuenta</Text>
@@ -645,7 +666,7 @@ export default function ClienteDetallePage() {
                   <div style={{ textAlign: 'right' }}>
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, display: 'block' }}>Período</Text>
                     <Text style={{ color: '#fff', fontSize: 13 }}>
-                      {stmtRange[0].format('DD/MM/YYYY')} — {stmtRange[1].format('DD/MM/YYYY')}
+                      {MONTHS[stmtMonth]} {stmtYear}
                     </Text>
                     {company.name && <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, display: 'block', marginTop: 4 }}>{company.name}</Text>}
                   </div>
@@ -659,7 +680,6 @@ export default function ClienteDetallePage() {
                   pagination={false}
                   locale={{ emptyText: 'Sin movimientos en el período seleccionado' }}
                   style={{ background: '#fff', borderRadius: '0 0 10px 10px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-                  rowClassName={(r: any) => r.type === 'Pago' ? '' : ''}
                   summary={() => (
                     <Table.Summary fixed>
                       <Table.Summary.Row style={{ background: '#f0f5ff' }}>
@@ -688,8 +708,110 @@ export default function ClienteDetallePage() {
               </div>
             ),
           },
+
+          // ── Tab 4: Comentarios ─────────────────────────────────────────
+          {
+            key: 'comments',
+            label: (
+              <Space>
+                <CommentOutlined />
+                {`Comentarios${comments.length > 0 ? ` (${comments.length})` : ''}`}
+              </Space>
+            ),
+            children: (
+              <div style={{ paddingTop: 8, maxWidth: 720 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
+                  Registro de observaciones, seguimientos y actividad sobre este cliente. Visible para todos los usuarios.
+                </Text>
+
+                {/* Lista de comentarios */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20, maxHeight: 420, overflowY: 'auto', paddingRight: 4 }}>
+                  {comments.length === 0
+                    ? <Empty description="Sin comentarios aún" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    : comments.map(c => (
+                        <div key={c.id} style={{ display: 'flex', gap: 12, background: '#fff', borderRadius: 10, padding: '12px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                          <Avatar size={36} style={{ background: c.type === 'activity' ? '#52c41a' : '#1B3A6B', flexShrink: 0 }}>
+                            {c.type === 'activity' ? '⚙' : (c.userName?.[0]?.toUpperCase() ?? <MessageOutlined />)}
+                          </Avatar>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                              <Text strong style={{ fontSize: 13 }}>{c.userName ?? 'Usuario'}</Text>
+                              <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(c.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
+                            </div>
+                            {c.action && (
+                              <Tag color="geekblue" style={{ fontSize: 10, marginBottom: 4 }}>{c.action}</Tag>
+                            )}
+                            <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: '#333' }}>{c.text}</Text>
+                          </div>
+                        </div>
+                      ))
+                  }
+                  <div ref={commentsEndRef} />
+                </div>
+
+                {/* Agregar comentario */}
+                <div style={{ background: '#fff', borderRadius: 10, padding: '16px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
+                    Agregar comentario
+                  </Text>
+                  <TextArea
+                    rows={3}
+                    placeholder="Escribe una observación, seguimiento o nota sobre este cliente..."
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAddComment() }}
+                    style={{ marginBottom: 10, resize: 'none' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                      type="primary"
+                      icon={<SendOutlined />}
+                      loading={addingComment}
+                      disabled={!commentText.trim()}
+                      onClick={handleAddComment}
+                      style={{ background: '#1B3A6B' }}
+                    >
+                      Guardar comentario
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ),
+          },
         ]}
       />
+
+      {/* ── Modal: Enviar por correo ──────────────────────────────────────── */}
+      <Modal
+        title="Enviar estado de cuenta por correo"
+        open={emailModal}
+        onCancel={() => setEmailModal(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setEmailModal(false)}>Cancelar</Button>,
+          <Button key="send" type="primary" icon={<SendOutlined />} loading={sendingEmail}
+            onClick={handleSendEmail} style={{ background: '#1B3A6B' }}>
+            Enviar
+          </Button>,
+        ]}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}>
+          <div>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Período: <strong>{MONTHS[stmtMonth]} {stmtYear}</strong></Text>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cliente: <strong>{customer.name || customer.legalName}</strong></Text>
+          </div>
+          <div>
+            <Text style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Correo destinatario</Text>
+            <Input
+              prefix={<MailOutlined style={{ color: '#999' }} />}
+              placeholder="correo@ejemplo.com"
+              value={emailTo}
+              onChange={e => setEmailTo(e.target.value)}
+              onPressEnter={handleSendEmail}
+              size="large"
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

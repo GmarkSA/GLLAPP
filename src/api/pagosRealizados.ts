@@ -126,6 +126,7 @@ export const getPagosRealizados = async (params?: {
   search?: string
   status?: string
   mode?: string
+  vendorId?: string
 }): Promise<{ data: VendorPayment[]; total: number }> => {
   const res = await api.get('/compras/pagos-realizados', { params })
   const raw = unwrap(res)

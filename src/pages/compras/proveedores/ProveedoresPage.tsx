@@ -249,7 +249,7 @@ export default function ProveedoresPage() {
           </Tooltip>
           <Tooltip title="Editar">
             <Button size="small" icon={<EditOutlined />}
-              onClick={() => navigate(`/compras/proveedores/${r.id}`)} />
+              onClick={() => navigate(`/compras/proveedores/${r.id}/editar`)} />
           </Tooltip>
           <Tooltip title="Eliminar">
             <Popconfirm
