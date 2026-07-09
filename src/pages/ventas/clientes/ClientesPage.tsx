@@ -255,7 +255,7 @@ export default function ClientesPage() {
           </Tooltip>
           <Tooltip title="Editar">
             <Button size="small" icon={<EditOutlined />}
-              onClick={() => navigate(`/ventas/clientes/${r.id}`)} />
+              onClick={() => navigate(`/ventas/clientes/${r.id}/editar`)} />
           </Tooltip>
           <Tooltip title="Eliminar">
             <Popconfirm
