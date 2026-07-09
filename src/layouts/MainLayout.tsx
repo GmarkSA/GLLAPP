@@ -48,6 +48,7 @@ const menuItems = [
     { key: '/compras/facturas',                    label: 'Facturas proveedor' },
     { key: '/compras/notas-credito-proveedor',     label: 'Notas de crédito' },
     { key: '/compras/dte-sat',                     label: 'DTE SAT Recibidos' },
+    { key: '/compras/anticipos-proveedor',         label: 'Anticipos a proveedores' },
   ]},
   { key: 'bancos',            icon: <BankOutlined />,         label: 'Bancos y Tesorería', children: [
     { key: '/bancos',                         label: 'Cuentas bancarias' },

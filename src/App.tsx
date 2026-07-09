@@ -62,6 +62,7 @@ const FacturasProveedorPage    = lazy(() => import('./pages/compras/facturas/Fac
 const FacturaProveedorFormPage = lazy(() => import('./pages/compras/facturas/FacturaProveedorFormPage'))
 const DteSatPage               = lazy(() => import('./pages/compras/dte-sat/DteSatPage'))
 const DteSatVentasPage         = lazy(() => import('./pages/ventas/dte-sat/DteSatVentasPage'))
+const AnticiposProveedorPage   = lazy(() => import('./pages/compras/anticipos-proveedor/AnticiposProveedorPage'))
 const ApAgingPage              = lazy(() => import('./pages/reportes/ApAgingPage'))
 const ArAgingPage              = lazy(() => import('./pages/reportes/ArAgingPage'))
 const LibroComprasPage         = lazy(() => import('./pages/reportes/LibroComprasPage'))
@@ -201,6 +202,7 @@ export default function App() {
           <Route path="compras/notas-credito-proveedor/nueva"    element={<NotaCreditoProveedorFormPage />} />
           <Route path="compras/notas-credito-proveedor/:id"      element={<NotaCreditoProveedorFormPage />} />
           <Route path="compras/dte-sat"                     element={<DteSatPage />} />
+          <Route path="compras/anticipos-proveedor"         element={<AnticiposProveedorPage />} />
           <Route path="ventas/dte-sat"                      element={<DteSatVentasPage />} />
 
           <Route path="bancos/pagos-realizados"              element={<PagosRealizadosPage />} />
