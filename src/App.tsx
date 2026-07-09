@@ -34,6 +34,7 @@ const FacturaFormPage        = lazy(() => import('./pages/ventas/facturas/Factur
 const FacturaDetallePage     = lazy(() => import('./pages/ventas/facturas/FacturaDetallePage'))
 const EstimacionesPage       = lazy(() => import('./pages/ventas/estimaciones/EstimacionesPage'))
 const EstimacionFormPage     = lazy(() => import('./pages/ventas/estimaciones/EstimacionFormPage'))
+const EstimacionDetallePage  = lazy(() => import('./pages/ventas/estimaciones/EstimacionDetallePage'))
 const EstimacionPrintPage    = lazy(() => import('./pages/ventas/estimaciones/EstimacionPrintPage'))
 const FacturaImprimirPage    = lazy(() => import('./pages/ventas/facturas/FacturaImprimirPage'))
 const NotasCreditoPage       = lazy(() => import('./pages/ventas/notas-credito/NotasCreditoPage'))
@@ -178,7 +179,7 @@ export default function App() {
 
           <Route path="ventas/estimaciones"            element={<EstimacionesPage />} />
           <Route path="ventas/estimaciones/nueva"      element={<EstimacionFormPage />} />
-          <Route path="ventas/estimaciones/:id"        element={<EstimacionFormPage />} />
+          <Route path="ventas/estimaciones/:id"        element={<EstimacionDetallePage />} />
           <Route path="ventas/estimaciones/:id/editar" element={<EstimacionFormPage />} />
 
           <Route path="ventas/notas-credito"           element={<NotasCreditoPage />} />
