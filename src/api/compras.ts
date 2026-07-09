@@ -52,6 +52,9 @@ export const createVendorAdvance = (dto: {
 export const getVendorAdvances = (params?: { vendorId?: string; status?: string; page?: number; limit?: number }) =>
   api.get('/compras/anticipos-proveedor', { params }).then(unwrap) as Promise<{ data: VendorAdvance[]; total: number }>
 
+export const voidVendorAdvance = (id: string) =>
+  api.patch(`/compras/anticipos-proveedor/${id}/void`).then(unwrap) as Promise<VendorAdvance>
+
 export const applyVendorAdvanceToBill = (
   advanceId: string,
   invoiceId: string,
