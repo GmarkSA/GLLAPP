@@ -389,7 +389,7 @@ export const applyAnticipo = (advanceId: string, invoiceId: string, amount?: num
 const BASE_EST = '/ventas/estimaciones'
 
 export const getEstimates = (params?: {
-  page?: number; limit?: number; search?: string; status?: string
+  page?: number; limit?: number; search?: string; status?: string; customerId?: string
 }) => api.get(BASE_EST, { params }).then(unwrap) as Promise<{ data: Estimate[]; total: number }>
 
 export const getEstimate = (id: string) =>

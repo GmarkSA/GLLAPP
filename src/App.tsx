@@ -29,6 +29,7 @@ const SubscriptionPage       = lazy(() => import('./pages/billing/SubscriptionPa
 // Ventas
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
 const ClienteFormPage        = lazy(() => import('./pages/ventas/clientes/ClienteFormPage'))
+const ClienteDetallePage     = lazy(() => import('./pages/ventas/clientes/ClienteDetallePage'))
 const FacturasPage           = lazy(() => import('./pages/ventas/facturas/FacturasPage'))
 const FacturaFormPage        = lazy(() => import('./pages/ventas/facturas/FacturaFormPage'))
 const FacturaDetallePage     = lazy(() => import('./pages/ventas/facturas/FacturaDetallePage'))
@@ -173,7 +174,8 @@ export default function App() {
 
           <Route path="ventas/clientes"            element={<ClientesPage />} />
           <Route path="ventas/clientes/nuevo"      element={<ClienteFormPage />} />
-          <Route path="ventas/clientes/:id"        element={<ClienteFormPage />} />
+          <Route path="ventas/clientes/:id"        element={<ClienteDetallePage />} />
+          <Route path="ventas/clientes/:id/editar" element={<ClienteFormPage />} />
 
           <Route path="ventas/facturas"            element={<FacturasPage />} />
           <Route path="ventas/facturas/nueva"      element={<FacturaFormPage />} />
