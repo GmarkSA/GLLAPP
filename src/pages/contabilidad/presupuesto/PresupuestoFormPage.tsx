@@ -161,7 +161,7 @@ export default function PresupuestoFormPage() {
 
   const handleCreate = async () => {
     try { await form.validateFields() } catch { return }
-    const vals = form.getFieldsValue()
+    const vals = form.getFieldsValue(true)   // true = incluir campos de steps no montados
     const año  = vals.anioFiscal
     const cuentaIds = [...selectedIngresos, ...selectedGastos, ...(incluirBalance ? selectedOtras : [])]
 
@@ -178,7 +178,7 @@ export default function PresupuestoFormPage() {
         fechaInicio:          `${año}-01-01`,
         fechaFin:             `${año}-12-31`,
         periodo:              vals.periodo,
-        incluirBalanceGeneral: vals.incluirBalanceGeneral ?? false,
+        incluirBalanceGeneral: form.getFieldValue('incluirBalanceGeneral') ?? false,
         cuentaIds,
       })
       message.success('Presupuesto creado')
