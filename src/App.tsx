@@ -89,7 +89,10 @@ const BankPaymentConfigPage    = lazy(() => import('./pages/bancos/BankPaymentCo
 const EmisionLoteChequesPage   = lazy(() => import('./pages/bancos/EmisionLoteChequesPage'))
 
 // Contabilidad
-const CatalogoPage    = lazy(() => import('./pages/contabilidad/CatalogoPage'))
+const CatalogoPage               = lazy(() => import('./pages/contabilidad/CatalogoPage'))
+const CentrosCostoPage           = lazy(() => import('./pages/contabilidad/centros-costo/CentrosCostoPage'))
+const CentrosBeneficioPage       = lazy(() => import('./pages/contabilidad/centros-beneficio/CentrosBeneficioPage'))
+const BloqueoTransaccionesPage   = lazy(() => import('./pages/contabilidad/bloqueo-transacciones/BloqueoTransaccionesPage'))
 const LibroDiarioPage = lazy(() => import('./pages/reportes/LibroDiarioPage'))
 const LibroMayorPage  = lazy(() => import('./pages/reportes/LibroMayorPage'))
 
@@ -239,8 +242,16 @@ export default function App() {
           <Route path="bancos/:id/editar"          element={<CuentaFormPage />} />
           <Route path="bancos/:id/conciliacion"    element={<ConciliacionPage />} />
 
-          <Route path="contabilidad/catalogo" element={<CatalogoPage />} />
-          <Route path="contabilidad/activos"  element={<ComingSoon title="Activos Fijos" />} />
+          <Route path="contabilidad/catalogo"              element={<CatalogoPage />} />
+          <Route path="contabilidad/activos"              element={<ComingSoon title="Activos Fijos" />} />
+          <Route path="contabilidad/clases-activo-fijo"   element={<ComingSoon title="Clases de Activo Fijo" />} />
+          <Route path="contabilidad/diarios-manuales"     element={<ComingSoon title="Diarios Manuales" />} />
+          <Route path="contabilidad/diarios-recurrentes"  element={<ComingSoon title="Diarios Recurrentes" />} />
+          <Route path="contabilidad/presupuestos"         element={<ComingSoon title="Presupuestos" />} />
+          <Route path="contabilidad/ajustes-moneda"       element={<ComingSoon title="Ajustes de Moneda" />} />
+          <Route path="contabilidad/bloqueo-transacciones" element={<BloqueoTransaccionesPage />} />
+          <Route path="contabilidad/centros-costo"        element={<CentrosCostoPage />} />
+          <Route path="contabilidad/centros-beneficio"    element={<CentrosBeneficioPage />} />
 
           <Route path="inventario"                       element={<InventarioPage />} />
           <Route path="inventario/nuevo"                 element={<ArticuloFormPage />} />
