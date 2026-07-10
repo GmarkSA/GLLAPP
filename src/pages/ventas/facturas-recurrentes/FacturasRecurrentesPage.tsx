@@ -6,13 +6,13 @@ import {
 } from 'antd'
 import {
   PlusOutlined, PauseCircleOutlined, PlayCircleOutlined,
-  CloseCircleOutlined, ThunderboltOutlined, HistoryOutlined,
+  CloseCircleOutlined, ThunderboltOutlined, HistoryOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getFacturasRecurrentes, pausarFacturaRecurrente, reanudarFacturaRecurrente,
   cancelarFacturaRecurrente, generarAhoraFacturaRecurrente,
-  getHistorialFacturaRecurrente,
+  getHistorialFacturaRecurrente, eliminarHistorialFacturaRecurrente,
   FRECUENCIA_LABELS, ESTADO_CONFIG,
   type FacturaRecurrente, type HistorialGeneracion,
   type EstadoFacturaRecurrente,
@@ -35,6 +35,7 @@ export default function FacturasRecurrentesPage() {
   const [historialRows,  setHistorialRows]  = useState<HistorialGeneracion[]>([])
   const [historialLoading, setHistorialLoading] = useState(false)
   const [historialTitulo,  setHistorialTitulo]  = useState('')
+  const [historialPlantillaId, setHistorialPlantillaId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -71,6 +72,7 @@ export default function FacturasRecurrentesPage() {
   }
   const handleVerHistorial = async (r: FacturaRecurrente) => {
     setHistorialTitulo(`${r.codigoPlantilla} — ${r.clienteNombre}`)
+    setHistorialPlantillaId(r.id)
     setHistorialModal(true)
     setHistorialLoading(true)
     try {
@@ -78,6 +80,14 @@ export default function FacturasRecurrentesPage() {
       setHistorialRows(rows)
     } catch { setHistorialRows([]) }
     finally { setHistorialLoading(false) }
+  }
+
+  const handleEliminarHistorial = async (historialId: string) => {
+    if (!historialPlantillaId) return
+    try {
+      await eliminarHistorialFacturaRecurrente(historialPlantillaId, historialId)
+      setHistorialRows(prev => prev.filter(r => r.id !== historialId))
+    } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error al eliminar') }
   }
 
   const filtered = search
@@ -190,9 +200,20 @@ export default function FacturasRecurrentesPage() {
   const historialCols = [
     { title: 'Fecha', dataIndex: 'fechaGeneracion', width: 150, render: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm') },
     {
-      title: 'Factura generada', dataIndex: 'numeroFactura', render: (v: string, r: HistorialGeneracion) =>
-        r.facturaGeneradaId ? <Link to={`/ventas/facturas/${r.facturaGeneradaId}`} style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Link>
-          : <Text type="secondary">—</Text>
+      title: 'Factura generada', dataIndex: 'numeroFactura', render: (v: string, r: HistorialGeneracion) => {
+        if (!r.facturaGeneradaId) return <Text type="secondary">—</Text>
+        if (r.facturaExiste === false) return (
+          <Space size={6}>
+            <Tooltip title="Esta factura fue eliminada">
+              <Text delete type="secondary" style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>
+            </Tooltip>
+            <Popconfirm title="¿Eliminar este registro del historial?" okText="Sí" cancelText="No" onConfirm={() => handleEliminarHistorial(r.id)}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+            </Popconfirm>
+          </Space>
+        )
+        return <Link to={`/ventas/facturas/${r.facturaGeneradaId}`} style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Link>
+      }
     },
     { title: 'UUID FEL', dataIndex: 'felUuid', width: 200, render: (v: string) => v ? <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>{v}</Text> : <Text type="secondary">—</Text> },
     {

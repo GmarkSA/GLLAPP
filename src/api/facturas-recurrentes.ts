@@ -55,7 +55,13 @@ export interface CrearFacturaRecurrenteDto {
   felTipoDocumento?:           string
   facturaExenta?:              boolean
   felFrases?:                  Array<{ tipoFrase: number; codigoEscenario: number }>
+  incoterm?:                   string
+  lugarExpedicion?:            string
+  nombreConsignatario?:        string
+  direccionConsignatario?:     string
   notificarClientePorEmail?:   boolean
+  emailNotificacion?:          string
+  emailAdicionalNotificacion?: string
   observaciones?:              string
   detalles:                    DetalleFacturaRecurrenteDto[]
 }
@@ -82,7 +88,14 @@ export interface FacturaRecurrente {
   generarFEL:                  boolean
   felTipoDocumento:            string
   facturaExenta:               boolean
+  felFrases:                   Array<{ tipoFrase: number; codigoEscenario: number }>
+  incoterm:                    string | null
+  lugarExpedicion:             string | null
+  nombreConsignatario:         string | null
+  direccionConsignatario:      string | null
   notificarClientePorEmail:    boolean
+  emailNotificacion:           string | null
+  emailAdicionalNotificacion:  string | null
   estado:                      EstadoFacturaRecurrente
   observaciones:               string | null
   detalles:                    Array<DetalleFacturaRecurrenteDto & { id: string }>
@@ -101,6 +114,7 @@ export interface HistorialGeneracion {
   estadoGeneracion:    'EXITOSA' | 'FALLIDA'
   mensajeError:        string | null
   fechaGeneracion:     string
+  facturaExiste:       boolean | null
 }
 
 const BASE = '/ventas/facturas-recurrentes'
@@ -128,6 +142,9 @@ export const cancelarFacturaRecurrente = (id: string) => api.patch(`${BASE}/${id
 
 export const getHistorialFacturaRecurrente = (id: string) =>
   api.get(`${BASE}/${id}/historial`).then(unwrap) as Promise<HistorialGeneracion[]>
+
+export const eliminarHistorialFacturaRecurrente = (id: string, historialId: string) =>
+  api.delete(`${BASE}/${id}/historial/${historialId}`).then(unwrap)
 
 export const generarAhoraFacturaRecurrente = (id: string) =>
   api.post(`${BASE}/${id}/generar-ahora`).then(unwrap) as Promise<{ facturaId: string; invoiceNumber: string }>

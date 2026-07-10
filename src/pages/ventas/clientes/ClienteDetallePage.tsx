@@ -242,6 +242,12 @@ export default function ClienteDetallePage() {
       title: 'Estado', dataIndex: 'status', width: 110,
       render: (v: string) => { const c = INVOICE_STATUS_CONFIG[v as keyof typeof INVOICE_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
+    {
+      title: 'Origen', dataIndex: 'type', width: 110,
+      render: (v: string) => v === 'recurring'
+        ? <Tag color="purple" style={{ fontSize: 10 }}>Recurrente</Tag>
+        : <Tag color="default" style={{ fontSize: 10 }}>Estándar</Tag>,
+    },
     { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
     { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: Number(v) > 0 ? '#fa8c16' : '#8c8c8c' }}>{fmtQ(Number(v))}</Text> },
   ]
@@ -550,7 +556,10 @@ export default function ClienteDetallePage() {
                       return (
                         <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
                           <div>
-                            <Link to={`/ventas/facturas/${inv.id}`} style={{ fontSize: 13, fontFamily: 'monospace', color: '#1B3A6B' }}>{inv.invoiceNumber}</Link>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Link to={`/ventas/facturas/${inv.id}`} style={{ fontSize: 13, fontFamily: 'monospace', color: '#1B3A6B' }}>{inv.invoiceNumber}</Link>
+                              {inv.type === 'recurring' && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>Recurrente</Tag>}
+                            </div>
                             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{dayjs(inv.invoiceDate).format('DD/MM/YYYY')}</Text>
                           </div>
                           <div style={{ textAlign: 'right' }}>

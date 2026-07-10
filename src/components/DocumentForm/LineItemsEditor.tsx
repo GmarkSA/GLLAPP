@@ -196,10 +196,10 @@ const CellTextArea = memo(({ value, onCommit, placeholder, style }: {
 })
 
 /** InputNumber de celda con estado local — evita pérdida de foco al teclear */
-const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix, style, formatter, parser, precision }: {
+const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix, style, inputStyle, formatter, parser, precision }: {
   value: number; onCommit: (v: number) => void
   min?: number; max?: number; step?: number; precision?: number
-  prefix?: string; suffix?: string; style?: React.CSSProperties
+  prefix?: string; suffix?: string; style?: React.CSSProperties; inputStyle?: React.CSSProperties
   formatter?: (v: number | string | undefined) => string
   parser?: (v: string | undefined) => number | string
 }) => {
@@ -214,7 +214,8 @@ const CellInputNumber = memo(({ value, onCommit, min, max, step, prefix, suffix,
   }
   return (
     <InputNumber
-      size="small" style={{ width: '100%', ...style }}
+      size="small" controls={false} style={{ width: '100%', ...style }}
+      styles={inputStyle ? { input: inputStyle } : undefined}
       min={min} max={max} step={step} precision={precision}
       prefix={prefix} suffix={suffix}
       formatter={formatter as any}
@@ -693,25 +694,28 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Cantidad ══════════════════════════════════════════════════════ */
     {
-      title: 'Qty', dataIndex: 'quantity', width: 85, align: 'right' as const,
+      title: 'Qty', dataIndex: 'quantity', width: 150, align: 'right' as const,
       render: (_: any, row: LineItem) => readOnly
         ? <span style={{ fontSize: 13 }}>{Number(row.quantity).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
         : <CellInputNumber
             value={row.quantity}
             onCommit={v => update(row._key, { quantity: v })}
             min={0.001} step={1} precision={2}
+            inputStyle={{ textAlign: 'right' }}
           />,
     },
 
     /* ══ Tarifa ════════════════════════════════════════════════════════ */
     {
-      title: 'Tarifa', dataIndex: 'unitPrice', width: 145, align: 'left' as const,
+      title: 'Tarifa', dataIndex: 'unitPrice', width: 270, align: 'right' as const,
       render: (_: any, row: LineItem) => readOnly
         ? <span style={{ fontSize: 13 }}>{Number(row.unitPrice).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
         : <CellInputNumber
             value={row.unitPrice}
             onCommit={v => update(row._key, { unitPrice: v })}
-            min={0} step={0.01} prefix={currency === 'USD' ? '$' : currency === 'GTQ' ? 'Q' : currency}
+            min={0} step={0.01} precision={2}
+            prefix={currency === 'USD' ? '$' : currency === 'GTQ' ? 'Q' : currency}
+            inputStyle={{ textAlign: 'right' }}
             formatter={v => {
               if (v === undefined || v === '') return ''
               const parts = `${v}`.split('.')
@@ -724,7 +728,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Desc.% ════════════════════════════════════════════════════════ */
     {
-      title: 'Desc.%', dataIndex: 'discountPercent', width: 78, align: 'center' as const,
+      title: 'Desc.%', dataIndex: 'discountPercent', width: 95, align: 'center' as const,
       render: (_: any, row: LineItem) => readOnly
         ? (row.discountPercent > 0
             ? <Tag color="orange" style={{ fontSize: 11, margin: 0 }}>{row.discountPercent}%</Tag>
@@ -773,7 +777,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Importe (Amount) ══════════════════════════════════════════════ */
     {
-      title: 'Amount', dataIndex: 'lineTotal', width: 120, align: 'right' as const,
+      title: 'Amount', dataIndex: 'lineTotal', width: 150, align: 'right' as const,
       render: (_: any, row: LineItem) => (
         <div style={{ textAlign: 'right', lineHeight: 1.6 }}>
           <div style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 15 }}>
