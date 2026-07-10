@@ -17,6 +17,7 @@ import {
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
+import { getExchangeRateForDate } from '../../../api/monedas'
 
 const { Title } = Typography
 
@@ -93,6 +94,11 @@ export default function DiarioManualFormPage() {
   const [saving,   setSaving]    = useState(false)
   const [acting,   setActing]    = useState(false)
   const [currency, setCurrency]  = useState('GTQ')
+  const [loadingRate, setLoadingRate] = useState(false)
+  const [rateMeta,    setRateMeta]    = useState<{ effectiveDate: string; source: string } | null>(null)
+
+  const watchCurrency  = Form.useWatch('currency',   form)
+  const watchEntryDate = Form.useWatch('entryDate',  form)
 
   const totalDebit  = lines.reduce((s, l) => s + (l.debit  ?? 0), 0)
   const totalCredit = lines.reduce((s, l) => s + (l.credit ?? 0), 0)
@@ -141,6 +147,25 @@ export default function DiarioManualFormPage() {
   }, [id, isNew, form])
 
   useEffect(() => { loadMeta() }, [loadMeta])
+
+  useEffect(() => {
+    if (!watchCurrency || watchCurrency === 'GTQ') {
+      form.setFieldValue('exchangeRate', 1)
+      setRateMeta(null)
+      return
+    }
+    const date = watchEntryDate ? dayjs(watchEntryDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+    setLoadingRate(true)
+    getExchangeRateForDate(watchCurrency, date)
+      .then(r => {
+        const rate = r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 1)
+        form.setFieldValue('exchangeRate', Number(rate.toFixed(6)))
+        setRateMeta({ effectiveDate: r.effectiveDate, source: r.source })
+      })
+      .catch(() => message.warning('No se pudo cargar el tipo de cambio para la fecha seleccionada'))
+      .finally(() => setLoadingRate(false))
+  }, [watchCurrency, watchEntryDate, form])
+
   useEffect(() => {
     if (clonarDe) {
       form.setFieldsValue({
@@ -413,9 +438,11 @@ export default function DiarioManualFormPage() {
                   onChange={v => setCurrency(v)} />
               </Form.Item>
               {currency !== 'GTQ' && (
-                <Form.Item label="Tipo de cambio" name="exchangeRate">
-                  <InputNumber style={{ width: '100%' }} min={0} precision={6}
-                    disabled={isReadonly} placeholder="1.000000" />
+                <Form.Item
+                  label={loadingRate ? 'Tipo de cambio (cargando...)' : 'Tipo de cambio'}
+                  name="exchangeRate"
+                  extra={rateMeta ? `Tasa del ${dayjs(rateMeta.effectiveDate).format('DD/MM/YYYY')} · ${rateMeta.source}` : undefined}>
+                  <InputNumber style={{ width: '100%' }} min={0} precision={6} disabled />
                 </Form.Item>
               )}
             </div>

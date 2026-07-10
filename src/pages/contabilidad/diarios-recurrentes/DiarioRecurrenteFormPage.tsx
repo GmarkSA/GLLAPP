@@ -16,6 +16,7 @@ import { type AsientoDetalle } from '../../../api/asientos'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
+import { getExchangeRateForDate } from '../../../api/monedas'
 
 const { Title } = Typography
 
@@ -88,6 +89,11 @@ export default function DiarioRecurrenteFormPage() {
   const [saving,    setSaving]     = useState(false)
   const [nuncaVence, setNuncaVence] = useState(true)
   const [currency,  setCurrency]   = useState('GTQ')
+  const [loadingRate, setLoadingRate] = useState(false)
+  const [rateMeta,    setRateMeta]    = useState<{ effectiveDate: string; source: string } | null>(null)
+
+  const watchCurrency   = Form.useWatch('currency',    form)
+  const watchFechaInicio = Form.useWatch('fechaInicio', form)
 
   const totalDebit  = lines.reduce((s, l) => s + (l.debit  ?? 0), 0)
   const totalCredit = lines.reduce((s, l) => s + (l.credit ?? 0), 0)
@@ -125,6 +131,25 @@ export default function DiarioRecurrenteFormPage() {
   }, [id, isNew, form])
 
   useEffect(() => { loadMeta() }, [loadMeta])
+
+  useEffect(() => {
+    if (!watchCurrency || watchCurrency === 'GTQ') {
+      form.setFieldValue('exchangeRate', 1)
+      setRateMeta(null)
+      return
+    }
+    const date = watchFechaInicio ? dayjs(watchFechaInicio).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+    setLoadingRate(true)
+    getExchangeRateForDate(watchCurrency, date)
+      .then(r => {
+        const rate = r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 1)
+        form.setFieldValue('exchangeRate', Number(rate.toFixed(6)))
+        setRateMeta({ effectiveDate: r.effectiveDate, source: r.source })
+      })
+      .catch(() => message.warning('No se pudo cargar el tipo de cambio para la fecha seleccionada'))
+      .finally(() => setLoadingRate(false))
+  }, [watchCurrency, watchFechaInicio, form])
+
   useEffect(() => {
     if (desdeDiario) {
       form.setFieldsValue({
@@ -347,6 +372,24 @@ export default function DiarioRecurrenteFormPage() {
               <Form.Item label="Moneda" name="currency">
                 <Select options={CURRENCIES} onChange={v => setCurrency(v)} />
               </Form.Item>
+              {currency !== 'GTQ' ? (
+                <Form.Item
+                  label={loadingRate ? 'Tipo de cambio (cargando...)' : 'Tipo de cambio'}
+                  name="exchangeRate"
+                  extra={rateMeta ? `Tasa del ${dayjs(rateMeta.effectiveDate).format('DD/MM/YYYY')} · ${rateMeta.source}` : undefined}>
+                  <InputNumber style={{ width: '100%' }} min={0} precision={6} disabled />
+                </Form.Item>
+              ) : (
+                <Form.Item label="Método informes" name="reportingMethod">
+                  <Select options={[
+                    { label: 'Acumulación y efectivo', value: 'ACCRUAL_CASH' },
+                    { label: 'Solo devengo', value: 'ACCRUAL' },
+                    { label: 'Sólo efectivo', value: 'CASH' },
+                  ]} defaultValue="ACCRUAL_CASH" />
+                </Form.Item>
+              )}
+            </div>
+            {currency !== 'GTQ' && (
               <Form.Item label="Método informes" name="reportingMethod">
                 <Select options={[
                   { label: 'Acumulación y efectivo', value: 'ACCRUAL_CASH' },
@@ -354,7 +397,7 @@ export default function DiarioRecurrenteFormPage() {
                   { label: 'Sólo efectivo', value: 'CASH' },
                 ]} defaultValue="ACCRUAL_CASH" />
               </Form.Item>
-            </div>
+            )}
             <Form.Item name="autoPublicar" valuePropName="checked">
               <Checkbox>Publicar automáticamente (sin revisión manual)</Checkbox>
             </Form.Item>
