@@ -131,7 +131,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
       width={600}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={{ isActive: true, normalBalance: 'debit', bankLinking: false, isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false }}>
+      <Form form={form} layout="vertical" initialValues={{ isActive: true, normalBalance: 'debit', bankLinking: false, isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false, requiresCostCenter: false, requiresProfitCenter: false }}>
         {/* Hidden fields needed for backend — populated by handleGroupChange */}
         <Form.Item name="type" hidden><Input /></Form.Item>
 
@@ -245,6 +245,39 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Space size={4}>
                 Cuenta de inventario
                 <Tooltip title="Permite vincular esta cuenta con artículos del módulo de Inventario (típicamente grupo 130 — Inventarios)">
+                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
+            <Switch />
+          </Form.Item>
+
+          <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '8px 0' }}>Dimensiones analíticas</Divider>
+
+          <Form.Item
+            name="requiresCostCenter"
+            valuePropName="checked"
+            style={{ marginBottom: 4 }}
+            label={
+              <Space size={4}>
+                Exige Centro de Costo
+                <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Costo asignado. Aplica típicamente a cuentas de Costos (5xxx) y Gastos (6xxx).">
+                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="requiresProfitCenter"
+            valuePropName="checked"
+            style={{ marginBottom: 4 }}
+            label={
+              <Space size={4}>
+                Exige Centro de Beneficio
+                <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Beneficio asignado. Puede aplicar a cualquier tipo de cuenta para segmentación por línea de negocio.">
                   <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
                 </Tooltip>
               </Space>
