@@ -63,7 +63,7 @@ const menuItems = [
     { key: '/contabilidad/diarios-recurrentes',  label: 'Diarios recurrentes' },
     { key: '/contabilidad/activos-fijos',         label: 'Activos fijos' },
     { key: '/contabilidad/clases-activo-fijo',   label: 'Clases de activo fijo' },
-    { key: '/contabilidad/presupuestos',         label: 'Presupuestos' },
+    { key: '/contabilidad/presupuesto',          label: 'Presupuestos' },
     { key: '/contabilidad/ajustes-moneda',       label: 'Ajustes de moneda' },
     { key: '/contabilidad/bloqueo-transacciones', label: 'Bloqueo de transacc...' },
     { key: '/contabilidad/centros-costo',        label: 'Centros de costo' },
