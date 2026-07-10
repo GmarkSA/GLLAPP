@@ -14,77 +14,96 @@ import {
 } from '../../../api/asientos-recurrentes'
 import { type AsientoDetalle } from '../../../api/asientos'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
+import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
 
 const { Title } = Typography
 
+const CURRENCIES = [
+  { label: 'GTQ — Quetzal',         value: 'GTQ' },
+  { label: 'USD — Dólar americano',  value: 'USD' },
+  { label: 'EUR — Euro',             value: 'EUR' },
+  { label: 'MXN — Peso mexicano',    value: 'MXN' },
+]
+const TAX_OPTIONS = [
+  { label: 'Sin impuesto',            value: '' },
+  { label: 'IVA 12%',               value: 'IVA12' },
+  { label: 'IVA 5% (Peq. contrib.)',  value: 'IVA5' },
+  { label: 'Exento',                 value: 'EXEMPT' },
+]
+const TAX_RATES: Record<string, number> = { IVA12: 0.12, IVA5: 0.05, EXEMPT: 0 }
+
+interface AccountMeta { isCustomer: boolean; isVendor: boolean; isFixedAsset: boolean }
+
 interface LineState {
   key:         string
-  accountId:   string
-  accountCode: string
-  accountName: string
+  accountId:   string; accountCode: string; accountName: string
+  accountMeta: AccountMeta
   description: string
-  debit:       number | null
-  credit:      number | null
+  auxiliarId:  string
+  taxCode:     string; taxAmount: number | null
+  debit:       number | null; credit: number | null
 }
 
 const emptyLine = (): LineState => ({
-  key:         Math.random().toString(36).slice(2),
-  accountId:   '', accountCode: '', accountName: '',
-  description: '', debit: null, credit: null,
+  key: Math.random().toString(36).slice(2),
+  accountId: '', accountCode: '', accountName: '',
+  accountMeta: { isCustomer: false, isVendor: false, isFixedAsset: false },
+  description: '', auxiliarId: '', taxCode: '', taxAmount: null, debit: null, credit: null,
 })
 
-const toLineState = (l: LineaPlantilla): LineState => ({
-  key:         Math.random().toString(36).slice(2),
-  accountId:   l.accountId ?? '',
-  accountCode: l.accountCode,
-  accountName: l.accountName,
+const fromPlantilla = (l: LineaPlantilla): LineState => ({
+  key: Math.random().toString(36).slice(2),
+  accountId: l.accountId ?? '', accountCode: l.accountCode, accountName: l.accountName,
+  accountMeta: { isCustomer: false, isVendor: false, isFixedAsset: false },
+  description: l.description ?? '', auxiliarId: '',
+  taxCode: '', taxAmount: null,
+  debit: Number(l.debit) || null, credit: Number(l.credit) || null,
+})
+
+const fromAsiento = (l: AsientoDetalle['lines'][0]): LineState => ({
+  key: Math.random().toString(36).slice(2),
+  accountId: l.accountId ?? '', accountCode: l.accountCode, accountName: l.accountName,
+  accountMeta: { isCustomer: false, isVendor: false, isFixedAsset: false },
   description: l.description ?? '',
-  debit:       Number(l.debit)  || null,
-  credit:      Number(l.credit) || null,
+  auxiliarId: l.customerId ?? l.vendorId ?? l.fixedAssetId ?? '',
+  taxCode: l.taxCode ?? '', taxAmount: l.taxAmount ? Number(l.taxAmount) : null,
+  debit: Number(l.debit) || null, credit: Number(l.credit) || null,
 })
-
-function AccountSelect({
-  value, accounts, onChange,
-}: {
-  value: string; accounts: Account[]
-  onChange: (id: string, code: string, name: string) => void
-}) {
-  return (
-    <Select
-      size="small" showSearch value={value || undefined}
-      placeholder="Seleccione una cuenta"
-      optionFilterProp="label" style={{ width: '100%' }}
-      options={accounts
-        .filter(a => !a.isHeader && a.isActive)
-        .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id, code: a.code, acname: a.name }))}
-      onChange={(_: string, opt: any) => onChange(_, opt.code, opt.acname)}
-    />
-  )
-}
 
 export default function DiarioRecurrenteFormPage() {
-  const { id }     = useParams<{ id: string }>()
-  const navigate   = useNavigate()
-  const location   = useLocation()
+  const { id }      = useParams<{ id: string }>()
+  const navigate    = useNavigate()
+  const location    = useLocation()
   const desdeDiario = (location.state as any)?.desdeDiario as AsientoDetalle | undefined
-  const isNew      = !id || id === 'nueva'
+  const isNew       = !id || id === 'nueva'
 
   const [form]      = Form.useForm()
   const [plantilla, setPlantilla]  = useState<AsientoRecurrente | null>(null)
   const [lines,     setLines]      = useState<LineState[]>([emptyLine(), emptyLine()])
   const [accounts,  setAccounts]   = useState<Account[]>([])
+  const [customers, setCustomers]  = useState<Customer[]>([])
+  const [vendors,   setVendors]    = useState<Vendor[]>([])
+  const [assets,    setAssets]     = useState<ActivoFijo[]>([])
   const [saving,    setSaving]     = useState(false)
   const [nuncaVence, setNuncaVence] = useState(true)
+  const [currency,  setCurrency]   = useState('GTQ')
 
   const totalDebit  = lines.reduce((s, l) => s + (l.debit  ?? 0), 0)
   const totalCredit = lines.reduce((s, l) => s + (l.credit ?? 0), 0)
   const diferencia  = totalDebit - totalCredit
 
-  const loadAccounts = useCallback(async () => {
-    try {
-      const all = await getAccounts({ activas: true })
-      setAccounts(Array.isArray(all) ? all : [])
-    } catch { setAccounts([]) }
+  const loadMeta = useCallback(async () => {
+    const [all, custs, vends, af] = await Promise.allSettled([
+      getAccounts({ activas: true }),
+      getCustomers({ limit: 500 }),
+      getVendors({ limit: 500 }),
+      getActivosFijos({ limit: 500 }),
+    ])
+    if (all.status === 'fulfilled') setAccounts(Array.isArray(all.value) ? all.value : [])
+    if (custs.status === 'fulfilled') { const v = custs.value as any; setCustomers(Array.isArray(v) ? v : v?.data ?? []) }
+    if (vends.status === 'fulfilled') { const v = vends.value as any; setVendors(Array.isArray(v) ? v : v?.data ?? []) }
+    if (af.status   === 'fulfilled') { const v = af.value   as any; setAssets(Array.isArray(v) ? v : v?.data ?? []) }
   }, [])
 
   const loadPlantilla = useCallback(async () => {
@@ -95,97 +114,75 @@ export default function DiarioRecurrenteFormPage() {
       const nv = p.nuncaVence !== false
       setNuncaVence(nv)
       form.setFieldsValue({
-        nombre:       p.nombre,
-        descripcion:  p.descripcion,
-        referencia:   p.referencia,
-        frecuencia:   p.frecuencia,
-        diaEjecucion: p.diaEjecucion,
-        fechaInicio:  p.fechaInicio ? dayjs(p.fechaInicio) : null,
-        fechaFin:     p.fechaFin    ? dayjs(p.fechaFin)    : null,
-        nuncaVence:   nv,
-        autoPublicar: p.autoPublicar,
+        nombre: p.nombre, descripcion: p.descripcion, referencia: p.referencia,
+        frecuencia: p.frecuencia, diaEjecucion: p.diaEjecucion,
+        fechaInicio: p.fechaInicio ? dayjs(p.fechaInicio) : null,
+        fechaFin:    p.fechaFin    ? dayjs(p.fechaFin)    : null,
+        nuncaVence: nv, autoPublicar: p.autoPublicar, currency: 'GTQ',
       })
-      setLines(p.lineas.map(toLineState))
+      setLines(p.lineas.map(fromPlantilla))
     } catch { message.error('Error al cargar la plantilla') }
   }, [id, isNew, form])
 
-  useEffect(() => { loadAccounts() }, [loadAccounts])
-
+  useEffect(() => { loadMeta() }, [loadMeta])
   useEffect(() => {
     if (desdeDiario) {
-      // Pre-llenar desde un asiento manual existente
       form.setFieldsValue({
-        nombre:      `Recurrente: ${desdeDiario.description}`,
-        descripcion: desdeDiario.description,
-        referencia:  desdeDiario.reference,
-        frecuencia:  'MENSUAL',
-        diaEjecucion: 1,
-        fechaInicio:  dayjs(),
-        nuncaVence:   true,
-        autoPublicar: false,
+        nombre: `Recurrente: ${desdeDiario.description}`,
+        descripcion: desdeDiario.description, referencia: desdeDiario.reference,
+        frecuencia: 'MENSUAL', diaEjecucion: 1, fechaInicio: dayjs(),
+        nuncaVence: true, autoPublicar: false, currency: desdeDiario.currency ?? 'GTQ',
       })
       setNuncaVence(true)
-      setLines(desdeDiario.lines.map(l => ({
-        key:         Math.random().toString(36).slice(2),
-        accountId:   l.accountId ?? '',
-        accountCode: l.accountCode,
-        accountName: l.accountName,
-        description: l.description ?? '',
-        debit:       Number(l.debit)  || null,
-        credit:      Number(l.credit) || null,
-      })))
-    } else {
-      loadPlantilla()
-    }
+      setCurrency(desdeDiario.currency ?? 'GTQ')
+      setLines(desdeDiario.lines.map(fromAsiento))
+    } else { loadPlantilla() }
   }, [desdeDiario, loadPlantilla, form])
 
-  const updateLine = (key: string, field: keyof LineState, value: any) =>
-    setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l))
+  const updateLine = (key: string, patch: Partial<LineState>) =>
+    setLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l))
 
-  const setLineAccount = (key: string, id: string, code: string, name: string) =>
-    setLines(prev => prev.map(l => l.key === key
-      ? { ...l, accountId: id, accountCode: code, accountName: name }
-      : l
-    ))
+  const setAccount = (key: string, acct: Account) =>
+    updateLine(key, {
+      accountId: acct.id, accountCode: acct.code, accountName: acct.name,
+      accountMeta: { isCustomer: acct.isCustomerAccount, isVendor: acct.isVendorAccount, isFixedAsset: acct.isFixedAsset },
+      auxiliarId: '',
+    })
 
-  const addLine = () => setLines(prev => [...prev, emptyLine()])
-  const removeLine = (key: string) => {
-    if (lines.length <= 2) return
-    setLines(prev => prev.filter(l => l.key !== key))
+  const recalcTax = (key: string, taxCode: string, debit: number | null, credit: number | null) => {
+    const base = (debit ?? 0) || (credit ?? 0)
+    const rate = TAX_RATES[taxCode] ?? 0
+    updateLine(key, { taxCode, taxAmount: rate > 0 ? Math.round(base * rate * 100) / 100 : null })
   }
+
+  const addLine    = () => setLines(prev => [...prev, emptyLine()])
+  const removeLine = (key: string) => { if (lines.length > 2) setLines(prev => prev.filter(l => l.key !== key)) }
 
   const handleSave = async () => {
     try { await form.validateFields() } catch { return }
-
-    const validLines = lines.filter(l => l.accountCode || l.accountId)
-    if (validLines.length < 1) {
-      message.warning('La plantilla debe tener al menos una línea con cuenta asignada')
-      return
-    }
-    if (Math.abs(diferencia) > 0.01) {
-      message.warning(`Las líneas no cuadran — diferencia: Q ${Math.abs(diferencia).toFixed(2)}`)
-      return
-    }
+    const valid = lines.filter(l => l.accountCode || l.accountId)
+    if (valid.length < 1) { message.warning('Al menos una línea con cuenta'); return }
+    if (Math.abs(diferencia) > 0.01) { message.warning(`No cuadra — diferencia: Q ${Math.abs(diferencia).toFixed(2)}`); return }
 
     const vals = form.getFieldsValue()
     const dto = {
-      nombre:       vals.nombre,
-      descripcion:  vals.descripcion || undefined,
-      referencia:   vals.referencia  || undefined,
-      frecuencia:   vals.frecuencia,
+      nombre: vals.nombre, descripcion: vals.descripcion || undefined,
+      referencia: vals.referencia || undefined, frecuencia: vals.frecuencia,
       diaEjecucion: vals.diaEjecucion ?? 1,
-      fechaInicio:  vals.fechaInicio?.format('YYYY-MM-DD'),
-      fechaFin:     nuncaVence ? undefined : vals.fechaFin?.format('YYYY-MM-DD'),
-      nuncaVence,
-      autoPublicar: vals.autoPublicar === true,
-      lineas: validLines.map((l, i) => ({
-        accountId:   l.accountId   || undefined,
-        accountCode: l.accountCode,
-        accountName: l.accountName,
-        description: l.description || undefined,
-        debit:       l.debit  ?? 0,
-        credit:      l.credit ?? 0,
-      })),
+      fechaInicio: vals.fechaInicio?.format('YYYY-MM-DD'),
+      fechaFin: nuncaVence ? undefined : vals.fechaFin?.format('YYYY-MM-DD'),
+      nuncaVence, autoPublicar: vals.autoPublicar === true,
+      lineas: valid.map((l, i) => {
+        const base: LineaPlantilla = {
+          accountId: l.accountId || undefined, accountCode: l.accountCode,
+          accountName: l.accountName, description: l.description || undefined,
+          debit: l.debit ?? 0, credit: l.credit ?? 0,
+        }
+        if (l.accountMeta.isCustomer)   (base as any).customerId   = l.auxiliarId || undefined
+        if (l.accountMeta.isVendor)     (base as any).vendorId     = l.auxiliarId || undefined
+        if (l.accountMeta.isFixedAsset) (base as any).fixedAssetId = l.auxiliarId || undefined
+        return base
+      }),
     }
 
     setSaving(true)
@@ -204,123 +201,133 @@ export default function DiarioRecurrenteFormPage() {
     } finally { setSaving(false) }
   }
 
+  const Q = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
   const lineColumns = [
     {
-      title: 'Cuenta', width: 260,
+      title: 'Cuenta', width: 210,
       render: (_: any, r: LineState) => (
-        <AccountSelect
-          value={r.accountId} accounts={accounts}
-          onChange={(id, code, name) => setLineAccount(r.key, id, code, name)}
+        <Select size="small" showSearch value={r.accountId || undefined}
+          placeholder="Seleccione una cuenta" optionFilterProp="label" style={{ width: '100%' }}
+          options={accounts.filter(a => !a.isHeader && a.isActive)
+            .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id, acct: a }))}
+          onChange={(_: any, opt: any) => setAccount(r.key, opt.acct)}
         />
       ),
     },
     {
-      title: 'Descripción',
+      title: 'Descripción', width: 160,
       render: (_: any, r: LineState) => (
-        <Input size="small" value={r.description}
-          onChange={e => updateLine(r.key, 'description', e.target.value)}
-          placeholder="Descripción de la línea" />
+        <Input size="small" value={r.description} placeholder="Descripción"
+          onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },
     {
-      title: 'Débitos', width: 130, align: 'right' as const,
+      title: 'Auxiliar', width: 170,
+      render: (_: any, r: LineState) => {
+        const meta = r.accountMeta
+        if (meta.isCustomer) return (
+          <Select size="small" showSearch value={r.auxiliarId || undefined}
+            placeholder="Cliente" optionFilterProp="label" style={{ width: '100%' }} allowClear
+            options={customers.map((c: any) => ({ label: c.displayName ?? c.companyName, value: c.id }))}
+            onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
+        )
+        if (meta.isVendor) return (
+          <Select size="small" showSearch value={r.auxiliarId || undefined}
+            placeholder="Proveedor" optionFilterProp="label" style={{ width: '100%' }} allowClear
+            options={vendors.map((v: any) => ({ label: v.displayName ?? v.companyName, value: v.id }))}
+            onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
+        )
+        if (meta.isFixedAsset) return (
+          <Select size="small" showSearch value={r.auxiliarId || undefined}
+            placeholder="Activo fijo" optionFilterProp="label" style={{ width: '100%' }} allowClear
+            options={assets.map(a => ({ label: `${a.assetNumber} - ${a.name}`, value: a.id }))}
+            onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
+        )
+        return <span style={{ color: '#ccc', fontSize: 11, paddingLeft: 8 }}>—</span>
+      },
+    },
+    {
+      title: 'Impuesto', width: 145,
       render: (_: any, r: LineState) => (
-        <InputNumber
-          size="small" style={{ width: '100%' }} min={0} precision={2}
+        <Select size="small" value={r.taxCode || ''} style={{ width: '100%' }} options={TAX_OPTIONS}
+          onChange={v => recalcTax(r.key, v, r.debit, r.credit)} />
+      ),
+    },
+    {
+      title: 'Débitos', width: 115, align: 'right' as const,
+      render: (_: any, r: LineState) => (
+        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
           value={r.debit} placeholder="0.00"
           onChange={v => {
-            updateLine(r.key, 'debit', v)
-            if (v && v > 0) updateLine(r.key, 'credit', null)
-          }}
-        />
+            updateLine(r.key, { debit: v, ...(v && v > 0 ? { credit: null } : {}) })
+            if (r.taxCode) recalcTax(r.key, r.taxCode, v, null)
+          }} />
       ),
     },
     {
-      title: 'Créditos', width: 130, align: 'right' as const,
+      title: 'Créditos', width: 115, align: 'right' as const,
       render: (_: any, r: LineState) => (
-        <InputNumber
-          size="small" style={{ width: '100%' }} min={0} precision={2}
+        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
           value={r.credit} placeholder="0.00"
           onChange={v => {
-            updateLine(r.key, 'credit', v)
-            if (v && v > 0) updateLine(r.key, 'debit', null)
-          }}
-        />
+            updateLine(r.key, { credit: v, ...(v && v > 0 ? { debit: null } : {}) })
+            if (r.taxCode) recalcTax(r.key, r.taxCode, null, v)
+          }} />
       ),
     },
     {
-      title: '', width: 40,
+      title: '', width: 36,
       render: (_: any, r: LineState) => (
         <Button size="small" type="text" danger icon={<DeleteOutlined />}
-          disabled={lines.length <= 2}
-          onClick={() => removeLine(r.key)} />
+          disabled={lines.length <= 2} onClick={() => removeLine(r.key)} />
       ),
     },
   ]
 
-  const Q = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-
   const pageTitle = desdeDiario
     ? `Nuevo diario recurrente (desde ${desdeDiario.entryNumber})`
-    : isNew
-    ? 'Nuevo diario recurrente'
-    : plantilla
-    ? `Editar plantilla: ${plantilla.nombre}`
+    : isNew ? 'Nuevo diario recurrente'
+    : plantilla ? `Editar plantilla: ${plantilla.nombre}`
     : 'Cargando...'
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200 }}>
+    <div style={{ padding: 24, maxWidth: 1300 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <Button icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/contabilidad/diarios-recurrentes')}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contabilidad/diarios-recurrentes')}>
           Volver
         </Button>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{pageTitle}</Title>
-        {plantilla && (
-          <Tag color={plantilla.activo ? 'success' : 'default'}>
-            {plantilla.activo ? 'Activa' : 'Inactiva'}
-          </Tag>
-        )}
+        {plantilla && <Tag color={plantilla.activo ? 'success' : 'default'}>{plantilla.activo ? 'Activa' : 'Inactiva'}</Tag>}
       </div>
 
       <Form form={form} layout="vertical" size="small"
-        initialValues={{ frecuencia: 'MENSUAL', diaEjecucion: 1, nuncaVence: true, autoPublicar: false, fechaInicio: dayjs() }}>
+        initialValues={{ frecuencia: 'MENSUAL', diaEjecucion: 1, nuncaVence: true, autoPublicar: false, fechaInicio: dayjs(), currency: 'GTQ' }}>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
-          {/* Columna izquierda */}
+          {/* Izquierda */}
           <div>
-            <Form.Item label="Nombre del perfil" name="nombre"
-              rules={[{ required: true, message: 'El nombre es requerido' }]}>
-              <Input placeholder="Ej. Honorarios mensuales, Depreciación, etc." />
+            <Form.Item label="Nombre del perfil" name="nombre" rules={[{ required: true }]}>
+              <Input placeholder="Ej. Honorarios mensuales, Depreciación..." />
             </Form.Item>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Form.Item label="Repetir todo (frecuencia)" name="frecuencia"
-                rules={[{ required: true }]}>
-                <Select
-                  options={[
-                    { label: 'Semanal',    value: 'SEMANAL' },
-                    { label: 'Mensual',    value: 'MENSUAL' },
-                    { label: 'Bimestral',  value: 'BIMESTRAL' },
-                    { label: 'Trimestral', value: 'TRIMESTRAL' },
-                    { label: 'Semestral',  value: 'SEMESTRAL' },
-                    { label: 'Anual',      value: 'ANUAL' },
-                  ]}
-                />
+              <Form.Item label="Repetir todo (frecuencia)" name="frecuencia" rules={[{ required: true }]}>
+                <Select options={[
+                  { label: 'Semanal', value: 'SEMANAL' }, { label: 'Mensual', value: 'MENSUAL' },
+                  { label: 'Bimestral', value: 'BIMESTRAL' }, { label: 'Trimestral', value: 'TRIMESTRAL' },
+                  { label: 'Semestral', value: 'SEMESTRAL' }, { label: 'Anual', value: 'ANUAL' },
+                ]} />
               </Form.Item>
               <Form.Item label="Día de ejecución" name="diaEjecucion">
-                <InputNumber style={{ width: '100%' }} min={1} max={28}
-                  placeholder="1" />
+                <InputNumber style={{ width: '100%' }} min={1} max={28} />
               </Form.Item>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Form.Item label="Comenzar el" name="fechaInicio">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
               <Form.Item label="Finaliza el" name="fechaFin">
-                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY"
-                  disabled={nuncaVence} />
+                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" disabled={nuncaVence} />
               </Form.Item>
             </div>
             <Form.Item name="nuncaVence" valuePropName="checked" style={{ marginTop: -8 }}>
@@ -328,54 +335,41 @@ export default function DiarioRecurrenteFormPage() {
             </Form.Item>
           </div>
 
-          {/* Columna derecha */}
+          {/* Derecha */}
           <div>
             <Form.Item label="N.º de referencia" name="referencia">
-              <Input placeholder="Número de referencia para los asientos generados" />
+              <Input placeholder="Referencia para los asientos generados" />
             </Form.Item>
-
-            <Form.Item label="Notas" name="descripcion"
-              rules={[{ required: true, message: 'Las notas son requeridas' }]}>
-              <Input.TextArea rows={3} maxLength={500} showCount
-                placeholder="500 caracteres como máximo" />
+            <Form.Item label="Notas" name="descripcion" rules={[{ required: true }]}>
+              <Input.TextArea rows={3} maxLength={500} showCount placeholder="500 caracteres como máximo" />
             </Form.Item>
-
-            <Form.Item label="Método de generación de informes" name="reportingMethod">
-              <Radio.Group defaultValue="ACCRUAL_CASH">
-                <Radio value="ACCRUAL_CASH">Acumulación y efectivo</Radio>
-                <Radio value="ACCRUAL">Solo devengo</Radio>
-                <Radio value="CASH">Sólo efectivo</Radio>
-              </Radio.Group>
-            </Form.Item>
-
-            <Form.Item label="Moneda">
-              <Select disabled value="GTQ"
-                options={[{ label: 'GTQ — Guatemalan Quetzal', value: 'GTQ' }]} />
-            </Form.Item>
-
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Form.Item label="Moneda" name="currency">
+                <Select options={CURRENCIES} onChange={v => setCurrency(v)} />
+              </Form.Item>
+              <Form.Item label="Método informes" name="reportingMethod">
+                <Select options={[
+                  { label: 'Acumulación y efectivo', value: 'ACCRUAL_CASH' },
+                  { label: 'Solo devengo', value: 'ACCRUAL' },
+                  { label: 'Sólo efectivo', value: 'CASH' },
+                ]} defaultValue="ACCRUAL_CASH" />
+              </Form.Item>
+            </div>
             <Form.Item name="autoPublicar" valuePropName="checked">
-              <Checkbox>
-                Publicar automáticamente al generar (sin revisión manual)
-              </Checkbox>
+              <Checkbox>Publicar automáticamente (sin revisión manual)</Checkbox>
             </Form.Item>
           </div>
         </div>
 
         <Divider style={{ margin: '8px 0 16px' }} />
 
-        {/* ── Líneas ──────────────────────────────────────────── */}
-        <Table
-          dataSource={lines} columns={lineColumns} rowKey="key"
-          size="small" pagination={false}
-          locale={{ emptyText: 'Sin líneas' }}
-        />
+        <Table dataSource={lines} columns={lineColumns} rowKey="key"
+          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }} />
         <Button type="dashed" icon={<PlusOutlined />}
-          style={{ marginTop: 8, width: '100%' }}
-          onClick={addLine}>
+          style={{ marginTop: 8, width: '100%' }} onClick={addLine}>
           Añadir nueva fila
         </Button>
 
-        {/* ── Totales ─────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
           <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 340 }}>
             <tbody>
@@ -385,18 +379,13 @@ export default function DiarioRecurrenteFormPage() {
                 <td style={{ padding: '4px 20px', textAlign: 'right' }}>{Q(totalCredit)}</td>
               </tr>
               <tr style={{ fontWeight: 700, fontSize: 14 }}>
-                <td style={{ padding: '4px 20px', borderTop: '1px solid #f0f0f0' }}>Total (GTQ)</td>
+                <td style={{ padding: '4px 20px', borderTop: '1px solid #f0f0f0' }}>Total ({currency})</td>
                 <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalDebit)}</td>
                 <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalCredit)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#f5222d' : '#52c41a' }}>Diferencia</td>
-                <td colSpan={2} style={{
-                  padding: '4px 20px', textAlign: 'right',
-                  color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600,
-                }}>
-                  {Q(Math.abs(diferencia))}
-                </td>
+                <td colSpan={2} style={{ padding: '4px 20px', textAlign: 'right', color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600 }}>{Q(Math.abs(diferencia))}</td>
               </tr>
             </tbody>
           </table>
@@ -404,10 +393,8 @@ export default function DiarioRecurrenteFormPage() {
 
         <Divider style={{ margin: '16px 0' }} />
         <Space>
-          <Button type="primary" icon={<SaveOutlined />}
-            style={{ background: '#1B3A6B' }} loading={saving}
-            disabled={Math.abs(diferencia) > 0.01}
-            onClick={handleSave}>
+          <Button type="primary" icon={<SaveOutlined />} style={{ background: '#1B3A6B' }}
+            loading={saving} disabled={Math.abs(diferencia) > 0.01} onClick={handleSave}>
             {isNew || desdeDiario ? 'Crear plantilla' : 'Guardar cambios'}
           </Button>
           <Button onClick={() => navigate('/contabilidad/diarios-recurrentes')}>Cancelar</Button>

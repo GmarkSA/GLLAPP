@@ -3,23 +3,30 @@ import api from './axios'
 const unwrap = (r: any) => r.data?.data ?? r.data
 
 export interface AsientoLine {
-  accountId?:        string
-  accountCode:       string
-  accountName:       string
-  debit:             number
-  credit:            number
-  description?:      string
-  centroCostoId?:    string
+  accountId?:         string
+  accountCode:        string
+  accountName:        string
+  debit:              number
+  credit:             number
+  description?:       string
+  customerId?:        string
+  vendorId?:          string
+  fixedAssetId?:      string
+  taxCode?:           string   // IVA12 | IVA5 | EXEMPT
+  taxAmount?:         number
+  centroCostoId?:     string
   centroBeneficioId?: string
-  sortOrder?:        number
+  sortOrder?:         number
 }
 
 export interface CreateAsientoDto {
   lines:               AsientoLine[]
   entryDate:           string
+  accountingDate?:     string  // fecha contable (puede diferir del documento)
   description:         string
   type?:               string   // MANUAL | OPENING | CLOSING | ADJUSTMENT
   reference?:          string
+  currency?:           string
   exchangeRate?:       number
   sourceDocumentId?:   string
   sourceDocumentType?: string
@@ -40,28 +47,34 @@ export interface AsientoListItem {
 }
 
 export interface AsientoDetalle {
-  id:           string
-  entryNumber:  string
-  type:         string
-  status:       string
-  entryDate:    string
-  description:  string
-  reference?:   string
-  exchangeRate?: number
-  totalDebit:   number
-  totalCredit:  number
-  currency:     string
-  lines:        Array<{
-    id?: string
-    accountId?: string
-    accountCode: string
-    accountName: string
-    debit: number
-    credit: number
-    description?: string
-    centroCostoId?: string
+  id:              string
+  entryNumber:     string
+  type:            string
+  status:          string
+  entryDate:       string
+  accountingDate?: string
+  description:     string
+  reference?:      string
+  exchangeRate?:   number
+  totalDebit:      number
+  totalCredit:     number
+  currency:        string
+  lines:           Array<{
+    id?:              string
+    accountId?:       string
+    accountCode:      string
+    accountName:      string
+    debit:            number
+    credit:           number
+    description?:     string
+    customerId?:      string
+    vendorId?:        string
+    fixedAssetId?:    string
+    taxCode?:         string
+    taxAmount?:       number
+    centroCostoId?:   string
     centroBeneficioId?: string
-    sortOrder?: number
+    sortOrder?:       number
   }>
 }
 
