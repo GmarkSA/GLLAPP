@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined,
   RollbackOutlined, ArrowLeftOutlined, SaveOutlined, CopyOutlined,
-  RetweetOutlined,
+  RetweetOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -268,6 +268,20 @@ export default function DiarioManualFormPage() {
     } finally { setSaving(false) }
   }
 
+  const fetchRate = (currencyCode: string, date?: string) => {
+    if (!currencyCode || currencyCode === 'GTQ') return
+    const d = date ?? (form.getFieldValue('entryDate') ? dayjs(form.getFieldValue('entryDate')).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))
+    setLoadingRate(true)
+    getExchangeRateForDate(currencyCode, d)
+      .then(r => {
+        const rate = r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 1)
+        form.setFieldValue('exchangeRate', Number(rate.toFixed(6)))
+        setRateMeta({ effectiveDate: r.effectiveDate, source: r.source })
+      })
+      .catch(() => message.warning('No se pudo cargar el tipo de cambio'))
+      .finally(() => setLoadingRate(false))
+  }
+
   const actFn = async (fn: () => Promise<any>, ok: string) => {
     setActing(true)
     try {
@@ -438,11 +452,16 @@ export default function DiarioManualFormPage() {
                   onChange={v => setCurrency(v)} />
               </Form.Item>
               {currency !== 'GTQ' && (
-                <Form.Item
-                  label={loadingRate ? 'Tipo de cambio (cargando...)' : 'Tipo de cambio'}
-                  name="exchangeRate"
+                <Form.Item label="Tipo de cambio" name="exchangeRate"
                   extra={rateMeta ? `Tasa del ${dayjs(rateMeta.effectiveDate).format('DD/MM/YYYY')} · ${rateMeta.source}` : undefined}>
-                  <InputNumber style={{ width: '100%' }} min={0} precision={6} disabled />
+                  <InputNumber style={{ width: '100%' }} min={0} precision={6}
+                    disabled={isReadonly} placeholder="0.000000"
+                    addonAfter={
+                      <Tooltip title="Recargar tasa desde configuración">
+                        <ReloadOutlined spin={loadingRate} onClick={() => fetchRate(currency)}
+                          style={{ cursor: 'pointer', color: '#1B3A6B' }} />
+                      </Tooltip>
+                    } />
                 </Form.Item>
               )}
             </div>

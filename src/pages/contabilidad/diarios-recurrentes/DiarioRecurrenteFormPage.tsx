@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   Button, Form, Input, DatePicker, Select, Typography, Divider,
-  Table, InputNumber, Space, Tag, message, Checkbox, Radio,
+  Table, InputNumber, Space, Tag, message, Checkbox, Radio, Tooltip,
 } from 'antd'
 import {
-  PlusOutlined, DeleteOutlined, ArrowLeftOutlined, SaveOutlined,
+  PlusOutlined, DeleteOutlined, ArrowLeftOutlined, SaveOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -163,6 +163,20 @@ export default function DiarioRecurrenteFormPage() {
       setLines(desdeDiario.lines.map(fromAsiento))
     } else { loadPlantilla() }
   }, [desdeDiario, loadPlantilla, form])
+
+  const fetchRate = (currencyCode: string) => {
+    if (!currencyCode || currencyCode === 'GTQ') return
+    const d = form.getFieldValue('fechaInicio') ? dayjs(form.getFieldValue('fechaInicio')).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+    setLoadingRate(true)
+    getExchangeRateForDate(currencyCode, d)
+      .then(r => {
+        const rate = r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 1)
+        form.setFieldValue('exchangeRate', Number(rate.toFixed(6)))
+        setRateMeta({ effectiveDate: r.effectiveDate, source: r.source })
+      })
+      .catch(() => message.warning('No se pudo cargar el tipo de cambio'))
+      .finally(() => setLoadingRate(false))
+  }
 
   const updateLine = (key: string, patch: Partial<LineState>) =>
     setLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l))
@@ -373,11 +387,16 @@ export default function DiarioRecurrenteFormPage() {
                 <Select options={CURRENCIES} onChange={v => setCurrency(v)} />
               </Form.Item>
               {currency !== 'GTQ' ? (
-                <Form.Item
-                  label={loadingRate ? 'Tipo de cambio (cargando...)' : 'Tipo de cambio'}
-                  name="exchangeRate"
+                <Form.Item label="Tipo de cambio" name="exchangeRate"
                   extra={rateMeta ? `Tasa del ${dayjs(rateMeta.effectiveDate).format('DD/MM/YYYY')} · ${rateMeta.source}` : undefined}>
-                  <InputNumber style={{ width: '100%' }} min={0} precision={6} disabled />
+                  <InputNumber style={{ width: '100%' }} min={0} precision={6}
+                    placeholder="0.000000"
+                    addonAfter={
+                      <Tooltip title="Recargar tasa desde configuración">
+                        <ReloadOutlined spin={loadingRate} onClick={() => fetchRate(currency)}
+                          style={{ cursor: 'pointer', color: '#1B3A6B' }} />
+                      </Tooltip>
+                    } />
                 </Form.Item>
               ) : (
                 <Form.Item label="Método informes" name="reportingMethod">
