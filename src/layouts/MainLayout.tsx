@@ -36,9 +36,10 @@ const menuItems = [
   { key: '/dashboard',        icon: <DashboardOutlined />,    label: 'Dashboard' },
   { key: 'ventas',            icon: <ShoppingCartOutlined />, label: 'Ventas', children: [
     { key: '/ventas/clientes',        label: 'Clientes' },
-    { key: '/ventas/estimaciones',    label: 'Cotizaciones' },
-    { key: '/ventas/facturas',        label: 'Facturas de venta' },
-    { key: '/ventas/notas-credito',   label: 'Notas de crédito' },
+    { key: '/ventas/estimaciones',         label: 'Cotizaciones' },
+    { key: '/ventas/facturas',             label: 'Facturas de venta' },
+    { key: '/ventas/facturas-recurrentes', label: 'Facturas recurrentes' },
+    { key: '/ventas/notas-credito',        label: 'Notas de crédito' },
     { key: '/ventas/pagos-recibidos',          label: 'Pagos recibidos' },
     { key: '/ventas/dte-sat',                  label: 'DTE SAT Emitidos' },
   ]},

@@ -30,9 +30,11 @@ const SubscriptionPage       = lazy(() => import('./pages/billing/SubscriptionPa
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
 const ClienteFormPage        = lazy(() => import('./pages/ventas/clientes/ClienteFormPage'))
 const ClienteDetallePage     = lazy(() => import('./pages/ventas/clientes/ClienteDetallePage'))
-const FacturasPage           = lazy(() => import('./pages/ventas/facturas/FacturasPage'))
-const FacturaFormPage        = lazy(() => import('./pages/ventas/facturas/FacturaFormPage'))
-const FacturaDetallePage     = lazy(() => import('./pages/ventas/facturas/FacturaDetallePage'))
+const FacturasPage                  = lazy(() => import('./pages/ventas/facturas/FacturasPage'))
+const FacturaFormPage               = lazy(() => import('./pages/ventas/facturas/FacturaFormPage'))
+const FacturaDetallePage            = lazy(() => import('./pages/ventas/facturas/FacturaDetallePage'))
+const FacturasRecurrentesPage       = lazy(() => import('./pages/ventas/facturas-recurrentes/FacturasRecurrentesPage'))
+const FacturaRecurrenteFormPage     = lazy(() => import('./pages/ventas/facturas-recurrentes/FacturaRecurrenteFormPage'))
 const EstimacionesPage       = lazy(() => import('./pages/ventas/estimaciones/EstimacionesPage'))
 const EstimacionFormPage     = lazy(() => import('./pages/ventas/estimaciones/EstimacionFormPage'))
 const EstimacionDetallePage  = lazy(() => import('./pages/ventas/estimaciones/EstimacionDetallePage'))
@@ -182,6 +184,10 @@ export default function App() {
           <Route path="ventas/facturas/nueva"      element={<FacturaFormPage />} />
           <Route path="ventas/facturas/:id"        element={<FacturaDetallePage />} />
           <Route path="ventas/facturas/:id/editar" element={<FacturaFormPage />} />
+
+          <Route path="ventas/facturas-recurrentes"            element={<FacturasRecurrentesPage />} />
+          <Route path="ventas/facturas-recurrentes/nueva"      element={<FacturaRecurrenteFormPage />} />
+          <Route path="ventas/facturas-recurrentes/:id/editar" element={<FacturaRecurrenteFormPage />} />
 
           <Route path="ventas/estimaciones"            element={<EstimacionesPage />} />
           <Route path="ventas/estimaciones/nueva"      element={<EstimacionFormPage />} />
