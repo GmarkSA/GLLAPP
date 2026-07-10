@@ -29,10 +29,11 @@ function buildTree(accounts: Account[]): { nodes: DataNode[]; leafIds: string[] 
   const leafIds: string[] = []
   const byId = new Map(accounts.map(a => [a.id, a]))
 
-  // Agrupar por parentId
+  // Agrupar por parentId. Si el padre no está en la lista (p.ej. encabezado excluido
+  // por findFlat), se trata como raíz para que el nodo sea visible en el árbol.
   const children = new Map<string | null, Account[]>()
   for (const a of accounts) {
-    const pid = a.parentId ?? null
+    const pid = (a.parentId && byId.has(a.parentId)) ? a.parentId : null
     if (!children.has(pid)) children.set(pid, [])
     children.get(pid)!.push(a)
   }
