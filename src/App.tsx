@@ -96,6 +96,11 @@ const BloqueoTransaccionesPage   = lazy(() => import('./pages/contabilidad/bloqu
 const ActivosFijosPage           = lazy(() => import('./pages/contabilidad/activos-fijos/ActivosFijosPage'))
 const ActivoFijoDetallePage      = lazy(() => import('./pages/contabilidad/activos-fijos/ActivoFijoDetallePage'))
 const ClasesActivoFijoPage       = lazy(() => import('./pages/contabilidad/activos-fijos/ClasesActivoFijoPage'))
+// Diarios
+const DiariosManualesPage        = lazy(() => import('./pages/contabilidad/diarios-manuales/DiariosManualesPage'))
+const DiarioManualFormPage       = lazy(() => import('./pages/contabilidad/diarios-manuales/DiarioManualFormPage'))
+const DiariosRecurrentesPage     = lazy(() => import('./pages/contabilidad/diarios-recurrentes/DiariosRecurrentesPage'))
+const DiarioRecurrenteFormPage   = lazy(() => import('./pages/contabilidad/diarios-recurrentes/DiarioRecurrenteFormPage'))
 const LibroDiarioPage = lazy(() => import('./pages/reportes/LibroDiarioPage'))
 const LibroMayorPage  = lazy(() => import('./pages/reportes/LibroMayorPage'))
 
@@ -249,8 +254,12 @@ export default function App() {
           <Route path="contabilidad/activos-fijos"        element={<ActivosFijosPage />} />
           <Route path="contabilidad/activos-fijos/:id"    element={<ActivoFijoDetallePage />} />
           <Route path="contabilidad/clases-activo-fijo"   element={<ClasesActivoFijoPage />} />
-          <Route path="contabilidad/diarios-manuales"     element={<ComingSoon title="Diarios Manuales" />} />
-          <Route path="contabilidad/diarios-recurrentes"  element={<ComingSoon title="Diarios Recurrentes" />} />
+          <Route path="contabilidad/diarios-manuales"            element={<DiariosManualesPage />} />
+          <Route path="contabilidad/diarios-manuales/nuevo"      element={<DiarioManualFormPage />} />
+          <Route path="contabilidad/diarios-manuales/:id"        element={<DiarioManualFormPage />} />
+          <Route path="contabilidad/diarios-recurrentes"         element={<DiariosRecurrentesPage />} />
+          <Route path="contabilidad/diarios-recurrentes/nueva"   element={<DiarioRecurrenteFormPage />} />
+          <Route path="contabilidad/diarios-recurrentes/:id"     element={<DiarioRecurrenteFormPage />} />
           <Route path="contabilidad/presupuestos"         element={<ComingSoon title="Presupuestos" />} />
           <Route path="contabilidad/ajustes-moneda"       element={<ComingSoon title="Ajustes de Moneda" />} />
           <Route path="contabilidad/bloqueo-transacciones" element={<BloqueoTransaccionesPage />} />
