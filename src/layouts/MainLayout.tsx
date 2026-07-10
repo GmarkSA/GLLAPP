@@ -61,7 +61,7 @@ const menuItems = [
     { key: '/contabilidad/catalogo',             label: 'Catálogo de cuentas' },
     { key: '/contabilidad/diarios-manuales',     label: 'Diarios manuales' },
     { key: '/contabilidad/diarios-recurrentes',  label: 'Diarios recurrentes' },
-    { key: '/contabilidad/activos',              label: 'Activos fijos' },
+    { key: '/contabilidad/activos-fijos',         label: 'Activos fijos' },
     { key: '/contabilidad/clases-activo-fijo',   label: 'Clases de activo fijo' },
     { key: '/contabilidad/presupuestos',         label: 'Presupuestos' },
     { key: '/contabilidad/ajustes-moneda',       label: 'Ajustes de moneda' },

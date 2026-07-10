@@ -8,6 +8,8 @@ export interface CentroBeneficio {
   codigo: string
   nombre: string
   descripcion: string | null
+  responsable: string | null
+  area: string | null
   activo: boolean
   fechaCreacion: string
 }
@@ -22,10 +24,12 @@ export const getCentroBeneficio = (id: string) =>
 
 export const crearCentroBeneficio = (dto: {
   codigo: string; nombre: string; descripcion?: string;
+  responsable?: string; area?: string;
 }) => api.post(BASE, dto).then(unwrap) as Promise<CentroBeneficio>
 
 export const actualizarCentroBeneficio = (id: string, dto: Partial<{
-  codigo: string; nombre: string; descripcion: string; activo: boolean;
+  codigo: string; nombre: string; descripcion: string;
+  responsable: string; area: string; activo: boolean;
 }>) => api.patch(`${BASE}/${id}`, dto).then(unwrap) as Promise<CentroBeneficio>
 
 export const eliminarCentroBeneficio = (id: string) =>

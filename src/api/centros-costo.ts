@@ -8,8 +8,8 @@ export interface CentroCosto {
   codigo: string
   nombre: string
   descripcion: string | null
-  responsableUsuarioId: string | null
-  centroCostoPadreId: string | null
+  responsable: string | null
+  area: string | null
   activo: boolean
   fechaCreacion: string
 }
@@ -24,12 +24,12 @@ export const getCentroCosto = (id: string) =>
 
 export const crearCentroCosto = (dto: {
   codigo: string; nombre: string; descripcion?: string;
-  responsableUsuarioId?: string; centroCostoPadreId?: string;
+  responsable?: string; area?: string;
 }) => api.post(BASE, dto).then(unwrap) as Promise<CentroCosto>
 
 export const actualizarCentroCosto = (id: string, dto: Partial<{
   codigo: string; nombre: string; descripcion: string;
-  responsableUsuarioId: string; centroCostoPadreId: string; activo: boolean;
+  responsable: string; area: string; activo: boolean;
 }>) => api.patch(`${BASE}/${id}`, dto).then(unwrap) as Promise<CentroCosto>
 
 export const eliminarCentroCosto = (id: string) =>

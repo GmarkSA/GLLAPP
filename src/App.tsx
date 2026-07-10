@@ -93,6 +93,9 @@ const CatalogoPage               = lazy(() => import('./pages/contabilidad/Catal
 const CentrosCostoPage           = lazy(() => import('./pages/contabilidad/centros-costo/CentrosCostoPage'))
 const CentrosBeneficioPage       = lazy(() => import('./pages/contabilidad/centros-beneficio/CentrosBeneficioPage'))
 const BloqueoTransaccionesPage   = lazy(() => import('./pages/contabilidad/bloqueo-transacciones/BloqueoTransaccionesPage'))
+const ActivosFijosPage           = lazy(() => import('./pages/contabilidad/activos-fijos/ActivosFijosPage'))
+const ActivoFijoDetallePage      = lazy(() => import('./pages/contabilidad/activos-fijos/ActivoFijoDetallePage'))
+const ClasesActivoFijoPage       = lazy(() => import('./pages/contabilidad/activos-fijos/ClasesActivoFijoPage'))
 const LibroDiarioPage = lazy(() => import('./pages/reportes/LibroDiarioPage'))
 const LibroMayorPage  = lazy(() => import('./pages/reportes/LibroMayorPage'))
 
@@ -243,8 +246,9 @@ export default function App() {
           <Route path="bancos/:id/conciliacion"    element={<ConciliacionPage />} />
 
           <Route path="contabilidad/catalogo"              element={<CatalogoPage />} />
-          <Route path="contabilidad/activos"              element={<ComingSoon title="Activos Fijos" />} />
-          <Route path="contabilidad/clases-activo-fijo"   element={<ComingSoon title="Clases de Activo Fijo" />} />
+          <Route path="contabilidad/activos-fijos"        element={<ActivosFijosPage />} />
+          <Route path="contabilidad/activos-fijos/:id"    element={<ActivoFijoDetallePage />} />
+          <Route path="contabilidad/clases-activo-fijo"   element={<ClasesActivoFijoPage />} />
           <Route path="contabilidad/diarios-manuales"     element={<ComingSoon title="Diarios Manuales" />} />
           <Route path="contabilidad/diarios-recurrentes"  element={<ComingSoon title="Diarios Recurrentes" />} />
           <Route path="contabilidad/presupuestos"         element={<ComingSoon title="Presupuestos" />} />

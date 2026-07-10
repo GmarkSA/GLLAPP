@@ -30,7 +30,10 @@ export default function CentrosBeneficioPage() {
   const openNew = () => { setEditing(null); form.resetFields(); setModal(true) }
   const openEdit = (r: CentroBeneficio) => {
     setEditing(r)
-    form.setFieldsValue({ codigo: r.codigo, nombre: r.nombre, descripcion: r.descripcion ?? '' })
+    form.setFieldsValue({
+      codigo: r.codigo, nombre: r.nombre, descripcion: r.descripcion ?? '',
+      responsable: r.responsable ?? '', area: r.area ?? '',
+    })
     setModal(true)
   }
 
@@ -58,8 +61,10 @@ export default function CentrosBeneficioPage() {
   }
 
   const columns = [
-    { title: 'Código', dataIndex: 'codigo', width: 110 },
+    { title: 'Código', dataIndex: 'codigo', width: 100 },
     { title: 'Línea de negocio', dataIndex: 'nombre' },
+    { title: 'Área', dataIndex: 'area', width: 140, render: (v: string) => v || '—' },
+    { title: 'Responsable', dataIndex: 'responsable', width: 160, render: (v: string) => v || '—' },
     { title: 'Descripción', dataIndex: 'descripcion', render: (v: string) => v || '—' },
     {
       title: 'Estado', dataIndex: 'activo', width: 90,
@@ -105,6 +110,14 @@ export default function CentrosBeneficioPage() {
             </Form.Item>
             <Form.Item name="nombre" label="Línea de negocio" rules={[{ required: true }]}>
               <Input placeholder="Línea Retail" />
+            </Form.Item>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Form.Item name="area" label="Área">
+              <Input placeholder="Ej: Comercial, Industrial" />
+            </Form.Item>
+            <Form.Item name="responsable" label="Responsable">
+              <Input placeholder="Nombre del responsable" />
             </Form.Item>
           </div>
           <Form.Item name="descripcion" label="Descripción">
