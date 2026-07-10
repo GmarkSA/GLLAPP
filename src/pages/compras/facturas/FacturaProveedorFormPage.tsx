@@ -27,6 +27,7 @@ import LineItemsEditor, {
   calcTotals,
 } from '../../../components/DocumentForm/LineItemsEditor'
 import PaymentTermsSelect, { getPaymentTermDays } from '../../../components/PaymentTermsSelect'
+import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Text } = Typography
 
@@ -198,6 +199,10 @@ export default function FacturaProveedorFormPage() {
           idpAccountId:        bill.idpAccountId,
           // Notes
           notes:               bill.notes,
+          dimensiones: {
+            centroCostoId:    bill.centroCostoId    ?? null,
+            centroBeneficioId: bill.centroBeneficioId ?? null,
+          } satisfies DimensionesValue,
         })
         if (bill.vendorId && bill.vendorName) {
           setVendors(prev => {
@@ -403,6 +408,7 @@ export default function FacturaProveedorFormPage() {
 
   const buildDto = (status: string) => {
     const vals = form.getFieldsValue()
+    const dim = vals.dimensiones as DimensionesValue | undefined
     const lineItems = items.map(it => ({
       productId: it.productId,
       description: it.description,
@@ -453,7 +459,9 @@ export default function FacturaProveedorFormPage() {
       status,
       notes: vals.notes,
       items: lineItems,
-      purchaseOrderId: purchaseOrderId ?? undefined,
+      purchaseOrderId:    purchaseOrderId ?? undefined,
+      centroCostoId:      dim?.centroCostoId    || undefined,
+      centroBeneficioId:  dim?.centroBeneficioId || undefined,
     }
   }
 
@@ -713,6 +721,11 @@ export default function FacturaProveedorFormPage() {
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
               </div>
+
+              {/* Dimensiones analíticas */}
+              <Form.Item name="dimensiones" style={{ marginBottom: 4 }}>
+                <SelectorDimensionesAnaliticas layout="form" />
+              </Form.Item>
 
             </Form>
           </Card>

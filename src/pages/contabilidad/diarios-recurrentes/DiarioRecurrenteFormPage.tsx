@@ -17,6 +17,7 @@ import { getAccounts, type Account } from '../../../api/catalogo'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
 import { getExchangeRateForDate } from '../../../api/monedas'
+import SelectorDimensionesAnaliticas, { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title } = Typography
 
@@ -37,13 +38,15 @@ const TAX_RATES: Record<string, number> = { IVA12: 0.12, IVA5: 0.05, EXEMPT: 0 }
 interface AccountMeta { isCustomer: boolean; isVendor: boolean; isFixedAsset: boolean }
 
 interface LineState {
-  key:         string
-  accountId:   string; accountCode: string; accountName: string
-  accountMeta: AccountMeta
-  description: string
-  auxiliarId:  string
-  taxCode:     string; taxAmount: number | null
-  debit:       number | null; credit: number | null
+  key:              string
+  accountId:        string; accountCode: string; accountName: string
+  accountMeta:      AccountMeta
+  description:      string
+  auxiliarId:       string
+  taxCode:          string; taxAmount: number | null
+  debit:            number | null; credit: number | null
+  centroCostoId:    string | null
+  centroBeneficioId: string | null
 }
 
 const emptyLine = (): LineState => ({
@@ -51,6 +54,7 @@ const emptyLine = (): LineState => ({
   accountId: '', accountCode: '', accountName: '',
   accountMeta: { isCustomer: false, isVendor: false, isFixedAsset: false },
   description: '', auxiliarId: '', taxCode: '', taxAmount: null, debit: null, credit: null,
+  centroCostoId: null, centroBeneficioId: null,
 })
 
 const fromPlantilla = (l: LineaPlantilla): LineState => ({
@@ -60,6 +64,7 @@ const fromPlantilla = (l: LineaPlantilla): LineState => ({
   description: l.description ?? '', auxiliarId: '',
   taxCode: '', taxAmount: null,
   debit: Number(l.debit) || null, credit: Number(l.credit) || null,
+  centroCostoId: null, centroBeneficioId: null,
 })
 
 const fromAsiento = (l: AsientoDetalle['lines'][0]): LineState => ({
@@ -70,6 +75,8 @@ const fromAsiento = (l: AsientoDetalle['lines'][0]): LineState => ({
   auxiliarId: l.customerId ?? l.vendorId ?? l.fixedAssetId ?? '',
   taxCode: l.taxCode ?? '', taxAmount: l.taxAmount ? Number(l.taxAmount) : null,
   debit: Number(l.debit) || null, credit: Number(l.credit) || null,
+  centroCostoId:    l.centroCostoId    ?? null,
+  centroBeneficioId: l.centroBeneficioId ?? null,
 })
 
 export default function DiarioRecurrenteFormPage() {
@@ -89,6 +96,7 @@ export default function DiarioRecurrenteFormPage() {
   const [saving,    setSaving]     = useState(false)
   const [nuncaVence, setNuncaVence] = useState(true)
   const [currency,  setCurrency]   = useState('GTQ')
+  const [centrosCosto, centrosBeneficio] = useCentrosOptions()
   const [loadingRate, setLoadingRate] = useState(false)
   const [rateMeta,    setRateMeta]    = useState<{ effectiveDate: string; source: string } | null>(null)
 
@@ -216,7 +224,9 @@ export default function DiarioRecurrenteFormPage() {
           accountId: l.accountId || undefined, accountCode: l.accountCode,
           accountName: l.accountName, description: l.description || undefined,
           debit: l.debit ?? 0, credit: l.credit ?? 0,
-        }
+          ...(l.centroCostoId    ? { centroCostoId:    l.centroCostoId }    : {}),
+          ...(l.centroBeneficioId ? { centroBeneficioId: l.centroBeneficioId } : {}),
+        } as any
         if (l.accountMeta.isCustomer)   (base as any).customerId   = l.auxiliarId || undefined
         if (l.accountMeta.isVendor)     (base as any).vendorId     = l.auxiliarId || undefined
         if (l.accountMeta.isFixedAsset) (base as any).fixedAssetId = l.auxiliarId || undefined
@@ -291,6 +301,19 @@ export default function DiarioRecurrenteFormPage() {
       render: (_: any, r: LineState) => (
         <Select size="small" value={r.taxCode || ''} style={{ width: '100%' }} options={TAX_OPTIONS}
           onChange={v => recalcTax(r.key, v, r.debit, r.credit)} />
+      ),
+    },
+    {
+      title: 'Dimensiones', width: 300,
+      render: (_: any, r: LineState) => (
+        <SelectorDimensionesAnaliticas
+          layout="compact"
+          size="small"
+          centrosCosto={centrosCosto}
+          centrosBeneficio={centrosBeneficio}
+          value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
+          onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
+        />
       ),
     },
     {

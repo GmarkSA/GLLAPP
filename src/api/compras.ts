@@ -147,6 +147,8 @@ export interface PurchaseInvoice {
   originalInvoiceId?:      string
   creditNoteReason?:       string
   notes?:                  string
+  centroCostoId?:          string
+  centroBeneficioId?:      string
   items:                   BillItem[]
   attachments?:            any[]
   createdAt:               string

@@ -15,6 +15,7 @@ import {
   type ActivoFijo, type EstadoActivoFijo,
 } from '../../../api/activos-fijos'
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../../api/clases-activo-fijo'
+import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title } = Typography
 
@@ -86,6 +87,10 @@ export default function ActivosFijosPage() {
       salvageValue: r.salvageValue,
       location: r.location,
       serialNumber: r.serialNumber,
+      dimensiones: {
+        centroCostoId:    r.centroCostoId    ?? null,
+        centroBeneficioId: r.centroBeneficioId ?? null,
+      } satisfies DimensionesValue,
     })
     setModalForm(true)
   }
@@ -94,9 +99,14 @@ export default function ActivosFijosPage() {
     const vals = await form.validateFields()
     setSaving(true)
     try {
+      const dim = vals.dimensiones as DimensionesValue | undefined
+      const { dimensiones: _dim, ...rest } = vals
+      void _dim
       const payload = {
-        ...vals,
-        acquisitionDate: vals.acquisitionDate?.format('YYYY-MM-DD'),
+        ...rest,
+        acquisitionDate:   vals.acquisitionDate?.format('YYYY-MM-DD'),
+        centroCostoId:     dim?.centroCostoId    ?? null,
+        centroBeneficioId: dim?.centroBeneficioId ?? null,
       }
       if (editing) {
         await actualizarActivoFijo(editing.id, payload)
@@ -312,6 +322,9 @@ export default function ActivosFijosPage() {
           </div>
           <Form.Item name="description" label="Descripción">
             <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="dimensiones" style={{ marginBottom: 0 }}>
+            <SelectorDimensionesAnaliticas layout="form" />
           </Form.Item>
         </Form>
       </Modal>

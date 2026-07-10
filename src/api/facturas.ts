@@ -105,6 +105,8 @@ export interface Invoice {
   bankAccountId?:  string
   voidedReason?:   string
   sentAt?:         string
+  centroCostoId?:      string
+  centroBeneficioId?:  string
   journalEntryId?:     string   // Asiento de venta (CxC / Ingresos / IVA)
   costJournalEntryId?: string   // Asiento de baja de inventario
   journalLines?:   JournalLine[]
@@ -170,6 +172,8 @@ export interface CreateInvoiceDto {
   felUrl?:          string
   felUuid?:         string
   felCertificadaAt?: string
+  centroCostoId?:    string
+  centroBeneficioId?: string
 }
 
 export interface CreateEstimateDto {

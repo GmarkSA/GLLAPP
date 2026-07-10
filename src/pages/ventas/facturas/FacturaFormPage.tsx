@@ -27,6 +27,7 @@ import LineItemsEditor, {
   newLineItem,
 } from '../../../components/DocumentForm/LineItemsEditor'
 import PaymentTermsSelect, { getPaymentTermDays } from '../../../components/PaymentTermsSelect'
+import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Text } = Typography
 
@@ -108,6 +109,10 @@ export default function FacturaFormPage() {
           nombreConsignatario:    inv.nombreConsignatario    ?? '',
           direccionConsignatario: inv.direccionConsignatario ?? '',
           incoterm:               inv.incoterm               ?? undefined,
+          dimensiones: {
+            centroCostoId:    inv.centroCostoId    ?? null,
+            centroBeneficioId: inv.centroBeneficioId ?? null,
+          } satisfies DimensionesValue,
         })
         if (inv.customerId && inv.customerName) {
           setCustomers([{ value: inv.customerId, label: inv.customerName }])
@@ -204,6 +209,7 @@ export default function FacturaFormPage() {
   // ── Build DTO (sin status — se añade en handleSave) ───────────────────────
   const buildDto = (): Omit<CreateInvoiceDto, 'status'> => {
     const v = form.getFieldsValue()
+    const dim = v.dimensiones as DimensionesValue | undefined
     const lineItems = items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId }) => ({
       productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId,
     }))
@@ -235,6 +241,8 @@ export default function FacturaFormPage() {
       felUrl:          v.felUrl          || undefined,
       felUuid:         v.felUuid         || undefined,
       felCertificadaAt: v.felCertificadaAt ? v.felCertificadaAt.toISOString() : undefined,
+      centroCostoId:    dim?.centroCostoId    || undefined,
+      centroBeneficioId: dim?.centroBeneficioId || undefined,
     }
   }
 
@@ -404,6 +412,11 @@ export default function FacturaFormPage() {
                   <InputNumber min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} />
                 </Form.Item>
               </div>
+
+              {/* Dimensiones analíticas */}
+              <Form.Item name="dimensiones" style={{ marginBottom: 8 }}>
+                <SelectorDimensionesAnaliticas layout="form" />
+              </Form.Item>
 
               {watchCurrency === 'USD' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '0 12px', alignItems: 'end' }}>

@@ -18,6 +18,7 @@ import { getAccounts, type Account } from '../../../api/catalogo'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
 import { getExchangeRateForDate } from '../../../api/monedas'
+import SelectorDimensionesAnaliticas, { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title } = Typography
 
@@ -42,17 +43,19 @@ const TAX_RATES: Record<string, number> = { IVA12: 0.12, IVA5: 0.05, EXEMPT: 0 }
 interface AccountMeta { isCustomer: boolean; isVendor: boolean; isFixedAsset: boolean }
 
 interface LineState {
-  key:         string
-  accountId:   string
-  accountCode: string
-  accountName: string
-  accountMeta: AccountMeta
-  description: string
-  auxiliarId:  string
-  taxCode:     string
-  taxAmount:   number | null
-  debit:       number | null
-  credit:      number | null
+  key:              string
+  accountId:        string
+  accountCode:      string
+  accountName:      string
+  accountMeta:      AccountMeta
+  description:      string
+  auxiliarId:       string
+  taxCode:          string
+  taxAmount:        number | null
+  debit:            number | null
+  credit:           number | null
+  centroCostoId:    string | null
+  centroBeneficioId: string | null
 }
 
 const emptyLine = (): LineState => ({
@@ -60,21 +63,24 @@ const emptyLine = (): LineState => ({
   accountId: '', accountCode: '', accountName: '',
   accountMeta: { isCustomer: false, isVendor: false, isFixedAsset: false },
   description: '', auxiliarId: '', taxCode: '', taxAmount: null, debit: null, credit: null,
+  centroCostoId: null, centroBeneficioId: null,
 })
 
 const detailToLines = (lines: AsientoDetalle['lines']): LineState[] =>
   lines.map(l => ({
-    key:         Math.random().toString(36).slice(2),
-    accountId:   l.accountId ?? '',
-    accountCode: l.accountCode,
-    accountName: l.accountName,
-    accountMeta: { isCustomer: false, isVendor: false, isFixedAsset: false },
-    description: l.description ?? '',
-    auxiliarId:  l.customerId ?? l.vendorId ?? l.fixedAssetId ?? '',
-    taxCode:     l.taxCode ?? '',
-    taxAmount:   l.taxAmount ? Number(l.taxAmount) : null,
-    debit:       Number(l.debit)  || null,
-    credit:      Number(l.credit) || null,
+    key:              Math.random().toString(36).slice(2),
+    accountId:        l.accountId ?? '',
+    accountCode:      l.accountCode,
+    accountName:      l.accountName,
+    accountMeta:      { isCustomer: false, isVendor: false, isFixedAsset: false },
+    description:      l.description ?? '',
+    auxiliarId:       l.customerId ?? l.vendorId ?? l.fixedAssetId ?? '',
+    taxCode:          l.taxCode ?? '',
+    taxAmount:        l.taxAmount ? Number(l.taxAmount) : null,
+    debit:            Number(l.debit)  || null,
+    credit:           Number(l.credit) || null,
+    centroCostoId:    l.centroCostoId    ?? null,
+    centroBeneficioId: l.centroBeneficioId ?? null,
   }))
 
 export default function DiarioManualFormPage() {
@@ -94,6 +100,7 @@ export default function DiarioManualFormPage() {
   const [saving,   setSaving]    = useState(false)
   const [acting,   setActing]    = useState(false)
   const [currency, setCurrency]  = useState('GTQ')
+  const [centrosCosto, centrosBeneficio] = useCentrosOptions()
   const [loadingRate, setLoadingRate] = useState(false)
   const [rateMeta,    setRateMeta]    = useState<{ effectiveDate: string; source: string } | null>(null)
 
@@ -214,18 +221,20 @@ export default function DiarioManualFormPage() {
   const buildLines = () =>
     lines.filter(l => l.accountCode || l.accountId).map((l, i) => {
       const base: any = {
-        accountId:   l.accountId   || undefined,
-        accountCode: l.accountCode,
-        accountName: l.accountName,
-        description: l.description || undefined,
-        debit:       l.debit  ?? 0,
-        credit:      l.credit ?? 0,
-        taxCode:     l.taxCode || undefined,
-        taxAmount:   l.taxAmount ?? undefined,
-        sortOrder:   i,
+        accountId:        l.accountId   || undefined,
+        accountCode:      l.accountCode,
+        accountName:      l.accountName,
+        description:      l.description || undefined,
+        debit:            l.debit  ?? 0,
+        credit:           l.credit ?? 0,
+        taxCode:          l.taxCode || undefined,
+        taxAmount:        l.taxAmount ?? undefined,
+        centroCostoId:    l.centroCostoId    || undefined,
+        centroBeneficioId: l.centroBeneficioId || undefined,
+        sortOrder:        i,
       }
-      if (l.accountMeta.isCustomer)  base.customerId   = l.auxiliarId || undefined
-      if (l.accountMeta.isVendor)    base.vendorId     = l.auxiliarId || undefined
+      if (l.accountMeta.isCustomer)   base.customerId   = l.auxiliarId || undefined
+      if (l.accountMeta.isVendor)     base.vendorId     = l.auxiliarId || undefined
       if (l.accountMeta.isFixedAsset) base.fixedAssetId = l.auxiliarId || undefined
       return base
     })
@@ -351,6 +360,20 @@ export default function DiarioManualFormPage() {
         <Select size="small" value={r.taxCode || ''} disabled={isReadonly}
           style={{ width: '100%' }} options={TAX_OPTIONS}
           onChange={v => recalcTax(r.key, v, r.debit, r.credit)} />
+      ),
+    },
+    {
+      title: 'Dimensiones', width: 300,
+      render: (_: any, r: LineState) => (
+        <SelectorDimensionesAnaliticas
+          layout="compact"
+          size="small"
+          disabled={isReadonly}
+          centrosCosto={centrosCosto}
+          centrosBeneficio={centrosBeneficio}
+          value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
+          onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
+        />
       ),
     },
     {
