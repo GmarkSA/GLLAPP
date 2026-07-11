@@ -12,6 +12,7 @@ import dayjs from 'dayjs'
 import {
   getBill, approveBill, voidBill, deleteBill, regenerateBillJournalEntry,
   getJournalEntry, recordBillPayment, getVendorAdvances, applyVendorAdvanceToBill,
+  updateBill,
   BILL_STATUS_CONFIG, BILL_TYPE_CONFIG,
   type PurchaseInvoice, type JournalEntry, type JournalEntryLine, type VendorAdvance,
 } from '../../../api/compras'
@@ -51,6 +52,9 @@ export default function FacturaProveedorDetallePage() {
   const [advAmount,    setAdvAmount]    = useState(0)
   const [voidForm]  = Form.useForm()
   const [payForm]   = Form.useForm()
+  const [showEdit,   setShowEdit]   = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editForm]  = Form.useForm()
 
   const loadBill = useCallback(async () => {
     if (!id) return
@@ -152,6 +156,32 @@ export default function FacturaProveedorDetallePage() {
     finally { setApplyingAdv(false) }
   }
 
+  const openEditModal = () => {
+    editForm.setFieldsValue({
+      accountingDate: bill?.accountingDate ? dayjs(bill.accountingDate) : null,
+      dueDate:        bill?.dueDate        ? dayjs(bill.dueDate)        : null,
+      notes:          bill?.notes ?? '',
+    })
+    setShowEdit(true)
+  }
+
+  const handleEditSave = async () => {
+    setEditSaving(true)
+    try {
+      const vals = editForm.getFieldsValue()
+      await updateBill(bill!.id, {
+        accountingDate: vals.accountingDate?.format('YYYY-MM-DD') ?? undefined,
+        dueDate:        vals.dueDate?.format('YYYY-MM-DD')        ?? undefined,
+        notes:          vals.notes ?? undefined,
+      } as any)
+      message.success('Factura actualizada')
+      setShowEdit(false)
+      loadBill()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar')
+    } finally { setEditSaving(false) }
+  }
+
   const openPayModal = () => {
     getBankAccounts({ status: 'active' }).then(r => setBankAccounts(Array.isArray(r) ? r : (r as any)?.data ?? [])).catch(() => {})
     payForm.resetFields()
@@ -164,8 +194,9 @@ export default function FacturaProveedorDetallePage() {
 
   const statusCfg  = BILL_STATUS_CONFIG[bill.status] ?? { label: bill.status, color: 'default' }
   const typeCfg    = BILL_TYPE_CONFIG[bill.invoiceType] ?? { label: bill.invoiceType }
-  const canEdit    = ['draft', 'pending_approval'].includes(bill.status)
-  const canApprove = ['draft', 'pending_approval'].includes(bill.status)
+  const canEdit       = ['draft', 'pending_approval'].includes(bill.status)
+  const canEditOpen   = !['voided', 'paid'].includes(bill.status)   // edición limitada post-aprobación
+  const canApprove    = ['draft', 'pending_approval'].includes(bill.status)
   const canPay     = ['open', 'partial', 'overdue'].includes(bill.status) && Number(bill.balance) > 0
   const canVoid    = ['open', 'partial', 'overdue'].includes(bill.status)
   const hasFel     = !!bill.felSerie || !!bill.felNumber || !!bill.felUuid
@@ -234,6 +265,11 @@ export default function FacturaProveedorDetallePage() {
         <Divider type="vertical" />
         {canEdit && (
           <Button icon={<EditOutlined />} onClick={() => navigate(`/compras/facturas/${bill.id}/editar`)}>
+            Editar
+          </Button>
+        )}
+        {!canEdit && canEditOpen && (
+          <Button icon={<EditOutlined />} onClick={openEditModal}>
             Editar
           </Button>
         )}
@@ -596,6 +632,34 @@ export default function FacturaProveedorDetallePage() {
         <Form form={voidForm} layout="vertical">
           <Form.Item name="reason" label="Motivo" rules={[{ required: true, message: 'El motivo es requerido' }]}>
             <Input.TextArea rows={3} placeholder="Ej: Error en importes, factura duplicada..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Editar factura"
+        open={showEdit}
+        onCancel={() => setShowEdit(false)}
+        onOk={handleEditSave}
+        confirmLoading={editSaving}
+        okText="Guardar"
+        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        width={440}
+      >
+        <Alert
+          type="info" showIcon style={{ marginBottom: 16 }}
+          message="Solo se pueden editar campos informativos. Los montos y la póliza contable no cambian."
+        />
+        <Form form={editForm} layout="vertical" size="small">
+          <Form.Item name="accountingDate" label="Fecha de contabilización">
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
+              placeholder="Fecha del período contable" />
+          </Form.Item>
+          <Form.Item name="dueDate" label="Fecha de vencimiento">
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notas">
+            <Input.TextArea rows={3} placeholder="Observaciones..." />
           </Form.Item>
         </Form>
       </Modal>

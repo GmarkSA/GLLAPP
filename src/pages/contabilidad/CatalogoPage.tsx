@@ -9,6 +9,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   BankOutlined, UserOutlined, ShopOutlined, ToolOutlined,
   AuditOutlined, ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -61,6 +62,8 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const isEdit = !!record?.id
+  const typeValue = Form.useWatch('type', form)
+  const isContra = typeValue === 'contra'
 
   useEffect(() => {
     if (!open) return
@@ -221,6 +224,33 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
             }
           >
             <Switch />
+          </Form.Item>
+          <Form.Item
+            style={{ marginBottom: 4 }}
+            label={
+              <Space size={4}>
+                <MinusCircleOutlined style={{ color: isContra ? '#cf1322' : '#8c8c8c' }} />
+                Cuenta contra-activo
+                <Tooltip title="Marca esta cuenta como contra-activo: su saldo se resta al activo relacionado en el Balance General. Usar en cuentas de Depreciación Acumulada, Amortización Acumulada u otras deducciones de activos.">
+                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
+            <Switch
+              checked={isContra}
+              onChange={v => {
+                if (v) {
+                  form.setFieldValue('type', 'contra')
+                  form.setFieldValue('normalBalance', 'credit')
+                } else {
+                  const gc = form.getFieldValue('groupCode')
+                  const grp = groups.find(g => g.groupCode === gc)
+                  form.setFieldValue('type', grp?.type ?? 'asset')
+                  form.setFieldValue('normalBalance', grp?.normalBalance ?? 'debit')
+                }
+              }}
+            />
           </Form.Item>
           <Form.Item
             name="requiresReconciliation"
@@ -441,12 +471,14 @@ export default function CatalogoPage() {
     },
     {
       title: 'Flags',
-      width: 100,
+      width: 120,
       render: (_: any, r: Account) => (
         <Space size={6}>
-          <FlagIcon active={r.bankLinking}         icon={<BankOutlined />} title="Vinculación bancaria" />
-          <FlagIcon active={r.isCustomerAccount}   icon={<UserOutlined />} title="Cuenta clientes (CxC)" />
-          <FlagIcon active={r.isVendorAccount}     icon={<ShopOutlined />} title="Cuenta proveedores (CxP)" />
+          <FlagIcon active={r.bankLinking}         icon={<BankOutlined />}         title="Vinculación bancaria" />
+          <FlagIcon active={r.isCustomerAccount}   icon={<UserOutlined />}         title="Cuenta clientes (CxC)" />
+          <FlagIcon active={r.isVendorAccount}     icon={<ShopOutlined />}         title="Cuenta proveedores (CxP)" />
+          <FlagIcon active={r.isFixedAsset}        icon={<ToolOutlined />}         title="Activos fijos" />
+          <FlagIcon active={r.type === 'contra'}   icon={<MinusCircleOutlined />}  title="Cuenta contra-activo (resta al activo)" />
         </Space>
       ),
     },
