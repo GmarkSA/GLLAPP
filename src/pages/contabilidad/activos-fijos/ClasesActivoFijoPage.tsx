@@ -82,7 +82,7 @@ export default function ClasesActivoFijoPage() {
 
   const acctCol = (field: keyof Pending, title: string): ColumnsType<ClaseActivoFijo>[number] => ({
     title: <span style={{ fontSize: 11 }}>{title}</span>,
-    width: 220,
+    width: 110,
     render: (_: unknown, r: ClaseActivoFijo) => r.id
       ? <AccountSelect
           filter={{}}
