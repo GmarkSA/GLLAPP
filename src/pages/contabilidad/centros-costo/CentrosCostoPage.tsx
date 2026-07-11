@@ -1,14 +1,20 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
-  Button, Table, Tag, Space, Popconfirm, message, Modal, Form, Input, Typography,
+  Button, Table, Tag, Space, Popconfirm, message, Modal, Form, Input, Select, Typography,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import {
   getCentrosCosto, crearCentroCosto, actualizarCentroCosto, eliminarCentroCosto,
   type CentroCosto,
 } from '../../../api/centros-costo'
 
 const { Title } = Typography
+
+const GRUPOS = [
+  'Administración', 'Ventas', 'Compras', 'Producción',
+  'Operaciones', 'Logística', 'Recursos Humanos', 'Tecnología', 'Finanzas',
+]
 
 export default function CentrosCostoPage() {
   const [data,    setData]    = useState<CentroCosto[]>([])
@@ -31,8 +37,11 @@ export default function CentrosCostoPage() {
   const openEdit = (r: CentroCosto) => {
     setEditing(r)
     form.setFieldsValue({
-      codigo: r.codigo, nombre: r.nombre, descripcion: r.descripcion ?? '',
-      responsable: r.responsable ?? '', area: r.area ?? '',
+      codigo:      r.codigo,
+      nombre:      r.nombre,
+      grupo:       r.grupo ?? undefined,
+      responsable: r.responsable ?? '',
+      area:        r.area ?? '',
     })
     setModal(true)
   }
@@ -61,11 +70,15 @@ export default function CentrosCostoPage() {
   }
 
   const columns = [
-    { title: 'Código', dataIndex: 'codigo', width: 100 },
-    { title: 'Nombre', dataIndex: 'nombre' },
-    { title: 'Área', dataIndex: 'area', width: 140, render: (v: string) => v || '—' },
+    { title: 'Código',      dataIndex: 'codigo',      width: 100 },
+    { title: 'Nombre',      dataIndex: 'nombre' },
+    { title: 'Grupo',       dataIndex: 'grupo',       width: 140, render: (v: string) => v ? <Tag>{v}</Tag> : '—' },
+    { title: 'Área',        dataIndex: 'area',        width: 130, render: (v: string) => v || '—' },
     { title: 'Responsable', dataIndex: 'responsable', width: 160, render: (v: string) => v || '—' },
-    { title: 'Descripción', dataIndex: 'descripcion', render: (v: string) => v || '—' },
+    {
+      title: 'Fecha Creación', dataIndex: 'fechaCreacion', width: 120,
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
+    },
     {
       title: 'Estado', dataIndex: 'activo', width: 90,
       render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? 'Activo' : 'Inactivo'}</Tag>,
@@ -112,6 +125,14 @@ export default function CentrosCostoPage() {
               <Input placeholder="Administración" />
             </Form.Item>
           </div>
+          <Form.Item name="grupo" label="Grupo">
+            <Select
+              placeholder="Seleccionar grupo"
+              allowClear
+              showSearch
+              options={GRUPOS.map(g => ({ label: g, value: g }))}
+            />
+          </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="area" label="Área">
               <Input placeholder="Ej: Finanzas, Operaciones" />
@@ -120,9 +141,6 @@ export default function CentrosCostoPage() {
               <Input placeholder="Nombre del responsable" />
             </Form.Item>
           </div>
-          <Form.Item name="descripcion" label="Descripción">
-            <Input.TextArea rows={2} />
-          </Form.Item>
         </Form>
       </Modal>
     </div>
