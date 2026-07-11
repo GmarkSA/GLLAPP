@@ -3,21 +3,24 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button, Tabs, Table, Tag, Typography, Space, message,
   Popconfirm, Modal, Form, Select, InputNumber, Divider,
-  DatePicker, Input, Spin, Card, Statistic,
+  DatePicker, Input, Spin, Card, Statistic, Steps, Result, Alert,
 } from 'antd'
 import {
   ArrowLeftOutlined, CheckCircleOutlined, EditOutlined,
-  DollarOutlined, StopOutlined, ThunderboltOutlined,
+  DollarOutlined, StopOutlined, ThunderboltOutlined, FileSearchOutlined, RollbackOutlined,
 } from '@ant-design/icons'
+import { getApiError } from '../../../api/axios'
 import ReactECharts from 'echarts-for-react'
 import dayjs from 'dayjs'
 import {
   getActivoFijo, getHistorialDepreciacion, depreciarActivo, activarActivoFijo,
-  actualizarActivoFijo, venderActivoFijo, darDeBajaActivoFijo,
-  type ActivoFijo, type HistorialDepreciacion, type EstadoActivoFijo,
+  actualizarActivoFijo, venderActivoFijo, darDeBajaActivoFijo, revertirVentaActivoFijo, revertirBajaActivoFijo,
+  getPolizasActivoFijo,
+  type ActivoFijo, type HistorialDepreciacion, type EstadoActivoFijo, type PolizaActivo,
 } from '../../../api/activos-fijos'
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../../api/clases-activo-fijo'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import SelectorDimensionesAnaliticas, { type DimensionesValue, useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title, Text } = Typography
 const Q = (n: number | string) =>
@@ -49,7 +52,7 @@ function calcPrevision(activo: ActivoFijo, clase: ClaseActivoFijo | undefined): 
   const rows: PrevisionRow[] = []
   let depAcum   = 0
   let valorLibro = Number(activo.originalCost)
-  const inicio  = dayjs(activo.acquisitionDate).add(1, 'month').startOf('month')
+  const inicio  = dayjs(activo.acquisitionDate).add(1, 'month').date(25)
 
   for (let i = 0; i < vidaMeses; i++) {
     const cuotaReal = Math.min(cuota, Math.max(0, valorLibro - salvage))
@@ -75,6 +78,7 @@ export default function ActivoFijoDetallePage() {
 
   const [activo,    setActivo]    = useState<ActivoFijo | null>(null)
   const [historial, setHistorial] = useState<HistorialDepreciacion[]>([])
+  const [polizas,   setPolizas]   = useState<PolizaActivo[]>([])
   const [clases,    setClases]    = useState<ClaseActivoFijo[]>([])
   const [accounts,  setAccounts]  = useState<Account[]>([])
   const [loading,   setLoading]   = useState(false)
@@ -91,10 +95,17 @@ export default function ActivoFijoDetallePage() {
   const [modalEdit,  setModalEdit]  = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [formEdit]   = Form.useForm()
+  const [centrosEdit, setCentrosEdit] = useState<DimensionesValue>({})
+  const [centrosCosto, centrosBeneficio] = useCentrosOptions()
 
-  const [modalVender, setModalVender] = useState(false)
-  const [savingVenta, setSavingVenta] = useState(false)
-  const [formVender]  = Form.useForm()
+  const [modalVender,     setModalVender]     = useState(false)
+  const [savingVenta,     setSavingVenta]     = useState(false)
+  const [formVender]      = Form.useForm()
+  const [ventaStep,       setVentaStep]       = useState(0)
+  const [ventaPrecioLive, setVentaPrecioLive] = useState<number | null>(null)
+
+  const [savingRevertir,    setSavingRevertir]    = useState(false)
+  const [savingRevertirBaja, setSavingRevertirBaja] = useState(false)
 
   const [modalBaja,  setModalBaja]  = useState(false)
   const [savingBaja, setSavingBaja] = useState(false)
@@ -104,9 +115,14 @@ export default function ActivoFijoDetallePage() {
     if (!id) return
     setLoading(true)
     try {
-      const [af, hist] = await Promise.all([getActivoFijo(id), getHistorialDepreciacion(id)])
+      const [af, hist, pols] = await Promise.all([
+        getActivoFijo(id),
+        getHistorialDepreciacion(id),
+        getPolizasActivoFijo(id),
+      ])
       setActivo(af)
       setHistorial(hist)
+      setPolizas(pols)
     } catch { message.error('Error al cargar activo fijo') }
     finally { setLoading(false) }
   }
@@ -139,7 +155,7 @@ export default function ActivoFijoDetallePage() {
       setModalActivar(false)
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al activar')
+      message.error(getApiError(e, 'Error al activar'))
     } finally { setSavingAct(false) }
   }
 
@@ -152,7 +168,7 @@ export default function ActivoFijoDetallePage() {
       setModalDep(false)
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al depreciar')
+      message.error(getApiError(e, 'Error al depreciar'))
     } finally { setSavingDep(false) }
   }
 
@@ -167,12 +183,14 @@ export default function ActivoFijoDetallePage() {
         acquisitionDate:   vals.acquisitionDate?.format('YYYY-MM-DD'),
         location:          vals.location,
         serialNumber:      vals.serialNumber,
+        centroCostoId:     centrosEdit.centroCostoId    ?? undefined,
+        centroBeneficioId: centrosEdit.centroBeneficioId ?? undefined,
       })
       message.success('Activo actualizado')
       setModalEdit(false)
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar')
+      message.error(getApiError(e, 'Error al guardar'))
     } finally { setSavingEdit(false) }
   }
 
@@ -186,7 +204,22 @@ export default function ActivoFijoDetallePage() {
       location:          activo.location,
       serialNumber:      activo.serialNumber,
     })
+    setCentrosEdit({ centroCostoId: activo.centroCostoId, centroBeneficioId: activo.centroBeneficioId })
     setModalEdit(true)
+  }
+
+  const openVender = () => {
+    formVender.resetFields()
+    formVender.setFieldsValue({ fechaVenta: dayjs() })
+    setVentaStep(0)
+    setVentaPrecioLive(null)
+    setModalVender(true)
+  }
+
+  const closeVenderModal = () => {
+    setModalVender(false)
+    setVentaStep(0)
+    setVentaPrecioLive(null)
   }
 
   const handleVender = async () => {
@@ -194,17 +227,37 @@ export default function ActivoFijoDetallePage() {
     setSavingVenta(true)
     try {
       await venderActivoFijo(id!, {
-        fechaVenta:   vals.fechaVenta.format('YYYY-MM-DD'),
-        precioVenta:  vals.precioVenta,
-        cuentaCobro:  vals.cuentaCobro,
-        motivo:       vals.motivo,
+        fechaVenta:  vals.fechaVenta.format('YYYY-MM-DD'),
+        precioVenta: vals.precioVenta,
+        motivo:      vals.motivo,
       })
-      message.success('Activo vendido — póliza generada')
-      setModalVender(false)
+      load()
+      setVentaStep(1)
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al registrar venta'))
+    } finally { setSavingVenta(false) }
+  }
+
+  const handleRevertirVenta = async () => {
+    setSavingRevertir(true)
+    try {
+      await revertirVentaActivoFijo(id!)
+      message.success('Venta revertida — activo restaurado a ACTIVO')
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al registrar venta')
-    } finally { setSavingVenta(false) }
+      message.error(getApiError(e, 'Error al revertir la venta'))
+    } finally { setSavingRevertir(false) }
+  }
+
+  const handleRevertirBaja = async () => {
+    setSavingRevertirBaja(true)
+    try {
+      await revertirBajaActivoFijo(id!)
+      message.success('Baja revertida — activo restaurado a ACTIVO')
+      load()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al revertir la baja'))
+    } finally { setSavingRevertirBaja(false) }
   }
 
   const handleBaja = async () => {
@@ -219,7 +272,7 @@ export default function ActivoFijoDetallePage() {
       setModalBaja(false)
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al dar de baja')
+      message.error(getApiError(e, 'Error al dar de baja'))
     } finally { setSavingBaja(false) }
   }
 
@@ -263,6 +316,18 @@ export default function ActivoFijoDetallePage() {
     { title: 'Dep. Acumulada',  dataIndex: 'depreciacionAcumuladaFin', width: 140, align: 'right' as const, render: (v: number) => <Text type="warning">{Q(v)}</Text> },
     { title: 'Valor en Libros', dataIndex: 'valorLibroFin',            width: 140, align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#1B3A6B' }}>{Q(v)}</Text> },
     { title: 'Fecha',           dataIndex: 'fechaCalculo',             width: 130, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    {
+      title: 'Póliza', dataIndex: 'asientoId', width: 90,
+      render: (asientoId: string | null) => asientoId ? (
+        <Button
+          type="link" size="small" icon={<FileSearchOutlined />}
+          onClick={() => navigate(`/contabilidad/diarios-manuales/${asientoId}`)}
+          style={{ padding: 0 }}
+        >
+          Ver
+        </Button>
+      ) : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>,
+    },
   ]
 
   // ── Columnas previsión ────────────────────────────────────────────────────
@@ -298,6 +363,71 @@ export default function ActivoFijoDetallePage() {
     const a = accounts.find(a => a.id === id)
     return a ? `${a.code} — ${a.name}` : id
   }
+
+  // ── Póliza de baja: solo elimina el activo de libros ─────────────────────
+  // La ganancia/pérdida neta se reconoce cuando se emite la factura en Ventas.
+  // depAcum + valorLibro = costoOriginal → siempre cuadra sin cuenta puente.
+  const calcVentaPoliza = (precioVenta: number) => {
+    if (!clase) return null
+    const originalCost = Number(activo.originalCost)
+    const depAcum      = Number(activo.accumulatedDepreciation)
+    const valorLibro   = Number(activo.currentBookValue)
+    const ganancia     = precioVenta - valorLibro
+
+    const getNombre = (cuentaId: string | null | undefined, label: string) => {
+      if (!cuentaId) return `⚠ Sin configurar (${label})`
+      const found = accounts.find(a => a.id === cuentaId)
+      return found ? `${found.code} — ${found.name}` : cuentaId
+    }
+
+    type VLine = { key: string; cuenta: string; debit: number; credit: number; tipo: string }
+    const lines: VLine[] = []
+
+    if (depAcum > 0)
+      lines.push({ key: '1', cuenta: getNombre(clase.cuentaDepreciacionAcumuladaId, 'Dep. Acumulada'), debit: depAcum, credit: 0, tipo: 'depAcum' })
+
+    lines.push({ key: '2', cuenta: getNombre(clase.cuentaCostoVentaAFId, 'Costo de Venta AF'), debit: valorLibro, credit: 0, tipo: 'baja' })
+    lines.push({ key: '3', cuenta: getNombre(clase.cuentaAltasId, 'Activo Fijo'), debit: 0, credit: originalCost, tipo: 'activo' })
+
+    return {
+      lines,
+      ganancia,
+      totalDebit:  lines.reduce((s, l) => s + l.debit,  0),
+      totalCredit: lines.reduce((s, l) => s + l.credit, 0),
+    }
+  }
+
+  const polizaPreview = (ventaPrecioLive != null && ventaPrecioLive > 0)
+    ? calcVentaPoliza(ventaPrecioLive)
+    : null
+
+  const calcBajaPoliza = () => {
+    if (!activo) return null
+    const originalCost = Number(activo.originalCost)
+    const depAcum      = Number(activo.accumulatedDepreciation)
+    const valorLibro   = Number(activo.currentBookValue)
+
+    const getNombre = (cuentaId: string | null | undefined, label: string) => {
+      if (!cuentaId) return `⚠ Sin configurar (${label})`
+      const found = accounts.find(a => a.id === cuentaId)
+      return found ? `${found.code} — ${found.name}` : cuentaId
+    }
+
+    type BLine = { key: string; cuenta: string; debit: number; credit: number; tipo: string }
+    const lines: BLine[] = []
+    if (depAcum > 0)
+      lines.push({ key: '1', cuenta: getNombre(clase?.cuentaDepreciacionAcumuladaId, 'Dep. Acumulada'), debit: depAcum, credit: 0, tipo: 'depAcum' })
+    if (valorLibro > 0)
+      lines.push({ key: '2', cuenta: getNombre(clase?.cuentaPerdidaPorDeterioro, 'Pérdida por Deterioro'), debit: valorLibro, credit: 0, tipo: 'perdida' })
+    lines.push({ key: '3', cuenta: getNombre(clase?.cuentaAltasId, 'Activo Fijo'), debit: 0, credit: originalCost, tipo: 'activo' })
+
+    return {
+      lines, valorLibro,
+      totalDebit:  lines.reduce((s, l) => s + l.debit,  0),
+      totalCredit: lines.reduce((s, l) => s + l.credit, 0),
+    }
+  }
+  const polizaBajaPreview = calcBajaPoliza()
 
   return (
     <div style={{ padding: '0 24px 24px' }}>
@@ -340,18 +470,38 @@ export default function ActivoFijoDetallePage() {
             </Button>
           )}
           {esActivo && (
-            <Button size="small" icon={<DollarOutlined />}
-              onClick={() => { formVender.resetFields(); formVender.setFieldsValue({ fechaVenta: dayjs() }); setModalVender(true) }}>
+            <Button size="small" icon={<DollarOutlined />} onClick={openVender}>
               Vender
             </Button>
           )}
           {esActivo && (
+            <Button size="small" danger icon={<StopOutlined />}
+              onClick={() => { formBaja.resetFields(); formBaja.setFieldsValue({ fecha: dayjs() }); setModalBaja(true) }}>
+              Dar de baja
+            </Button>
+          )}
+          {activo.estado === 'VENDIDO' && (
             <Popconfirm
-              title="¿Dar de baja este activo?"
-              description="Se generará una póliza contable de baja."
-              onConfirm={() => { formBaja.resetFields(); formBaja.setFieldsValue({ fecha: dayjs() }); setModalBaja(true) }}
-              okText="Continuar" cancelText="Cancelar">
-              <Button size="small" danger icon={<StopOutlined />}>Dar de baja</Button>
+              title="¿Revertir la venta de este activo?"
+              description="Se anulará la póliza de baja y el activo volverá a estado Activo."
+              onConfirm={handleRevertirVenta}
+              okText="Revertir" cancelText="Cancelar"
+              okButtonProps={{ danger: true }}>
+              <Button size="small" danger icon={<RollbackOutlined />} loading={savingRevertir}>
+                Revertir venta
+              </Button>
+            </Popconfirm>
+          )}
+          {activo.estado === 'DADO_DE_BAJA' && (
+            <Popconfirm
+              title="¿Revertir la baja de este activo?"
+              description="Se anulará la póliza de baja y el activo volverá a estado Activo."
+              onConfirm={handleRevertirBaja}
+              okText="Revertir" cancelText="Cancelar"
+              okButtonProps={{ danger: true }}>
+              <Button size="small" danger icon={<RollbackOutlined />} loading={savingRevertirBaja}>
+                Revertir baja
+              </Button>
             </Popconfirm>
           )}
         </Space>
@@ -387,6 +537,48 @@ export default function ActivoFijoDetallePage() {
         </Card>
       </div>
 
+      {/* ── Resultado de la venta (solo VENDIDO) ────────────────────────────── */}
+      {activo.estado === 'VENDIDO' && activo.disposalValue != null && (() => {
+        const precioNeto = Number(activo.disposalValue)
+        const valorLibro = Number(activo.currentBookValue)
+        const resultado  = precioNeto - valorLibro
+        return (
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20,
+            padding: '14px 16px', borderRadius: 10,
+            background: resultado > 0 ? '#f6ffed' : resultado < 0 ? '#fff1f0' : '#f5f5f5',
+            border: `1px solid ${resultado > 0 ? '#b7eb8f' : resultado < 0 ? '#ffa39e' : '#d9d9d9'}`,
+          }}>
+            <div>
+              <Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Fecha de venta</Text>
+              <Text strong>{activo.disposedAt ? dayjs(activo.disposedAt).format('DD/MM/YYYY') : '—'}</Text>
+            </div>
+            <div>
+              <Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Precio de venta (neto)</Text>
+              <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{Q(precioNeto)}</Text>
+            </div>
+            <div>
+              <Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Valor en libros</Text>
+              <Text strong style={{ fontFamily: 'monospace', color: '#fa8c16' }}>{Q(valorLibro)}</Text>
+            </div>
+            <div>
+              <Text style={{
+                fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', fontWeight: 700,
+                color: resultado > 0 ? '#389e0d' : resultado < 0 ? '#cf1322' : '#888',
+              }}>
+                {resultado > 0 ? '↑ Ganancia en venta' : resultado < 0 ? '↓ Pérdida en venta' : 'Sin resultado'}
+              </Text>
+              <Text strong style={{
+                fontFamily: 'monospace', fontSize: 15,
+                color: resultado > 0 ? '#389e0d' : resultado < 0 ? '#cf1322' : '#888',
+              }}>
+                {resultado !== 0 ? Q(Math.abs(resultado)) : '—'}
+              </Text>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
       <Tabs
         defaultActiveKey="info"
@@ -411,6 +603,8 @@ export default function ActivoFijoDetallePage() {
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Dep. acumulada</Text><Text style={{ color: '#fa8c16' }}>{Q(activo.accumulatedDepreciation)}</Text></div>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Ubicación</Text><Text>{activo.location ?? '—'}</Text></div>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Número de serie</Text><Text style={{ fontFamily: 'monospace' }}>{activo.serialNumber ?? '—'}</Text></div>
+                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Centro de Costo</Text><Text>{activo.centroCostoId ? (centrosCosto.find(c => c.id === activo.centroCostoId)?.nombre ?? activo.centroCostoId) : '—'}</Text></div>
+                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Centro de Beneficio</Text><Text>{activo.centroBeneficioId ? (centrosBeneficio.find(c => c.id === activo.centroBeneficioId)?.nombre ?? activo.centroBeneficioId) : '—'}</Text></div>
                     {activo.description && (
                       <div style={{ gridColumn: '1 / -1' }}>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Descripción</Text>
@@ -462,9 +656,101 @@ export default function ActivoFijoDetallePage() {
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Cuenta gastos de depreciación</Text>
                         <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaGastoDepreciacionId)}</Text>
                       </div>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Costo de Venta AF</Text>
+                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaCostoVentaAFId)}</Text>
+                      </div>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Ganancia por Venta AF</Text>
+                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaGananciaPorVentaId)}</Text>
+                      </div>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Pérdida por Venta AF</Text>
+                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaPerdidaPorVentaId)}</Text>
+                      </div>
                     </div>
                   </div>
                 )}
+
+
+                {/* ── Historial de pólizas ─────────────────────────────────── */}
+                {polizas.filter(p => ['activo_fijo_alta', 'activo_fijo_baja', 'activo_fijo_venta'].includes(p.sourceDocumentType)).map(pol => {
+                  const labelMap: Record<string, string> = {
+                    activo_fijo_alta:  'Póliza de alta',
+                    activo_fijo_venta: 'Póliza de venta',
+                    activo_fijo_baja:  'Póliza de baja',
+                  }
+                  return (
+                  <div key={pol.id}>
+                    <Divider style={{ margin: '4px 0' }} />
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                        <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {labelMap[pol.sourceDocumentType] ?? pol.sourceDocumentType}
+                        </Text>
+                        <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12, fontWeight: 600 }}>
+                          {pol.entryNumber}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {dayjs(pol.entryDate).format('DD/MM/YYYY')}
+                        </Text>
+                        <Button
+                          size="small" type="link" icon={<FileSearchOutlined />}
+                          style={{ padding: 0, fontSize: 12 }}
+                          onClick={() => navigate(`/contabilidad/diarios-manuales/${pol.id}`)}>
+                          Ver póliza
+                        </Button>
+                      </div>
+                      <Table
+                        size="small"
+                        pagination={false}
+                        rowKey="id"
+                        dataSource={pol.lines}
+                        style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
+                        columns={[
+                          {
+                            title: 'Cuenta', dataIndex: 'accountCode',
+                            render: (_: string, r: any) => (
+                              <Text style={{ fontSize: 12 }}>{r.accountCode} — {r.accountName}</Text>
+                            ),
+                          },
+                          {
+                            title: 'Descripción', dataIndex: 'description', width: 200,
+                            render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v ?? '—'}</Text>,
+                          },
+                          {
+                            title: 'Débito', dataIndex: 'debit', width: 120, align: 'right' as const,
+                            render: (v: number) => Number(v) > 0
+                              ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                              : null,
+                          },
+                          {
+                            title: 'Crédito', dataIndex: 'credit', width: 120, align: 'right' as const,
+                            render: (v: number) => Number(v) > 0
+                              ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                              : null,
+                          },
+                        ]}
+                        summary={() => (
+                          <Table.Summary>
+                            <Table.Summary.Row style={{ background: '#fafafa' }}>
+                              <Table.Summary.Cell index={0} colSpan={2}>
+                                <Text strong style={{ fontSize: 12 }}>Total</Text>
+                              </Table.Summary.Cell>
+                              <Table.Summary.Cell index={2} align="right">
+                                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(pol.totalDebit)}</Text>
+                              </Table.Summary.Cell>
+                              <Table.Summary.Cell index={3} align="right">
+                                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(pol.totalCredit)}</Text>
+                              </Table.Summary.Cell>
+                            </Table.Summary.Row>
+                          </Table.Summary>
+                        )}
+                      />
+                    </div>
+                  </div>
+                  )
+                })}
               </div>
             ),
           },
@@ -475,8 +761,8 @@ export default function ActivoFijoDetallePage() {
             label: `Depreciación${historial.length > 0 ? ` (${historial.length} registros)` : ''}`,
             children: (
               <div>
-                {/* Gráfica */}
-                {chartOption && (
+                {/* Gráfica — solo activos vigentes */}
+                {!esDisposed && chartOption && (
                   <div style={{ marginBottom: 24 }}>
                     <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Curva de depreciación — Valor en libros
@@ -485,8 +771,23 @@ export default function ActivoFijoDetallePage() {
                   </div>
                 )}
 
-                {/* Previsión */}
-                {prevision.length > 0 && (
+                {/* Aviso de baja — solo cuando está dado de baja o vendido */}
+                {esDisposed && (
+                  <Alert
+                    type={activo.estado === 'VENDIDO' ? 'info' : 'warning'}
+                    showIcon
+                    message={activo.estado === 'VENDIDO' ? 'Activo vendido' : 'Activo dado de baja'}
+                    description={
+                      activo.estado === 'VENDIDO'
+                        ? `Este activo fue vendido el ${activo.disposedAt ? dayjs(activo.disposedAt).format('DD/MM/YYYY') : '—'}. No registrará más depreciación. El historial previo se muestra a continuación.`
+                        : `Este activo fue dado de baja el ${activo.disposedAt ? dayjs(activo.disposedAt).format('DD/MM/YYYY') : '—'}. No registrará más depreciación. El historial previo se muestra a continuación.`
+                    }
+                    style={{ marginBottom: 20 }}
+                  />
+                )}
+
+                {/* Previsión — solo activos vigentes */}
+                {!esDisposed && prevision.length > 0 && (
                   <>
                     <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Previsión de depreciación
@@ -505,7 +806,7 @@ export default function ActivoFijoDetallePage() {
                 {/* Historial real */}
                 {historial.length > 0 && (
                   <>
-                    <Divider style={{ margin: '20px 0 12px' }} />
+                    {!esDisposed && <Divider style={{ margin: '20px 0 12px' }} />}
                     <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Historial registrado
                     </Text>
@@ -519,7 +820,7 @@ export default function ActivoFijoDetallePage() {
                   </>
                 )}
 
-                {prevision.length === 0 && historial.length === 0 && (
+                {!esDisposed && prevision.length === 0 && historial.length === 0 && (
                   <Text type="secondary">Sin datos de depreciación. Asigna una clase con vida útil y activa el activo.</Text>
                 )}
               </div>
@@ -612,38 +913,174 @@ export default function ActivoFijoDetallePage() {
           <Form.Item name="description" label="Descripción">
             <Input.TextArea rows={2} />
           </Form.Item>
+          <SelectorDimensionesAnaliticas
+            layout="form"
+            size="small"
+            value={centrosEdit}
+            onChange={setCentrosEdit}
+          />
         </Form>
       </Modal>
 
-      {/* ── Modal: Vender ─────────────────────────────────────────────────── */}
+      {/* ── Modal: Vender (2 pasos) ────────────────────────────────────────── */}
       <Modal
-        title="Vender activo fijo"
+        title={ventaStep === 0 ? 'Vender activo fijo' : 'Venta registrada'}
         open={modalVender}
-        onCancel={() => setModalVender(false)}
-        onOk={handleVender}
-        confirmLoading={savingVenta}
-        okText="Registrar venta"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
-        width={420}
+        onCancel={closeVenderModal}
+        footer={null}
+        width={640}
+        destroyOnClose
       >
-        <Form form={formVender} layout="vertical" size="small">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Form.Item name="fechaVenta" label="Fecha de venta" rules={[{ required: true }]}>
-              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-            </Form.Item>
-            <Form.Item name="precioVenta" label="Precio de venta (Q)" rules={[{ required: true }]}>
-              <InputNumber style={{ width: '100%' }} min={0} precision={2} />
-            </Form.Item>
-          </div>
-          <Form.Item name="cuentaCobro" label="Cuenta de cobro">
-            <Select showSearch allowClear optionFilterProp="label"
-              placeholder="Efectivo/Bancos (por defecto)"
-              options={accounts.filter(a => !a.isHeader).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-          </Form.Item>
-          <Form.Item name="motivo" label="Motivo / referencia">
-            <Input placeholder="Ej: Venta a tercero, reemplazo..." />
-          </Form.Item>
-        </Form>
+        <Steps
+          current={ventaStep}
+          size="small"
+          style={{ marginBottom: 20, marginTop: 8 }}
+          items={[{ title: 'Datos de venta' }, { title: 'Póliza confirmada' }]}
+        />
+
+        {ventaStep === 0 && (
+          <>
+            <Form
+              form={formVender} layout="vertical" size="small"
+              onValuesChange={(_, all) => setVentaPrecioLive(all.precioVenta ?? null)}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Form.Item name="fechaVenta" label="Fecha de venta" rules={[{ required: true }]}>
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+                <Form.Item name="precioVenta" label="Precio neto de venta (sin IVA)" rules={[{ required: true }]}>
+                  <InputNumber style={{ width: '100%' }} min={0} precision={2} />
+                </Form.Item>
+              </div>
+              <Form.Item name="motivo" label="Motivo / referencia" style={{ marginBottom: 0 }}>
+                <Input placeholder="Ej: Venta a tercero, reemplazo..." />
+              </Form.Item>
+            </Form>
+
+            {/* ── Preview en vivo de la póliza ─────────────────────────────── */}
+            {polizaPreview && (
+              <>
+                <Divider style={{ margin: '16px 0 12px' }}>
+                  <Text style={{ fontSize: 12, color: '#888' }}>Póliza de reversa que se generará</Text>
+                </Divider>
+
+                {/* Banner ganancia / pérdida */}
+                <div style={{
+                  padding: '10px 14px', borderRadius: 6, marginBottom: 12,
+                  background: polizaPreview.ganancia > 0 ? '#f6ffed' : polizaPreview.ganancia < 0 ? '#fff1f0' : '#f5f5f5',
+                  border: `1px solid ${polizaPreview.ganancia > 0 ? '#b7eb8f' : polizaPreview.ganancia < 0 ? '#ffa39e' : '#d9d9d9'}`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <Text strong style={{
+                      fontSize: 13,
+                      color: polizaPreview.ganancia > 0 ? '#389e0d' : polizaPreview.ganancia < 0 ? '#cf1322' : '#888',
+                    }}>
+                      {polizaPreview.ganancia > 0 ? '↑ Ganancia estimada en venta:'
+                        : polizaPreview.ganancia < 0 ? '↓ Pérdida estimada en venta:'
+                        : '✓ Venta al valor en libros'}
+                    </Text>
+                    {polizaPreview.ganancia !== 0 && (
+                      <Text style={{
+                        fontFamily: 'monospace', fontWeight: 700, fontSize: 14,
+                        color: polizaPreview.ganancia > 0 ? '#389e0d' : '#cf1322',
+                      }}>
+                        {Q(Math.abs(polizaPreview.ganancia))}
+                      </Text>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      Valor en libros: {Q(activo.currentBookValue)}
+                    </Text>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                    Este resultado se reconocerá en el P&amp;G al emitir la factura formal en el módulo de Ventas.
+                  </Text>
+                </div>
+
+                {/* Tabla de líneas contables */}
+                <Table
+                  size="small"
+                  pagination={false}
+                  rowKey="key"
+                  dataSource={polizaPreview.lines}
+                  style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
+                  columns={[
+                    {
+                      title: 'Cuenta', dataIndex: 'cuenta',
+                      render: (v: string, r: any) => (
+                        <Text style={{
+                          fontSize: 12,
+                          color: r.tipo === 'baja' ? '#fa8c16' : r.tipo === 'activo' ? '#1B3A6B' : 'inherit',
+                        }}>
+                          {v}
+                        </Text>
+                      ),
+                    },
+                    {
+                      title: 'Débito', dataIndex: 'debit', width: 120, align: 'right' as const,
+                      render: (v: number) => v > 0
+                        ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                        : null,
+                    },
+                    {
+                      title: 'Crédito', dataIndex: 'credit', width: 120, align: 'right' as const,
+                      render: (v: number) => v > 0
+                        ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                        : null,
+                    },
+                  ]}
+                  summary={() => (
+                    <Table.Summary>
+                      <Table.Summary.Row style={{ background: '#fafafa' }}>
+                        <Table.Summary.Cell index={0}>
+                          <Text strong style={{ fontSize: 12 }}>Total</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} align="right">
+                          <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                            {Q(polizaPreview.totalDebit)}
+                          </Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={2} align="right">
+                          <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                            {Q(polizaPreview.totalCredit)}
+                          </Text>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    </Table.Summary>
+                  )}
+                />
+              </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+              <Button onClick={closeVenderModal}>Cancelar</Button>
+              <Button
+                type="primary" loading={savingVenta} onClick={handleVender}
+                style={{ background: '#1B3A6B' }} icon={<DollarOutlined />}
+              >
+                Registrar venta
+              </Button>
+            </div>
+          </>
+        )}
+
+        {ventaStep === 1 && (
+          <Result
+            status="success"
+            title="Póliza de reversa registrada"
+            subTitle="La baja contable del activo ha sido generada exitosamente. Ahora puedes emitir la factura formal en el módulo de Ventas."
+            extra={[
+              <Button
+                key="ventas" type="primary"
+                style={{ background: '#1B3A6B' }}
+                onClick={() => { closeVenderModal(); navigate('/ventas/facturas/nueva') }}
+              >
+                Ir a Ventas → Crear factura
+              </Button>,
+              <Button key="close" onClick={closeVenderModal}>Cerrar</Button>,
+            ]}
+          />
+        )}
       </Modal>
 
       {/* ── Modal: Dar de baja ─────────────────────────────────────────────── */}
@@ -655,16 +1092,101 @@ export default function ActivoFijoDetallePage() {
         confirmLoading={savingBaja}
         okText="Confirmar baja"
         okButtonProps={{ danger: true }}
-        width={380}
+        width={600}
       >
         <Form form={formBaja} layout="vertical" size="small">
-          <Form.Item name="fecha" label="Fecha de baja" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-          </Form.Item>
-          <Form.Item name="motivo" label="Motivo" rules={[{ required: true, message: 'El motivo es requerido' }]}>
-            <Input.TextArea rows={3} placeholder="Ej: Robo, siniestro, obsolescencia..." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="fecha" label="Fecha de baja" rules={[{ required: true }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <div />
+          </div>
+          <Form.Item name="motivo" label="Motivo" rules={[{ required: true, message: 'El motivo es requerido' }]} style={{ marginBottom: 0 }}>
+            <Input.TextArea rows={2} placeholder="Ej: Robo, siniestro, obsolescencia..." />
           </Form.Item>
         </Form>
+
+        {/* ── Preview póliza ─────────────────────────────────────────────── */}
+        {polizaBajaPreview && (
+          <>
+            <Divider style={{ margin: '16px 0 12px' }}>
+              <Text style={{ fontSize: 12, color: '#888' }}>Póliza contable que se generará</Text>
+            </Divider>
+
+            {/* Banner valor en libros */}
+            <div style={{
+              padding: '10px 14px', borderRadius: 6, marginBottom: 12,
+              background: polizaBajaPreview.valorLibro > 0 ? '#fff1f0' : '#f5f5f5',
+              border: `1px solid ${polizaBajaPreview.valorLibro > 0 ? '#ffa39e' : '#d9d9d9'}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <Text strong style={{ fontSize: 13, color: polizaBajaPreview.valorLibro > 0 ? '#cf1322' : '#888' }}>
+                  {polizaBajaPreview.valorLibro > 0 ? '↓ Pérdida por deterioro:' : '✓ Activo totalmente depreciado'}
+                </Text>
+                {polizaBajaPreview.valorLibro > 0 && (
+                  <Text style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14, color: '#cf1322' }}>
+                    {Q(polizaBajaPreview.valorLibro)}
+                  </Text>
+                )}
+              </div>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                El valor en libros se registra como pérdida contable al dar de baja el activo.
+              </Text>
+            </div>
+
+            <Table
+              size="small"
+              pagination={false}
+              rowKey="key"
+              dataSource={polizaBajaPreview.lines}
+              style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
+              columns={[
+                {
+                  title: 'Cuenta', dataIndex: 'cuenta',
+                  render: (v: string, r: any) => (
+                    <Text style={{
+                      fontSize: 12,
+                      color: r.tipo === 'perdida' ? '#cf1322' : r.tipo === 'activo' ? '#1B3A6B' : 'inherit',
+                    }}>
+                      {v}
+                    </Text>
+                  ),
+                },
+                {
+                  title: 'Débito', dataIndex: 'debit', width: 120, align: 'right' as const,
+                  render: (v: number) => v > 0
+                    ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                    : null,
+                },
+                {
+                  title: 'Crédito', dataIndex: 'credit', width: 120, align: 'right' as const,
+                  render: (v: number) => v > 0
+                    ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                    : null,
+                },
+              ]}
+              summary={() => (
+                <Table.Summary>
+                  <Table.Summary.Row style={{ background: '#fafafa' }}>
+                    <Table.Summary.Cell index={0}>
+                      <Text strong style={{ fontSize: 12 }}>Total</Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right">
+                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {Q(polizaBajaPreview.totalDebit)}
+                      </Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={2} align="right">
+                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {Q(polizaBajaPreview.totalCredit)}
+                      </Text>
+                    </Table.Summary.Cell>
+                  </Table.Summary.Row>
+                </Table.Summary>
+              )}
+            />
+          </>
+        )}
       </Modal>
     </div>
   )

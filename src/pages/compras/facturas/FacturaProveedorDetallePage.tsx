@@ -19,6 +19,7 @@ import {
 } from '../../../api/compras'
 import { getBankAccounts } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -56,6 +57,7 @@ export default function FacturaProveedorDetallePage() {
   const [showEdit,   setShowEdit]   = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [editForm]  = Form.useForm()
+  const [centrosCosto, centrosBeneficio] = useCentrosOptions()
 
   const loadBill = useCallback(async () => {
     if (!id) return
@@ -231,7 +233,15 @@ export default function FacturaProveedorDetallePage() {
 
   const journalCols = [
     { title: 'CUENTA', dataIndex: 'cuenta', render: (v: string) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{v}</Text> },
-    { title: 'UBICACIÓN', width: 160, render: () => <Text type="secondary" style={{ fontSize: 12 }}>{company.name ?? '—'}</Text> },
+    { title: 'UBICACIÓN', width: 140, render: () => <Text type="secondary" style={{ fontSize: 12 }}>{company.name ?? '—'}</Text> },
+    {
+      title: 'C. COSTO', dataIndex: 'ccNombre', width: 110,
+      render: (v: string) => v ? <Text style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
+    },
+    {
+      title: 'C. BENEFICIO', dataIndex: 'cbNombre', width: 110,
+      render: (v: string) => v ? <Text style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
+    },
     {
       title: 'DÉBITO', dataIndex: 'debit', width: 130, align: 'right' as const,
       render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
@@ -244,7 +254,12 @@ export default function FacturaProveedorDetallePage() {
 
   const makeJournalRows = (je: JournalEntry) =>
     (je.lines ?? []).map(l => ({
-      key: l.id, cuenta: `${l.accountCode} — ${l.accountName}`, debit: Number(l.debit), credit: Number(l.credit),
+      key:      l.id,
+      cuenta:   `${l.accountCode} — ${l.accountName}`,
+      debit:    Number(l.debit),
+      credit:   Number(l.credit),
+      ccNombre: l.centroCostoId    ? (centrosCosto.find(c => c.id === l.centroCostoId)?.nombre    ?? l.centroCostoId)    : null,
+      cbNombre: l.centroBeneficioId ? (centrosBeneficio.find(c => c.id === l.centroBeneficioId)?.nombre ?? l.centroBeneficioId) : null,
     }))
 
   const totalRetention = Number(bill.isrRetentionAmount ?? 0) + Number(bill.ivaRetentionAmount ?? 0)
@@ -552,7 +567,12 @@ export default function FacturaProveedorDetallePage() {
                     <Tag color={journal.status === 'posted' ? 'green' : 'default'} style={{ margin: 0 }}>
                       {journal.status === 'posted' ? 'Publicada' : journal.status}
                     </Tag>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(journal.entryDate).format('DD/MM/YYYY')}</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {dayjs(journal.accountingDate ?? journal.entryDate).format('DD/MM/YYYY')}
+                      {journal.accountingDate && journal.accountingDate.slice(0,10) !== journal.entryDate.slice(0,10) && (
+                        <span style={{ color: '#aaa' }}> (doc: {dayjs(journal.entryDate).format('DD/MM/YYYY')})</span>
+                      )}
+                    </Text>
                   </Space>
                   <Table dataSource={makeJournalRows(journal)} columns={journalCols} rowKey="key"
                     size="small" pagination={false}
@@ -560,11 +580,11 @@ export default function FacturaProveedorDetallePage() {
                     summary={() => (
                       <Table.Summary fixed>
                         <Table.Summary.Row style={{ background: '#fafafa' }}>
-                          <Table.Summary.Cell index={0} colSpan={2}><Text strong style={{ fontSize: 12 }}>Total</Text></Table.Summary.Cell>
-                          <Table.Summary.Cell index={2} align="right">
+                          <Table.Summary.Cell index={0} colSpan={4}><Text strong style={{ fontSize: 12 }}>Total</Text></Table.Summary.Cell>
+                          <Table.Summary.Cell index={4} align="right">
                             <Text strong style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(journal.totalDebit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                           </Table.Summary.Cell>
-                          <Table.Summary.Cell index={3} align="right">
+                          <Table.Summary.Cell index={5} align="right">
                             <Text strong style={{ fontSize: 12, fontFamily: 'monospace', color: '#389e0d' }}>{Number(journal.totalCredit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                           </Table.Summary.Cell>
                         </Table.Summary.Row>

@@ -61,7 +61,7 @@ const menuItems = [
     { key: '/contabilidad/catalogo',             label: 'Catálogo de cuentas' },
     { key: '/contabilidad/diarios-manuales',     label: 'Diarios manuales' },
     { key: '/contabilidad/diarios-recurrentes',  label: 'Diarios recurrentes' },
-    { key: '/contabilidad/activos-fijos',         label: 'Activos fijos' },
+    { key: '/contabilidad/activos-fijos',        label: 'Activos fijos' },
     { key: '/contabilidad/clases-activo-fijo',   label: 'Clases de activo fijo' },
     { key: '/contabilidad/presupuesto',          label: 'Presupuestos' },
     { key: '/contabilidad/ajuste-moneda',        label: 'Ajustes de moneda' },
@@ -94,6 +94,7 @@ const menuItems = [
     { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },
     { key: '/reportes/ar-aging',           label: 'AR Aging (CxC)' },
     { key: '/reportes/proyectado-pagos',   label: 'Proyectado de Pagos' },
+    { key: '/reportes/activos-fijos',      label: 'Reporte activos fijos' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [

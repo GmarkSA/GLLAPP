@@ -96,6 +96,7 @@ const BloqueoTransaccionesPage   = lazy(() => import('./pages/contabilidad/bloqu
 const ActivosFijosPage           = lazy(() => import('./pages/contabilidad/activos-fijos/ActivosFijosPage'))
 const ActivoFijoDetallePage      = lazy(() => import('./pages/contabilidad/activos-fijos/ActivoFijoDetallePage'))
 const ClasesActivoFijoPage       = lazy(() => import('./pages/contabilidad/activos-fijos/ClasesActivoFijoPage'))
+const ReporteActivosFijosPage    = lazy(() => import('./pages/reportes/ReporteActivosFijosPage'))
 // Diarios
 const DiariosManualesPage        = lazy(() => import('./pages/contabilidad/diarios-manuales/DiariosManualesPage'))
 const DiarioManualFormPage       = lazy(() => import('./pages/contabilidad/diarios-manuales/DiarioManualFormPage'))
@@ -309,6 +310,7 @@ export default function App() {
             <Route path="ap-aging"                   element={<ApAgingPage />} />
             <Route path="ar-aging"                   element={<ArAgingPage />} />
             <Route path="proyectado-pagos"           element={<ReporteProyectadoPagosPage />} />
+            <Route path="activos-fijos"              element={<ReporteActivosFijosPage />} />
           </Route>
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />

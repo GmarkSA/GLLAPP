@@ -4,6 +4,26 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 
 export type EstadoActivoFijo = 'BORRADOR' | 'ACTIVO' | 'VENDIDO' | 'DADO_DE_BAJA'
 
+export interface PolizaActivoLine {
+  id: string
+  accountCode: string
+  accountName: string
+  description: string | null
+  debit: number
+  credit: number
+}
+
+export interface PolizaActivo {
+  id: string
+  entryNumber: string
+  entryDate: string
+  description: string
+  sourceDocumentType: string
+  totalDebit: number
+  totalCredit: number
+  lines: PolizaActivoLine[]
+}
+
 export interface ActivoFijo {
   id: string
   companyId: string
@@ -89,3 +109,12 @@ export const venderActivoFijo = (id: string, dto: {
 
 export const darDeBajaActivoFijo = (id: string, dto: { fecha: string; motivo: string }) =>
   api.post(`${BASE}/${id}/dar-de-baja`, dto).then(unwrap) as Promise<ActivoFijo>
+
+export const revertirVentaActivoFijo = (id: string) =>
+  api.delete(`${BASE}/${id}/venta`).then(unwrap) as Promise<ActivoFijo>
+
+export const revertirBajaActivoFijo = (id: string) =>
+  api.delete(`${BASE}/${id}/baja`).then(unwrap) as Promise<ActivoFijo>
+
+export const getPolizasActivoFijo = (id: string) =>
+  api.get(`${BASE}/${id}/polizas`).then(unwrap) as Promise<PolizaActivo[]>

@@ -283,6 +283,7 @@ export default function ClasesActivoFijoPage() {
     acctCol('cuentaGastoDepreciacionId',     'Gasto de Depreciación'),
     acctCol('cuentaGananciaPorVentaId',      'Ganancia por Venta AF'),
     acctCol('cuentaPerdidaPorVentaId',       'Pérdida por Venta AF'),
+    acctCol('cuentaCostoVentaAFId',          'Costo de Venta AF'),
     acctCol('cuentaPerdidaPorDeterioro',     'Pérdida por Deterioro'),
     {
       title: <span style={{ fontSize: 11 }}>Estado</span>, width: 90,
