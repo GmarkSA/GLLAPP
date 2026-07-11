@@ -1,29 +1,89 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import {
   Button, Table, Tag, Space, message, InputNumber,
-  Switch, Typography, Alert, Popconfirm,
+  Switch, Typography, Alert, Popconfirm, Select,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ReloadOutlined, LockOutlined, UnlockOutlined,
-  DeleteOutlined, SaveOutlined,
+  DeleteOutlined, SaveOutlined, BookOutlined,
 } from '@ant-design/icons'
-import AccountSelect from '../../../components/AccountSelect'
 import {
   getClasesActivoFijo, actualizarClaseActivoFijo, eliminarClaseActivoFijo, seedGuatemalaClases,
   type ClaseActivoFijo,
 } from '../../../api/clases-activo-fijo'
+import { getAccounts, type Account } from '../../../api/catalogo'
 
 const { Title } = Typography
 
 type Pending = Partial<Omit<ClaseActivoFijo, 'id' | 'companyId'>>
 
+// ── Selector de cuenta compacto — recibe cuentas ya cargadas ──────────────────
+const AccountCellSelect = memo(function AccountCellSelect({
+  accounts, value, onChange, disabled,
+}: {
+  accounts: Account[]
+  value: string | null | undefined
+  onChange: (v: string | null) => void
+  disabled?: boolean
+}) {
+  const options = accounts.map(a => ({
+    value: a.id,
+    label: `${a.code} — ${a.name}`,
+    code:  a.code,
+    name:  a.name,
+  }))
+
+  return (
+    <Select
+      showSearch
+      allowClear
+      size="small"
+      style={{ width: '100%' }}
+      disabled={disabled}
+      value={value ?? undefined}
+      onChange={v => onChange(v ?? null)}
+      options={options}
+      optionFilterProp="label"
+      notFoundContent="Sin cuentas"
+      labelRender={opt => {
+        const acct = accounts.find(a => a.id === opt.value)
+        if (!acct) return <span style={{ color: '#bbb' }}>—</span>
+        return (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+            <BookOutlined style={{ color: '#1677ff', fontSize: 11, flexShrink: 0 }} />
+            <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1677ff', flexShrink: 0 }}>
+              {acct.code}
+            </span>
+            <span style={{
+              fontSize: 11, color: '#555',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {acct.name}
+            </span>
+          </span>
+        )
+      }}
+      optionRender={opt => (
+        <span style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1B3A6B', flexShrink: 0 }}>
+            {(opt.data as any).code}
+          </span>
+          <span style={{ fontSize: 12, color: '#333' }}>{(opt.data as any).name}</span>
+        </span>
+      )}
+    />
+  )
+})
+
+// ── Página ────────────────────────────────────────────────────────────────────
 export default function ClasesActivoFijoPage() {
-  const [data,    setData]    = useState<ClaseActivoFijo[]>([])
-  const [loading, setLoading] = useState(false)
-  const [seeding, setSeeding] = useState(false)
-  const [pending, setPending] = useState<Record<string, Pending>>({})
-  const [saving,  setSaving]  = useState<Record<string, boolean>>({})
+  const [data,     setData]     = useState<ClaseActivoFijo[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading,  setLoading]  = useState(false)
+  const [seeding,  setSeeding]  = useState(false)
+  const [pending,  setPending]  = useState<Record<string, Pending>>({})
+  const [saving,   setSaving]   = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -33,6 +93,13 @@ export default function ClasesActivoFijoPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Carga cuentas UNA sola vez para toda la tabla
+  useEffect(() => {
+    getAccounts({ activas: true })
+      .then((r: any) => setAccounts(Array.isArray(r) ? r.filter((a: Account) => !a.isHeader) : []))
+      .catch(() => {})
+  }, [])
 
   const val = <K extends keyof ClaseActivoFijo>(r: ClaseActivoFijo, field: K): ClaseActivoFijo[K] =>
     ((pending[r.id ?? '']?.[field as keyof Pending]) as ClaseActivoFijo[K] | undefined) ?? r[field]
@@ -82,16 +149,14 @@ export default function ClasesActivoFijoPage() {
 
   const acctCol = (field: keyof Pending, title: string): ColumnsType<ClaseActivoFijo>[number] => ({
     title: <span style={{ fontSize: 11 }}>{title}</span>,
-    width: 110,
-    render: (_: unknown, r: ClaseActivoFijo) => r.id
-      ? <AccountSelect
-          filter={{}}
-          size="small"
-          placeholder="Selecciona..."
-          value={(val(r, field as keyof ClaseActivoFijo) as string) ?? undefined}
-          onChange={v => set(r.id!, field, v ?? null)}
-        />
-      : <span style={{ color: '#d9d9d9' }}>—</span>,
+    width: 160,
+    render: (_: unknown, r: ClaseActivoFijo) => !r.id ? <span style={{ color: '#d9d9d9' }}>—</span> : (
+      <AccountCellSelect
+        accounts={accounts}
+        value={val(r, field as keyof ClaseActivoFijo) as string | null}
+        onChange={v => set(r.id!, field, v)}
+      />
+    ),
   })
 
   const columns: ColumnsType<ClaseActivoFijo> = [
@@ -105,12 +170,11 @@ export default function ClasesActivoFijoPage() {
       ),
     },
     {
-      title: 'Clase de Activo', dataIndex: 'nombre', width: 220, fixed: 'left',
+      title: 'Clase de Activo', dataIndex: 'nombre', width: 200, fixed: 'left',
       render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span>,
     },
     {
-      title: <span style={{ fontSize: 11 }}>Tasa Anual</span>,
-      width: 110,
+      title: <span style={{ fontSize: 11 }}>Tasa Anual</span>, width: 100,
       render: (_: unknown, r: ClaseActivoFijo) => (
         <InputNumber
           size="small" style={{ width: '100%' }} min={0} max={1} precision={4} step={0.05}
@@ -123,8 +187,7 @@ export default function ClasesActivoFijoPage() {
       ),
     },
     {
-      title: <span style={{ fontSize: 11 }}>Vida Útil (m)</span>,
-      width: 105,
+      title: <span style={{ fontSize: 11 }}>Vida Útil (m)</span>, width: 100,
       render: (_: unknown, r: ClaseActivoFijo) => (
         <InputNumber
           size="small" style={{ width: '100%' }} min={0}
@@ -136,8 +199,7 @@ export default function ClasesActivoFijoPage() {
       ),
     },
     {
-      title: <span style={{ fontSize: 11 }}>No Dep.</span>,
-      width: 75, align: 'center',
+      title: <span style={{ fontSize: 11 }}>No Dep.</span>, width: 70, align: 'center',
       render: (_: unknown, r: ClaseActivoFijo) => (
         <Switch
           size="small"
@@ -155,14 +217,13 @@ export default function ClasesActivoFijoPage() {
     acctCol('cuentaPerdidaPorVentaId',       'Pérdida por Venta AF'),
     acctCol('cuentaGananciaActivoFijoId',    'Ganancia AF (otras)'),
     {
-      title: <span style={{ fontSize: 11 }}>Estado</span>,
-      width: 90,
+      title: <span style={{ fontSize: 11 }}>Estado</span>, width: 90,
       render: (_: unknown, r: ClaseActivoFijo) => r.id
         ? <Tag color={r.activo ? 'success' : 'default'}>{r.activo ? 'Activo' : 'Bloqueado'}</Tag>
         : <Tag color="blue">Plantilla</Tag>,
     },
     {
-      title: 'Acciones', width: 145, fixed: 'right',
+      title: 'Acciones', width: 110, fixed: 'right',
       render: (_: unknown, r: ClaseActivoFijo) => !r.id ? null : (
         <Space size={4} wrap={false}>
           {isDirty(r.id!) && (
