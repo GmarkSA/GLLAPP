@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
-  Button, Table, Tag, Space, Popconfirm, message, Modal, Form, Input, Select, Typography,
+  Button, Table, Tag, Space, Popconfirm, message, Modal, Form, Input, Typography,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -11,10 +11,6 @@ import {
 
 const { Title } = Typography
 
-const GRUPOS = [
-  'Administración', 'Ventas', 'Compras', 'Producción',
-  'Operaciones', 'Logística', 'Recursos Humanos', 'Tecnología', 'Finanzas',
-]
 
 export default function CentrosCostoPage() {
   const [data,    setData]    = useState<CentroCosto[]>([])
@@ -39,9 +35,8 @@ export default function CentrosCostoPage() {
     form.setFieldsValue({
       codigo:      r.codigo,
       nombre:      r.nombre,
-      grupo:       r.grupo ?? undefined,
+      grupo:       r.grupo ?? '',
       responsable: r.responsable ?? '',
-      area:        r.area ?? '',
     })
     setModal(true)
   }
@@ -73,7 +68,6 @@ export default function CentrosCostoPage() {
     { title: 'Grupo',       dataIndex: 'grupo',       width: 140, render: (v: string) => v ? <Tag>{v}</Tag> : '—' },
     { title: 'Código',      dataIndex: 'codigo',      width: 100 },
     { title: 'Nombre',      dataIndex: 'nombre' },
-    { title: 'Área',        dataIndex: 'area',        width: 130, render: (v: string) => v || '—' },
     { title: 'Responsable', dataIndex: 'responsable', width: 160, render: (v: string) => v || '—' },
     {
       title: 'Fecha Creación', dataIndex: 'fechaCreacion', width: 120,
@@ -125,17 +119,9 @@ export default function CentrosCostoPage() {
               <Input placeholder="Administración" />
             </Form.Item>
           </div>
-          <Form.Item name="grupo" label="Grupo">
-            <Select
-              placeholder="Seleccionar grupo"
-              allowClear
-              showSearch
-              options={GRUPOS.map(g => ({ label: g, value: g }))}
-            />
-          </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Form.Item name="area" label="Área">
-              <Input placeholder="Ej: Finanzas, Operaciones" />
+            <Form.Item name="grupo" label="Grupo">
+              <Input placeholder="Ej: Administración, Ventas, Producción" />
             </Form.Item>
             <Form.Item name="responsable" label="Responsable">
               <Input placeholder="Nombre del responsable" />
