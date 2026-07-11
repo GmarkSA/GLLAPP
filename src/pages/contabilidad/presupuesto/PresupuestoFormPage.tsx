@@ -9,6 +9,8 @@ import type { DataNode } from 'antd/es/tree'
 import dayjs from 'dayjs'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { createPresupuesto, type BudgetPeriodo } from '../../../api/presupuesto'
+import { getCentrosCosto, type CentroCosto } from '../../../api/centros-costo'
+import { getCentrosBeneficio, type CentroBeneficio } from '../../../api/centros-beneficio'
 
 const { Title, Text } = Typography
 
@@ -129,6 +131,8 @@ export default function PresupuestoFormPage() {
   const [saving,  setSaving]  = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(false)
+  const [centrosCosto,     setCentrosCosto]     = useState<CentroCosto[]>([])
+  const [centrosBeneficio, setCentrosBeneficio] = useState<CentroBeneficio[]>([])
 
   // Cuentas seleccionadas
   const [selectedIngresos, setSelectedIngresos] = useState<string[]>([])
@@ -148,14 +152,18 @@ export default function PresupuestoFormPage() {
       .then((res: any) => setAccounts(Array.isArray(res) ? res : []))
       .catch(() => {})
       .finally(() => setLoadingAccounts(false))
+    getCentrosCosto().then(r => setCentrosCosto(Array.isArray(r) ? r : [])).catch(() => {})
+    getCentrosBeneficio().then(r => setCentrosBeneficio(Array.isArray(r) ? r : [])).catch(() => {})
   }, [])
 
   // Filtros de cuentas por tipo
-  const ingresosAccounts = accounts.filter(a => a.type === 'INCOME' || a.code?.startsWith('4'))
-  const gastosAccounts   = accounts.filter(a => a.type === 'EXPENSE' || a.code?.startsWith('5') || a.code?.startsWith('6'))
+  const ingresosAccounts = accounts.filter(a =>
+    ['income', 'INCOME'].includes(a.type) || a.code?.startsWith('4'))
+  const gastosAccounts   = accounts.filter(a =>
+    ['expense', 'EXPENSE', 'contra', 'CONTRA'].includes(a.type) || a.code?.startsWith('5') || a.code?.startsWith('6'))
   const otrasAccounts    = accounts.filter(a =>
-    a.type === 'ASSET' || a.type === 'LIABILITY' || a.type === 'EQUITY' ||
-    (a.code?.startsWith('1') || a.code?.startsWith('2') || a.code?.startsWith('3'))
+    ['asset', 'ASSET', 'liability', 'LIABILITY', 'equity', 'EQUITY'].includes(a.type) ||
+    a.code?.startsWith('1') || a.code?.startsWith('2') || a.code?.startsWith('3')
   )
 
   const totalSelected = selectedIngresos.length + selectedGastos.length + selectedOtras.length
@@ -181,6 +189,9 @@ export default function PresupuestoFormPage() {
         periodo:              vals.periodo,
         incluirBalanceGeneral: form.getFieldValue('incluirBalanceGeneral') ?? false,
         cuentaIds,
+        centroCostoId:     vals.centroCostoId     ?? null,
+        centroBeneficioId: vals.centroBeneficioId ?? null,
+        notas:             vals.notas              ?? undefined,
       })
       message.success('Presupuesto creado')
       navigate(`/contabilidad/presupuesto/${budget.id}`)
@@ -216,6 +227,27 @@ export default function PresupuestoFormPage() {
 
             <Form.Item name="periodo" label="Período del presupuesto" rules={[{ required: true }]}>
               <Select options={PERIODOS} />
+            </Form.Item>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Form.Item name="centroCostoId" label="Centro de Costo (opcional)">
+                <Select
+                  allowClear
+                  placeholder="Sin filtro por centro de costo"
+                  options={centrosCosto.filter(c => c.activo).map(c => ({ label: `${c.codigo} — ${c.nombre}`, value: c.id }))}
+                />
+              </Form.Item>
+              <Form.Item name="centroBeneficioId" label="Centro de Beneficio (opcional)">
+                <Select
+                  allowClear
+                  placeholder="Sin filtro por centro de beneficio"
+                  options={centrosBeneficio.filter(c => c.activo).map(c => ({ label: `${c.codigo} — ${c.nombre}`, value: c.id }))}
+                />
+              </Form.Item>
+            </div>
+
+            <Form.Item name="notas" label="Notas internas">
+              <Input.TextArea rows={2} placeholder="Descripción o notas del presupuesto..." />
             </Form.Item>
 
             <Divider />

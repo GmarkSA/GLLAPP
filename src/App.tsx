@@ -106,6 +106,8 @@ const PresupuestosPage       = lazy(() => import('./pages/contabilidad/presupues
 const PresupuestoFormPage    = lazy(() => import('./pages/contabilidad/presupuesto/PresupuestoFormPage'))
 const PresupuestoDetallePage = lazy(() => import('./pages/contabilidad/presupuesto/PresupuestoDetallePage'))
 const PresupuestoVsRealPage  = lazy(() => import('./pages/contabilidad/presupuesto/PresupuestoVsRealPage'))
+const AjusteMonedaListPage    = lazy(() => import('./pages/contabilidad/ajuste-moneda/AjusteMonedaListPage'))
+const AjusteMonedaDetallePage = lazy(() => import('./pages/contabilidad/ajuste-moneda/AjusteMonedaDetallePage'))
 const LibroDiarioPage = lazy(() => import('./pages/reportes/LibroDiarioPage'))
 const LibroMayorPage  = lazy(() => import('./pages/reportes/LibroMayorPage'))
 
@@ -269,7 +271,8 @@ export default function App() {
           <Route path="contabilidad/presupuesto/nuevo"       element={<PresupuestoFormPage />} />
           <Route path="contabilidad/presupuesto/:id"         element={<PresupuestoDetallePage />} />
           <Route path="contabilidad/presupuesto/:id/vs-real" element={<PresupuestoVsRealPage />} />
-          <Route path="contabilidad/ajustes-moneda"       element={<ComingSoon title="Ajustes de Moneda" />} />
+          <Route path="contabilidad/ajuste-moneda"          element={<AjusteMonedaListPage />} />
+          <Route path="contabilidad/ajuste-moneda/:id"      element={<AjusteMonedaDetallePage />} />
           <Route path="contabilidad/bloqueo-transacciones" element={<BloqueoTransaccionesPage />} />
           <Route path="contabilidad/centros-costo"        element={<CentrosCostoPage />} />
           <Route path="contabilidad/centros-beneficio"    element={<CentrosBeneficioPage />} />

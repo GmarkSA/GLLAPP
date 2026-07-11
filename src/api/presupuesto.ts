@@ -58,11 +58,38 @@ export interface BudgetVsRealRow {
   totalReal:          number
   totalVarianza:      number
   alertaGlobal:       'OVER_BUDGET' | 'WARNING' | null
+  ytdPresupuestado:   number
+  ytdReal:            number
+  ytdVarianza:        number
+  ytdPorcentaje:      number | null
+  forecast:           number | null
+}
+
+export interface BudgetVsRealKpis {
+  ejecucionGlobal:    number | null
+  ytdEjecucion:       number | null
+  margenBruto:        number | null
+  margenOperativo:    number | null
+  totalPresupuestado: number
+  totalReal:          number
+  ytdPresupuestado:   number
+  ytdReal:            number
+}
+
+export interface BudgetVsRealTopVar {
+  accountId:   string
+  accountCode: string
+  accountName: string
+  varianza:    number
+  porcentaje:  number | null
 }
 
 export interface BudgetVsReal {
-  budget: Budget
-  rows:   BudgetVsRealRow[]
+  budget:         Budget
+  rows:           BudgetVsRealRow[]
+  kpis:           BudgetVsRealKpis
+  topVariaciones: BudgetVsRealTopVar[]
+  currentPeriod:  number
 }
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────

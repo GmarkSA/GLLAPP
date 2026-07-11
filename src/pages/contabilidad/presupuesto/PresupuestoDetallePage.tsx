@@ -17,6 +17,8 @@ import {
   PERIODO_LABELS, STATUS_COLOR, STATUS_LABEL,
 } from '../../../api/presupuesto'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import { getCentrosCosto, type CentroCosto } from '../../../api/centros-costo'
+import { getCentrosBeneficio, type CentroBeneficio } from '../../../api/centros-beneficio'
 
 const { Title, Text } = Typography
 
@@ -67,7 +69,8 @@ function BudgetCell({ value, onChange, disabled }: { value: number; onChange: (v
   useEffect(() => { setLocal(value) }, [value])
   return (
     <InputNumber
-      size="small" style={{ width: '100%', minWidth: 90 }} min={0} precision={2}
+      controls={false}
+      size="small" style={{ width: '100%', minWidth: 82 }} min={0} precision={2}
       value={local} disabled={disabled}
       onChange={v => setLocal(v ?? 0)}
       onBlur={() => { if (local !== value) onChange(local) }}
@@ -85,11 +88,18 @@ export default function PresupuestoDetallePage() {
   const [budget,  setBudget]  = useState<Budget | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
-  const [allAccounts, setAllAccounts] = useState<Account[]>([])
+  const [allAccounts,      setAllAccounts]      = useState<Account[]>([])
+  const [centrosCosto,     setCentrosCosto]     = useState<CentroCosto[]>([])
+  const [centrosBeneficio, setCentrosBeneficio] = useState<CentroBeneficio[]>([])
 
   // Celdas editadas (buffer antes de guardar)
   const [edited, setEdited] = useState<Map<string, number>>(new Map())
   const hasEdits = edited.size > 0
+
+  // Autocompletar por fila
+  const [autoModal, setAutoModal] = useState<{ accountId: string; name: string } | null>(null)
+  const [autoTipo,  setAutoTipo]  = useState<'FIJO' | 'AJUSTE_MONTO' | 'AJUSTE_PORCENTAJE'>('FIJO')
+  const [autoValor, setAutoValor] = useState<number>(0)
 
   // Modales
   const [modalPrefill, setModalPrefill] = useState(false)
@@ -115,9 +125,9 @@ export default function PresupuestoDetallePage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    getAccounts({ activas: true })
-      .then((r: any) => setAllAccounts(Array.isArray(r) ? r : []))
-      .catch(() => {})
+    getAccounts({ activas: true }).then((r: any) => setAllAccounts(Array.isArray(r) ? r : [])).catch(() => {})
+    getCentrosCosto().then(r => setCentrosCosto(Array.isArray(r) ? r : [])).catch(() => {})
+    getCentrosBeneficio().then(r => setCentrosBeneficio(Array.isArray(r) ? r : [])).catch(() => {})
   }, [])
 
   if (loading || !budget) return <div style={{ padding: 40, textAlign: 'center' }}><Spin size="large" /></div>
@@ -127,6 +137,27 @@ export default function PresupuestoDetallePage() {
   const isReadonly   = budget.status === 'CERRADO'
 
   const cellKey = (accountId: string, p: number) => `${accountId}_${p}`
+
+  const getCellValue = (accountId: string, p: number) => {
+    const ev = edited.get(cellKey(accountId, p))
+    return ev !== undefined ? ev : (accountMap.get(accountId)?.periodos[p] ?? 0)
+  }
+
+  const computeAutoVal = (current: number) => {
+    if (autoTipo === 'FIJO')               return autoValor
+    if (autoTipo === 'AJUSTE_MONTO')       return Math.round((current + autoValor) * 100) / 100
+    return Math.round(current * (1 + autoValor / 100) * 100) / 100
+  }
+
+  const handleApplyAutocompletar = () => {
+    if (!autoModal) return
+    const updates = new Map(edited)
+    for (let p = 1; p <= periodoCount; p++) {
+      updates.set(cellKey(autoModal.accountId, p), computeAutoVal(getCellValue(autoModal.accountId, p)))
+    }
+    setEdited(updates)
+    setAutoModal(null)
+  }
 
   const handleCellChange = (accountId: string, p: number, value: number) => {
     const key = cellKey(accountId, p)
@@ -231,9 +262,9 @@ export default function PresupuestoDetallePage() {
 
   const renderTable = (filterType: 'income' | 'expense' | 'other') => {
     const typeMap: Record<typeof filterType, string[]> = {
-      income:  ['INCOME'],
-      expense: ['EXPENSE'],
-      other:   ['ASSET', 'LIABILITY', 'EQUITY'],
+      income:  ['income', 'INCOME'],
+      expense: ['expense', 'EXPENSE', 'contra', 'CONTRA'],
+      other:   ['asset', 'ASSET', 'liability', 'LIABILITY', 'equity', 'EQUITY'],
     }
     const allowed = typeMap[filterType]
 
@@ -273,6 +304,14 @@ export default function PresupuestoDetallePage() {
                       title={`${info.code} — ${info.name}`}>
                       {info.name}
                     </div>
+                    {!isReadonly && (
+                      <a
+                        style={{ fontSize: 10, color: '#1B3A6B', opacity: 0.7, display: 'block', lineHeight: '14px' }}
+                        onClick={() => { setAutoModal({ accountId, name: info.name }); setAutoTipo('FIJO'); setAutoValor(0) }}
+                      >
+                        Autocompletar ›
+                      </a>
+                    )}
                   </td>
                   {Array.from({ length: periodoCount }, (_, i) => i + 1).map(p => {
                     const savedVal = info.periodos[p] ?? 0
@@ -344,13 +383,28 @@ export default function PresupuestoDetallePage() {
   return (
     <div style={{ padding: 24 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contabilidad/presupuesto')}>Volver</Button>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{budget.nombre}</Title>
-        <Tag color={STATUS_COLOR[budget.status]}>{STATUS_LABEL[budget.status]}</Tag>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(budget.fechaInicio).format('DD MMM YYYY')} – {dayjs(budget.fechaFin).format('DD MMM YYYY')} · {budget.periodo}
-        </Text>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{budget.nombre}</Title>
+            <Tag color={STATUS_COLOR[budget.status]}>{STATUS_LABEL[budget.status]}</Tag>
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {dayjs(budget.fechaInicio).format('DD MMM YYYY')} – {dayjs(budget.fechaFin).format('DD MMM YYYY')} · {budget.periodo}
+            </Text>
+            {budget.centroCostoId && (() => {
+              const cc = centrosCosto.find(c => c.id === budget.centroCostoId)
+              return <Tag color="blue" style={{ fontSize: 11 }}>CC: {cc ? `${cc.codigo} — ${cc.nombre}` : budget.centroCostoId}</Tag>
+            })()}
+            {budget.centroBeneficioId && (() => {
+              const cb = centrosBeneficio.find(c => c.id === budget.centroBeneficioId)
+              return <Tag color="green" style={{ fontSize: 11 }}>CB: {cb ? `${cb.codigo} — ${cb.nombre}` : budget.centroBeneficioId}</Tag>
+            })()}
+            {budget.notas             && <Text type="secondary" style={{ fontSize: 11, fontStyle: 'italic' }}>{budget.notas}</Text>}
+          </div>
+        </div>
       </div>
 
       {/* Barra de acciones */}
@@ -473,6 +527,87 @@ export default function PresupuestoDetallePage() {
             checkedKeys={cuentasChecked}
             onCheck={(keys: any) => setCuentasChecked(Array.isArray(keys) ? keys : keys.checked)} />
         </div>
+      </Modal>
+
+      {/* ── Modal: Autocompletar por fila ────────────────────────────────────── */}
+      <Modal
+        title={`Autocompletar — ${autoModal?.name ?? ''}`}
+        open={!!autoModal}
+        onCancel={() => setAutoModal(null)}
+        onOk={handleApplyAutocompletar}
+        okText="Aplicar"
+        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        width={480}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, marginBottom: 4 }}>TIPO</div>
+            <Select
+              style={{ width: '100%' }}
+              value={autoTipo}
+              onChange={v => setAutoTipo(v)}
+              options={[
+                { label: 'Importe fijo',        value: 'FIJO' },
+                { label: 'Ajuste por monto',    value: 'AJUSTE_MONTO' },
+                { label: 'Ajuste por %',        value: 'AJUSTE_PORCENTAJE' },
+              ]}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, marginBottom: 4 }}>
+              {autoTipo === 'AJUSTE_PORCENTAJE' ? 'PORCENTAJE (%)' : 'MONTO (Q)'}
+            </div>
+            <InputNumber
+              controls={false}
+              style={{ width: '100%' }}
+              precision={2}
+              value={autoValor}
+              onChange={v => setAutoValor(v ?? 0)}
+            />
+          </div>
+        </div>
+
+        {autoModal && (
+          <>
+            <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, marginBottom: 6 }}>VISTA PREVIA</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%' }}>
+                <thead>
+                  <tr style={{ background: '#fafafa' }}>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', color: '#8c8c8c' }}>Período</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8c8c8c' }}>Actual</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right', color: '#1B3A6B', fontWeight: 700 }}>Nuevo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {labels.slice(0, 6).map((label, idx) => {
+                    const p = idx + 1
+                    const current = getCellValue(autoModal.accountId, p)
+                    const next    = computeAutoVal(current)
+                    return (
+                      <tr key={p} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '3px 8px' }}>{label}</td>
+                        <td style={{ padding: '3px 8px', textAlign: 'right', color: '#8c8c8c' }}>
+                          {current.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '3px 8px', textAlign: 'right', fontWeight: 600, color: '#1B3A6B' }}>
+                          {next.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {periodoCount > 6 && (
+                    <tr>
+                      <td colSpan={3} style={{ padding: '3px 8px', color: '#8c8c8c', textAlign: 'center' }}>
+                        … y {periodoCount - 6} período(s) más
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </Modal>
     </div>
   )
