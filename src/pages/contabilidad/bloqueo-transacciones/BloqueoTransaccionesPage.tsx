@@ -74,53 +74,55 @@ function MesGrid({
   selectedMeses: string[]
   onToggle: (mes: string) => void
 }) {
+  const allKeys = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
+  const allSelected = allKeys.every(m => selectedMeses.includes(m))
+
+  const toggleAll = () => {
+    if (allSelected) {
+      allKeys.forEach(m => { if (selectedMeses.includes(m)) onToggle(m) })
+    } else {
+      allKeys.forEach(m => { if (!selectedMeses.includes(m)) onToggle(m) })
+    }
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      {/* Navegación de año */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <Button size="small" onClick={() => onYearChange(year - 1)}>{'<'}</Button>
-        <Text strong style={{ minWidth: 40, textAlign: 'center' }}>{year}</Text>
+        <Text strong style={{ minWidth: 36, textAlign: 'center' }}>{year}</Text>
         <Button size="small" onClick={() => onYearChange(year + 1)}>{'>'}</Button>
-        <Button
-          size="small" type="link"
-          onClick={() => {
-            const all = Array.from({ length: 12 }, (_, i) =>
-              `${year}-${String(i + 1).padStart(2, '0')}`)
-            const allSelected = all.every(m => selectedMeses.includes(m))
-            all.forEach(m => {
-              const isSelected = selectedMeses.includes(m)
-              if (allSelected && isSelected) onToggle(m)
-              else if (!allSelected && !isSelected) onToggle(m)
-            })
-          }}
-          style={{ padding: 0 }}
-        >
-          {Array.from({ length: 12 }, (_, i) =>
-            `${year}-${String(i + 1).padStart(2, '0')}`
-          ).every(m => selectedMeses.includes(m)) ? 'Quitar todos' : 'Seleccionar todos'}
-        </Button>
+        <Checkbox checked={allSelected} onChange={toggleAll} style={{ marginLeft: 8 }}>
+          Seleccionar todos
+        </Checkbox>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+      {/* 12 meses en fila horizontal */}
+      <div style={{ display: 'flex', gap: 6 }}>
         {MESES_ES.map((mes, i) => {
-          const key = `${year}-${String(i + 1).padStart(2, '0')}`
+          const key = allKeys[i]
           const checked = selectedMeses.includes(key)
           return (
             <div
               key={key}
               onClick={() => onToggle(key)}
               style={{
-                padding: '6px 4px',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                padding: '8px 2px',
                 borderRadius: 6,
-                border: `1px solid ${checked ? '#1B3A6B' : '#d9d9d9'}`,
-                background: checked ? '#e6f0ff' : '#fff',
-                textAlign: 'center',
+                border: `2px solid ${checked ? '#1B3A6B' : '#d9d9d9'}`,
+                background: checked ? '#e6f0ff' : '#fafafa',
                 cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: checked ? 700 : 400,
-                color: checked ? '#1B3A6B' : '#595959',
                 userSelect: 'none',
               }}
             >
-              {mes}
+              <Checkbox checked={checked} onChange={() => {}} style={{ pointerEvents: 'none' }} />
+              <span style={{ fontSize: 11, fontWeight: checked ? 700 : 400, color: checked ? '#1B3A6B' : '#595959' }}>
+                {mes}
+              </span>
             </div>
           )
         })}
@@ -243,26 +245,33 @@ function ModalNuevoBloqueo({
           <Text strong style={{ display: 'block', marginBottom: 8 }}>
             1. Módulos a bloquear *
           </Text>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-            {MODULOS.map(m => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {MODULOS.map((m, idx) => {
               const checked = modulosSeleccionados.includes(m.value)
               return (
-                <div
-                  key={m.value}
-                  onClick={() => toggleModulo(m.value)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '7px 10px',
-                    borderRadius: 6,
-                    border: `1px solid ${checked ? '#1B3A6B' : '#d9d9d9'}`,
-                    background: checked ? '#e6f0ff' : '#fafafa',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                  }}
-                >
-                  <Checkbox checked={checked} onChange={() => {}} />
-                  <Tag color={m.color} style={{ margin: 0 }}>{m.label}</Tag>
-                </div>
+                <>
+                  {idx === 1 && (
+                    <Divider style={{ margin: '4px 0' }} />
+                  )}
+                  <div
+                    key={m.value}
+                    onClick={() => toggleModulo(m.value)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      border: `1px solid ${checked ? '#1B3A6B' : '#e8e8e8'}`,
+                      background: checked ? '#e6f0ff' : '#fafafa',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <Checkbox checked={checked} onChange={() => {}} />
+                    <Tag color={m.color} style={{ margin: 0, minWidth: 90, textAlign: 'center' }}>
+                      {m.label}
+                    </Tag>
+                  </div>
+                </>
               )
             })}
           </div>
