@@ -218,7 +218,7 @@ export default function ClasesActivoFijoPage() {
   // ── Columnas ──────────────────────────────────────────────────────────────
   const acctCol = (field: keyof Pending, title: string): ColumnsType<ClaseActivoFijo>[number] => ({
     title: <span style={{ fontSize: 11 }}>{title}</span>,
-    width: 160,
+    width: 140,
     render: (_: unknown, r: ClaseActivoFijo) => !r.id ? <span style={{ color: '#d9d9d9' }}>—</span> : (
       <AccountCellSelect
         accounts={accounts}
