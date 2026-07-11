@@ -5,11 +5,12 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  ReloadOutlined, LockOutlined, UnlockOutlined,
-  DeleteOutlined, SaveOutlined, BookOutlined, EditOutlined,
+  ReloadOutlined, LockOutlined, UnlockOutlined, PlusOutlined,
+  DeleteOutlined, SaveOutlined, BookOutlined, EditOutlined, CopyOutlined,
 } from '@ant-design/icons'
 import {
-  getClasesActivoFijo, actualizarClaseActivoFijo, eliminarClaseActivoFijo, seedGuatemalaClases,
+  getClasesActivoFijo, crearClaseActivoFijo, actualizarClaseActivoFijo,
+  eliminarClaseActivoFijo, seedGuatemalaClases,
   type ClaseActivoFijo,
 } from '../../../api/clases-activo-fijo'
 import { getAccounts, type Account } from '../../../api/catalogo'
@@ -18,7 +19,15 @@ const { Title } = Typography
 
 type Pending = Partial<Omit<ClaseActivoFijo, 'id' | 'companyId'>>
 
-// ── Selector de cuenta compacto — recibe cuentas ya cargadas ──────────────────
+type NuevaClaseForm = {
+  codigo: string
+  nombre: string
+  tasaDepreciacionAnual: number
+  vidaUtilMeses: number | null
+  esNoDepreciable: boolean
+}
+
+// ── Selector de cuenta compacto ───────────────────────────────────────────────
 const AccountCellSelect = memo(function AccountCellSelect({
   accounts, value, onChange, disabled,
 }: {
@@ -36,10 +45,7 @@ const AccountCellSelect = memo(function AccountCellSelect({
 
   return (
     <Select
-      showSearch
-      allowClear
-      size="small"
-      style={{ width: '100%' }}
+      showSearch allowClear size="small" style={{ width: '100%' }}
       disabled={disabled}
       value={value ?? undefined}
       onChange={v => onChange(v ?? null)}
@@ -52,13 +58,8 @@ const AccountCellSelect = memo(function AccountCellSelect({
         return (
           <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
             <BookOutlined style={{ color: '#1677ff', fontSize: 11, flexShrink: 0 }} />
-            <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1677ff', flexShrink: 0 }}>
-              {acct.code}
-            </span>
-            <span style={{
-              fontSize: 11, color: '#555',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
+            <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1677ff', flexShrink: 0 }}>{acct.code}</span>
+            <span style={{ fontSize: 11, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {acct.name}
             </span>
           </span>
@@ -78,15 +79,22 @@ const AccountCellSelect = memo(function AccountCellSelect({
 
 // ── Página ────────────────────────────────────────────────────────────────────
 export default function ClasesActivoFijoPage() {
-  const [data,        setData]        = useState<ClaseActivoFijo[]>([])
-  const [accounts,    setAccounts]    = useState<Account[]>([])
-  const [loading,     setLoading]     = useState(false)
-  const [seeding,     setSeeding]     = useState(false)
-  const [pending,     setPending]     = useState<Record<string, Pending>>({})
-  const [saving,      setSaving]      = useState<Record<string, boolean>>({})
-  const [editTarget,  setEditTarget]  = useState<ClaseActivoFijo | null>(null)
-  const [editSaving,  setEditSaving]  = useState(false)
+  const [data,       setData]       = useState<ClaseActivoFijo[]>([])
+  const [accounts,   setAccounts]   = useState<Account[]>([])
+  const [loading,    setLoading]    = useState(false)
+  const [seeding,    setSeeding]    = useState(false)
+  const [pending,    setPending]    = useState<Record<string, Pending>>({})
+  const [saving,     setSaving]     = useState<Record<string, boolean>>({})
+
+  // Modal editar nombre
+  const [editTarget, setEditTarget] = useState<ClaseActivoFijo | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
   const [editForm]  = Form.useForm()
+
+  // Modal agregar / copiar como
+  const [nuevaModal, setNuevaModal] = useState(false)
+  const [nuevaSaving, setNuevaSaving] = useState(false)
+  const [nuevaForm] = Form.useForm<NuevaClaseForm>()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -97,7 +105,6 @@ export default function ClasesActivoFijoPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Carga cuentas UNA sola vez para toda la tabla
   useEffect(() => {
     getAccounts({ activas: true })
       .then((r: any) => setAccounts(Array.isArray(r) ? r.filter((a: Account) => !a.isHeader) : []))
@@ -143,6 +150,7 @@ export default function ClasesActivoFijoPage() {
     } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
   }
 
+  // ── Editar nombre ─────────────────────────────────────────────────────────
   const openEdit = (r: ClaseActivoFijo) => {
     setEditTarget(r)
     editForm.setFieldsValue({ nombre: r.nombre })
@@ -162,6 +170,44 @@ export default function ClasesActivoFijoPage() {
     } finally { setEditSaving(false) }
   }
 
+  // ── Agregar / Copiar como ─────────────────────────────────────────────────
+  const openNueva = () => {
+    nuevaForm.resetFields()
+    nuevaForm.setFieldsValue({ tasaDepreciacionAnual: 0.20, vidaUtilMeses: 60, esNoDepreciable: false })
+    setNuevaModal(true)
+  }
+
+  const openCopiar = (r: ClaseActivoFijo) => {
+    nuevaForm.setFieldsValue({
+      codigo:               '',
+      nombre:               `${r.nombre} (copia)`,
+      tasaDepreciacionAnual: r.tasaDepreciacionAnual,
+      vidaUtilMeses:         r.vidaUtilMeses ?? undefined,
+      esNoDepreciable:       r.esNoDepreciable,
+    })
+    setNuevaModal(true)
+  }
+
+  const handleNuevaSave = async () => {
+    try { await nuevaForm.validateFields() } catch { return }
+    const vals = nuevaForm.getFieldsValue()
+    setNuevaSaving(true)
+    try {
+      await crearClaseActivoFijo({
+        codigo:               vals.codigo,
+        nombre:               vals.nombre,
+        tasaDepreciacionAnual: vals.tasaDepreciacionAnual ?? 0,
+        vidaUtilMeses:         vals.esNoDepreciable ? null : (vals.vidaUtilMeses ?? null),
+        esNoDepreciable:       vals.esNoDepreciable ?? false,
+      })
+      message.success('Clase creada')
+      setNuevaModal(false)
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al crear')
+    } finally { setNuevaSaving(false) }
+  }
+
   const handleSeed = async () => {
     setSeeding(true)
     try { await seedGuatemalaClases(); message.success('Clases Guatemala generadas'); load() }
@@ -169,6 +215,7 @@ export default function ClasesActivoFijoPage() {
     finally { setSeeding(false) }
   }
 
+  // ── Columnas ──────────────────────────────────────────────────────────────
   const acctCol = (field: keyof Pending, title: string): ColumnsType<ClaseActivoFijo>[number] => ({
     title: <span style={{ fontSize: 11 }}>{title}</span>,
     width: 160,
@@ -245,7 +292,7 @@ export default function ClasesActivoFijoPage() {
         : <Tag color="blue">Plantilla</Tag>,
     },
     {
-      title: 'Acciones', width: 145, fixed: 'right',
+      title: 'Acciones', width: 175, fixed: 'right',
       render: (_: unknown, r: ClaseActivoFijo) => !r.id ? null : (
         <Space size={4} wrap={false}>
           <Button size="small" icon={<SaveOutlined />}
@@ -256,6 +303,7 @@ export default function ClasesActivoFijoPage() {
               ? { background: '#389e0d', borderColor: '#389e0d', color: '#fff', padding: '0 6px' }
               : { padding: '0 6px' }} />
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Button size="small" icon={<CopyOutlined />} title="Copiar como" onClick={() => openCopiar(r)} />
           <Popconfirm title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'} onConfirm={() => handleBloquear(r)}>
             <Button size="small"
               icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
@@ -275,9 +323,15 @@ export default function ClasesActivoFijoPage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Clases de Activo Fijo (ISR Guatemala)</Title>
-        <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}>
-          Generar clases Guatemala
-        </Button>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openNueva}
+            style={{ background: '#1B3A6B' }}>
+            Agregar
+          </Button>
+          <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}>
+            Generar clases Guatemala
+          </Button>
+        </Space>
       </div>
 
       {data.length === 0 && !loading && (
@@ -302,6 +356,7 @@ export default function ClasesActivoFijoPage() {
         .ant-table-cell { vertical-align: middle; }
       `}</style>
 
+      {/* ── Modal: Editar nombre ──────────────────────────────────────────── */}
       <Modal
         title={`Editar: ${editTarget?.codigo} — ${editTarget?.nombre}`}
         open={!!editTarget}
@@ -316,6 +371,45 @@ export default function ClasesActivoFijoPage() {
           <Form.Item name="nombre" label="Nombre de la clase" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* ── Modal: Agregar / Copiar como ─────────────────────────────────── */}
+      <Modal
+        title="Nueva clase de activo fijo"
+        open={nuevaModal}
+        onCancel={() => setNuevaModal(false)}
+        onOk={handleNuevaSave}
+        okText="Crear"
+        confirmLoading={nuevaSaving}
+        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        width={460}
+      >
+        <Form form={nuevaForm} layout="vertical" size="small" style={{ marginTop: 12 }}
+          initialValues={{ tasaDepreciacionAnual: 0.20, vidaUtilMeses: 60, esNoDepreciable: false }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12 }}>
+            <Form.Item name="codigo" label="Código" rules={[{ required: true, message: 'Requerido' }]}>
+              <Input placeholder="Ej: 3100" style={{ fontFamily: 'monospace' }} />
+            </Form.Item>
+            <Form.Item name="nombre" label="Nombre de la clase" rules={[{ required: true, message: 'Requerido' }]}>
+              <Input placeholder="Ej: VEHÍCULOS DE CARGA" />
+            </Form.Item>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <Form.Item name="tasaDepreciacionAnual" label="Tasa anual">
+              <InputNumber
+                style={{ width: '100%' }} min={0} max={1} precision={4} step={0.05}
+                formatter={v => `${((Number(v) || 0) * 100).toFixed(2)}%`}
+                parser={v => (Number(v?.replace('%', '').trim()) / 100) as 0 | 1}
+              />
+            </Form.Item>
+            <Form.Item name="vidaUtilMeses" label="Vida útil (meses)">
+              <InputNumber style={{ width: '100%' }} min={0} placeholder="ej: 60" />
+            </Form.Item>
+            <Form.Item name="esNoDepreciable" label="No depreciable" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </div>
         </Form>
       </Modal>
     </div>
