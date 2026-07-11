@@ -13,7 +13,7 @@ import {
   SecurityScanOutlined, ApiOutlined, BellOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
-  CreditCardOutlined, LockOutlined, SettingOutlined,
+  CreditCardOutlined, LockOutlined, SettingOutlined, AuditOutlined,
 } from '@ant-design/icons'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
@@ -47,6 +47,7 @@ const sections = [
   { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
   { key: 'accountDefaults', icon: <ApiOutlined />,          label: 'Cuentas por defecto' },
   { key: 'preferences',    icon: <SettingOutlined />,      label: 'Preferencias' },
+  { key: 'contabilidad',   icon: <AuditOutlined />,         label: 'Contabilidad' },
   { key: 'users',          icon: <TeamOutlined />,          label: 'Usuarios y roles' },
   { key: 'subscription',    icon: <CreditCardOutlined />,   label: 'Suscripción y Facturación' },
   { key: 'notifications',   icon: <BellOutlined />,         label: 'Notificaciones' },
@@ -1057,6 +1058,101 @@ function PreferencesSection() {
   )
 }
 
+function ContabilidadSection() {
+  const { activeCompany } = useCompanyStore()
+  const [loading, setLoading]   = useState(true)
+  const [saving, setSaving]     = useState(false)
+  const [exigirCC, setExigirCC] = useState(false)
+  const [exigirCB, setExigirCB] = useState(false)
+
+  useEffect(() => {
+    if (!activeCompany?.id) { setLoading(false); return }
+    companiesApi.getSettings(activeCompany.id)
+      .then(s => {
+        setExigirCC(!!s?.settingsJson?.exigirCentroCosto)
+        setExigirCB(!!s?.settingsJson?.exigirCentroBeneficio)
+      })
+      .catch(() => null)
+      .finally(() => setLoading(false))
+  }, [activeCompany?.id])
+
+  const handleSave = async () => {
+    if (!activeCompany?.id) return
+    setSaving(true)
+    try {
+      const current = await companiesApi.getSettings(activeCompany.id).catch(() => ({} as any))
+      await companiesApi.updateSettings(activeCompany.id, {
+        settingsJson: {
+          ...(current?.settingsJson ?? {}),
+          exigirCentroCosto:      exigirCC,
+          exigirCentroBeneficio:  exigirCB,
+        },
+      })
+      message.success('Configuración contable guardada')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo guardar')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Spin spinning={loading}>
+      <div style={{ maxWidth: 860 }}>
+        <div style={{ marginBottom: 28 }}>
+          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Contabilidad</Title>
+          <Text type="secondary">
+            Configuración de dimensiones analíticas para centros de costo y centros de beneficio
+          </Text>
+        </div>
+
+        <SectionCard title="Dimensiones analíticas" icon={<AuditOutlined />}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 20, fontSize: 13 }}>
+            Estas opciones determinan si el sistema exige dimensiones analíticas al contabilizar transacciones.
+            Los toggles por cuenta se configuran en <Text strong>Contabilidad → Catálogo de Cuentas</Text>.
+          </Text>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+              <Switch checked={exigirCC} onChange={setExigirCC} />
+              <div>
+                <Text strong style={{ fontSize: 14 }}>Exigir Centro de Costo en cuentas marcadas</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Al activar, toda línea de póliza que use una cuenta con el flag "Exige Centro de Costo"
+                  debe tener un Centro de Costo asignado antes de poder contabilizarse.
+                  Aplica típicamente a cuentas de Costos (5xxx) y Gastos (6xxx).
+                </Text>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '12px 0' }}>
+              <Switch checked={exigirCB} onChange={setExigirCB} />
+              <div>
+                <Text strong style={{ fontSize: 14 }}>Exigir Centro de Beneficio en cuentas marcadas</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  Al activar, toda línea de póliza que use una cuenta con el flag "Exige Centro de Beneficio"
+                  debe tener un Centro de Beneficio asignado. Habilita los reportes de Estado de Resultados
+                  y Balance General segmentados por línea de negocio.
+                </Text>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <Button
+            type="primary" size="large" icon={<SaveOutlined />}
+            loading={saving} onClick={handleSave}
+            style={{ background: '#1B3A6B', minWidth: 160 }}
+          >
+            Guardar cambios
+          </Button>
+        </div>
+      </div>
+    </Spin>
+  )
+}
+
 function ComingSoonSection({ title, description }: { title: string; description: string }) {
   return (
     <div style={{ maxWidth: 860 }}>
@@ -1155,6 +1251,8 @@ export default function ConfiguracionPage() {
         return <AccountDefaultsSection />
       case 'preferences':
         return <PreferencesSection />
+      case 'contabilidad':
+        return <ContabilidadSection />
       case 'users':
         navigate('/configuracion/usuarios')
         return null

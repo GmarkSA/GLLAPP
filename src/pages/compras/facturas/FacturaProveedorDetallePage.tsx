@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { getApiError } from '../../../api/axios'
 import {
   Button, Typography, Tag, Table, Divider, Spin, message,
   Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space,
@@ -12,11 +13,13 @@ import dayjs from 'dayjs'
 import {
   getBill, approveBill, voidBill, deleteBill, regenerateBillJournalEntry,
   getJournalEntry, recordBillPayment, getVendorAdvances, applyVendorAdvanceToBill,
+  updateBill,
   BILL_STATUS_CONFIG, BILL_TYPE_CONFIG,
   type PurchaseInvoice, type JournalEntry, type JournalEntryLine, type VendorAdvance,
 } from '../../../api/compras'
 import { getBankAccounts } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -51,6 +54,10 @@ export default function FacturaProveedorDetallePage() {
   const [advAmount,    setAdvAmount]    = useState(0)
   const [voidForm]  = Form.useForm()
   const [payForm]   = Form.useForm()
+  const [showEdit,   setShowEdit]   = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editForm]  = Form.useForm()
+  const [centrosCosto, centrosBeneficio] = useCentrosOptions()
 
   const loadBill = useCallback(async () => {
     if (!id) return
@@ -77,7 +84,7 @@ export default function FacturaProveedorDetallePage() {
       await approveBill(bill.id)
       message.success('Factura aprobada — póliza contable generada')
       loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al aprobar') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al aprobar')) }
     finally { setApproving(false) }
   }
 
@@ -95,7 +102,7 @@ export default function FacturaProveedorDetallePage() {
       })
       message.success('Pago registrado')
       setShowPay(false); payForm.resetFields(); loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al registrar pago') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al registrar pago')) }
     finally { setPaying(false) }
   }
 
@@ -107,13 +114,13 @@ export default function FacturaProveedorDetallePage() {
       await voidBill(bill!.id, reason)
       message.success('Factura anulada')
       setShowVoid(false); voidForm.resetFields(); loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al anular') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al anular')) }
     finally { setVoiding(false) }
   }
 
   const handleDelete = async () => {
     try { await deleteBill(bill!.id); message.success('Factura eliminada'); navigate('/compras/facturas') }
-    catch (e: any) { message.error(e?.response?.data?.message || 'Error al eliminar') }
+    catch (e: any) { message.error(getApiError(e, 'Error al eliminar')) }
   }
 
   const handleRegenerate = async () => {
@@ -124,7 +131,7 @@ export default function FacturaProveedorDetallePage() {
       if (updated.reclassificationJournalEntryId) getJournalEntry(updated.reclassificationJournalEntryId).then(setReclasEntry).catch(() => {})
       else setReclasEntry(null)
       message.success('Póliza regenerada')
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al regenerar') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al regenerar')) }
     finally { setRegenerating(false) }
   }
 
@@ -148,8 +155,34 @@ export default function FacturaProveedorDetallePage() {
       await applyVendorAdvanceToBill(selectedAdvId, bill.id, advAmount || undefined)
       message.success('Anticipo aplicado')
       setShowAdv(false); loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al aplicar anticipo') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al aplicar anticipo')) }
     finally { setApplyingAdv(false) }
+  }
+
+  const openEditModal = () => {
+    editForm.setFieldsValue({
+      accountingDate: bill?.accountingDate ? dayjs(bill.accountingDate) : null,
+      dueDate:        bill?.dueDate        ? dayjs(bill.dueDate)        : null,
+      notes:          bill?.notes ?? '',
+    })
+    setShowEdit(true)
+  }
+
+  const handleEditSave = async () => {
+    setEditSaving(true)
+    try {
+      const vals = editForm.getFieldsValue()
+      await updateBill(bill!.id, {
+        accountingDate: vals.accountingDate?.format('YYYY-MM-DD') ?? undefined,
+        dueDate:        vals.dueDate?.format('YYYY-MM-DD')        ?? undefined,
+        notes:          vals.notes ?? undefined,
+      } as any)
+      message.success('Factura actualizada')
+      setShowEdit(false)
+      loadBill()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al guardar'))
+    } finally { setEditSaving(false) }
   }
 
   const openPayModal = () => {
@@ -164,8 +197,9 @@ export default function FacturaProveedorDetallePage() {
 
   const statusCfg  = BILL_STATUS_CONFIG[bill.status] ?? { label: bill.status, color: 'default' }
   const typeCfg    = BILL_TYPE_CONFIG[bill.invoiceType] ?? { label: bill.invoiceType }
-  const canEdit    = ['draft', 'pending_approval'].includes(bill.status)
-  const canApprove = ['draft', 'pending_approval'].includes(bill.status)
+  const canEdit       = ['draft', 'pending_approval'].includes(bill.status)
+  const canEditOpen   = !['voided', 'paid'].includes(bill.status)   // edición limitada post-aprobación
+  const canApprove    = ['draft', 'pending_approval'].includes(bill.status)
   const canPay     = ['open', 'partial', 'overdue'].includes(bill.status) && Number(bill.balance) > 0
   const canVoid    = ['open', 'partial', 'overdue'].includes(bill.status)
   const hasFel     = !!bill.felSerie || !!bill.felNumber || !!bill.felUuid
@@ -199,7 +233,15 @@ export default function FacturaProveedorDetallePage() {
 
   const journalCols = [
     { title: 'CUENTA', dataIndex: 'cuenta', render: (v: string) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{v}</Text> },
-    { title: 'UBICACIÓN', width: 160, render: () => <Text type="secondary" style={{ fontSize: 12 }}>{company.name ?? '—'}</Text> },
+    { title: 'UBICACIÓN', width: 140, render: () => <Text type="secondary" style={{ fontSize: 12 }}>{company.name ?? '—'}</Text> },
+    {
+      title: 'C. COSTO', dataIndex: 'ccNombre', width: 110,
+      render: (v: string) => v ? <Text style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
+    },
+    {
+      title: 'C. BENEFICIO', dataIndex: 'cbNombre', width: 110,
+      render: (v: string) => v ? <Text style={{ fontSize: 11 }}>{v}</Text> : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
+    },
     {
       title: 'DÉBITO', dataIndex: 'debit', width: 130, align: 'right' as const,
       render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
@@ -212,7 +254,12 @@ export default function FacturaProveedorDetallePage() {
 
   const makeJournalRows = (je: JournalEntry) =>
     (je.lines ?? []).map(l => ({
-      key: l.id, cuenta: `${l.accountCode} — ${l.accountName}`, debit: Number(l.debit), credit: Number(l.credit),
+      key:      l.id,
+      cuenta:   `${l.accountCode} — ${l.accountName}`,
+      debit:    Number(l.debit),
+      credit:   Number(l.credit),
+      ccNombre: l.centroCostoId    ? (centrosCosto.find(c => c.id === l.centroCostoId)?.nombre    ?? l.centroCostoId)    : null,
+      cbNombre: l.centroBeneficioId ? (centrosBeneficio.find(c => c.id === l.centroBeneficioId)?.nombre ?? l.centroBeneficioId) : null,
     }))
 
   const totalRetention = Number(bill.isrRetentionAmount ?? 0) + Number(bill.ivaRetentionAmount ?? 0)
@@ -234,6 +281,11 @@ export default function FacturaProveedorDetallePage() {
         <Divider type="vertical" />
         {canEdit && (
           <Button icon={<EditOutlined />} onClick={() => navigate(`/compras/facturas/${bill.id}/editar`)}>
+            Editar
+          </Button>
+        )}
+        {!canEdit && canEditOpen && (
+          <Button icon={<EditOutlined />} onClick={openEditModal}>
             Editar
           </Button>
         )}
@@ -515,7 +567,12 @@ export default function FacturaProveedorDetallePage() {
                     <Tag color={journal.status === 'posted' ? 'green' : 'default'} style={{ margin: 0 }}>
                       {journal.status === 'posted' ? 'Publicada' : journal.status}
                     </Tag>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(journal.entryDate).format('DD/MM/YYYY')}</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {dayjs(journal.accountingDate ?? journal.entryDate).format('DD/MM/YYYY')}
+                      {journal.accountingDate && journal.accountingDate.slice(0,10) !== journal.entryDate.slice(0,10) && (
+                        <span style={{ color: '#aaa' }}> (doc: {dayjs(journal.entryDate).format('DD/MM/YYYY')})</span>
+                      )}
+                    </Text>
                   </Space>
                   <Table dataSource={makeJournalRows(journal)} columns={journalCols} rowKey="key"
                     size="small" pagination={false}
@@ -523,11 +580,11 @@ export default function FacturaProveedorDetallePage() {
                     summary={() => (
                       <Table.Summary fixed>
                         <Table.Summary.Row style={{ background: '#fafafa' }}>
-                          <Table.Summary.Cell index={0} colSpan={2}><Text strong style={{ fontSize: 12 }}>Total</Text></Table.Summary.Cell>
-                          <Table.Summary.Cell index={2} align="right">
+                          <Table.Summary.Cell index={0} colSpan={4}><Text strong style={{ fontSize: 12 }}>Total</Text></Table.Summary.Cell>
+                          <Table.Summary.Cell index={4} align="right">
                             <Text strong style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(journal.totalDebit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                           </Table.Summary.Cell>
-                          <Table.Summary.Cell index={3} align="right">
+                          <Table.Summary.Cell index={5} align="right">
                             <Text strong style={{ fontSize: 12, fontFamily: 'monospace', color: '#389e0d' }}>{Number(journal.totalCredit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                           </Table.Summary.Cell>
                         </Table.Summary.Row>
@@ -596,6 +653,34 @@ export default function FacturaProveedorDetallePage() {
         <Form form={voidForm} layout="vertical">
           <Form.Item name="reason" label="Motivo" rules={[{ required: true, message: 'El motivo es requerido' }]}>
             <Input.TextArea rows={3} placeholder="Ej: Error en importes, factura duplicada..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Editar factura"
+        open={showEdit}
+        onCancel={() => setShowEdit(false)}
+        onOk={handleEditSave}
+        confirmLoading={editSaving}
+        okText="Guardar"
+        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        width={440}
+      >
+        <Alert
+          type="info" showIcon style={{ marginBottom: 16 }}
+          message="Solo se pueden editar campos informativos. Los montos y la póliza contable no cambian."
+        />
+        <Form form={editForm} layout="vertical" size="small">
+          <Form.Item name="accountingDate" label="Fecha de contabilización">
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
+              placeholder="Fecha del período contable" />
+          </Form.Item>
+          <Form.Item name="dueDate" label="Fecha de vencimiento">
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notas">
+            <Input.TextArea rows={3} placeholder="Observaciones..." />
           </Form.Item>
         </Form>
       </Modal>

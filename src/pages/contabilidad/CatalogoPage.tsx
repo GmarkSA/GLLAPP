@@ -9,6 +9,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   BankOutlined, UserOutlined, ShopOutlined, ToolOutlined,
   AuditOutlined, ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -61,6 +62,8 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const isEdit = !!record?.id
+  const typeValue = Form.useWatch('type', form)
+  const isContra = typeValue === 'contra'
 
   useEffect(() => {
     if (!open) return
@@ -131,7 +134,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
       width={600}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={{ isActive: true, normalBalance: 'debit', bankLinking: false, isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false }}>
+      <Form form={form} layout="vertical" initialValues={{ isActive: true, normalBalance: 'debit', bankLinking: false, isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false, requiresCostCenter: false, requiresProfitCenter: false }}>
         {/* Hidden fields needed for backend — populated by handleGroupChange */}
         <Form.Item name="type" hidden><Input /></Form.Item>
 
@@ -223,6 +226,33 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
             <Switch />
           </Form.Item>
           <Form.Item
+            style={{ marginBottom: 4 }}
+            label={
+              <Space size={4}>
+                <MinusCircleOutlined style={{ color: isContra ? '#cf1322' : '#8c8c8c' }} />
+                Cuenta contra-activo
+                <Tooltip title="Marca esta cuenta como contra-activo: su saldo se resta al activo relacionado en el Balance General. Usar en cuentas de Depreciación Acumulada, Amortización Acumulada u otras deducciones de activos.">
+                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
+            <Switch
+              checked={isContra}
+              onChange={v => {
+                if (v) {
+                  form.setFieldValue('type', 'contra')
+                  form.setFieldValue('normalBalance', 'credit')
+                } else {
+                  const gc = form.getFieldValue('groupCode')
+                  const grp = groups.find(g => g.groupCode === gc)
+                  form.setFieldValue('type', grp?.type ?? 'asset')
+                  form.setFieldValue('normalBalance', grp?.normalBalance ?? 'debit')
+                }
+              }}
+            />
+          </Form.Item>
+          <Form.Item
             name="requiresReconciliation"
             valuePropName="checked"
             style={{ marginBottom: 4 }}
@@ -245,6 +275,39 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Space size={4}>
                 Cuenta de inventario
                 <Tooltip title="Permite vincular esta cuenta con artículos del módulo de Inventario (típicamente grupo 130 — Inventarios)">
+                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
+            <Switch />
+          </Form.Item>
+
+          <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '8px 0' }}>Dimensiones analíticas</Divider>
+
+          <Form.Item
+            name="requiresCostCenter"
+            valuePropName="checked"
+            style={{ marginBottom: 4 }}
+            label={
+              <Space size={4}>
+                Exige Centro de Costo
+                <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Costo asignado. Aplica típicamente a cuentas de Costos (5xxx) y Gastos (6xxx).">
+                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="requiresProfitCenter"
+            valuePropName="checked"
+            style={{ marginBottom: 4 }}
+            label={
+              <Space size={4}>
+                Exige Centro de Beneficio
+                <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Beneficio asignado. Puede aplicar a cualquier tipo de cuenta para segmentación por línea de negocio.">
                   <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
                 </Tooltip>
               </Space>
@@ -408,12 +471,14 @@ export default function CatalogoPage() {
     },
     {
       title: 'Flags',
-      width: 100,
+      width: 120,
       render: (_: any, r: Account) => (
         <Space size={6}>
-          <FlagIcon active={r.bankLinking}         icon={<BankOutlined />} title="Vinculación bancaria" />
-          <FlagIcon active={r.isCustomerAccount}   icon={<UserOutlined />} title="Cuenta clientes (CxC)" />
-          <FlagIcon active={r.isVendorAccount}     icon={<ShopOutlined />} title="Cuenta proveedores (CxP)" />
+          <FlagIcon active={r.bankLinking}         icon={<BankOutlined />}         title="Vinculación bancaria" />
+          <FlagIcon active={r.isCustomerAccount}   icon={<UserOutlined />}         title="Cuenta clientes (CxC)" />
+          <FlagIcon active={r.isVendorAccount}     icon={<ShopOutlined />}         title="Cuenta proveedores (CxP)" />
+          <FlagIcon active={r.isFixedAsset}        icon={<ToolOutlined />}         title="Activos fijos" />
+          <FlagIcon active={r.type === 'contra'}   icon={<MinusCircleOutlined />}  title="Cuenta contra-activo (resta al activo)" />
         </Space>
       ),
     },

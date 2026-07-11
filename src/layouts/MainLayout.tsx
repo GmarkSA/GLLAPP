@@ -58,8 +58,16 @@ const menuItems = [
     { key: '/bancos/config-pagos',            label: 'Config. cheques y ACH' },
   ]},
   { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
-    { key: '/contabilidad/catalogo', label: 'Catálogo de cuentas' },
-    { key: '/contabilidad/activos',  label: 'Activos fijos' },
+    { key: '/contabilidad/catalogo',             label: 'Catálogo de cuentas' },
+    { key: '/contabilidad/diarios-manuales',     label: 'Diarios manuales' },
+    { key: '/contabilidad/diarios-recurrentes',  label: 'Diarios recurrentes' },
+    { key: '/contabilidad/activos-fijos',        label: 'Activos fijos' },
+    { key: '/contabilidad/clases-activo-fijo',   label: 'Clases de activo fijo' },
+    { key: '/contabilidad/presupuesto',          label: 'Presupuestos' },
+    { key: '/contabilidad/ajuste-moneda',        label: 'Ajustes de moneda' },
+    { key: '/contabilidad/bloqueo-transacciones', label: 'Bloqueo de transacc...' },
+    { key: '/contabilidad/centros-costo',        label: 'Centros de costo' },
+    { key: '/contabilidad/centros-beneficio',    label: 'Centros de beneficio' },
   ]},
   { key: 'inventario',       icon: <InboxOutlined />,        label: 'Inventario', children: [
     { key: '/inventario',                label: 'Artículos' },
@@ -86,6 +94,7 @@ const menuItems = [
     { key: '/reportes/ap-aging',           label: 'AP Aging (CxP)' },
     { key: '/reportes/ar-aging',           label: 'AR Aging (CxC)' },
     { key: '/reportes/proyectado-pagos',   label: 'Proyectado de Pagos' },
+    { key: '/reportes/activos-fijos',      label: 'Reporte activos fijos' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [

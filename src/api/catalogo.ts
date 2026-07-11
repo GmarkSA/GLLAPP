@@ -22,6 +22,8 @@ export interface Account {
   isFixedAsset:      boolean
   requiresReconciliation: boolean
   isInventoryAccount: boolean
+  requiresCostCenter:   boolean
+  requiresProfitCenter: boolean
   openingBalance: number
   currentBalance: number
   parentId?:   string

@@ -147,6 +147,8 @@ export interface PurchaseInvoice {
   originalInvoiceId?:      string
   creditNoteReason?:       string
   notes?:                  string
+  centroCostoId?:          string
+  centroBeneficioId?:      string
   items:                   BillItem[]
   attachments?:            any[]
   createdAt:               string
@@ -275,28 +277,31 @@ export interface LibroComprasReport {
 
 // ─── Journal Entry ───────────────────────────────────────────────────────────
 export interface JournalEntryLine {
-  id:           string
-  accountId:    string
-  accountCode:  string
-  accountName:  string
-  description?: string
-  debit:        number
-  credit:       number
-  sortOrder:    number
+  id:                string
+  accountId:         string
+  accountCode:       string
+  accountName:       string
+  description?:      string
+  debit:             number
+  credit:            number
+  sortOrder:         number
+  centroCostoId?:    string | null
+  centroBeneficioId?: string | null
 }
 
 export interface JournalEntry {
-  id:           string
-  entryNumber:  string
-  type:         string
-  status:       string
-  entryDate:    string
-  description:  string
-  reference?:   string
-  totalDebit:   number
-  totalCredit:  number
-  currency:     string
-  lines:        JournalEntryLine[]
+  id:               string
+  entryNumber:      string
+  type:             string
+  status:           string
+  entryDate:        string
+  accountingDate?:  string | null
+  description:      string
+  reference?:       string
+  totalDebit:       number
+  totalCredit:      number
+  currency:         string
+  lines:            JournalEntryLine[]
 }
 
 export const getJournalEntry = (id: string) =>

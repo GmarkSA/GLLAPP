@@ -89,7 +89,26 @@ const BankPaymentConfigPage    = lazy(() => import('./pages/bancos/BankPaymentCo
 const EmisionLoteChequesPage   = lazy(() => import('./pages/bancos/EmisionLoteChequesPage'))
 
 // Contabilidad
-const CatalogoPage    = lazy(() => import('./pages/contabilidad/CatalogoPage'))
+const CatalogoPage               = lazy(() => import('./pages/contabilidad/CatalogoPage'))
+const CentrosCostoPage           = lazy(() => import('./pages/contabilidad/centros-costo/CentrosCostoPage'))
+const CentrosBeneficioPage       = lazy(() => import('./pages/contabilidad/centros-beneficio/CentrosBeneficioPage'))
+const BloqueoTransaccionesPage   = lazy(() => import('./pages/contabilidad/bloqueo-transacciones/BloqueoTransaccionesPage'))
+const ActivosFijosPage           = lazy(() => import('./pages/contabilidad/activos-fijos/ActivosFijosPage'))
+const ActivoFijoDetallePage      = lazy(() => import('./pages/contabilidad/activos-fijos/ActivoFijoDetallePage'))
+const ClasesActivoFijoPage       = lazy(() => import('./pages/contabilidad/activos-fijos/ClasesActivoFijoPage'))
+const ReporteActivosFijosPage    = lazy(() => import('./pages/reportes/ReporteActivosFijosPage'))
+// Diarios
+const DiariosManualesPage        = lazy(() => import('./pages/contabilidad/diarios-manuales/DiariosManualesPage'))
+const DiarioManualFormPage       = lazy(() => import('./pages/contabilidad/diarios-manuales/DiarioManualFormPage'))
+const DiariosRecurrentesPage     = lazy(() => import('./pages/contabilidad/diarios-recurrentes/DiariosRecurrentesPage'))
+const DiarioRecurrenteFormPage   = lazy(() => import('./pages/contabilidad/diarios-recurrentes/DiarioRecurrenteFormPage'))
+// Presupuesto
+const PresupuestosPage       = lazy(() => import('./pages/contabilidad/presupuesto/PresupuestosPage'))
+const PresupuestoFormPage    = lazy(() => import('./pages/contabilidad/presupuesto/PresupuestoFormPage'))
+const PresupuestoDetallePage = lazy(() => import('./pages/contabilidad/presupuesto/PresupuestoDetallePage'))
+const PresupuestoVsRealPage  = lazy(() => import('./pages/contabilidad/presupuesto/PresupuestoVsRealPage'))
+const AjusteMonedaListPage    = lazy(() => import('./pages/contabilidad/ajuste-moneda/AjusteMonedaListPage'))
+const AjusteMonedaDetallePage = lazy(() => import('./pages/contabilidad/ajuste-moneda/AjusteMonedaDetallePage'))
 const LibroDiarioPage = lazy(() => import('./pages/reportes/LibroDiarioPage'))
 const LibroMayorPage  = lazy(() => import('./pages/reportes/LibroMayorPage'))
 
@@ -239,8 +258,25 @@ export default function App() {
           <Route path="bancos/:id/editar"          element={<CuentaFormPage />} />
           <Route path="bancos/:id/conciliacion"    element={<ConciliacionPage />} />
 
-          <Route path="contabilidad/catalogo" element={<CatalogoPage />} />
-          <Route path="contabilidad/activos"  element={<ComingSoon title="Activos Fijos" />} />
+          <Route path="contabilidad/catalogo"              element={<CatalogoPage />} />
+          <Route path="contabilidad/activos-fijos"        element={<ActivosFijosPage />} />
+          <Route path="contabilidad/activos-fijos/:id"    element={<ActivoFijoDetallePage />} />
+          <Route path="contabilidad/clases-activo-fijo"   element={<ClasesActivoFijoPage />} />
+          <Route path="contabilidad/diarios-manuales"            element={<DiariosManualesPage />} />
+          <Route path="contabilidad/diarios-manuales/nuevo"      element={<DiarioManualFormPage />} />
+          <Route path="contabilidad/diarios-manuales/:id"        element={<DiarioManualFormPage />} />
+          <Route path="contabilidad/diarios-recurrentes"         element={<DiariosRecurrentesPage />} />
+          <Route path="contabilidad/diarios-recurrentes/nueva"   element={<DiarioRecurrenteFormPage />} />
+          <Route path="contabilidad/diarios-recurrentes/:id"     element={<DiarioRecurrenteFormPage />} />
+          <Route path="contabilidad/presupuesto"              element={<PresupuestosPage />} />
+          <Route path="contabilidad/presupuesto/nuevo"       element={<PresupuestoFormPage />} />
+          <Route path="contabilidad/presupuesto/:id"         element={<PresupuestoDetallePage />} />
+          <Route path="contabilidad/presupuesto/:id/vs-real" element={<PresupuestoVsRealPage />} />
+          <Route path="contabilidad/ajuste-moneda"          element={<AjusteMonedaListPage />} />
+          <Route path="contabilidad/ajuste-moneda/:id"      element={<AjusteMonedaDetallePage />} />
+          <Route path="contabilidad/bloqueo-transacciones" element={<BloqueoTransaccionesPage />} />
+          <Route path="contabilidad/centros-costo"        element={<CentrosCostoPage />} />
+          <Route path="contabilidad/centros-beneficio"    element={<CentrosBeneficioPage />} />
 
           <Route path="inventario"                       element={<InventarioPage />} />
           <Route path="inventario/nuevo"                 element={<ArticuloFormPage />} />
@@ -274,6 +310,7 @@ export default function App() {
             <Route path="ap-aging"                   element={<ApAgingPage />} />
             <Route path="ar-aging"                   element={<ArAgingPage />} />
             <Route path="proyectado-pagos"           element={<ReporteProyectadoPagosPage />} />
+            <Route path="activos-fijos"              element={<ReporteActivosFijosPage />} />
           </Route>
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />
