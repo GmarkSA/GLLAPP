@@ -239,7 +239,7 @@ export default function ClasesActivoFijoPage() {
       ),
     },
     {
-      title: 'Clase de Activo', dataIndex: 'nombre', width: 200, fixed: 'left',
+      title: 'Clase de Activo', dataIndex: 'nombre', width: 280, fixed: 'left',
       render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span>,
     },
     {
