@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Button, Table, Tag, Space, message, InputNumber,
-  Switch, Typography, Alert, Popconfirm, Modal, Form, Input,
+  Switch, Typography, Alert, Popconfirm,
 } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import {
   ReloadOutlined, LockOutlined, UnlockOutlined,
-  DeleteOutlined, EditOutlined,
+  DeleteOutlined, SaveOutlined,
 } from '@ant-design/icons'
 import AccountSelect from '../../../components/AccountSelect'
 import {
@@ -15,16 +16,14 @@ import {
 
 const { Title } = Typography
 
-type EditForm = Omit<ClaseActivoFijo, 'id' | 'companyId' | 'activo'>
+type Pending = Partial<Omit<ClaseActivoFijo, 'id' | 'companyId'>>
 
 export default function ClasesActivoFijoPage() {
   const [data,    setData]    = useState<ClaseActivoFijo[]>([])
   const [loading, setLoading] = useState(false)
   const [seeding, setSeeding] = useState(false)
-  const [modal,   setModal]   = useState(false)
-  const [saving,  setSaving]  = useState(false)
-  const [editing, setEditing] = useState<ClaseActivoFijo | null>(null)
-  const [form]  = Form.useForm<EditForm>()
+  const [pending, setPending] = useState<Record<string, Pending>>({})
+  const [saving,  setSaving]  = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -35,36 +34,25 @@ export default function ClasesActivoFijoPage() {
 
   useEffect(() => { load() }, [load])
 
-  const openEdit = (r: ClaseActivoFijo) => {
-    setEditing(r)
-    form.setFieldsValue({
-      nombre:                      r.nombre,
-      tasaDepreciacionAnual:        r.tasaDepreciacionAnual,
-      vidaUtilMeses:                r.vidaUtilMeses ?? undefined,
-      esNoDepreciable:              r.esNoDepreciable,
-      cuentaAltasId:                r.cuentaAltasId ?? undefined,
-      cuentaDepreciacionAcumuladaId: r.cuentaDepreciacionAcumuladaId ?? undefined,
-      cuentaGastoDepreciacionId:    r.cuentaGastoDepreciacionId ?? undefined,
-      cuentaGananciaPorVentaId:     r.cuentaGananciaPorVentaId ?? undefined,
-      cuentaPerdidaPorDeterioro:    r.cuentaPerdidaPorDeterioro ?? undefined,
-      cuentaPerdidaPorVentaId:      r.cuentaPerdidaPorVentaId ?? undefined,
-      cuentaGananciaActivoFijoId:   r.cuentaGananciaActivoFijoId ?? undefined,
-    } as any)
-    setModal(true)
-  }
+  const val = <K extends keyof ClaseActivoFijo>(r: ClaseActivoFijo, field: K): ClaseActivoFijo[K] =>
+    ((pending[r.id ?? '']?.[field as keyof Pending]) as ClaseActivoFijo[K] | undefined) ?? r[field]
 
-  const handleSave = async () => {
-    if (!editing?.id) return
-    const vals = form.getFieldsValue()
-    setSaving(true)
+  const set = (id: string, field: keyof Pending, value: unknown) =>
+    setPending(p => ({ ...p, [id]: { ...(p[id] ?? {}), [field]: value } }))
+
+  const isDirty = (id: string) => !!id && !!pending[id] && Object.keys(pending[id]).length > 0
+
+  const handleSave = async (r: ClaseActivoFijo) => {
+    if (!r.id) return
+    setSaving(s => ({ ...s, [r.id!]: true }))
     try {
-      await actualizarClaseActivoFijo(editing.id, vals)
-      message.success(`${editing.codigo} guardado`)
-      setModal(false)
+      await actualizarClaseActivoFijo(r.id, pending[r.id] ?? {})
+      setPending(p => { const c = { ...p }; delete c[r.id!]; return c })
+      message.success(`${r.codigo} guardado`)
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar')
-    } finally { setSaving(false) }
+    } finally { setSaving(s => ({ ...s, [r.id!]: false })) }
   }
 
   const handleBloquear = async (r: ClaseActivoFijo) => {
@@ -92,71 +80,104 @@ export default function ClasesActivoFijoPage() {
     finally { setSeeding(false) }
   }
 
-  const countCuentas = (r: ClaseActivoFijo) =>
-    [r.cuentaAltasId, r.cuentaDepreciacionAcumuladaId, r.cuentaGastoDepreciacionId,
-     r.cuentaGananciaPorVentaId, r.cuentaPerdidaPorDeterioro, r.cuentaPerdidaPorVentaId,
-     r.cuentaGananciaActivoFijoId].filter(Boolean).length
+  const acctCol = (field: keyof Pending, title: string): ColumnsType<ClaseActivoFijo>[number] => ({
+    title: <span style={{ fontSize: 11 }}>{title}</span>,
+    width: 220,
+    render: (_: unknown, r: ClaseActivoFijo) => r.id
+      ? <AccountSelect
+          filter={{}}
+          size="small"
+          placeholder="Selecciona..."
+          value={(val(r, field as keyof ClaseActivoFijo) as string) ?? undefined}
+          onChange={v => set(r.id!, field, v ?? null)}
+        />
+      : <span style={{ color: '#d9d9d9' }}>—</span>,
+  })
 
-  const columns = [
+  const columns: ColumnsType<ClaseActivoFijo> = [
     {
-      title: 'Código', dataIndex: 'codigo', width: 80,
+      title: 'Código', dataIndex: 'codigo', width: 80, fixed: 'left',
       render: (v: string, r: ClaseActivoFijo) => (
-        <span style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>
-          {v}{!r.id && <Tag color="blue" style={{ marginLeft: 4, fontSize: 10 }}>plantilla</Tag>}
+        <span style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>
+          {v}
+          {!r.id && <Tag color="blue" style={{ marginLeft: 4, fontSize: 10 }}>plantilla</Tag>}
         </span>
       ),
     },
-    { title: 'Clase de Activo', dataIndex: 'nombre', ellipsis: true },
     {
-      title: 'Tasa Anual', width: 100, align: 'right' as const,
+      title: 'Clase de Activo', dataIndex: 'nombre', width: 220, fixed: 'left',
+      render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span>,
+    },
+    {
+      title: <span style={{ fontSize: 11 }}>Tasa Anual</span>,
+      width: 110,
       render: (_: unknown, r: ClaseActivoFijo) => (
-        <span style={{ fontFamily: 'monospace' }}>
-          {((r.tasaDepreciacionAnual || 0) * 100).toFixed(2)}%
-        </span>
+        <InputNumber
+          size="small" style={{ width: '100%' }} min={0} max={1} precision={4} step={0.05}
+          value={val(r, 'tasaDepreciacionAnual') as number}
+          onChange={v => r.id && set(r.id, 'tasaDepreciacionAnual', v)}
+          disabled={!r.id}
+          formatter={v => `${((Number(v) || 0) * 100).toFixed(2)}%`}
+          parser={v => (Number(v?.replace('%', '').trim()) / 100) as 0 | 1}
+        />
       ),
     },
     {
-      title: 'Vida Útil', width: 90, align: 'right' as const,
-      render: (_: unknown, r: ClaseActivoFijo) =>
-        r.vidaUtilMeses ? `${r.vidaUtilMeses} m` : '—',
+      title: <span style={{ fontSize: 11 }}>Vida Útil (m)</span>,
+      width: 105,
+      render: (_: unknown, r: ClaseActivoFijo) => (
+        <InputNumber
+          size="small" style={{ width: '100%' }} min={0}
+          value={val(r, 'vidaUtilMeses') as number ?? undefined}
+          onChange={v => r.id && set(r.id, 'vidaUtilMeses', v)}
+          disabled={!r.id}
+          placeholder="meses"
+        />
+      ),
     },
     {
-      title: 'No Dep.', width: 75, align: 'center' as const,
-      render: (_: unknown, r: ClaseActivoFijo) =>
-        r.esNoDepreciable ? <Tag color="orange">Sí</Tag> : <Tag color="default">No</Tag>,
+      title: <span style={{ fontSize: 11 }}>No Dep.</span>,
+      width: 75, align: 'center',
+      render: (_: unknown, r: ClaseActivoFijo) => (
+        <Switch
+          size="small"
+          checked={val(r, 'esNoDepreciable') as boolean}
+          onChange={v => r.id && set(r.id, 'esNoDepreciable', v)}
+          disabled={!r.id}
+        />
+      ),
     },
+    acctCol('cuentaAltasId',                'Altas (costo activo)'),
+    acctCol('cuentaDepreciacionAcumuladaId', 'Depreciación Acumulada'),
+    acctCol('cuentaGastoDepreciacionId',     'Gasto de Depreciación'),
+    acctCol('cuentaGananciaPorVentaId',      'Ganancia por Venta AF'),
+    acctCol('cuentaPerdidaPorDeterioro',     'Pérdida por Deterioro'),
+    acctCol('cuentaPerdidaPorVentaId',       'Pérdida por Venta AF'),
+    acctCol('cuentaGananciaActivoFijoId',    'Ganancia AF (otras)'),
     {
-      title: 'Cuentas', width: 85, align: 'center' as const,
-      render: (_: unknown, r: ClaseActivoFijo) => {
-        const n = countCuentas(r)
-        return <Tag color={n === 7 ? 'success' : n > 0 ? 'warning' : 'default'}>{n}/7</Tag>
-      },
-    },
-    {
-      title: 'Estado', width: 90,
+      title: <span style={{ fontSize: 11 }}>Estado</span>,
+      width: 90,
       render: (_: unknown, r: ClaseActivoFijo) => r.id
         ? <Tag color={r.activo ? 'success' : 'default'}>{r.activo ? 'Activo' : 'Bloqueado'}</Tag>
         : <Tag color="blue">Plantilla</Tag>,
     },
     {
-      title: 'Acciones', width: 150,
+      title: 'Acciones', width: 145, fixed: 'right',
       render: (_: unknown, r: ClaseActivoFijo) => !r.id ? null : (
-        <Space size={4}>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>
-            Editar
-          </Button>
-          <Popconfirm
-            title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'}
-            onConfirm={() => handleBloquear(r)}
-          >
+        <Space size={4} wrap={false}>
+          {isDirty(r.id!) && (
+            <Button size="small" type="primary" icon={<SaveOutlined />}
+              loading={saving[r.id!]} onClick={() => handleSave(r)}
+              style={{ background: '#1B3A6B', padding: '0 6px' }} />
+          )}
+          <Popconfirm title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'} onConfirm={() => handleBloquear(r)}>
             <Button size="small"
               icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
               danger={r.activo}
               style={!r.activo ? { color: '#52c41a', borderColor: '#52c41a' } : undefined}
             />
           </Popconfirm>
-          <Popconfirm title="¿Eliminar esta clase?" onConfirm={() => handleEliminar(r)}
-            okButtonProps={{ danger: true }}>
+          <Popconfirm title="¿Eliminar esta clase?" onConfirm={() => handleEliminar(r)} okButtonProps={{ danger: true }}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -186,67 +207,14 @@ export default function ClasesActivoFijoPage() {
         loading={loading}
         size="small"
         pagination={false}
+        scroll={{ x: 'max-content' }}
+        rowClassName={r => isDirty(r.id ?? '') ? 'row-dirty' : ''}
       />
 
-      {/* ── Modal de edición ─────────────────────────────────────── */}
-      <Modal
-        title={`Configurar: ${editing?.codigo} — ${editing?.nombre}`}
-        open={modal}
-        onCancel={() => setModal(false)}
-        onOk={handleSave}
-        okText="Guardar"
-        confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
-        width={600}
-      >
-        <Form form={form} layout="vertical" size="small" style={{ marginTop: 12 }}>
-          <Form.Item name="nombre" label="Nombre de la clase">
-            <Input />
-          </Form.Item>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <Form.Item name="tasaDepreciacionAnual" label="Tasa anual">
-              <InputNumber
-                style={{ width: '100%' }} min={0} max={1} precision={4} step={0.05}
-                formatter={v => `${((Number(v) || 0) * 100).toFixed(2)}%`}
-                parser={v => (Number(v?.replace('%', '').trim()) / 100) as 0 | 1}
-              />
-            </Form.Item>
-            <Form.Item name="vidaUtilMeses" label="Vida útil (meses)">
-              <InputNumber style={{ width: '100%' }} min={0} placeholder="ej: 60" />
-            </Form.Item>
-            <Form.Item name="esNoDepreciable" label="No depreciable" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          </div>
-
-          <div style={{ borderTop: '1px dashed #d9d9d9', paddingTop: 12, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: '#888' }}>Cuentas contables</span>
-          </div>
-
-          <Form.Item name="cuentaAltasId" label="Altas (costo del activo)">
-            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
-          </Form.Item>
-          <Form.Item name="cuentaDepreciacionAcumuladaId" label="Depreciación Acumulada">
-            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
-          </Form.Item>
-          <Form.Item name="cuentaGastoDepreciacionId" label="Gasto de Depreciación">
-            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
-          </Form.Item>
-          <Form.Item name="cuentaGananciaPorVentaId" label="Ganancia por Venta de AF">
-            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
-          </Form.Item>
-          <Form.Item name="cuentaPerdidaPorDeterioro" label="Pérdida por Deterioro de AF">
-            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
-          </Form.Item>
-          <Form.Item name="cuentaPerdidaPorVentaId" label="Pérdida por Venta de AF">
-            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
-          </Form.Item>
-          <Form.Item name="cuentaGananciaActivoFijoId" label="Ganancia en AF (otras)">
-            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <style>{`
+        .row-dirty td { background: #fffbe6 !important; }
+        .ant-table-cell { vertical-align: middle; }
+      `}</style>
     </div>
   )
 }
