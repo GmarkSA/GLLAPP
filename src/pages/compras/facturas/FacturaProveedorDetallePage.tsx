@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { getApiError } from '../../../api/axios'
 import {
   Button, Typography, Tag, Table, Divider, Spin, message,
   Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space,
@@ -81,7 +82,7 @@ export default function FacturaProveedorDetallePage() {
       await approveBill(bill.id)
       message.success('Factura aprobada — póliza contable generada')
       loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al aprobar') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al aprobar')) }
     finally { setApproving(false) }
   }
 
@@ -99,7 +100,7 @@ export default function FacturaProveedorDetallePage() {
       })
       message.success('Pago registrado')
       setShowPay(false); payForm.resetFields(); loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al registrar pago') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al registrar pago')) }
     finally { setPaying(false) }
   }
 
@@ -111,13 +112,13 @@ export default function FacturaProveedorDetallePage() {
       await voidBill(bill!.id, reason)
       message.success('Factura anulada')
       setShowVoid(false); voidForm.resetFields(); loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al anular') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al anular')) }
     finally { setVoiding(false) }
   }
 
   const handleDelete = async () => {
     try { await deleteBill(bill!.id); message.success('Factura eliminada'); navigate('/compras/facturas') }
-    catch (e: any) { message.error(e?.response?.data?.message || 'Error al eliminar') }
+    catch (e: any) { message.error(getApiError(e, 'Error al eliminar')) }
   }
 
   const handleRegenerate = async () => {
@@ -128,7 +129,7 @@ export default function FacturaProveedorDetallePage() {
       if (updated.reclassificationJournalEntryId) getJournalEntry(updated.reclassificationJournalEntryId).then(setReclasEntry).catch(() => {})
       else setReclasEntry(null)
       message.success('Póliza regenerada')
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al regenerar') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al regenerar')) }
     finally { setRegenerating(false) }
   }
 
@@ -152,7 +153,7 @@ export default function FacturaProveedorDetallePage() {
       await applyVendorAdvanceToBill(selectedAdvId, bill.id, advAmount || undefined)
       message.success('Anticipo aplicado')
       setShowAdv(false); loadBill()
-    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al aplicar anticipo') }
+    } catch (e: any) { message.error(getApiError(e, 'Error al aplicar anticipo')) }
     finally { setApplyingAdv(false) }
   }
 
@@ -178,7 +179,7 @@ export default function FacturaProveedorDetallePage() {
       setShowEdit(false)
       loadBill()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar')
+      message.error(getApiError(e, 'Error al guardar'))
     } finally { setEditSaving(false) }
   }
 

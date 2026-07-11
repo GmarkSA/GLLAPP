@@ -79,3 +79,9 @@ api.interceptors.response.use(
 )
 
 export default api
+
+/** Extrae el mensaje de error del formato del HttpExceptionFilter del backend.
+ *  La respuesta tiene forma: { success: false, error: { message: "..." } }
+ */
+export const getApiError = (e: any, fallback = 'Error inesperado'): string =>
+  e?.response?.data?.error?.message ?? e?.response?.data?.message ?? fallback
