@@ -248,11 +248,11 @@ export default function ClasesActivoFijoPage() {
       title: 'Acciones', width: 145, fixed: 'right',
       render: (_: unknown, r: ClaseActivoFijo) => !r.id ? null : (
         <Space size={4} wrap={false}>
-          {isDirty(r.id!) && (
-            <Button size="small" type="primary" icon={<SaveOutlined />}
-              loading={saving[r.id!]} onClick={() => handleSave(r)}
-              style={{ background: '#1B3A6B', padding: '0 6px' }} />
-          )}
+          <Button size="small" type="primary" icon={<SaveOutlined />}
+            loading={saving[r.id!]}
+            disabled={!isDirty(r.id!)}
+            onClick={() => handleSave(r)}
+            style={{ background: isDirty(r.id!) ? '#1B3A6B' : undefined, padding: '0 6px' }} />
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
           <Popconfirm title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'} onConfirm={() => handleBloquear(r)}>
             <Button size="small"
