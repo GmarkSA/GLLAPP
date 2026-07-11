@@ -3,6 +3,7 @@ import {
   Button, Table, Tag, Space, Popconfirm, message, Modal, Form, Input, Typography,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import {
   getCentrosBeneficio, crearCentroBeneficio, actualizarCentroBeneficio, eliminarCentroBeneficio,
   type CentroBeneficio,
@@ -31,8 +32,10 @@ export default function CentrosBeneficioPage() {
   const openEdit = (r: CentroBeneficio) => {
     setEditing(r)
     form.setFieldsValue({
-      codigo: r.codigo, nombre: r.nombre, descripcion: r.descripcion ?? '',
-      responsable: r.responsable ?? '', area: r.area ?? '',
+      codigo:      r.codigo,
+      nombre:      r.nombre,
+      grupo:       r.grupo ?? '',
+      responsable: r.responsable ?? '',
     })
     setModal(true)
   }
@@ -61,11 +64,14 @@ export default function CentrosBeneficioPage() {
   }
 
   const columns = [
-    { title: 'Código', dataIndex: 'codigo', width: 100 },
+    { title: 'Grupo',            dataIndex: 'grupo',       width: 140, render: (v: string) => v ? <Tag>{v}</Tag> : '—' },
+    { title: 'Código',           dataIndex: 'codigo',      width: 100 },
     { title: 'Línea de negocio', dataIndex: 'nombre' },
-    { title: 'Área', dataIndex: 'area', width: 140, render: (v: string) => v || '—' },
-    { title: 'Responsable', dataIndex: 'responsable', width: 160, render: (v: string) => v || '—' },
-    { title: 'Descripción', dataIndex: 'descripcion', render: (v: string) => v || '—' },
+    { title: 'Responsable',      dataIndex: 'responsable', width: 160, render: (v: string) => v || '—' },
+    {
+      title: 'Fecha Creación', dataIndex: 'fechaCreacion', width: 120,
+      render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
+    },
     {
       title: 'Estado', dataIndex: 'activo', width: 90,
       render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? 'Activo' : 'Inactivo'}</Tag>,
@@ -113,16 +119,13 @@ export default function CentrosBeneficioPage() {
             </Form.Item>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Form.Item name="area" label="Área">
-              <Input placeholder="Ej: Comercial, Industrial" />
+            <Form.Item name="grupo" label="Grupo">
+              <Input placeholder="Ej: Comercial, Industrial, Servicios" />
             </Form.Item>
             <Form.Item name="responsable" label="Responsable">
               <Input placeholder="Nombre del responsable" />
             </Form.Item>
           </div>
-          <Form.Item name="descripcion" label="Descripción">
-            <Input.TextArea rows={2} />
-          </Form.Item>
         </Form>
       </Modal>
     </div>
