@@ -252,7 +252,7 @@ export default function ClasesActivoFijoPage() {
             loading={saving[r.id!]}
             disabled={!isDirty(r.id!)}
             onClick={() => handleSave(r)}
-            style={{ background: isDirty(r.id!) ? '#1B3A6B' : undefined, padding: '0 6px' }} />
+            style={isDirty(r.id!) ? { background: '#389e0d', borderColor: '#389e0d', padding: '0 6px' } : { padding: '0 6px' }} />
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
           <Popconfirm title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'} onConfirm={() => handleBloquear(r)}>
             <Button size="small"
