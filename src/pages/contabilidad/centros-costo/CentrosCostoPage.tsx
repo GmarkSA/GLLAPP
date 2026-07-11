@@ -70,9 +70,9 @@ export default function CentrosCostoPage() {
   }
 
   const columns = [
+    { title: 'Grupo',       dataIndex: 'grupo',       width: 140, render: (v: string) => v ? <Tag>{v}</Tag> : '—' },
     { title: 'Código',      dataIndex: 'codigo',      width: 100 },
     { title: 'Nombre',      dataIndex: 'nombre' },
-    { title: 'Grupo',       dataIndex: 'grupo',       width: 140, render: (v: string) => v ? <Tag>{v}</Tag> : '—' },
     { title: 'Área',        dataIndex: 'area',        width: 130, render: (v: string) => v || '—' },
     { title: 'Responsable', dataIndex: 'responsable', width: 160, render: (v: string) => v || '—' },
     {
