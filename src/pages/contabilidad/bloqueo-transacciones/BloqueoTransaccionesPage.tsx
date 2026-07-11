@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Button, message, Modal, Input, Typography, Alert, Tooltip, Tag,
+  Button, message, Input, Typography, Alert, Tooltip, Tag,
 } from 'antd'
 import {
   LockOutlined, UnlockOutlined, WarningOutlined,
@@ -109,16 +109,8 @@ export default function BloqueoTransaccionesPage() {
   const [vigente,   setVigente]   = useState<BloqueoContable | null>(null)
   const [loading,   setLoading]   = useState(false)
   const [year,      setYear]      = useState(dayjs().year())
-
-  // Modal de acción (bloquear / desbloquear)
-  const [modalOpen,   setModalOpen]   = useState(false)
-  const [modalMode,   setModalMode]   = useState<'bloquear' | 'desbloquear'>('bloquear')
-  const [modalLabel,  setModalLabel]  = useState('')
-  const [modalMotivo, setModalMotivo] = useState('')
-  const [savingCell,  setSavingCell]  = useState<string | null>(null)
-  const [pendingAction, setPendingAction] = useState<{
-    modulo: string; mesKey: string; bloqueoId?: string
-  } | null>(null)
+  const [motivo,    setMotivo]    = useState('')
+  const [savingCell, setSavingCell] = useState<string | null>(null)
 
   // ── Carga ────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -166,40 +158,22 @@ export default function BloqueoTransaccionesPage() {
     return { bloqueo: null, inherited: false }
   }
 
-  // ── Abrir modal ───────────────────────────────────────────────────────────
-  const openModal = (
+  // ── Acción directa al hacer clic en celda ────────────────────────────────
+  const handleCellClick = async (
     mode: 'bloquear' | 'desbloquear',
     modulo: string,
     mesKey: string,
     bloqueoId?: string,
   ) => {
-    const modLabel = MODULOS.find(m => m.value === modulo)?.label ?? modulo
-    const [y, m] = mesKey.split('-')
-    const mesLabel = `${MESES_ES[Number(m) - 1]} ${y}`
-    setModalMode(mode)
-    setModalLabel(`${modLabel} — ${mesLabel}`)
-    setModalMotivo('')
-    setPendingAction({ modulo, mesKey, bloqueoId })
-    setModalOpen(true)
-  }
-
-  // ── Confirmar acción ──────────────────────────────────────────────────────
-  const handleConfirm = async () => {
-    if (!pendingAction) return
-    if (!modalMotivo.trim()) { message.warning('El motivo es obligatorio'); return }
-    const key = `${pendingAction.modulo}-${pendingAction.mesKey}`
+    const motivoFinal = motivo.trim() || 'Cierre de período'
+    const key = `${modulo}-${mesKey}`
     setSavingCell(key)
-    setModalOpen(false)
     try {
-      if (modalMode === 'bloquear') {
-        await bloquearMasivo({
-          modulos: [pendingAction.modulo],
-          meses:   [pendingAction.mesKey],
-          motivo:  modalMotivo.trim(),
-        })
+      if (mode === 'bloquear') {
+        await bloquearMasivo({ modulos: [modulo], meses: [mesKey], motivo: motivoFinal })
         message.success('Período bloqueado')
       } else {
-        await desbloquear(pendingAction.bloqueoId!, modalMotivo.trim())
+        await desbloquear(bloqueoId!, motivoFinal)
         message.success('Período desbloqueado')
       }
       load()
@@ -255,11 +229,25 @@ export default function BloqueoTransaccionesPage() {
         />
       )}
 
-      {/* Navegación de año */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+      {/* Barra de controles */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        {/* Año */}
         <Button size="small" icon={<LeftOutlined />} onClick={() => setYear(y => y - 1)} />
-        <Text strong style={{ fontSize: 16, minWidth: 44, textAlign: 'center' }}>{year}</Text>
+        <Text strong style={{ fontSize: 15, minWidth: 44, textAlign: 'center' }}>{year}</Text>
         <Button size="small" icon={<RightOutlined />} onClick={() => setYear(y => y + 1)} />
+
+        <div style={{ width: 1, height: 20, background: '#e8e8e8', margin: '0 4px' }} />
+
+        {/* Motivo */}
+        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Motivo:</Text>
+        <Input
+          size="small"
+          style={{ width: 260 }}
+          placeholder="Cierre de período (opcional)"
+          value={motivo}
+          onChange={e => setMotivo(e.target.value)}
+          allowClear
+        />
         {loading && <Text type="secondary" style={{ fontSize: 12 }}>Cargando...</Text>}
       </div>
 
@@ -321,9 +309,9 @@ export default function BloqueoTransaccionesPage() {
                         loading={savingCell === cellKey}
                         onClick={() => {
                           if (isBlocked && !inherited) {
-                            openModal('desbloquear', mod.value, mesKey, bloqueo!.id)
+                            handleCellClick('desbloquear', mod.value, mesKey, bloqueo!.id)
                           } else if (!isBlocked) {
-                            openModal('bloquear', mod.value, mesKey)
+                            handleCellClick('bloquear', mod.value, mesKey)
                           }
                         }}
                       />
@@ -357,36 +345,6 @@ export default function BloqueoTransaccionesPage() {
         ))}
       </div>
 
-      {/* Modal: bloquear / desbloquear */}
-      <Modal
-        title={
-          <span>
-            {modalMode === 'bloquear'
-              ? <><LockOutlined style={{ color: '#cf1322', marginRight: 6 }} />Bloquear período</>
-              : <><UnlockOutlined style={{ color: '#1B3A6B', marginRight: 6 }} />Desbloquear período</>
-            }
-          </span>
-        }
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={handleConfirm}
-        okText={modalMode === 'bloquear' ? 'Bloquear' : 'Desbloquear'}
-        okButtonProps={{
-          danger: modalMode === 'bloquear',
-          style: modalMode === 'desbloquear' ? { background: '#1B3A6B' } : undefined,
-        }}
-        width={400}
-        destroyOnClose
-      >
-        <Text style={{ display: 'block', marginBottom: 12 }} strong>{modalLabel}</Text>
-        <Input.TextArea
-          rows={2}
-          placeholder={modalMode === 'bloquear' ? 'Ej: Cierre mensual junio 2026' : 'Motivo del desbloqueo'}
-          value={modalMotivo}
-          onChange={e => setModalMotivo(e.target.value)}
-          autoFocus
-        />
-      </Modal>
     </div>
   )
 }
