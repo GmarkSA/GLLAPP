@@ -1,14 +1,15 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Button, Table, Tag, Space, message, Modal, Form,
-  Select, DatePicker, Input, Typography, Alert, Popconfirm,
-  Tooltip, Checkbox, Badge, Divider, Radio,
+  Button, message, Modal, Input, Typography, Alert, Tooltip, Tag,
 } from 'antd'
-import { LockOutlined, UnlockOutlined, WarningOutlined } from '@ant-design/icons'
+import {
+  LockOutlined, UnlockOutlined, WarningOutlined,
+  LeftOutlined, RightOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import {
-  getBloqueos, getBloqueoVigente, bloquearMasivo, desbloquear, desbloquearParcial,
+  getBloqueos, getBloqueoVigente, bloquearMasivo, desbloquear,
   type BloqueoContable, type ModuloBloqueable,
 } from '../../../api/bloqueo-contable'
 
@@ -19,311 +20,212 @@ const { Title, Text } = Typography
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const MODULOS: { label: string; value: ModuloBloqueable; color: string }[] = [
-  { label: 'Todos los módulos', value: 'TODOS',         color: 'red'    },
-  { label: 'Ventas',            value: 'VENTAS',         color: 'blue'   },
-  { label: 'Compras',           value: 'COMPRAS',        color: 'orange' },
-  { label: 'Bancos',            value: 'BANCOS',         color: 'cyan'   },
-  { label: 'Contabilidad',      value: 'CONTABILIDAD',   color: 'purple' },
-  { label: 'Inventario',        value: 'INVENTARIO',     color: 'green'  },
-  { label: 'Proyectos',         value: 'PROYECTOS',      color: 'lime'   },
-  { label: 'Reportes',          value: 'REPORTES',       color: 'gold'   },
-  { label: 'Automatización',    value: 'AUTOMATIZACION', color: 'volcano'},
-  { label: 'Configuración',     value: 'CONFIGURACION',  color: 'default'},
+  { label: 'Todos los módulos', value: 'TODOS',         color: 'red'     },
+  { label: 'Ventas',            value: 'VENTAS',         color: 'blue'    },
+  { label: 'Compras',           value: 'COMPRAS',        color: 'orange'  },
+  { label: 'Bancos',            value: 'BANCOS',         color: 'cyan'    },
+  { label: 'Contabilidad',      value: 'CONTABILIDAD',   color: 'purple'  },
+  { label: 'Inventario',        value: 'INVENTARIO',     color: 'green'   },
+  { label: 'Proyectos',         value: 'PROYECTOS',      color: 'lime'    },
+  { label: 'Reportes',          value: 'REPORTES',       color: 'gold'    },
+  { label: 'Automatización',    value: 'AUTOMATIZACION', color: 'volcano' },
+  { label: 'Configuración',     value: 'CONFIGURACION',  color: 'default' },
 ]
-
-const MODULO_META: Record<string, { label: string; color: string }> = Object.fromEntries(
-  MODULOS.map(m => [m.value, { label: m.label, color: m.color }]),
-)
-
-const ESTADO_COLOR: Record<string, string> = {
-  BLOQUEADO:            'error',
-  DESBLOQUEADO_PARCIAL: 'warning',
-  DESBLOQUEADO:         'success',
-}
-
-const ESTADO_LABEL: Record<string, string> = {
-  BLOQUEADO:            'Bloqueado',
-  DESBLOQUEADO_PARCIAL: 'Parcial',
-  DESBLOQUEADO:         'Abierto',
-}
 
 const MESES_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Estilos de celda ─────────────────────────────────────────────────────────
 
-function fmtPeriodo(b: BloqueoContable): string {
-  if (!b.periodoInicio) return `hasta ${dayjs(b.periodoFin).format('DD/MM/YYYY')}`
-  const ini = dayjs(b.periodoInicio)
-  const fin = dayjs(b.periodoFin)
-  if (ini.year() === fin.year() && ini.month() === fin.month()) {
-    return `${MESES_ES[ini.month()]} ${ini.year()}`
-  }
-  return `${ini.format('DD/MM/YYYY')} – ${fin.format('DD/MM/YYYY')}`
+const cellBase: React.CSSProperties = {
+  width: 42, minWidth: 42, textAlign: 'center',
+  padding: '6px 4px', borderBottom: '1px solid #f0f0f0',
+  cursor: 'pointer', userSelect: 'none',
 }
 
-// ─── Modal: desbloqueo parcial ────────────────────────────────────────────────
+// ─── Indicador visual de bloqueo ─────────────────────────────────────────────
 
-function ModalDesbloquearParcial({
-  bloqueo, onClose, onSuccess,
+function CeldaBloqueo({
+  bloqueo, inherited, loading, onClick,
 }: {
   bloqueo: BloqueoContable | null
-  onClose: () => void
-  onSuccess: () => void
+  inherited: boolean   // bloqueado por TODOS, no directamente
+  loading: boolean
+  onClick: () => void
 }) {
-  const [form] = Form.useForm()
-  const [saving, setSaving] = useState(false)
+  const isBlocked  = !!bloqueo && bloqueo.estado !== 'DESBLOQUEADO'
+  const isParcial  = bloqueo?.estado === 'DESBLOQUEADO_PARCIAL'
 
-  const handleOk = async () => {
-    const vals = await form.validateFields()
-    setSaving(true)
-    try {
-      await desbloquearParcial(bloqueo!.id, {
-        desde:  vals.desde.format('YYYY-MM-DD'),
-        hasta:  vals.hasta.format('YYYY-MM-DD'),
-        motivo: vals.motivo,
-      })
-      message.success('Desbloqueo parcial aplicado')
-      onSuccess()
-      onClose()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error')
-    } finally { setSaving(false) }
-  }
+  let bg      = 'transparent'
+  let border  = '1px solid #d9d9d9'
+  let iconColor = '#d9d9d9'
 
-  return (
-    <Modal
-      title={<><UnlockOutlined style={{ marginRight: 6 }} />Desbloqueo Parcial</>}
-      open={!!bloqueo} onCancel={onClose}
-      onOk={handleOk} okText="Aplicar desbloqueo"
-      okButtonProps={{ style: { background: '#1B3A6B' } }}
-      confirmLoading={saving} width={460} destroyOnClose
+  if (isBlocked && inherited) { bg = '#fff1f0'; border = '1px solid #ffa39e'; iconColor = '#ff7875' }
+  else if (isParcial)          { bg = '#fff7e6'; border = '1px solid #ffd591'; iconColor = '#ffa940' }
+  else if (isBlocked)          { bg = '#1B3A6B'; border = '1px solid #1B3A6B'; iconColor = '#fff' }
+
+  const box = (
+    <div
+      onClick={inherited ? undefined : onClick}
+      style={{
+        width: 22, height: 22, borderRadius: 4,
+        border, background: bg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto',
+        cursor: loading ? 'wait' : inherited ? 'not-allowed' : 'pointer',
+        transition: 'all 0.15s',
+        opacity: loading ? 0.5 : 1,
+      }}
     >
-      <Alert type="info" showIcon
-        message="El bloqueo principal se mantiene. Solo se permitirán transacciones dentro del rango indicado."
-        style={{ marginBottom: 16 }} />
-      <Form form={form} layout="vertical" size="small">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Form.Item name="desde" label="Desde" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-          </Form.Item>
-          <Form.Item name="hasta" label="Hasta" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-          </Form.Item>
-        </div>
-        <Form.Item name="motivo" label="Motivo" rules={[{ required: true }]}>
-          <Input.TextArea rows={2} placeholder="Corrección de factura julio 2026" />
-        </Form.Item>
-      </Form>
-    </Modal>
+      {isBlocked && !isParcial && (
+        <LockOutlined style={{ fontSize: 11, color: iconColor }} />
+      )}
+      {isParcial && (
+        <span style={{ fontSize: 9, fontWeight: 700, color: iconColor }}>P</span>
+      )}
+    </div>
   )
+
+  if (inherited) {
+    return (
+      <Tooltip title={`Bloqueado por "Todos los módulos" — ${bloqueo?.motivo ?? ''}`}>
+        {box}
+      </Tooltip>
+    )
+  }
+  if (isBlocked) {
+    return (
+      <Tooltip title={`${isParcial ? 'Parcial' : 'Bloqueado'}: ${bloqueo?.motivo ?? ''}`}>
+        {box}
+      </Tooltip>
+    )
+  }
+  return box
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function BloqueoTransaccionesPage() {
-  // ── Datos ──────────────────────────────────────────────────────────────────
-  const [data,        setData]       = useState<BloqueoContable[]>([])
-  const [loading,     setLoading]    = useState(false)
-  const [vigente,     setVigente]    = useState<BloqueoContable | null>(null)
-  const [bloqueoParc, setBloqueoParc]= useState<BloqueoContable | null>(null)
-  const [filtroModulo, setFiltroModulo] = useState<string>('')
-  const [filtroEstado, setFiltroEstado] = useState<string>('')
+  const [bloqueos,  setBloqueos]  = useState<BloqueoContable[]>([])
+  const [vigente,   setVigente]   = useState<BloqueoContable | null>(null)
+  const [loading,   setLoading]   = useState(false)
+  const [year,      setYear]      = useState(dayjs().year())
 
-  // ── Estado del formulario inline ───────────────────────────────────────────
-  const [modulosSel,  setModulosSel] = useState<string[]>([])
-  const [modoFecha,   setModoFecha]  = useState<'meses' | 'rango'>('meses')
-  const [mesesSel,    setMesesSel]   = useState<string[]>([])
-  const [gridYear,    setGridYear]   = useState(dayjs().year())
-  const [rango,       setRango]      = useState<[dayjs.Dayjs|null, dayjs.Dayjs|null]>([null, null])
-  const [motivo,      setMotivo]     = useState('')
-  const [saving,      setSaving]     = useState(false)
+  // Modal de acción (bloquear / desbloquear)
+  const [modalOpen,   setModalOpen]   = useState(false)
+  const [modalMode,   setModalMode]   = useState<'bloquear' | 'desbloquear'>('bloquear')
+  const [modalLabel,  setModalLabel]  = useState('')
+  const [modalMotivo, setModalMotivo] = useState('')
+  const [savingCell,  setSavingCell]  = useState<string | null>(null)
+  const [pendingAction, setPendingAction] = useState<{
+    modulo: string; mesKey: string; bloqueoId?: string
+  } | null>(null)
 
-  const resetForm = () => {
-    setModulosSel([]); setModoFecha('meses'); setMesesSel([])
-    setGridYear(dayjs().year()); setRango([null, null]); setMotivo('')
-  }
-
-  // ── Carga de datos ─────────────────────────────────────────────────────────
+  // ── Carga ────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [rows, vig] = await Promise.all([
-        getBloqueos({ modulo: filtroModulo || undefined, estado: filtroEstado || undefined }),
-        getBloqueoVigente(),
-      ])
-      setData(Array.isArray(rows) ? rows : [])
+      const [rows, vig] = await Promise.all([getBloqueos(), getBloqueoVigente()])
+      setBloqueos(Array.isArray(rows) ? rows : [])
       setVigente(vig)
-    } catch { setData([]) }
+    } catch { setBloqueos([]) }
     finally { setLoading(false) }
-  }, [filtroModulo, filtroEstado])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
-  // ── Acciones formulario ────────────────────────────────────────────────────
-  const toggleModulo = (v: string) => {
-    if (v === 'TODOS') {
-      setModulosSel(prev => prev.includes('TODOS') ? [] : ['TODOS'])
-      return
-    }
-    setModulosSel(prev => {
-      const sinTodos = prev.filter(m => m !== 'TODOS')
-      return sinTodos.includes(v) ? sinTodos.filter(m => m !== v) : [...sinTodos, v]
+  // ── Mapa bloqueo por (módulo, YYYY-MM) ───────────────────────────────────
+  // Clave: "MODULO-YYYY-MM" → BloqueoContable
+  const blockedMap = useMemo(() => {
+    const map = new Map<string, BloqueoContable>()
+    bloqueos.forEach(b => {
+      if (b.estado === 'DESBLOQUEADO') return
+      if (b.periodoInicio && b.periodoFin) {
+        let cur = dayjs(b.periodoInicio).startOf('month')
+        const end = dayjs(b.periodoFin).startOf('month')
+        while (!cur.isAfter(end)) {
+          map.set(`${b.modulo}-${cur.format('YYYY-MM')}`, b)
+          cur = cur.add(1, 'month')
+        }
+      } else if (b.periodoFin) {
+        // legacy: single month
+        const fin = dayjs(b.periodoFin)
+        map.set(`${b.modulo}-${fin.format('YYYY-MM')}`, b)
+      }
     })
+    return map
+  }, [bloqueos])
+
+  // Obtiene el bloqueo efectivo para una celda (propio o heredado de TODOS)
+  const getCellInfo = (modulo: string, mesKey: string): { bloqueo: BloqueoContable | null; inherited: boolean } => {
+    const direct = blockedMap.get(`${modulo}-${mesKey}`) ?? null
+    if (direct) return { bloqueo: direct, inherited: false }
+    if (modulo !== 'TODOS') {
+      const todos = blockedMap.get(`TODOS-${mesKey}`) ?? null
+      if (todos) return { bloqueo: todos, inherited: true }
+    }
+    return { bloqueo: null, inherited: false }
   }
 
-  const toggleMes = (mes: string) =>
-    setMesesSel(prev => prev.includes(mes) ? prev.filter(m => m !== mes) : [...prev, mes])
-
-  const allMesKeys = useMemo(() =>
-    Array.from({ length: 12 }, (_, i) => `${gridYear}-${String(i + 1).padStart(2, '0')}`),
-    [gridYear])
-
-  const allMesSelected = allMesKeys.every(m => mesesSel.includes(m))
-
-  const toggleAllMeses = () => {
-    if (allMesSelected) setMesesSel(prev => prev.filter(m => !allMesKeys.includes(m)))
-    else setMesesSel(prev => [...new Set([...prev, ...allMesKeys])])
+  // ── Abrir modal ───────────────────────────────────────────────────────────
+  const openModal = (
+    mode: 'bloquear' | 'desbloquear',
+    modulo: string,
+    mesKey: string,
+    bloqueoId?: string,
+  ) => {
+    const modLabel = MODULOS.find(m => m.value === modulo)?.label ?? modulo
+    const [y, m] = mesKey.split('-')
+    const mesLabel = `${MESES_ES[Number(m) - 1]} ${y}`
+    setModalMode(mode)
+    setModalLabel(`${modLabel} — ${mesLabel}`)
+    setModalMotivo('')
+    setPendingAction({ modulo, mesKey, bloqueoId })
+    setModalOpen(true)
   }
 
-  const canSave = useMemo(() => {
-    if (!modulosSel.length) return false
-    if (modoFecha === 'meses' && !mesesSel.length) return false
-    if (modoFecha === 'rango' && (!rango[0] || !rango[1])) return false
-    if (!motivo.trim()) return false
-    return true
-  }, [modulosSel, modoFecha, mesesSel, rango, motivo])
-
-  const handleBloquear = async () => {
-    if (!canSave) return
-    setSaving(true)
+  // ── Confirmar acción ──────────────────────────────────────────────────────
+  const handleConfirm = async () => {
+    if (!pendingAction) return
+    if (!modalMotivo.trim()) { message.warning('El motivo es obligatorio'); return }
+    const key = `${pendingAction.modulo}-${pendingAction.mesKey}`
+    setSavingCell(key)
+    setModalOpen(false)
     try {
-      const dto: any = { modulos: modulosSel, motivo: motivo.trim() }
-      if (modoFecha === 'meses') dto.meses = mesesSel
-      else dto.rango = { inicio: rango[0]!.format('YYYY-MM-DD'), fin: rango[1]!.format('YYYY-MM-DD') }
-      const res = await bloquearMasivo(dto)
-      message.success(
-        `${res.creados} bloqueo(s) creado(s)${res.duplicadosOmitidos ? ` · ${res.duplicadosOmitidos} ya existía(n)` : ''}`
-      )
-      resetForm()
-      load()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al bloquear')
-    } finally { setSaving(false) }
-  }
-
-  // ── Acciones tabla ─────────────────────────────────────────────────────────
-  const handleDesbloquear = async (id: string) => {
-    const motivoD = prompt('Motivo del desbloqueo completo:')
-    if (!motivoD) return
-    try {
-      await desbloquear(id, motivoD)
-      message.success('Período desbloqueado')
+      if (modalMode === 'bloquear') {
+        await bloquearMasivo({
+          modulos: [pendingAction.modulo],
+          meses:   [pendingAction.mesKey],
+          motivo:  modalMotivo.trim(),
+        })
+        message.success('Período bloqueado')
+      } else {
+        await desbloquear(pendingAction.bloqueoId!, modalMotivo.trim())
+        message.success('Período desbloqueado')
+      }
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error')
-    }
+    } finally { setSavingCell(null) }
   }
 
-  // ── Cálculo de agrupación ──────────────────────────────────────────────────
-  const { sorted, spans } = useMemo(() => {
-    const sorted = [...data].sort((a, b) => {
-      const ma = a.modulo.localeCompare(b.modulo)
-      return ma !== 0 ? ma : b.periodoFin.localeCompare(a.periodoFin)
-    })
-    const spans: Record<string, number> = {}
-    const seen:  Record<string, boolean> = {}
-    sorted.forEach(row => {
-      if (!seen[row.modulo]) {
-        seen[row.modulo] = true
-        spans[row.id] = sorted.filter(r => r.modulo === row.modulo).length
-      } else { spans[row.id] = 0 }
-    })
-    return { sorted, spans }
-  }, [data])
+  // ── Meses del año actual ──────────────────────────────────────────────────
+  const mesKeys = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`),
+    [year],
+  )
+  const curMes = dayjs().format('YYYY-MM')
 
-  const badgesPorModulo = useMemo(() => {
-    const result: Record<string, number> = {}
-    data.forEach(b => {
-      if (b.estado !== 'DESBLOQUEADO')
-        result[b.modulo] = (result[b.modulo] ?? 0) + 1
-    })
-    return result
-  }, [data])
+  // ── Render ────────────────────────────────────────────────────────────────
+  const thStyle: React.CSSProperties = {
+    padding: '8px 4px',
+    fontSize: 11, fontWeight: 700,
+    color: '#8c8c8c',
+    borderBottom: '2px solid #e8e8e8',
+    textAlign: 'center',
+    minWidth: 42,
+    userSelect: 'none',
+  }
 
-  // ── Columnas de la tabla ───────────────────────────────────────────────────
-  const columns = [
-    {
-      title: 'Módulo', dataIndex: 'modulo', width: 150,
-      render: (v: string, r: BloqueoContable) => {
-        const span = spans[r.id]
-        if (span === 0) return { children: null, props: { rowSpan: 0 } }
-        const meta = MODULO_META[v]
-        return {
-          children: (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Tag color={meta?.color} style={{ margin: 0 }}>{meta?.label ?? v}</Tag>
-              {badgesPorModulo[v] ? <Badge count={badgesPorModulo[v]} size="small" color="#1B3A6B" /> : null}
-            </div>
-          ),
-          props: { rowSpan: span, style: { verticalAlign: 'top', paddingTop: 10 } },
-        }
-      },
-    },
-    {
-      title: 'Período', width: 160,
-      render: (_: any, r: BloqueoContable) => (
-        <div>
-          <Text strong style={{ fontSize: 12 }}>{fmtPeriodo(r)}</Text>
-          {r.estado === 'DESBLOQUEADO_PARCIAL' && r.desbloqueoParcialDesde && (
-            <div style={{ fontSize: 11, color: '#d46b08', marginTop: 2 }}>
-              Abierto: {dayjs(r.desbloqueoParcialDesde).format('DD/MM')}–{dayjs(r.desbloqueoParcialHasta!).format('DD/MM/YYYY')}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Estado', dataIndex: 'estado', width: 100,
-      render: (v: string) => <Tag color={ESTADO_COLOR[v]}>{ESTADO_LABEL[v] ?? v}</Tag>,
-    },
-    {
-      title: 'Motivo', dataIndex: 'motivo', ellipsis: true,
-      render: (v: string, r: BloqueoContable) => (
-        <div>
-          <div style={{ fontSize: 12 }}>{v}</div>
-          {r.motivoDesbloqueo && (
-            <div style={{ fontSize: 11, color: '#389e0d' }}>↳ {r.motivoDesbloqueo}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Creado', dataIndex: 'fechaCreacion', width: 110,
-      render: (v: string) => (
-        <Text style={{ fontSize: 11 }} type="secondary">{dayjs(v).format('DD/MM/YY HH:mm')}</Text>
-      ),
-    },
-    {
-      title: '', width: 130,
-      render: (_: any, r: BloqueoContable) => {
-        if (r.estado === 'DESBLOQUEADO') return null
-        return (
-          <Space size={4}>
-            <Popconfirm title="¿Desbloquear completamente?" onConfirm={() => handleDesbloquear(r.id)} okText="Sí" cancelText="No">
-              <Tooltip title="Liberar completamente">
-                <Button size="small" icon={<UnlockOutlined />}>Liberar</Button>
-              </Tooltip>
-            </Popconfirm>
-            {r.estado === 'BLOQUEADO' && (
-              <Button size="small" onClick={() => setBloqueoParc(r)}>Parcial</Button>
-            )}
-          </Space>
-        )
-      },
-    },
-  ]
-
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: 24 }}>
       {/* Cabecera */}
@@ -333,20 +235,19 @@ export default function BloqueoTransaccionesPage() {
           Bloqueo de Transacciones
         </Title>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Controla qué períodos y módulos están cerrados para nuevas transacciones
+          Selecciona un mes para bloquearlo o desbloquearlo por módulo
         </Text>
       </div>
 
       {/* Banner vigente */}
       {vigente?.periodoFin && vigente?.motivo && (
-        <Alert type="warning" showIcon icon={<WarningOutlined />}
+        <Alert
+          type="warning" showIcon icon={<WarningOutlined />}
           message={
             <span>
               <strong>Período bloqueado</strong>
-              {` ${fmtPeriodo(vigente)} — `}
-              <Tag color={MODULO_META[vigente.modulo]?.color}>
-                {MODULO_META[vigente.modulo]?.label ?? vigente.modulo}
-              </Tag>
+              {` hasta ${dayjs(vigente.periodoFin).format('DD MMMM YYYY')} — `}
+              <Tag color="red">{vigente.modulo}</Tag>
             </span>
           }
           description={`Motivo: ${vigente.motivo}`}
@@ -354,203 +255,138 @@ export default function BloqueoTransaccionesPage() {
         />
       )}
 
-      {/* Layout principal: formulario izquierda + tabla derecha */}
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 20, alignItems: 'start' }}>
-
-        {/* ── Panel izquierdo: formulario ── */}
-        <div style={{
-          background: '#fff',
-          border: '1px solid #e8e8e8',
-          borderRadius: 8,
-          padding: '16px',
-          position: 'sticky',
-          top: 16,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <LockOutlined style={{ color: '#1B3A6B', fontSize: 15 }} />
-            <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>Nuevo Bloqueo</Text>
-          </div>
-
-          {/* 1. Módulos */}
-          <div style={{ marginBottom: 14 }}>
-            <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', display: 'block', marginBottom: 8 }}>
-              1. Módulos a bloquear
-            </Text>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {MODULOS.map((m, idx) => {
-                const checked = modulosSel.includes(m.value)
-                return (
-                  <div key={m.value}>
-                    {idx === 1 && <Divider style={{ margin: '4px 0' }} />}
-                    <div
-                      onClick={() => toggleModulo(m.value)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '5px 10px', borderRadius: 6, cursor: 'pointer',
-                        border: `1px solid ${checked ? '#1B3A6B' : '#e8e8e8'}`,
-                        background: checked ? '#e6f0ff' : '#fafafa',
-                        userSelect: 'none',
-                      }}
-                    >
-                      <Checkbox checked={checked} onChange={() => {}} />
-                      <Tag color={m.color} style={{ margin: 0, fontSize: 11 }}>{m.label}</Tag>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          <Divider style={{ margin: '10px 0' }} />
-
-          {/* 2. Período */}
-          <div style={{ marginBottom: 14 }}>
-            <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', display: 'block', marginBottom: 8 }}>
-              2. Período a bloquear
-            </Text>
-            <Radio.Group
-              value={modoFecha}
-              onChange={e => { setModoFecha(e.target.value); setMesesSel([]); setRango([null, null]) }}
-              style={{ marginBottom: 10 }}
-              size="small"
-            >
-              <Radio value="meses">Por mes</Radio>
-              <Radio value="rango">Rango de fechas</Radio>
-            </Radio.Group>
-
-            {modoFecha === 'meses' ? (
-              <>
-                {/* Navegación de año */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <Button size="small" onClick={() => setGridYear(y => y - 1)}>{'<'}</Button>
-                  <Text strong style={{ minWidth: 34, textAlign: 'center', fontSize: 13 }}>{gridYear}</Text>
-                  <Button size="small" onClick={() => setGridYear(y => y + 1)}>{'>'}</Button>
-                  <Checkbox checked={allMesSelected} onChange={toggleAllMeses} style={{ marginLeft: 4, fontSize: 11 }}>
-                    Todos
-                  </Checkbox>
-                </div>
-                {/* 12 meses en fila horizontal */}
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {MESES_ES.map((mes, i) => {
-                    const key = allMesKeys[i]
-                    const checked = mesesSel.includes(key)
-                    return (
-                      <div
-                        key={key}
-                        onClick={() => toggleMes(key)}
-                        style={{
-                          flex: 1,
-                          display: 'flex', flexDirection: 'column', alignItems: 'center',
-                          padding: '6px 0',
-                          borderRadius: 5,
-                          border: `2px solid ${checked ? '#1B3A6B' : '#d9d9d9'}`,
-                          background: checked ? '#1B3A6B' : '#fafafa',
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                        }}
-                      >
-                        <span style={{
-                          fontSize: 10, fontWeight: 700,
-                          color: checked ? '#fff' : '#595959',
-                          lineHeight: 1,
-                        }}>
-                          {mes}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-                {mesesSel.length > 0 && (
-                  <Text style={{ fontSize: 11, color: '#1B3A6B', display: 'block', marginTop: 6 }}>
-                    {mesesSel.length} mes(es) seleccionado(s)
-                  </Text>
-                )}
-              </>
-            ) : (
-              <DatePicker.RangePicker
-                style={{ width: '100%' }} format="DD/MM/YYYY" size="small"
-                value={rango}
-                onChange={v => setRango(v ? [v[0], v[1]] : [null, null])}
-              />
-            )}
-          </div>
-
-          <Divider style={{ margin: '10px 0' }} />
-
-          {/* 3. Motivo */}
-          <div style={{ marginBottom: 14 }}>
-            <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', display: 'block', marginBottom: 6 }}>
-              3. Motivo
-            </Text>
-            <Input.TextArea
-              rows={2} size="small"
-              placeholder="Ej: Cierre mensual junio 2026"
-              value={motivo}
-              onChange={e => setMotivo(e.target.value)}
-            />
-          </div>
-
-          <Button
-            type="primary" danger block icon={<LockOutlined />}
-            loading={saving} disabled={!canSave}
-            onClick={handleBloquear}
-            size="middle"
-          >
-            Bloquear
-          </Button>
-        </div>
-
-        {/* ── Panel derecho: tabla de bloqueos ── */}
-        <div>
-          {/* Filtros */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <Select
-              style={{ width: 170 }} size="small"
-              placeholder="Filtrar por módulo" allowClear
-              value={filtroModulo || undefined}
-              onChange={v => setFiltroModulo(v ?? '')}
-              options={MODULOS.map(m => ({ label: m.label, value: m.value }))}
-            />
-            <Select
-              style={{ width: 140 }} size="small"
-              placeholder="Filtrar por estado" allowClear
-              value={filtroEstado || undefined}
-              onChange={v => setFiltroEstado(v ?? '')}
-              options={[
-                { label: 'Bloqueado', value: 'BLOQUEADO' },
-                { label: 'Parcial',   value: 'DESBLOQUEADO_PARCIAL' },
-                { label: 'Abierto',   value: 'DESBLOQUEADO' },
-              ]}
-            />
-            {Object.values(badgesPorModulo).reduce((s, n) => s + n, 0) > 0 && (
-              <Badge
-                count={Object.values(badgesPorModulo).reduce((s, n) => s + n, 0)}
-                color="#faad14"
-                style={{ alignSelf: 'center' }}
-              >
-                <Text type="secondary" style={{ fontSize: 12, paddingRight: 8 }}>activos</Text>
-              </Badge>
-            )}
-          </div>
-
-          <Table
-            dataSource={sorted}
-            columns={columns}
-            rowKey="id"
-            loading={loading}
-            size="small"
-            pagination={{ pageSize: 30, hideOnSinglePage: true }}
-            locale={{ emptyText: 'No hay bloqueos registrados' }}
-          />
-        </div>
+      {/* Navegación de año */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <Button size="small" icon={<LeftOutlined />} onClick={() => setYear(y => y - 1)} />
+        <Text strong style={{ fontSize: 16, minWidth: 44, textAlign: 'center' }}>{year}</Text>
+        <Button size="small" icon={<RightOutlined />} onClick={() => setYear(y => y + 1)} />
+        {loading && <Text type="secondary" style={{ fontSize: 12 }}>Cargando...</Text>}
       </div>
 
-      {/* Modal desbloqueo parcial */}
-      <ModalDesbloquearParcial
-        bloqueo={bloqueoParc}
-        onClose={() => setBloqueoParc(null)}
-        onSuccess={load}
-      />
+      {/* Tabla matriz */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: 160 }} />
+            {mesKeys.map(k => <col key={k} />)}
+          </colgroup>
+          <thead>
+            <tr style={{ background: '#fafafa' }}>
+              <th style={{ ...thStyle, textAlign: 'left', paddingLeft: 12 }}>Módulo</th>
+              {mesKeys.map((k, i) => {
+                const isCurrent = k === curMes
+                return (
+                  <th key={k} style={{
+                    ...thStyle,
+                    color: isCurrent ? '#1B3A6B' : '#8c8c8c',
+                    background: isCurrent ? '#e6f0ff' : 'transparent',
+                    borderRadius: isCurrent ? '4px 4px 0 0' : 0,
+                  }}>
+                    {MESES_ES[i]}
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {MODULOS.map((mod, rowIdx) => (
+              <tr
+                key={mod.value}
+                style={{ background: rowIdx === 0 ? '#fff8f8' : rowIdx % 2 === 0 ? '#fafafa' : '#fff' }}
+              >
+                {/* Columna módulo */}
+                <td style={{
+                  padding: '8px 12px',
+                  borderBottom: '1px solid #f0f0f0',
+                  borderRight: '1px solid #f0f0f0',
+                }}>
+                  <Tag color={mod.color} style={{ margin: 0, fontSize: 11 }}>{mod.label}</Tag>
+                </td>
+
+                {/* Columna por mes */}
+                {mesKeys.map(mesKey => {
+                  const { bloqueo, inherited } = getCellInfo(mod.value, mesKey)
+                  const cellKey = `${mod.value}-${mesKey}`
+                  const isCurrent = mesKey === curMes
+                  const isBlocked = !!bloqueo && bloqueo.estado !== 'DESBLOQUEADO'
+
+                  return (
+                    <td key={mesKey} style={{
+                      ...cellBase,
+                      background: isCurrent ? '#f0f5ff' : undefined,
+                    }}>
+                      <CeldaBloqueo
+                        bloqueo={bloqueo}
+                        inherited={inherited}
+                        loading={savingCell === cellKey}
+                        onClick={() => {
+                          if (isBlocked && !inherited) {
+                            openModal('desbloquear', mod.value, mesKey, bloqueo!.id)
+                          } else if (!isBlocked) {
+                            openModal('bloquear', mod.value, mesKey)
+                          }
+                        }}
+                      />
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Leyenda */}
+      <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
+        {[
+          { icon: <LockOutlined style={{ color: '#fff', fontSize: 11 }} />, bg: '#1B3A6B', label: 'Bloqueado' },
+          { icon: <span style={{ fontSize: 9, fontWeight: 700, color: '#ffa940' }}>P</span>, bg: '#fff7e6', border: '#ffd591', label: 'Parcial' },
+          { icon: null, bg: '#fff1f0', border: '#ffa39e', label: 'Heredado (Todos los módulos)' },
+          { icon: null, bg: 'transparent', border: '#d9d9d9', label: 'Abierto' },
+        ].map(l => (
+          <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: 3,
+              background: l.bg, border: `1px solid ${l.border ?? l.bg}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {l.icon}
+            </div>
+            <Text style={{ fontSize: 11 }} type="secondary">{l.label}</Text>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal: bloquear / desbloquear */}
+      <Modal
+        title={
+          <span>
+            {modalMode === 'bloquear'
+              ? <><LockOutlined style={{ color: '#cf1322', marginRight: 6 }} />Bloquear período</>
+              : <><UnlockOutlined style={{ color: '#1B3A6B', marginRight: 6 }} />Desbloquear período</>
+            }
+          </span>
+        }
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleConfirm}
+        okText={modalMode === 'bloquear' ? 'Bloquear' : 'Desbloquear'}
+        okButtonProps={{
+          danger: modalMode === 'bloquear',
+          style: modalMode === 'desbloquear' ? { background: '#1B3A6B' } : undefined,
+        }}
+        width={400}
+        destroyOnClose
+      >
+        <Text style={{ display: 'block', marginBottom: 12 }} strong>{modalLabel}</Text>
+        <Input.TextArea
+          rows={2}
+          placeholder={modalMode === 'bloquear' ? 'Ej: Cierre mensual junio 2026' : 'Motivo del desbloqueo'}
+          value={modalMotivo}
+          onChange={e => setModalMotivo(e.target.value)}
+          autoFocus
+        />
+      </Modal>
     </div>
   )
 }
