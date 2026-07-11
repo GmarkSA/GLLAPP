@@ -106,15 +106,17 @@ export default function AccountSelect({
           </Space>
         )
       }}
-      labelRender={opt => (
-        <Space size={6}>
-          <BookOutlined style={{ color: '#1677ff', fontSize: 12 }} />
-          <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>
-            {(opt as any)?.account?.code ?? ''}
-          </span>
-          <span style={{ fontSize: 13 }}>{opt.label?.toString().replace(/^\S+\s/, '')}</span>
-        </Space>
-      )}
+      labelRender={opt => {
+        const acct = accounts.find(a => a.id === opt.value)
+        if (!acct) return <span>{opt.label}</span>
+        return (
+          <Space size={6}>
+            <BookOutlined style={{ color: '#1677ff', fontSize: 12 }} />
+            <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>{acct.code}</span>
+            <span style={{ fontSize: 13 }}>{acct.name}</span>
+          </Space>
+        )
+      }}
     />
   )
 }

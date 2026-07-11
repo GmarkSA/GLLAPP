@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
-  Button, Tag, Space, message, Form, InputNumber,
-  Switch, Typography, Alert, Popconfirm, Spin, Divider,
+  Button, Table, Tag, Space, message, InputNumber,
+  Switch, Typography, Alert, Popconfirm, Modal, Form, Input,
 } from 'antd'
 import {
-  ReloadOutlined, LockOutlined, UnlockOutlined, DeleteOutlined, SaveOutlined,
+  ReloadOutlined, LockOutlined, UnlockOutlined,
+  DeleteOutlined, EditOutlined,
 } from '@ant-design/icons'
 import AccountSelect from '../../../components/AccountSelect'
 import {
@@ -12,170 +13,18 @@ import {
   type ClaseActivoFijo,
 } from '../../../api/clases-activo-fijo'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 
-const CUENTAS = [
-  { name: 'cuentaAltasId',                label: 'Altas (costo activo)' },
-  { name: 'cuentaDepreciacionAcumuladaId', label: 'Depreciación Acumulada' },
-  { name: 'cuentaGastoDepreciacionId',     label: 'Gasto de Depreciación' },
-  { name: 'cuentaGananciaPorVentaId',      label: 'Ganancia por Venta AF' },
-  { name: 'cuentaPerdidaPorDeterioro',     label: 'Pérdida por Deterioro' },
-  { name: 'cuentaPerdidaPorVentaId',       label: 'Pérdida por Venta AF' },
-  { name: 'cuentaGananciaActivoFijoId',    label: 'Ganancia en AF (otras)' },
-]
+type EditForm = Omit<ClaseActivoFijo, 'id' | 'companyId' | 'activo'>
 
-// ─── Fila editable de una clase ──────────────────────────────────────────────
-function ClaseRow({ record, onSaved, onDeleted }: {
-  record: ClaseActivoFijo
-  onSaved: () => void
-  onDeleted: () => void
-}) {
-  const [form]    = Form.useForm()
-  const [saving,  setSaving]  = useState(false)
-  const [dirty,   setDirty]   = useState(false)
-  const hasId = !!record.id
-
-  // Cargar valores al montar o cuando cambia el record externo
-  const prevId = useRef<string | null>(null)
-  useEffect(() => {
-    if (prevId.current !== record.id) {
-      form.setFieldsValue({ ...record })
-      setDirty(false)
-      prevId.current = record.id
-    }
-  }, [record, form])
-
-  const handleSave = async () => {
-    const vals = await form.validateFields()
-    setSaving(true)
-    try {
-      await actualizarClaseActivoFijo(record.id!, vals)
-      message.success(`${record.codigo} — guardado`)
-      setDirty(false)
-      onSaved()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar')
-    } finally { setSaving(false) }
-  }
-
-  const handleBloquear = async () => {
-    try {
-      await actualizarClaseActivoFijo(record.id!, { activo: !record.activo })
-      message.success(record.activo ? 'Clase bloqueada' : 'Clase desbloqueada')
-      onSaved()
-    } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
-  }
-
-  const handleEliminar = async () => {
-    try {
-      await eliminarClaseActivoFijo(record.id!)
-      message.success('Clase eliminada')
-      onDeleted()
-    } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
-  }
-
-  const configured = CUENTAS.filter(f => !!(record as any)[f.name]).length
-
-  return (
-    <div style={{
-      border: '1px solid #e8e8e8',
-      borderRadius: 8,
-      marginBottom: 8,
-      background: record.activo ? '#fff' : '#fafafa',
-      opacity: record.activo ? 1 : 0.75,
-    }}>
-      {/* ── Cabecera de la fila ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 16px',
-        background: '#f5f7fa',
-        borderRadius: '8px 8px 0 0',
-        borderBottom: '1px solid #e8e8e8',
-      }}>
-        <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 13, minWidth: 50 }}>
-          {record.codigo}
-        </Text>
-        <Text strong style={{ flex: 1 }}>{record.nombre}</Text>
-        <Tag color={configured === 7 ? 'success' : configured > 0 ? 'warning' : 'default'} style={{ margin: 0 }}>
-          {configured}/7 cuentas
-        </Tag>
-        <Tag color={record.activo ? 'success' : 'default'} style={{ margin: 0 }}>
-          {record.activo ? 'Activo' : 'Bloqueado'}
-        </Tag>
-
-        {/* Acciones */}
-        <Space size={4}>
-          {dirty && (
-            <Button size="small" type="primary" icon={<SaveOutlined />}
-              loading={saving} onClick={handleSave}
-              style={{ background: '#1B3A6B' }}>
-              Guardar
-            </Button>
-          )}
-          {hasId && (
-            <Popconfirm
-              title={record.activo ? '¿Bloquear esta clase?' : '¿Desbloquear esta clase?'}
-              onConfirm={handleBloquear}
-            >
-              <Button size="small"
-                icon={record.activo ? <LockOutlined /> : <UnlockOutlined />}
-                danger={record.activo}
-                style={!record.activo ? { color: '#52c41a', borderColor: '#52c41a' } : undefined}
-              >
-                {record.activo ? 'Bloquear' : 'Desbloquear'}
-              </Button>
-            </Popconfirm>
-          )}
-          {hasId && (
-            <Popconfirm title="¿Eliminar esta clase permanentemente?" onConfirm={handleEliminar}
-              okButtonProps={{ danger: true }}>
-              <Button size="small" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          )}
-        </Space>
-      </div>
-
-      {/* ── Cuerpo — todos los campos visibles ── */}
-      <div style={{ padding: '12px 16px' }}>
-        <Form form={form} layout="vertical" size="small" onValuesChange={() => hasId && setDirty(true)}>
-          {/* Parámetros numéricos */}
-          <div style={{ display: 'grid', gridTemplateColumns: '160px 160px 160px 1fr', gap: '0 16px', marginBottom: 4 }}>
-            <Form.Item name="tasaDepreciacionAnual" label="Tasa anual (decimal)" style={{ marginBottom: 8 }}>
-              <InputNumber style={{ width: '100%' }} min={0} max={1} precision={4} step={0.01} />
-            </Form.Item>
-            <Form.Item name="vidaUtilMeses" label="Vida útil (meses)" style={{ marginBottom: 8 }}>
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-            <Form.Item name="esNoDepreciable" label="No depreciable" valuePropName="checked" style={{ marginBottom: 8 }}>
-              <Switch />
-            </Form.Item>
-          </div>
-
-          <Divider style={{ margin: '4px 0 10px' }}>
-            <Text type="secondary" style={{ fontSize: 11 }}>Cuentas Contables</Text>
-          </Divider>
-
-          {/* 7 cuentas en 2 columnas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-            {CUENTAS.map(f => (
-              <Form.Item key={f.name} name={f.name}
-                label={<Text style={{ fontSize: 11, color: '#595959' }}>{f.label}</Text>}
-                style={{ marginBottom: 8 }}>
-                <AccountSelect filter={{}} placeholder="Seleccionar cuenta..." />
-              </Form.Item>
-            ))}
-          </div>
-        </Form>
-      </div>
-    </div>
-  )
-}
-
-// ─── Página principal ─────────────────────────────────────────────────────────
 export default function ClasesActivoFijoPage() {
   const [data,    setData]    = useState<ClaseActivoFijo[]>([])
   const [loading, setLoading] = useState(false)
   const [seeding, setSeeding] = useState(false)
+  const [modal,   setModal]   = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [editing, setEditing] = useState<ClaseActivoFijo | null>(null)
+  const [form]  = Form.useForm<EditForm>()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -186,20 +35,138 @@ export default function ClasesActivoFijoPage() {
 
   useEffect(() => { load() }, [load])
 
-  const handleSeed = async () => {
-    setSeeding(true)
+  const openEdit = (r: ClaseActivoFijo) => {
+    setEditing(r)
+    form.setFieldsValue({
+      nombre:                      r.nombre,
+      tasaDepreciacionAnual:        r.tasaDepreciacionAnual,
+      vidaUtilMeses:                r.vidaUtilMeses ?? undefined,
+      esNoDepreciable:              r.esNoDepreciable,
+      cuentaAltasId:                r.cuentaAltasId ?? undefined,
+      cuentaDepreciacionAcumuladaId: r.cuentaDepreciacionAcumuladaId ?? undefined,
+      cuentaGastoDepreciacionId:    r.cuentaGastoDepreciacionId ?? undefined,
+      cuentaGananciaPorVentaId:     r.cuentaGananciaPorVentaId ?? undefined,
+      cuentaPerdidaPorDeterioro:    r.cuentaPerdidaPorDeterioro ?? undefined,
+      cuentaPerdidaPorVentaId:      r.cuentaPerdidaPorVentaId ?? undefined,
+      cuentaGananciaActivoFijoId:   r.cuentaGananciaActivoFijoId ?? undefined,
+    } as any)
+    setModal(true)
+  }
+
+  const handleSave = async () => {
+    if (!editing?.id) return
+    const vals = form.getFieldsValue()
+    setSaving(true)
     try {
-      await seedGuatemalaClases()
-      message.success('Clases de activo fijo Guatemala ISR generadas')
+      await actualizarClaseActivoFijo(editing.id, vals)
+      message.success(`${editing.codigo} guardado`)
+      setModal(false)
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al generar clases')
-    } finally { setSeeding(false) }
+      message.error(e?.response?.data?.message ?? 'Error al guardar')
+    } finally { setSaving(false) }
   }
+
+  const handleBloquear = async (r: ClaseActivoFijo) => {
+    if (!r.id) return
+    try {
+      await actualizarClaseActivoFijo(r.id, { activo: !r.activo })
+      message.success(r.activo ? 'Clase bloqueada' : 'Clase desbloqueada')
+      load()
+    } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
+  }
+
+  const handleEliminar = async (r: ClaseActivoFijo) => {
+    if (!r.id) return
+    try {
+      await eliminarClaseActivoFijo(r.id)
+      message.success('Clase eliminada')
+      load()
+    } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
+  }
+
+  const handleSeed = async () => {
+    setSeeding(true)
+    try { await seedGuatemalaClases(); message.success('Clases Guatemala generadas'); load() }
+    catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
+    finally { setSeeding(false) }
+  }
+
+  const countCuentas = (r: ClaseActivoFijo) =>
+    [r.cuentaAltasId, r.cuentaDepreciacionAcumuladaId, r.cuentaGastoDepreciacionId,
+     r.cuentaGananciaPorVentaId, r.cuentaPerdidaPorDeterioro, r.cuentaPerdidaPorVentaId,
+     r.cuentaGananciaActivoFijoId].filter(Boolean).length
+
+  const columns = [
+    {
+      title: 'Código', dataIndex: 'codigo', width: 80,
+      render: (v: string, r: ClaseActivoFijo) => (
+        <span style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>
+          {v}{!r.id && <Tag color="blue" style={{ marginLeft: 4, fontSize: 10 }}>plantilla</Tag>}
+        </span>
+      ),
+    },
+    { title: 'Clase de Activo', dataIndex: 'nombre', ellipsis: true },
+    {
+      title: 'Tasa Anual', width: 100, align: 'right' as const,
+      render: (_: unknown, r: ClaseActivoFijo) => (
+        <span style={{ fontFamily: 'monospace' }}>
+          {((r.tasaDepreciacionAnual || 0) * 100).toFixed(2)}%
+        </span>
+      ),
+    },
+    {
+      title: 'Vida Útil', width: 90, align: 'right' as const,
+      render: (_: unknown, r: ClaseActivoFijo) =>
+        r.vidaUtilMeses ? `${r.vidaUtilMeses} m` : '—',
+    },
+    {
+      title: 'No Dep.', width: 75, align: 'center' as const,
+      render: (_: unknown, r: ClaseActivoFijo) =>
+        r.esNoDepreciable ? <Tag color="orange">Sí</Tag> : <Tag color="default">No</Tag>,
+    },
+    {
+      title: 'Cuentas', width: 85, align: 'center' as const,
+      render: (_: unknown, r: ClaseActivoFijo) => {
+        const n = countCuentas(r)
+        return <Tag color={n === 7 ? 'success' : n > 0 ? 'warning' : 'default'}>{n}/7</Tag>
+      },
+    },
+    {
+      title: 'Estado', width: 90,
+      render: (_: unknown, r: ClaseActivoFijo) => r.id
+        ? <Tag color={r.activo ? 'success' : 'default'}>{r.activo ? 'Activo' : 'Bloqueado'}</Tag>
+        : <Tag color="blue">Plantilla</Tag>,
+    },
+    {
+      title: 'Acciones', width: 150,
+      render: (_: unknown, r: ClaseActivoFijo) => !r.id ? null : (
+        <Space size={4}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>
+            Editar
+          </Button>
+          <Popconfirm
+            title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'}
+            onConfirm={() => handleBloquear(r)}
+          >
+            <Button size="small"
+              icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
+              danger={r.activo}
+              style={!r.activo ? { color: '#52c41a', borderColor: '#52c41a' } : undefined}
+            />
+          </Popconfirm>
+          <Popconfirm title="¿Eliminar esta clase?" onConfirm={() => handleEliminar(r)}
+            okButtonProps={{ danger: true }}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Clases de Activo Fijo (ISR Guatemala)</Title>
         <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}>
           Generar clases Guatemala
@@ -212,17 +179,74 @@ export default function ClasesActivoFijoPage() {
           description='Haz clic en "Generar clases Guatemala" para crear las clases del ISR Art. 19 bis automáticamente.' />
       )}
 
-      {loading
-        ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
-        : data.map(r => (
-            <ClaseRow
-              key={r.id ?? r.codigo}
-              record={r}
-              onSaved={load}
-              onDeleted={load}
-            />
-          ))
-      }
+      <Table
+        dataSource={data}
+        columns={columns}
+        rowKey={r => r.id ?? r.codigo}
+        loading={loading}
+        size="small"
+        pagination={false}
+      />
+
+      {/* ── Modal de edición ─────────────────────────────────────── */}
+      <Modal
+        title={`Configurar: ${editing?.codigo} — ${editing?.nombre}`}
+        open={modal}
+        onCancel={() => setModal(false)}
+        onOk={handleSave}
+        okText="Guardar"
+        confirmLoading={saving}
+        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        width={600}
+      >
+        <Form form={form} layout="vertical" size="small" style={{ marginTop: 12 }}>
+          <Form.Item name="nombre" label="Nombre de la clase">
+            <Input />
+          </Form.Item>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <Form.Item name="tasaDepreciacionAnual" label="Tasa anual">
+              <InputNumber
+                style={{ width: '100%' }} min={0} max={1} precision={4} step={0.05}
+                formatter={v => `${((Number(v) || 0) * 100).toFixed(2)}%`}
+                parser={v => (Number(v?.replace('%', '').trim()) / 100) as 0 | 1}
+              />
+            </Form.Item>
+            <Form.Item name="vidaUtilMeses" label="Vida útil (meses)">
+              <InputNumber style={{ width: '100%' }} min={0} placeholder="ej: 60" />
+            </Form.Item>
+            <Form.Item name="esNoDepreciable" label="No depreciable" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </div>
+
+          <div style={{ borderTop: '1px dashed #d9d9d9', paddingTop: 12, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: '#888' }}>Cuentas contables</span>
+          </div>
+
+          <Form.Item name="cuentaAltasId" label="Altas (costo del activo)">
+            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
+          </Form.Item>
+          <Form.Item name="cuentaDepreciacionAcumuladaId" label="Depreciación Acumulada">
+            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
+          </Form.Item>
+          <Form.Item name="cuentaGastoDepreciacionId" label="Gasto de Depreciación">
+            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
+          </Form.Item>
+          <Form.Item name="cuentaGananciaPorVentaId" label="Ganancia por Venta de AF">
+            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
+          </Form.Item>
+          <Form.Item name="cuentaPerdidaPorDeterioro" label="Pérdida por Deterioro de AF">
+            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
+          </Form.Item>
+          <Form.Item name="cuentaPerdidaPorVentaId" label="Pérdida por Venta de AF">
+            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
+          </Form.Item>
+          <Form.Item name="cuentaGananciaActivoFijoId" label="Ganancia en AF (otras)">
+            <AccountSelect filter={{}} placeholder="Selecciona cuenta..." />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
