@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Button, message, Input, Typography, Alert, Tooltip, Tag,
+  Button, message, Typography, Alert, Tooltip, Tag,
 } from 'antd'
 import {
   LockOutlined, UnlockOutlined, WarningOutlined,
@@ -109,7 +109,6 @@ export default function BloqueoTransaccionesPage() {
   const [vigente,   setVigente]   = useState<BloqueoContable | null>(null)
   const [loading,   setLoading]   = useState(false)
   const [year,      setYear]      = useState(dayjs().year())
-  const [motivo,    setMotivo]    = useState('')
   const [savingCell, setSavingCell] = useState<string | null>(null)
 
   // ── Carga ────────────────────────────────────────────────────────────────
@@ -165,7 +164,7 @@ export default function BloqueoTransaccionesPage() {
     mesKey: string,
     bloqueoId?: string,
   ) => {
-    const motivoFinal = motivo.trim() || 'Cierre de período'
+    const motivoFinal = 'Cierre de período'
     const key = `${modulo}-${mesKey}`
     setSavingCell(key)
     try {
@@ -236,18 +235,6 @@ export default function BloqueoTransaccionesPage() {
         <Text strong style={{ fontSize: 15, minWidth: 44, textAlign: 'center' }}>{year}</Text>
         <Button size="small" icon={<RightOutlined />} onClick={() => setYear(y => y + 1)} />
 
-        <div style={{ width: 1, height: 20, background: '#e8e8e8', margin: '0 4px' }} />
-
-        {/* Motivo */}
-        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Motivo:</Text>
-        <Input
-          size="small"
-          style={{ width: 260 }}
-          placeholder="Cierre de período (opcional)"
-          value={motivo}
-          onChange={e => setMotivo(e.target.value)}
-          allowClear
-        />
         {loading && <Text type="secondary" style={{ fontSize: 12 }}>Cargando...</Text>}
       </div>
 
