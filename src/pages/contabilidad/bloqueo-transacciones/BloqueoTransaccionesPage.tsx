@@ -52,16 +52,14 @@ function CeldaBloqueo({
   loading: boolean
   onClick: () => void
 }) {
-  const isBlocked  = !!bloqueo && bloqueo.estado !== 'DESBLOQUEADO'
-  const isParcial  = bloqueo?.estado === 'DESBLOQUEADO_PARCIAL'
+  const isBlocked = !!bloqueo && bloqueo.estado !== 'DESBLOQUEADO'
 
-  let bg      = 'transparent'
-  let border  = '1px solid #d9d9d9'
+  let bg        = 'transparent'
+  let border    = '1px solid #d9d9d9'
   let iconColor = '#d9d9d9'
 
   if (isBlocked && inherited) { bg = '#fff1f0'; border = '1px solid #ffa39e'; iconColor = '#ff7875' }
-  else if (isParcial)          { bg = '#fff7e6'; border = '1px solid #ffd591'; iconColor = '#ffa940' }
-  else if (isBlocked)          { bg = '#1B3A6B'; border = '1px solid #1B3A6B'; iconColor = '#fff' }
+  else if (isBlocked)         { bg = '#1B3A6B'; border = '1px solid #1B3A6B'; iconColor = '#fff' }
 
   const box = (
     <div
@@ -76,12 +74,7 @@ function CeldaBloqueo({
         opacity: loading ? 0.5 : 1,
       }}
     >
-      {isBlocked && !isParcial && (
-        <LockOutlined style={{ fontSize: 11, color: iconColor }} />
-      )}
-      {isParcial && (
-        <span style={{ fontSize: 9, fontWeight: 700, color: iconColor }}>P</span>
-      )}
+      {isBlocked && <LockOutlined style={{ fontSize: 11, color: iconColor }} />}
     </div>
   )
 
@@ -94,7 +87,7 @@ function CeldaBloqueo({
   }
   if (isBlocked) {
     return (
-      <Tooltip title={`${isParcial ? 'Parcial' : 'Bloqueado'}: ${bloqueo?.motivo ?? ''}`}>
+      <Tooltip title={`Bloqueado: ${bloqueo?.motivo ?? ''}`}>
         {box}
       </Tooltip>
     )
@@ -315,7 +308,6 @@ export default function BloqueoTransaccionesPage() {
       <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
         {[
           { icon: <LockOutlined style={{ color: '#fff', fontSize: 11 }} />, bg: '#1B3A6B', label: 'Bloqueado' },
-          { icon: <span style={{ fontSize: 9, fontWeight: 700, color: '#ffa940' }}>P</span>, bg: '#fff7e6', border: '#ffd591', label: 'Parcial' },
           { icon: null, bg: '#fff1f0', border: '#ffa39e', label: 'Heredado (Todos los módulos)' },
           { icon: null, bg: 'transparent', border: '#d9d9d9', label: 'Abierto' },
         ].map(l => (
