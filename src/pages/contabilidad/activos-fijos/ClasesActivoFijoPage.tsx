@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback, memo } from 'react'
 import {
   Button, Table, Tag, Space, message, InputNumber,
-  Switch, Typography, Alert, Popconfirm, Select,
+  Switch, Typography, Alert, Popconfirm, Select, Modal, Form, Input,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ReloadOutlined, LockOutlined, UnlockOutlined,
-  DeleteOutlined, SaveOutlined, BookOutlined,
+  DeleteOutlined, SaveOutlined, BookOutlined, EditOutlined,
 } from '@ant-design/icons'
 import {
   getClasesActivoFijo, actualizarClaseActivoFijo, eliminarClaseActivoFijo, seedGuatemalaClases,
@@ -78,12 +78,15 @@ const AccountCellSelect = memo(function AccountCellSelect({
 
 // ── Página ────────────────────────────────────────────────────────────────────
 export default function ClasesActivoFijoPage() {
-  const [data,     setData]     = useState<ClaseActivoFijo[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [loading,  setLoading]  = useState(false)
-  const [seeding,  setSeeding]  = useState(false)
-  const [pending,  setPending]  = useState<Record<string, Pending>>({})
-  const [saving,   setSaving]   = useState<Record<string, boolean>>({})
+  const [data,        setData]        = useState<ClaseActivoFijo[]>([])
+  const [accounts,    setAccounts]    = useState<Account[]>([])
+  const [loading,     setLoading]     = useState(false)
+  const [seeding,     setSeeding]     = useState(false)
+  const [pending,     setPending]     = useState<Record<string, Pending>>({})
+  const [saving,      setSaving]      = useState<Record<string, boolean>>({})
+  const [editTarget,  setEditTarget]  = useState<ClaseActivoFijo | null>(null)
+  const [editSaving,  setEditSaving]  = useState(false)
+  const [editForm]  = Form.useForm()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -138,6 +141,25 @@ export default function ClasesActivoFijoPage() {
       message.success('Clase eliminada')
       load()
     } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
+  }
+
+  const openEdit = (r: ClaseActivoFijo) => {
+    setEditTarget(r)
+    editForm.setFieldsValue({ nombre: r.nombre })
+  }
+
+  const handleEditSave = async () => {
+    if (!editTarget?.id) return
+    const { nombre } = editForm.getFieldsValue()
+    setEditSaving(true)
+    try {
+      await actualizarClaseActivoFijo(editTarget.id, { nombre })
+      message.success('Nombre actualizado')
+      setEditTarget(null)
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar')
+    } finally { setEditSaving(false) }
   }
 
   const handleSeed = async () => {
@@ -223,7 +245,7 @@ export default function ClasesActivoFijoPage() {
         : <Tag color="blue">Plantilla</Tag>,
     },
     {
-      title: 'Acciones', width: 110, fixed: 'right',
+      title: 'Acciones', width: 145, fixed: 'right',
       render: (_: unknown, r: ClaseActivoFijo) => !r.id ? null : (
         <Space size={4} wrap={false}>
           {isDirty(r.id!) && (
@@ -231,6 +253,7 @@ export default function ClasesActivoFijoPage() {
               loading={saving[r.id!]} onClick={() => handleSave(r)}
               style={{ background: '#1B3A6B', padding: '0 6px' }} />
           )}
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
           <Popconfirm title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'} onConfirm={() => handleBloquear(r)}>
             <Button size="small"
               icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
@@ -276,6 +299,23 @@ export default function ClasesActivoFijoPage() {
         .row-dirty td { background: #fffbe6 !important; }
         .ant-table-cell { vertical-align: middle; }
       `}</style>
+
+      <Modal
+        title={`Editar: ${editTarget?.codigo} — ${editTarget?.nombre}`}
+        open={!!editTarget}
+        onCancel={() => setEditTarget(null)}
+        onOk={handleEditSave}
+        okText="Guardar"
+        confirmLoading={editSaving}
+        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        width={420}
+      >
+        <Form form={editForm} layout="vertical" size="small" style={{ marginTop: 12 }}>
+          <Form.Item name="nombre" label="Nombre de la clase" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
