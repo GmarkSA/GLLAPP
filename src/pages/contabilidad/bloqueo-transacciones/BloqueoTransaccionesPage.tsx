@@ -124,15 +124,15 @@ export default function BloqueoTransaccionesPage() {
     bloqueos.forEach(b => {
       if (b.estado === 'DESBLOQUEADO') return
       if (b.periodoInicio && b.periodoFin) {
-        let cur = dayjs(b.periodoInicio).startOf('month')
-        const end = dayjs(b.periodoFin).startOf('month')
+        let cur = dayjs(b.periodoInicio + 'T00:00:00').startOf('month')
+        const end = dayjs(b.periodoFin + 'T00:00:00').startOf('month')
         while (!cur.isAfter(end)) {
           map.set(`${b.modulo}-${cur.format('YYYY-MM')}`, b)
           cur = cur.add(1, 'month')
         }
       } else if (b.periodoFin) {
         // legacy: single month
-        const fin = dayjs(b.periodoFin)
+        const fin = dayjs(b.periodoFin + 'T00:00:00')
         map.set(`${b.modulo}-${fin.format('YYYY-MM')}`, b)
       }
     })
@@ -212,7 +212,7 @@ export default function BloqueoTransaccionesPage() {
           message={
             <span>
               <strong>Período bloqueado</strong>
-              {` hasta ${dayjs(vigente.periodoFin).format('DD MMMM YYYY')} — `}
+              {` hasta ${dayjs(vigente.periodoFin + 'T00:00:00').format('DD MMMM YYYY')} — `}
               <Tag color="red">{vigente.modulo}</Tag>
             </span>
           }
