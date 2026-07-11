@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import {
   Button, Table, Tag, Space, Popconfirm, message, Modal, Form, Input, Typography,
 } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getCentrosBeneficio, crearCentroBeneficio, actualizarCentroBeneficio, eliminarCentroBeneficio,
@@ -58,9 +58,12 @@ export default function CentrosBeneficioPage() {
     } finally { setSaving(false) }
   }
 
-  const handleEliminar = async (id: string) => {
-    try { await eliminarCentroBeneficio(id); message.success('Desactivado'); load() }
-    catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
+  const handleBloquear = async (id: string, activo: boolean) => {
+    try {
+      await actualizarCentroBeneficio(id, { activo: !activo })
+      message.success(activo ? 'Centro de beneficio bloqueado' : 'Centro de beneficio desbloqueado')
+      load()
+    } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
   }
 
   const columns = [
@@ -77,12 +80,22 @@ export default function CentrosBeneficioPage() {
       render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? 'Activo' : 'Inactivo'}</Tag>,
     },
     {
-      title: 'Acciones', width: 110,
+      title: 'Acciones', width: 130,
       render: (_: any, r: CentroBeneficio) => (
         <Space size={4}>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-          <Popconfirm title="¿Desactivar este centro de beneficio?" onConfirm={() => handleEliminar(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
+          <Popconfirm
+            title={r.activo ? '¿Bloquear este centro de beneficio?' : '¿Desbloquear este centro de beneficio?'}
+            onConfirm={() => handleBloquear(r.id, r.activo)}
+          >
+            <Button
+              size="small"
+              icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
+              danger={r.activo}
+              style={!r.activo ? { color: '#52c41a', borderColor: '#52c41a' } : undefined}
+            >
+              {r.activo ? 'Bloquear' : 'Desbloquear'}
+            </Button>
           </Popconfirm>
         </Space>
       ),
