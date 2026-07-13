@@ -130,7 +130,22 @@ export default function PagosRealizadosPage() {
     },
     {
       title: 'Monto', dataIndex: 'amount', width: 130, align: 'right',
-      render: (v, r) => <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(v, r.currency)}</Text>,
+      render: (v, r) => {
+        if (r.currency && r.currency !== 'GTQ' && Number(r.exchangeRate) > 1) {
+          return (
+            <div style={{ textAlign: 'right' }}>
+              <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: 700, fontFamily: 'monospace' }}>
+                {r.currency} {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+              <br />
+              <Text style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>
+                Q {(Number(v) * Number(r.exchangeRate)).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            </div>
+          )
+        }
+        return <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(v, r.currency)}</Text>
+      },
     },
     {
       title: 'Estado', dataIndex: 'status', width: 105,

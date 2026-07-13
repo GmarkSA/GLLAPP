@@ -30,6 +30,7 @@ export interface PagoRecibido {
   paymentDate:    string
   amount:         number
   currency:       string
+  exchangeRate?:  number
   mode?:          PaymentMode
   reference?:     string
   bankAccountId?: string

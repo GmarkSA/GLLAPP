@@ -111,8 +111,23 @@ export default function EmisionLoteChequesPage() {
         const days = dayjs(d).diff(dayjs(), 'day')
         return <Tag color={days < 0 ? 'red' : days <= 7 ? 'orange' : 'green'}>{dayjs(d).format('DD/MM/YYYY')}</Tag>
       } },
-    { title: 'Saldo', dataIndex: 'balance', width: 130, align: 'right' as const,
-      render: (val) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(Number(val))}</Text> },
+    { title: 'Saldo', dataIndex: 'balance', width: 140, align: 'right' as const,
+      render: (val, r) => {
+        if (r.currency && r.currency !== 'GTQ' && Number(r.exchangeRate ?? 0) > 1) {
+          return (
+            <div style={{ textAlign: 'right' }}>
+              <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: 700, fontFamily: 'monospace' }}>
+                {r.currency} {Number(val).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+              <br />
+              <Text style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>
+                Q {(Number(val) * Number(r.exchangeRate)).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            </div>
+          )
+        }
+        return <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(Number(val))}</Text>
+      } },
     {
       title: 'Monto a pagar', key: 'amt', width: 150, align: 'right' as const,
       render: (_, r) => {

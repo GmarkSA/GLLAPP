@@ -63,6 +63,7 @@ export interface PendingInvoice {
   paidAmount:    number
   balance:       number
   currency:      string
+  exchangeRate?: number
   status:        string
 }
 

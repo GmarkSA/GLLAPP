@@ -130,7 +130,22 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
           : <Text type="secondary">—</Text> }
     case 'amount':
       return { ...base, title: 'Monto', dataIndex: 'amount', width: 130, align: 'right' as const,
-        render: (v: number) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 13 }}>{fmtQ(v)}</Text> }
+        render: (v: number, r: PagoRecibido) => {
+          if (r.currency && r.currency !== 'GTQ' && Number(r.exchangeRate ?? 0) > 1) {
+            return (
+              <div style={{ textAlign: 'right' }}>
+                <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: 700, fontFamily: 'monospace' }}>
+                  {r.currency} {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                </Text>
+                <br />
+                <Text style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>
+                  Q {(Number(v) * Number(r.exchangeRate)).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                </Text>
+              </div>
+            )
+          }
+          return <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 13 }}>{fmtQ(v)}</Text>
+        } }
     case 'isAdvance':
       return { ...base, title: 'Anticipo', dataIndex: 'isAdvance', width: 90, align: 'center' as const,
         render: (v: boolean) => v

@@ -29,6 +29,28 @@ const { RangePicker } = DatePicker
 const fmt = (x: number | string) =>
   `Q ${Number(x).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+function FmtDual({ amount, currency, exchangeRate, bold, color }: {
+  amount: number | string; currency?: string; exchangeRate?: number | string; bold?: boolean; color?: string
+}) {
+  const n   = Number(amount)
+  const cur = currency ?? 'GTQ'
+  const fx  = Number(exchangeRate ?? 1)
+  if (cur !== 'GTQ' && fx > 1) {
+    return (
+      <div style={{ textAlign: 'right' }}>
+        <Text style={{ fontSize: 12, color: color ?? '#0369a1', fontWeight: bold ? 700 : 600 }}>
+          {cur} {n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+        </Text>
+        <br />
+        <Text style={{ fontSize: 11, color: color ? color : '#6b7280' }}>
+          Q {(n * fx).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+        </Text>
+      </div>
+    )
+  }
+  return <Text strong={bold} style={{ fontSize: 13, color }}>{fmt(n)}</Text>
+}
+
 // ── Configurador de columnas ──────────────────────────────────────────────────
 const STORAGE_KEY = 'contaerp_cols_facturas_venta'
 
@@ -129,7 +151,7 @@ function buildColDef(
         } }
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 120, align: 'right' as const,
-        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+        render: (v: number, r: Invoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} /> }
     case 'discountAmount':
       return { ...base, title: 'Descuento', dataIndex: 'discountAmount', width: 105, align: 'right' as const,
         render: (v: number) => Number(v) > 0
@@ -137,21 +159,20 @@ function buildColDef(
           : <Text type="secondary">—</Text> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 105, align: 'right' as const,
-        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+        render: (v: number, r: Invoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} /> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
-        render: (v: number) => <Text strong style={{ fontSize: 13 }}>{fmt(v)}</Text> }
+        render: (v: number, r: Invoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} bold /> }
     case 'paidAmount':
       return { ...base, title: 'Pagado', dataIndex: 'paidAmount', width: 120, align: 'right' as const,
-        render: (v: number) => Number(v) > 0
-          ? <span style={{ fontSize: 12, color: '#52c41a' }}>{fmt(v)}</span>
+        render: (v: number, r: Invoice) => Number(v) > 0
+          ? <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} color="#52c41a" />
           : <Text type="secondary">—</Text> }
     case 'balance':
       return { ...base, title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
-        render: (v: number) => (
-          <Text style={{ fontWeight: 700, fontSize: 13, color: Number(v) > 0 ? '#cf1322' : '#52c41a' }}>
-            {fmt(v)}
-          </Text>
+        render: (v: number, r: Invoice) => (
+          <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} bold
+            color={Number(v) > 0 ? '#cf1322' : '#52c41a'} />
         ) }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 105,
