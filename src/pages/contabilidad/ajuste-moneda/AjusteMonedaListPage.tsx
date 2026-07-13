@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Table, Tag, Typography, Space, Modal, Form, Select, DatePicker,
-  InputNumber, Input, message, Tooltip, Popconfirm, Spin,
+  InputNumber, Input, message, Tooltip, Popconfirm,
 } from 'antd'
 import {
   PlusOutlined, EyeOutlined, DeleteOutlined, DollarOutlined,
@@ -12,7 +12,6 @@ import {
   getAjustesMoneda, createAjusteMoneda, deleteAjusteMoneda,
   previewAjusteMoneda, type AjusteMoneda, type AjusteMonedaLinea,
 } from '../../../api/ajuste-moneda'
-import { getAccounts, type Account } from '../../../api/catalogo'
 
 const { Title, Text } = Typography
 
@@ -36,7 +35,6 @@ export default function AjusteMonedaListPage() {
   const [step,    setStep]    = useState<Step>('form')
   const [preview, setPreview] = useState<AjusteMonedaLinea[]>([])
   const [saving,  setSaving]  = useState(false)
-  const [accounts, setAccounts] = useState<Account[]>([])
   const [form] = Form.useForm()
 
   const load = useCallback(async () => {
@@ -47,7 +45,6 @@ export default function AjusteMonedaListPage() {
 
   useEffect(() => {
     load()
-    getAccounts({ activas: true }).then((r: any) => setAccounts(Array.isArray(r) ? r : [])).catch(() => {})
   }, [load])
 
   const handleContinuar = async () => {
@@ -76,11 +73,10 @@ export default function AjusteMonedaListPage() {
     setSaving(true)
     try {
       await createAjusteMoneda({
-        moneda:       vals.moneda,
-        fechaAjuste:  vals.fechaAjuste.format('YYYY-MM-DD'),
-        tipoCambio:   Number(vals.tipoCambio),
-        notas:        vals.notas,
-        fxAccountId:  vals.fxAccountId,
+        moneda:      vals.moneda,
+        fechaAjuste: vals.fechaAjuste.format('YYYY-MM-DD'),
+        tipoCambio:  Number(vals.tipoCambio),
+        notas:       vals.notas,
       })
       message.success('Ajuste de moneda registrado y asiento generado')
       setOpen(false)
@@ -163,11 +159,6 @@ export default function AjusteMonedaListPage() {
     },
   ]
 
-  // Filtrar cuentas de resultado (ingresos o gastos) para diferencial cambiario
-  const fxAccounts = accounts.filter(a =>
-    !a.isHeader && ['income', 'INCOME', 'expense', 'EXPENSE'].includes(a.type)
-  )
-
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -224,19 +215,6 @@ export default function AjusteMonedaListPage() {
                 placeholder="7.616071"
                 addonBefore="1 USD ="
                 addonAfter="GTQ"
-              />
-            </Form.Item>
-
-            <Form.Item name="fxAccountId" label="Cuenta diferencial cambiario*"
-              rules={[{ required: true, message: 'Selecciona la cuenta para registrar la ganancia/pérdida' }]}
-              extra="Cuenta donde se registra la ganancia o pérdida por diferencial">
-              <Select
-                showSearch
-                placeholder="Buscar cuenta..."
-                filterOption={(input, opt) =>
-                  (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                options={fxAccounts.map(a => ({ label: `${a.code} — ${a.name}`, value: a.id }))}
               />
             </Form.Item>
 

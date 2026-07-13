@@ -42,7 +42,6 @@ export const createAjusteMoneda = (dto: {
   fechaAjuste: string
   tipoCambio: number
   notas?: string
-  fxAccountId: string
 }) =>
   api.post('/contabilidad/ajuste-moneda', dto).then(unwrap) as Promise<AjusteMoneda>
 
