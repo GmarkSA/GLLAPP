@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import {
-  Card, Button, Select, DatePicker, Checkbox, InputNumber, Input,
+  Card, Button, Select, DatePicker, InputNumber, Input,
   Typography, Space, Tag, Alert, Collapse, Table, message,
   Divider, Form, Radio,
 } from 'antd'
+import { CheckOutlined } from '@ant-design/icons'
 import { PrinterOutlined, ThunderboltOutlined, BankOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -95,13 +96,25 @@ export default function EmisionLoteChequesPage() {
 
   const invoiceColumns = (v: PendingInvoicesByVendor): ColumnsType<PendingInvoice> => [
     {
-      title: '', key: 'sel', width: 40,
-      render: (_, r) => (
-        <Checkbox
-          checked={selections[v.vendorId]?.invoiceIds.includes(r.id) ?? false}
-          onChange={() => toggleInvoice(v.vendorId, v.vendorName, r)}
-        />
-      ),
+      title: '', key: 'sel', width: 44,
+      render: (_, r) => {
+        const isChecked = selections[v.vendorId]?.invoiceIds.includes(r.id) ?? false
+        return (
+          <div
+            onClick={e => { e.stopPropagation(); toggleInvoice(v.vendorId, v.vendorName, r) }}
+            style={{
+              width: 20, height: 20, borderRadius: '50%',
+              border: `2px solid ${isChecked ? '#1B3A6B' : '#d9d9d9'}`,
+              background: isChecked ? '#1B3A6B' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', margin: '0 auto', transition: 'border 0.15s, background 0.15s',
+              flexShrink: 0,
+            }}
+          >
+            {isChecked && <CheckOutlined style={{ color: 'white', fontSize: 10 }} />}
+          </div>
+        )
+      },
     },
     { title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
       render: (val) => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{val}</Text> },
