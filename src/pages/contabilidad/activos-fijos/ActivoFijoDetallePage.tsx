@@ -211,10 +211,11 @@ export default function ActivoFijoDetallePage() {
 
   const openVender = () => {
     formVender.resetFields()
-    formVender.setFieldsValue({ fechaVenta: dayjs() })
+    const defaultCuenta = clase?.cuentaCostoVentaAFId ?? null
+    formVender.setFieldsValue({ fechaVenta: dayjs(), cuentaCobro: defaultCuenta })
     setVentaStep(0)
     setVentaPrecioLive(null)
-    setVentaCuentaCobroLive(null)
+    setVentaCuentaCobroLive(defaultCuenta)
     setModalVender(true)
   }
 
@@ -976,7 +977,7 @@ export default function ActivoFijoDetallePage() {
                 <Select
                   showSearch optionFilterProp="label" placeholder="Seleccionar cuenta..."
                   options={accounts
-                    .filter(a => ['Activo'].includes(a.type ?? '') && !a.isHeader)
+                    .filter(a => a.balanceType === 'Activo' && !a.isHeader)
                     .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
                 />
               </Form.Item>
