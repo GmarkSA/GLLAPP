@@ -104,7 +104,7 @@ export default function EmisionLoteChequesPage() {
             onClick={e => { e.stopPropagation(); toggleInvoice(v.vendorId, v.vendorName, r) }}
             style={{
               width: 20, height: 20, borderRadius: '50%',
-              border: `2px solid ${isChecked ? '#1B3A6B' : '#d9d9d9'}`,
+              border: `2px solid ${isChecked ? '#1B3A6B' : '#262626'}`,
               background: isChecked ? '#1B3A6B' : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', margin: '0 auto', transition: 'border 0.15s, background 0.15s',
