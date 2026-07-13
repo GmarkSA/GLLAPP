@@ -13,7 +13,7 @@ import {
   SecurityScanOutlined, ApiOutlined, BellOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
-  CreditCardOutlined, LockOutlined, SettingOutlined, AuditOutlined,
+  CreditCardOutlined, LockOutlined, SettingOutlined, AuditOutlined, SwapOutlined,
 } from '@ant-design/icons'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
@@ -830,6 +830,8 @@ interface AccountDefaults {
   customerAdvanceAccountCode?: string
   vendorAdvanceAccountCode?: string
   employeeAdvanceAccountCode?: string
+  fxGainAccountCode?: string
+  fxLossAccountCode?: string
 }
 
 function AccountDefaultsSection() {
@@ -967,6 +969,58 @@ function AccountDefaultsSection() {
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
                 Valor actual: <Text code>{defaults.employeeAdvanceAccountCode || '1260'}</Text>
+              </Text>
+            </Col>
+          </Row>
+        </SectionCard>
+
+        <SectionCard title="Diferencial Cambiario" icon={<SwapOutlined />}>
+          <Row gutter={20}>
+            <Col xs={24} md={12}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Ganancia diferencial cambiario</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta de ingresos financieros para registrar ganancias por tipo de cambio (series 700)
+                </Text>
+              </div>
+              <Select
+                showSearch
+                style={{ width: '100%' }}
+                value={defaults.fxGainAccountCode}
+                placeholder="Ej: 7001 — Ganancia diferencial cambiario"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, fxGainAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.fxGainAccountCode || 'No configurado'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Pérdida diferencial cambiario</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta de gastos financieros para registrar pérdidas por tipo de cambio (series 710)
+                </Text>
+              </div>
+              <Select
+                showSearch
+                style={{ width: '100%' }}
+                value={defaults.fxLossAccountCode}
+                placeholder="Ej: 7101 — Pérdida diferencial cambiario"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, fxLossAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.fxLossAccountCode || 'No configurado'}</Text>
               </Text>
             </Col>
           </Row>

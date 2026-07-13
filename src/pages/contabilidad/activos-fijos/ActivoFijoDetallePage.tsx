@@ -98,11 +98,12 @@ export default function ActivoFijoDetallePage() {
   const [centrosEdit, setCentrosEdit] = useState<DimensionesValue>({})
   const [centrosCosto, centrosBeneficio] = useCentrosOptions()
 
-  const [modalVender,     setModalVender]     = useState(false)
-  const [savingVenta,     setSavingVenta]     = useState(false)
-  const [formVender]      = Form.useForm()
-  const [ventaStep,       setVentaStep]       = useState(0)
-  const [ventaPrecioLive, setVentaPrecioLive] = useState<number | null>(null)
+  const [modalVender,         setModalVender]         = useState(false)
+  const [savingVenta,         setSavingVenta]         = useState(false)
+  const [formVender]          = Form.useForm()
+  const [ventaStep,           setVentaStep]           = useState(0)
+  const [ventaPrecioLive,     setVentaPrecioLive]     = useState<number | null>(null)
+  const [ventaCuentaCobroLive, setVentaCuentaCobroLive] = useState<string | null>(null)
 
   const [savingRevertir,    setSavingRevertir]    = useState(false)
   const [savingRevertirBaja, setSavingRevertirBaja] = useState(false)
@@ -210,9 +211,11 @@ export default function ActivoFijoDetallePage() {
 
   const openVender = () => {
     formVender.resetFields()
-    formVender.setFieldsValue({ fechaVenta: dayjs() })
+    const defaultCuenta = clase?.cuentaCostoVentaAFId ?? null
+    formVender.setFieldsValue({ fechaVenta: dayjs(), cuentaCobro: defaultCuenta })
     setVentaStep(0)
     setVentaPrecioLive(null)
+    setVentaCuentaCobroLive(defaultCuenta)
     setModalVender(true)
   }
 
@@ -220,6 +223,7 @@ export default function ActivoFijoDetallePage() {
     setModalVender(false)
     setVentaStep(0)
     setVentaPrecioLive(null)
+    setVentaCuentaCobroLive(null)
   }
 
   const handleVender = async () => {
@@ -227,9 +231,10 @@ export default function ActivoFijoDetallePage() {
     setSavingVenta(true)
     try {
       await venderActivoFijo(id!, {
-        fechaVenta:  vals.fechaVenta.format('YYYY-MM-DD'),
-        precioVenta: vals.precioVenta,
-        motivo:      vals.motivo,
+        fechaVenta:   vals.fechaVenta.format('YYYY-MM-DD'),
+        precioVenta:  vals.precioVenta,
+        cuentaCobro:  vals.cuentaCobro,
+        motivo:       vals.motivo,
       })
       load()
       setVentaStep(1)
@@ -367,7 +372,7 @@ export default function ActivoFijoDetallePage() {
   // ── Póliza de baja: solo elimina el activo de libros ─────────────────────
   // La ganancia/pérdida neta se reconoce cuando se emite la factura en Ventas.
   // depAcum + valorLibro = costoOriginal → siempre cuadra sin cuenta puente.
-  const calcVentaPoliza = (precioVenta: number) => {
+  const calcVentaPoliza = (precioVenta: number, cuentaCobroId?: string | null) => {
     if (!clase) return null
     const originalCost = Number(activo.originalCost)
     const depAcum      = Number(activo.accumulatedDepreciation)
@@ -383,22 +388,35 @@ export default function ActivoFijoDetallePage() {
     type VLine = { key: string; cuenta: string; debit: number; credit: number; tipo: string }
     const lines: VLine[] = []
 
+    // Dr Banco/CxC — efectivo recibido
+    lines.push({ key: '0', cuenta: getNombre(cuentaCobroId, 'Banco / CxC'), debit: precioVenta, credit: 0, tipo: 'cobro' })
+
+    // Dr DepAcum — elimina depreciación acumulada
     if (depAcum > 0)
       lines.push({ key: '1', cuenta: getNombre(clase.cuentaDepreciacionAcumuladaId, 'Dep. Acumulada'), debit: depAcum, credit: 0, tipo: 'depAcum' })
 
-    lines.push({ key: '2', cuenta: getNombre(clase.cuentaCostoVentaAFId, 'Costo de Venta AF'), debit: valorLibro, credit: 0, tipo: 'baja' })
+    // Dr Pérdida — si el precio es menor al valor en libros
+    if (ganancia < 0)
+      lines.push({ key: '2p', cuenta: getNombre(clase.cuentaPerdidaPorVentaId, 'Pérdida Venta AF'), debit: Math.abs(ganancia), credit: 0, tipo: 'perdida' })
+
+    // Cr Activo Fijo — retira el activo al costo original
     lines.push({ key: '3', cuenta: getNombre(clase.cuentaAltasId, 'Activo Fijo'), debit: 0, credit: originalCost, tipo: 'activo' })
+
+    // Cr Ganancia — base imponible ISR 10% (Art. 84 LUE Guatemala)
+    if (ganancia > 0)
+      lines.push({ key: '4', cuenta: getNombre(clase.cuentaGananciaPorVentaId, 'Ganancia Venta AF'), debit: 0, credit: ganancia, tipo: 'ganancia' })
 
     return {
       lines,
       ganancia,
+      isr: ganancia > 0 ? ganancia * 0.10 : 0,
       totalDebit:  lines.reduce((s, l) => s + l.debit,  0),
       totalCredit: lines.reduce((s, l) => s + l.credit, 0),
     }
   }
 
   const polizaPreview = (ventaPrecioLive != null && ventaPrecioLive > 0)
-    ? calcVentaPoliza(ventaPrecioLive)
+    ? calcVentaPoliza(ventaPrecioLive, ventaCuentaCobroLive)
     : null
 
   const calcBajaPoliza = () => {
@@ -942,7 +960,10 @@ export default function ActivoFijoDetallePage() {
           <>
             <Form
               form={formVender} layout="vertical" size="small"
-              onValuesChange={(_, all) => setVentaPrecioLive(all.precioVenta ?? null)}
+              onValuesChange={(_, all) => {
+                setVentaPrecioLive(all.precioVenta ?? null)
+                setVentaCuentaCobroLive(all.cuentaCobro ?? null)
+              }}
             >
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <Form.Item name="fechaVenta" label="Fecha de venta" rules={[{ required: true }]}>
@@ -952,6 +973,14 @@ export default function ActivoFijoDetallePage() {
                   <InputNumber style={{ width: '100%' }} min={0} precision={2} />
                 </Form.Item>
               </div>
+              <Form.Item name="cuentaCobro" label="Cuenta de cobro (banco / CxC)" rules={[{ required: true, message: 'Selecciona la cuenta donde entra el dinero' }]}>
+                <Select
+                  showSearch optionFilterProp="label" placeholder="Seleccionar cuenta..."
+                  options={accounts
+                    .filter(a => a.balanceType === 'Activo' && !a.isHeader)
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                />
+              </Form.Item>
               <Form.Item name="motivo" label="Motivo / referencia" style={{ marginBottom: 0 }}>
                 <Input placeholder="Ej: Venta a tercero, reemplazo..." />
               </Form.Item>
@@ -964,7 +993,7 @@ export default function ActivoFijoDetallePage() {
                   <Text style={{ fontSize: 12, color: '#888' }}>Póliza de reversa que se generará</Text>
                 </Divider>
 
-                {/* Banner ganancia / pérdida */}
+                {/* Banner ganancia / pérdida + ISR estimado */}
                 <div style={{
                   padding: '10px 14px', borderRadius: 6, marginBottom: 12,
                   background: polizaPreview.ganancia > 0 ? '#f6ffed' : polizaPreview.ganancia < 0 ? '#fff1f0' : '#f5f5f5',
@@ -975,8 +1004,8 @@ export default function ActivoFijoDetallePage() {
                       fontSize: 13,
                       color: polizaPreview.ganancia > 0 ? '#389e0d' : polizaPreview.ganancia < 0 ? '#cf1322' : '#888',
                     }}>
-                      {polizaPreview.ganancia > 0 ? '↑ Ganancia estimada en venta:'
-                        : polizaPreview.ganancia < 0 ? '↓ Pérdida estimada en venta:'
+                      {polizaPreview.ganancia > 0 ? '↑ Ganancia en venta:'
+                        : polizaPreview.ganancia < 0 ? '↓ Pérdida en venta:'
                         : '✓ Venta al valor en libros'}
                     </Text>
                     {polizaPreview.ganancia !== 0 && (
@@ -992,9 +1021,15 @@ export default function ActivoFijoDetallePage() {
                       Valor en libros: {Q(activo.currentBookValue)}
                     </Text>
                   </div>
-                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                    Este resultado se reconocerá en el P&amp;G al emitir la factura formal en el módulo de Ventas.
-                  </Text>
+                  {polizaPreview.isr > 0 && (
+                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #b7eb8f', display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: '#389e0d' }}>ISR estimado 10% (Art. 84 LUE):</Text>
+                      <Text style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#389e0d' }}>
+                        {Q(polizaPreview.isr)}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 10 }}>— a pagar dentro de los 10 días del mes siguiente</Text>
+                    </div>
+                  )}
                 </div>
 
                 {/* Tabla de líneas contables */}
@@ -1007,14 +1042,16 @@ export default function ActivoFijoDetallePage() {
                   columns={[
                     {
                       title: 'Cuenta', dataIndex: 'cuenta',
-                      render: (v: string, r: any) => (
-                        <Text style={{
-                          fontSize: 12,
-                          color: r.tipo === 'baja' ? '#fa8c16' : r.tipo === 'activo' ? '#1B3A6B' : 'inherit',
-                        }}>
-                          {v}
-                        </Text>
-                      ),
+                      render: (v: string, r: any) => {
+                        const colorMap: Record<string, string> = {
+                          cobro:   '#1B3A6B',
+                          depAcum: '#fa8c16',
+                          activo:  '#595959',
+                          ganancia:'#389e0d',
+                          perdida: '#cf1322',
+                        }
+                        return <Text style={{ fontSize: 12, color: colorMap[r.tipo] ?? 'inherit' }}>{v}</Text>
+                      },
                     },
                     {
                       title: 'Débito', dataIndex: 'debit', width: 120, align: 'right' as const,
@@ -1067,15 +1104,15 @@ export default function ActivoFijoDetallePage() {
         {ventaStep === 1 && (
           <Result
             status="success"
-            title="Póliza de reversa registrada"
-            subTitle="La baja contable del activo ha sido generada exitosamente. Ahora puedes emitir la factura formal en el módulo de Ventas."
+            title="Póliza de venta registrada"
+            subTitle="El activo fue retirado de libros. La ganancia/pérdida quedó explícita en las cuentas 700x/710x. Emite la factura FEL en Ventas para documentar ante SAT (puede quedar en Borrador — el asiento contable ya está registrado)."
             extra={[
               <Button
                 key="ventas" type="primary"
                 style={{ background: '#1B3A6B' }}
                 onClick={() => { closeVenderModal(); navigate('/ventas/facturas/nueva') }}
               >
-                Ir a Ventas → Crear factura
+                Ir a Ventas → Crear factura FEL
               </Button>,
               <Button key="close" onClick={closeVenderModal}>Cerrar</Button>,
             ]}

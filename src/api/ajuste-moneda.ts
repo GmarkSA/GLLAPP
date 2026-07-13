@@ -6,8 +6,13 @@ export interface AjusteMonedaLinea {
   accountId:         string
   accountCode:       string
   accountName:       string
+  vendorId:          string | null
+  vendorName:        string | null
+  invoiceId:         string | null
+  invoiceNumber:     string | null
   saldoUSD:          number
   saldoGTQ:          number
+  tcHistorico:       number
   saldoRevaluado:    number
   gananciasPerdidas: number
 }
@@ -42,7 +47,6 @@ export const createAjusteMoneda = (dto: {
   fechaAjuste: string
   tipoCambio: number
   notas?: string
-  fxAccountId: string
 }) =>
   api.post('/contabilidad/ajuste-moneda', dto).then(unwrap) as Promise<AjusteMoneda>
 
