@@ -509,8 +509,7 @@ export default function DiarioManualFormPage() {
 
         {/* ── Tabla de líneas ─────────────────────────────────── */}
         <Table dataSource={lines} columns={lineColumns} rowKey="key"
-          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }}
-          scroll={{ x: 'max-content' }} />
+          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }} />
 
         {!isReadonly && (
           <Button type="dashed" icon={<PlusOutlined />}

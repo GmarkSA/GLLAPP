@@ -456,8 +456,7 @@ export default function DiarioRecurrenteFormPage() {
         <Divider style={{ margin: '8px 0 16px' }} />
 
         <Table dataSource={lines} columns={lineColumns} rowKey="key"
-          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }}
-          scroll={{ x: 'max-content' }} />
+          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }} />
         <Button type="dashed" icon={<PlusOutlined />}
           style={{ marginTop: 8, width: '100%' }} onClick={addLine}>
           Añadir nueva fila
