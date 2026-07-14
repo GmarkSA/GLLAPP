@@ -36,14 +36,17 @@ export interface AsientoRecurrente {
 }
 
 export interface HistorialAsientoRecurrente {
-  id:                  string
-  asientoRecurrenteId: string
-  companyId:           string
-  periodo:             string
-  asientoGeneradoId:   string | null
-  estado:              string
-  errorMsg:            string | null
-  fechaGeneracion:     string
+  id:                         string
+  asientoRecurrenteId:        string
+  companyId:                  string
+  periodo:                    string
+  asientoGeneradoId:          string | null
+  asientoGeneradoEntryNumber: string | null
+  totalDebit:                 number | null
+  asientoStatus:              string | null
+  estado:                     string
+  errorMsg:                   string | null
+  fechaGeneracion:            string
 }
 
 export interface CreateAsientoRecurrenteDto {

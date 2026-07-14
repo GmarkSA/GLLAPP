@@ -2,18 +2,21 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   Button, Form, Input, DatePicker, Select, Typography, Divider,
-  Table, InputNumber, Space, Tag, message, Checkbox, Radio, Tooltip,
+  Table, InputNumber, Space, Tag, message, Checkbox, Radio, Tooltip, Popconfirm,
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, ArrowLeftOutlined, SaveOutlined, ReloadOutlined,
+  HistoryOutlined, PlayCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   createAsientoRecurrente, getAsientoRecurrente, updateAsientoRecurrente,
-  type AsientoRecurrente, type LineaPlantilla,
+  getHistorialAsientoRecurrente, generarAsientoRecurrente,
+  type AsientoRecurrente, type LineaPlantilla, type HistorialAsientoRecurrente,
 } from '../../../api/asientos-recurrentes'
 import { type AsientoDetalle } from '../../../api/asientos'
-import { getAccounts, type Account } from '../../../api/catalogo'
+import { getAccounts, getAccountGroups, type Account } from '../../../api/catalogo'
+import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
 import { getExchangeRateForDate } from '../../../api/monedas'
@@ -21,19 +24,18 @@ import SelectorDimensionesAnaliticas, { useCentrosOptions } from '../../../compo
 
 const { Title } = Typography
 
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const formatPeriodo = (periodo: string) => {
+  const [year, month] = periodo.split('-')
+  return `${MESES[Number(month) - 1]} ${year}`
+}
+
 const CURRENCIES = [
   { label: 'GTQ — Quetzal',         value: 'GTQ' },
   { label: 'USD — Dólar americano',  value: 'USD' },
   { label: 'EUR — Euro',             value: 'EUR' },
   { label: 'MXN — Peso mexicano',    value: 'MXN' },
 ]
-const TAX_OPTIONS = [
-  { label: 'Sin impuesto',            value: '' },
-  { label: 'IVA 12%',               value: 'IVA12' },
-  { label: 'IVA 5% (Peq. contrib.)',  value: 'IVA5' },
-  { label: 'Exento',                 value: 'EXEMPT' },
-]
-const TAX_RATES: Record<string, number> = { IVA12: 0.12, IVA5: 0.05, EXEMPT: 0 }
 
 interface AccountMeta { isCustomer: boolean; isVendor: boolean; isFixedAsset: boolean }
 
@@ -90,10 +92,14 @@ export default function DiarioRecurrenteFormPage() {
   const [plantilla, setPlantilla]  = useState<AsientoRecurrente | null>(null)
   const [lines,     setLines]      = useState<LineState[]>([emptyLine(), emptyLine()])
   const [accounts,  setAccounts]   = useState<Account[]>([])
+  const [groups,    setGroups]     = useState<Account[]>([])
+  const [taxes,     setTaxes]      = useState<Tax[]>([])
   const [customers, setCustomers]  = useState<Customer[]>([])
   const [vendors,   setVendors]    = useState<Vendor[]>([])
   const [assets,    setAssets]     = useState<ActivoFijo[]>([])
   const [saving,    setSaving]     = useState(false)
+  const [generando, setGenerando]  = useState(false)
+  const [historial, setHistorial]  = useState<HistorialAsientoRecurrente[]>([])
   const [nuncaVence, setNuncaVence] = useState(true)
   const [currency,  setCurrency]   = useState('GTQ')
   const [centrosCosto, centrosBeneficio] = useCentrosOptions()
@@ -108,13 +114,17 @@ export default function DiarioRecurrenteFormPage() {
   const diferencia  = totalDebit - totalCredit
 
   const loadMeta = useCallback(async () => {
-    const [all, custs, vends, af] = await Promise.allSettled([
+    const [all, grps, custs, vends, af, txs] = await Promise.allSettled([
       getAccounts({ activas: true }),
+      getAccountGroups(),
       getCustomers({ limit: 500 }),
       getVendors({ limit: 500 }),
       getActivosFijos({ limit: 500 }),
+      getTaxes(),
     ])
     if (all.status === 'fulfilled') setAccounts(Array.isArray(all.value) ? all.value : [])
+    if (grps.status === 'fulfilled') setGroups(Array.isArray(grps.value) ? grps.value : [])
+    if (txs.status === 'fulfilled') setTaxes(Array.isArray(txs.value) ? txs.value : [])
     if (custs.status === 'fulfilled') { const v = custs.value as any; setCustomers(Array.isArray(v) ? v : v?.data ?? []) }
     if (vends.status === 'fulfilled') { const v = vends.value as any; setVendors(Array.isArray(v) ? v : v?.data ?? []) }
     if (af.status   === 'fulfilled') { const v = af.value   as any; setAssets(Array.isArray(v) ? v : v?.data ?? []) }
@@ -136,6 +146,7 @@ export default function DiarioRecurrenteFormPage() {
       })
       setLines(p.lineas.map(fromPlantilla))
     } catch { message.error('Error al cargar la plantilla') }
+    try { setHistorial(await getHistorialAsientoRecurrente(id!)) } catch { /* no crítico */ }
   }, [id, isNew, form])
 
   useEffect(() => { loadMeta() }, [loadMeta])
@@ -186,19 +197,47 @@ export default function DiarioRecurrenteFormPage() {
       .finally(() => setLoadingRate(false))
   }
 
+  const handleGenerar = async () => {
+    if (!id) return
+    setGenerando(true)
+    try {
+      const resultado = await generarAsientoRecurrente(id) as any
+      message.success(`Borrador generado: ${resultado?.entryNumber ?? ''}`)
+      try { setHistorial(await getHistorialAsientoRecurrente(id)) } catch { /* ignore */ }
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al generar')
+    } finally { setGenerando(false) }
+  }
+
   const updateLine = (key: string, patch: Partial<LineState>) =>
     setLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l))
 
-  const setAccount = (key: string, acct: Account) =>
+  const resolveFlags = (acct: Account | undefined) => {
+    if (!acct) return { isCustomer: false, isVendor: false, isFixedAsset: false }
+    if (acct.isCustomerAccount || acct.isVendorAccount || acct.isFixedAsset)
+      return { isCustomer: acct.isCustomerAccount, isVendor: acct.isVendorAccount, isFixedAsset: acct.isFixedAsset }
+    const grp = groups.find(g => g.code === acct.groupCode)
+    return { isCustomer: !!grp?.isCustomerAccount, isVendor: !!grp?.isVendorAccount, isFixedAsset: !!grp?.isFixedAsset }
+  }
+
+  const setAccount = (key: string, acct: Account) => {
+    const flags = resolveFlags(acct)
     updateLine(key, {
       accountId: acct.id, accountCode: acct.code, accountName: acct.name,
-      accountMeta: { isCustomer: acct.isCustomerAccount, isVendor: acct.isVendorAccount, isFixedAsset: acct.isFixedAsset },
+      accountMeta: { isCustomer: flags.isCustomer, isVendor: flags.isVendor, isFixedAsset: flags.isFixedAsset },
       auxiliarId: '',
     })
+  }
+
+  const taxOptions = [
+    { label: 'Sin impuesto', value: '' },
+    ...taxes.filter(t => t.isActive).map(t => ({ label: `${t.name} (${Number(t.rate)}%)`, value: t.code })),
+  ]
+  const taxRateMap = Object.fromEntries(taxes.map(t => [t.code, Number(t.rate) / 100]))
 
   const recalcTax = (key: string, taxCode: string, debit: number | null, credit: number | null) => {
     const base = (debit ?? 0) || (credit ?? 0)
-    const rate = TAX_RATES[taxCode] ?? 0
+    const rate = taxRateMap[taxCode] ?? 0
     updateLine(key, { taxCode, taxAmount: rate > 0 ? Math.round(base * rate * 100) / 100 : null })
   }
 
@@ -250,7 +289,59 @@ export default function DiarioRecurrenteFormPage() {
     } finally { setSaving(false) }
   }
 
-  const Q = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+  const fmtCur = (n: number) =>
+    `${currency === 'GTQ' ? 'Q' : currency} ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+  const historialColumns = [
+    {
+      title: 'Período', dataIndex: 'periodo', width: 140,
+      render: (v: string) => <span style={{ fontWeight: 500 }}>{formatPeriodo(v)}</span>,
+    },
+    {
+      title: 'N.º Asiento', width: 165,
+      render: (_: any, r: HistorialAsientoRecurrente) => {
+        if (!r.asientoGeneradoId) return '—'
+        const label = r.asientoGeneradoEntryNumber ?? 'Ver asiento'
+        return (
+          <Button type="link" size="small" style={{ padding: 0, fontFamily: 'monospace', fontWeight: 600 }}
+            onClick={() => navigate(`/contabilidad/diarios-manuales/${r.asientoGeneradoId}`)}>
+            {label}
+          </Button>
+        )
+      },
+    },
+    {
+      title: 'Estado asiento', dataIndex: 'asientoStatus', width: 120,
+      render: (v: string | null) => {
+        if (!v) return '—'
+        const m: Record<string, { color: string; label: string }> = {
+          draft:  { color: 'default', label: 'Borrador' },
+          posted: { color: 'success', label: 'Publicado' },
+          void:   { color: 'error',   label: 'Anulado' },
+        }
+        const s = m[v] ?? { color: 'default', label: v }
+        return <Tag color={s.color}>{s.label}</Tag>
+      },
+    },
+    {
+      title: 'Total', dataIndex: 'totalDebit', width: 140, align: 'right' as const,
+      render: (v: number | null) => v != null
+        ? `Q ${Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+        : '—',
+    },
+    {
+      title: 'Generado el', dataIndex: 'fechaGeneracion', width: 135,
+      render: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm'),
+    },
+    {
+      title: 'Estado gen.', dataIndex: 'estado', width: 100,
+      render: (v: string) => (
+        <Tag color={v === 'generado' ? 'success' : 'error'}>
+          {v === 'generado' ? 'OK' : 'Error'}
+        </Tag>
+      ),
+    },
+  ]
 
   const lineColumns = [
     {
@@ -259,35 +350,40 @@ export default function DiarioRecurrenteFormPage() {
         <Select size="small" showSearch value={r.accountId || undefined}
           placeholder="Seleccione una cuenta" optionFilterProp="label" style={{ width: '100%' }}
           options={accounts.filter(a => !a.isHeader && a.isActive)
-            .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id, acct: a }))}
-          onChange={(_: any, opt: any) => setAccount(r.key, opt.acct)}
+            .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id }))}
+          onChange={(v: string) => { const a = accounts.find(x => x.id === v); if (a) setAccount(r.key, a) }}
         />
       ),
     },
     {
-      title: 'Descripción', width: 160,
+      title: 'Descripción', width: 300,
       render: (_: any, r: LineState) => (
-        <Input size="small" value={r.description} placeholder="Descripción"
+        <Input.TextArea size="small" value={r.description} placeholder="Descripción"
+          rows={2} style={{ resize: 'none', height: 60 }}
           onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },
     {
-      title: 'Auxiliar', width: 170,
+      title: 'Auxiliar', width: 160,
       render: (_: any, r: LineState) => {
-        const meta = r.accountMeta
-        if (meta.isCustomer) return (
+        const acct = accounts.find(a => a.id === r.accountId)
+        const flags = resolveFlags(acct)
+        const isCustomer   = r.accountMeta.isCustomer   || flags.isCustomer
+        const isVendor     = r.accountMeta.isVendor     || flags.isVendor
+        const isFixedAsset = r.accountMeta.isFixedAsset || flags.isFixedAsset
+        if (isCustomer) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             placeholder="Cliente" optionFilterProp="label" style={{ width: '100%' }} allowClear
-            options={customers.map((c: any) => ({ label: c.displayName ?? c.companyName, value: c.id }))}
+            options={customers.map((c: any) => ({ label: c.name ?? c.legalName, value: c.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
-        if (meta.isVendor) return (
+        if (isVendor) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             placeholder="Proveedor" optionFilterProp="label" style={{ width: '100%' }} allowClear
-            options={vendors.map((v: any) => ({ label: v.displayName ?? v.companyName, value: v.id }))}
+            options={vendors.map((v: any) => ({ label: v.name ?? v.legalName, value: v.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
-        if (meta.isFixedAsset) return (
+        if (isFixedAsset) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             placeholder="Activo fijo" optionFilterProp="label" style={{ width: '100%' }} allowClear
             options={assets.map(a => ({ label: `${a.assetNumber} - ${a.name}`, value: a.id }))}
@@ -297,30 +393,19 @@ export default function DiarioRecurrenteFormPage() {
       },
     },
     {
-      title: 'Impuesto', width: 145,
+      title: 'Impuesto', width: 180,
       render: (_: any, r: LineState) => (
-        <Select size="small" value={r.taxCode || ''} style={{ width: '100%' }} options={TAX_OPTIONS}
+        <Select size="small" value={r.taxCode || ''} style={{ width: '100%' }} options={taxOptions}
           onChange={v => recalcTax(r.key, v, r.debit, r.credit)} />
       ),
     },
     {
-      title: 'Dimensiones', width: 300,
+      title: 'Débitos', width: 130, align: 'right' as const,
       render: (_: any, r: LineState) => (
-        <SelectorDimensionesAnaliticas
-          layout="compact"
-          size="small"
-          centrosCosto={centrosCosto}
-          centrosBeneficio={centrosBeneficio}
-          value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
-          onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
-        />
-      ),
-    },
-    {
-      title: 'Débitos', width: 115, align: 'right' as const,
-      render: (_: any, r: LineState) => (
-        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
-          value={r.debit} placeholder="0.00"
+        <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
+          controls={false} value={r.debit} placeholder="0.00"
+          formatter={v => v != null ? `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+          parser={v => v ? (v.replace(/,/g, '') as any) : ''}
           onChange={v => {
             updateLine(r.key, { debit: v, ...(v && v > 0 ? { credit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, v, null)
@@ -328,10 +413,12 @@ export default function DiarioRecurrenteFormPage() {
       ),
     },
     {
-      title: 'Créditos', width: 115, align: 'right' as const,
+      title: 'Créditos', width: 130, align: 'right' as const,
       render: (_: any, r: LineState) => (
-        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
-          value={r.credit} placeholder="0.00"
+        <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
+          controls={false} value={r.credit} placeholder="0.00"
+          formatter={v => v != null ? `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+          parser={v => v ? (v.replace(/,/g, '') as any) : ''}
           onChange={v => {
             updateLine(r.key, { credit: v, ...(v && v > 0 ? { debit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, null, v)
@@ -361,6 +448,17 @@ export default function DiarioRecurrenteFormPage() {
         </Button>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{pageTitle}</Title>
         {plantilla && <Tag color={plantilla.activo ? 'success' : 'default'}>{plantilla.activo ? 'Activa' : 'Inactiva'}</Tag>}
+        <div style={{ flex: 1 }} />
+        {!isNew && !desdeDiario && plantilla?.activo && (
+          <Popconfirm
+            title={`¿Generar borrador de "${plantilla?.nombre}" para el mes actual?`}
+            okText="Generar" cancelText="Cancelar"
+            onConfirm={handleGenerar}>
+            <Button icon={<PlayCircleOutlined />} loading={generando}>
+              Generar borrador ahora
+            </Button>
+          </Popconfirm>
+        )}
       </div>
 
       <Form form={form} layout="vertical" size="small"
@@ -402,8 +500,9 @@ export default function DiarioRecurrenteFormPage() {
             <Form.Item label="N.º de referencia" name="referencia">
               <Input placeholder="Referencia para los asientos generados" />
             </Form.Item>
-            <Form.Item label="Notas" name="descripcion" rules={[{ required: true }]}>
-              <Input.TextArea rows={3} maxLength={500} showCount placeholder="500 caracteres como máximo" />
+            <Form.Item label="Descripción / Concepto" name="descripcion">
+              <Input.TextArea placeholder="Descripción del asiento recurrente" rows={2}
+                style={{ resize: 'none' }} />
             </Form.Item>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Form.Item label="Moneda" name="currency">
@@ -449,28 +548,43 @@ export default function DiarioRecurrenteFormPage() {
         <Divider style={{ margin: '8px 0 16px' }} />
 
         <Table dataSource={lines} columns={lineColumns} rowKey="key"
-          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }} />
+          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }}
+          expandable={{
+            showExpandColumn: false,
+            expandedRowKeys: lines.map(l => l.key),
+            expandedRowRender: (r: LineState) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 6px', background: '#fafafa' }}>
+                <span style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Dimensiones:</span>
+                <SelectorDimensionesAnaliticas
+                  layout="compact" size="small"
+                  centrosCosto={centrosCosto} centrosBeneficio={centrosBeneficio}
+                  value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
+                  onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
+                />
+              </div>
+            ),
+          }} />
         <Button type="dashed" icon={<PlusOutlined />}
           style={{ marginTop: 8, width: '100%' }} onClick={addLine}>
           Añadir nueva fila
         </Button>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 340 }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 420 }}>
             <tbody>
               <tr>
                 <td style={{ padding: '4px 20px', color: '#666' }}>Subtotal</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{Q(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{Q(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr style={{ fontWeight: 700, fontSize: 14 }}>
                 <td style={{ padding: '4px 20px', borderTop: '1px solid #f0f0f0' }}>Total ({currency})</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#f5222d' : '#52c41a' }}>Diferencia</td>
-                <td colSpan={2} style={{ padding: '4px 20px', textAlign: 'right', color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600 }}>{Q(Math.abs(diferencia))}</td>
+                <td colSpan={2} style={{ padding: '4px 20px', textAlign: 'right', color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600 }}>{fmtCur(Math.abs(diferencia))}</td>
               </tr>
             </tbody>
           </table>
@@ -485,6 +599,23 @@ export default function DiarioRecurrenteFormPage() {
           <Button onClick={() => navigate('/contabilidad/diarios-recurrentes')}>Cancelar</Button>
         </Space>
       </Form>
+
+      {!isNew && !desdeDiario && (
+        <>
+          <Divider style={{ margin: '24px 0 12px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <HistoryOutlined style={{ color: '#1B3A6B' }} />
+            <span style={{ fontWeight: 600, color: '#1B3A6B' }}>
+              Historial de generaciones {historial.length > 0 ? `(${historial.length})` : ''}
+            </span>
+          </div>
+          <Table
+            dataSource={historial} columns={historialColumns} rowKey="id"
+            size="small" pagination={false}
+            locale={{ emptyText: 'Sin generaciones registradas aún' }}
+          />
+        </>
+      )}
     </div>
   )
 }

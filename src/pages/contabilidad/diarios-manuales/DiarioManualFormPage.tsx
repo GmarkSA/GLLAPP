@@ -14,7 +14,8 @@ import {
   createAsiento, getAsiento, updateAsiento, postAsiento,
   voidAsiento, reverseAsiento, type AsientoDetalle,
 } from '../../../api/asientos'
-import { getAccounts, type Account } from '../../../api/catalogo'
+import { getAccounts, getAccountGroups, type Account } from '../../../api/catalogo'
+import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
 import { getExchangeRateForDate } from '../../../api/monedas'
@@ -22,8 +23,8 @@ import SelectorDimensionesAnaliticas, { useCentrosOptions } from '../../../compo
 
 const { Title } = Typography
 
-const STATUS_COLOR: Record<string, string> = { DRAFT: 'default', POSTED: 'success', VOID: 'error' }
-const STATUS_LABEL: Record<string, string> = { DRAFT: 'Borrador', POSTED: 'Publicado', VOID: 'Anulado' }
+const STATUS_COLOR: Record<string, string> = { draft: 'default', posted: 'success', void: 'error' }
+const STATUS_LABEL: Record<string, string> = { draft: 'Borrador', posted: 'Publicado', void: 'Anulado' }
 
 const CURRENCIES = [
   { label: 'GTQ — Quetzal',          value: 'GTQ' },
@@ -32,13 +33,6 @@ const CURRENCIES = [
   { label: 'MXN — Peso mexicano',     value: 'MXN' },
 ]
 
-const TAX_OPTIONS = [
-  { label: 'Sin impuesto',          value: '' },
-  { label: 'IVA 12%',              value: 'IVA12' },
-  { label: 'IVA 5% (Peq. contrib.)', value: 'IVA5' },
-  { label: 'Exento',               value: 'EXEMPT' },
-]
-const TAX_RATES: Record<string, number> = { IVA12: 0.12, IVA5: 0.05, EXEMPT: 0 }
 
 interface AccountMeta { isCustomer: boolean; isVendor: boolean; isFixedAsset: boolean }
 
@@ -94,6 +88,8 @@ export default function DiarioManualFormPage() {
   const [asiento,  setAsiento]   = useState<AsientoDetalle | null>(null)
   const [lines,    setLines]     = useState<LineState[]>([emptyLine(), emptyLine()])
   const [accounts, setAccounts]  = useState<Account[]>([])
+  const [groups,   setGroups]    = useState<Account[]>([])
+  const [taxes,    setTaxes]     = useState<Tax[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [vendors,  setVendors]   = useState<Vendor[]>([])
   const [assets,   setAssets]    = useState<ActivoFijo[]>([])
@@ -113,13 +109,17 @@ export default function DiarioManualFormPage() {
   const isReadonly  = asiento?.status === 'POSTED' || asiento?.status === 'VOID'
 
   const loadMeta = useCallback(async () => {
-    const [all, custs, vends, af] = await Promise.allSettled([
+    const [all, grps, custs, vends, af, txs] = await Promise.allSettled([
       getAccounts({ activas: true }),
+      getAccountGroups(),
       getCustomers({ limit: 500 }),
       getVendors({ limit: 500 }),
       getActivosFijos({ limit: 500 }),
+      getTaxes(),
     ])
     if (all.status === 'fulfilled') setAccounts(Array.isArray(all.value) ? all.value : [])
+    if (grps.status === 'fulfilled') setGroups(Array.isArray(grps.value) ? grps.value : [])
+    if (txs.status === 'fulfilled') setTaxes(Array.isArray(txs.value) ? txs.value : [])
     if (custs.status === 'fulfilled') {
       const v = custs.value as any
       setCustomers(Array.isArray(v) ? v : v?.data ?? [])
@@ -179,7 +179,7 @@ export default function DiarioManualFormPage() {
         entryDate:   dayjs(),
         description: `Copia de ${clonarDe.entryNumber}: ${clonarDe.description}`,
         reference:   clonarDe.reference,
-        type:        'MANUAL',
+        type:        'manual',
         currency:    clonarDe.currency ?? 'GTQ',
       })
       setCurrency(clonarDe.currency ?? 'GTQ')
@@ -193,22 +193,29 @@ export default function DiarioManualFormPage() {
     setLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l))
 
   const setAccount = (key: string, acct: Account) => {
+    const flags = resolveFlags(acct)
     updateLine(key, {
       accountId:   acct.id,
       accountCode: acct.code,
       accountName: acct.name,
       accountMeta: {
-        isCustomer:  acct.isCustomerAccount,
-        isVendor:    acct.isVendorAccount,
-        isFixedAsset: acct.isFixedAsset,
+        isCustomer:   flags.isCustomer,
+        isVendor:     flags.isVendor,
+        isFixedAsset: flags.isFixedAsset,
       },
       auxiliarId: '',
     })
   }
 
+  const taxOptions = [
+    { label: 'Sin impuesto', value: '' },
+    ...taxes.filter(t => t.isActive).map(t => ({ label: `${t.name} (${Number(t.rate)}%)`, value: t.code })),
+  ]
+  const taxRateMap = Object.fromEntries(taxes.map(t => [t.code, Number(t.rate) / 100]))
+
   const recalcTax = (key: string, taxCode: string, debit: number | null, credit: number | null) => {
     const base = (debit ?? 0) || (credit ?? 0)
-    const rate = TAX_RATES[taxCode] ?? 0
+    const rate = taxRateMap[taxCode] ?? 0
     updateLine(key, { taxCode, taxAmount: rate > 0 ? Math.round(base * rate * 100) / 100 : null })
   }
 
@@ -243,7 +250,7 @@ export default function DiarioManualFormPage() {
     try { await form.validateFields() } catch { return }
     const validLines = lines.filter(l => l.accountCode || l.accountId)
     if (validLines.length < 2) { message.warning('Se necesitan al menos 2 líneas con cuenta'); return }
-    if (Math.abs(diferencia) > 0.01) { message.warning(`El asiento no cuadra — diferencia: Q ${Math.abs(diferencia).toFixed(2)}`); return }
+    if (Math.abs(diferencia) > 0.01) { message.warning(`El asiento no cuadra — diferencia: ${fmtCur(Math.abs(diferencia))}`); return }
 
     setSaving(true)
     try {
@@ -254,7 +261,7 @@ export default function DiarioManualFormPage() {
           accountingDate: vals.accountingDate?.format('YYYY-MM-DD'),
           description:    vals.description,
           reference:      vals.reference || undefined,
-          type:           vals.type ?? 'MANUAL',
+          type:           vals.type ?? 'manual',
           currency:       vals.currency ?? 'GTQ',
           exchangeRate:   vals.exchangeRate,
           autoPost,
@@ -303,7 +310,22 @@ export default function DiarioManualFormPage() {
     finally { setActing(false) }
   }
 
-  const Q = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+  const fmtCur = (n: number) =>
+    `${currency === 'GTQ' ? 'Q' : currency} ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+  // Resuelve flags de auxiliar: usa el flag directo de la cuenta (ya enriquecido por el backend)
+  const resolveFlags = (acct: Account | undefined) => {
+    if (!acct) return { isCustomer: false, isVendor: false, isFixedAsset: false }
+    // Backend ya hereda los flags del grupo — también chequeamos grupos locales como respaldo
+    if (acct.isCustomerAccount || acct.isVendorAccount || acct.isFixedAsset)
+      return { isCustomer: acct.isCustomerAccount, isVendor: acct.isVendorAccount, isFixedAsset: acct.isFixedAsset }
+    const grp = groups.find(g => g.code === acct.groupCode)
+    return {
+      isCustomer:   !!grp?.isCustomerAccount,
+      isVendor:     !!grp?.isVendorAccount,
+      isFixedAsset: !!grp?.isFixedAsset,
+    }
+  }
 
   const lineColumns = [
     {
@@ -314,37 +336,43 @@ export default function DiarioManualFormPage() {
           placeholder="Seleccione una cuenta" optionFilterProp="label"
           style={{ width: '100%' }}
           options={accounts.filter(a => !a.isHeader && a.isActive)
-            .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id, acct: a }))}
-          onChange={(_: any, opt: any) => setAccount(r.key, opt.acct)}
+            .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id }))}
+          onChange={(v: string) => { const a = accounts.find(x => x.id === v); if (a) setAccount(r.key, a) }}
         />
       ),
     },
     {
-      title: 'Descripción', width: 180,
+      title: 'Descripción', width: 300,
       render: (_: any, r: LineState) => (
-        <Input size="small" value={r.description} disabled={isReadonly}
-          placeholder="Descripción" onChange={e => updateLine(r.key, { description: e.target.value })} />
+        <Input.TextArea size="small" value={r.description} disabled={isReadonly}
+          placeholder="Descripción" rows={2}
+          style={{ resize: 'none', height: 60 }}
+          onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },
     {
-      title: 'Auxiliar', width: 180,
+      title: 'Auxiliar', width: 160,
       render: (_: any, r: LineState) => {
-        const meta = r.accountMeta
-        if (meta.isCustomer) return (
+        const acct = accounts.find(a => a.id === r.accountId)
+        const flags = resolveFlags(acct)
+        const isCustomer   = r.accountMeta.isCustomer   || flags.isCustomer
+        const isVendor     = r.accountMeta.isVendor     || flags.isVendor
+        const isFixedAsset = r.accountMeta.isFixedAsset || flags.isFixedAsset
+        if (isCustomer) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             disabled={isReadonly} placeholder="Cliente" optionFilterProp="label"
             style={{ width: '100%' }} allowClear
-            options={customers.map((c: any) => ({ label: c.displayName ?? c.companyName, value: c.id }))}
+            options={customers.map((c: any) => ({ label: c.name ?? c.legalName, value: c.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
-        if (meta.isVendor) return (
+        if (isVendor) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             disabled={isReadonly} placeholder="Proveedor" optionFilterProp="label"
             style={{ width: '100%' }} allowClear
-            options={vendors.map((v: any) => ({ label: v.displayName ?? v.companyName, value: v.id }))}
+            options={vendors.map((v: any) => ({ label: v.name ?? v.legalName, value: v.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
-        if (meta.isFixedAsset) return (
+        if (isFixedAsset) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             disabled={isReadonly} placeholder="Activo fijo" optionFilterProp="label"
             style={{ width: '100%' }} allowClear
@@ -355,32 +383,20 @@ export default function DiarioManualFormPage() {
       },
     },
     {
-      title: 'Impuesto', width: 150,
+      title: 'Impuesto', width: 180,
       render: (_: any, r: LineState) => (
         <Select size="small" value={r.taxCode || ''} disabled={isReadonly}
-          style={{ width: '100%' }} options={TAX_OPTIONS}
+          style={{ width: '100%' }} options={taxOptions}
           onChange={v => recalcTax(r.key, v, r.debit, r.credit)} />
       ),
     },
     {
-      title: 'Dimensiones', width: 300,
+      title: 'Débitos', width: 130, align: 'right' as const,
       render: (_: any, r: LineState) => (
-        <SelectorDimensionesAnaliticas
-          layout="compact"
-          size="small"
-          disabled={isReadonly}
-          centrosCosto={centrosCosto}
-          centrosBeneficio={centrosBeneficio}
-          value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
-          onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
-        />
-      ),
-    },
-    {
-      title: 'Débitos', width: 120, align: 'right' as const,
-      render: (_: any, r: LineState) => (
-        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
-          value={r.debit} placeholder="0.00" disabled={isReadonly}
+        <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
+          controls={false} value={r.debit} placeholder="0.00" disabled={isReadonly}
+          formatter={v => v != null ? `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+          parser={v => v ? (v.replace(/,/g, '') as any) : ''}
           onChange={v => {
             updateLine(r.key, { debit: v, ...(v && v > 0 ? { credit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, v, null)
@@ -388,10 +404,12 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Créditos', width: 120, align: 'right' as const,
+      title: 'Créditos', width: 130, align: 'right' as const,
       render: (_: any, r: LineState) => (
-        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
-          value={r.credit} placeholder="0.00" disabled={isReadonly}
+        <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
+          controls={false} value={r.credit} placeholder="0.00" disabled={isReadonly}
+          formatter={v => v != null ? `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+          parser={v => v ? (v.replace(/,/g, '') as any) : ''}
           onChange={v => {
             updateLine(r.key, { credit: v, ...(v && v > 0 ? { debit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, null, v)
@@ -426,7 +444,7 @@ export default function DiarioManualFormPage() {
       </div>
 
       <Form form={form} layout="vertical" size="small"
-        initialValues={{ type: 'MANUAL', currency: 'GTQ', exchangeRate: 1, entryDate: dayjs() }}>
+        initialValues={{ type: 'manual', currency: 'GTQ', exchangeRate: 1, entryDate: dayjs() }}>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
           {/* Col izquierda */}
@@ -444,10 +462,16 @@ export default function DiarioManualFormPage() {
             <Form.Item label="N.º de referencia" name="reference">
               <Input placeholder="Número de referencia" disabled={isReadonly} />
             </Form.Item>
-            <Form.Item label="Notas" name="description"
-              rules={[{ required: true, message: 'Requerido' }]}>
-              <Input.TextArea rows={3} maxLength={500} showCount
-                placeholder="500 caracteres como máximo" disabled={isReadonly} />
+            <Form.Item label="Descripción / Concepto" name="description">
+              <Input.TextArea placeholder="Descripción del asiento" rows={2}
+                style={{ resize: 'none' }} disabled={isReadonly} />
+            </Form.Item>
+            <Form.Item label="Método de generación de informes" name="reportingMethod">
+              <Radio.Group disabled={isReadonly} defaultValue="ACCRUAL_CASH">
+                <Radio value="ACCRUAL_CASH">Acumulación y efectivo</Radio>
+                <Radio value="ACCRUAL">Solo devengo</Radio>
+                <Radio value="CASH">Sólo efectivo</Radio>
+              </Radio.Group>
             </Form.Item>
           </div>
 
@@ -461,10 +485,10 @@ export default function DiarioManualFormPage() {
             <Form.Item label="Tipo" name="type">
               <Select disabled={isReadonly || (!isNew && !clonarDe)}
                 options={[
-                  { label: 'Manual',   value: 'MANUAL' },
-                  { label: 'Apertura', value: 'OPENING' },
-                  { label: 'Cierre',   value: 'CLOSING' },
-                  { label: 'Ajuste',   value: 'ADJUSTMENT' },
+                  { label: 'Manual',   value: 'manual' },
+                  { label: 'Apertura', value: 'opening' },
+                  { label: 'Cierre',   value: 'closing' },
+                  { label: 'Ajuste',   value: 'adjustment' },
                 ]}
               />
             </Form.Item>
@@ -488,13 +512,6 @@ export default function DiarioManualFormPage() {
                 </Form.Item>
               )}
             </div>
-            <Form.Item label="Método de generación de informes" name="reportingMethod">
-              <Radio.Group disabled={isReadonly} defaultValue="ACCRUAL_CASH">
-                <Radio value="ACCRUAL_CASH">Acumulación y efectivo</Radio>
-                <Radio value="ACCRUAL">Solo devengo</Radio>
-                <Radio value="CASH">Sólo efectivo</Radio>
-              </Radio.Group>
-            </Form.Item>
           </div>
         </div>
 
@@ -502,7 +519,22 @@ export default function DiarioManualFormPage() {
 
         {/* ── Tabla de líneas ─────────────────────────────────── */}
         <Table dataSource={lines} columns={lineColumns} rowKey="key"
-          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }} />
+          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }}
+          expandable={{
+            showExpandColumn: false,
+            expandedRowKeys: lines.map(l => l.key),
+            expandedRowRender: (r: LineState) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 6px', background: '#fafafa' }}>
+                <span style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Dimensiones:</span>
+                <SelectorDimensionesAnaliticas
+                  layout="compact" size="small" disabled={isReadonly}
+                  centrosCosto={centrosCosto} centrosBeneficio={centrosBeneficio}
+                  value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
+                  onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
+                />
+              </div>
+            ),
+          }} />
 
         {!isReadonly && (
           <Button type="dashed" icon={<PlusOutlined />}
@@ -513,24 +545,24 @@ export default function DiarioManualFormPage() {
 
         {/* ── Totales ─────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 340 }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 420 }}>
             <tbody>
               <tr>
                 <td style={{ padding: '4px 20px', color: '#666' }}>Subtotal</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{Q(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{Q(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr style={{ fontWeight: 700, fontSize: 14 }}>
                 <td style={{ padding: '4px 20px', borderTop: '1px solid #f0f0f0' }}>Total ({currency})</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#f5222d' : '#52c41a' }}>Diferencia</td>
                 <td colSpan={2} style={{
                   padding: '4px 20px', textAlign: 'right',
                   color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600,
-                }}>{Q(Math.abs(diferencia))}</td>
+                }}>{fmtCur(Math.abs(diferencia))}</td>
               </tr>
             </tbody>
           </table>
