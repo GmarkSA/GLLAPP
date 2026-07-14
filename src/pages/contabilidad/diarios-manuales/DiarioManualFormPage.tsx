@@ -462,6 +462,13 @@ export default function DiarioManualFormPage() {
             <Form.Item label="N.º de referencia" name="reference">
               <Input placeholder="Número de referencia" disabled={isReadonly} />
             </Form.Item>
+            <Form.Item label="Método de generación de informes" name="reportingMethod">
+              <Radio.Group disabled={isReadonly} defaultValue="ACCRUAL_CASH">
+                <Radio value="ACCRUAL_CASH">Acumulación y efectivo</Radio>
+                <Radio value="ACCRUAL">Solo devengo</Radio>
+                <Radio value="CASH">Sólo efectivo</Radio>
+              </Radio.Group>
+            </Form.Item>
             <Form.Item name="description" hidden><Input /></Form.Item>
           </div>
 
@@ -502,13 +509,6 @@ export default function DiarioManualFormPage() {
                 </Form.Item>
               )}
             </div>
-            <Form.Item label="Método de generación de informes" name="reportingMethod">
-              <Radio.Group disabled={isReadonly} defaultValue="ACCRUAL_CASH">
-                <Radio value="ACCRUAL_CASH">Acumulación y efectivo</Radio>
-                <Radio value="ACCRUAL">Solo devengo</Radio>
-                <Radio value="CASH">Sólo efectivo</Radio>
-              </Radio.Group>
-            </Form.Item>
           </div>
         </div>
 
