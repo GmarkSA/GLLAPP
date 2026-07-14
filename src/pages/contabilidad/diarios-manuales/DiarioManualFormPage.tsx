@@ -321,16 +321,17 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Descripción', width: 700,
+      title: 'Descripción', width: 250,
       render: (_: any, r: LineState) => (
-        <Input.TextArea size="small" value={r.description} disabled={isReadonly}
-          placeholder="Descripción" rows={3}
-          style={{ resize: 'none' }}
-          onChange={e => updateLine(r.key, { description: e.target.value })} />
+        <Tooltip title={r.description || undefined} placement="topLeft" mouseEnterDelay={0.6}>
+          <Input size="small" value={r.description} disabled={isReadonly}
+            placeholder="Descripción"
+            onChange={e => updateLine(r.key, { description: e.target.value })} />
+        </Tooltip>
       ),
     },
     {
-      title: 'Auxiliar', width: 200,
+      title: 'Auxiliar', width: 160,
       render: (_: any, r: LineState) => {
         // Buscar la cuenta en el catálogo para garantizar los flags aunque accountMeta no esté inicializado
         const acct       = accounts.find(a => a.id === r.accountId)
@@ -362,7 +363,7 @@ export default function DiarioManualFormPage() {
       },
     },
     {
-      title: 'Impuesto', width: 150,
+      title: 'Impuesto', width: 130,
       render: (_: any, r: LineState) => (
         <Select size="small" value={r.taxCode || ''} disabled={isReadonly}
           style={{ width: '100%' }} options={TAX_OPTIONS}
@@ -370,21 +371,7 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Dimensiones', width: 300,
-      render: (_: any, r: LineState) => (
-        <SelectorDimensionesAnaliticas
-          layout="compact"
-          size="small"
-          disabled={isReadonly}
-          centrosCosto={centrosCosto}
-          centrosBeneficio={centrosBeneficio}
-          value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
-          onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
-        />
-      ),
-    },
-    {
-      title: 'Débitos', width: 170, align: 'right' as const,
+      title: 'Débitos', width: 130, align: 'right' as const,
       render: (_: any, r: LineState) => (
         <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
           controls={false} value={r.debit} placeholder="0.00" disabled={isReadonly}
@@ -397,7 +384,7 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Créditos', width: 170, align: 'right' as const,
+      title: 'Créditos', width: 130, align: 'right' as const,
       render: (_: any, r: LineState) => (
         <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
           controls={false} value={r.credit} placeholder="0.00" disabled={isReadonly}
@@ -509,7 +496,22 @@ export default function DiarioManualFormPage() {
 
         {/* ── Tabla de líneas ─────────────────────────────────── */}
         <Table dataSource={lines} columns={lineColumns} rowKey="key"
-          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }} />
+          size="small" pagination={false} locale={{ emptyText: 'Sin líneas' }}
+          expandable={{
+            showExpandColumn: false,
+            expandedRowKeys: lines.map(l => l.key),
+            expandedRowRender: (r: LineState) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 6px', background: '#fafafa' }}>
+                <span style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Dimensiones:</span>
+                <SelectorDimensionesAnaliticas
+                  layout="compact" size="small" disabled={isReadonly}
+                  centrosCosto={centrosCosto} centrosBeneficio={centrosBeneficio}
+                  value={{ centroCostoId: r.centroCostoId, centroBeneficioId: r.centroBeneficioId }}
+                  onChange={v => updateLine(r.key, { centroCostoId: v.centroCostoId ?? null, centroBeneficioId: v.centroBeneficioId ?? null })}
+                />
+              </div>
+            ),
+          }} />
 
         {!isReadonly && (
           <Button type="dashed" icon={<PlusOutlined />}
