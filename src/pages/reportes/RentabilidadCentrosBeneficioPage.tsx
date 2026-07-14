@@ -66,17 +66,25 @@ function InsightsPanel({ insights }: { insights: Insight[] }) {
 
 // ─── Matriz P&L: filas = conceptos, columnas = centros ────────────────────────
 
-type FilaKind = 'seccion' | 'sub' | 'grand' | 'pct'
+type FilaKind = 'seccion' | 'cuenta' | 'sub' | 'grand' | 'pct'
 interface FilaMatriz {
   key:    string
   kind:   FilaKind
   label:  string
   seccionKey?: 'ingresos' | 'otrosIngresos' | 'costos' | 'gastos' | 'otrosGastos'
   negate?: boolean
+  accountId?: string
+  accountName?: string
   values: Record<string, number | null>   // centroKey → valor
+  children?: FilaMatriz[]
 }
 
 function centroKey(c: CentroBeneficioPyG) { return c.centroId ?? 'sin-asignar' }
+
+const BALANCE_TYPE_SECCION: Record<string, string> = {
+  ingresos: 'Ingresos', otrosIngresos: 'Otros Ingresos',
+  costos: 'Costos', gastos: 'Gastos', otrosGastos: 'Otros Gastos',
+}
 
 function buildMatriz(cols: CentroBeneficioPyG[], totales: RentabilidadCBData['totales']): FilaMatriz[] {
   const val = (get: (c: { [k: string]: any }) => number | null): Record<string, number | null> => {
@@ -85,19 +93,48 @@ function buildMatriz(cols: CentroBeneficioPyG[], totales: RentabilidadCBData['to
     rec['__total'] = get(totales as any)
     return rec
   }
-  const filas: FilaMatriz[] = [
-    { key: 'ingresos', kind: 'seccion', label: 'Ingresos', seccionKey: 'ingresos', values: val(c => c.ingresos) },
-  ]
-  if ((totales.otrosIngresos ?? 0) !== 0) {
-    filas.push({ key: 'otrosIngresos', kind: 'seccion', label: 'Otros ingresos', seccionKey: 'otrosIngresos', values: val(c => c.otrosIngresos) })
+
+  // Filas hijas: cuentas de la sección, con su saldo en cada centro
+  const cuentasDeSeccion = (seccionKey: string, negate?: boolean): FilaMatriz[] | undefined => {
+    const bt = BALANCE_TYPE_SECCION[seccionKey]
+    const info = new Map<string, { code: string; name: string }>()
+    cols.forEach(c => c.cuentas.filter(x => x.balanceType === bt)
+      .forEach(x => info.set(x.accountId, { code: x.code, name: x.name })))
+    if (info.size === 0) return undefined
+    return [...info.entries()]
+      .sort((a, b) => a[1].code.localeCompare(b[1].code))
+      .map(([accountId, i]) => {
+        const values: Record<string, number | null> = {}
+        let tot = 0
+        cols.forEach(c => {
+          const cta = c.cuentas.find(x => x.accountId === accountId && x.balanceType === bt)
+          values[centroKey(c)] = cta ? cta.balance : null
+          tot += cta?.balance ?? 0
+        })
+        values['__total'] = tot
+        return {
+          key: `cta-${seccionKey}-${accountId}`, kind: 'cuenta' as const,
+          label: `${i.code} · ${i.name}`, accountId, accountName: i.name, negate, values,
+        }
+      })
+  }
+
+  const seccion = (key: FilaMatriz['seccionKey'] & string, label: string, negate?: boolean): FilaMatriz => ({
+    key, kind: 'seccion', label, seccionKey: key, negate,
+    values: val(c => c[key]), children: cuentasDeSeccion(key, negate),
+  })
+
+  const filas: FilaMatriz[] = [seccion('ingresos', 'Ingresos')]
+  if ((totales.otrosIngresos ?? 0) !== 0 || cuentasDeSeccion('otrosIngresos')) {
+    filas.push(seccion('otrosIngresos', 'Otros ingresos'))
   }
   filas.push(
-    { key: 'costos', kind: 'seccion', label: 'Costos de venta', seccionKey: 'costos', negate: true, values: val(c => c.costos) },
+    seccion('costos', 'Costos de venta', true),
     { key: 'ub', kind: 'grand', label: 'Utilidad bruta', values: val(c => c.utilidadBruta) },
-    { key: 'gastos', kind: 'seccion', label: 'Gastos de operación', seccionKey: 'gastos', negate: true, values: val(c => c.gastos) },
+    seccion('gastos', 'Gastos de operación', true),
   )
-  if ((totales.otrosGastos ?? 0) !== 0) {
-    filas.push({ key: 'otrosGastos', kind: 'seccion', label: 'Otros gastos', seccionKey: 'otrosGastos', negate: true, values: val(c => c.otrosGastos) })
+  if ((totales.otrosGastos ?? 0) !== 0 || cuentasDeSeccion('otrosGastos')) {
+    filas.push(seccion('otrosGastos', 'Otros gastos', true))
   }
   filas.push(
     { key: 'uo', kind: 'grand', label: 'Utilidad operativa', values: val(c => c.utilidadOperativa) },
@@ -141,11 +178,10 @@ export default function RentabilidadCentrosBeneficioPage() {
 
   const columnas = useMemo(() => {
     if (!data) return []
-    const conMovimiento = data.data.filter(c =>
-      c.ingresos + c.otrosIngresos !== 0 || c.costos + c.gastos + c.otrosGastos !== 0)
-    const tieneSinAsignar =
-      data.sinAsignar.ingresos + data.sinAsignar.otrosIngresos !== 0 ||
-      data.sinAsignar.costos + data.sinAsignar.gastos + data.sinAsignar.otrosGastos !== 0
+    // Un centro es visible si tiene cuentas con movimiento, aunque su neto sea 0
+    // (p.ej. una reclasificación que carga una cuenta y abona otra)
+    const conMovimiento = data.data.filter(c => c.cuentas.length > 0)
+    const tieneSinAsignar = data.sinAsignar.cuentas.length > 0
     return tieneSinAsignar ? [...conMovimiento, data.sinAsignar] : conMovimiento
   }, [data])
 
@@ -216,7 +252,7 @@ export default function RentabilidadCentrosBeneficioPage() {
   // Tabla matriz
   const tableColumns: ColumnsType<FilaMatriz> = useMemo(() => {
     const cellStyle = (row: FilaMatriz): React.CSSProperties => ({
-      fontFamily: 'monospace', fontSize: 12,
+      fontFamily: 'monospace', fontSize: row.kind === 'cuenta' ? 11 : 12,
       fontWeight: row.kind === 'grand' ? 700 : 400,
     })
     const renderVal = (v: number | null, row: FilaMatriz) => {
@@ -227,13 +263,28 @@ export default function RentabilidadCentrosBeneficioPage() {
       }
       const shown = row.negate ? -v : v
       const color = row.kind === 'grand' ? (v < 0 ? '#cf1322' : '#389e0d') : (shown < 0 ? '#cf1322' : undefined)
-      return <span style={{ ...cellStyle(row), color }}>{fmtCol(shown)}</span>
+      const content = <span style={{ ...cellStyle(row), color }}>{fmtCol(shown)}</span>
+      if (row.kind === 'cuenta' && row.accountId) {
+        return (
+          <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+            onClick={() => setDrilldown({ accountId: row.accountId!, accountName: row.accountName ?? row.label, fromDate: from, toDate: to })}>
+            {content}
+          </span>
+        )
+      }
+      return content
     }
     return [
       {
-        title: 'Concepto', dataIndex: 'label', fixed: 'left', width: 190,
+        title: 'Concepto', dataIndex: 'label', fixed: 'left', width: 230,
         render: (v: string, row) => (
-          <Text strong={row.kind !== 'seccion'} style={{ fontSize: 12, color: row.kind === 'grand' ? NAVY : undefined }}>{v}</Text>
+          <Text strong={row.kind !== 'seccion' && row.kind !== 'cuenta'}
+            style={{
+              fontSize: row.kind === 'cuenta' ? 11 : 12,
+              color: row.kind === 'grand' ? NAVY : row.kind === 'cuenta' ? '#595959' : undefined,
+            }}>
+            {v}
+          </Text>
         ),
       },
       ...columnas.map(c => ({
@@ -258,7 +309,7 @@ export default function RentabilidadCentrosBeneficioPage() {
         render: (_: any, row: FilaMatriz) => renderVal(row.values['__total'] ?? null, row),
       },
     ]
-  }, [columnas])
+  }, [columnas, from, to])
 
   // Detalle de cuentas del centro seleccionado
   const centroDetalle = detalleCentro
@@ -365,13 +416,14 @@ export default function RentabilidadCentrosBeneficioPage() {
             {/* Matriz P&L */}
             <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
               title={<Text strong style={{ fontSize: 13 }}>Estado de resultados por centro de beneficio</Text>}
-              extra={<Text type="secondary" style={{ fontSize: 11 }}>Clic en el nombre de un centro para ver sus cuentas</Text>}>
+              extra={<Text type="secondary" style={{ fontSize: 11 }}>Expande una sección para ver sus cuentas · clic en un monto para ver movimientos</Text>}>
               <Table
                 size="small" dataSource={filas} columns={tableColumns} rowKey="key"
                 pagination={false} scroll={{ x: 'max-content' }}
+                expandable={{ indentSize: 12 }}
                 onRow={row => ({
                   style: {
-                    background: row.kind === 'grand' ? '#f0f5ff' : row.kind === 'pct' ? '#fafafa' : undefined,
+                    background: row.kind === 'grand' ? '#f0f5ff' : row.kind === 'pct' ? '#fafafa' : row.kind === 'cuenta' ? '#fcfcfc' : undefined,
                     borderTop: row.kind === 'grand' ? `2px solid #d9d9d9` : undefined,
                   },
                 })}

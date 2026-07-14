@@ -42,8 +42,8 @@ function mesesConsecutivosEnPerdida(d: RentabilidadCBData, centroId: string | nu
 
 export function insightsCentrosBeneficio(d: RentabilidadCBData): Insight[] {
   const out: Insight[] = []
-  const conMovimiento = d.data.filter(c =>
-    c.ingresos + c.otrosIngresos !== 0 || c.costos + c.gastos + c.otrosGastos !== 0)
+  // Con cuentas con movimiento, aunque el neto sea 0 (p.ej. reclasificaciones)
+  const conMovimiento = d.data.filter(c => c.cuentas.length > 0)
 
   // 1. Centros operando con pérdida (con racha de meses consecutivos)
   for (const c of conMovimiento) {
