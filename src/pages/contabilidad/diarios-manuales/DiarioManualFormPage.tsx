@@ -243,7 +243,7 @@ export default function DiarioManualFormPage() {
     try { await form.validateFields() } catch { return }
     const validLines = lines.filter(l => l.accountCode || l.accountId)
     if (validLines.length < 2) { message.warning('Se necesitan al menos 2 líneas con cuenta'); return }
-    if (Math.abs(diferencia) > 0.01) { message.warning(`El asiento no cuadra — diferencia: Q ${Math.abs(diferencia).toFixed(2)}`); return }
+    if (Math.abs(diferencia) > 0.01) { message.warning(`El asiento no cuadra — diferencia: ${fmtCur(Math.abs(diferencia))}`); return }
 
     setSaving(true)
     try {
@@ -303,7 +303,8 @@ export default function DiarioManualFormPage() {
     finally { setActing(false) }
   }
 
-  const Q = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+  const fmtCur = (n: number) =>
+    `${currency === 'GTQ' ? 'Q' : currency} ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
   const lineColumns = [
     {
@@ -320,31 +321,35 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Descripción', width: 180,
+      title: 'Descripción', width: 260,
       render: (_: any, r: LineState) => (
         <Input size="small" value={r.description} disabled={isReadonly}
           placeholder="Descripción" onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },
     {
-      title: 'Auxiliar', width: 180,
+      title: 'Auxiliar', width: 200,
       render: (_: any, r: LineState) => {
-        const meta = r.accountMeta
-        if (meta.isCustomer) return (
+        // Buscar la cuenta en el catálogo para garantizar los flags aunque accountMeta no esté inicializado
+        const acct       = accounts.find(a => a.id === r.accountId)
+        const isCustomer   = r.accountMeta.isCustomer   || !!acct?.isCustomerAccount
+        const isVendor     = r.accountMeta.isVendor     || !!acct?.isVendorAccount
+        const isFixedAsset = r.accountMeta.isFixedAsset || !!acct?.isFixedAsset
+        if (isCustomer) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             disabled={isReadonly} placeholder="Cliente" optionFilterProp="label"
             style={{ width: '100%' }} allowClear
             options={customers.map((c: any) => ({ label: c.displayName ?? c.companyName, value: c.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
-        if (meta.isVendor) return (
+        if (isVendor) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             disabled={isReadonly} placeholder="Proveedor" optionFilterProp="label"
             style={{ width: '100%' }} allowClear
             options={vendors.map((v: any) => ({ label: v.displayName ?? v.companyName, value: v.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
-        if (meta.isFixedAsset) return (
+        if (isFixedAsset) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             disabled={isReadonly} placeholder="Activo fijo" optionFilterProp="label"
             style={{ width: '100%' }} allowClear
@@ -377,10 +382,10 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Débitos', width: 120, align: 'right' as const,
+      title: 'Débitos', width: 160, align: 'right' as const,
       render: (_: any, r: LineState) => (
-        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
-          value={r.debit} placeholder="0.00" disabled={isReadonly}
+        <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
+          controls={false} value={r.debit} placeholder="0.00" disabled={isReadonly}
           onChange={v => {
             updateLine(r.key, { debit: v, ...(v && v > 0 ? { credit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, v, null)
@@ -388,10 +393,10 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Créditos', width: 120, align: 'right' as const,
+      title: 'Créditos', width: 160, align: 'right' as const,
       render: (_: any, r: LineState) => (
-        <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2}
-          value={r.credit} placeholder="0.00" disabled={isReadonly}
+        <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
+          controls={false} value={r.credit} placeholder="0.00" disabled={isReadonly}
           onChange={v => {
             updateLine(r.key, { credit: v, ...(v && v > 0 ? { debit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, null, v)
@@ -444,11 +449,7 @@ export default function DiarioManualFormPage() {
             <Form.Item label="N.º de referencia" name="reference">
               <Input placeholder="Número de referencia" disabled={isReadonly} />
             </Form.Item>
-            <Form.Item label="Notas" name="description"
-              rules={[{ required: true, message: 'Requerido' }]}>
-              <Input.TextArea rows={3} maxLength={500} showCount
-                placeholder="500 caracteres como máximo" disabled={isReadonly} />
-            </Form.Item>
+            <Form.Item name="description" hidden><Input /></Form.Item>
           </div>
 
           {/* Col derecha */}
@@ -517,20 +518,20 @@ export default function DiarioManualFormPage() {
             <tbody>
               <tr>
                 <td style={{ padding: '4px 20px', color: '#666' }}>Subtotal</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{Q(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{Q(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr style={{ fontWeight: 700, fontSize: 14 }}>
                 <td style={{ padding: '4px 20px', borderTop: '1px solid #f0f0f0' }}>Total ({currency})</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{Q(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#f5222d' : '#52c41a' }}>Diferencia</td>
                 <td colSpan={2} style={{
                   padding: '4px 20px', textAlign: 'right',
                   color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600,
-                }}>{Q(Math.abs(diferencia))}</td>
+                }}>{fmtCur(Math.abs(diferencia))}</td>
               </tr>
             </tbody>
           </table>
