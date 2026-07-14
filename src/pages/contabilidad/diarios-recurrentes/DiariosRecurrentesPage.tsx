@@ -27,6 +27,12 @@ const FRECUENCIA_LABEL: Record<string, string> = {
   ANUAL:      'Anual',
 }
 
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const formatPeriodo = (periodo: string) => {
+  const [year, month] = periodo.split('-')
+  return `${MESES[Number(month) - 1]} ${year}`
+}
+
 export default function DiariosRecurrentesPage() {
   const navigate = useNavigate()
   const [data,     setData]     = useState<AsientoRecurrente[]>([])
@@ -34,7 +40,8 @@ export default function DiariosRecurrentesPage() {
   const [acting,   setActing]   = useState<string | null>(null)
   const [historial, setHistorial] = useState<HistorialAsientoRecurrente[]>([])
   const [histModal, setHistModal] = useState(false)
-  const [histTitle, setHistTitle] = useState('')
+  const [histTitle,   setHistTitle]   = useState('')
+  const [histLoading, setHistLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -68,11 +75,13 @@ export default function DiariosRecurrentesPage() {
   }
 
   const handleHistorial = async (r: AsientoRecurrente) => {
-    setHistTitle(`Historial: ${r.nombre}`)
+    setHistTitle(`Historial — ${r.nombre}`)
+    setHistModal(true)
+    setHistLoading(true)
     try {
       setHistorial(await getHistorialAsientoRecurrente(r.id))
-      setHistModal(true)
     } catch { message.error('Error al cargar historial') }
+    finally { setHistLoading(false) }
   }
 
   const handleEliminar = async (id: string) => {
@@ -87,7 +96,16 @@ export default function DiariosRecurrentesPage() {
   }
 
   const columns = [
-    { title: 'Nombre del perfil', dataIndex: 'nombre' },
+    {
+      title: 'Nombre del perfil',
+      render: (_: any, r: AsientoRecurrente) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{r.nombre}</div>
+          {r.descripcion && <div style={{ fontSize: 11, color: '#8c8c8c', marginTop: 2 }}>{r.descripcion}</div>}
+          {r.autoPublicar && <div style={{ fontSize: 10, color: '#1B3A6B', marginTop: 2 }}>⚡ Auto-publica</div>}
+        </div>
+      ),
+    },
     {
       title: 'Frecuencia', dataIndex: 'frecuencia', width: 120,
       render: (v: string) => FRECUENCIA_LABEL[v] ?? v,
@@ -156,29 +174,59 @@ export default function DiariosRecurrentesPage() {
   ]
 
   const histColumns = [
-    { title: 'Período', dataIndex: 'periodo', width: 90 },
     {
-      title: 'Estado', dataIndex: 'estado', width: 90,
+      title: 'Período', dataIndex: 'periodo', width: 140,
+      render: (v: string) => <span style={{ fontWeight: 500 }}>{formatPeriodo(v)}</span>,
+    },
+    {
+      title: 'Generación', dataIndex: 'estado', width: 110,
       render: (v: string) => (
-        <Tag color={v === 'generado' ? 'success' : 'error'}>{v}</Tag>
+        <Tag color={v === 'generado' ? 'success' : 'error'}>
+          {v === 'generado' ? 'OK' : 'Error'}
+        </Tag>
       ),
     },
     {
-      title: 'Asiento generado', dataIndex: 'asientoGeneradoId', width: 140,
-      render: (v: string | null) => v
-        ? <Button type="link" size="small" style={{ padding: 0 }}
-            onClick={() => { setHistModal(false); navigate(`/contabilidad/diarios-manuales/${v}`) }}>
-            Ver asiento
+      title: 'N.º Asiento', width: 165,
+      render: (_: any, r: HistorialAsientoRecurrente) => {
+        if (!r.asientoGeneradoId) return '—'
+        const label = r.asientoGeneradoEntryNumber ?? 'Ver asiento'
+        return (
+          <Button type="link" size="small" style={{ padding: 0, fontFamily: 'monospace', fontWeight: 600 }}
+            onClick={() => { setHistModal(false); navigate(`/contabilidad/diarios-manuales/${r.asientoGeneradoId}`) }}>
+            {label}
           </Button>
+        )
+      },
+    },
+    {
+      title: 'Estado asiento', dataIndex: 'asientoStatus', width: 120,
+      render: (v: string | null) => {
+        if (!v) return '—'
+        const m: Record<string, { color: string; label: string }> = {
+          draft:  { color: 'default', label: 'Borrador' },
+          posted: { color: 'success', label: 'Publicado' },
+          void:   { color: 'error',   label: 'Anulado' },
+        }
+        const s = m[v] ?? { color: 'default', label: v }
+        return <Tag color={s.color}>{s.label}</Tag>
+      },
+    },
+    {
+      title: 'Total', dataIndex: 'totalDebit', width: 140, align: 'right' as const,
+      render: (v: number | null) => v != null
+        ? `Q ${Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
         : '—',
     },
     {
-      title: 'Fecha generación', dataIndex: 'fechaGeneracion', width: 140,
+      title: 'Fecha generación', dataIndex: 'fechaGeneracion', width: 145,
       render: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm'),
     },
     {
       title: 'Error', dataIndex: 'errorMsg',
-      render: (v: string | null) => v ? <span style={{ color: 'red', fontSize: 11 }}>{v}</span> : '—',
+      render: (v: string | null) => v
+        ? <Tooltip title={v}><span style={{ color: '#f5222d', fontSize: 11 }}>⚠ {v.slice(0, 50)}{v.length > 50 ? '…' : ''}</span></Tooltip>
+        : '—',
     },
   ]
 
@@ -206,10 +254,10 @@ export default function DiariosRecurrentesPage() {
       {/* Modal historial */}
       <Modal
         title={histTitle} open={histModal}
-        onCancel={() => setHistModal(false)} footer={null} width={800}>
+        onCancel={() => setHistModal(false)} footer={null} width={1000}>
         <Table
           dataSource={historial} columns={histColumns} rowKey="id"
-          size="small" pagination={false}
+          size="small" pagination={false} loading={histLoading}
           locale={{ emptyText: 'Sin generaciones registradas' }}
         />
       </Modal>

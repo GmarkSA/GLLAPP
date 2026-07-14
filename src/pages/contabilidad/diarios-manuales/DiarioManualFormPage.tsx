@@ -23,8 +23,8 @@ import SelectorDimensionesAnaliticas, { useCentrosOptions } from '../../../compo
 
 const { Title } = Typography
 
-const STATUS_COLOR: Record<string, string> = { DRAFT: 'default', POSTED: 'success', VOID: 'error' }
-const STATUS_LABEL: Record<string, string> = { DRAFT: 'Borrador', POSTED: 'Publicado', VOID: 'Anulado' }
+const STATUS_COLOR: Record<string, string> = { draft: 'default', posted: 'success', void: 'error' }
+const STATUS_LABEL: Record<string, string> = { draft: 'Borrador', posted: 'Publicado', void: 'Anulado' }
 
 const CURRENCIES = [
   { label: 'GTQ — Quetzal',          value: 'GTQ' },
@@ -179,7 +179,7 @@ export default function DiarioManualFormPage() {
         entryDate:   dayjs(),
         description: `Copia de ${clonarDe.entryNumber}: ${clonarDe.description}`,
         reference:   clonarDe.reference,
-        type:        'MANUAL',
+        type:        'manual',
         currency:    clonarDe.currency ?? 'GTQ',
       })
       setCurrency(clonarDe.currency ?? 'GTQ')
@@ -261,7 +261,7 @@ export default function DiarioManualFormPage() {
           accountingDate: vals.accountingDate?.format('YYYY-MM-DD'),
           description:    vals.description,
           reference:      vals.reference || undefined,
-          type:           vals.type ?? 'MANUAL',
+          type:           vals.type ?? 'manual',
           currency:       vals.currency ?? 'GTQ',
           exchangeRate:   vals.exchangeRate,
           autoPost,
@@ -444,7 +444,7 @@ export default function DiarioManualFormPage() {
       </div>
 
       <Form form={form} layout="vertical" size="small"
-        initialValues={{ type: 'MANUAL', currency: 'GTQ', exchangeRate: 1, entryDate: dayjs() }}>
+        initialValues={{ type: 'manual', currency: 'GTQ', exchangeRate: 1, entryDate: dayjs() }}>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
           {/* Col izquierda */}
@@ -462,6 +462,10 @@ export default function DiarioManualFormPage() {
             <Form.Item label="N.º de referencia" name="reference">
               <Input placeholder="Número de referencia" disabled={isReadonly} />
             </Form.Item>
+            <Form.Item label="Descripción / Concepto" name="description">
+              <Input.TextArea placeholder="Descripción del asiento" rows={2}
+                style={{ resize: 'none' }} disabled={isReadonly} />
+            </Form.Item>
             <Form.Item label="Método de generación de informes" name="reportingMethod">
               <Radio.Group disabled={isReadonly} defaultValue="ACCRUAL_CASH">
                 <Radio value="ACCRUAL_CASH">Acumulación y efectivo</Radio>
@@ -469,7 +473,6 @@ export default function DiarioManualFormPage() {
                 <Radio value="CASH">Sólo efectivo</Radio>
               </Radio.Group>
             </Form.Item>
-            <Form.Item name="description" hidden><Input /></Form.Item>
           </div>
 
           {/* Col derecha */}
@@ -482,10 +485,10 @@ export default function DiarioManualFormPage() {
             <Form.Item label="Tipo" name="type">
               <Select disabled={isReadonly || (!isNew && !clonarDe)}
                 options={[
-                  { label: 'Manual',   value: 'MANUAL' },
-                  { label: 'Apertura', value: 'OPENING' },
-                  { label: 'Cierre',   value: 'CLOSING' },
-                  { label: 'Ajuste',   value: 'ADJUSTMENT' },
+                  { label: 'Manual',   value: 'manual' },
+                  { label: 'Apertura', value: 'opening' },
+                  { label: 'Cierre',   value: 'closing' },
+                  { label: 'Ajuste',   value: 'adjustment' },
                 ]}
               />
             </Form.Item>

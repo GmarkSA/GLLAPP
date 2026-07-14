@@ -2,15 +2,17 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   Button, Form, Input, DatePicker, Select, Typography, Divider,
-  Table, InputNumber, Space, Tag, message, Checkbox, Radio, Tooltip,
+  Table, InputNumber, Space, Tag, message, Checkbox, Radio, Tooltip, Popconfirm,
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, ArrowLeftOutlined, SaveOutlined, ReloadOutlined,
+  HistoryOutlined, PlayCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   createAsientoRecurrente, getAsientoRecurrente, updateAsientoRecurrente,
-  type AsientoRecurrente, type LineaPlantilla,
+  getHistorialAsientoRecurrente, generarAsientoRecurrente,
+  type AsientoRecurrente, type LineaPlantilla, type HistorialAsientoRecurrente,
 } from '../../../api/asientos-recurrentes'
 import { type AsientoDetalle } from '../../../api/asientos'
 import { getAccounts, getAccountGroups, type Account } from '../../../api/catalogo'
@@ -21,6 +23,12 @@ import { getExchangeRateForDate } from '../../../api/monedas'
 import SelectorDimensionesAnaliticas, { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title } = Typography
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const formatPeriodo = (periodo: string) => {
+  const [year, month] = periodo.split('-')
+  return `${MESES[Number(month) - 1]} ${year}`
+}
 
 const CURRENCIES = [
   { label: 'GTQ — Quetzal',         value: 'GTQ' },
@@ -90,6 +98,8 @@ export default function DiarioRecurrenteFormPage() {
   const [vendors,   setVendors]    = useState<Vendor[]>([])
   const [assets,    setAssets]     = useState<ActivoFijo[]>([])
   const [saving,    setSaving]     = useState(false)
+  const [generando, setGenerando]  = useState(false)
+  const [historial, setHistorial]  = useState<HistorialAsientoRecurrente[]>([])
   const [nuncaVence, setNuncaVence] = useState(true)
   const [currency,  setCurrency]   = useState('GTQ')
   const [centrosCosto, centrosBeneficio] = useCentrosOptions()
@@ -136,6 +146,7 @@ export default function DiarioRecurrenteFormPage() {
       })
       setLines(p.lineas.map(fromPlantilla))
     } catch { message.error('Error al cargar la plantilla') }
+    try { setHistorial(await getHistorialAsientoRecurrente(id!)) } catch { /* no crítico */ }
   }, [id, isNew, form])
 
   useEffect(() => { loadMeta() }, [loadMeta])
@@ -184,6 +195,18 @@ export default function DiarioRecurrenteFormPage() {
       })
       .catch(() => message.warning('No se pudo cargar el tipo de cambio'))
       .finally(() => setLoadingRate(false))
+  }
+
+  const handleGenerar = async () => {
+    if (!id) return
+    setGenerando(true)
+    try {
+      const resultado = await generarAsientoRecurrente(id) as any
+      message.success(`Borrador generado: ${resultado?.entryNumber ?? ''}`)
+      try { setHistorial(await getHistorialAsientoRecurrente(id)) } catch { /* ignore */ }
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al generar')
+    } finally { setGenerando(false) }
   }
 
   const updateLine = (key: string, patch: Partial<LineState>) =>
@@ -268,6 +291,57 @@ export default function DiarioRecurrenteFormPage() {
 
   const fmtCur = (n: number) =>
     `${currency === 'GTQ' ? 'Q' : currency} ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+  const historialColumns = [
+    {
+      title: 'Período', dataIndex: 'periodo', width: 140,
+      render: (v: string) => <span style={{ fontWeight: 500 }}>{formatPeriodo(v)}</span>,
+    },
+    {
+      title: 'N.º Asiento', width: 165,
+      render: (_: any, r: HistorialAsientoRecurrente) => {
+        if (!r.asientoGeneradoId) return '—'
+        const label = r.asientoGeneradoEntryNumber ?? 'Ver asiento'
+        return (
+          <Button type="link" size="small" style={{ padding: 0, fontFamily: 'monospace', fontWeight: 600 }}
+            onClick={() => navigate(`/contabilidad/diarios-manuales/${r.asientoGeneradoId}`)}>
+            {label}
+          </Button>
+        )
+      },
+    },
+    {
+      title: 'Estado asiento', dataIndex: 'asientoStatus', width: 120,
+      render: (v: string | null) => {
+        if (!v) return '—'
+        const m: Record<string, { color: string; label: string }> = {
+          draft:  { color: 'default', label: 'Borrador' },
+          posted: { color: 'success', label: 'Publicado' },
+          void:   { color: 'error',   label: 'Anulado' },
+        }
+        const s = m[v] ?? { color: 'default', label: v }
+        return <Tag color={s.color}>{s.label}</Tag>
+      },
+    },
+    {
+      title: 'Total', dataIndex: 'totalDebit', width: 140, align: 'right' as const,
+      render: (v: number | null) => v != null
+        ? `Q ${Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+        : '—',
+    },
+    {
+      title: 'Generado el', dataIndex: 'fechaGeneracion', width: 135,
+      render: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm'),
+    },
+    {
+      title: 'Estado gen.', dataIndex: 'estado', width: 100,
+      render: (v: string) => (
+        <Tag color={v === 'generado' ? 'success' : 'error'}>
+          {v === 'generado' ? 'OK' : 'Error'}
+        </Tag>
+      ),
+    },
+  ]
 
   const lineColumns = [
     {
@@ -374,6 +448,17 @@ export default function DiarioRecurrenteFormPage() {
         </Button>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{pageTitle}</Title>
         {plantilla && <Tag color={plantilla.activo ? 'success' : 'default'}>{plantilla.activo ? 'Activa' : 'Inactiva'}</Tag>}
+        <div style={{ flex: 1 }} />
+        {!isNew && !desdeDiario && plantilla?.activo && (
+          <Popconfirm
+            title={`¿Generar borrador de "${plantilla?.nombre}" para el mes actual?`}
+            okText="Generar" cancelText="Cancelar"
+            onConfirm={handleGenerar}>
+            <Button icon={<PlayCircleOutlined />} loading={generando}>
+              Generar borrador ahora
+            </Button>
+          </Popconfirm>
+        )}
       </div>
 
       <Form form={form} layout="vertical" size="small"
@@ -415,7 +500,10 @@ export default function DiarioRecurrenteFormPage() {
             <Form.Item label="N.º de referencia" name="referencia">
               <Input placeholder="Referencia para los asientos generados" />
             </Form.Item>
-            <Form.Item name="descripcion" hidden><Input /></Form.Item>
+            <Form.Item label="Descripción / Concepto" name="descripcion">
+              <Input.TextArea placeholder="Descripción del asiento recurrente" rows={2}
+                style={{ resize: 'none' }} />
+            </Form.Item>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Form.Item label="Moneda" name="currency">
                 <Select options={CURRENCIES} onChange={v => setCurrency(v)} />
@@ -511,6 +599,23 @@ export default function DiarioRecurrenteFormPage() {
           <Button onClick={() => navigate('/contabilidad/diarios-recurrentes')}>Cancelar</Button>
         </Space>
       </Form>
+
+      {!isNew && !desdeDiario && (
+        <>
+          <Divider style={{ margin: '24px 0 12px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <HistoryOutlined style={{ color: '#1B3A6B' }} />
+            <span style={{ fontWeight: 600, color: '#1B3A6B' }}>
+              Historial de generaciones {historial.length > 0 ? `(${historial.length})` : ''}
+            </span>
+          </div>
+          <Table
+            dataSource={historial} columns={historialColumns} rowKey="id"
+            size="small" pagination={false}
+            locale={{ emptyText: 'Sin generaciones registradas aún' }}
+          />
+        </>
+      )}
     </div>
   )
 }
