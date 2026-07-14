@@ -315,16 +315,20 @@ export default function DiarioManualFormPage() {
           placeholder="Seleccione una cuenta" optionFilterProp="label"
           style={{ width: '100%' }}
           options={accounts.filter(a => !a.isHeader && a.isActive)
-            .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id, acct: a }))}
-          onChange={(_: any, opt: any) => setAccount(r.key, opt.acct)}
+            .map(a => ({ label: `${a.code} - ${a.name}`, value: a.id }))}
+          onChange={(v: string) => { const a = accounts.find(x => x.id === v); if (a) setAccount(r.key, a) }}
         />
       ),
     },
     {
-      title: 'Descripción', width: 260,
+      title: 'Descripción', width: 360,
       render: (_: any, r: LineState) => (
-        <Input size="small" value={r.description} disabled={isReadonly}
-          placeholder="Descripción" onChange={e => updateLine(r.key, { description: e.target.value })} />
+        <Tooltip title={r.description || undefined} placement="topLeft" mouseEnterDelay={0.5}>
+          <Input size="small" value={r.description} disabled={isReadonly}
+            placeholder="Descripción"
+            style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+            onChange={e => updateLine(r.key, { description: e.target.value })} />
+        </Tooltip>
       ),
     },
     {
@@ -382,10 +386,12 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Débitos', width: 160, align: 'right' as const,
+      title: 'Débitos', width: 170, align: 'right' as const,
       render: (_: any, r: LineState) => (
         <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
           controls={false} value={r.debit} placeholder="0.00" disabled={isReadonly}
+          formatter={v => v != null ? `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+          parser={v => v ? (v.replace(/,/g, '') as any) : ''}
           onChange={v => {
             updateLine(r.key, { debit: v, ...(v && v > 0 ? { credit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, v, null)
@@ -393,10 +399,12 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Créditos', width: 160, align: 'right' as const,
+      title: 'Créditos', width: 170, align: 'right' as const,
       render: (_: any, r: LineState) => (
         <InputNumber size="small" style={{ width: '100%' }} min={0} max={99999999.99} precision={2}
           controls={false} value={r.credit} placeholder="0.00" disabled={isReadonly}
+          formatter={v => v != null ? `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+          parser={v => v ? (v.replace(/,/g, '') as any) : ''}
           onChange={v => {
             updateLine(r.key, { credit: v, ...(v && v > 0 ? { debit: null } : {}) })
             if (r.taxCode) recalcTax(r.key, r.taxCode, null, v)
@@ -514,7 +522,7 @@ export default function DiarioManualFormPage() {
 
         {/* ── Totales ─────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 340 }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 13, minWidth: 420 }}>
             <tbody>
               <tr>
                 <td style={{ padding: '4px 20px', color: '#666' }}>Subtotal</td>
