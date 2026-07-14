@@ -323,12 +323,11 @@ export default function DiarioManualFormPage() {
     {
       title: 'Descripción', width: 360,
       render: (_: any, r: LineState) => (
-        <Tooltip title={r.description || undefined} placement="topLeft" mouseEnterDelay={0.5}>
-          <Input size="small" value={r.description} disabled={isReadonly}
-            placeholder="Descripción"
-            style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
-            onChange={e => updateLine(r.key, { description: e.target.value })} />
-        </Tooltip>
+        <Input.TextArea size="small" value={r.description} disabled={isReadonly}
+          placeholder="Descripción"
+          autoSize={{ minRows: 1, maxRows: 4 }}
+          style={{ resize: 'none' }}
+          onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },
     {
