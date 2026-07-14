@@ -15,6 +15,7 @@ import {
   voidAsiento, reverseAsiento, type AsientoDetalle,
 } from '../../../api/asientos'
 import { getAccounts, getAccountGroups, type Account } from '../../../api/catalogo'
+import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
 import { getExchangeRateForDate } from '../../../api/monedas'
@@ -32,13 +33,6 @@ const CURRENCIES = [
   { label: 'MXN — Peso mexicano',     value: 'MXN' },
 ]
 
-const TAX_OPTIONS = [
-  { label: 'Sin impuesto',          value: '' },
-  { label: 'IVA 12%',              value: 'IVA12' },
-  { label: 'IVA 5% (Peq. contrib.)', value: 'IVA5' },
-  { label: 'Exento',               value: 'EXEMPT' },
-]
-const TAX_RATES: Record<string, number> = { IVA12: 0.12, IVA5: 0.05, EXEMPT: 0 }
 
 interface AccountMeta { isCustomer: boolean; isVendor: boolean; isFixedAsset: boolean }
 
@@ -95,6 +89,7 @@ export default function DiarioManualFormPage() {
   const [lines,    setLines]     = useState<LineState[]>([emptyLine(), emptyLine()])
   const [accounts, setAccounts]  = useState<Account[]>([])
   const [groups,   setGroups]    = useState<Account[]>([])
+  const [taxes,    setTaxes]     = useState<Tax[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [vendors,  setVendors]   = useState<Vendor[]>([])
   const [assets,   setAssets]    = useState<ActivoFijo[]>([])
@@ -114,15 +109,17 @@ export default function DiarioManualFormPage() {
   const isReadonly  = asiento?.status === 'POSTED' || asiento?.status === 'VOID'
 
   const loadMeta = useCallback(async () => {
-    const [all, grps, custs, vends, af] = await Promise.allSettled([
+    const [all, grps, custs, vends, af, txs] = await Promise.allSettled([
       getAccounts({ activas: true }),
       getAccountGroups(),
       getCustomers({ limit: 500 }),
       getVendors({ limit: 500 }),
       getActivosFijos({ limit: 500 }),
+      getTaxes(),
     ])
     if (all.status === 'fulfilled') setAccounts(Array.isArray(all.value) ? all.value : [])
     if (grps.status === 'fulfilled') setGroups(Array.isArray(grps.value) ? grps.value : [])
+    if (txs.status === 'fulfilled') setTaxes(Array.isArray(txs.value) ? txs.value : [])
     if (custs.status === 'fulfilled') {
       const v = custs.value as any
       setCustomers(Array.isArray(v) ? v : v?.data ?? [])
@@ -210,9 +207,15 @@ export default function DiarioManualFormPage() {
     })
   }
 
+  const taxOptions = [
+    { label: 'Sin impuesto', value: '' },
+    ...taxes.filter(t => t.isActive).map(t => ({ label: `${t.name} (${(t.rate * 100).toFixed(0)}%)`, value: t.code })),
+  ]
+  const taxRateMap = Object.fromEntries(taxes.map(t => [t.code, t.rate]))
+
   const recalcTax = (key: string, taxCode: string, debit: number | null, credit: number | null) => {
     const base = (debit ?? 0) || (credit ?? 0)
-    const rate = TAX_RATES[taxCode] ?? 0
+    const rate = taxRateMap[taxCode] ?? 0
     updateLine(key, { taxCode, taxAmount: rate > 0 ? Math.round(base * rate * 100) / 100 : null })
   }
 
@@ -384,7 +387,7 @@ export default function DiarioManualFormPage() {
       title: 'Impuesto', width: 130,
       render: (_: any, r: LineState) => (
         <Select size="small" value={r.taxCode || ''} disabled={isReadonly}
-          style={{ width: '100%' }} options={TAX_OPTIONS}
+          style={{ width: '100%' }} options={taxOptions}
           onChange={v => recalcTax(r.key, v, r.debit, r.credit)} />
       ),
     },
