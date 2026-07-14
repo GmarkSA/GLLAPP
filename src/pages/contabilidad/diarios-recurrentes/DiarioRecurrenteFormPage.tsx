@@ -196,8 +196,7 @@ export default function DiarioRecurrenteFormPage() {
     if (!acct) return { isCustomer: false, isVendor: false, isFixedAsset: false }
     if (acct.isCustomerAccount || acct.isVendorAccount || acct.isFixedAsset)
       return { isCustomer: acct.isCustomerAccount, isVendor: acct.isVendorAccount, isFixedAsset: acct.isFixedAsset }
-    const codeNum = parseInt(acct.code, 10)
-    const grp = groups.find(g => g.rangeStart != null && g.rangeEnd != null && codeNum >= g.rangeStart && codeNum <= g.rangeEnd)
+    const grp = groups.find(g => g.code === acct.groupCode)
     return { isCustomer: !!grp?.isCustomerAccount, isVendor: !!grp?.isVendorAccount, isFixedAsset: !!grp?.isFixedAsset }
   }
 

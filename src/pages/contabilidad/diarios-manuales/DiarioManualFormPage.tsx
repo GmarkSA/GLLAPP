@@ -310,13 +310,13 @@ export default function DiarioManualFormPage() {
   const fmtCur = (n: number) =>
     `${currency === 'GTQ' ? 'Q' : currency} ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
-  // Resuelve flags de auxiliar: primero en la cuenta, luego hereda del grupo por rango de código
+  // Resuelve flags de auxiliar: usa el flag directo de la cuenta (ya enriquecido por el backend)
   const resolveFlags = (acct: Account | undefined) => {
     if (!acct) return { isCustomer: false, isVendor: false, isFixedAsset: false }
+    // Backend ya hereda los flags del grupo — también chequeamos grupos locales como respaldo
     if (acct.isCustomerAccount || acct.isVendorAccount || acct.isFixedAsset)
       return { isCustomer: acct.isCustomerAccount, isVendor: acct.isVendorAccount, isFixedAsset: acct.isFixedAsset }
-    const codeNum = parseInt(acct.code, 10)
-    const grp = groups.find(g => g.rangeStart != null && g.rangeEnd != null && codeNum >= g.rangeStart && codeNum <= g.rangeEnd)
+    const grp = groups.find(g => g.code === acct.groupCode)
     return {
       isCustomer:   !!grp?.isCustomerAccount,
       isVendor:     !!grp?.isVendorAccount,
