@@ -323,9 +323,8 @@ export default function DiarioManualFormPage() {
     {
       title: 'Descripción', width: 700,
       render: (_: any, r: LineState) => (
-        <Input.TextArea size="small" value={r.description} disabled={isReadonly}
-          placeholder="Descripción" rows={3}
-          style={{ resize: 'none' }}
+        <Input size="small" value={r.description} disabled={isReadonly}
+          placeholder="Descripción"
           onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },

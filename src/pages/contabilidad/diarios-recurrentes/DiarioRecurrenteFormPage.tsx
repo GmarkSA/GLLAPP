@@ -268,8 +268,7 @@ export default function DiarioRecurrenteFormPage() {
     {
       title: 'Descripción', width: 700,
       render: (_: any, r: LineState) => (
-        <Input.TextArea size="small" value={r.description} placeholder="Descripción"
-          rows={3} style={{ resize: 'none' }}
+        <Input size="small" value={r.description} placeholder="Descripción"
           onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },
