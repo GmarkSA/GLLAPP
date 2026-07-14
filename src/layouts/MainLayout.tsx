@@ -95,6 +95,8 @@ const menuItems = [
     { key: '/reportes/ar-aging',           label: 'AR Aging (CxC)' },
     { key: '/reportes/proyectado-pagos',   label: 'Proyectado de Pagos' },
     { key: '/reportes/activos-fijos',      label: 'Reporte activos fijos' },
+    { key: '/reportes/centros-beneficio',  label: 'Rentabilidad C. Beneficio' },
+    { key: '/reportes/centros-costo',      label: 'Ejecución C. Costo' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [

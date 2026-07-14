@@ -139,6 +139,8 @@ const FlujoEfectivoPage     = lazy(() => import('./pages/reportes/FlujoEfectivoP
 const TasasRendimientoPage  = lazy(() => import('./pages/reportes/TasasRendimientoPage'))
 const MovimientoCapitalPage = lazy(() => import('./pages/reportes/MovimientoCapitalPage'))
 const BalanzaPage           = lazy(() => import('./pages/reportes/BalanzaPage'))
+const RentabilidadCentrosBeneficioPage = lazy(() => import('./pages/reportes/RentabilidadCentrosBeneficioPage'))
+const EjecucionCentrosCostoPage        = lazy(() => import('./pages/reportes/EjecucionCentrosCostoPage'))
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -311,6 +313,8 @@ export default function App() {
             <Route path="ar-aging"                   element={<ArAgingPage />} />
             <Route path="proyectado-pagos"           element={<ReporteProyectadoPagosPage />} />
             <Route path="activos-fijos"              element={<ReporteActivosFijosPage />} />
+            <Route path="centros-beneficio"          element={<RentabilidadCentrosBeneficioPage />} />
+            <Route path="centros-costo"              element={<EjecucionCentrosCostoPage />} />
           </Route>
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />
