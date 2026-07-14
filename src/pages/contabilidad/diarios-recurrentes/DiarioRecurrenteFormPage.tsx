@@ -282,12 +282,11 @@ export default function DiarioRecurrenteFormPage() {
       ),
     },
     {
-      title: 'Descripción', width: 340,
+      title: 'Descripción', width: 300,
       render: (_: any, r: LineState) => (
-        <Tooltip title={r.description || undefined} placement="topLeft" mouseEnterDelay={0.6}>
-          <Input size="small" value={r.description} placeholder="Descripción"
-            onChange={e => updateLine(r.key, { description: e.target.value })} />
-        </Tooltip>
+        <Input.TextArea size="small" value={r.description} placeholder="Descripción"
+          rows={2} style={{ resize: 'none', height: 60 }}
+          onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },
     {
@@ -320,7 +319,7 @@ export default function DiarioRecurrenteFormPage() {
       },
     },
     {
-      title: 'Impuesto', width: 130,
+      title: 'Impuesto', width: 180,
       render: (_: any, r: LineState) => (
         <Select size="small" value={r.taxCode || ''} style={{ width: '100%' }} options={taxOptions}
           onChange={v => recalcTax(r.key, v, r.debit, r.credit)} />
