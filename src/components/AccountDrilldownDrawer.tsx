@@ -61,7 +61,7 @@ function exportToExcel(data: LibroMayorData, accountName: string, fromDate: stri
     'Débito':        m.debit,
     'Crédito':       m.credit,
     'Saldo':         m.balance,
-    'Dr/Cr':         m.balance >= 0 ? 'Dr' : 'Cr',
+    'Dr/Cr':         '',
   }))
 
   // Totals row
@@ -71,7 +71,7 @@ function exportToExcel(data: LibroMayorData, accountName: string, fromDate: stri
     'Débito':  data.totalDebit,
     'Crédito': data.totalCredit,
     'Saldo':   data.closingBalance,
-    'Dr/Cr':   data.closingBalance >= 0 ? 'Dr' : 'Cr',
+    'Dr/Cr':   '',
   })
 
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -228,8 +228,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
       sorter: (a, b) => a.balance - b.balance,
       render: (v: number) => (
         <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: v >= 0 ? '#1B3A6B' : '#cf1322' }}>
-          {fmtQ(Math.abs(v))}&nbsp;
-          <span style={{ fontSize: 10, fontWeight: 400 }}>{v >= 0 ? 'Dr' : 'Cr'}</span>
+          {fmtQ(Math.abs(v))}
         </Text>
       ),
     },
@@ -325,8 +324,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={columns.length - 1} align="right">
                       <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: data.closingBalance >= 0 ? '#389e0d' : '#cf1322' }}>
-                        {fmtQ(Math.abs(data.closingBalance))}&nbsp;
-                        <span style={{ fontSize: 10, fontWeight: 400 }}>{data.closingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                        {fmtQ(Math.abs(data.closingBalance))}
                       </Text>
                     </Table.Summary.Cell>
                   </Table.Summary.Row>
