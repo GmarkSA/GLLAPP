@@ -6,15 +6,16 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   PrinterOutlined, StopOutlined, BookOutlined, DollarOutlined,
-  EyeOutlined, SettingOutlined,
+  EyeOutlined, SettingOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  getPagosRealizados, anularPagoRealizado,
+  getPagosRealizados, anularPagoRealizado, deletePagoRealizado,
   type VendorPayment, type AppliedInvoice,
 } from '../../../api/pagosRealizados'
+import { getAsiento } from '../../../api/asientos'
 
 const { Text, Title } = Typography
 
@@ -54,7 +55,10 @@ export default function PagosRealizadosPage() {
   const [status,   setStatus]   = useState<string | undefined>()
   const [mode,     setMode]     = useState<string | undefined>()
   const [voiding,      setVoiding]      = useState<string | null>(null)
+  const [deleting,     setDeleting]     = useState<string | null>(null)
   const [detail,       setDetail]       = useState<VendorPayment | null>(null)
+  const [jeLines,      setJeLines]      = useState<any[]>([])
+  const [jeLoading,    setJeLoading]    = useState(false)
   const [previewId,    setPreviewId]    = useState<string | null>(null)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
 
@@ -84,6 +88,38 @@ export default function PagosRealizadosPage() {
       message.error(d?.error?.message || d?.message || 'Error al anular')
     } finally {
       setVoiding(null)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    setDeleting(id)
+    try {
+      await deletePagoRealizado(id)
+      message.success('Pago eliminado')
+      load()
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al eliminar')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  const handleOpenDetail = async (row: VendorPayment) => {
+    setDetail(row)
+    if (row.journalEntryId) {
+      setJeLoading(true)
+      setJeLines([])
+      try {
+        const je = await getAsiento(row.journalEntryId)
+        setJeLines(je.lines ?? [])
+      } catch {
+        setJeLines([])
+      } finally {
+        setJeLoading(false)
+      }
+    } else {
+      setJeLines([])
     }
   }
 
@@ -140,8 +176,8 @@ export default function PagosRealizadosPage() {
       key: 'actions', width: 160, align: 'center',
       render: (_, r) => (
         <Space size={4}>
-          <Tooltip title="Ver detalle">
-            <Button size="small" icon={<BookOutlined />} onClick={() => setDetail(r)} />
+          <Tooltip title="Ver detalle / Póliza">
+            <Button size="small" icon={<BookOutlined />} onClick={() => handleOpenDetail(r)} />
           </Tooltip>
           {r.mode === 'check' && r.status !== 'voided' && (
             <Tooltip title="Vista previa cheque">
@@ -181,6 +217,20 @@ export default function PagosRealizadosPage() {
             >
               <Tooltip title="Anular">
                 <Button size="small" danger icon={<StopOutlined />} loading={voiding === r.id} />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          {r.status === 'voided' && (
+            <Popconfirm
+              title="¿Eliminar pago?"
+              description="Esta acción elimina el registro permanentemente."
+              okText="Eliminar"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleDelete(r.id)}
+            >
+              <Tooltip title="Eliminar">
+                <Button size="small" danger icon={<DeleteOutlined />} loading={deleting === r.id} />
               </Tooltip>
             </Popconfirm>
           )}
@@ -315,42 +365,93 @@ export default function PagosRealizadosPage() {
       {/* Modal detalle */}
       <Modal
         open={!!detail}
-        onCancel={() => setDetail(null)}
+        onCancel={() => { setDetail(null); setJeLines([]) }}
         footer={null}
         title={`Pago ${detail?.paymentNumber}`}
-        width={560}
+        width={680}
       >
         {detail && (
-          <Descriptions column={2} size="small" bordered style={{ marginTop: 8 }}>
-            <Descriptions.Item label="Proveedor" span={2}>{detail.vendorName}</Descriptions.Item>
-            <Descriptions.Item label="Fecha">{dayjs(detail.paymentDate).format('DD/MM/YYYY')}</Descriptions.Item>
-            <Descriptions.Item label="Estado">
-              <Tag color={STATUS_COLOR[detail.status]}>{STATUS_LABEL[detail.status]}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Modo">{MODE_LABELS[detail.mode]}</Descriptions.Item>
-            <Descriptions.Item label="Monto">{fmtQ(detail.amount, detail.currency)}</Descriptions.Item>
-            {detail.checkNumber && (
-              <Descriptions.Item label="Cheque No.">{detail.checkNumber}</Descriptions.Item>
-            )}
-            {detail.bankName && (
-              <Descriptions.Item label="Banco">{detail.bankName}</Descriptions.Item>
-            )}
-            {detail.reference && (
-              <Descriptions.Item label="Referencia" span={2}>{detail.reference}</Descriptions.Item>
-            )}
-            {detail.appliedInvoices?.length ? (
-              <Descriptions.Item label="Facturas aplicadas" span={2}>
-                {detail.appliedInvoices.map((a: AppliedInvoice) => (
-                  <div key={a.purchaseInvoiceId}>
-                    <Tag>{a.invoiceNumber}</Tag> {fmtQ(a.amount, detail.currency)}
-                  </div>
-                ))}
+          <>
+            <Descriptions column={2} size="small" bordered style={{ marginTop: 8 }}>
+              <Descriptions.Item label="Proveedor" span={2}>{detail.vendorName}</Descriptions.Item>
+              <Descriptions.Item label="Fecha">{dayjs(detail.paymentDate).format('DD/MM/YYYY')}</Descriptions.Item>
+              <Descriptions.Item label="Estado">
+                <Tag color={STATUS_COLOR[detail.status]}>{STATUS_LABEL[detail.status]}</Tag>
               </Descriptions.Item>
-            ) : null}
-            {detail.notes && (
-              <Descriptions.Item label="Notas" span={2}>{detail.notes}</Descriptions.Item>
+              <Descriptions.Item label="Modo">{MODE_LABELS[detail.mode]}</Descriptions.Item>
+              <Descriptions.Item label="Monto">{fmtQ(detail.amount, detail.currency)}</Descriptions.Item>
+              {detail.currency !== 'GTQ' && detail.exchangeRate && (
+                <Descriptions.Item label="Tipo de cambio" span={2}>
+                  {detail.currency} 1 = Q {Number(detail.exchangeRate).toFixed(6)}
+                  &nbsp;→&nbsp;
+                  <Text strong>Q {(Number(detail.amount) * Number(detail.exchangeRate)).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                </Descriptions.Item>
+              )}
+              {detail.checkNumber && (
+                <Descriptions.Item label="Cheque No.">{detail.checkNumber}</Descriptions.Item>
+              )}
+              {detail.bankName && (
+                <Descriptions.Item label="Banco">{detail.bankName}</Descriptions.Item>
+              )}
+              {detail.reference && (
+                <Descriptions.Item label="Referencia" span={2}>{detail.reference}</Descriptions.Item>
+              )}
+              {detail.appliedInvoices?.length ? (
+                <Descriptions.Item label="Facturas aplicadas" span={2}>
+                  {detail.appliedInvoices.map((a: AppliedInvoice) => (
+                    <div key={a.purchaseInvoiceId}>
+                      <Tag>{a.invoiceNumber}</Tag> {fmtQ(a.amount, detail.currency)}
+                    </div>
+                  ))}
+                </Descriptions.Item>
+              ) : null}
+              {detail.notes && (
+                <Descriptions.Item label="Notas" span={2}>{detail.notes}</Descriptions.Item>
+              )}
+            </Descriptions>
+
+            {/* Póliza contable */}
+            {detail.journalEntryId && (
+              <div style={{ marginTop: 16 }}>
+                <Text strong style={{ fontSize: 13 }}>Póliza contable</Text>
+                <Table
+                  size="small"
+                  loading={jeLoading}
+                  dataSource={jeLines}
+                  rowKey={(_, i) => String(i)}
+                  pagination={false}
+                  style={{ marginTop: 8 }}
+                  columns={[
+                    { title: 'Cuenta', dataIndex: 'accountCode', width: 90,
+                      render: (code: string, row: any) => <><Text code style={{ fontSize: 11 }}>{code}</Text> {row.accountName}</> },
+                    { title: 'Descripción', dataIndex: 'description', ellipsis: true },
+                    { title: 'Débito', dataIndex: 'debit', align: 'right', width: 110,
+                      render: (v: number) => v > 0 ? <Text style={{ color: '#cf1322' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
+                    { title: 'Crédito', dataIndex: 'credit', align: 'right', width: 110,
+                      render: (v: number) => v > 0 ? <Text style={{ color: '#389e0d' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
+                  ]}
+                  summary={(rows) => {
+                    const totalD = rows.reduce((s, r) => s + Number(r.debit  ?? 0), 0)
+                    const totalC = rows.reduce((s, r) => s + Number(r.credit ?? 0), 0)
+                    const hasFx  = rows.some(r => r.accountCode?.startsWith('7') || r.accountCode?.startsWith('5'))
+                    return (
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0} colSpan={2}>
+                          {hasFx && <Tag color="orange">Incluye diferencial cambiario</Tag>}
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={2} align="right">
+                          <Text strong style={{ color: '#cf1322' }}>Q {totalD.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={3} align="right">
+                          <Text strong style={{ color: '#389e0d' }}>Q {totalC.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    )
+                  }}
+                />
+              </div>
             )}
-          </Descriptions>
+          </>
         )}
       </Modal>
 
