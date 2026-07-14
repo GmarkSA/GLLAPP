@@ -14,7 +14,7 @@ import {
   createAsiento, getAsiento, updateAsiento, postAsiento,
   voidAsiento, reverseAsiento, type AsientoDetalle,
 } from '../../../api/asientos'
-import { getAccounts, type Account } from '../../../api/catalogo'
+import { getAccounts, getAccountGroups, type Account } from '../../../api/catalogo'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
 import { getExchangeRateForDate } from '../../../api/monedas'
@@ -94,6 +94,7 @@ export default function DiarioManualFormPage() {
   const [asiento,  setAsiento]   = useState<AsientoDetalle | null>(null)
   const [lines,    setLines]     = useState<LineState[]>([emptyLine(), emptyLine()])
   const [accounts, setAccounts]  = useState<Account[]>([])
+  const [groups,   setGroups]    = useState<Account[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [vendors,  setVendors]   = useState<Vendor[]>([])
   const [assets,   setAssets]    = useState<ActivoFijo[]>([])
@@ -113,13 +114,15 @@ export default function DiarioManualFormPage() {
   const isReadonly  = asiento?.status === 'POSTED' || asiento?.status === 'VOID'
 
   const loadMeta = useCallback(async () => {
-    const [all, custs, vends, af] = await Promise.allSettled([
+    const [all, grps, custs, vends, af] = await Promise.allSettled([
       getAccounts({ activas: true }),
+      getAccountGroups(),
       getCustomers({ limit: 500 }),
       getVendors({ limit: 500 }),
       getActivosFijos({ limit: 500 }),
     ])
     if (all.status === 'fulfilled') setAccounts(Array.isArray(all.value) ? all.value : [])
+    if (grps.status === 'fulfilled') setGroups(Array.isArray(grps.value) ? grps.value : [])
     if (custs.status === 'fulfilled') {
       const v = custs.value as any
       setCustomers(Array.isArray(v) ? v : v?.data ?? [])
@@ -193,14 +196,15 @@ export default function DiarioManualFormPage() {
     setLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l))
 
   const setAccount = (key: string, acct: Account) => {
+    const flags = resolveFlags(acct)
     updateLine(key, {
       accountId:   acct.id,
       accountCode: acct.code,
       accountName: acct.name,
       accountMeta: {
-        isCustomer:  acct.isCustomerAccount,
-        isVendor:    acct.isVendorAccount,
-        isFixedAsset: acct.isFixedAsset,
+        isCustomer:   flags.isCustomer,
+        isVendor:     flags.isVendor,
+        isFixedAsset: flags.isFixedAsset,
       },
       auxiliarId: '',
     })
@@ -306,6 +310,20 @@ export default function DiarioManualFormPage() {
   const fmtCur = (n: number) =>
     `${currency === 'GTQ' ? 'Q' : currency} ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+  // Resuelve flags de auxiliar: primero en la cuenta, luego hereda del grupo por rango de código
+  const resolveFlags = (acct: Account | undefined) => {
+    if (!acct) return { isCustomer: false, isVendor: false, isFixedAsset: false }
+    if (acct.isCustomerAccount || acct.isVendorAccount || acct.isFixedAsset)
+      return { isCustomer: acct.isCustomerAccount, isVendor: acct.isVendorAccount, isFixedAsset: acct.isFixedAsset }
+    const codeNum = parseInt(acct.code, 10)
+    const grp = groups.find(g => g.rangeStart != null && g.rangeEnd != null && codeNum >= g.rangeStart && codeNum <= g.rangeEnd)
+    return {
+      isCustomer:   !!grp?.isCustomerAccount,
+      isVendor:     !!grp?.isVendorAccount,
+      isFixedAsset: !!grp?.isFixedAsset,
+    }
+  }
+
   const lineColumns = [
     {
       title: 'Cuenta', width: 220,
@@ -333,11 +351,11 @@ export default function DiarioManualFormPage() {
     {
       title: 'Auxiliar', width: 160,
       render: (_: any, r: LineState) => {
-        // Buscar la cuenta en el catálogo para garantizar los flags aunque accountMeta no esté inicializado
-        const acct       = accounts.find(a => a.id === r.accountId)
-        const isCustomer   = r.accountMeta.isCustomer   || !!acct?.isCustomerAccount
-        const isVendor     = r.accountMeta.isVendor     || !!acct?.isVendorAccount
-        const isFixedAsset = r.accountMeta.isFixedAsset || !!acct?.isFixedAsset
+        const acct = accounts.find(a => a.id === r.accountId)
+        const flags = resolveFlags(acct)
+        const isCustomer   = r.accountMeta.isCustomer   || flags.isCustomer
+        const isVendor     = r.accountMeta.isVendor     || flags.isVendor
+        const isFixedAsset = r.accountMeta.isFixedAsset || flags.isFixedAsset
         if (isCustomer) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             disabled={isReadonly} placeholder="Cliente" optionFilterProp="label"
