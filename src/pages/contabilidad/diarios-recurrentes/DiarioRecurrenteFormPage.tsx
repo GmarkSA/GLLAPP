@@ -208,9 +208,9 @@ export default function DiarioRecurrenteFormPage() {
 
   const taxOptions = [
     { label: 'Sin impuesto', value: '' },
-    ...taxes.filter(t => t.isActive).map(t => ({ label: `${t.name} (${(t.rate * 100).toFixed(0)}%)`, value: t.code })),
+    ...taxes.filter(t => t.isActive).map(t => ({ label: `${t.name} (${t.rate}%)`, value: t.code })),
   ]
-  const taxRateMap = Object.fromEntries(taxes.map(t => [t.code, t.rate]))
+  const taxRateMap = Object.fromEntries(taxes.map(t => [t.code, t.rate / 100]))
 
   const recalcTax = (key: string, taxCode: string, debit: number | null, credit: number | null) => {
     const base = (debit ?? 0) || (credit ?? 0)
@@ -282,7 +282,7 @@ export default function DiarioRecurrenteFormPage() {
       ),
     },
     {
-      title: 'Descripción', width: 250,
+      title: 'Descripción', width: 320,
       render: (_: any, r: LineState) => (
         <Tooltip title={r.description || undefined} placement="topLeft" mouseEnterDelay={0.6}>
           <Input size="small" value={r.description} placeholder="Descripción"
