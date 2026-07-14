@@ -288,7 +288,7 @@ export default function EjecucionCentrosCostoPage() {
         </Space>
         <Space wrap size={8}>
           <Select
-            value={year} onChange={setYear} size="small" style={{ width: 110 }}
+            value={year} onChange={setYear} style={{ width: 170 }}
             options={Array.from({ length: 5 }, (_, i) => currentYear - 3 + i + 1)
               .map(y => ({ value: y, label: `Ejercicio ${y}` }))}
           />
