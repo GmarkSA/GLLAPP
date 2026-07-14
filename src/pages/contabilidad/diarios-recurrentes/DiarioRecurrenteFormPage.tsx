@@ -298,13 +298,13 @@ export default function DiarioRecurrenteFormPage() {
         if (isCustomer) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             placeholder="Cliente" optionFilterProp="label" style={{ width: '100%' }} allowClear
-            options={customers.map((c: any) => ({ label: c.displayName ?? c.companyName, value: c.id }))}
+            options={customers.map((c: any) => ({ label: c.name ?? c.legalName, value: c.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
         if (isVendor) return (
           <Select size="small" showSearch value={r.auxiliarId || undefined}
             placeholder="Proveedor" optionFilterProp="label" style={{ width: '100%' }} allowClear
-            options={vendors.map((v: any) => ({ label: v.displayName ?? v.companyName, value: v.id }))}
+            options={vendors.map((v: any) => ({ label: v.name ?? v.legalName, value: v.id }))}
             onChange={v => updateLine(r.key, { auxiliarId: v ?? '' })} />
         )
         if (isFixedAsset) return (
