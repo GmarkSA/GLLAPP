@@ -266,10 +266,10 @@ export default function DiarioRecurrenteFormPage() {
       ),
     },
     {
-      title: 'Descripción', width: 360,
+      title: 'Descripción', width: 500,
       render: (_: any, r: LineState) => (
         <Input.TextArea size="small" value={r.description} placeholder="Descripción"
-          rows={2} style={{ resize: 'none' }}
+          rows={3} style={{ resize: 'none' }}
           onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
     },

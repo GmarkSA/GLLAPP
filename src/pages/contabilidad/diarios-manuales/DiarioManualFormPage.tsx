@@ -321,10 +321,10 @@ export default function DiarioManualFormPage() {
       ),
     },
     {
-      title: 'Descripción', width: 360,
+      title: 'Descripción', width: 500,
       render: (_: any, r: LineState) => (
         <Input.TextArea size="small" value={r.description} disabled={isReadonly}
-          placeholder="Descripción" rows={2}
+          placeholder="Descripción" rows={3}
           style={{ resize: 'none' }}
           onChange={e => updateLine(r.key, { description: e.target.value })} />
       ),
