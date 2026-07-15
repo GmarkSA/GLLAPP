@@ -2,22 +2,25 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Table, Tag, Space, Popconfirm, message, Modal, Form, Input,
-  InputNumber, Select, DatePicker, Typography, Tooltip, Drawer,
+  InputNumber, Select, DatePicker, Typography, Tooltip, Drawer, Alert,
+  Upload, Steps, Divider, Result,
 } from 'antd'
 import {
   PlusOutlined, EyeOutlined, CheckCircleOutlined,
-  DollarOutlined, StopOutlined,
+  DollarOutlined, StopOutlined, UploadOutlined, DownloadOutlined,
+  ImportOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getActivosFijos, crearActivoFijo, actualizarActivoFijo,
   activarActivoFijo, venderActivoFijo, darDeBajaActivoFijo,
-  type ActivoFijo, type EstadoActivoFijo,
+  importarMasivoActivosFijos,
+  type ActivoFijo, type EstadoActivoFijo, type ImportarActivoItem, type ImportarMasivoResult,
 } from '../../../api/activos-fijos'
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../../api/clases-activo-fijo'
 import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../components/SelectorDimensionesAnaliticas'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 const ESTADO_COLOR: Record<EstadoActivoFijo, string> = {
   BORRADOR:    'default',
@@ -33,21 +36,97 @@ const ESTADO_LABEL: Record<EstadoActivoFijo, string> = {
   DADO_DE_BAJA: 'Dado de Baja',
 }
 
+// ── Helpers CSV ──────────────────────────────────────────────────────────────
+
+const CSV_HEADERS = ['nombre', 'codigo_clase', 'fecha_adquisicion', 'costo_original', 'valor_residual', 'dep_acumulada', 'ubicacion', 'numero_serie', 'descripcion']
+
+function descargarPlantillaCSV() {
+  const ejemplo = [
+    'Vehículo Toyota Hilux 2020,VEH,2020-01-15,120000,0,48000,Bodega Central,SN-12345,',
+    'Computadora Dell,EQU,2021-06-01,15000,0,6000,Oficina Principal,COMP-001,',
+    'Mobiliario de Oficina,MOB,2019-03-01,30000,0,18000,Sala de Reuniones,,',
+  ].join('\n')
+  const csv = `${CSV_HEADERS.join(',')}\n${ejemplo}`
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = 'plantilla_activos_fijos.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function parsearCSV(texto: string, clases: ClaseActivoFijo[]): { filas: ImportarActivoItem[]; errores: string[] } {
+  const lineas = texto.trim().split('\n').filter(Boolean)
+  if (lineas.length < 2) return { filas: [], errores: ['El archivo está vacío o solo tiene encabezados'] }
+
+  const errores: string[] = []
+  const filas: ImportarActivoItem[] = []
+
+  lineas.slice(1).forEach((linea, i) => {
+    const fila = i + 2
+    const cols  = linea.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+    const [nombre, codigoClase, fechaAdq, costoStr, residualStr, depAcumStr, ubicacion, serie, descripcion] = cols
+
+    if (!nombre) { errores.push(`Fila ${fila}: nombre requerido`); return }
+
+    const costo = parseFloat(costoStr)
+    if (isNaN(costo) || costo <= 0) { errores.push(`Fila ${fila}: costo_original inválido`); return }
+
+    if (!fechaAdq || !/^\d{4}-\d{2}-\d{2}$/.test(fechaAdq)) {
+      errores.push(`Fila ${fila}: fecha_adquisicion debe ser YYYY-MM-DD`); return
+    }
+
+    const claseEncontrada = codigoClase ? clases.find(c => c.codigo.toUpperCase() === codigoClase.toUpperCase()) : undefined
+
+    if (codigoClase && !claseEncontrada) {
+      errores.push(`Fila ${fila}: código de clase "${codigoClase}" no encontrado`)
+    }
+
+    const residual = parseFloat(residualStr) || 0
+    const depAcum  = parseFloat(depAcumStr)  || 0
+
+    if (depAcum > 0 && depAcum >= costo - residual) {
+      errores.push(`Fila ${fila}: dep_acumulada (${depAcum}) no puede ser mayor o igual al valor depreciable (${costo - residual})`)
+      return
+    }
+
+    filas.push({
+      name:                      nombre,
+      claseActivoFijoId:         claseEncontrada?.id ?? undefined,
+      acquisitionDate:           fechaAdq,
+      originalCost:              costo,
+      salvageValue:              residual || undefined,
+      depreciacionAcumuladaInicial: depAcum || undefined,
+      location:                  ubicacion || undefined,
+      serialNumber:              serie || undefined,
+      description:               descripcion || undefined,
+    })
+  })
+
+  return { filas, errores }
+}
+
+// ── Componente principal ─────────────────────────────────────────────────────
+
 export default function ActivosFijosPage() {
   const navigate = useNavigate()
-  const [data,       setData]       = useState<ActivoFijo[]>([])
-  const [total,      setTotal]      = useState(0)
-  const [loading,    setLoading]    = useState(false)
-  const [clases,     setClases]     = useState<ClaseActivoFijo[]>([])
-  const [page,       setPage]       = useState(1)
-  const [search,     setSearch]     = useState('')
+  const [data,         setData]         = useState<ActivoFijo[]>([])
+  const [total,        setTotal]        = useState(0)
+  const [loading,      setLoading]      = useState(false)
+  const [clases,       setClases]       = useState<ClaseActivoFijo[]>([])
+  const [page,         setPage]         = useState(1)
+  const [search,       setSearch]       = useState('')
   const [filtroEstado, setFiltroEstado] = useState<string | undefined>()
 
   // Formulario crear/editar
-  const [modalForm,  setModalForm]  = useState(false)
-  const [editing,    setEditing]    = useState<ActivoFijo | null>(null)
-  const [saving,     setSaving]     = useState(false)
-  const [form]  = Form.useForm()
+  const [modalForm, setModalForm] = useState(false)
+  const [editing,   setEditing]   = useState<ActivoFijo | null>(null)
+  const [saving,    setSaving]    = useState(false)
+  const [form] = Form.useForm()
+  const depAcumWatch = Form.useWatch('depreciacionAcumuladaInicial', form)
+  const costoWatch   = Form.useWatch('originalCost', form)
+  const residualWatch = Form.useWatch('salvageValue', form)
 
   // Acciones
   const [modalVender, setModalVender] = useState(false)
@@ -56,6 +135,14 @@ export default function ActivosFijosPage() {
   const [actLoading,  setActLoading]  = useState(false)
   const [formVender]  = Form.useForm()
   const [formBaja]    = Form.useForm()
+
+  // Importación masiva
+  const [drawerImport,  setDrawerImport]  = useState(false)
+  const [importStep,    setImportStep]    = useState(0)
+  const [csvFilas,      setCsvFilas]      = useState<ImportarActivoItem[]>([])
+  const [csvErrores,    setCsvErrores]    = useState<string[]>([])
+  const [importando,    setImportando]    = useState(false)
+  const [importResult,  setImportResult]  = useState<ImportarMasivoResult | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +160,13 @@ export default function ActivosFijosPage() {
     getClasesActivoFijo().then(setClases).catch(() => {})
   }, [])
 
+  // ── Preview depreciación acumulada ──────────────────────────────────────────
+
+  const depAcum  = Number(depAcumWatch  ?? 0)
+  const costo    = Number(costoWatch    ?? 0)
+  const residual = Number(residualWatch ?? 0)
+  const valorEnLibros = costo - depAcum
+
   // ── Crear / Editar ──────────────────────────────────────────────────────────
 
   const openNew = () => { setEditing(null); form.resetFields(); setModalForm(true) }
@@ -88,9 +182,9 @@ export default function ActivosFijosPage() {
       location: r.location,
       serialNumber: r.serialNumber,
       dimensiones: {
-        centroCostoId:    r.centroCostoId    ?? null,
-        centroBeneficioId: r.centroBeneficioId ?? null,
-      } satisfies DimensionesValue,
+        centroCostoId:     r.centroCostoId     ?? undefined,
+        centroBeneficioId: r.centroBeneficioId ?? undefined,
+      },
     })
     setModalForm(true)
   }
@@ -105,7 +199,7 @@ export default function ActivosFijosPage() {
       const payload = {
         ...rest,
         acquisitionDate:   vals.acquisitionDate?.format('YYYY-MM-DD'),
-        centroCostoId:     dim?.centroCostoId    ?? null,
+        centroCostoId:     dim?.centroCostoId     ?? null,
         centroBeneficioId: dim?.centroBeneficioId ?? null,
       }
       if (editing) {
@@ -128,7 +222,7 @@ export default function ActivosFijosPage() {
     setActLoading(true)
     try {
       await activarActivoFijo(id)
-      message.success('Activo activado — póliza de alta generada')
+      message.success('Activo activado — póliza generada')
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al activar')
@@ -170,6 +264,38 @@ export default function ActivosFijosPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al dar de baja')
     } finally { setActLoading(false) }
+  }
+
+  // ── Importación masiva ───────────────────────────────────────────────────────
+
+  const abrirImport = () => {
+    setImportStep(0); setCsvFilas([]); setCsvErrores([]); setImportResult(null)
+    setDrawerImport(true)
+  }
+
+  const handleCSVFile = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const texto = e.target?.result as string
+      const { filas, errores } = parsearCSV(texto, clases)
+      setCsvFilas(filas)
+      setCsvErrores(errores)
+      setImportStep(1)
+    }
+    reader.readAsText(file, 'UTF-8')
+    return false
+  }
+
+  const handleConfirmarImport = async () => {
+    setImportando(true)
+    try {
+      const result = await importarMasivoActivosFijos(csvFilas)
+      setImportResult(result)
+      setImportStep(2)
+      if (result.exitosos > 0) load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error en la importación')
+    } finally { setImportando(false) }
   }
 
   // ── Tabla ────────────────────────────────────────────────────────────────────
@@ -216,7 +342,11 @@ export default function ActivosFijosPage() {
           {r.estado === 'BORRADOR' && (
             <Tooltip title="Activar activo">
               <Popconfirm
-                title="¿Activar este activo? Se generará póliza de alta."
+                title={
+                  Number(r.accumulatedDepreciation) > 0
+                    ? '¿Activar activo migrado? Se generará póliza de apertura con saldo inicial.'
+                    : '¿Activar este activo? Se generará póliza de alta.'
+                }
                 onConfirm={() => handleActivar(r.id)}
               >
                 <Button size="small" type="primary" icon={<CheckCircleOutlined />}
@@ -244,12 +374,46 @@ export default function ActivosFijosPage() {
     },
   ]
 
+  // ── Columnas preview importación ─────────────────────────────────────────────
+
+  const importColumns = [
+    { title: 'Fila', render: (_: any, __: any, i: number) => i + 2, width: 55 },
+    { title: 'Nombre', dataIndex: 'name' },
+    {
+      title: 'Clase', dataIndex: 'claseActivoFijoId', width: 140,
+      render: (v: string) => clases.find(c => c.id === v)?.nombre ?? <Text type="secondary">Sin clase</Text>,
+    },
+    {
+      title: 'Costo (Q)', dataIndex: 'originalCost', width: 110, align: 'right' as const,
+      render: (v: number) => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }),
+    },
+    {
+      title: 'Dep. Acum. (Q)', dataIndex: 'depreciacionAcumuladaInicial', width: 120, align: 'right' as const,
+      render: (v: number) => v ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '—',
+    },
+    {
+      title: 'Valor Libros (Q)', width: 125, align: 'right' as const,
+      render: (_: any, r: ImportarActivoItem) => {
+        const vl = r.originalCost - (r.depreciacionAcumuladaInicial ?? 0)
+        return Number(vl).toLocaleString('es-GT', { minimumFractionDigits: 2 })
+      },
+    },
+    { title: 'Adquisición', dataIndex: 'acquisitionDate', width: 105 },
+  ]
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Activos Fijos</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openNew}
-          style={{ background: '#1B3A6B' }}>Nuevo Activo</Button>
+        <Space>
+          <Button icon={<ImportOutlined />} onClick={abrirImport}>
+            Importar saldos iniciales
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openNew}
+            style={{ background: '#1B3A6B' }}>Nuevo Activo</Button>
+        </Space>
       </div>
 
       <Space style={{ marginBottom: 12 }}>
@@ -262,10 +426,10 @@ export default function ActivosFijosPage() {
           placeholder="Estado" allowClear style={{ width: 140 }}
           onChange={v => { setFiltroEstado(v); setPage(1) }}
           options={[
-            { label: 'Borrador',      value: 'BORRADOR' },
-            { label: 'Activo',        value: 'ACTIVO' },
-            { label: 'Vendido',       value: 'VENDIDO' },
-            { label: 'Dado de Baja',  value: 'DADO_DE_BAJA' },
+            { label: 'Borrador',     value: 'BORRADOR' },
+            { label: 'Activo',       value: 'ACTIVO' },
+            { label: 'Vendido',      value: 'VENDIDO' },
+            { label: 'Dado de Baja', value: 'DADO_DE_BAJA' },
           ]}
         />
       </Space>
@@ -280,13 +444,13 @@ export default function ActivosFijosPage() {
         }}
       />
 
-      {/* Modal: Nuevo / Editar */}
+      {/* ── Modal: Nuevo / Editar ─────────────────────────────────────── */}
       <Modal
         title={editing ? `Editar ${editing.assetNumber}` : 'Nuevo Activo Fijo'}
         open={modalForm} onCancel={() => setModalForm(false)}
         onOk={handleSave} okText="Guardar" confirmLoading={saving}
         okButtonProps={{ style: { background: '#1B3A6B' } }}
-        width={640}
+        width={660}
       >
         <Form form={form} layout="vertical" size="small" style={{ marginTop: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
@@ -312,6 +476,33 @@ export default function ActivosFijosPage() {
               <InputNumber style={{ width: '100%' }} min={0} precision={2} />
             </Form.Item>
           </div>
+
+          {/* Campo saldo inicial — solo visible al crear */}
+          {!editing && (
+            <>
+              <Divider dashed style={{ margin: '8px 0' }} />
+              <Form.Item
+                name="depreciacionAcumuladaInicial"
+                label="Depreciación acumulada al ingreso (Q)"
+                tooltip="Solo para traslado de saldos iniciales. Dejar vacío para activos nuevos."
+                extra={
+                  depAcum > 0 && costo > 0
+                    ? <span style={{ fontSize: 11, color: '#1B3A6B' }}>
+                        Valor en libros al ingresar: <strong>Q {valorEnLibros.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
+                        {residual > 0 && depAcum >= costo - residual
+                          ? <span style={{ color: '#f5222d' }}> — excede el valor depreciable</span>
+                          : null}
+                      </span>
+                    : <span style={{ fontSize: 11, color: '#8c8c8c' }}>Solo para migración desde otro sistema</span>
+                }
+              >
+                <InputNumber style={{ width: 200 }} min={0} precision={2}
+                  placeholder="0.00 — dejar vacío si es activo nuevo" />
+              </Form.Item>
+              <Divider dashed style={{ margin: '8px 0' }} />
+            </>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="location" label="Ubicación">
               <Input placeholder="Bodega Central" />
@@ -329,7 +520,7 @@ export default function ActivosFijosPage() {
         </Form>
       </Modal>
 
-      {/* Modal: Vender */}
+      {/* ── Modal: Vender ────────────────────────────────────────────── */}
       <Modal
         title={<><DollarOutlined /> Registrar Venta de Activo</>}
         open={modalVender} onCancel={() => setModalVender(false)}
@@ -352,7 +543,7 @@ export default function ActivosFijosPage() {
         </Form>
       </Modal>
 
-      {/* Modal: Dar de baja */}
+      {/* ── Modal: Dar de baja ───────────────────────────────────────── */}
       <Modal
         title={<><StopOutlined /> Dar de Baja Activo</>}
         open={modalBaja} onCancel={() => setModalBaja(false)}
@@ -368,6 +559,119 @@ export default function ActivosFijosPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* ── Drawer: Importación masiva ───────────────────────────────── */}
+      <Drawer
+        title="Importar saldos iniciales — Activos Fijos"
+        open={drawerImport}
+        onClose={() => setDrawerImport(false)}
+        width={900}
+        footer={
+          importStep === 1 && csvFilas.length > 0 && csvErrores.length === 0 ? (
+            <Space>
+              <Button onClick={() => setImportStep(0)}>Volver</Button>
+              <Button type="primary" loading={importando}
+                style={{ background: '#1B3A6B' }}
+                onClick={handleConfirmarImport}>
+                Importar {csvFilas.length} activos
+              </Button>
+            </Space>
+          ) : importStep === 2 ? (
+            <Button onClick={() => setDrawerImport(false)}>Cerrar</Button>
+          ) : null
+        }
+      >
+        <Steps current={importStep} size="small" style={{ marginBottom: 24 }}
+          items={[
+            { title: 'Cargar CSV' },
+            { title: 'Revisar' },
+            { title: 'Resultado' },
+          ]}
+        />
+
+        {/* Paso 0: Cargar archivo */}
+        {importStep === 0 && (
+          <div>
+            <Alert
+              type="info" showIcon style={{ marginBottom: 16 }}
+              message="Formato del archivo CSV"
+              description={
+                <div>
+                  <p style={{ margin: '4px 0' }}>Columnas requeridas: <code>nombre</code>, <code>fecha_adquisicion</code> (YYYY-MM-DD), <code>costo_original</code></p>
+                  <p style={{ margin: '4px 0' }}>Columnas opcionales: <code>codigo_clase</code>, <code>valor_residual</code>, <code>dep_acumulada</code>, <code>ubicacion</code>, <code>numero_serie</code>, <code>descripcion</code></p>
+                  <p style={{ margin: '4px 0' }}>Si la clase se incluye y el activo tiene depreciación acumulada, se activa automáticamente con póliza de apertura.</p>
+                </div>
+              }
+            />
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Button icon={<DownloadOutlined />} onClick={descargarPlantillaCSV}>
+                Descargar plantilla CSV
+              </Button>
+              <Upload accept=".csv" beforeUpload={handleCSVFile} showUploadList={false}>
+                <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
+                  Seleccionar archivo CSV
+                </Button>
+              </Upload>
+            </Space>
+          </div>
+        )}
+
+        {/* Paso 1: Revisar */}
+        {importStep === 1 && (
+          <div>
+            {csvErrores.length > 0 && (
+              <Alert type="error" showIcon style={{ marginBottom: 16 }}
+                message={`${csvErrores.length} error(es) encontrados — corrige el archivo y vuelve a cargarlo`}
+                description={<ul style={{ margin: 0, paddingLeft: 16 }}>{csvErrores.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+              />
+            )}
+            {csvFilas.length > 0 && (
+              <>
+                <Text style={{ display: 'block', marginBottom: 8 }}>
+                  <strong>{csvFilas.length}</strong> activos listos para importar
+                  {csvFilas.filter(f => (f.depreciacionAcumuladaInicial ?? 0) > 0).length > 0 &&
+                    <> — <strong>{csvFilas.filter(f => (f.depreciacionAcumuladaInicial ?? 0) > 0).length}</strong> con saldo inicial</>}
+                </Text>
+                <Table
+                  dataSource={csvFilas} columns={importColumns}
+                  rowKey={(_, i) => String(i)}
+                  size="small" pagination={false} scroll={{ y: 400 }}
+                />
+              </>
+            )}
+            {csvFilas.length === 0 && csvErrores.length === 0 && (
+              <Alert type="warning" message="El archivo no contiene filas de datos" />
+            )}
+          </div>
+        )}
+
+        {/* Paso 2: Resultado */}
+        {importStep === 2 && importResult && (
+          <div>
+            <Result
+              status={importResult.errores === 0 ? 'success' : importResult.exitosos === 0 ? 'error' : 'warning'}
+              title={`${importResult.exitosos} importados, ${importResult.errores} errores`}
+            />
+            <Table
+              dataSource={importResult.detalles}
+              rowKey="fila"
+              size="small"
+              pagination={false}
+              scroll={{ y: 400 }}
+              columns={[
+                { title: 'Fila', dataIndex: 'fila', width: 55 },
+                { title: 'Nombre', dataIndex: 'nombre' },
+                { title: 'N.º Activo', dataIndex: 'assetNumber', width: 110 },
+                {
+                  title: 'Estado', dataIndex: 'estado', width: 80,
+                  render: (v: string) => <Tag color={v === 'ok' ? 'success' : 'error'}>{v === 'ok' ? 'OK' : 'Error'}</Tag>,
+                },
+                { title: 'Detalle', dataIndex: 'mensaje', render: (v: string) => v ?? '—' },
+              ]}
+            />
+          </div>
+        )}
+      </Drawer>
     </div>
   )
 }
