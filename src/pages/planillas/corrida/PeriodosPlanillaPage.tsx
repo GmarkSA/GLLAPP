@@ -84,7 +84,7 @@ export default function PeriodosPlanillaPage() {
       render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
-      title: 'Estado', key: 'estado', width: 190,
+      title: 'Estado', key: 'estado', width: 210,
       render: (_, p) => (
         <Space direction="vertical" size={2}>
           <Tag color={ESTADO_COLOR[p.estado]} style={{ fontSize: 10, width: 'fit-content' }}>{p.estado}</Tag>
@@ -108,6 +108,10 @@ export default function PeriodosPlanillaPage() {
               </a>
             )}
           </Space>
+          <a style={{ fontSize: 11 }}
+            onClick={e => { e.stopPropagation(); navigate(`/planillas/mensual/${p.anio}/${p.mes}`) }}>
+            Ver detalle mensual
+          </a>
         </Space>
       ),
     },

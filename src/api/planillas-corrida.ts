@@ -135,6 +135,50 @@ export interface PreviewAsiento {
 export const previsualizarAsientoPlanilla = (id: string) =>
   api.get(`${BASE}/${id}/preview-asiento`).then(unwrap) as Promise<PreviewAsiento>
 
+export interface EmpleadoDetalleMensual {
+  empleadoId: string
+  empleadoCodigo: string
+  empleadoNombre: string
+  dias: number
+  sueldoBase: number
+  bonificacion: number
+  comisiones: number
+  montoHorasExtra: number
+  igssPatronal: number
+  igssLaboral: number
+  isrEmpleados: number
+  otrasDeducciones: number
+  totalDevengado: number
+  totalDeducciones: number
+  netoAPagar: number
+  pagadoCompleto: boolean
+}
+
+export interface NomenclaturaLinea {
+  accountCode: string
+  accountName: string
+  centroCostoNombre: string | null
+  centroBeneficioNombre: string | null
+  debit: number
+  credit: number
+}
+
+export interface DetalleMensualPlanilla {
+  anio: number
+  mes: number
+  quincena1: { id: string; estado: EstadoPeriodoPlanilla } | null
+  quincena2: { id: string; estado: EstadoPeriodoPlanilla } | null
+  empleados: EmpleadoDetalleMensual[]
+  totales: Omit<EmpleadoDetalleMensual, 'empleadoId' | 'empleadoCodigo' | 'empleadoNombre' | 'pagadoCompleto'>
+  nomenclatura: NomenclaturaLinea[]
+  totalDebit: number
+  totalCredit: number
+  cuadra: boolean
+}
+
+export const getDetalleMensualPlanilla = (anio: number, mes: number) =>
+  api.get(`/planillas/reportes/mensual/${anio}/${mes}`).then(unwrap) as Promise<DetalleMensualPlanilla>
+
 export const contabilizarPeriodoPlanilla = (id: string) =>
   api.post(`${BASE}/${id}/contabilizar`).then(unwrap) as Promise<{ periodo: PeriodoPlanilla; asientoContableId: string; entryNumber: string }>
 
