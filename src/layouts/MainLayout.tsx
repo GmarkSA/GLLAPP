@@ -83,6 +83,7 @@ const menuItems = [
   ]},
   { key: '/pos',             icon: <TabletOutlined />,       label: 'Terminal POS' },
   { key: 'planillas',        icon: <TeamOutlined />,         label: 'Planillas', children: [
+    { key: '/planillas/empleados',                          label: 'Empleados' },
     { key: '/planillas/configuracion/parametros-fiscales', label: 'Parámetros fiscales' },
     { key: '/planillas/configuracion/datos-patrono',       label: 'Datos del patrono' },
     { key: '/planillas/configuracion/cuentas-contables',   label: 'Cuentas contables' },
