@@ -134,7 +134,7 @@ export default function ParametrosFiscalesPage() {
       />
 
       <Spin spinning={loading}>
-        <Form form={form} layout="vertical" size="small">
+        <Form form={form} layout="vertical" size="small" labelWrap>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
 
             <Card size="small" title={<Text strong>ISR sobre salarios</Text>} style={{ borderRadius: 8 }}>
