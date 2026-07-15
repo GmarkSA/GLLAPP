@@ -82,6 +82,7 @@ export default function DiarioManualFormPage() {
   const navigate  = useNavigate()
   const location  = useLocation()
   const clonarDe  = (location.state as any)?.clonarDe as AsientoDetalle | undefined
+  const volverA   = (location.state as any)?.volverA as string | undefined
   const isNew     = !id || id === 'nuevo'
 
   const [form]     = Form.useForm()
@@ -434,7 +435,7 @@ export default function DiarioManualFormPage() {
   return (
     <div style={{ padding: 24, maxWidth: 1300 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contabilidad/diarios-manuales')}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(volverA || '/contabilidad/diarios-manuales')}>
           Volver
         </Button>
         <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{pageTitle}</Title>

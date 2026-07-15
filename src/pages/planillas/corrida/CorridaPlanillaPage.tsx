@@ -374,14 +374,20 @@ export default function CorridaPlanillaPage() {
             <Text type="secondary" style={{ fontSize: 12 }}>
               <BookOutlined style={{ marginRight: 6 }} />
               Contabilizada {periodo.contabilizadoAt && dayjs(periodo.contabilizadoAt).format('DD/MM/YYYY HH:mm')}
-              {periodo.contabilizadoPor ? ` por ${periodo.contabilizadoPor}` : ''} — ver en Libro Diario
+              {periodo.contabilizadoPor ? ` por ${periodo.contabilizadoPor}` : ''} —{' '}
+              <a onClick={() => navigate(`/contabilidad/diarios-manuales/${periodo.asientoContableId}`, { state: { volverA: `/planillas/corridas/${periodo.id}` } })}>
+                ver póliza de planilla
+              </a>
             </Text>
           )}
           {periodo.asientoPagoId && (
             <Text type="secondary" style={{ fontSize: 12 }}>
               <BankOutlined style={{ marginRight: 6 }} />
               Pagada {periodo.pagadoAt && dayjs(periodo.pagadoAt).format('DD/MM/YYYY HH:mm')}
-              {periodo.pagadoPor ? ` por ${periodo.pagadoPor}` : ''}
+              {periodo.pagadoPor ? ` por ${periodo.pagadoPor}` : ''} —{' '}
+              <a onClick={() => navigate(`/contabilidad/diarios-manuales/${periodo.asientoPagoId}`, { state: { volverA: `/planillas/corridas/${periodo.id}` } })}>
+                ver póliza de pago
+              </a>
             </Text>
           )}
         </Space>

@@ -91,13 +91,19 @@ export default function PeriodosPlanillaPage() {
           <Space size={10}>
             {p.asientoContableId && (
               <a style={{ fontSize: 11 }}
-                onClick={e => { e.stopPropagation(); navigate(`/contabilidad/diarios-manuales/${p.asientoContableId}`) }}>
+                onClick={e => {
+                  e.stopPropagation()
+                  navigate(`/contabilidad/diarios-manuales/${p.asientoContableId}`, { state: { volverA: '/planillas/corridas' } })
+                }}>
                 Ver póliza de planilla
               </a>
             )}
             {p.asientoPagoId && (
               <a style={{ fontSize: 11 }}
-                onClick={e => { e.stopPropagation(); navigate(`/contabilidad/diarios-manuales/${p.asientoPagoId}`) }}>
+                onClick={e => {
+                  e.stopPropagation()
+                  navigate(`/contabilidad/diarios-manuales/${p.asientoPagoId}`, { state: { volverA: '/planillas/corridas' } })
+                }}>
                 Ver póliza de pago
               </a>
             )}
