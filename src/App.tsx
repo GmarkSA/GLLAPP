@@ -139,6 +139,11 @@ const FlujoEfectivoPage     = lazy(() => import('./pages/reportes/FlujoEfectivoP
 const TasasRendimientoPage  = lazy(() => import('./pages/reportes/TasasRendimientoPage'))
 const MovimientoCapitalPage = lazy(() => import('./pages/reportes/MovimientoCapitalPage'))
 const BalanzaPage           = lazy(() => import('./pages/reportes/BalanzaPage'))
+const RentabilidadCentrosBeneficioPage = lazy(() => import('./pages/reportes/RentabilidadCentrosBeneficioPage'))
+const EjecucionCentrosCostoPage        = lazy(() => import('./pages/reportes/EjecucionCentrosCostoPage'))
+const ParametrosFiscalesPage = lazy(() => import('./pages/planillas/configuracion/ParametrosFiscalesPage'))
+const DatosPatronoPage       = lazy(() => import('./pages/planillas/configuracion/DatosPatronoPage'))
+const CuentasPlanillaPage    = lazy(() => import('./pages/planillas/configuracion/CuentasPlanillaPage'))
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -311,7 +316,13 @@ export default function App() {
             <Route path="ar-aging"                   element={<ArAgingPage />} />
             <Route path="proyectado-pagos"           element={<ReporteProyectadoPagosPage />} />
             <Route path="activos-fijos"              element={<ReporteActivosFijosPage />} />
+            <Route path="centros-beneficio"          element={<RentabilidadCentrosBeneficioPage />} />
+            <Route path="centros-costo"              element={<EjecucionCentrosCostoPage />} />
           </Route>
+
+          <Route path="planillas/configuracion/parametros-fiscales" element={<ParametrosFiscalesPage />} />
+          <Route path="planillas/configuracion/datos-patrono"       element={<DatosPatronoPage />} />
+          <Route path="planillas/configuracion/cuentas-contables"   element={<CuentasPlanillaPage />} />
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />
           <Route path="configuracion"                                element={<ConfiguracionPage />} />

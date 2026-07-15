@@ -4,6 +4,7 @@ import {
   BarChartOutlined, LineChartOutlined, FundOutlined,
   AuditOutlined, RiseOutlined, AccountBookOutlined,
   FileTextOutlined, BookOutlined, ShopOutlined,
+  PieChartOutlined, DashboardOutlined,
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
@@ -118,6 +119,26 @@ const REPORTS = [
     tags: ['CxP', 'Análisis'],
     path: '/reportes/ap-aging',
     color: '#f5f3ff',
+  },
+  {
+    key: 'centros-beneficio',
+    icon: <PieChartOutlined style={{ fontSize: 28, color: '#1B3A6B' }} />,
+    title: 'Rentabilidad por Centro de Beneficio',
+    subtitle: 'P&L analítico por línea de negocio',
+    description: 'Ingresos, costos y margen por centro de beneficio, con análisis automático de concentración, pérdidas y tendencia.',
+    tags: ['Analítico', 'Decisión'],
+    path: '/reportes/centros-beneficio',
+    color: '#e6eeff',
+  },
+  {
+    key: 'centros-costo',
+    icon: <DashboardOutlined style={{ fontSize: 28, color: '#d46b08' }} />,
+    title: 'Ejecución por Centro de Costo',
+    subtitle: 'Control presupuestario y proyección',
+    description: 'Gasto real vs presupuesto por centro de costo, proyección al cierre, mes de agotamiento y alertas de gasto atípico.',
+    tags: ['Analítico', 'Presupuesto'],
+    path: '/reportes/centros-costo',
+    color: '#fff7e6',
   },
 ]
 

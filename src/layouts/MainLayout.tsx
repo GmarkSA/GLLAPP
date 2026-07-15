@@ -7,6 +7,7 @@ import {
   ProjectOutlined, AuditOutlined, InboxOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined, BookOutlined,
   TabletOutlined, SearchOutlined, GlobalOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -27,6 +28,7 @@ const getOpenKey = (pathname: string): string[] => {
   if (pathname.startsWith('/bancos'))        return ['bancos']
   if (pathname.startsWith('/contabilidad'))  return ['contabilidad']
   if (pathname.startsWith('/inventario'))    return ['inventario']
+  if (pathname.startsWith('/planillas'))     return ['planillas']
   if (pathname.startsWith('/reportes'))      return ['reportes']
   if (pathname.startsWith('/configuracion')) return ['configuracion']
   return []
@@ -80,6 +82,11 @@ const menuItems = [
     { key: '/inventario/movimientos',    label: 'Movimientos MIGO' },
   ]},
   { key: '/pos',             icon: <TabletOutlined />,       label: 'Terminal POS' },
+  { key: 'planillas',        icon: <TeamOutlined />,         label: 'Planillas', children: [
+    { key: '/planillas/configuracion/parametros-fiscales', label: 'Parámetros fiscales' },
+    { key: '/planillas/configuracion/datos-patrono',       label: 'Datos del patrono' },
+    { key: '/planillas/configuracion/cuentas-contables',   label: 'Cuentas contables' },
+  ]},
   { key: '/proyectos',       icon: <ProjectOutlined />,      label: 'Proyectos' },
   { key: 'reportes',         icon: <BarChartOutlined />,     label: 'Reportes', children: [
     { key: '/reportes/balance-general',    label: 'Balance General' },
@@ -95,6 +102,8 @@ const menuItems = [
     { key: '/reportes/ar-aging',           label: 'AR Aging (CxC)' },
     { key: '/reportes/proyectado-pagos',   label: 'Proyectado de Pagos' },
     { key: '/reportes/activos-fijos',      label: 'Reporte activos fijos' },
+    { key: '/reportes/centros-beneficio',  label: 'Rentabilidad C. Beneficio' },
+    { key: '/reportes/centros-costo',      label: 'Ejecución C. Costo' },
   ]},
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
   { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
@@ -126,7 +135,7 @@ export default function MainLayout() {
   // Filtra el menú respetando enabledModules de la empresa activa.
   // Dashboard, Configuración y Platform Admin nunca se ocultan.
   const filteredMenuItems = menuItems.filter(item => {
-    const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform', '/proyectos', '/pos']
+    const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform', '/proyectos', '/pos', 'planillas']
     if (alwaysVisible.includes(item.key)) return true
     return isModuleEnabled(item.key)
   })
