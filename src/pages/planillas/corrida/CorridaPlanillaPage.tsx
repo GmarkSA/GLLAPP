@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Button, Card, Col, InputNumber, Popconfirm, Row, Space, Spin,
+  Alert, Button, Card, Col, DatePicker, Form, InputNumber, Modal, Popconfirm, Row, Select, Space, Spin,
   Statistic, Table, Tag, Tooltip, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
-  WarningOutlined,
+  WarningOutlined, BookOutlined, BankOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
+  contabilizarPeriodoPlanilla, pagarPeriodoPlanilla,
   type PeriodoPlanillaDetalle, type DetallePlanilla,
 } from '../../../api/planillas-corrida'
+import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 
 const { Text, Title } = Typography
 const NAVY = '#1B3A6B'
@@ -22,7 +24,9 @@ const fmtQ = (n: number) => Number(n).toLocaleString('es-GT', { minimumFractionD
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-const ESTADO_COLOR: Record<string, string> = { BORRADOR: 'orange', APROBADA: 'green', PAGADA: 'blue' }
+const ESTADO_COLOR: Record<string, string> = {
+  BORRADOR: 'orange', APROBADA: 'green', CONTABILIZADA: 'blue', PAGADA: 'purple',
+}
 
 /** Celda numérica con estado local — commitea al salir del campo (onBlur) */
 function CellNumber({ value, onCommit, disabled, max, precision = 2 }: {
@@ -56,6 +60,9 @@ export default function CorridaPlanillaPage() {
   const [periodo, setPeriodo] = useState<PeriodoPlanillaDetalle | null>(null)
   const [loading, setLoading] = useState(false)
   const [procesando, setProcesando] = useState(false)
+  const [modalPago, setModalPago] = useState(false)
+  const [cuentas, setCuentas] = useState<BankAccount[]>([])
+  const [formPago] = Form.useForm()
 
   const cargar = () => {
     setLoading(true)
@@ -113,6 +120,45 @@ export default function CorridaPlanillaPage() {
       navigate('/planillas/corridas')
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al eliminar')
+    }
+  }
+
+  const contabilizar = async () => {
+    try {
+      setProcesando(true)
+      const r = await contabilizarPeriodoPlanilla(id!)
+      message.success(`Asiento ${r.entryNumber} generado — planilla contabilizada`)
+      cargar()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al contabilizar')
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  const abrirModalPago = () => {
+    getBankAccounts().then(r => setCuentas(Array.isArray(r) ? r : (r as any)?.data ?? []))
+      .catch(() => message.error('Error cargando cuentas bancarias'))
+    formPago.setFieldsValue({ fecha: dayjs() })
+    setModalPago(true)
+  }
+
+  const pagar = async () => {
+    try {
+      const vals = await formPago.validateFields()
+      setProcesando(true)
+      const r = await pagarPeriodoPlanilla(id!, {
+        bankAccountId: vals.bankAccountId,
+        fecha: vals.fecha.format('YYYY-MM-DD'),
+      })
+      message.success(`Pago registrado — asiento ${r.entryNumber} por ${fmtQ(r.totalPago)}`)
+      setModalPago(false)
+      cargar()
+    } catch (e: any) {
+      if (e?.errorFields) return
+      message.error(e?.response?.data?.message || 'Error al registrar el pago')
+    } finally {
+      setProcesando(false)
     }
   }
 
@@ -232,23 +278,59 @@ export default function CorridaPlanillaPage() {
             </Text>
           </div>
         </Space>
-        {editable && (
-          <Space wrap>
-            <Button icon={<ReloadOutlined />} loading={procesando} onClick={recalcular}>Recalcular</Button>
-            <Popconfirm title="¿Eliminar esta corrida en borrador?" okText="Eliminar" cancelText="Cancelar" onConfirm={eliminar}>
-              <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
-            </Popconfirm>
+        <Space wrap>
+          {editable && (
+            <>
+              <Button icon={<ReloadOutlined />} loading={procesando} onClick={recalcular}>Recalcular</Button>
+              <Popconfirm title="¿Eliminar esta corrida en borrador?" okText="Eliminar" cancelText="Cancelar" onConfirm={eliminar}>
+                <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
+              </Popconfirm>
+              <Popconfirm
+                title="¿Aprobar la planilla?"
+                description="Los montos quedan congelados y ya no se podrá editar. Requiere el mapeo de cuentas contables completo."
+                okText="Aprobar" cancelText="Cancelar" onConfirm={aprobar}>
+                <Button type="primary" icon={<CheckCircleOutlined />} loading={procesando} style={{ background: '#389e0d' }}>
+                  Aprobar planilla
+                </Button>
+              </Popconfirm>
+            </>
+          )}
+          {periodo.estado === 'APROBADA' && (
             <Popconfirm
-              title="¿Aprobar la planilla?"
-              description="Los montos quedan congelados y ya no se podrá editar. Requiere el mapeo de cuentas contables completo."
-              okText="Aprobar" cancelText="Cancelar" onConfirm={aprobar}>
-              <Button type="primary" icon={<CheckCircleOutlined />} loading={procesando} style={{ background: '#389e0d' }}>
-                Aprobar planilla
+              title="¿Contabilizar la planilla?"
+              description="Genera el asiento contable: gasto dimensionado por centro y pasivo agrupado por concepto."
+              okText="Contabilizar" cancelText="Cancelar" onConfirm={contabilizar}>
+              <Button type="primary" icon={<BookOutlined />} loading={procesando} style={{ background: NAVY }}>
+                Contabilizar
               </Button>
             </Popconfirm>
-          </Space>
-        )}
+          )}
+          {periodo.estado === 'CONTABILIZADA' && (
+            <Button type="primary" icon={<BankOutlined />} loading={procesando} onClick={abrirModalPago} style={{ background: NAVY }}>
+              Registrar pago
+            </Button>
+          )}
+        </Space>
       </div>
+
+      {(periodo.asientoContableId || periodo.asientoPagoId) && (
+        <Space direction="vertical" size={2} style={{ marginBottom: 16 }}>
+          {periodo.asientoContableId && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <BookOutlined style={{ marginRight: 6 }} />
+              Contabilizada {periodo.contabilizadoAt && dayjs(periodo.contabilizadoAt).format('DD/MM/YYYY HH:mm')}
+              {periodo.contabilizadoPor ? ` por ${periodo.contabilizadoPor}` : ''} — ver en Libro Diario
+            </Text>
+          )}
+          {periodo.asientoPagoId && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <BankOutlined style={{ marginRight: 6 }} />
+              Pagada {periodo.pagadoAt && dayjs(periodo.pagadoAt).format('DD/MM/YYYY HH:mm')}
+              {periodo.pagadoPor ? ` por ${periodo.pagadoPor}` : ''}
+            </Text>
+          )}
+        </Space>
+      )}
 
       {advertenciasCount > 0 && (
         <Alert type="warning" showIcon style={{ marginBottom: 16 }}
@@ -284,6 +366,28 @@ export default function CorridaPlanillaPage() {
           />
         </Spin>
       </Card>
+
+      <Modal
+        title="Registrar pago de planilla"
+        open={modalPago} onCancel={() => setModalPago(false)}
+        onOk={pagar} okText="Registrar pago" cancelText="Cancelar"
+        confirmLoading={procesando}
+      >
+        <Alert type="info" showIcon style={{ marginBottom: 12 }}
+          message="Revierte el pasivo contra la cuenta bancaria."
+          description={`Se generará un asiento que debita Sueldos/IGSS/ISR por pagar (el gasto ya se reconoció al contabilizar) y acredita la cuenta bancaria por el total: Q ${fmtQ(periodo.totalDevengado + periodo.totalCuotaPatronal)}.`} />
+        <Form form={formPago} layout="vertical" size="small">
+          <Form.Item name="bankAccountId" label="Cuenta bancaria" rules={[{ required: true, message: 'Requerido' }]}>
+            <Select
+              placeholder="Seleccionar cuenta"
+              options={cuentas.map(c => ({ value: c.id, label: `${c.bankName ?? c.name} — ${c.accountNumber ?? ''}` }))}
+            />
+          </Form.Item>
+          <Form.Item name="fecha" label="Fecha de pago" rules={[{ required: true, message: 'Requerido' }]}>
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

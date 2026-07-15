@@ -16,7 +16,9 @@ const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFrac
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-const ESTADO_COLOR: Record<string, string> = { BORRADOR: 'orange', APROBADA: 'green', PAGADA: 'blue' }
+const ESTADO_COLOR: Record<string, string> = {
+  BORRADOR: 'orange', APROBADA: 'green', CONTABILIZADA: 'blue', PAGADA: 'purple',
+}
 
 export default function PeriodosPlanillaPage() {
   const navigate = useNavigate()
