@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Button, Card, Form, Modal, Select, Space, Table, Tag, Typography, message,
+  Button, Card, Form, Modal, Select, Space, Table, Tag, Tooltip, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { PlusOutlined, CalendarOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, CalendarOutlined, BookOutlined, BankOutlined, FileTextOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPeriodosPlanilla, crearPeriodoPlanilla, type PeriodoPlanilla,
@@ -84,34 +86,34 @@ export default function PeriodosPlanillaPage() {
       render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
-      title: 'Estado', key: 'estado', width: 210,
+      title: 'Estado', key: 'estado', width: 150,
       render: (_, p) => (
-        <Space direction="vertical" size={2}>
+        <Space direction="vertical" size={4}>
           <Tag color={ESTADO_COLOR[p.estado]} style={{ fontSize: 10, width: 'fit-content' }}>{p.estado}</Tag>
-          <Space size={10}>
+          <Space size={4}>
             {p.asientoContableId && (
-              <a style={{ fontSize: 11 }}
-                onClick={e => {
-                  e.stopPropagation()
-                  navigate(`/contabilidad/diarios-manuales/${p.asientoContableId}`, { state: { volverA: '/planillas/corridas' } })
-                }}>
-                Ver póliza de planilla
-              </a>
+              <Tooltip title="Póliza de planilla">
+                <Button type="text" size="small" icon={<BookOutlined />}
+                  onClick={e => {
+                    e.stopPropagation()
+                    navigate(`/contabilidad/diarios-manuales/${p.asientoContableId}`, { state: { volverA: '/planillas/corridas' } })
+                  }} />
+              </Tooltip>
             )}
             {p.asientoPagoId && (
-              <a style={{ fontSize: 11 }}
-                onClick={e => {
-                  e.stopPropagation()
-                  navigate(`/contabilidad/diarios-manuales/${p.asientoPagoId}`, { state: { volverA: '/planillas/corridas' } })
-                }}>
-                Ver póliza de pago
-              </a>
+              <Tooltip title="Póliza de pago">
+                <Button type="text" size="small" icon={<BankOutlined />}
+                  onClick={e => {
+                    e.stopPropagation()
+                    navigate(`/contabilidad/diarios-manuales/${p.asientoPagoId}`, { state: { volverA: '/planillas/corridas' } })
+                  }} />
+              </Tooltip>
             )}
+            <Tooltip title="Detalle de planilla mensual">
+              <Button type="text" size="small" icon={<FileTextOutlined />}
+                onClick={e => { e.stopPropagation(); navigate(`/planillas/mensual/${p.anio}/${p.mes}`) }} />
+            </Tooltip>
           </Space>
-          <a style={{ fontSize: 11 }}
-            onClick={e => { e.stopPropagation(); navigate(`/planillas/mensual/${p.anio}/${p.mes}`) }}>
-            Ver detalle mensual
-          </a>
         </Space>
       ),
     },

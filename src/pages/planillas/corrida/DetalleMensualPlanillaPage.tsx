@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Button, Card, Space, Spin, Table, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Space, Spin, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import {
   getDetalleMensualPlanilla,
   type DetalleMensualPlanilla, type EmpleadoDetalleMensual, type NomenclaturaLinea,
@@ -33,28 +33,37 @@ export default function DetalleMensualPlanillaPage() {
       .finally(() => setLoading(false))
   }, [anio, mes])
 
+  /** Encabezado corto con tooltip del nombre completo — para que la tabla quepa sin scroll horizontal */
+  const th = (corto: string, completo: string) => (
+    <Tooltip title={completo}><span>{corto}</span></Tooltip>
+  )
+
+  const fmtCell = (v: number, color?: string, strong?: boolean) => v !== 0
+    ? <Text strong={strong} style={{ fontFamily: 'monospace', fontSize: 11, color }}>{fmtQ(v)}</Text>
+    : <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 11 }}>—</Text>
+
   const columnasEmpleado: ColumnsType<EmpleadoDetalleMensual> = [
-    { title: 'Empleado', key: 'empleado', fixed: 'left', width: 190, render: (_, e) => (
+    { title: 'Empleado', key: 'empleado', fixed: 'left', width: 130, render: (_, e) => (
       <div>
-        <Text strong style={{ fontSize: 12, color: NAVY }}>{e.empleadoNombre}</Text>
+        <Text strong style={{ fontSize: 11, color: NAVY }}>{e.empleadoNombre}</Text>
         <div style={{ fontSize: 10, color: '#8c8c8c' }}>{e.empleadoCodigo}</div>
       </div>
     ) },
-    { title: 'Días', dataIndex: 'dias', width: 70, align: 'right', render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</span> },
-    { title: 'Sueldo base', dataIndex: 'sueldoBase', width: 105, align: 'right', render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> },
-    { title: 'Bonif.', dataIndex: 'bonificacion', width: 85, align: 'right', render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> },
-    { title: 'Comisiones/Otros', dataIndex: 'comisiones', width: 110, align: 'right', render: v => v ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> : null },
-    { title: 'Horas extra', dataIndex: 'montoHorasExtra', width: 95, align: 'right', render: v => v ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> : null },
-    { title: 'IGSS patronal', dataIndex: 'igssPatronal', width: 105, align: 'right', render: v => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#8c8c8c' }}>{fmtQ(v)}</span> },
-    { title: 'IGSS laboral', dataIndex: 'igssLaboral', width: 100, align: 'right', render: v => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</span> },
-    { title: 'ISR', dataIndex: 'isrEmpleados', width: 85, align: 'right', render: v => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</span> },
-    { title: 'Otras ded.', dataIndex: 'otrasDeducciones', width: 95, align: 'right', render: v => v ? <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</span> : null },
-    { title: 'Devengado', dataIndex: 'totalDevengado', width: 110, align: 'right', render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
-    { title: 'Neto a pagar', dataIndex: 'netoAPagar', width: 115, align: 'right', render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#389e0d' }}>{fmtQ(v)}</Text> },
-    {
-      title: 'Estado', key: 'estado', width: 100,
-      render: (_, e) => <Tag color={e.pagadoCompleto ? 'purple' : 'orange'} style={{ fontSize: 10 }}>{e.pagadoCompleto ? 'Pagado' : 'Pendiente'}</Tag>,
-    },
+    { title: th('Días', 'Días trabajados en el mes'), dataIndex: 'dias', width: 45, align: 'right', render: v => <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{v}</span> },
+    { title: th('Sueldo', 'Sueldo base devengado'), dataIndex: 'sueldoBase', width: 78, align: 'right', render: v => fmtCell(v) },
+    { title: th('Bonif.', 'Bonificación incentivo (Dto. 78-89)'), dataIndex: 'bonificacion', width: 60, align: 'right', render: v => fmtCell(v) },
+    { title: th('Comis.', 'Comisiones y otros ingresos'), dataIndex: 'comisiones', width: 65, align: 'right', render: v => fmtCell(v) },
+    { title: th('H.Extra', 'Monto de horas extra'), dataIndex: 'montoHorasExtra', width: 65, align: 'right', render: v => fmtCell(v) },
+    { title: th('IGSS-P', 'Cuota patronal IGSS + INTECAP + IRTRA'), dataIndex: 'igssPatronal', width: 65, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('IGSS-L', 'Cuota laboral IGSS (retenida al empleado)'), dataIndex: 'igssLaboral', width: 65, align: 'right', render: v => fmtCell(v, '#cf1322') },
+    { title: th('ISR', 'Retención ISR'), dataIndex: 'isrEmpleados', width: 60, align: 'right', render: v => fmtCell(v, '#cf1322') },
+    { title: th('Otras', 'Otras deducciones (anticipos, etc.)'), dataIndex: 'otrasDeducciones', width: 60, align: 'right', render: v => fmtCell(v, '#cf1322') },
+    { title: th('P.Agui', 'Provisión mensual de aguinaldo (estimado, salario ÷ 12 — no contabilizado)'), dataIndex: 'provisionAguinaldo', width: 62, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('P.B14', 'Provisión mensual de Bono 14 (estimado, salario ÷ 12 — no contabilizado)'), dataIndex: 'provisionBono14', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('P.Vac', 'Provisión mensual de vacaciones (estimado — no contabilizado)'), dataIndex: 'provisionVacaciones', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('P.Ind', 'Provisión mensual de indemnización (estimado — no contabilizado)'), dataIndex: 'provisionIndemnizacion', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('Deveng.', 'Total devengado del mes'), dataIndex: 'totalDevengado', width: 78, align: 'right', render: v => fmtCell(v, undefined, true) },
+    { title: th('Neto', 'Neto a pagar del mes'), dataIndex: 'netoAPagar', width: 82, align: 'right', render: v => fmtCell(v, '#389e0d', true) },
   ]
 
   const columnasNomenclatura: ColumnsType<NomenclaturaLinea> = [
@@ -100,28 +109,40 @@ export default function DetalleMensualPlanillaPage() {
       <Spin spinning={loading}>
         {data && (
           <>
+            <Alert type="info" showIcon icon={<InfoCircleOutlined />} style={{ marginBottom: 16 }}
+              message="Las columnas P.Agui, P.B14, P.Vac y P.Ind son un estimado mensual (salario ÷ 12; vacaciones 15 días÷12 meses) — solo informativas, no forman parte de la póliza contabilizada. El asiento real de estos conceptos se genera con el finiquito." />
             <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
               title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}>
               <Table
-                size="small" rowKey="empleadoId" pagination={false} scroll={{ x: 'max-content' }}
+                size="small" rowKey="empleadoId" pagination={false}
                 dataSource={data.empleados} columns={columnasEmpleado}
-                summary={() => (
-                  <Table.Summary.Row style={{ background: '#fafafa' }}>
-                    <Table.Summary.Cell index={0}><Text strong style={{ fontSize: 12 }}>Total</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{data.totales.dias}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.sueldoBase)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.bonificacion)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={4} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.comisiones)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={5} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.montoHorasExtra)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={6} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.igssPatronal)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={7} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.igssLaboral)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={8} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.isrEmpleados)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={9} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.otrasDeducciones)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={10} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totales.totalDevengado)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={11} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#389e0d' }}>{fmtQ(data.totales.netoAPagar)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={12} />
-                  </Table.Summary.Row>
-                )}
+                summary={() => {
+                  const cell = (v: number, color?: string) => (
+                    <Table.Summary.Cell index={0} align="right">
+                      <Text strong style={{ fontFamily: 'monospace', fontSize: 11, color }}>{fmtQ(v)}</Text>
+                    </Table.Summary.Cell>
+                  )
+                  return (
+                    <Table.Summary.Row style={{ background: '#fafafa' }}>
+                      <Table.Summary.Cell index={0}><Text strong style={{ fontSize: 11 }}>Total</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={0} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 11 }}>{data.totales.dias}</Text></Table.Summary.Cell>
+                      {cell(data.totales.sueldoBase)}
+                      {cell(data.totales.bonificacion)}
+                      {cell(data.totales.comisiones)}
+                      {cell(data.totales.montoHorasExtra)}
+                      {cell(data.totales.igssPatronal, '#8c8c8c')}
+                      {cell(data.totales.igssLaboral, '#cf1322')}
+                      {cell(data.totales.isrEmpleados, '#cf1322')}
+                      {cell(data.totales.otrasDeducciones, '#cf1322')}
+                      {cell(data.totales.provisionAguinaldo, '#8c8c8c')}
+                      {cell(data.totales.provisionBono14, '#8c8c8c')}
+                      {cell(data.totales.provisionVacaciones, '#8c8c8c')}
+                      {cell(data.totales.provisionIndemnizacion, '#8c8c8c')}
+                      {cell(data.totales.totalDevengado)}
+                      {cell(data.totales.netoAPagar, '#389e0d')}
+                    </Table.Summary.Row>
+                  )
+                }}
               />
             </Card>
 

@@ -148,6 +148,10 @@ export interface EmpleadoDetalleMensual {
   igssLaboral: number
   isrEmpleados: number
   otrasDeducciones: number
+  provisionAguinaldo: number
+  provisionBono14: number
+  provisionVacaciones: number
+  provisionIndemnizacion: number
   totalDevengado: number
   totalDeducciones: number
   netoAPagar: number
