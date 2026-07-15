@@ -10,6 +10,8 @@ export type TipoJornada = 'DIURNA' | 'NOCTURNA' | 'MIXTA'
 export type TipoContratoEmpleado = 'TIEMPO_COMPLETO' | 'TIEMPO_PARCIAL'
 export type EstadoEmpleado = 'ACTIVO' | 'SUSPENDIDO' | 'BAJA'
 export type MotivoCambioSalario = 'ALTA' | 'AUMENTO' | 'AJUSTE' | 'CAMBIO_PUESTO' | 'OTRO'
+export type MetodoPagoPlanilla = 'INSTITUCION_FINANCIERA' | 'CHEQUE' | 'BILLETERA_ELECTRONICA' | 'OTRO'
+export type TipoCuentaBancariaEmpleado = 'MONETARIA' | 'AHORRO'
 
 export interface ContratoLaboral {
   id: string
@@ -44,6 +46,12 @@ export interface Empleado {
   numeroAfiliadoIGSS: string | null
   codigoOcupacionIGSS: string | null
   centroTrabajoId: string | null
+  metodoPago: MetodoPagoPlanilla
+  bancoCodigo: string | null
+  bancoNombre: string | null
+  tipoCuentaBancaria: TipoCuentaBancariaEmpleado | null
+  monedaCuenta: string
+  numeroCuentaBancaria: string | null
   centroCostoId: string | null
   centroBeneficioId: string | null
   fechaAlta: string

@@ -7,6 +7,7 @@ import {
 import { ArrowLeftOutlined, SaveOutlined, DollarOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import SelectorDimensionesAnaliticas from '../../../components/SelectorDimensionesAnaliticas'
+import { GUATE_ACH_BANKS, ACCOUNT_FORMAT_RULES } from '../../../constants/guateAchBanks'
 import {
   getEmpleado, crearEmpleado, actualizarEmpleado, cambiarSalario, darDeBajaEmpleado,
   nombreCompleto, type EmpleadoDetalle, type ContratoLaboral,
@@ -62,6 +63,9 @@ export default function EmpleadoFormPage() {
         fechaAntiguedad: vals.fechaAntiguedad?.format('YYYY-MM-DD') ?? null,
         centroCostoId: vals.dimensiones?.centroCostoId ?? null,
         centroBeneficioId: vals.dimensiones?.centroBeneficioId ?? null,
+        bancoNombre: vals.bancoCodigo
+          ? GUATE_ACH_BANKS.find(b => b.bankCodeGTQ === vals.bancoCodigo)?.name ?? null
+          : null,
       }
       delete dto.dimensiones
 
@@ -173,6 +177,8 @@ export default function EmpleadoFormPage() {
             circunscripcionEconomica: 'CE1',
             tipoJornada: 'DIURNA',
             tipoContrato: 'TIEMPO_COMPLETO',
+            metodoPago: 'INSTITUCION_FINANCIERA',
+            monedaCuenta: 'GTQ',
             ingresosAcumuladosInicial: 0,
             isrRetenidoInicial: 0,
             igssLaboralInicial: 0,
@@ -274,6 +280,62 @@ export default function EmpleadoFormPage() {
                 </Form.Item>
               </div>
             )}
+          </Card>
+
+          <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }}
+            title={<Text strong>Pago de planilla</Text>}
+            extra={<Text type="secondary" style={{ fontSize: 11 }}>Alimenta el lote de pagos que se sube al banco de la empresa</Text>}>
+            <Form.Item name="metodoPago" label="Método de pago">
+              <Select options={[
+                { value: 'INSTITUCION_FINANCIERA', label: 'Institución financiera (depósito a cuenta)' },
+                { value: 'CHEQUE', label: 'Cheque' },
+                { value: 'BILLETERA_ELECTRONICA', label: 'Billetera electrónica' },
+                { value: 'OTRO', label: 'Otro' },
+              ]} />
+            </Form.Item>
+            <Form.Item noStyle shouldUpdate={(prev, cur) =>
+              prev.metodoPago !== cur.metodoPago ||
+              prev.bancoCodigo !== cur.bancoCodigo ||
+              prev.tipoCuentaBancaria !== cur.tipoCuentaBancaria}>
+              {({ getFieldValue }) => {
+                if (getFieldValue('metodoPago') !== 'INSTITUCION_FINANCIERA') return null
+                const banco = GUATE_ACH_BANKS.find(b => b.bankCodeGTQ === getFieldValue('bancoCodigo'))
+                const tipo = String(getFieldValue('tipoCuentaBancaria') ?? '').toLowerCase()
+                const regla = banco && ACCOUNT_FORMAT_RULES.find(r =>
+                  r.bankName === banco.name && (r.productType === tipo || r.productType === 'todas'))
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr', gap: '0 12px' }}>
+                    <Form.Item name="bancoCodigo" label="Institución financiera"
+                      rules={[{ required: true, message: 'Requerido' }]}>
+                      <Select showSearch optionFilterProp="label" placeholder="Seleccionar banco"
+                        options={GUATE_ACH_BANKS.map(b => ({ value: b.bankCodeGTQ, label: b.name }))} />
+                    </Form.Item>
+                    <Form.Item name="tipoCuentaBancaria" label="Tipo"
+                      rules={[{ required: true, message: 'Requerido' }]}>
+                      <Select options={[
+                        { value: 'MONETARIA', label: 'Monetaria' },
+                        { value: 'AHORRO', label: 'Ahorro' },
+                      ]} />
+                    </Form.Item>
+                    <Form.Item name="monedaCuenta" label="Moneda"
+                      rules={[{ required: true, message: 'Requerido' }]}>
+                      <Select options={[
+                        { value: 'GTQ', label: 'GTQ' },
+                        { value: 'USD', label: 'USD' },
+                      ]} />
+                    </Form.Item>
+                    <Form.Item name="numeroCuentaBancaria" label="Número de cuenta"
+                      tooltip="Se guarda como texto: conserva ceros a la izquierda y guiones (p.ej. G&T usa agencia-cuenta-dígito)"
+                      rules={[{ required: true, message: 'Requerido' }]}
+                      extra={regla
+                        ? <span style={{ fontSize: 11 }}>{banco!.shortName} {tipo || ''}: {regla.length} dígitos{regla.prefix !== 'N/A' ? ` · ${regla.prefix}` : ''}{regla.notes ? ` · ${regla.notes}` : ''}</span>
+                        : undefined}>
+                      <Input placeholder="Solo números, con ceros y guiones si aplica" />
+                    </Form.Item>
+                  </div>
+                )
+              }}
+            </Form.Item>
           </Card>
 
           <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }}
