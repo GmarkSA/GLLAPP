@@ -146,6 +146,8 @@ const DatosPatronoPage       = lazy(() => import('./pages/planillas/configuracio
 const CuentasPlanillaPage    = lazy(() => import('./pages/planillas/configuracion/CuentasPlanillaPage'))
 const EmpleadosPage          = lazy(() => import('./pages/planillas/empleados/EmpleadosPage'))
 const EmpleadoFormPage       = lazy(() => import('./pages/planillas/empleados/EmpleadoFormPage'))
+const PeriodosPlanillaPage   = lazy(() => import('./pages/planillas/corrida/PeriodosPlanillaPage'))
+const CorridaPlanillaPage    = lazy(() => import('./pages/planillas/corrida/CorridaPlanillaPage'))
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -322,6 +324,8 @@ export default function App() {
             <Route path="centros-costo"              element={<EjecucionCentrosCostoPage />} />
           </Route>
 
+          <Route path="planillas/corridas"                           element={<PeriodosPlanillaPage />} />
+          <Route path="planillas/corridas/:id"                       element={<CorridaPlanillaPage />} />
           <Route path="planillas/empleados"                          element={<EmpleadosPage />} />
           <Route path="planillas/empleados/nuevo"                    element={<EmpleadoFormPage />} />
           <Route path="planillas/empleados/:id"                      element={<EmpleadoFormPage />} />
