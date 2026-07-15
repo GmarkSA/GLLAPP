@@ -117,7 +117,9 @@ export interface LineaAsientoPreview {
   debit: number
   credit: number
   centroCostoId: string | null
+  centroCostoNombre: string | null
   centroBeneficioId: string | null
+  centroBeneficioNombre: string | null
   concepto: string
 }
 

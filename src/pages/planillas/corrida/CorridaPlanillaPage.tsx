@@ -440,7 +440,18 @@ export default function CorridaPlanillaPage() {
                 columns={[
                   { title: 'Cuenta', key: 'cuenta', width: 220, render: (_, l) => <Text style={{ fontSize: 12 }}><Text style={{ fontFamily: 'monospace', color: '#8c8c8c' }}>{l.accountCode}</Text> {l.accountName}</Text> },
                   { title: 'Concepto', dataIndex: 'concepto', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-                  { title: 'Centro', key: 'centro', width: 90, render: (_, l) => l.centroCostoId || l.centroBeneficioId ? <Tag style={{ fontSize: 10 }}>dimensionado</Tag> : null },
+                  {
+                    title: 'Centro', key: 'centro', width: 160,
+                    render: (_, l) => {
+                      if (!l.centroCostoId && !l.centroBeneficioId) return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>
+                      return (
+                        <div style={{ fontSize: 11 }}>
+                          {l.centroCostoId && <div>CC: {l.centroCostoNombre ?? <Text type="danger">no encontrado</Text>}</div>}
+                          {l.centroBeneficioId && <div>CB: {l.centroBeneficioNombre ?? <Text type="danger">no encontrado</Text>}</div>}
+                        </div>
+                      )
+                    },
+                  },
                   { title: 'Debe', dataIndex: 'debit', width: 110, align: 'right', render: (v: number) => v > 0 ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> : null },
                   { title: 'Haber', dataIndex: 'credit', width: 110, align: 'right', render: (v: number) => v > 0 ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> : null },
                 ]}
