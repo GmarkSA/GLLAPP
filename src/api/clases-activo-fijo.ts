@@ -22,6 +22,7 @@ export interface ClaseActivoFijo {
   cuentaPerdidaPorVentaId: string | null
   cuentaGananciaActivoFijoId: string | null
   cuentaCostoVentaAFId: string | null
+  cuentaSaldosInicialesId: string | null
   activo: boolean
 }
 
