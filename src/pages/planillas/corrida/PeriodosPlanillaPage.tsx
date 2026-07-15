@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Button, Card, Form, Modal, Select, Table, Tag, Typography, message,
+  Button, Card, Form, Modal, Select, Space, Table, Tag, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlusOutlined, CalendarOutlined } from '@ant-design/icons'
@@ -84,8 +84,26 @@ export default function PeriodosPlanillaPage() {
       render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
-      title: 'Estado', dataIndex: 'estado', width: 110,
-      render: (v: string) => <Tag color={ESTADO_COLOR[v]} style={{ fontSize: 10 }}>{v}</Tag>,
+      title: 'Estado', key: 'estado', width: 190,
+      render: (_, p) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={ESTADO_COLOR[p.estado]} style={{ fontSize: 10, width: 'fit-content' }}>{p.estado}</Tag>
+          <Space size={10}>
+            {p.asientoContableId && (
+              <a style={{ fontSize: 11 }}
+                onClick={e => { e.stopPropagation(); navigate(`/contabilidad/diarios-manuales/${p.asientoContableId}`) }}>
+                Ver póliza de planilla
+              </a>
+            )}
+            {p.asientoPagoId && (
+              <a style={{ fontSize: 11 }}
+                onClick={e => { e.stopPropagation(); navigate(`/contabilidad/diarios-manuales/${p.asientoPagoId}`) }}>
+                Ver póliza de pago
+              </a>
+            )}
+          </Space>
+        </Space>
+      ),
     },
   ]
 

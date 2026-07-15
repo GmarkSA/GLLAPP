@@ -7,14 +7,14 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
-  WarningOutlined, BookOutlined, BankOutlined,
+  WarningOutlined, BookOutlined, BankOutlined, EyeOutlined, DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
-  contabilizarPeriodoPlanilla, pagarPeriodoPlanilla,
-  type PeriodoPlanillaDetalle, type DetallePlanilla,
+  contabilizarPeriodoPlanilla, pagarPeriodoPlanilla, previsualizarAsientoPlanilla,
+  type PeriodoPlanillaDetalle, type DetallePlanilla, type PreviewAsiento,
 } from '../../../api/planillas-corrida'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 
@@ -63,6 +63,16 @@ export default function CorridaPlanillaPage() {
   const [modalPago, setModalPago] = useState(false)
   const [cuentas, setCuentas] = useState<BankAccount[]>([])
   const [formPago] = Form.useForm()
+  const [preview, setPreview] = useState<PreviewAsiento | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const cargarPreview = () => {
+    setPreviewLoading(true)
+    previsualizarAsientoPlanilla(id!)
+      .then(setPreview)
+      .catch(() => setPreview(null))
+      .finally(() => setPreviewLoading(false))
+  }
 
   const cargar = () => {
     setLoading(true)
@@ -70,6 +80,7 @@ export default function CorridaPlanillaPage() {
       .then(setPeriodo)
       .catch(() => message.error('Error cargando la corrida'))
       .finally(() => setLoading(false))
+    cargarPreview()
   }
 
   useEffect(cargar, [id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -81,6 +92,7 @@ export default function CorridaPlanillaPage() {
       setProcesando(true)
       const actualizado = await actualizarDetallePlanilla(detalleId, { [campo]: valor })
       setPeriodo(actualizado)
+      cargarPreview()
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al actualizar')
       cargar()
@@ -93,6 +105,7 @@ export default function CorridaPlanillaPage() {
     try {
       setProcesando(true)
       setPeriodo(await recalcularPeriodoPlanilla(id!))
+      cargarPreview()
       message.success('Corrida recalculada')
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al recalcular')
@@ -141,6 +154,26 @@ export default function CorridaPlanillaPage() {
       .catch(() => message.error('Error cargando cuentas bancarias'))
     formPago.setFieldsValue({ fecha: dayjs() })
     setModalPago(true)
+  }
+
+  const descargarArchivoBanco = () => {
+    if (!periodo) return
+    const conBanco = periodo.detalles.filter(d => d.metodoPago === 'INSTITUCION_FINANCIERA')
+    const filas = [
+      ['CodigoBanco', 'Banco', 'NoCuenta', 'CodigoEmpleado', 'NombreEmpleado', 'Monto'],
+      ...conBanco.map(d => [
+        d.bancoCodigo ?? '', d.bancoNombre ?? '', d.numeroCuentaBancaria ?? '',
+        d.empleadoCodigo, d.empleadoNombre, Number(d.netoAPagar).toFixed(2),
+      ]),
+    ]
+    const csv = filas.map(f => f.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `lote-pago-planilla-${periodo.anio}${String(periodo.mes).padStart(2, '0')}-Q${periodo.quincena}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const pagar = async () => {
@@ -378,6 +411,46 @@ export default function CorridaPlanillaPage() {
         ))}
       </Row>
 
+      <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
+        title={<Space size={6}><EyeOutlined style={{ color: NAVY }} /><Text strong style={{ fontSize: 13 }}>Vista previa de la póliza contable</Text></Space>}
+        extra={<Text type="secondary" style={{ fontSize: 11 }}>Así se registrará al contabilizar — valida antes de aprobar</Text>}>
+        <Spin spinning={previewLoading}>
+          {!preview || preview.lines.length === 0 ? (
+            <div style={{ padding: 16 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Sin datos suficientes para previsualizar la póliza todavía.</Text>
+            </div>
+          ) : (
+            <>
+              {(preview.sinConfiguracionCuentas || preview.faltantes.length > 0) && (
+                <Alert type="warning" showIcon style={{ margin: 12 }}
+                  message={preview.sinConfiguracionCuentas
+                    ? 'No hay cuentas contables de planilla configuradas.'
+                    : `Faltan cuentas mapeadas: ${preview.faltantes.join(', ')}.`}
+                  description="Ve a Planillas → Cuentas contables para completarlas — no se podrá contabilizar hasta entonces." />
+              )}
+              <Table
+                size="small" rowKey={(_, i) => String(i)} pagination={false}
+                dataSource={preview.lines}
+                columns={[
+                  { title: 'Cuenta', key: 'cuenta', width: 220, render: (_, l) => <Text style={{ fontSize: 12 }}><Text style={{ fontFamily: 'monospace', color: '#8c8c8c' }}>{l.accountCode}</Text> {l.accountName}</Text> },
+                  { title: 'Concepto', dataIndex: 'concepto', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
+                  { title: 'Centro', key: 'centro', width: 90, render: (_, l) => l.centroCostoId || l.centroBeneficioId ? <Tag style={{ fontSize: 10 }}>dimensionado</Tag> : null },
+                  { title: 'Debe', dataIndex: 'debit', width: 110, align: 'right', render: (v: number) => v > 0 ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> : null },
+                  { title: 'Haber', dataIndex: 'credit', width: 110, align: 'right', render: (v: number) => v > 0 ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span> : null },
+                ]}
+                summary={() => (
+                  <Table.Summary.Row style={{ background: '#fafafa' }}>
+                    <Table.Summary.Cell index={0} colSpan={3}><Text strong style={{ fontSize: 12 }}>Total {preview.cuadra ? '— cuadra' : '— NO CUADRA'}</Text></Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(preview.totalDebit)}</Text></Table.Summary.Cell>
+                    <Table.Summary.Cell index={2} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(preview.totalCredit)}</Text></Table.Summary.Cell>
+                  </Table.Summary.Row>
+                )}
+              />
+            </>
+          )}
+        </Spin>
+      </Card>
+
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
         title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}
         extra={editable && <Text type="secondary" style={{ fontSize: 11 }}>Edita días, horas extra y otros montos — el cálculo se actualiza al salir de la celda</Text>}>
@@ -394,21 +467,52 @@ export default function CorridaPlanillaPage() {
         open={modalPago} onCancel={() => setModalPago(false)}
         onOk={pagar} okText="Registrar pago" cancelText="Cancelar"
         confirmLoading={procesando}
+        width={720}
       >
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
           message="Revierte el pasivo contra la cuenta bancaria."
           description={`Se generará un asiento que debita Sueldos/IGSS/ISR por pagar (el gasto ya se reconoció al contabilizar) y acredita la cuenta bancaria por el total: Q ${fmtQ(periodo.totalDevengado + periodo.totalCuotaPatronal)}.`} />
         <Form form={formPago} layout="vertical" size="small">
-          <Form.Item name="bankAccountId" label="Cuenta bancaria" rules={[{ required: true, message: 'Requerido' }]}>
-            <Select
-              placeholder="Seleccionar cuenta"
-              options={cuentas.map(c => ({ value: c.id, label: `${c.bankName ?? c.name} — ${c.accountNumber ?? ''}` }))}
-            />
-          </Form.Item>
-          <Form.Item name="fecha" label="Fecha de pago" rules={[{ required: true, message: 'Requerido' }]}>
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="bankAccountId" label="Cuenta bancaria" rules={[{ required: true, message: 'Requerido' }]}>
+              <Select
+                placeholder="Seleccionar cuenta"
+                options={cuentas.map(c => ({ value: c.id, label: `${c.bankName ?? c.name} — ${c.accountNumber ?? ''}` }))}
+              />
+            </Form.Item>
+            <Form.Item name="fecha" label="Fecha de pago" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+          </div>
         </Form>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 6 }}>
+          <Text strong style={{ fontSize: 12 }}>Detalle del pago por empleado</Text>
+          <Button size="small" icon={<DownloadOutlined />} onClick={descargarArchivoBanco}>
+            Descargar archivo para banco
+          </Button>
+        </div>
+        <Table
+          size="small" rowKey="id" pagination={false}
+          dataSource={periodo.detalles}
+          columns={[
+            { title: 'Empleado', key: 'empleado', render: (_, d) => <Text style={{ fontSize: 12 }}>{d.empleadoNombre}</Text> },
+            {
+              title: 'Banco / cuenta', key: 'banco',
+              render: (_, d) => d.metodoPago === 'INSTITUCION_FINANCIERA'
+                ? <Text style={{ fontSize: 12 }}>{d.bancoNombre} · {d.numeroCuentaBancaria ?? 'sin cuenta'}</Text>
+                : <Tag style={{ fontSize: 10 }}>{d.metodoPago === 'CHEQUE' ? 'Cheque' : d.metodoPago === 'BILLETERA_ELECTRONICA' ? 'Billetera' : 'Otro'}</Tag>,
+            },
+            {
+              title: 'Monto', dataIndex: 'netoAPagar', width: 110, align: 'right',
+              render: (v: number) => <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
+            },
+          ]}
+        />
+        <Text type="secondary" style={{ fontSize: 11 }}>
+          El archivo solo incluye empleados con método de pago "Institución financiera". Formato genérico
+          (código de banco, cuenta, nombre y monto) — adaptar según el layout de carga masiva de tu banco.
+        </Text>
       </Modal>
     </div>
   )

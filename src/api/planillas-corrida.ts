@@ -109,6 +109,30 @@ export const aprobarPeriodoPlanilla = (id: string) =>
 export const eliminarPeriodoPlanilla = (id: string) =>
   api.delete(`${BASE}/${id}`).then(unwrap)
 
+export interface LineaAsientoPreview {
+  accountId: string
+  accountCode: string
+  accountName: string
+  description: string
+  debit: number
+  credit: number
+  centroCostoId: string | null
+  centroBeneficioId: string | null
+  concepto: string
+}
+
+export interface PreviewAsiento {
+  lines: LineaAsientoPreview[]
+  totalDebit: number
+  totalCredit: number
+  cuadra: boolean
+  faltantes: string[]
+  sinConfiguracionCuentas: boolean
+}
+
+export const previsualizarAsientoPlanilla = (id: string) =>
+  api.get(`${BASE}/${id}/preview-asiento`).then(unwrap) as Promise<PreviewAsiento>
+
 export const contabilizarPeriodoPlanilla = (id: string) =>
   api.post(`${BASE}/${id}/contabilizar`).then(unwrap) as Promise<{ periodo: PeriodoPlanilla; asientoContableId: string; entryNumber: string }>
 
