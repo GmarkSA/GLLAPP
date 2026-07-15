@@ -46,6 +46,8 @@ export interface PeriodoPlanilla {
   id: string
   anio: number
   mes: number
+  /** 1 = días 1-15 (sin deducciones) · 2 = día 16-fin de mes (IGSS/ISR/bonificación del mes completo) */
+  quincena: number
   fechaInicio: string
   fechaFin: string
   estado: EstadoPeriodoPlanilla
@@ -83,7 +85,7 @@ export const getPeriodosPlanilla = () =>
 export const getPeriodoPlanilla = (id: string) =>
   api.get(`${BASE}/${id}`).then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
-export const crearPeriodoPlanilla = (dto: { anio: number; mes: number }) =>
+export const crearPeriodoPlanilla = (dto: { anio: number; mes: number; quincena: number }) =>
   api.post(BASE, dto).then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
 export const recalcularPeriodoPlanilla = (id: string) =>

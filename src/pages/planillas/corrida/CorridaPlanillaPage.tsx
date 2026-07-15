@@ -162,7 +162,11 @@ export default function CorridaPlanillaPage() {
     }
   }
 
-  const columns: ColumnsType<DetallePlanilla> = [
+  const esQuincena1 = periodo?.quincena === 1
+  const diasEnMesActual = periodo ? dayjs(`${periodo.anio}-${String(periodo.mes).padStart(2, '0')}-01`).daysInMonth() : 30
+  const maxDias = esQuincena1 ? 15 : diasEnMesActual - 15
+
+  const columnasComunes: ColumnsType<DetallePlanilla> = [
     {
       title: 'Empleado', key: 'empleado', fixed: 'left', width: 190,
       render: (_, d) => (
@@ -184,10 +188,14 @@ export default function CorridaPlanillaPage() {
       render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span>,
     },
     {
-      title: 'Días', key: 'diasTrabajados', width: 80, align: 'right',
-      render: (_, d) => <CellNumber value={d.diasTrabajados} max={31} precision={1} disabled={!editable}
+      title: <Tooltip title={`Días trabajados en esta quincena (máx. ${maxDias})`}>Días</Tooltip>,
+      key: 'diasTrabajados', width: 80, align: 'right',
+      render: (_, d) => <CellNumber value={d.diasTrabajados} max={maxDias} precision={1} disabled={!editable}
         onCommit={v => commit(d.id, 'diasTrabajados', v)} />,
     },
+  ]
+
+  const columnasSoloQuincena2: ColumnsType<DetallePlanilla> = [
     {
       title: <Tooltip title="Horas extra en jornada hábil — recargo 50% (Art. 121 CT)">HE hábil</Tooltip>,
       key: 'horasExtraHabil', width: 85, align: 'right',
@@ -205,10 +213,13 @@ export default function CorridaPlanillaPage() {
       render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span>,
     },
     {
-      title: <Tooltip title="Q250 de ley (Dto. 78-89), proporcional a días — no paga IGSS">Bonif.</Tooltip>,
+      title: <Tooltip title="Q250 de ley (Dto. 78-89), proporcional a días del mes completo — no paga IGSS">Bonif.</Tooltip>,
       dataIndex: 'bonificacionIncentivo', width: 85, align: 'right',
       render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span>,
     },
+  ]
+
+  const columnasIntermedias: ColumnsType<DetallePlanilla> = [
     {
       title: 'Otros ing.', key: 'otrosIngresos', width: 100, align: 'right',
       render: (_, d) => <CellNumber value={d.otrosIngresos} disabled={!editable}
@@ -218,13 +229,16 @@ export default function CorridaPlanillaPage() {
       title: 'Devengado', dataIndex: 'totalDevengado', width: 110, align: 'right',
       render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
+  ]
+
+  const columnasDeduccionesQuincena2: ColumnsType<DetallePlanilla> = [
     {
-      title: <Tooltip title="4.83% sobre salario + horas extra (sin bonificación)">IGSS</Tooltip>,
+      title: <Tooltip title="4.83% sobre el mes completo (Q1+Q2) — sin bonificación">IGSS</Tooltip>,
       dataIndex: 'cuotaIGSSLaboral', width: 90, align: 'right',
       render: v => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</span>,
     },
     {
-      title: <Tooltip title="Retención mensual por proyección anual (Dto. 10-2012/13-2026)">ISR</Tooltip>,
+      title: <Tooltip title="Retención mensual por proyección anual (Dto. 10-2012/13-2026), calculada sobre el mes completo">ISR</Tooltip>,
       dataIndex: 'isrRetenido', width: 90, align: 'right',
       render: v => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</span>,
     },
@@ -233,19 +247,22 @@ export default function CorridaPlanillaPage() {
       render: (_, d) => <CellNumber value={d.otrasDeducciones} disabled={!editable}
         onCommit={v => commit(d.id, 'otrasDeducciones', v)} />,
     },
+  ]
+
+  const columnasFinales: ColumnsType<DetallePlanilla> = [
     {
       title: 'Neto a pagar', dataIndex: 'netoAPagar', width: 120, align: 'right',
       render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#389e0d' }}>{fmtQ(v)}</Text>,
     },
-    {
-      title: <Tooltip title="IGSS 10.67% + INTECAP 1% + IRTRA 1% — gasto del patrono">C. patronal</Tooltip>,
-      key: 'patronal', width: 105, align: 'right',
-      render: (_, d) => (
+    ...(esQuincena1 ? [] : [{
+      title: <Tooltip title="IGSS 10.67% + INTECAP 1% + IRTRA 1% — gasto del patrono, sobre el mes completo">C. patronal</Tooltip>,
+      key: 'patronal', width: 105, align: 'right' as const,
+      render: (_: any, d: DetallePlanilla) => (
         <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#8c8c8c' }}>
           {fmtQ(Number(d.cuotaPatronalIGSS) + Number(d.cuotaINTECAP) + Number(d.cuotaIRTRA))}
         </span>
       ),
-    },
+    }]),
     {
       title: 'Banco', key: 'banco', width: 130,
       render: (_, d) => d.metodoPago === 'INSTITUCION_FINANCIERA' && d.bancoNombre
@@ -258,6 +275,10 @@ export default function CorridaPlanillaPage() {
     },
   ]
 
+  const columns: ColumnsType<DetallePlanilla> = esQuincena1
+    ? [...columnasComunes, ...columnasIntermedias, ...columnasFinales]
+    : [...columnasComunes, ...columnasSoloQuincena2, ...columnasIntermedias, ...columnasDeduccionesQuincena2, ...columnasFinales]
+
   if (!periodo) return <Spin spinning={loading}><div style={{ height: 200 }} /></Spin>
 
   const advertenciasCount = periodo.detalles.filter(d => d.advertencias).length
@@ -269,11 +290,12 @@ export default function CorridaPlanillaPage() {
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/planillas/corridas')} style={{ marginTop: 2 }} />
           <div>
             <Title level={4} style={{ margin: 0, color: NAVY }}>
-              Planilla {MESES[periodo.mes - 1]} {periodo.anio}
+              Planilla {MESES[periodo.mes - 1]} {periodo.anio} — {periodo.quincena === 1 ? '1ra' : '2da'} quincena
               <Tag color={ESTADO_COLOR[periodo.estado]} style={{ marginLeft: 10, fontSize: 11, verticalAlign: 'middle' }}>{periodo.estado}</Tag>
             </Title>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {dayjs(periodo.fechaInicio).format('DD/MM/YYYY')} — {dayjs(periodo.fechaFin).format('DD/MM/YYYY')} · {periodo.totalEmpleados} empleados
+              {esQuincena1 ? ' · solo salario, sin deducciones' : ' · incluye IGSS/ISR/bonificación del mes completo'}
               {periodo.aprobadoAt && ` · aprobada ${dayjs(periodo.aprobadoAt).format('DD/MM/YYYY HH:mm')}${periodo.aprobadoPor ? ` por ${periodo.aprobadoPor}` : ''}`}
             </Text>
           </div>
