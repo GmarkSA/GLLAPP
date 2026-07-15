@@ -285,6 +285,7 @@ export default function ClasesActivoFijoPage() {
     acctCol('cuentaPerdidaPorVentaId',       'Pérdida por Venta AF'),
     acctCol('cuentaCostoVentaAFId',          'Costo de Venta AF'),
     acctCol('cuentaPerdidaPorDeterioro',     'Pérdida por Deterioro'),
+    acctCol('cuentaSaldosInicialesId',       'Saldos Iniciales (migración)'),
     {
       title: <span style={{ fontSize: 11 }}>Estado</span>, width: 90,
       render: (_: unknown, r: ClaseActivoFijo) => r.id

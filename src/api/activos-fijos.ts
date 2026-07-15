@@ -84,6 +84,7 @@ export const getHistorialDepreciacion = (id: string) =>
 export const crearActivoFijo = (dto: {
   name: string; description?: string; claseActivoFijoId?: string;
   acquisitionDate: string; originalCost: number; salvageValue?: number;
+  depreciacionAcumuladaInicial?: number;
   location?: string; serialNumber?: string;
   centroCostoId?: string; centroBeneficioId?: string;
 }) => api.post(BASE, dto).then(unwrap) as Promise<ActivoFijo>
@@ -94,8 +95,41 @@ export const actualizarActivoFijo = (id: string, dto: Partial<{
   centroCostoId: string; centroBeneficioId: string;
 }>) => api.patch(`${BASE}/${id}`, dto).then(unwrap) as Promise<ActivoFijo>
 
-export const activarActivoFijo = (id: string, dto?: { cuentaContrapartidaId?: string }) =>
+export const activarActivoFijo = (id: string, dto?: { cuentaContrapartidaId?: string; cuentaAperturaId?: string }) =>
   api.post(`${BASE}/${id}/activar`, dto ?? {}).then(unwrap) as Promise<ActivoFijo>
+
+export interface ImportarActivoItem {
+  name: string
+  claseActivoFijoId?: string
+  acquisitionDate: string
+  originalCost: number
+  salvageValue?: number
+  depreciacionAcumuladaInicial?: number
+  location?: string
+  serialNumber?: string
+  description?: string
+  centroCostoId?: string
+  centroBeneficioId?: string
+  cuentaAperturaId?: string
+}
+
+export interface ImportarMasivoResult {
+  exitosos: number
+  errores: number
+  detalles: Array<{
+    fila: number
+    assetNumber?: string
+    nombre: string
+    estado: 'ok' | 'error'
+    mensaje?: string
+  }>
+}
+
+export const importarMasivoActivosFijos = (
+  items: ImportarActivoItem[],
+  cuentaAperturaId?: string,
+) => api.post(`${BASE}/batch/importar-masivo`, { items, cuentaAperturaId })
+  .then(unwrap) as Promise<ImportarMasivoResult>
 
 export const depreciarActivo = (id: string, periodo: string) =>
   api.post(`${BASE}/${id}/depreciar`, { periodo }).then(unwrap) as Promise<HistorialDepreciacion>
