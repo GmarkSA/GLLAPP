@@ -58,10 +58,10 @@ export default function DetalleMensualPlanillaPage() {
     { title: th('IGSS-L', 'Cuota laboral IGSS (retenida al empleado)'), dataIndex: 'igssLaboral', width: 65, align: 'right', render: v => fmtCell(v, '#cf1322') },
     { title: th('ISR', 'Retención ISR'), dataIndex: 'isrEmpleados', width: 60, align: 'right', render: v => fmtCell(v, '#cf1322') },
     { title: th('Otras', 'Otras deducciones (anticipos, etc.)'), dataIndex: 'otrasDeducciones', width: 60, align: 'right', render: v => fmtCell(v, '#cf1322') },
-    { title: th('P.Agui', 'Provisión mensual de aguinaldo (estimado, salario ÷ 12 — no contabilizado)'), dataIndex: 'provisionAguinaldo', width: 62, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
-    { title: th('P.B14', 'Provisión mensual de Bono 14 (estimado, salario ÷ 12 — no contabilizado)'), dataIndex: 'provisionBono14', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
-    { title: th('P.Vac', 'Provisión mensual de vacaciones (estimado — no contabilizado)'), dataIndex: 'provisionVacaciones', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
-    { title: th('P.Ind', 'Provisión mensual de indemnización (estimado — no contabilizado)'), dataIndex: 'provisionIndemnizacion', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('P.Agui', 'Provisión mensual de aguinaldo (salario ÷ 12) — contabilizada en la póliza de la 2da quincena'), dataIndex: 'provisionAguinaldo', width: 62, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('P.B14', 'Provisión mensual de Bono 14 (salario ÷ 12) — contabilizada en la póliza de la 2da quincena'), dataIndex: 'provisionBono14', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('P.Vac', 'Provisión mensual de vacaciones (15 días÷12 meses) — contabilizada en la póliza de la 2da quincena'), dataIndex: 'provisionVacaciones', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
+    { title: th('P.Ind', 'Provisión mensual de indemnización (salario ÷ 12) — contabilizada en la póliza de la 2da quincena'), dataIndex: 'provisionIndemnizacion', width: 60, align: 'right', render: v => fmtCell(v, '#8c8c8c') },
     { title: th('Deveng.', 'Total devengado del mes'), dataIndex: 'totalDevengado', width: 78, align: 'right', render: v => fmtCell(v, undefined, true) },
     { title: th('Neto', 'Neto a pagar del mes'), dataIndex: 'netoAPagar', width: 82, align: 'right', render: v => fmtCell(v, '#389e0d', true) },
   ]
@@ -110,7 +110,7 @@ export default function DetalleMensualPlanillaPage() {
         {data && (
           <>
             <Alert type="info" showIcon icon={<InfoCircleOutlined />} style={{ marginBottom: 16 }}
-              message="Las columnas P.Agui, P.B14, P.Vac y P.Ind son un estimado mensual (salario ÷ 12; vacaciones 15 días÷12 meses) — solo informativas, no forman parte de la póliza contabilizada. El asiento real de estos conceptos se genera con el finiquito." />
+              message="Las columnas P.Agui, P.B14, P.Vac y P.Ind son la provisión mensual de prestaciones (salario ÷ 12; vacaciones 15 días÷12 meses) — se contabilizan automáticamente en la póliza de la 2da quincena (gasto dimensionado por centro + pasivo por pagar). El pago real de estos conceptos se libera con el aguinaldo/bono14 anual o al finiquito." />
             <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
               title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}>
               <Table
