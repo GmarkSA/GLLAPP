@@ -12,10 +12,11 @@ import dayjs from 'dayjs'
 import SelectorDimensionesAnaliticas from '../../../components/SelectorDimensionesAnaliticas'
 import { GUATE_ACH_BANKS, ACCOUNT_FORMAT_RULES } from '../../../constants/guateAchBanks'
 import {
-  getEmpleado, crearEmpleado, actualizarEmpleado, cambiarSalario, darDeBajaEmpleado,
+  getEmpleado, crearEmpleado, actualizarEmpleado, cambiarSalario,
   descargarContratoLaboral, descargarConstanciaLaboral, getCentrosTrabajo,
   getAusenciasEmpleado, guardarAusenciaEmpleado, eliminarAusenciaEmpleado,
-  nombreCompleto, type EmpleadoDetalle, type ContratoLaboral, type CentroTrabajo, type AusenciaEmpleado,
+  getGocesVacaciones, guardarGoceVacaciones, eliminarGoceVacaciones,
+  nombreCompleto, type EmpleadoDetalle, type ContratoLaboral, type CentroTrabajo, type AusenciaEmpleado, type GoceVacaciones,
 } from '../../../api/planillas-empleados'
 
 const { Text, Title } = Typography
@@ -45,6 +46,10 @@ export default function EmpleadoFormPage() {
   const [modalAusencia, setModalAusencia] = useState(false)
   const [ausenciaEditando, setAusenciaEditando] = useState<AusenciaEmpleado | null>(null)
   const [ausenciaForm] = Form.useForm()
+  const [goces, setGoces] = useState<GoceVacaciones[]>([])
+  const [modalGoce, setModalGoce] = useState(false)
+  const [goceEditando, setGoceEditando] = useState<GoceVacaciones | null>(null)
+  const [goceForm] = Form.useForm()
 
   useEffect(() => {
     getCentrosTrabajo().then(setCentros).catch(() => {})
@@ -56,6 +61,13 @@ export default function EmpleadoFormPage() {
   }
 
   useEffect(cargarAusencias, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cargarGoces = () => {
+    if (esNuevo) return
+    getGocesVacaciones(id!).then(setGoces).catch(() => {})
+  }
+
+  useEffect(cargarGoces, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cargar = () => {
     if (esNuevo) return
@@ -223,15 +235,67 @@ export default function EmpleadoFormPage() {
     },
   ]
 
-  const baja = async () => {
+  const abrirNuevoGoce = () => {
+    setGoceEditando(null)
+    goceForm.resetFields()
+    setModalGoce(true)
+  }
+
+  const abrirEditarGoce = (g: GoceVacaciones) => {
+    setGoceEditando(g)
+    goceForm.setFieldsValue({
+      diasGozados: g.diasGozados, notas: g.notas,
+      fechaInicio: dayjs(g.fechaInicio), fechaFin: dayjs(g.fechaFin),
+    })
+    setModalGoce(true)
+  }
+
+  const guardarGoce = async () => {
     try {
-      await darDeBajaEmpleado(id!, dayjs().format('YYYY-MM-DD'))
-      message.success('Empleado dado de baja. El finiquito con prestaciones se calculará desde el módulo de Finiquitos (próxima fase).')
-      cargar()
+      const vals = await goceForm.validateFields()
+      await guardarGoceVacaciones(id!, {
+        id: goceEditando?.id,
+        fechaInicio: vals.fechaInicio.format('YYYY-MM-DD'),
+        fechaFin: vals.fechaFin.format('YYYY-MM-DD'),
+        diasGozados: vals.diasGozados,
+        notas: vals.notas,
+      })
+      message.success(goceEditando ? 'Goce actualizado' : 'Goce de vacaciones registrado')
+      setModalGoce(false)
+      cargarGoces()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al dar de baja')
+      if (e?.errorFields) return
+      message.error(e?.response?.data?.message || 'Error al guardar el goce de vacaciones')
     }
   }
+
+  const eliminarGoce = async (goceId: string) => {
+    try {
+      await eliminarGoceVacaciones(id!, goceId)
+      message.success('Goce eliminado')
+      cargarGoces()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al eliminar')
+    }
+  }
+
+  const gocesColumns = [
+    { title: 'Desde', dataIndex: 'fechaInicio', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Hasta', dataIndex: 'fechaFin', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Días gozados', dataIndex: 'diasGozados', width: 110, align: 'right' as const },
+    { title: 'Notas', dataIndex: 'notas', render: (v: string | null) => <Text style={{ fontSize: 12 }}>{v ?? ''}</Text> },
+    {
+      title: '', key: 'acciones', width: 70,
+      render: (_: any, g: GoceVacaciones) => (
+        <Space size={0}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => abrirEditarGoce(g)} />
+          <Popconfirm title="¿Eliminar este goce?" okText="Eliminar" cancelText="Cancelar" onConfirm={() => eliminarGoce(g.id)}>
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   const historialColumns = [
     { title: 'Vigencia desde', dataIndex: 'fechaInicio', width: 120, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
@@ -282,12 +346,9 @@ export default function EmpleadoFormPage() {
                 })
                 setModalSalario(true)
               }}>Cambiar salario</Button>
-              <Popconfirm
-                title="¿Dar de baja al empleado?"
-                description="Cambia el estado a BAJA con fecha de hoy. El finiquito se calcula en el módulo de Finiquitos."
-                okText="Dar de baja" cancelText="Cancelar" onConfirm={baja}>
-                <Button danger icon={<UserDeleteOutlined />}>Dar de baja</Button>
-              </Popconfirm>
+              <Button danger icon={<UserDeleteOutlined />} onClick={() => navigate(`/planillas/finiquitos/nuevo/${id}`)}>
+                Dar de baja / Finiquito
+              </Button>
             </>
           )}
           <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={guardar} style={{ background: NAVY }}>
@@ -565,7 +626,43 @@ export default function EmpleadoFormPage() {
             />
           </Card>
         )}
+
+        {!esNuevo && empleado && (
+          <Card size="small" style={{ borderRadius: 8, marginTop: 16 }} styles={{ body: { padding: 0 } }}
+            title={<Text strong>Goces de vacaciones</Text>}
+            extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevoGoce}>Registrar</Button>}>
+            <Table
+              size="small" rowKey="id" pagination={false}
+              dataSource={goces} columns={gocesColumns}
+              locale={{ emptyText: 'Sin goces de vacaciones registrados — el saldo pendiente se acumula automáticamente' }}
+            />
+          </Card>
+        )}
       </Spin>
+
+      <Modal
+        title={goceEditando ? 'Editar goce de vacaciones' : 'Registrar goce de vacaciones'}
+        open={modalGoce} onCancel={() => setModalGoce(false)}
+        onOk={guardarGoce} okText="Guardar" cancelText="Cancelar"
+        destroyOnHidden
+      >
+        <Form form={goceForm} layout="vertical" size="small">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="fechaInicio" label="Desde" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="fechaFin" label="Hasta" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+          </div>
+          <Form.Item name="diasGozados" label="Días gozados" rules={[{ required: true, message: 'Requerido' }]}>
+            <InputNumber style={{ width: '100%' }} min={0.5} precision={2} />
+          </Form.Item>
+          <Form.Item name="notas" label="Notas">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         title={ausenciaEditando ? 'Editar ausencia' : 'Registrar licencia o suspensión'}

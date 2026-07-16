@@ -154,6 +154,32 @@ export const guardarAusenciaEmpleado = (empleadoId: string, dto: {
 export const eliminarAusenciaEmpleado = (empleadoId: string, ausenciaId: string) =>
   api.delete(`${BASE}/empleados/${empleadoId}/ausencias/${ausenciaId}`).then(unwrap)
 
+// ─── Goces de vacaciones ────────────────────────────────────────────────────────
+
+export interface GoceVacaciones {
+  id: string
+  empleadoId: string
+  fechaInicio: string
+  fechaFin: string
+  diasGozados: number
+  notas: string | null
+  createdAt: string
+}
+
+export const getGocesVacaciones = (empleadoId: string) =>
+  api.get(`${BASE}/empleados/${empleadoId}/goces-vacaciones`).then(unwrap) as Promise<GoceVacaciones[]>
+
+export const guardarGoceVacaciones = (empleadoId: string, dto: {
+  id?: string
+  fechaInicio: string
+  fechaFin: string
+  diasGozados: number
+  notas?: string | null
+}) => api.post(`${BASE}/empleados/${empleadoId}/goces-vacaciones`, dto).then(unwrap) as Promise<GoceVacaciones>
+
+export const eliminarGoceVacaciones = (empleadoId: string, goceId: string) =>
+  api.delete(`${BASE}/empleados/${empleadoId}/goces-vacaciones/${goceId}`).then(unwrap)
+
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 const descargarDocx = (path: string, nombreArchivo: string) =>
