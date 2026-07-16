@@ -8,12 +8,14 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
   WarningOutlined, BookOutlined, BankOutlined, EyeOutlined, DownloadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
   contabilizarPeriodoPlanilla, pagarPeriodoPlanilla, previsualizarAsientoPlanilla,
+  descargarBoletaPago,
   type PeriodoPlanillaDetalle, type DetallePlanilla, type PreviewAsiento,
 } from '../../../api/planillas-corrida'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
@@ -212,6 +214,11 @@ export default function CorridaPlanillaPage() {
                 <WarningOutlined style={{ color: '#d46b08', marginLeft: 6 }} />
               </Tooltip>
             )}
+            <Tooltip title="Descargar boleta de pago">
+              <Button type="text" size="small" icon={<FileTextOutlined />} style={{ marginLeft: 4, verticalAlign: 'middle' }}
+                onClick={() => descargarBoletaPago(d.id, d.empleadoCodigo)
+                  .catch((e: any) => message.error(e?.response?.data?.message || 'Error al generar la boleta de pago'))} />
+            </Tooltip>
           </div>
         </div>
       ),

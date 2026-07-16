@@ -10,6 +10,7 @@ export type TipoJornada = 'DIURNA' | 'NOCTURNA' | 'MIXTA'
 export type TipoContratoEmpleado = 'TIEMPO_COMPLETO' | 'TIEMPO_PARCIAL'
 export type EstadoEmpleado = 'ACTIVO' | 'SUSPENDIDO' | 'BAJA'
 export type MotivoCambioSalario = 'ALTA' | 'AUMENTO' | 'AJUSTE' | 'CAMBIO_PUESTO' | 'OTRO'
+export type TipoContratoLaboral = 'INDEFINIDO' | 'PLAZO_FIJO' | 'POR_OBRA'
 export type MetodoPagoPlanilla = 'INSTITUCION_FINANCIERA' | 'CHEQUE' | 'BILLETERA_ELECTRONICA' | 'OTRO'
 export type TipoCuentaBancariaEmpleado = 'MONETARIA' | 'AHORRO'
 
@@ -20,6 +21,9 @@ export interface ContratoLaboral {
   fechaFin: string | null
   salarioOrdinarioMensual: number
   motivoCambio: MotivoCambioSalario
+  tipoContrato: TipoContratoLaboral
+  fechaFinPactada: string | null
+  horarioTrabajo: string | null
   notas: string | null
   createdAt: string
 }
@@ -97,7 +101,12 @@ export const getEmpleados = (incluirBajas = false) =>
 export const getEmpleado = (id: string) =>
   api.get(`${BASE}/empleados/${id}`).then(unwrap) as Promise<EmpleadoDetalle>
 
-export const crearEmpleado = (dto: Partial<Empleado> & { salarioInicial: number }) =>
+export const crearEmpleado = (dto: Partial<Empleado> & {
+  salarioInicial: number
+  tipoContratoLaboral?: TipoContratoLaboral
+  fechaFinPactada?: string | null
+  horarioTrabajo?: string | null
+}) =>
   api.post(`${BASE}/empleados`, dto).then(unwrap) as Promise<Empleado & { advertenciaSalarioMinimo: string | null }>
 
 export const actualizarEmpleado = (id: string, dto: Partial<Empleado>) =>
@@ -108,11 +117,32 @@ export const cambiarSalario = (empleadoId: string, dto: {
   fechaInicio: string
   motivoCambio?: MotivoCambioSalario
   notas?: string
+  tipoContratoLaboral?: TipoContratoLaboral
+  fechaFinPactada?: string | null
+  horarioTrabajo?: string | null
 }) => api.post(`${BASE}/empleados/${empleadoId}/cambiar-salario`, dto)
   .then(unwrap) as Promise<ContratoLaboral & { advertenciaSalarioMinimo: string | null }>
 
 export const darDeBajaEmpleado = (id: string, fechaBaja: string) =>
   api.post(`${BASE}/empleados/${id}/baja`, { fechaBaja }).then(unwrap) as Promise<Empleado>
+
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+const descargarDocx = (path: string, nombreArchivo: string) =>
+  api.get(path, { responseType: 'blob' }).then(r => {
+    const url = URL.createObjectURL(new Blob([r.data], { type: DOCX_MIME }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nombreArchivo
+    a.click()
+    URL.revokeObjectURL(url)
+  })
+
+export const descargarContratoLaboral = (empleadoId: string, empleadoCodigo: string) =>
+  descargarDocx(`${BASE}/empleados/${empleadoId}/documentos/contrato-laboral`, `contrato-laboral-${empleadoCodigo}.docx`)
+
+export const descargarConstanciaLaboral = (empleadoId: string, empleadoCodigo: string) =>
+  descargarDocx(`${BASE}/empleados/${empleadoId}/documentos/constancia-laboral`, `constancia-laboral-${empleadoCodigo}.docx`)
 
 // ─── Centros de trabajo ───────────────────────────────────────────────────────
 

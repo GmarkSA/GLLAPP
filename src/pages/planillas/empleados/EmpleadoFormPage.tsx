@@ -4,12 +4,16 @@ import {
   Alert, Button, Card, Collapse, DatePicker, Form, Input, InputNumber, Modal,
   Popconfirm, Select, Space, Spin, Table, Tag, Typography, message,
 } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, DollarOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import {
+  ArrowLeftOutlined, SaveOutlined, DollarOutlined, UserDeleteOutlined,
+  FileTextOutlined, SolutionOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import SelectorDimensionesAnaliticas from '../../../components/SelectorDimensionesAnaliticas'
 import { GUATE_ACH_BANKS, ACCOUNT_FORMAT_RULES } from '../../../constants/guateAchBanks'
 import {
   getEmpleado, crearEmpleado, actualizarEmpleado, cambiarSalario, darDeBajaEmpleado,
+  descargarContratoLaboral, descargarConstanciaLaboral,
   nombreCompleto, type EmpleadoDetalle, type ContratoLaboral,
 } from '../../../api/planillas-empleados'
 
@@ -19,6 +23,10 @@ const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFrac
 
 const MOTIVO_LABEL: Record<string, string> = {
   ALTA: 'Alta', AUMENTO: 'Aumento', AJUSTE: 'Ajuste', CAMBIO_PUESTO: 'Cambio de puesto', OTRO: 'Otro',
+}
+
+const TIPO_CONTRATO_LABORAL_LABEL: Record<string, string> = {
+  INDEFINIDO: 'Plazo indefinido', PLAZO_FIJO: 'Plazo fijo', POR_OBRA: 'Por obra determinada',
 }
 
 export default function EmpleadoFormPage() {
@@ -61,6 +69,7 @@ export default function EmpleadoFormPage() {
         fechaAlta: vals.fechaAlta?.format('YYYY-MM-DD'),
         fechaNacimiento: vals.fechaNacimiento?.format('YYYY-MM-DD') ?? null,
         fechaAntiguedad: vals.fechaAntiguedad?.format('YYYY-MM-DD') ?? null,
+        fechaFinPactada: vals.fechaFinPactada?.format('YYYY-MM-DD') ?? null,
         centroCostoId: vals.dimensiones?.centroCostoId ?? null,
         centroBeneficioId: vals.dimensiones?.centroBeneficioId ?? null,
         bancoNombre: vals.bancoCodigo
@@ -98,6 +107,9 @@ export default function EmpleadoFormPage() {
         fechaInicio: vals.fechaInicio.format('YYYY-MM-DD'),
         motivoCambio: vals.motivoCambio,
         notas: vals.notas,
+        tipoContratoLaboral: vals.tipoContratoLaboral,
+        fechaFinPactada: vals.fechaFinPactada?.format('YYYY-MM-DD') ?? null,
+        horarioTrabajo: vals.horarioTrabajo,
       })
       if (r.advertenciaSalarioMinimo) {
         Modal.warning({ title: 'Advertencia de salario mínimo', content: r.advertenciaSalarioMinimo })
@@ -109,6 +121,22 @@ export default function EmpleadoFormPage() {
     } catch (e: any) {
       if (e?.errorFields) return
       message.error(e?.response?.data?.message || 'Error al cambiar salario')
+    }
+  }
+
+  const descargarContrato = async () => {
+    try {
+      await descargarContratoLaboral(id!, empleado!.codigo)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al generar el contrato laboral')
+    }
+  }
+
+  const descargarConstancia = async () => {
+    try {
+      await descargarConstanciaLaboral(id!, empleado!.codigo)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al generar la constancia laboral')
     }
   }
 
@@ -133,6 +161,7 @@ export default function EmpleadoFormPage() {
       render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     { title: 'Motivo', dataIndex: 'motivoCambio', width: 130, render: (v: string) => MOTIVO_LABEL[v] ?? v },
+    { title: 'Tipo de contrato', dataIndex: 'tipoContrato', width: 140, render: (v: string) => TIPO_CONTRATO_LABORAL_LABEL[v] ?? v },
     { title: 'Notas', dataIndex: 'notas', render: (v: string | null) => <Text style={{ fontSize: 12 }}>{v ?? ''}</Text> },
   ]
 
@@ -153,9 +182,23 @@ export default function EmpleadoFormPage() {
           </div>
         </Space>
         <Space wrap>
+          {!esNuevo && empleado && (
+            <>
+              <Button icon={<FileTextOutlined />} onClick={descargarContrato}>Contrato laboral</Button>
+              <Button icon={<SolutionOutlined />} onClick={descargarConstancia}>Constancia laboral</Button>
+            </>
+          )}
           {!esNuevo && empleado?.estado === 'ACTIVO' && (
             <>
-              <Button icon={<DollarOutlined />} onClick={() => setModalSalario(true)}>Cambiar salario</Button>
+              <Button icon={<DollarOutlined />} onClick={() => {
+                const vigente = empleado.historialSalarios.find(h => h.fechaFin == null)
+                salarioForm.setFieldsValue({
+                  tipoContratoLaboral: vigente?.tipoContrato ?? 'INDEFINIDO',
+                  fechaFinPactada: vigente?.fechaFinPactada ? dayjs(vigente.fechaFinPactada) : null,
+                  horarioTrabajo: vigente?.horarioTrabajo ?? null,
+                })
+                setModalSalario(true)
+              }}>Cambiar salario</Button>
               <Popconfirm
                 title="¿Dar de baja al empleado?"
                 description="Cambia el estado a BAJA con fecha de hoy. El finiquito se calcula en el módulo de Finiquitos."
@@ -177,6 +220,7 @@ export default function EmpleadoFormPage() {
             circunscripcionEconomica: 'CE1',
             tipoJornada: 'DIURNA',
             tipoContrato: 'TIEMPO_COMPLETO',
+            tipoContratoLaboral: 'INDEFINIDO',
             metodoPago: 'INSTITUCION_FINANCIERA',
             monedaCuenta: 'GTQ',
             ingresosAcumuladosInicial: 0,
@@ -277,6 +321,22 @@ export default function EmpleadoFormPage() {
                   tooltip="Crea la primera vigencia del historial salarial. Los cambios posteriores se hacen con 'Cambiar salario' para no perder trazabilidad."
                   rules={[{ required: true, message: 'Requerido' }]}>
                   <InputNumber style={{ width: '100%' }} min={0.01} precision={2} />
+                </Form.Item>
+                <Form.Item name="tipoContratoLaboral" label="Tipo de contrato laboral"
+                  tooltip="Para el contrato laboral imprimible — plazo indefinido, plazo fijo u obra determinada">
+                  <Select options={Object.entries(TIPO_CONTRATO_LABORAL_LABEL).map(([value, label]) => ({ value, label }))} />
+                </Form.Item>
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.tipoContratoLaboral !== cur.tipoContratoLaboral}>
+                  {({ getFieldValue }) => getFieldValue('tipoContratoLaboral') !== 'INDEFINIDO' && (
+                    <Form.Item name="fechaFinPactada" label="Fecha fin pactada"
+                      rules={[{ required: true, message: 'Requerido' }]}>
+                      <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                    </Form.Item>
+                  )}
+                </Form.Item>
+                <Form.Item name="horarioTrabajo" label="Horario de trabajo"
+                  tooltip="Texto libre para el contrato, ej. 'Lunes a viernes de 8:00 a 17:00 horas'">
+                  <Input />
                 </Form.Item>
               </div>
             )}
@@ -430,6 +490,19 @@ export default function EmpleadoFormPage() {
           <Form.Item name="motivoCambio" label="Motivo">
             <Select options={Object.entries(MOTIVO_LABEL).filter(([k]) => k !== 'ALTA')
               .map(([value, label]) => ({ value, label }))} />
+          </Form.Item>
+          <Form.Item name="tipoContratoLaboral" label="Tipo de contrato laboral">
+            <Select options={Object.entries(TIPO_CONTRATO_LABORAL_LABEL).map(([value, label]) => ({ value, label }))} />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.tipoContratoLaboral !== cur.tipoContratoLaboral}>
+            {({ getFieldValue }) => getFieldValue('tipoContratoLaboral') !== 'INDEFINIDO' && (
+              <Form.Item name="fechaFinPactada" label="Fecha fin pactada" rules={[{ required: true, message: 'Requerido' }]}>
+                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              </Form.Item>
+            )}
+          </Form.Item>
+          <Form.Item name="horarioTrabajo" label="Horario de trabajo">
+            <Input />
           </Form.Item>
           <Form.Item name="notas" label="Notas">
             <Input.TextArea rows={2} />

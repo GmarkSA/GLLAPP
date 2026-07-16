@@ -194,3 +194,15 @@ export const getDistribucionDetalle = (detalleId: string) =>
 
 export const guardarDistribucionDetalle = (detalleId: string, filas: DistribucionFila[]) =>
   api.put(`${BASE}/detalles/${detalleId}/distribucion`, filas).then(unwrap) as Promise<DistribucionFila[]>
+
+export const descargarBoletaPago = (detalleId: string, empleadoCodigo: string) =>
+  api.get(`${BASE}/detalles/${detalleId}/documentos/boleta-pago`, { responseType: 'blob' }).then(r => {
+    const url = URL.createObjectURL(new Blob([r.data], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `boleta-pago-${empleadoCodigo}.docx`
+    a.click()
+    URL.revokeObjectURL(url)
+  })
