@@ -433,6 +433,17 @@ export default function CorridaPlanillaPage() {
       </Row>
 
       <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
+        title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}
+        extra={editable && <Text type="secondary" style={{ fontSize: 11 }}>Edita días, horas extra y otros montos — el cálculo se actualiza al salir de la celda</Text>}>
+        <Spin spinning={loading || procesando}>
+          <Table
+            size="small" rowKey="id" dataSource={periodo.detalles} columns={columns}
+            pagination={false} scroll={{ x: 'max-content' }}
+          />
+        </Spin>
+      </Card>
+
+      <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
         title={<Space size={6}><EyeOutlined style={{ color: NAVY }} /><Text strong style={{ fontSize: 13 }}>Vista previa de la póliza contable</Text></Space>}
         extra={<Text type="secondary" style={{ fontSize: 11 }}>Así se registrará al contabilizar — valida antes de aprobar</Text>}>
         <Spin spinning={previewLoading}>
@@ -480,17 +491,6 @@ export default function CorridaPlanillaPage() {
               />
             </>
           )}
-        </Spin>
-      </Card>
-
-      <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
-        title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}
-        extra={editable && <Text type="secondary" style={{ fontSize: 11 }}>Edita días, horas extra y otros montos — el cálculo se actualiza al salir de la celda</Text>}>
-        <Spin spinning={loading || procesando}>
-          <Table
-            size="small" rowKey="id" dataSource={periodo.detalles} columns={columns}
-            pagination={false} scroll={{ x: 'max-content' }}
-          />
         </Spin>
       </Card>
 
