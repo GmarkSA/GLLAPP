@@ -109,19 +109,23 @@ export default function PeriodosPlanillaPage() {
                   }} />
               </Tooltip>
             )}
-            <Tooltip title="Detalle de planilla mensual">
-              <Button type="text" size="small" icon={<FileTextOutlined />}
-                onClick={e => { e.stopPropagation(); navigate(`/planillas/mensual/${p.anio}/${p.mes}`) }} />
-            </Tooltip>
-            <Tooltip title="Imprimir boletas de pago (todos los empleados, media carta)">
-              <Button type="text" size="small" icon={<PrinterOutlined />}
-                onClick={e => {
-                  e.stopPropagation()
-                  const url = `/planillas/corridas/${p.id}/imprimir-boletas?format=media-carta`
-                  const win = window.open(url, '_blank', 'width=880,height=1020,menubar=no,toolbar=no,location=no,scrollbars=yes')
-                  if (!win) message.warning('Permite ventanas emergentes en este sitio para poder imprimir.')
-                }} />
-            </Tooltip>
+            {p.quincena === 2 && (
+              <Tooltip title="Detalle de planilla mensual">
+                <Button type="text" size="small" icon={<FileTextOutlined />}
+                  onClick={e => { e.stopPropagation(); navigate(`/planillas/mensual/${p.anio}/${p.mes}`) }} />
+              </Tooltip>
+            )}
+            {p.quincena === 2 && (
+              <Tooltip title="Imprimir boletas de pago (todos los empleados, media carta)">
+                <Button type="text" size="small" icon={<PrinterOutlined />}
+                  onClick={e => {
+                    e.stopPropagation()
+                    const url = `/planillas/corridas/${p.id}/imprimir-boletas?format=media-carta`
+                    const win = window.open(url, '_blank', 'width=880,height=1020,menubar=no,toolbar=no,location=no,scrollbars=yes')
+                    if (!win) message.warning('Permite ventanas emergentes en este sitio para poder imprimir.')
+                  }} />
+              </Tooltip>
+            )}
           </Space>
         </Space>
       ),
