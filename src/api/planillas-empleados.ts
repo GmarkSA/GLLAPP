@@ -126,6 +126,34 @@ export const cambiarSalario = (empleadoId: string, dto: {
 export const darDeBajaEmpleado = (id: string, fechaBaja: string) =>
   api.post(`${BASE}/empleados/${id}/baja`, { fechaBaja }).then(unwrap) as Promise<Empleado>
 
+// ─── Licencias y suspensiones (IGSS) ───────────────────────────────────────────
+
+export type TipoAusenciaEmpleado = 'LICENCIA' | 'SUSPENSION'
+
+export interface AusenciaEmpleado {
+  id: string
+  empleadoId: string
+  tipo: TipoAusenciaEmpleado
+  fechaInicio: string
+  fechaFin: string
+  motivo: string | null
+  createdAt: string
+}
+
+export const getAusenciasEmpleado = (empleadoId: string) =>
+  api.get(`${BASE}/empleados/${empleadoId}/ausencias`).then(unwrap) as Promise<AusenciaEmpleado[]>
+
+export const guardarAusenciaEmpleado = (empleadoId: string, dto: {
+  id?: string
+  tipo: TipoAusenciaEmpleado
+  fechaInicio: string
+  fechaFin: string
+  motivo?: string | null
+}) => api.post(`${BASE}/empleados/${empleadoId}/ausencias`, dto).then(unwrap) as Promise<AusenciaEmpleado>
+
+export const eliminarAusenciaEmpleado = (empleadoId: string, ausenciaId: string) =>
+  api.delete(`${BASE}/empleados/${empleadoId}/ausencias/${ausenciaId}`).then(unwrap)
+
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 const descargarDocx = (path: string, nombreArchivo: string) =>

@@ -144,6 +144,7 @@ const EjecucionCentrosCostoPage        = lazy(() => import('./pages/reportes/Eje
 const ParametrosFiscalesPage = lazy(() => import('./pages/planillas/configuracion/ParametrosFiscalesPage'))
 const DatosPatronoPage       = lazy(() => import('./pages/planillas/configuracion/DatosPatronoPage'))
 const CuentasPlanillaPage    = lazy(() => import('./pages/planillas/configuracion/CuentasPlanillaPage'))
+const CentrosTrabajoPage     = lazy(() => import('./pages/planillas/configuracion/CentrosTrabajoPage'))
 const EmpleadosPage          = lazy(() => import('./pages/planillas/empleados/EmpleadosPage'))
 const EmpleadoFormPage       = lazy(() => import('./pages/planillas/empleados/EmpleadoFormPage'))
 const PeriodosPlanillaPage   = lazy(() => import('./pages/planillas/corrida/PeriodosPlanillaPage'))
@@ -336,6 +337,7 @@ export default function App() {
           <Route path="planillas/configuracion/parametros-fiscales" element={<ParametrosFiscalesPage />} />
           <Route path="planillas/configuracion/datos-patrono"       element={<DatosPatronoPage />} />
           <Route path="planillas/configuracion/cuentas-contables"   element={<CuentasPlanillaPage />} />
+          <Route path="planillas/configuracion/centros-trabajo"    element={<CentrosTrabajoPage />} />
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />
           <Route path="configuracion"                                element={<ConfiguracionPage />} />

@@ -6,15 +6,16 @@ import {
 } from 'antd'
 import {
   ArrowLeftOutlined, SaveOutlined, DollarOutlined, UserDeleteOutlined,
-  FileTextOutlined, SolutionOutlined,
+  FileTextOutlined, SolutionOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import SelectorDimensionesAnaliticas from '../../../components/SelectorDimensionesAnaliticas'
 import { GUATE_ACH_BANKS, ACCOUNT_FORMAT_RULES } from '../../../constants/guateAchBanks'
 import {
   getEmpleado, crearEmpleado, actualizarEmpleado, cambiarSalario, darDeBajaEmpleado,
-  descargarContratoLaboral, descargarConstanciaLaboral,
-  nombreCompleto, type EmpleadoDetalle, type ContratoLaboral,
+  descargarContratoLaboral, descargarConstanciaLaboral, getCentrosTrabajo,
+  getAusenciasEmpleado, guardarAusenciaEmpleado, eliminarAusenciaEmpleado,
+  nombreCompleto, type EmpleadoDetalle, type ContratoLaboral, type CentroTrabajo, type AusenciaEmpleado,
 } from '../../../api/planillas-empleados'
 
 const { Text, Title } = Typography
@@ -36,9 +37,25 @@ export default function EmpleadoFormPage() {
   const [form] = Form.useForm()
   const [salarioForm] = Form.useForm()
   const [empleado, setEmpleado] = useState<EmpleadoDetalle | null>(null)
+  const [centros, setCentros] = useState<CentroTrabajo[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [modalSalario, setModalSalario] = useState(false)
+  const [ausencias, setAusencias] = useState<AusenciaEmpleado[]>([])
+  const [modalAusencia, setModalAusencia] = useState(false)
+  const [ausenciaEditando, setAusenciaEditando] = useState<AusenciaEmpleado | null>(null)
+  const [ausenciaForm] = Form.useForm()
+
+  useEffect(() => {
+    getCentrosTrabajo().then(setCentros).catch(() => {})
+  }, [])
+
+  const cargarAusencias = () => {
+    if (esNuevo) return
+    getAusenciasEmpleado(id!).then(setAusencias).catch(() => {})
+  }
+
+  useEffect(cargarAusencias, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cargar = () => {
     if (esNuevo) return
@@ -139,6 +156,72 @@ export default function EmpleadoFormPage() {
       message.error(e?.response?.data?.message || 'Error al generar la constancia laboral')
     }
   }
+
+  const abrirNuevaAusencia = () => {
+    setAusenciaEditando(null)
+    ausenciaForm.resetFields()
+    ausenciaForm.setFieldsValue({ tipo: 'LICENCIA' })
+    setModalAusencia(true)
+  }
+
+  const abrirEditarAusencia = (a: AusenciaEmpleado) => {
+    setAusenciaEditando(a)
+    ausenciaForm.setFieldsValue({
+      tipo: a.tipo, motivo: a.motivo,
+      fechaInicio: dayjs(a.fechaInicio), fechaFin: dayjs(a.fechaFin),
+    })
+    setModalAusencia(true)
+  }
+
+  const guardarAusencia = async () => {
+    try {
+      const vals = await ausenciaForm.validateFields()
+      await guardarAusenciaEmpleado(id!, {
+        id: ausenciaEditando?.id,
+        tipo: vals.tipo,
+        fechaInicio: vals.fechaInicio.format('YYYY-MM-DD'),
+        fechaFin: vals.fechaFin.format('YYYY-MM-DD'),
+        motivo: vals.motivo,
+      })
+      message.success(ausenciaEditando ? 'Ausencia actualizada' : 'Ausencia registrada')
+      setModalAusencia(false)
+      cargarAusencias()
+    } catch (e: any) {
+      if (e?.errorFields) return
+      message.error(e?.response?.data?.message || 'Error al guardar la ausencia')
+    }
+  }
+
+  const eliminarAusencia = async (ausenciaId: string) => {
+    try {
+      await eliminarAusenciaEmpleado(id!, ausenciaId)
+      message.success('Ausencia eliminada')
+      cargarAusencias()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al eliminar')
+    }
+  }
+
+  const ausenciasColumns = [
+    {
+      title: 'Tipo', dataIndex: 'tipo', width: 110,
+      render: (v: string) => <Tag color={v === 'LICENCIA' ? 'blue' : 'orange'}>{v === 'LICENCIA' ? 'Licencia' : 'Suspensión'}</Tag>,
+    },
+    { title: 'Desde', dataIndex: 'fechaInicio', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Hasta', dataIndex: 'fechaFin', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Motivo', dataIndex: 'motivo', render: (v: string | null) => <Text style={{ fontSize: 12 }}>{v ?? ''}</Text> },
+    {
+      title: '', key: 'acciones', width: 70,
+      render: (_: any, a: AusenciaEmpleado) => (
+        <Space size={0}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => abrirEditarAusencia(a)} />
+          <Popconfirm title="¿Eliminar esta ausencia?" okText="Eliminar" cancelText="Cancelar" onConfirm={() => eliminarAusencia(a.id)}>
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   const baja = async () => {
     try {
@@ -314,6 +397,11 @@ export default function EmpleadoFormPage() {
               <Form.Item name="codigoOcupacionIGSS" label="Código ocupación IGSS">
                 <Input />
               </Form.Item>
+              <Form.Item name="centroTrabajoId" label="Centro de trabajo IGSS"
+                tooltip="Requerido para el archivo de planilla electrónica IGSS">
+                <Select allowClear placeholder="Seleccionar centro"
+                  options={centros.map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))} />
+              </Form.Item>
             </div>
             {esNuevo && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px', borderTop: '1px dashed #d9d9d9', paddingTop: 12 }}>
@@ -465,7 +553,46 @@ export default function EmpleadoFormPage() {
             />
           </Card>
         )}
+
+        {!esNuevo && empleado && (
+          <Card size="small" style={{ borderRadius: 8, marginTop: 16 }} styles={{ body: { padding: 0 } }}
+            title={<Text strong>Licencias y suspensiones (IGSS)</Text>}
+            extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevaAusencia}>Registrar</Button>}>
+            <Table
+              size="small" rowKey="id" pagination={false}
+              dataSource={ausencias} columns={ausenciasColumns}
+              locale={{ emptyText: 'Sin licencias ni suspensiones registradas' }}
+            />
+          </Card>
+        )}
       </Spin>
+
+      <Modal
+        title={ausenciaEditando ? 'Editar ausencia' : 'Registrar licencia o suspensión'}
+        open={modalAusencia} onCancel={() => setModalAusencia(false)}
+        onOk={guardarAusencia} okText="Guardar" cancelText="Cancelar"
+        destroyOnHidden
+      >
+        <Form form={ausenciaForm} layout="vertical" size="small">
+          <Form.Item name="tipo" label="Tipo" rules={[{ required: true, message: 'Requerido' }]}>
+            <Select options={[
+              { value: 'LICENCIA', label: 'Licencia' },
+              { value: 'SUSPENSION', label: 'Suspensión' },
+            ]} />
+          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="fechaInicio" label="Desde" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="fechaFin" label="Hasta" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+          </div>
+          <Form.Item name="motivo" label="Motivo">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         title="Cambiar salario"

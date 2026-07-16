@@ -6,10 +6,11 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   PlusOutlined, CalendarOutlined, BookOutlined, BankOutlined, FileTextOutlined, PrinterOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getPeriodosPlanilla, crearPeriodoPlanilla, type PeriodoPlanilla,
+  getPeriodosPlanilla, crearPeriodoPlanilla, descargarArchivoIGSS, type PeriodoPlanilla,
 } from '../../../api/planillas-corrida'
 
 const { Text, Title } = Typography
@@ -123,6 +124,16 @@ export default function PeriodosPlanillaPage() {
                     const url = `/planillas/mensual/${p.anio}/${p.mes}/imprimir-boletas?format=media-carta`
                     const win = window.open(url, '_blank', 'width=880,height=1020,menubar=no,toolbar=no,location=no,scrollbars=yes')
                     if (!win) message.warning('Permite ventanas emergentes en este sitio para poder imprimir.')
+                  }} />
+              </Tooltip>
+            )}
+            {p.quincena === 2 && (
+              <Tooltip title="Descargar archivo de planilla electrónica IGSS (.txt)">
+                <Button type="text" size="small" icon={<SafetyCertificateOutlined />}
+                  onClick={e => {
+                    e.stopPropagation()
+                    descargarArchivoIGSS(p.anio, p.mes)
+                      .catch((err: any) => message.error(err?.response?.data?.message || 'Error al generar el archivo IGSS'))
                   }} />
               </Tooltip>
             )}

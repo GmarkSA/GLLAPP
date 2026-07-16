@@ -88,6 +88,7 @@ const menuItems = [
     { key: '/planillas/configuracion/parametros-fiscales', label: 'Parámetros fiscales' },
     { key: '/planillas/configuracion/datos-patrono',       label: 'Datos del patrono' },
     { key: '/planillas/configuracion/cuentas-contables',   label: 'Cuentas contables' },
+    { key: '/planillas/configuracion/centros-trabajo',     label: 'Centros de trabajo' },
   ]},
   { key: '/proyectos',       icon: <ProjectOutlined />,      label: 'Proyectos' },
   { key: 'reportes',         icon: <BarChartOutlined />,     label: 'Reportes', children: [
