@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Button, Card, Space, Spin, Table, Tag, Tooltip, Typography } from 'antd'
+import { Alert, Button, Card, Space, Spin, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { ArrowLeftOutlined, FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import {
@@ -111,56 +111,73 @@ export default function DetalleMensualPlanillaPage() {
           <>
             <Alert type="info" showIcon icon={<InfoCircleOutlined />} style={{ marginBottom: 16 }}
               message="Las columnas P.Agui, P.B14, P.Vac y P.Ind son la provisión mensual de prestaciones (salario ÷ 12; vacaciones 15 días÷12 meses) — se contabilizan automáticamente en la póliza de la 2da quincena (gasto dimensionado por centro + pasivo por pagar). El pago real de estos conceptos se libera con el aguinaldo/bono14 anual o al finiquito." />
-            <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
-              title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}>
-              <Table
-                size="small" rowKey="empleadoId" pagination={false}
-                dataSource={data.empleados} columns={columnasEmpleado}
-                summary={() => {
-                  const cell = (v: number, color?: string) => (
-                    <Table.Summary.Cell index={0} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', fontSize: 11, color }}>{fmtQ(v)}</Text>
-                    </Table.Summary.Cell>
-                  )
-                  return (
-                    <Table.Summary.Row style={{ background: '#fafafa' }}>
-                      <Table.Summary.Cell index={0}><Text strong style={{ fontSize: 11 }}>Total</Text></Table.Summary.Cell>
-                      <Table.Summary.Cell index={0} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 11 }}>{data.totales.dias}</Text></Table.Summary.Cell>
-                      {cell(data.totales.sueldoBase)}
-                      {cell(data.totales.bonificacion)}
-                      {cell(data.totales.comisiones)}
-                      {cell(data.totales.montoHorasExtra)}
-                      {cell(data.totales.igssPatronal, '#8c8c8c')}
-                      {cell(data.totales.igssLaboral, '#cf1322')}
-                      {cell(data.totales.isrEmpleados, '#cf1322')}
-                      {cell(data.totales.otrasDeducciones, '#cf1322')}
-                      {cell(data.totales.provisionAguinaldo, '#8c8c8c')}
-                      {cell(data.totales.provisionBono14, '#8c8c8c')}
-                      {cell(data.totales.provisionVacaciones, '#8c8c8c')}
-                      {cell(data.totales.provisionIndemnizacion, '#8c8c8c')}
-                      {cell(data.totales.totalDevengado)}
-                      {cell(data.totales.netoAPagar, '#389e0d')}
-                    </Table.Summary.Row>
-                  )
-                }}
-              />
-            </Card>
-
-            <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
-              title={<Text strong style={{ fontSize: 13 }}>Nomenclatura contable (mes completo)</Text>}
-              extra={<Text type="secondary" style={{ fontSize: 11 }}>Suma de las líneas de ambas quincenas, agrupadas por cuenta y centro</Text>}>
-              <Table
-                size="small" rowKey={(_, i) => String(i)} pagination={false}
-                dataSource={data.nomenclatura} columns={columnasNomenclatura}
-                summary={() => (
-                  <Table.Summary.Row style={{ background: '#fafafa' }}>
-                    <Table.Summary.Cell index={0} colSpan={2}>
-                      <Text strong style={{ fontSize: 12 }}>Total {data.cuadra ? '— cuadra' : '— NO CUADRA'}</Text>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totalDebit)}</Text></Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totalCredit)}</Text></Table.Summary.Cell>
-                  </Table.Summary.Row>
-                )}
+            <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
+              <Tabs
+                defaultActiveKey="empleados"
+                style={{ padding: '0 16px' }}
+                items={[
+                  {
+                    key: 'empleados',
+                    label: 'Detalle de empleados',
+                    children: (
+                      <Table
+                        size="small" rowKey="empleadoId" pagination={false}
+                        dataSource={data.empleados} columns={columnasEmpleado}
+                        summary={() => {
+                          const cell = (v: number, color?: string) => (
+                            <Table.Summary.Cell index={0} align="right">
+                              <Text strong style={{ fontFamily: 'monospace', fontSize: 11, color }}>{fmtQ(v)}</Text>
+                            </Table.Summary.Cell>
+                          )
+                          return (
+                            <Table.Summary.Row style={{ background: '#fafafa' }}>
+                              <Table.Summary.Cell index={0}><Text strong style={{ fontSize: 11 }}>Total</Text></Table.Summary.Cell>
+                              <Table.Summary.Cell index={0} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 11 }}>{data.totales.dias}</Text></Table.Summary.Cell>
+                              {cell(data.totales.sueldoBase)}
+                              {cell(data.totales.bonificacion)}
+                              {cell(data.totales.comisiones)}
+                              {cell(data.totales.montoHorasExtra)}
+                              {cell(data.totales.igssPatronal, '#8c8c8c')}
+                              {cell(data.totales.igssLaboral, '#cf1322')}
+                              {cell(data.totales.isrEmpleados, '#cf1322')}
+                              {cell(data.totales.otrasDeducciones, '#cf1322')}
+                              {cell(data.totales.provisionAguinaldo, '#8c8c8c')}
+                              {cell(data.totales.provisionBono14, '#8c8c8c')}
+                              {cell(data.totales.provisionVacaciones, '#8c8c8c')}
+                              {cell(data.totales.provisionIndemnizacion, '#8c8c8c')}
+                              {cell(data.totales.totalDevengado)}
+                              {cell(data.totales.netoAPagar, '#389e0d')}
+                            </Table.Summary.Row>
+                          )
+                        }}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'poliza',
+                    label: 'Póliza',
+                    children: (
+                      <div style={{ maxWidth: 700 }}>
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
+                          Nomenclatura contable del mes completo — suma de las líneas de ambas quincenas, agrupadas por cuenta y centro
+                        </Text>
+                        <Table
+                          size="small" rowKey={(_, i) => String(i)} pagination={false}
+                          dataSource={data.nomenclatura} columns={columnasNomenclatura}
+                          summary={() => (
+                            <Table.Summary.Row style={{ background: '#fafafa' }}>
+                              <Table.Summary.Cell index={0} colSpan={2}>
+                                <Text strong style={{ fontSize: 12 }}>Total {data.cuadra ? '— cuadra' : '— NO CUADRA'}</Text>
+                              </Table.Summary.Cell>
+                              <Table.Summary.Cell index={1} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totalDebit)}</Text></Table.Summary.Cell>
+                              <Table.Summary.Cell index={2} align="right"><Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(data.totalCredit)}</Text></Table.Summary.Cell>
+                            </Table.Summary.Row>
+                          )}
+                        />
+                      </div>
+                    ),
+                  },
+                ]}
               />
             </Card>
           </>
