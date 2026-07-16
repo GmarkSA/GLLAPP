@@ -214,13 +214,20 @@ export default function CorridaPlanillaPage() {
                 <WarningOutlined style={{ color: '#d46b08', marginLeft: 6 }} />
               </Tooltip>
             )}
-            <Tooltip title="Descargar boleta de pago">
-              <Button type="text" size="small" icon={<FileTextOutlined />} style={{ marginLeft: 4, verticalAlign: 'middle' }}
-                onClick={() => descargarBoletaPago(d.id, d.empleadoCodigo)
-                  .catch((e: any) => message.error(e?.response?.data?.message || 'Error al generar la boleta de pago'))} />
-            </Tooltip>
           </div>
         </div>
+      ),
+    },
+    {
+      title: 'Boleta', key: 'boleta', width: 95, align: 'center',
+      render: (_, d) => (
+        <Tooltip title="Descargar boleta de pago (DOCX)">
+          <Button size="small" icon={<FileTextOutlined />}
+            onClick={() => descargarBoletaPago(d.id, d.empleadoCodigo)
+              .catch((e: any) => message.error(e?.response?.data?.message || 'Error al generar la boleta de pago'))}>
+            Boleta
+          </Button>
+        </Tooltip>
       ),
     },
     {
