@@ -144,11 +144,15 @@ const EjecucionCentrosCostoPage        = lazy(() => import('./pages/reportes/Eje
 const ParametrosFiscalesPage = lazy(() => import('./pages/planillas/configuracion/ParametrosFiscalesPage'))
 const DatosPatronoPage       = lazy(() => import('./pages/planillas/configuracion/DatosPatronoPage'))
 const CuentasPlanillaPage    = lazy(() => import('./pages/planillas/configuracion/CuentasPlanillaPage'))
+const CentrosTrabajoPage     = lazy(() => import('./pages/planillas/configuracion/CentrosTrabajoPage'))
 const EmpleadosPage          = lazy(() => import('./pages/planillas/empleados/EmpleadosPage'))
 const EmpleadoFormPage       = lazy(() => import('./pages/planillas/empleados/EmpleadoFormPage'))
 const PeriodosPlanillaPage   = lazy(() => import('./pages/planillas/corrida/PeriodosPlanillaPage'))
 const CorridaPlanillaPage    = lazy(() => import('./pages/planillas/corrida/CorridaPlanillaPage'))
 const DetalleMensualPlanillaPage = lazy(() => import('./pages/planillas/corrida/DetalleMensualPlanillaPage'))
+const BoletasPagoImprimirPage    = lazy(() => import('./pages/planillas/corrida/BoletasPagoImprimirPage'))
+const FiniquitosListPage     = lazy(() => import('./pages/planillas/finiquito/FiniquitosListPage'))
+const FiniquitoPage          = lazy(() => import('./pages/planillas/finiquito/FiniquitoPage'))
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -196,6 +200,7 @@ export default function App() {
         <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
         <Route path="/ventas/facturas/:id/imprimir"     element={<PrivateRoute><FacturaImprimirPage /></PrivateRoute>} />
+        <Route path="/planillas/mensual/:anio/:mes/imprimir-boletas" element={<PrivateRoute><BoletasPagoImprimirPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/cheque"      element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/comprobante" element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
         <Route path="/bancos/cheques/imprimir-lote"            element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
@@ -328,12 +333,16 @@ export default function App() {
           <Route path="planillas/corridas"                           element={<PeriodosPlanillaPage />} />
           <Route path="planillas/corridas/:id"                       element={<CorridaPlanillaPage />} />
           <Route path="planillas/mensual/:anio/:mes"                 element={<DetalleMensualPlanillaPage />} />
+          <Route path="planillas/finiquitos"                         element={<FiniquitosListPage />} />
+          <Route path="planillas/finiquitos/nuevo/:empleadoId"       element={<FiniquitoPage />} />
+          <Route path="planillas/finiquitos/:id"                     element={<FiniquitoPage />} />
           <Route path="planillas/empleados"                          element={<EmpleadosPage />} />
           <Route path="planillas/empleados/nuevo"                    element={<EmpleadoFormPage />} />
           <Route path="planillas/empleados/:id"                      element={<EmpleadoFormPage />} />
           <Route path="planillas/configuracion/parametros-fiscales" element={<ParametrosFiscalesPage />} />
           <Route path="planillas/configuracion/datos-patrono"       element={<DatosPatronoPage />} />
           <Route path="planillas/configuracion/cuentas-contables"   element={<CuentasPlanillaPage />} />
+          <Route path="planillas/configuracion/centros-trabajo"    element={<CentrosTrabajoPage />} />
 
           <Route path="proyectos"                   element={<ComingSoon title="Proyectos" />} />
           <Route path="configuracion"                                element={<ConfiguracionPage />} />

@@ -8,15 +8,18 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
   WarningOutlined, BookOutlined, BankOutlined, EyeOutlined, DownloadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
   contabilizarPeriodoPlanilla, pagarPeriodoPlanilla, previsualizarAsientoPlanilla,
+  descargarBoletaPago,
   type PeriodoPlanillaDetalle, type DetallePlanilla, type PreviewAsiento,
 } from '../../../api/planillas-corrida'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
+import { getApiError } from '../../../api/axios'
 
 const { Text, Title } = Typography
 const NAVY = '#1B3A6B'
@@ -94,7 +97,7 @@ export default function CorridaPlanillaPage() {
       setPeriodo(actualizado)
       cargarPreview()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al actualizar')
+      message.error(getApiError(e, 'Error al actualizar'))
       cargar()
     } finally {
       setProcesando(false)
@@ -108,7 +111,7 @@ export default function CorridaPlanillaPage() {
       cargarPreview()
       message.success('Corrida recalculada')
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al recalcular')
+      message.error(getApiError(e, 'Error al recalcular'))
     } finally {
       setProcesando(false)
     }
@@ -120,7 +123,7 @@ export default function CorridaPlanillaPage() {
       setPeriodo(await aprobarPeriodoPlanilla(id!))
       message.success('Planilla aprobada — los montos quedaron congelados')
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al aprobar')
+      message.error(getApiError(e, 'Error al aprobar'))
     } finally {
       setProcesando(false)
     }
@@ -132,7 +135,7 @@ export default function CorridaPlanillaPage() {
       message.success('Corrida eliminada')
       navigate('/planillas/corridas')
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al eliminar')
+      message.error(getApiError(e, 'Error al eliminar'))
     }
   }
 
@@ -143,7 +146,7 @@ export default function CorridaPlanillaPage() {
       message.success(`Asiento ${r.entryNumber} generado — planilla contabilizada`)
       cargar()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al contabilizar')
+      message.error(getApiError(e, 'Error al contabilizar'))
     } finally {
       setProcesando(false)
     }
@@ -189,7 +192,7 @@ export default function CorridaPlanillaPage() {
       cargar()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Error al registrar el pago')
+      message.error(getApiError(e, 'Error al registrar el pago'))
     } finally {
       setProcesando(false)
     }
@@ -287,6 +290,18 @@ export default function CorridaPlanillaPage() {
       title: 'Neto a pagar', dataIndex: 'netoAPagar', width: 120, align: 'right',
       render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#389e0d' }}>{fmtQ(v)}</Text>,
     },
+    ...(esQuincena1 ? [] : [{
+      title: 'Boleta', key: 'boleta', width: 95, align: 'center' as const,
+      render: (_: any, d: DetallePlanilla) => (
+        <Tooltip title="Descargar boleta de pago del mes completo (DOCX)">
+          <Button size="small" icon={<FileTextOutlined />}
+            onClick={() => descargarBoletaPago(periodo!.anio, periodo!.mes, d.empleadoId, d.empleadoCodigo)
+              .catch((e: any) => message.error(getApiError(e, 'Error al generar la boleta de pago')))}>
+            Boleta
+          </Button>
+        </Tooltip>
+      ),
+    }]),
     ...(esQuincena1 ? [] : [{
       title: <Tooltip title="IGSS 10.67% + INTECAP 1% + IRTRA 1% — gasto del patrono, sobre el mes completo">C. patronal</Tooltip>,
       key: 'patronal', width: 105, align: 'right' as const,
@@ -418,6 +433,17 @@ export default function CorridaPlanillaPage() {
       </Row>
 
       <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
+        title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}
+        extra={editable && <Text type="secondary" style={{ fontSize: 11 }}>Edita días, horas extra y otros montos — el cálculo se actualiza al salir de la celda</Text>}>
+        <Spin spinning={loading || procesando}>
+          <Table
+            size="small" rowKey="id" dataSource={periodo.detalles} columns={columns}
+            pagination={false} scroll={{ x: 'max-content' }}
+          />
+        </Spin>
+      </Card>
+
+      <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
         title={<Space size={6}><EyeOutlined style={{ color: NAVY }} /><Text strong style={{ fontSize: 13 }}>Vista previa de la póliza contable</Text></Space>}
         extra={<Text type="secondary" style={{ fontSize: 11 }}>Así se registrará al contabilizar — valida antes de aprobar</Text>}>
         <Spin spinning={previewLoading}>
@@ -465,17 +491,6 @@ export default function CorridaPlanillaPage() {
               />
             </>
           )}
-        </Spin>
-      </Card>
-
-      <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
-        title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}
-        extra={editable && <Text type="secondary" style={{ fontSize: 11 }}>Edita días, horas extra y otros montos — el cálculo se actualiza al salir de la celda</Text>}>
-        <Spin spinning={loading || procesando}>
-          <Table
-            size="small" rowKey="id" dataSource={periodo.detalles} columns={columns}
-            pagination={false} scroll={{ x: 'max-content' }}
-          />
         </Spin>
       </Card>
 

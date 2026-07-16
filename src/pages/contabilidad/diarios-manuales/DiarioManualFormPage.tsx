@@ -18,6 +18,7 @@ import { getAccounts, getAccountGroups, type Account } from '../../../api/catalo
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
 import { getActivosFijos, type ActivoFijo } from '../../../api/activos-fijos'
+import { getApiError } from '../../../api/axios'
 import { getExchangeRateForDate } from '../../../api/monedas'
 import SelectorDimensionesAnaliticas, { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
@@ -281,7 +282,7 @@ export default function DiarioManualFormPage() {
         loadAsiento()
       }
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar')
+      message.error(getApiError(e, 'Error al guardar'))
     } finally { setSaving(false) }
   }
 
@@ -307,7 +308,7 @@ export default function DiarioManualFormPage() {
       if (result?.id && result?.id !== id) navigate(`/contabilidad/diarios-manuales/${result.id}`)
       else loadAsiento()
     }
-    catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
+    catch (e: any) { message.error(getApiError(e, 'Error')) }
     finally { setActing(false) }
   }
 

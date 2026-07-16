@@ -194,3 +194,25 @@ export const getDistribucionDetalle = (detalleId: string) =>
 
 export const guardarDistribucionDetalle = (detalleId: string, filas: DistribucionFila[]) =>
   api.put(`${BASE}/detalles/${detalleId}/distribucion`, filas).then(unwrap) as Promise<DistribucionFila[]>
+
+export const descargarBoletaPago = (anio: number, mes: number, empleadoId: string, empleadoCodigo: string) =>
+  api.get(`/planillas/reportes/mensual/${anio}/${mes}/documentos/boleta-pago/${empleadoId}`, { responseType: 'blob' }).then(r => {
+    const url = URL.createObjectURL(new Blob([r.data], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `boleta-pago-${empleadoCodigo}.docx`
+    a.click()
+    URL.revokeObjectURL(url)
+  })
+
+export const descargarArchivoIGSS = (anio: number, mes: number) =>
+  api.get(`/planillas/reportes/mensual/${anio}/${mes}/archivo-igss`, { responseType: 'blob' }).then(r => {
+    const url = URL.createObjectURL(new Blob([r.data], { type: 'text/plain;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ArchivoPlanilla-${anio}${String(mes).padStart(2, '0')}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  })

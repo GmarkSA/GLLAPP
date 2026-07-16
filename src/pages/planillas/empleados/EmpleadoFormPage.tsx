@@ -4,13 +4,19 @@ import {
   Alert, Button, Card, Collapse, DatePicker, Form, Input, InputNumber, Modal,
   Popconfirm, Select, Space, Spin, Table, Tag, Typography, message,
 } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, DollarOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import {
+  ArrowLeftOutlined, SaveOutlined, DollarOutlined, UserDeleteOutlined,
+  FileTextOutlined, SolutionOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import SelectorDimensionesAnaliticas from '../../../components/SelectorDimensionesAnaliticas'
 import { GUATE_ACH_BANKS, ACCOUNT_FORMAT_RULES } from '../../../constants/guateAchBanks'
 import {
-  getEmpleado, crearEmpleado, actualizarEmpleado, cambiarSalario, darDeBajaEmpleado,
-  nombreCompleto, type EmpleadoDetalle, type ContratoLaboral,
+  getEmpleado, crearEmpleado, actualizarEmpleado, cambiarSalario,
+  descargarContratoLaboral, descargarConstanciaLaboral, getCentrosTrabajo,
+  getAusenciasEmpleado, guardarAusenciaEmpleado, eliminarAusenciaEmpleado,
+  getGocesVacaciones, guardarGoceVacaciones, eliminarGoceVacaciones,
+  nombreCompleto, type EmpleadoDetalle, type ContratoLaboral, type CentroTrabajo, type AusenciaEmpleado, type GoceVacaciones,
 } from '../../../api/planillas-empleados'
 
 const { Text, Title } = Typography
@@ -21,6 +27,10 @@ const MOTIVO_LABEL: Record<string, string> = {
   ALTA: 'Alta', AUMENTO: 'Aumento', AJUSTE: 'Ajuste', CAMBIO_PUESTO: 'Cambio de puesto', OTRO: 'Otro',
 }
 
+const TIPO_CONTRATO_LABORAL_LABEL: Record<string, string> = {
+  INDEFINIDO: 'Plazo indefinido', PLAZO_FIJO: 'Plazo fijo', POR_OBRA: 'Por obra determinada',
+}
+
 export default function EmpleadoFormPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
@@ -28,9 +38,36 @@ export default function EmpleadoFormPage() {
   const [form] = Form.useForm()
   const [salarioForm] = Form.useForm()
   const [empleado, setEmpleado] = useState<EmpleadoDetalle | null>(null)
+  const [centros, setCentros] = useState<CentroTrabajo[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [modalSalario, setModalSalario] = useState(false)
+  const [ausencias, setAusencias] = useState<AusenciaEmpleado[]>([])
+  const [modalAusencia, setModalAusencia] = useState(false)
+  const [ausenciaEditando, setAusenciaEditando] = useState<AusenciaEmpleado | null>(null)
+  const [ausenciaForm] = Form.useForm()
+  const [goces, setGoces] = useState<GoceVacaciones[]>([])
+  const [modalGoce, setModalGoce] = useState(false)
+  const [goceEditando, setGoceEditando] = useState<GoceVacaciones | null>(null)
+  const [goceForm] = Form.useForm()
+
+  useEffect(() => {
+    getCentrosTrabajo().then(setCentros).catch(() => {})
+  }, [])
+
+  const cargarAusencias = () => {
+    if (esNuevo) return
+    getAusenciasEmpleado(id!).then(setAusencias).catch(() => {})
+  }
+
+  useEffect(cargarAusencias, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cargarGoces = () => {
+    if (esNuevo) return
+    getGocesVacaciones(id!).then(setGoces).catch(() => {})
+  }
+
+  useEffect(cargarGoces, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cargar = () => {
     if (esNuevo) return
@@ -61,6 +98,7 @@ export default function EmpleadoFormPage() {
         fechaAlta: vals.fechaAlta?.format('YYYY-MM-DD'),
         fechaNacimiento: vals.fechaNacimiento?.format('YYYY-MM-DD') ?? null,
         fechaAntiguedad: vals.fechaAntiguedad?.format('YYYY-MM-DD') ?? null,
+        fechaFinPactada: vals.fechaFinPactada?.format('YYYY-MM-DD') ?? null,
         centroCostoId: vals.dimensiones?.centroCostoId ?? null,
         centroBeneficioId: vals.dimensiones?.centroBeneficioId ?? null,
         bancoNombre: vals.bancoCodigo
@@ -98,6 +136,9 @@ export default function EmpleadoFormPage() {
         fechaInicio: vals.fechaInicio.format('YYYY-MM-DD'),
         motivoCambio: vals.motivoCambio,
         notas: vals.notas,
+        tipoContratoLaboral: vals.tipoContratoLaboral,
+        fechaFinPactada: vals.fechaFinPactada?.format('YYYY-MM-DD') ?? null,
+        horarioTrabajo: vals.horarioTrabajo,
       })
       if (r.advertenciaSalarioMinimo) {
         Modal.warning({ title: 'Advertencia de salario mínimo', content: r.advertenciaSalarioMinimo })
@@ -112,15 +153,149 @@ export default function EmpleadoFormPage() {
     }
   }
 
-  const baja = async () => {
+  const descargarContrato = async () => {
     try {
-      await darDeBajaEmpleado(id!, dayjs().format('YYYY-MM-DD'))
-      message.success('Empleado dado de baja. El finiquito con prestaciones se calculará desde el módulo de Finiquitos (próxima fase).')
-      cargar()
+      await descargarContratoLaboral(id!, empleado!.codigo)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al dar de baja')
+      message.error(e?.response?.data?.message || 'Error al generar el contrato laboral')
     }
   }
+
+  const descargarConstancia = async () => {
+    try {
+      await descargarConstanciaLaboral(id!, empleado!.codigo)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al generar la constancia laboral')
+    }
+  }
+
+  const abrirNuevaAusencia = () => {
+    setAusenciaEditando(null)
+    ausenciaForm.resetFields()
+    ausenciaForm.setFieldsValue({ tipo: 'LICENCIA' })
+    setModalAusencia(true)
+  }
+
+  const abrirEditarAusencia = (a: AusenciaEmpleado) => {
+    setAusenciaEditando(a)
+    ausenciaForm.setFieldsValue({
+      tipo: a.tipo, motivo: a.motivo,
+      fechaInicio: dayjs(a.fechaInicio), fechaFin: dayjs(a.fechaFin),
+    })
+    setModalAusencia(true)
+  }
+
+  const guardarAusencia = async () => {
+    try {
+      const vals = await ausenciaForm.validateFields()
+      await guardarAusenciaEmpleado(id!, {
+        id: ausenciaEditando?.id,
+        tipo: vals.tipo,
+        fechaInicio: vals.fechaInicio.format('YYYY-MM-DD'),
+        fechaFin: vals.fechaFin.format('YYYY-MM-DD'),
+        motivo: vals.motivo,
+      })
+      message.success(ausenciaEditando ? 'Ausencia actualizada' : 'Ausencia registrada')
+      setModalAusencia(false)
+      cargarAusencias()
+    } catch (e: any) {
+      if (e?.errorFields) return
+      message.error(e?.response?.data?.message || 'Error al guardar la ausencia')
+    }
+  }
+
+  const eliminarAusencia = async (ausenciaId: string) => {
+    try {
+      await eliminarAusenciaEmpleado(id!, ausenciaId)
+      message.success('Ausencia eliminada')
+      cargarAusencias()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al eliminar')
+    }
+  }
+
+  const ausenciasColumns = [
+    {
+      title: 'Tipo', dataIndex: 'tipo', width: 110,
+      render: (v: string) => <Tag color={v === 'LICENCIA' ? 'blue' : 'orange'}>{v === 'LICENCIA' ? 'Licencia' : 'Suspensión'}</Tag>,
+    },
+    { title: 'Desde', dataIndex: 'fechaInicio', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Hasta', dataIndex: 'fechaFin', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Motivo', dataIndex: 'motivo', render: (v: string | null) => <Text style={{ fontSize: 12 }}>{v ?? ''}</Text> },
+    {
+      title: '', key: 'acciones', width: 70,
+      render: (_: any, a: AusenciaEmpleado) => (
+        <Space size={0}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => abrirEditarAusencia(a)} />
+          <Popconfirm title="¿Eliminar esta ausencia?" okText="Eliminar" cancelText="Cancelar" onConfirm={() => eliminarAusencia(a.id)}>
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  const abrirNuevoGoce = () => {
+    setGoceEditando(null)
+    goceForm.resetFields()
+    setModalGoce(true)
+  }
+
+  const abrirEditarGoce = (g: GoceVacaciones) => {
+    setGoceEditando(g)
+    goceForm.setFieldsValue({
+      diasGozados: g.diasGozados, notas: g.notas,
+      fechaInicio: dayjs(g.fechaInicio), fechaFin: dayjs(g.fechaFin),
+    })
+    setModalGoce(true)
+  }
+
+  const guardarGoce = async () => {
+    try {
+      const vals = await goceForm.validateFields()
+      await guardarGoceVacaciones(id!, {
+        id: goceEditando?.id,
+        fechaInicio: vals.fechaInicio.format('YYYY-MM-DD'),
+        fechaFin: vals.fechaFin.format('YYYY-MM-DD'),
+        diasGozados: vals.diasGozados,
+        notas: vals.notas,
+      })
+      message.success(goceEditando ? 'Goce actualizado' : 'Goce de vacaciones registrado')
+      setModalGoce(false)
+      cargarGoces()
+    } catch (e: any) {
+      if (e?.errorFields) return
+      message.error(e?.response?.data?.message || 'Error al guardar el goce de vacaciones')
+    }
+  }
+
+  const eliminarGoce = async (goceId: string) => {
+    try {
+      await eliminarGoceVacaciones(id!, goceId)
+      message.success('Goce eliminado')
+      cargarGoces()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al eliminar')
+    }
+  }
+
+  const gocesColumns = [
+    { title: 'Desde', dataIndex: 'fechaInicio', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Hasta', dataIndex: 'fechaFin', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Días gozados', dataIndex: 'diasGozados', width: 110, align: 'right' as const },
+    { title: 'Notas', dataIndex: 'notas', render: (v: string | null) => <Text style={{ fontSize: 12 }}>{v ?? ''}</Text> },
+    {
+      title: '', key: 'acciones', width: 70,
+      render: (_: any, g: GoceVacaciones) => (
+        <Space size={0}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => abrirEditarGoce(g)} />
+          <Popconfirm title="¿Eliminar este goce?" okText="Eliminar" cancelText="Cancelar" onConfirm={() => eliminarGoce(g.id)}>
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   const historialColumns = [
     { title: 'Vigencia desde', dataIndex: 'fechaInicio', width: 120, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
@@ -133,6 +308,7 @@ export default function EmpleadoFormPage() {
       render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     { title: 'Motivo', dataIndex: 'motivoCambio', width: 130, render: (v: string) => MOTIVO_LABEL[v] ?? v },
+    { title: 'Tipo de contrato', dataIndex: 'tipoContrato', width: 140, render: (v: string) => TIPO_CONTRATO_LABORAL_LABEL[v] ?? v },
     { title: 'Notas', dataIndex: 'notas', render: (v: string | null) => <Text style={{ fontSize: 12 }}>{v ?? ''}</Text> },
   ]
 
@@ -153,15 +329,26 @@ export default function EmpleadoFormPage() {
           </div>
         </Space>
         <Space wrap>
+          {!esNuevo && empleado && (
+            <>
+              <Button icon={<FileTextOutlined />} onClick={descargarContrato}>Contrato laboral</Button>
+              <Button icon={<SolutionOutlined />} onClick={descargarConstancia}>Constancia laboral</Button>
+            </>
+          )}
           {!esNuevo && empleado?.estado === 'ACTIVO' && (
             <>
-              <Button icon={<DollarOutlined />} onClick={() => setModalSalario(true)}>Cambiar salario</Button>
-              <Popconfirm
-                title="¿Dar de baja al empleado?"
-                description="Cambia el estado a BAJA con fecha de hoy. El finiquito se calcula en el módulo de Finiquitos."
-                okText="Dar de baja" cancelText="Cancelar" onConfirm={baja}>
-                <Button danger icon={<UserDeleteOutlined />}>Dar de baja</Button>
-              </Popconfirm>
+              <Button icon={<DollarOutlined />} onClick={() => {
+                const vigente = empleado.historialSalarios.find(h => h.fechaFin == null)
+                salarioForm.setFieldsValue({
+                  tipoContratoLaboral: vigente?.tipoContrato ?? 'INDEFINIDO',
+                  fechaFinPactada: vigente?.fechaFinPactada ? dayjs(vigente.fechaFinPactada) : null,
+                  horarioTrabajo: vigente?.horarioTrabajo ?? null,
+                })
+                setModalSalario(true)
+              }}>Cambiar salario</Button>
+              <Button danger icon={<UserDeleteOutlined />} onClick={() => navigate(`/planillas/finiquitos/nuevo/${id}`)}>
+                Dar de baja / Finiquito
+              </Button>
             </>
           )}
           <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={guardar} style={{ background: NAVY }}>
@@ -177,6 +364,7 @@ export default function EmpleadoFormPage() {
             circunscripcionEconomica: 'CE1',
             tipoJornada: 'DIURNA',
             tipoContrato: 'TIEMPO_COMPLETO',
+            tipoContratoLaboral: 'INDEFINIDO',
             metodoPago: 'INSTITUCION_FINANCIERA',
             monedaCuenta: 'GTQ',
             ingresosAcumuladosInicial: 0,
@@ -270,6 +458,11 @@ export default function EmpleadoFormPage() {
               <Form.Item name="codigoOcupacionIGSS" label="Código ocupación IGSS">
                 <Input />
               </Form.Item>
+              <Form.Item name="centroTrabajoId" label="Centro de trabajo IGSS"
+                tooltip="Requerido para el archivo de planilla electrónica IGSS">
+                <Select allowClear placeholder="Seleccionar centro"
+                  options={centros.map(c => ({ value: c.id, label: `${c.codigo} — ${c.nombre}` }))} />
+              </Form.Item>
             </div>
             {esNuevo && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px', borderTop: '1px dashed #d9d9d9', paddingTop: 12 }}>
@@ -277,6 +470,22 @@ export default function EmpleadoFormPage() {
                   tooltip="Crea la primera vigencia del historial salarial. Los cambios posteriores se hacen con 'Cambiar salario' para no perder trazabilidad."
                   rules={[{ required: true, message: 'Requerido' }]}>
                   <InputNumber style={{ width: '100%' }} min={0.01} precision={2} />
+                </Form.Item>
+                <Form.Item name="tipoContratoLaboral" label="Tipo de contrato laboral"
+                  tooltip="Para el contrato laboral imprimible — plazo indefinido, plazo fijo u obra determinada">
+                  <Select options={Object.entries(TIPO_CONTRATO_LABORAL_LABEL).map(([value, label]) => ({ value, label }))} />
+                </Form.Item>
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.tipoContratoLaboral !== cur.tipoContratoLaboral}>
+                  {({ getFieldValue }) => getFieldValue('tipoContratoLaboral') !== 'INDEFINIDO' && (
+                    <Form.Item name="fechaFinPactada" label="Fecha fin pactada"
+                      rules={[{ required: true, message: 'Requerido' }]}>
+                      <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                    </Form.Item>
+                  )}
+                </Form.Item>
+                <Form.Item name="horarioTrabajo" label="Horario de trabajo"
+                  tooltip="Texto libre para el contrato, ej. 'Lunes a viernes de 8:00 a 17:00 horas'">
+                  <Input />
                 </Form.Item>
               </div>
             )}
@@ -405,7 +614,82 @@ export default function EmpleadoFormPage() {
             />
           </Card>
         )}
+
+        {!esNuevo && empleado && (
+          <Card size="small" style={{ borderRadius: 8, marginTop: 16 }} styles={{ body: { padding: 0 } }}
+            title={<Text strong>Licencias y suspensiones (IGSS)</Text>}
+            extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevaAusencia}>Registrar</Button>}>
+            <Table
+              size="small" rowKey="id" pagination={false}
+              dataSource={ausencias} columns={ausenciasColumns}
+              locale={{ emptyText: 'Sin licencias ni suspensiones registradas' }}
+            />
+          </Card>
+        )}
+
+        {!esNuevo && empleado && (
+          <Card size="small" style={{ borderRadius: 8, marginTop: 16 }} styles={{ body: { padding: 0 } }}
+            title={<Text strong>Goces de vacaciones</Text>}
+            extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevoGoce}>Registrar</Button>}>
+            <Table
+              size="small" rowKey="id" pagination={false}
+              dataSource={goces} columns={gocesColumns}
+              locale={{ emptyText: 'Sin goces de vacaciones registrados — el saldo pendiente se acumula automáticamente' }}
+            />
+          </Card>
+        )}
       </Spin>
+
+      <Modal
+        title={goceEditando ? 'Editar goce de vacaciones' : 'Registrar goce de vacaciones'}
+        open={modalGoce} onCancel={() => setModalGoce(false)}
+        onOk={guardarGoce} okText="Guardar" cancelText="Cancelar"
+        destroyOnHidden
+      >
+        <Form form={goceForm} layout="vertical" size="small">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="fechaInicio" label="Desde" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="fechaFin" label="Hasta" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+          </div>
+          <Form.Item name="diasGozados" label="Días gozados" rules={[{ required: true, message: 'Requerido' }]}>
+            <InputNumber style={{ width: '100%' }} min={0.5} precision={2} />
+          </Form.Item>
+          <Form.Item name="notas" label="Notas">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={ausenciaEditando ? 'Editar ausencia' : 'Registrar licencia o suspensión'}
+        open={modalAusencia} onCancel={() => setModalAusencia(false)}
+        onOk={guardarAusencia} okText="Guardar" cancelText="Cancelar"
+        destroyOnHidden
+      >
+        <Form form={ausenciaForm} layout="vertical" size="small">
+          <Form.Item name="tipo" label="Tipo" rules={[{ required: true, message: 'Requerido' }]}>
+            <Select options={[
+              { value: 'LICENCIA', label: 'Licencia' },
+              { value: 'SUSPENSION', label: 'Suspensión' },
+            ]} />
+          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="fechaInicio" label="Desde" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="fechaFin" label="Hasta" rules={[{ required: true, message: 'Requerido' }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+          </div>
+          <Form.Item name="motivo" label="Motivo">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         title="Cambiar salario"
@@ -430,6 +714,19 @@ export default function EmpleadoFormPage() {
           <Form.Item name="motivoCambio" label="Motivo">
             <Select options={Object.entries(MOTIVO_LABEL).filter(([k]) => k !== 'ALTA')
               .map(([value, label]) => ({ value, label }))} />
+          </Form.Item>
+          <Form.Item name="tipoContratoLaboral" label="Tipo de contrato laboral">
+            <Select options={Object.entries(TIPO_CONTRATO_LABORAL_LABEL).map(([value, label]) => ({ value, label }))} />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.tipoContratoLaboral !== cur.tipoContratoLaboral}>
+            {({ getFieldValue }) => getFieldValue('tipoContratoLaboral') !== 'INDEFINIDO' && (
+              <Form.Item name="fechaFinPactada" label="Fecha fin pactada" rules={[{ required: true, message: 'Requerido' }]}>
+                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              </Form.Item>
+            )}
+          </Form.Item>
+          <Form.Item name="horarioTrabajo" label="Horario de trabajo">
+            <Input />
           </Form.Item>
           <Form.Item name="notas" label="Notas">
             <Input.TextArea rows={2} />
