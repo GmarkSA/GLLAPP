@@ -80,7 +80,7 @@ export default function DteSatVentasPage() {
   const [stepperStep,    setStepperStep]    = useState(0)
   const [stepperLoading, setStepperLoading] = useState(false)
   const [stepperResult,  setStepperResult]  = useState<{ invoice: any; dte: SatDteEmitidos } | null>(null)
-  const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string; receivableAccountId?: string } | null>(null)
+  const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string; receivableAccountId?: string; incomeAccountId?: string; taxCode?: string } | null>(null)
   const [stepperSuggestion, setStepperSuggestion] = useState<{ name?: string; taxId?: string } | null>(null)
   const [stepperForm]     = Form.useForm()
   const [customerForm]    = Form.useForm()
@@ -243,17 +243,28 @@ export default function DteSatVentasPage() {
     } catch { /* silent */ }
   }
 
-  // Carga prefs cuando el usuario llega al paso "Registrar" (step 2) y el cliente está vinculado
+  // Carga prefs cuando el usuario llega al paso "Registrar" (step 2) y el cliente está vinculado.
+  // Prioridad: localStorage → cuenta/impuesto configurados en el cliente.
   useEffect(() => {
     if (stepperStep !== 2 || !stepperCustomer?.id) return
     try {
       const raw = localStorage.getItem(`dte_prefs_${stepperCustomer.id}`)
-      if (raw) stepperForm.setFieldsValue(JSON.parse(raw))
+      if (raw) {
+        stepperForm.setFieldsValue(JSON.parse(raw))
+      } else if (stepperCustomer.incomeAccountId || stepperCustomer.taxCode) {
+        const matchedTax = stepperCustomer.taxCode
+          ? taxes.find(t => t.code === stepperCustomer.taxCode)
+          : undefined
+        stepperForm.setFieldsValue({
+          accountId: stepperCustomer.incomeAccountId ?? undefined,
+          taxId:     matchedTax?.id ?? undefined,
+        })
+      }
     } catch { /* silent */ }
   }, [stepperStep, stepperCustomer?.id])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cuando el DTE ya tiene cliente vinculado (openStepper solo guarda id+name),
-  // auto-resolve al llegar al step 1 para traer receivableAccountId del backend.
+  // auto-resolve al llegar al step 1 para traer receivableAccountId, incomeAccountId y taxCode.
   useEffect(() => {
     if (stepperStep !== 1 || !stepperDte?.customerId) return
     if (stepperCustomer?.receivableAccountId !== undefined) return // ya resuelto
@@ -261,7 +272,13 @@ export default function DteSatVentasPage() {
     resolveSatEmitidosCustomer(stepperDte.id)
       .then((res: any) => {
         if (res.found) {
-          setStepperCustomer({ id: res.customer.id, name: res.customer.name, receivableAccountId: res.customer.receivableAccountId })
+          setStepperCustomer({
+            id:                res.customer.id,
+            name:              res.customer.name,
+            receivableAccountId: res.customer.receivableAccountId,
+            incomeAccountId:   res.customer.incomeAccountId,
+            taxCode:           res.customer.taxCode,
+          })
         }
       })
       .catch(() => {})
@@ -296,7 +313,13 @@ export default function DteSatVentasPage() {
     try {
       const res: any = await resolveSatEmitidosCustomer(stepperDte.id)
       if (res.found) {
-        setStepperCustomer({ id: res.customer.id, name: res.customer.name, receivableAccountId: res.customer.receivableAccountId })
+        setStepperCustomer({
+          id:                res.customer.id,
+          name:              res.customer.name,
+          receivableAccountId: res.customer.receivableAccountId,
+          incomeAccountId:   res.customer.incomeAccountId,
+          taxCode:           res.customer.taxCode,
+        })
         setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
         message.success(`Cliente vinculado: ${res.customer.name}`)
       } else {
