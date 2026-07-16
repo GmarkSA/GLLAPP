@@ -244,23 +244,40 @@ export default function DteSatVentasPage() {
   }
 
   // Carga prefs cuando el usuario llega al paso "Registrar" (step 2) y el cliente está vinculado.
-  // Prioridad: localStorage → cuenta/impuesto configurados en el cliente.
+  // Prioridad: fechaEmision siempre; localStorage para cuenta/impuesto/unidad → datos del cliente como fallback.
   useEffect(() => {
     if (stepperStep !== 2 || !stepperCustomer?.id) return
+    const updates: Record<string, any> = {}
+
+    // Siempre: fecha contable = fecha del documento DTE
+    if (stepperDte?.fechaEmision) {
+      updates.accountingDate = dayjs(stepperDte.fechaEmision)
+    }
+
     try {
       const raw = localStorage.getItem(`dte_prefs_${stepperCustomer.id}`)
       if (raw) {
-        stepperForm.setFieldsValue(JSON.parse(raw))
+        Object.assign(updates, JSON.parse(raw))
       } else if (stepperCustomer.incomeAccountId || stepperCustomer.taxCode) {
         const matchedTax = stepperCustomer.taxCode
           ? taxes.find(t => t.code === stepperCustomer.taxCode)
           : undefined
-        stepperForm.setFieldsValue({
-          accountId: stepperCustomer.incomeAccountId ?? undefined,
-          taxId:     matchedTax?.id ?? undefined,
-        })
+        updates.accountId = stepperCustomer.incomeAccountId ?? undefined
+        updates.taxId     = matchedTax?.id ?? undefined
       }
     } catch { /* silent */ }
+
+    // Si aún no hay unidad: intentar detectarla del primer ítem del DTE
+    if (!updates.defaultUnit && (stepperDte?.items as any[])?.length) {
+      const firstItem = (stepperDte!.items as any[])[0]
+      const rawUnit = firstItem?.unidad_medida ?? firstItem?.UnidadMedida ?? firstItem?.unidad ?? firstItem?.unit
+      if (rawUnit) {
+        const matched = unidades.find(u => u.code === String(rawUnit).toUpperCase())
+        if (matched) updates.defaultUnit = matched.code
+      }
+    }
+
+    if (Object.keys(updates).length > 0) stepperForm.setFieldsValue(updates)
   }, [stepperStep, stepperCustomer?.id])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cuando el DTE ya tiene cliente vinculado (openStepper solo guarda id+name),
