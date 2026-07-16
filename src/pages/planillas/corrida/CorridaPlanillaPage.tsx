@@ -8,12 +8,14 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
   WarningOutlined, BookOutlined, BankOutlined, EyeOutlined, DownloadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
   contabilizarPeriodoPlanilla, pagarPeriodoPlanilla, previsualizarAsientoPlanilla,
+  descargarBoletaPago,
   type PeriodoPlanillaDetalle, type DetallePlanilla, type PreviewAsiento,
 } from '../../../api/planillas-corrida'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
@@ -287,6 +289,18 @@ export default function CorridaPlanillaPage() {
       title: 'Neto a pagar', dataIndex: 'netoAPagar', width: 120, align: 'right',
       render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#389e0d' }}>{fmtQ(v)}</Text>,
     },
+    ...(esQuincena1 ? [] : [{
+      title: 'Boleta', key: 'boleta', width: 95, align: 'center' as const,
+      render: (_: any, d: DetallePlanilla) => (
+        <Tooltip title="Descargar boleta de pago del mes completo (DOCX)">
+          <Button size="small" icon={<FileTextOutlined />}
+            onClick={() => descargarBoletaPago(periodo!.anio, periodo!.mes, d.empleadoId, d.empleadoCodigo)
+              .catch((e: any) => message.error(e?.response?.data?.message || 'Error al generar la boleta de pago'))}>
+            Boleta
+          </Button>
+        </Tooltip>
+      ),
+    }]),
     ...(esQuincena1 ? [] : [{
       title: <Tooltip title="IGSS 10.67% + INTECAP 1% + IRTRA 1% — gasto del patrono, sobre el mes completo">C. patronal</Tooltip>,
       key: 'patronal', width: 105, align: 'right' as const,
