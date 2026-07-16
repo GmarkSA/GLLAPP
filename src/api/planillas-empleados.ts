@@ -126,6 +126,60 @@ export const cambiarSalario = (empleadoId: string, dto: {
 export const darDeBajaEmpleado = (id: string, fechaBaja: string) =>
   api.post(`${BASE}/empleados/${id}/baja`, { fechaBaja }).then(unwrap) as Promise<Empleado>
 
+// ─── Licencias y suspensiones (IGSS) ───────────────────────────────────────────
+
+export type TipoAusenciaEmpleado = 'LICENCIA' | 'SUSPENSION'
+
+export interface AusenciaEmpleado {
+  id: string
+  empleadoId: string
+  tipo: TipoAusenciaEmpleado
+  fechaInicio: string
+  fechaFin: string
+  motivo: string | null
+  createdAt: string
+}
+
+export const getAusenciasEmpleado = (empleadoId: string) =>
+  api.get(`${BASE}/empleados/${empleadoId}/ausencias`).then(unwrap) as Promise<AusenciaEmpleado[]>
+
+export const guardarAusenciaEmpleado = (empleadoId: string, dto: {
+  id?: string
+  tipo: TipoAusenciaEmpleado
+  fechaInicio: string
+  fechaFin: string
+  motivo?: string | null
+}) => api.post(`${BASE}/empleados/${empleadoId}/ausencias`, dto).then(unwrap) as Promise<AusenciaEmpleado>
+
+export const eliminarAusenciaEmpleado = (empleadoId: string, ausenciaId: string) =>
+  api.delete(`${BASE}/empleados/${empleadoId}/ausencias/${ausenciaId}`).then(unwrap)
+
+// ─── Goces de vacaciones ────────────────────────────────────────────────────────
+
+export interface GoceVacaciones {
+  id: string
+  empleadoId: string
+  fechaInicio: string
+  fechaFin: string
+  diasGozados: number
+  notas: string | null
+  createdAt: string
+}
+
+export const getGocesVacaciones = (empleadoId: string) =>
+  api.get(`${BASE}/empleados/${empleadoId}/goces-vacaciones`).then(unwrap) as Promise<GoceVacaciones[]>
+
+export const guardarGoceVacaciones = (empleadoId: string, dto: {
+  id?: string
+  fechaInicio: string
+  fechaFin: string
+  diasGozados: number
+  notas?: string | null
+}) => api.post(`${BASE}/empleados/${empleadoId}/goces-vacaciones`, dto).then(unwrap) as Promise<GoceVacaciones>
+
+export const eliminarGoceVacaciones = (empleadoId: string, goceId: string) =>
+  api.delete(`${BASE}/empleados/${empleadoId}/goces-vacaciones/${goceId}`).then(unwrap)
+
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 const descargarDocx = (path: string, nombreArchivo: string) =>

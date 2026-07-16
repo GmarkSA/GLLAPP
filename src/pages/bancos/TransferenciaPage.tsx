@@ -5,6 +5,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { ArrowLeftOutlined, SaveOutlined, SwapOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useCompanyStore } from '../../store/companyStore'
+import { getApiError } from '../../api/axios'
 import {
   createBankTransfer,
   getBankAccounts,
@@ -70,8 +71,8 @@ export default function TransferenciaPage() {
       setLoading(true)
       const res = await getBankTransfers({ page: 1, limit: 50 })
       setTransfers(Array.isArray(res.data) ? res.data : [])
-    } catch {
-      message.error('No se pudo registrar la transferencia')
+    } catch (e: any) {
+      message.error(getApiError(e, 'No se pudo registrar la transferencia'))
     } finally {
       setSaving(false)
       setLoading(false)

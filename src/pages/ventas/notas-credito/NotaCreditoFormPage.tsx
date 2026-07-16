@@ -19,7 +19,7 @@ import {
 import { getCustomers } from '../../../api/contactos'
 import { FEL_TIPOS_FRASE, FEL_TIPOS_DOCUMENTO } from '../../../api/facturas'
 import { getTaxes, type Tax } from '../../../api/impuestos'
-import api from '../../../api/axios'
+import api, { getApiError } from '../../../api/axios'
 import LineItemsEditor, {
   type LineItem, newLineItem, calcTotals,
 } from '../../../components/DocumentForm/LineItemsEditor'
@@ -290,7 +290,7 @@ export default function NotaCreditoFormPage() {
         navigate(`/ventas/notas-credito/${nc.id}`)
       }
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al guardar')
+      message.error(getApiError(e, 'Error al guardar'))
     } finally { setSaving(false) }
   }
 
@@ -318,7 +318,7 @@ export default function NotaCreditoFormPage() {
       }
       navigate(`/ventas/notas-credito/${emitted.id}`)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al emitir')
+      message.error(getApiError(e, 'Error al emitir'))
     } finally { setSaving(false); setEmitting(false) }
   }
 

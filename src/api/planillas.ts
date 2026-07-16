@@ -77,6 +77,7 @@ export interface ConfiguracionPatrono {
   representanteLegalDPI?: string | null
   actividadEconomica?: string | null
   codigoActividadEconomicaIGSS?: string | null
+  tipoPlanillaNombreIGSS?: string
   regimenFiscal?: string | null
   telefono?: string | null
   email?: string | null
