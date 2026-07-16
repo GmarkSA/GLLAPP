@@ -7,9 +7,8 @@ import {
 } from 'antd'
 import {
   SaveOutlined, ArrowLeftOutlined, UserOutlined, BankOutlined,
-  PercentageOutlined, BookOutlined, EnvironmentOutlined,
-  TeamOutlined, PlusOutlined, DeleteOutlined, IdcardOutlined,
-  SearchOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
+  BookOutlined, PlusOutlined, DeleteOutlined, IdcardOutlined,
+  SearchOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CheckOutlined,
 } from '@ant-design/icons'
 import {
   getVendor, createVendor, updateVendor,
@@ -45,6 +44,16 @@ const SALUTATIONS = ['Sr.', 'Sra.', 'Lic.', 'Ing.', 'Dr.', 'Dra.', 'Arq.']
 const CURRENCIES  = ['GTQ', 'USD', 'EUR', 'MXN']
 const COUNTRIES   = ['Guatemala', 'México', 'El Salvador', 'Honduras', 'Costa Rica', 'Estados Unidos', 'Otro']
 
+// ── Navegación guiada entre pestañas ────────────────────────────────────────
+const TAB_ORDER = ['info', 'taxes', 'address', 'contacts', 'other']
+const TAB_REQUIRED_FIELDS: Record<string, string[]> = {
+  info: ['legalName'],
+  taxes: ['taxTreatment'],
+  address: [],
+  contacts: [],
+  other: [],
+}
+
 // ── Sub-formulario: Dirección ───────────────────────────────────────────────
 function AddressForm({ prefix }: { prefix: string }) {
   return (
@@ -57,11 +66,6 @@ function AddressForm({ prefix }: { prefix: string }) {
       <Col span={24}>
         <Form.Item name={[prefix, 'address']} label="Dirección">
           <Input placeholder="5a Avenida 4-50 Zona 1" />
-        </Form.Item>
-      </Col>
-      <Col span={24}>
-        <Form.Item name={[prefix, 'street2']} label="Dirección 2">
-          <Input placeholder="Oficina, Local, Bodega..." />
         </Form.Item>
       </Col>
       <Col xs={24} md={8}>
@@ -181,6 +185,8 @@ export default function ProveedorFormPage() {
   const [vendorType,   setVendorType]   = useState<string>('company')
   const [lookingUp,    setLookingUp]    = useState(false)
   const [lookupStatus, setLookupStatus] = useState<'found' | 'not_found' | null>(null)
+  const [activeTab,     setActiveTab]     = useState('info')
+  const [completedTabs, setCompletedTabs] = useState<Set<string>>(new Set())
 
   const handleSatLookup = async (tipo: 'NIT' | 'CUI') => {
     const valor = form.getFieldValue('taxId')?.trim()
@@ -281,9 +287,55 @@ export default function ProveedorFormPage() {
   const isrTaxes = taxes.filter(t => t.category === 'isr')
   const showRetention = ['contribuyente_especial', 'gobierno'].includes(taxTreatment)
 
+  const tabIndex  = TAB_ORDER.indexOf(activeTab)
+  const isLastTab = tabIndex === TAB_ORDER.length - 1
+
+  const handleContinue = async () => {
+    const fields = TAB_REQUIRED_FIELDS[activeTab]
+    if (fields.length) {
+      try {
+        await form.validateFields(fields)
+      } catch {
+        return
+      }
+    }
+    setCompletedTabs(prev => new Set(prev).add(activeTab))
+    if (isLastTab) {
+      handleSave()
+    } else {
+      setActiveTab(TAB_ORDER[tabIndex + 1])
+    }
+  }
+
+  const handleBack = () => {
+    if (tabIndex > 0) setActiveTab(TAB_ORDER[tabIndex - 1])
+  }
+
+  const renderTabLabel = (key: string, text: React.ReactNode) => {
+    const isComplete = completedTabs.has(key)
+    const isCurrent  = activeTab === key
+    return (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span
+          style={{
+            width: 16, height: 16, borderRadius: '50%', flex: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `1.5px solid ${isComplete ? '#52c41a' : isCurrent ? '#1B3A6B' : '#d9d9d9'}`,
+            background: isComplete ? '#52c41a' : 'transparent',
+            transition: 'all .2s',
+          }}
+        >
+          {isComplete && <CheckOutlined style={{ fontSize: 9, color: '#fff' }} />}
+        </span>
+        {text}
+      </span>
+    )
+  }
+
   return (
     <Spin spinning={loading}>
-      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      <style>{`.compact-form .ant-form-item { margin-bottom: 8px; }`}</style>
+      <div className="compact-form" style={{ maxWidth: 960, margin: '0 auto' }}>
         {/* Encabezado */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <Button
@@ -309,16 +361,35 @@ export default function ProveedorFormPage() {
           </Button>
         </div>
 
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" size="small">
+          <div
+            style={{
+              background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10,
+              overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,.04)',
+            }}
+          >
           <Tabs
-            defaultActiveKey="info"
-            type="card"
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            renderTabBar={(props, DefaultTabBar) => (
+              <div>
+                <DefaultTabBar {...props} style={{ marginBottom: 0, padding: '0 16px' }} />
+                <div style={{ height: 3, background: '#f0f0f0' }}>
+                  <div
+                    style={{
+                      height: '100%', background: '#52c41a', transition: 'width .3s ease',
+                      width: `${(completedTabs.size / TAB_ORDER.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             items={[
               // ── TAB 1: Info principal ─────────────────────────────────
               {
-                key: 'info', label: <><UserOutlined /> Info principal</>,
+                key: 'info', label: renderTabLabel('info', 'Info principal'),
                 children: (
-                  <div style={{ padding: '16px 0' }}>
+                  <div style={{ padding: '20px 24px' }}>
                     {/* Alerta empleado */}
                     {vendorType === 'employee' && (
                       <Alert
@@ -389,7 +460,6 @@ export default function ProveedorFormPage() {
                               vendorType === 'employee' ? 'JUAN CARLOS PÉREZ LÓPEZ'      :
                                                           'JUAN CARLOS PÉREZ LÓPEZ'
                             }
-                            size="large"
                           />
                         </Form.Item>
                       </Col>
@@ -505,9 +575,9 @@ export default function ProveedorFormPage() {
               // ── TAB 2: Impuestos & Contabilidad ──────────────────────
               {
                 key: 'taxes',
-                label: <><PercentageOutlined /> Impuestos y contabilidad</>,
+                label: renderTabLabel('taxes', 'Impuestos y contabilidad'),
                 children: (
-                  <div style={{ padding: '16px 0' }}>
+                  <div style={{ padding: '20px 24px' }}>
 
                     {vendorType === 'employee' ? (
                       /* ── Vista simplificada para empleados ────────────── */
@@ -610,9 +680,9 @@ export default function ProveedorFormPage() {
                           label="Tratamiento fiscal del proveedor"
                           rules={[{ required: true }]}
                         >
-                          <Select onChange={v => setTaxTreatment(v)} size="large">
+                          <Select onChange={v => setTaxTreatment(v)} optionLabelProp="label">
                             {TAX_TREATMENTS.map(t => (
-                              <Option key={t.value} value={t.value}>
+                              <Option key={t.value} value={t.value} label={t.label}>
                                 <div>
                                   <div style={{ fontWeight: 500 }}>{t.label}</div>
                                   <div style={{ fontSize: 11, color: '#8c8c8c' }}>{t.desc}</div>
@@ -622,13 +692,10 @@ export default function ProveedorFormPage() {
                           </Select>
                         </Form.Item>
 
-                        <Row gutter={20}>
-                          {/* IVA */}
-                          <Col xs={24} md={12}>
-                            <Card
-                              size="small" bordered={false}
-                              style={{ background: '#f0f7ff', borderRadius: 8, marginBottom: 16 }}
-                            >
+                        <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
+                            {/* IVA */}
+                            <div>
                               <div style={{ fontWeight: 600, color: '#1B3A6B', marginBottom: 8 }}>
                                 IVA aplicable en facturas de compra
                               </div>
@@ -644,16 +711,11 @@ export default function ProveedorFormPage() {
                                   }
                                 </Select>
                               </Form.Item>
-                            </Card>
-                          </Col>
+                            </div>
 
-                          {/* IVA Retenida — solo para contribuyente especial / gobierno */}
-                          {showRetention && (
-                            <Col xs={24} md={12}>
-                              <Card
-                                size="small" bordered={false}
-                                style={{ background: '#fff7e6', borderRadius: 8, marginBottom: 16 }}
-                              >
+                            {/* IVA Retenida — solo para contribuyente especial / gobierno */}
+                            {showRetention && (
+                              <div>
                                 <div style={{ fontWeight: 600, color: '#d46b08', marginBottom: 8 }}>
                                   Retención de IVA (proveedor retenedor)
                                 </div>
@@ -664,16 +726,11 @@ export default function ProveedorFormPage() {
                                     ))}
                                   </Select>
                                 </Form.Item>
-                              </Card>
-                            </Col>
-                          )}
+                              </div>
+                            )}
 
-                          {/* ISR / TDS */}
-                          <Col xs={24} md={12}>
-                            <Card
-                              size="small" bordered={false}
-                              style={{ background: '#f9f0ff', borderRadius: 8, marginBottom: 16 }}
-                            >
+                            {/* ISR / TDS */}
+                            <div>
                               <div style={{ fontWeight: 600, color: '#531dab', marginBottom: 8 }}>
                                 ISR — Impuesto Sobre la Renta (retención en origen)
                               </div>
@@ -695,55 +752,49 @@ export default function ProveedorFormPage() {
                                   }
                                 </Select>
                               </Form.Item>
-                            </Card>
-                          </Col>
-                        </Row>
+                            </div>
+                          </div>
+                        </Card>
 
                         <Divider titlePlacement="left">Cuentas contables e impuesto</Divider>
-                        <Row gutter={16}>
-                          <Col xs={24} md={12}>
-                            <Form.Item
-                              name="payableAccountId"
-                              label="Cuenta por pagar (CxP)"
-                              tooltip="Solo muestra cuentas marcadas como 'Cuenta de proveedores' en el catálogo. Registra las facturas pendientes de pago."
-                            >
-                              <AccountSelect
-                                filter={{ isVendorAccount: true }}
-                                placeholder="Buscar cuenta CxP..."
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} md={12}>
-                            <Form.Item
-                              name="expenseAccountId"
-                              label="Cuenta de gastos por defecto"
-                              tooltip="Solo muestra cuentas de tipo Gastos. Se usa automáticamente al registrar facturas de compra de este proveedor."
-                            >
-                              <AccountSelect
-                                filter={{ balanceType: 'Gastos' }}
-                                placeholder="Buscar cuenta de gastos..."
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} md={12}>
-                            <Form.Item
-                              name="defaultPurchaseTaxId"
-                              label="Impuesto de compra por defecto (IVA)"
-                              tooltip="Al agregar un artículo en una orden de compra o factura proveedor, se aplicará automáticamente este impuesto."
-                            >
-                              <Select
-                                placeholder="Seleccionar impuesto IVA…"
-                                allowClear
-                                options={taxes
-                                  .filter(t => t.isActive && !t.isWithholding && (t.applicability === 'purchases' || t.applicability === 'both'))
-                                  .map((t: Tax) => ({
-                                    value: t.id,
-                                    label: `${t.name} (${Number(t.rate)}%)`,
-                                  }))}
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                          <Form.Item
+                            name="payableAccountId"
+                            label="Cuenta por pagar (CxP)"
+                            tooltip="Solo muestra cuentas marcadas como 'Cuenta de proveedores' en el catálogo. Registra las facturas pendientes de pago."
+                          >
+                            <AccountSelect
+                              filter={{ isVendorAccount: true }}
+                              placeholder="Buscar cuenta CxP..."
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            name="expenseAccountId"
+                            label="Cuenta de gastos por defecto"
+                            tooltip="Solo muestra cuentas de tipo Gastos. Se usa automáticamente al registrar facturas de compra de este proveedor."
+                          >
+                            <AccountSelect
+                              filter={{ balanceType: 'Gastos' }}
+                              placeholder="Buscar cuenta de gastos..."
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            name="defaultPurchaseTaxId"
+                            label="Impuesto de compra por defecto (IVA)"
+                            tooltip="Al agregar un artículo en una orden de compra o factura proveedor, se aplicará automáticamente este impuesto."
+                          >
+                            <Select
+                              placeholder="Seleccionar impuesto IVA…"
+                              allowClear
+                              options={taxes
+                                .filter(t => t.isActive && !t.isWithholding && (t.applicability === 'purchases' || t.applicability === 'both'))
+                                .map((t: Tax) => ({
+                                  value: t.id,
+                                  label: `${t.name} (${Number(t.rate)}%)`,
+                                }))}
+                            />
+                          </Form.Item>
+                        </div>
 
                         <Divider titlePlacement="left">Saldo inicial</Divider>
                         <Row gutter={16}>
@@ -772,9 +823,9 @@ export default function ProveedorFormPage() {
 
               // ── TAB 3: Dirección ──────────────────────────────────────
               {
-                key: 'address', label: <><EnvironmentOutlined /> Dirección</>,
+                key: 'address', label: renderTabLabel('address', 'Dirección'),
                 children: (
-                  <div style={{ padding: '16px 0' }}>
+                  <div style={{ padding: '20px 24px' }}>
                     <Title level={5} style={{ color: '#1B3A6B', marginBottom: 16 }}>
                       Dirección de facturación
                     </Title>
@@ -785,9 +836,9 @@ export default function ProveedorFormPage() {
 
               // ── TAB 4: Personas de contacto ───────────────────────────
               {
-                key: 'contacts', label: <><TeamOutlined /> Contactos ({contactCount})</>,
+                key: 'contacts', label: renderTabLabel('contacts', `Contactos (${contactCount})`),
                 children: (
-                  <div style={{ padding: '16px 0' }}>
+                  <div style={{ padding: '20px 24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                       <Text type="secondary">
                         Agrega las personas de contacto en el proveedor. El contacto marcado como "Principal" recibirá las comunicaciones.
@@ -822,9 +873,9 @@ export default function ProveedorFormPage() {
 
               // ── TAB 5: Otros ──────────────────────────────────────────
               {
-                key: 'other', label: 'Otros',
+                key: 'other', label: renderTabLabel('other', 'Otros'),
                 children: (
-                  <div style={{ padding: '16px 0' }}>
+                  <div style={{ padding: '20px 24px' }}>
                     <Row gutter={16}>
                       <Col span={24}>
                         <Form.Item name="notes" label="Notas internas">
@@ -840,6 +891,26 @@ export default function ProveedorFormPage() {
               },
             ]}
           />
+
+          <div
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '14px 24px', borderTop: '1px solid #f0f0f0', background: '#fafafa',
+            }}
+          >
+            <Button onClick={handleBack} disabled={tabIndex === 0}>
+              ← Anterior
+            </Button>
+            <Button
+              type="primary"
+              loading={saving}
+              onClick={handleContinue}
+              style={{ background: '#1B3A6B' }}
+            >
+              {isLastTab ? 'Guardar y finalizar ✓' : 'Continuar →'}
+            </Button>
+          </div>
+          </div>
         </Form>
       </div>
     </Spin>
