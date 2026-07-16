@@ -252,6 +252,22 @@ export default function DteSatVentasPage() {
     } catch { /* silent */ }
   }, [stepperStep, stepperCustomer?.id])   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cuando el DTE ya tiene cliente vinculado (openStepper solo guarda id+name),
+  // auto-resolve al llegar al step 1 para traer receivableAccountId del backend.
+  useEffect(() => {
+    if (stepperStep !== 1 || !stepperDte?.customerId) return
+    if (stepperCustomer?.receivableAccountId !== undefined) return // ya resuelto
+    setStepperLoading(true)
+    resolveSatEmitidosCustomer(stepperDte.id)
+      .then((res: any) => {
+        if (res.found) {
+          setStepperCustomer({ id: res.customer.id, name: res.customer.name, receivableAccountId: res.customer.receivableAccountId })
+        }
+      })
+      .catch(() => {})
+      .finally(() => setStepperLoading(false))
+  }, [stepperStep, stepperDte?.customerId])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Abrir stepper ──────────────────────────────────────────────────────────
   const openStepper = (dte: SatDteEmitidos) => {
     setStepperDte(dte)
