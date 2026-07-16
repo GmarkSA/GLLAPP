@@ -25,6 +25,7 @@ export interface ConceptoFiniquito {
 
 export interface CalculoFiniquito {
   empleado: { id: string; codigo: string; nombre: string }
+  fechaInicioLaboral: string
   fechaBaja: string
   motivoBaja: MotivoBajaFiniquito
   aplicaIndemnizacion: boolean

@@ -67,10 +67,20 @@ export default function FiniquitoPage() {
   useEffect(() => {
     if (esNuevo && empleadoId) {
       setLoading(true)
-      getEmpleado(empleadoId).then(setEmpleado)
+      getEmpleado(empleadoId).then(e => {
+        setEmpleado(e)
+        const fechaInicioLaboral = e.fechaAntiguedad || e.fechaAlta
+        // Por defecto asumimos que nunca se le ha pagado Bono 14/aguinaldo — el
+        // período de acumulación empieza desde su fecha de ingreso. El usuario
+        // ajusta esto solo si sabe que ya hubo un pago previo.
+        form.setFieldsValue({
+          fechaBaja: dayjs(), motivoBaja: 'RENUNCIA', aplicaIndemnizacion: false, otrasDeducciones: 0,
+          fechaUltimoPagoBono14: dayjs(fechaInicioLaboral).subtract(1, 'day'),
+          fechaUltimoPagoAguinaldo: dayjs(fechaInicioLaboral).subtract(1, 'day'),
+        })
+      })
         .catch(() => message.error('Error cargando empleado'))
         .finally(() => setLoading(false))
-      form.setFieldsValue({ fechaBaja: dayjs(), motivoBaja: 'RENUNCIA', aplicaIndemnizacion: false, otrasDeducciones: 0 })
     } else if (id) {
       cargarFiniquito()
     }
@@ -84,6 +94,8 @@ export default function FiniquitoPage() {
       .catch(() => message.error('Error cargando el finiquito'))
       .finally(() => setLoading(false))
   }
+
+  const fechaInicioLaboral = empleado?.fechaAntiguedad || empleado?.fechaAlta || null
 
   const dtoDesdeForm = (): DtoFiniquito => {
     const vals = form.getFieldsValue()
@@ -269,7 +281,8 @@ export default function FiniquitoPage() {
         </div>
       </div>
 
-      <Card size="small" title={<Text strong>Datos de la baja</Text>} style={{ borderRadius: 8, marginBottom: 16 }}>
+      <Card size="small" title={<Text strong>Datos de la baja</Text>} style={{ borderRadius: 8, marginBottom: 16 }}
+        extra={fechaInicioLaboral && <Text type="secondary" style={{ fontSize: 12 }}>Ingresó: <Text strong>{dayjs(fechaInicioLaboral).format('DD/MM/YYYY')}</Text></Text>}>
         <Form form={form} layout="vertical" size="small">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
             <Form.Item name="motivoBaja" label="Motivo de baja" rules={[{ required: true, message: 'Requerido' }]}>
@@ -279,7 +292,8 @@ export default function FiniquitoPage() {
               />
             </Form.Item>
             <Form.Item name="fechaBaja" label="Fecha de baja" rules={[{ required: true, message: 'Requerido' }]}>
-              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
+                disabledDate={d => !!fechaInicioLaboral && d.isBefore(dayjs(fechaInicioLaboral), 'day')} />
             </Form.Item>
             <Form.Item name="aplicaIndemnizacion" label="¿Aplica indemnización?" valuePropName="checked"
               tooltip="Por ley solo el despido injustificado da derecho a indemnización — pero puedes activarlo igual si la empresa decide pagarla (ej. mutuo acuerdo)">
@@ -288,12 +302,14 @@ export default function FiniquitoPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             <Form.Item name="fechaUltimoPagoBono14" label="Último pago de Bono 14" rules={[{ required: true, message: 'Requerido' }]}
-              tooltip="Fecha hasta la cual ya se pagó Bono 14 — desde el día siguiente se calcula lo proporcional">
-              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              tooltip="Fecha hasta la cual ya se pagó Bono 14 — desde el día siguiente se calcula lo proporcional. Si nunca se le ha pagado, deja el día anterior a su ingreso (valor por defecto).">
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
+                disabledDate={d => !!fechaInicioLaboral && d.isBefore(dayjs(fechaInicioLaboral).subtract(1, 'day'), 'day')} />
             </Form.Item>
             <Form.Item name="fechaUltimoPagoAguinaldo" label="Último pago de aguinaldo" rules={[{ required: true, message: 'Requerido' }]}
-              tooltip="Fecha hasta la cual ya se pagó aguinaldo — desde el día siguiente se calcula lo proporcional (normalmente 30 de noviembre del último año pagado)">
-              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              tooltip="Fecha hasta la cual ya se pagó aguinaldo — desde el día siguiente se calcula lo proporcional (normalmente 30 de noviembre del último año pagado). Si nunca se le ha pagado, deja el día anterior a su ingreso (valor por defecto).">
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
+                disabledDate={d => !!fechaInicioLaboral && d.isBefore(dayjs(fechaInicioLaboral).subtract(1, 'day'), 'day')} />
             </Form.Item>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0 12px' }}>
