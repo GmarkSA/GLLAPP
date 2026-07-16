@@ -115,49 +115,49 @@ function ContactPersonRow({
     >
       <Row gutter={12}>
         <Col xs={24} md={4}>
-          <Form.Item name={['contacts', index, 'salutation']} label="Tratamiento">
+          <Form.Item name={[index, 'salutation']} label="Tratamiento">
             <Select placeholder="Sr." allowClear size="small">
               {SALUTATIONS.map(s => <Option key={s} value={s}>{s}</Option>)}
             </Select>
           </Form.Item>
         </Col>
         <Col xs={24} md={8}>
-          <Form.Item name={['contacts', index, 'firstName']} label="Nombre">
+          <Form.Item name={[index, 'firstName']} label="Nombre">
             <Input placeholder="Juan" size="small" />
           </Form.Item>
         </Col>
         <Col xs={24} md={8}>
-          <Form.Item name={['contacts', index, 'lastName']} label="Apellido">
+          <Form.Item name={[index, 'lastName']} label="Apellido">
             <Input placeholder="García" size="small" />
           </Form.Item>
         </Col>
         <Col xs={24} md={4}>
-          <Form.Item name={['contacts', index, 'isPrimary']} label="Principal" valuePropName="checked">
+          <Form.Item name={[index, 'isPrimary']} label="Principal" valuePropName="checked">
             <Switch size="small" checkedChildren="Sí" unCheckedChildren="No" />
           </Form.Item>
         </Col>
         <Col xs={24} md={10}>
-          <Form.Item name={['contacts', index, 'email']} label="Correo">
+          <Form.Item name={[index, 'email']} label="Correo">
             <Input placeholder="juan@empresa.com" size="small" />
           </Form.Item>
         </Col>
         <Col xs={24} md={7}>
-          <Form.Item name={['contacts', index, 'phone']} label="Teléfono">
+          <Form.Item name={[index, 'phone']} label="Teléfono">
             <Input placeholder="+502 2345-6789" size="small" />
           </Form.Item>
         </Col>
         <Col xs={24} md={7}>
-          <Form.Item name={['contacts', index, 'mobile']} label="Celular">
+          <Form.Item name={[index, 'mobile']} label="Celular">
             <Input placeholder="+502 5678-9012" size="small" />
           </Form.Item>
         </Col>
         <Col xs={24} md={12}>
-          <Form.Item name={['contacts', index, 'designation']} label="Puesto">
+          <Form.Item name={[index, 'designation']} label="Puesto">
             <Input placeholder="Gerente de ventas" size="small" />
           </Form.Item>
         </Col>
         <Col xs={24} md={12}>
-          <Form.Item name={['contacts', index, 'department']} label="Departamento">
+          <Form.Item name={[index, 'department']} label="Departamento">
             <Input placeholder="Administración" size="small" />
           </Form.Item>
         </Col>
