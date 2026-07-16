@@ -15,6 +15,7 @@ import {
   type AsientoRecurrente, type LineaPlantilla, type HistorialAsientoRecurrente,
 } from '../../../api/asientos-recurrentes'
 import { type AsientoDetalle } from '../../../api/asientos'
+import { getApiError } from '../../../api/axios'
 import { getAccounts, getAccountGroups, type Account } from '../../../api/catalogo'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getCustomers, getVendors, type Customer, type Vendor } from '../../../api/contactos'
@@ -205,7 +206,7 @@ export default function DiarioRecurrenteFormPage() {
       message.success(`Borrador generado: ${resultado?.entryNumber ?? ''}`)
       try { setHistorial(await getHistorialAsientoRecurrente(id)) } catch { /* ignore */ }
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al generar')
+      message.error(getApiError(e, 'Error al generar'))
     } finally { setGenerando(false) }
   }
 
@@ -285,7 +286,7 @@ export default function DiarioRecurrenteFormPage() {
         loadPlantilla()
       }
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar')
+      message.error(getApiError(e, 'Error al guardar'))
     } finally { setSaving(false) }
   }
 

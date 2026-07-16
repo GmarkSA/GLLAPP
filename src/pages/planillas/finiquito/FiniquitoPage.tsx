@@ -12,6 +12,7 @@ import {
   type CalculoFiniquito, type Finiquito, type MotivoBajaFiniquito, type DtoFiniquito,
 } from '../../../api/planillas-finiquito'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
+import { getApiError } from '../../../api/axios'
 
 const { Text, Title } = Typography
 const NAVY = '#1B3A6B'
@@ -119,7 +120,7 @@ export default function FiniquitoPage() {
       setCalculo(resultado)
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Error al calcular el finiquito')
+      message.error(getApiError(e, 'Error al calcular el finiquito'))
     } finally {
       setCalculando(false)
     }
@@ -132,7 +133,7 @@ export default function FiniquitoPage() {
       message.success('Finiquito guardado como borrador')
       navigate(`/planillas/finiquitos/${nuevo.id}`, { replace: true })
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al guardar el finiquito')
+      message.error(getApiError(e, 'Error al guardar el finiquito'))
     } finally {
       setGuardando(false)
     }
@@ -145,7 +146,7 @@ export default function FiniquitoPage() {
       message.success(`Ajuste contabilizado — asiento ${r.entryNumber}`)
       cargarFiniquito()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al contabilizar')
+      message.error(getApiError(e, 'Error al contabilizar'))
     } finally {
       setProcesando(false)
     }
@@ -168,7 +169,7 @@ export default function FiniquitoPage() {
       cargarFiniquito()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Error al registrar el pago')
+      message.error(getApiError(e, 'Error al registrar el pago'))
     } finally {
       setProcesando(false)
     }

@@ -279,8 +279,8 @@ export default function FacturaFormPage() {
       message.success(status === 'draft' ? 'Borrador guardado' : 'Factura emitida')
       navigate(`/ventas/facturas/${result.id}`)
     } catch (err: any) {
-      // El backend puede devolver message como string o como string[]
-      const raw = err?.response?.data?.message
+      // El backend puede devolver message como string o como string[], anidado en error.message
+      const raw = err?.response?.data?.error?.message ?? err?.response?.data?.message
       const msg = Array.isArray(raw) ? raw.join(' | ') : (raw ?? 'Error al guardar la factura')
       message.error(msg, 6)
     } finally { setSaving(false) }
