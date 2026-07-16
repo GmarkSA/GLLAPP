@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Button, Card, Form, Modal, Select, Table, Tag, Typography, message,
+  Button, Card, Form, Modal, Select, Space, Table, Tag, Tooltip, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { PlusOutlined, CalendarOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, CalendarOutlined, BookOutlined, BankOutlined, FileTextOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPeriodosPlanilla, crearPeriodoPlanilla, type PeriodoPlanilla,
@@ -16,7 +18,9 @@ const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFrac
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-const ESTADO_COLOR: Record<string, string> = { BORRADOR: 'orange', APROBADA: 'green', PAGADA: 'blue' }
+const ESTADO_COLOR: Record<string, string> = {
+  BORRADOR: 'orange', APROBADA: 'green', CONTABILIZADA: 'blue', PAGADA: 'purple',
+}
 
 export default function PeriodosPlanillaPage() {
   const navigate = useNavigate()
@@ -41,7 +45,7 @@ export default function PeriodosPlanillaPage() {
       const vals = await form.validateFields()
       setCreando(true)
       const periodo = await crearPeriodoPlanilla(vals)
-      message.success(`Corrida ${MESES[vals.mes - 1]} ${vals.anio} creada con ${periodo.totalEmpleados} empleados`)
+      message.success(`Corrida ${MESES[vals.mes - 1]} ${vals.anio} — ${vals.quincena === 1 ? '1ra' : '2da'} quincena creada con ${periodo.totalEmpleados} empleados`)
       setModalOpen(false)
       navigate(`/planillas/corridas/${periodo.id}`)
     } catch (e: any) {
@@ -54,9 +58,15 @@ export default function PeriodosPlanillaPage() {
 
   const columns: ColumnsType<PeriodoPlanilla> = [
     {
-      title: 'Período', key: 'periodo', width: 160,
-      render: (_, p) => <Text strong style={{ fontSize: 12, color: NAVY }}>{MESES[p.mes - 1]} {p.anio}</Text>,
-      sorter: (a, b) => (a.anio * 100 + a.mes) - (b.anio * 100 + b.mes), defaultSortOrder: 'descend',
+      title: 'Período', key: 'periodo', width: 200,
+      render: (_, p) => (
+        <div>
+          <Text strong style={{ fontSize: 12, color: NAVY }}>{MESES[p.mes - 1]} {p.anio}</Text>
+          <div style={{ fontSize: 11, color: '#8c8c8c' }}>{p.quincena === 1 ? '1ra quincena (1-15)' : '2da quincena (16-fin)'}</div>
+        </div>
+      ),
+      sorter: (a, b) => (a.anio * 10000 + a.mes * 10 + a.quincena) - (b.anio * 10000 + b.mes * 10 + b.quincena),
+      defaultSortOrder: 'descend',
     },
     { title: 'Empleados', dataIndex: 'totalEmpleados', width: 100, align: 'center' },
     {
@@ -76,8 +86,36 @@ export default function PeriodosPlanillaPage() {
       render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
-      title: 'Estado', dataIndex: 'estado', width: 110,
-      render: (v: string) => <Tag color={ESTADO_COLOR[v]} style={{ fontSize: 10 }}>{v}</Tag>,
+      title: 'Estado', key: 'estado', width: 105,
+      render: (_, p) => (
+        <Space direction="vertical" size={4}>
+          <Tag color={ESTADO_COLOR[p.estado]} style={{ fontSize: 10, width: 'fit-content' }}>{p.estado}</Tag>
+          <Space size={4}>
+            {p.asientoContableId && (
+              <Tooltip title="Póliza de planilla">
+                <Button type="text" size="small" icon={<BookOutlined />}
+                  onClick={e => {
+                    e.stopPropagation()
+                    navigate(`/contabilidad/diarios-manuales/${p.asientoContableId}`, { state: { volverA: '/planillas/corridas' } })
+                  }} />
+              </Tooltip>
+            )}
+            {p.asientoPagoId && (
+              <Tooltip title="Póliza de pago">
+                <Button type="text" size="small" icon={<BankOutlined />}
+                  onClick={e => {
+                    e.stopPropagation()
+                    navigate(`/contabilidad/diarios-manuales/${p.asientoPagoId}`, { state: { volverA: '/planillas/corridas' } })
+                  }} />
+              </Tooltip>
+            )}
+            <Tooltip title="Detalle de planilla mensual">
+              <Button type="text" size="small" icon={<FileTextOutlined />}
+                onClick={e => { e.stopPropagation(); navigate(`/planillas/mensual/${p.anio}/${p.mes}`) }} />
+            </Tooltip>
+          </Space>
+        </Space>
+      ),
     },
   ]
 
@@ -91,11 +129,15 @@ export default function PeriodosPlanillaPage() {
             <CalendarOutlined style={{ marginRight: 8 }} />Corridas de planilla
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Períodos mensuales · BORRADOR editable → APROBADA congelada
+            Quincenal (1-15 y 16-fin de mes) · BORRADOR editable → APROBADA congelada
           </Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }}
-          onClick={() => { form.setFieldsValue({ anio: anioActual, mes: dayjs().month() + 1 }); setModalOpen(true) }}>
+          onClick={() => {
+            const dia = dayjs().date()
+            form.setFieldsValue({ anio: anioActual, mes: dayjs().month() + 1, quincena: dia <= 15 ? 1 : 2 })
+            setModalOpen(true)
+          }}>
           Nueva corrida
         </Button>
       </div>
@@ -120,17 +162,24 @@ export default function PeriodosPlanillaPage() {
         confirmLoading={creando}
       >
         <Form form={form} layout="vertical" size="small">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
             <Form.Item name="anio" label="Año" rules={[{ required: true }]}>
               <Select options={[anioActual - 1, anioActual, anioActual + 1].map(y => ({ value: y, label: y }))} />
             </Form.Item>
             <Form.Item name="mes" label="Mes" rules={[{ required: true }]}>
               <Select options={MESES.map((m, i) => ({ value: i + 1, label: m }))} />
             </Form.Item>
+            <Form.Item name="quincena" label="Quincena" rules={[{ required: true }]}>
+              <Select options={[
+                { value: 1, label: '1ra (días 1-15)' },
+                { value: 2, label: '2da (16-fin de mes)' },
+              ]} />
+            </Form.Item>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Se genera una línea por cada empleado activo con su salario vigente,
-            bonificación incentivo de ley y sus dimensiones analíticas por defecto.
+            1ra quincena: paga la mitad del salario, sin deducciones. 2da quincena: paga la
+            otra mitad + horas extra + bonificación incentivo completa, y ahí se descuentan
+            IGSS, ISR y otras deducciones calculados sobre el mes completo.
           </Text>
         </Form>
       </Modal>

@@ -4,7 +4,7 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 
 const BASE = '/planillas/periodos'
 
-export type EstadoPeriodoPlanilla = 'BORRADOR' | 'APROBADA' | 'PAGADA'
+export type EstadoPeriodoPlanilla = 'BORRADOR' | 'APROBADA' | 'CONTABILIZADA' | 'PAGADA'
 
 export interface DetallePlanilla {
   id: string
@@ -46,6 +46,8 @@ export interface PeriodoPlanilla {
   id: string
   anio: number
   mes: number
+  /** 1 = días 1-15 (sin deducciones) · 2 = día 16-fin de mes (IGSS/ISR/bonificación del mes completo) */
+  quincena: number
   fechaInicio: string
   fechaFin: string
   estado: EstadoPeriodoPlanilla
@@ -57,6 +59,20 @@ export interface PeriodoPlanilla {
   notas: string | null
   aprobadoAt: string | null
   aprobadoPor: string | null
+  asientoContableId: string | null
+  contabilizadoAt: string | null
+  contabilizadoPor: string | null
+  asientoPagoId: string | null
+  bankAccountId: string | null
+  pagadoAt: string | null
+  pagadoPor: string | null
+}
+
+export interface DistribucionFila {
+  id?: string
+  centroCostoId: string | null
+  centroBeneficioId: string | null
+  porcentaje: number
 }
 
 export interface PeriodoPlanillaDetalle extends PeriodoPlanilla {
@@ -69,7 +85,7 @@ export const getPeriodosPlanilla = () =>
 export const getPeriodoPlanilla = (id: string) =>
   api.get(`${BASE}/${id}`).then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
-export const crearPeriodoPlanilla = (dto: { anio: number; mes: number }) =>
+export const crearPeriodoPlanilla = (dto: { anio: number; mes: number; quincena: number }) =>
   api.post(BASE, dto).then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
 export const recalcularPeriodoPlanilla = (id: string) =>
@@ -92,3 +108,89 @@ export const aprobarPeriodoPlanilla = (id: string) =>
 
 export const eliminarPeriodoPlanilla = (id: string) =>
   api.delete(`${BASE}/${id}`).then(unwrap)
+
+export interface LineaAsientoPreview {
+  accountId: string
+  accountCode: string
+  accountName: string
+  description: string
+  debit: number
+  credit: number
+  centroCostoId: string | null
+  centroCostoNombre: string | null
+  centroBeneficioId: string | null
+  centroBeneficioNombre: string | null
+  concepto: string
+}
+
+export interface PreviewAsiento {
+  lines: LineaAsientoPreview[]
+  totalDebit: number
+  totalCredit: number
+  cuadra: boolean
+  faltantes: string[]
+  sinConfiguracionCuentas: boolean
+}
+
+export const previsualizarAsientoPlanilla = (id: string) =>
+  api.get(`${BASE}/${id}/preview-asiento`).then(unwrap) as Promise<PreviewAsiento>
+
+export interface EmpleadoDetalleMensual {
+  empleadoId: string
+  empleadoCodigo: string
+  empleadoNombre: string
+  dias: number
+  sueldoBase: number
+  bonificacion: number
+  comisiones: number
+  montoHorasExtra: number
+  igssPatronal: number
+  igssLaboral: number
+  isrEmpleados: number
+  otrasDeducciones: number
+  provisionAguinaldo: number
+  provisionBono14: number
+  provisionVacaciones: number
+  provisionIndemnizacion: number
+  totalDevengado: number
+  totalDeducciones: number
+  netoAPagar: number
+  pagadoCompleto: boolean
+}
+
+export interface NomenclaturaLinea {
+  accountCode: string
+  accountName: string
+  centroCostoNombre: string | null
+  centroBeneficioNombre: string | null
+  debit: number
+  credit: number
+}
+
+export interface DetalleMensualPlanilla {
+  anio: number
+  mes: number
+  quincena1: { id: string; estado: EstadoPeriodoPlanilla } | null
+  quincena2: { id: string; estado: EstadoPeriodoPlanilla } | null
+  empleados: EmpleadoDetalleMensual[]
+  totales: Omit<EmpleadoDetalleMensual, 'empleadoId' | 'empleadoCodigo' | 'empleadoNombre' | 'pagadoCompleto'>
+  nomenclatura: NomenclaturaLinea[]
+  totalDebit: number
+  totalCredit: number
+  cuadra: boolean
+}
+
+export const getDetalleMensualPlanilla = (anio: number, mes: number) =>
+  api.get(`/planillas/reportes/mensual/${anio}/${mes}`).then(unwrap) as Promise<DetalleMensualPlanilla>
+
+export const contabilizarPeriodoPlanilla = (id: string) =>
+  api.post(`${BASE}/${id}/contabilizar`).then(unwrap) as Promise<{ periodo: PeriodoPlanilla; asientoContableId: string; entryNumber: string }>
+
+export const pagarPeriodoPlanilla = (id: string, dto: { bankAccountId: string; fecha: string }) =>
+  api.post(`${BASE}/${id}/pagar`, dto).then(unwrap) as Promise<{ periodo: PeriodoPlanilla; asientoPagoId: string; entryNumber: string; totalPago: number }>
+
+export const getDistribucionDetalle = (detalleId: string) =>
+  api.get(`${BASE}/detalles/${detalleId}/distribucion`).then(unwrap) as Promise<DistribucionFila[]>
+
+export const guardarDistribucionDetalle = (detalleId: string, filas: DistribucionFila[]) =>
+  api.put(`${BASE}/detalles/${detalleId}/distribucion`, filas).then(unwrap) as Promise<DistribucionFila[]>
