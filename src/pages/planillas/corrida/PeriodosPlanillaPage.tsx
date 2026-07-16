@@ -120,7 +120,7 @@ export default function PeriodosPlanillaPage() {
                 <Button type="text" size="small" icon={<PrinterOutlined />}
                   onClick={e => {
                     e.stopPropagation()
-                    const url = `/planillas/corridas/${p.id}/imprimir-boletas?format=media-carta`
+                    const url = `/planillas/mensual/${p.anio}/${p.mes}/imprimir-boletas?format=media-carta`
                     const win = window.open(url, '_blank', 'width=880,height=1020,menubar=no,toolbar=no,location=no,scrollbars=yes')
                     if (!win) message.warning('Permite ventanas emergentes en este sitio para poder imprimir.')
                   }} />

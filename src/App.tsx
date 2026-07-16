@@ -197,7 +197,7 @@ export default function App() {
         <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
         <Route path="/ventas/facturas/:id/imprimir"     element={<PrivateRoute><FacturaImprimirPage /></PrivateRoute>} />
-        <Route path="/planillas/corridas/:id/imprimir-boletas" element={<PrivateRoute><BoletasPagoImprimirPage /></PrivateRoute>} />
+        <Route path="/planillas/mensual/:anio/:mes/imprimir-boletas" element={<PrivateRoute><BoletasPagoImprimirPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/cheque"      element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/comprobante" element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
         <Route path="/bancos/cheques/imprimir-lote"            element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />

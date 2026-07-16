@@ -1,9 +1,12 @@
 /**
- * BoletasPagoImprimirPage — Impresión en lote de boletas de pago de una corrida.
+ * BoletasPagoImprimirPage — Impresión en lote de boletas de pago del mes.
  *
- * Ruta: /planillas/corridas/:id/imprimir-boletas?format=media-carta
+ * Ruta: /planillas/mensual/:anio/:mes/imprimir-boletas?format=media-carta
  *
- * - Carga el período (con todos sus detalles) y el perfil de la empresa
+ * La boleta se entrega mensual (1ra + 2da quincena consolidadas), por eso
+ * usa el mismo dato ya validado del reporte "Detalle de planilla mensual"
+ * en vez de los montos de una quincena individual.
+ *
  * - Una boleta por empleado, cada una en su propia página (salto de página)
  * - Auto-dispara window.print() al terminar de cargar — un solo trabajo de
  *   impresión para todos los empleados, pensado para impresora matriz
@@ -12,7 +15,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
-import { getPeriodoPlanilla, type PeriodoPlanillaDetalle, type DetallePlanilla } from '../../../api/planillas-corrida'
+import { getDetalleMensualPlanilla, type DetalleMensualPlanilla, type EmpleadoDetalleMensual } from '../../../api/planillas-corrida'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 
 type Format = 'carta' | 'media-carta' | 'ticket-80' | 'ticket-58'
@@ -28,19 +31,16 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 const fmtQ = (n: any) => `Q ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-const fmtD = (d?: string) => d
-  ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-  : '—'
 
-function Boleta({ d, periodo, org, cfg, esUltima }: {
-  d: DetallePlanilla
-  periodo: PeriodoPlanillaDetalle
+function Boleta({ e, anio, mes, org, cfg, esUltima }: {
+  e: EmpleadoDetalleMensual
+  anio: number
+  mes: number
   org: OrganizationProfile | null
   cfg: { pageSize: string; fontSize: number }
   esUltima: boolean
 }) {
   const companyName = org?.legalName || org?.name || 'Mi Empresa'
-  const quincenaLabel = periodo.quincena === 1 ? '1ra quincena (días 1-15)' : '2da quincena (día 16 a fin de mes)'
 
   return (
     <div className="boleta" style={{ pageBreakAfter: esUltima ? 'auto' : 'always' }}>
@@ -50,34 +50,34 @@ function Boleta({ d, periodo, org, cfg, esUltima }: {
       </div>
       <div className="doc-title">RECIBO DE PAGO DE SALARIO</div>
       <div className="empleado-line">
-        <strong>{d.empleadoNombre}</strong> — Código {d.empleadoCodigo}
+        <strong>{e.empleadoNombre}</strong> — Código {e.empleadoCodigo}
       </div>
       <div className="periodo-line">
-        {MESES[periodo.mes - 1]} {periodo.anio} — {quincenaLabel} ({fmtD(periodo.fechaInicio)} al {fmtD(periodo.fechaFin)})
+        {MESES[mes - 1]} {anio} — mes completo (1ra y 2da quincena)
       </div>
 
       <table>
         <thead><tr><th>PERCEPCIONES</th><th className="r">MONTO</th></tr></thead>
         <tbody>
-          <tr><td>Salario devengado</td><td className="r">{fmtQ(d.salarioDevengado)}</td></tr>
-          {Number(d.montoHorasExtra) > 0 && <tr><td>Horas extra</td><td className="r">{fmtQ(d.montoHorasExtra)}</td></tr>}
-          {Number(d.bonificacionIncentivo) > 0 && <tr><td>Bonificación incentivo (Dto. 78-89)</td><td className="r">{fmtQ(d.bonificacionIncentivo)}</td></tr>}
-          {Number(d.otrosIngresos) > 0 && <tr><td>{d.otrosIngresosDescripcion || 'Otros ingresos'}</td><td className="r">{fmtQ(d.otrosIngresos)}</td></tr>}
-          <tr className="tot"><td>TOTAL DEVENGADO</td><td className="r">{fmtQ(d.totalDevengado)}</td></tr>
+          <tr><td>Salario devengado (mes completo)</td><td className="r">{fmtQ(e.sueldoBase)}</td></tr>
+          {Number(e.montoHorasExtra) > 0 && <tr><td>Horas extra</td><td className="r">{fmtQ(e.montoHorasExtra)}</td></tr>}
+          {Number(e.bonificacion) > 0 && <tr><td>Bonificación incentivo (Dto. 78-89)</td><td className="r">{fmtQ(e.bonificacion)}</td></tr>}
+          {Number(e.comisiones) > 0 && <tr><td>Otros ingresos</td><td className="r">{fmtQ(e.comisiones)}</td></tr>}
+          <tr className="tot"><td>TOTAL DEVENGADO</td><td className="r">{fmtQ(e.totalDevengado)}</td></tr>
         </tbody>
       </table>
 
       <table>
         <thead><tr><th>DEDUCCIONES</th><th className="r">MONTO</th></tr></thead>
         <tbody>
-          {Number(d.cuotaIGSSLaboral) > 0 && <tr><td>Cuota laboral IGSS</td><td className="r">{fmtQ(d.cuotaIGSSLaboral)}</td></tr>}
-          {Number(d.isrRetenido) > 0 && <tr><td>Retención ISR</td><td className="r">{fmtQ(d.isrRetenido)}</td></tr>}
-          {Number(d.otrasDeducciones) > 0 && <tr><td>{d.otrasDeduccionesDescripcion || 'Otras deducciones'}</td><td className="r">{fmtQ(d.otrasDeducciones)}</td></tr>}
-          <tr className="tot"><td>TOTAL DEDUCCIONES</td><td className="r">{fmtQ(d.totalDeducciones)}</td></tr>
+          {Number(e.igssLaboral) > 0 && <tr><td>Cuota laboral IGSS</td><td className="r">{fmtQ(e.igssLaboral)}</td></tr>}
+          {Number(e.isrEmpleados) > 0 && <tr><td>Retención ISR</td><td className="r">{fmtQ(e.isrEmpleados)}</td></tr>}
+          {Number(e.otrasDeducciones) > 0 && <tr><td>Otras deducciones</td><td className="r">{fmtQ(e.otrasDeducciones)}</td></tr>}
+          <tr className="tot"><td>TOTAL DEDUCCIONES</td><td className="r">{fmtQ(e.totalDeducciones)}</td></tr>
         </tbody>
       </table>
 
-      <div className="neto">LÍQUIDO A PAGAR: {fmtQ(d.netoAPagar)}</div>
+      <div className="neto">LÍQUIDO A PAGAR: {fmtQ(e.netoAPagar)}</div>
 
       <div className="firma">
         <div className="firma-linea" />
@@ -88,27 +88,27 @@ function Boleta({ d, periodo, org, cfg, esUltima }: {
 }
 
 export default function BoletasPagoImprimirPage() {
-  const { id } = useParams<{ id: string }>()
+  const { anio, mes } = useParams<{ anio: string; mes: string }>()
   const [searchParams] = useSearchParams()
   const format = (searchParams.get('format') ?? 'media-carta') as Format
   const cfg = FORMAT_CONFIG[format] ?? FORMAT_CONFIG['media-carta']
 
-  const [periodo, setPeriodo] = useState<PeriodoPlanillaDetalle | null>(null)
+  const [data, setData] = useState<DetalleMensualPlanilla | null>(null)
   const [org, setOrg] = useState<OrganizationProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!id) return
-    Promise.all([getPeriodoPlanilla(id), getOrganizationProfile()])
-      .then(([p, o]) => { setPeriodo(p); setOrg(o) })
+    if (!anio || !mes) return
+    Promise.all([getDetalleMensualPlanilla(Number(anio), Number(mes)), getOrganizationProfile()])
+      .then(([d, o]) => { setData(d); setOrg(o) })
       .finally(() => setLoading(false))
-  }, [id])
+  }, [anio, mes])
 
   useEffect(() => {
-    if (!loading && periodo) {
+    if (!loading && data) {
       setTimeout(() => window.print(), 500)
     }
-  }, [loading, periodo])
+  }, [loading, data])
 
   if (loading) {
     return (
@@ -118,8 +118,8 @@ export default function BoletasPagoImprimirPage() {
     )
   }
 
-  if (!periodo || periodo.detalles.length === 0) {
-    return <div style={{ padding: 40 }}>No hay empleados en esta corrida.</div>
+  if (!data || data.empleados.length === 0) {
+    return <div style={{ padding: 40 }}>No hay empleados en esta planilla.</div>
   }
 
   return (
@@ -168,11 +168,11 @@ export default function BoletasPagoImprimirPage() {
       `}</style>
 
       <button className="print-btn no-print" onClick={() => window.print()}>
-        🖨️ Imprimir todas ({periodo.detalles.length})
+        🖨️ Imprimir todas ({data.empleados.length})
       </button>
 
-      {periodo.detalles.map((d, i) => (
-        <Boleta key={d.id} d={d} periodo={periodo} org={org} cfg={cfg} esUltima={i === periodo.detalles.length - 1} />
+      {data.empleados.map((e, i) => (
+        <Boleta key={e.empleadoId} e={e} anio={Number(anio)} mes={Number(mes)} org={org} cfg={cfg} esUltima={i === data.empleados.length - 1} />
       ))}
     </>
   )

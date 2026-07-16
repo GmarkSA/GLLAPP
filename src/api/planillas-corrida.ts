@@ -195,8 +195,8 @@ export const getDistribucionDetalle = (detalleId: string) =>
 export const guardarDistribucionDetalle = (detalleId: string, filas: DistribucionFila[]) =>
   api.put(`${BASE}/detalles/${detalleId}/distribucion`, filas).then(unwrap) as Promise<DistribucionFila[]>
 
-export const descargarBoletaPago = (detalleId: string, empleadoCodigo: string) =>
-  api.get(`${BASE}/detalles/${detalleId}/documentos/boleta-pago`, { responseType: 'blob' }).then(r => {
+export const descargarBoletaPago = (anio: number, mes: number, empleadoId: string, empleadoCodigo: string) =>
+  api.get(`/planillas/reportes/mensual/${anio}/${mes}/documentos/boleta-pago/${empleadoId}`, { responseType: 'blob' }).then(r => {
     const url = URL.createObjectURL(new Blob([r.data], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     }))
