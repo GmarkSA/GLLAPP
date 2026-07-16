@@ -149,6 +149,7 @@ const EmpleadoFormPage       = lazy(() => import('./pages/planillas/empleados/Em
 const PeriodosPlanillaPage   = lazy(() => import('./pages/planillas/corrida/PeriodosPlanillaPage'))
 const CorridaPlanillaPage    = lazy(() => import('./pages/planillas/corrida/CorridaPlanillaPage'))
 const DetalleMensualPlanillaPage = lazy(() => import('./pages/planillas/corrida/DetalleMensualPlanillaPage'))
+const BoletasPagoImprimirPage    = lazy(() => import('./pages/planillas/corrida/BoletasPagoImprimirPage'))
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -196,6 +197,7 @@ export default function App() {
         <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
         <Route path="/ventas/facturas/:id/imprimir"     element={<PrivateRoute><FacturaImprimirPage /></PrivateRoute>} />
+        <Route path="/planillas/corridas/:id/imprimir-boletas" element={<PrivateRoute><BoletasPagoImprimirPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/cheque"      element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/comprobante" element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
         <Route path="/bancos/cheques/imprimir-lote"            element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
