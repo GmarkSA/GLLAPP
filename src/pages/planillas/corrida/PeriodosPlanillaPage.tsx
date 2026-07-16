@@ -86,7 +86,7 @@ export default function PeriodosPlanillaPage() {
       render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
-      title: 'Estado', key: 'estado', width: 150,
+      title: 'Estado', key: 'estado', width: 105,
       render: (_, p) => (
         <Space direction="vertical" size={4}>
           <Tag color={ESTADO_COLOR[p.estado]} style={{ fontSize: 10, width: 'fit-content' }}>{p.estado}</Tag>
