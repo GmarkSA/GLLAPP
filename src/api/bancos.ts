@@ -289,21 +289,21 @@ export const applyBankRules = (dto: { bankAccountId?: string; ruleId?: string; t
   api.post(`${RULES_BASE}/aplicar`, dto).then(unwrap) as Promise<{ reviewed: number; applied: number }>
 
 export const ACCOUNT_TYPE_CONFIG: Record<BankAccountType, { label: string; color: string; icon: string }> = {
-  checking: { label: 'Cuenta monetaria', color: '#1677ff', icon: 'B' },
-  savings: { label: 'Cuenta de ahorro', color: '#52c41a', icon: 'A' },
-  credit_card: { label: 'Tarjeta de credito', color: '#ff4d4f', icon: 'T' },
-  petty_cash: { label: 'Caja chica', color: '#fa8c16', icon: 'C' },
-  investment: { label: 'Inversion', color: '#722ed1', icon: 'I' },
-  other: { label: 'Otra', color: '#8c8c8c', icon: 'O' },
+  checking: { label: 'Cuenta monetaria', color: '#1faec2', icon: 'B' },
+  savings: { label: 'Cuenta de ahorro', color: '#2ea172', icon: 'A' },
+  credit_card: { label: 'Tarjeta de credito', color: '#e5484d', icon: 'T' },
+  petty_cash: { label: 'Caja chica', color: '#ff7f00', icon: 'C' },
+  investment: { label: 'Inversion', color: '#6b7280', icon: 'I' },
+  other: { label: 'Otra', color: '#6b7280', icon: 'O' },
 }
 
 export const TRANSACTION_STATUS_CONFIG: Record<TransactionStatus, { label: string; color: string }> = {
-  pending: { label: 'Pendiente', color: 'orange' },
-  categorized: { label: 'Categorizada', color: 'blue' },
-  matched: { label: 'Con coincidencia', color: 'purple' },
-  reconciled: { label: 'Conciliada', color: 'green' },
+  pending: { label: 'Pendiente', color: '#ff7f00' },
+  categorized: { label: 'Categorizada', color: '#1faec2' },
+  matched: { label: 'Con coincidencia', color: '#6b7280' },
+  reconciled: { label: 'Conciliada', color: '#2ea172' },
   excluded: { label: 'Excluida', color: 'default' },
-  voided: { label: 'Anulada', color: 'red' },
+  voided: { label: 'Anulada', color: '#e5484d' },
 }
 
 export const BANK_NAMES_GT = [

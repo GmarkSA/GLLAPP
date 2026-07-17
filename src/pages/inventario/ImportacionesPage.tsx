@@ -22,9 +22,9 @@ const fmtQ = (v: number) =>
   'Q ' + Number(v || 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })
 
 const STATUS_TAG: Record<string, { label: string; color: string }> = {
-  draft:     { label: 'Borrador',      color: 'orange'  },
-  confirmed: { label: 'Confirmada',    color: 'green'   },
-  posted:    { label: 'Contabilizada', color: 'blue'    },
+  draft:     { label: 'Borrador',      color: '#ff7f00'  },
+  confirmed: { label: 'Confirmada',    color: '#2ea172'   },
+  posted:    { label: 'Contabilizada', color: '#1faec2'    },
 }
 
 const PRORRATION_LABEL: Record<string, string> = {
@@ -91,7 +91,7 @@ export default function ImportacionesPage() {
       title: 'No. Factura',
       dataIndex: 'invoiceNumber',
       width: 120,
-      render: v => v ? <Text style={{ fontFamily: 'monospace' }}>{v}</Text> : <Text type="secondary">—</Text>,
+      render: v => v ? <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: 'Proveedor',
@@ -120,7 +120,7 @@ export default function ImportacionesPage() {
       dataIndex: 'totalFob',
       width: 120,
       align: 'right',
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
       title: 'Costo Aterrizaje',
@@ -128,7 +128,7 @@ export default function ImportacionesPage() {
       width: 140,
       align: 'right',
       render: v => (
-        <Text style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1B3A6B', fontSize: 12 }}>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#1faec2', fontSize: 12 }}>
           {fmtQ(v)}
         </Text>
       ),
@@ -161,10 +161,10 @@ export default function ImportacionesPage() {
                 description="Se actualizarán los costos promedio de los artículos. Esta acción no se puede deshacer."
                 onConfirm={() => handleConfirm(row.id)}
                 okText="Confirmar" cancelText="Cancelar"
-                okButtonProps={{ style: { background: '#52c41a' } }}
+                okButtonProps={{ style: { background: '#2ea172' } }}
               >
                 <Tooltip title="Confirmar importación">
-                  <Button size="small" type="text" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} />
+                  <Button size="small" type="text" icon={<CheckCircleOutlined style={{ color: '#2ea172' }} />} />
                 </Tooltip>
               </Popconfirm>
               <Popconfirm
@@ -186,7 +186,7 @@ export default function ImportacionesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <GlobalOutlined style={{ marginRight: 8 }} />
             Importaciones
           </Title>
@@ -196,7 +196,7 @@ export default function ImportacionesPage() {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => navigate('/inventario/importaciones/nueva')}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nueva importación
         </Button>

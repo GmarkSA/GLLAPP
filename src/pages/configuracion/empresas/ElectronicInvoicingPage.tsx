@@ -157,7 +157,7 @@ export default function ElectronicInvoicingPage() {
       title: 'Proveedor',
       render: (_: any, p: ElectronicInvoicingProfile) => {
         const prov = PROVIDERS.find(x => x.value === p.provider)
-        return <Tag color="blue">{prov?.label ?? p.provider}</Tag>
+        return <Tag color="#1faec2">{prov?.label ?? p.provider}</Tag>
       },
     },
     {
@@ -171,7 +171,7 @@ export default function ElectronicInvoicingPage() {
       title: 'Tipo doc. default',
       render: (_: any, p: ElectronicInvoicingProfile) => {
         const dt = p.apiConfigurationJson?.defaultDocumentType
-        return dt ? <Tag color="geekblue">{dt}</Tag> : <Text type="secondary">—</Text>
+        return dt ? <Tag color="#1faec2">{dt}</Tag> : <Text type="secondary">—</Text>
       },
     },
     {
@@ -179,8 +179,8 @@ export default function ElectronicInvoicingPage() {
       dataIndex: 'environment',
       width: 100,
       render: (v: string) => v === 'production'
-        ? <Tag color="red"   icon={<CheckCircleOutlined />}>Producción</Tag>
-        : <Tag color="orange" icon={<ExclamationCircleOutlined />}>Sandbox</Tag>,
+        ? <Tag color="#e5484d"   icon={<CheckCircleOutlined />}>Producción</Tag>
+        : <Tag color="#ff7f00" icon={<ExclamationCircleOutlined />}>Sandbox</Tag>,
     },
     {
       title: 'Último test',
@@ -213,11 +213,14 @@ export default function ElectronicInvoicingPage() {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>Facturación Electrónica (FEL)</Title>
-          <div style={{ color: '#888', fontSize: 12, marginTop: 2 }}>{activeCompany.legalName}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <SafetyCertificateOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Facturación Electrónica (FEL)</Title>
+            <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{activeCompany.legalName}</div>
+          </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }} onClick={openCreate}>
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }} onClick={openCreate}>
           Nuevo perfil
         </Button>
       </div>
@@ -256,7 +259,7 @@ export default function ElectronicInvoicingPage() {
         onOk={handleSave}
         confirmLoading={saving}
         okText={editing ? 'Guardar' : 'Crear'}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={540}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>

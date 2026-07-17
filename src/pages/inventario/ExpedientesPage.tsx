@@ -64,7 +64,7 @@ export default function ExpedientesPage() {
       dataIndex: 'expedienteNo',
       width: 130,
       render: v => (
-        <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>
       ),
     },
     {
@@ -93,7 +93,7 @@ export default function ExpedientesPage() {
       dataIndex: 'totalFob',
       width: 120,
       align: 'right',
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
       title: 'Costo Aterrizaje',
@@ -101,7 +101,7 @@ export default function ExpedientesPage() {
       width: 140,
       align: 'right',
       render: v => (
-        <Text style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1B3A6B', fontSize: 12 }}>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#1faec2', fontSize: 12 }}>
           {fmtQ(v)}
         </Text>
       ),
@@ -137,7 +137,7 @@ export default function ExpedientesPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <GlobalOutlined style={{ marginRight: 8 }} />
             Expedientes de Importación
           </Title>
@@ -149,7 +149,7 @@ export default function ExpedientesPage() {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => navigate('/inventario/expedientes/nuevo')}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nuevo expediente
         </Button>

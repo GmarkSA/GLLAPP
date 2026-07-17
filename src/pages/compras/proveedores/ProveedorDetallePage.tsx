@@ -172,12 +172,12 @@ export default function ProveedorDetallePage() {
       formatter: (params: any[]) => `${params[0].name}<br/>Q ${Number(params[0].value).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
     },
     grid: { left: 16, right: 16, top: 12, bottom: 28, containLabel: true },
-    xAxis: { type: 'category', data: chartData.months, axisLabel: { fontSize: 10, color: '#888' }, axisLine: { lineStyle: { color: '#e8e8e8' } } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#888', formatter: (v: number) => `Q${(v/1000).toFixed(0)}k` } },
+    xAxis: { type: 'category', data: chartData.months, axisLabel: { fontSize: 10, color: '#6b7280' }, axisLine: { lineStyle: { color: 'rgba(10,10,10,0.08)' } } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#6b7280', formatter: (v: number) => `Q${(v/1000).toFixed(0)}k` } },
     series: [{
       type: 'bar', data: chartData.data, barMaxWidth: 32,
-      itemStyle: { color: '#fa8c16', borderRadius: [4, 4, 0, 0] },
-      emphasis: { itemStyle: { color: '#d46b08' } },
+      itemStyle: { color: '#ff7f00', borderRadius: [4, 4, 0, 0] },
+      emphasis: { itemStyle: { color: '#e06f00' } },
     }],
   }), [chartData])
 
@@ -222,7 +222,7 @@ export default function ProveedorDetallePage() {
     { title: 'Fecha', dataIndex: 'invoiceDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'invoiceNumber', width: 140,
-      render: (v: string, r: PurchaseInvoice) => <Link to={`/compras/facturas/${r.id}`} style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Link>,
+      render: (v: string, r: PurchaseInvoice) => <Link to={`/compras/facturas/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
     },
     {
       title: 'Tipo', dataIndex: 'invoiceType', width: 110,
@@ -232,46 +232,46 @@ export default function ProveedorDetallePage() {
       title: 'Estado', dataIndex: 'status', width: 110,
       render: (v: string) => { const c = BILL_STATUS_CONFIG[v as keyof typeof BILL_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
-    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
-    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: Number(v) > 0 ? '#fa8c16' : '#8c8c8c' }}>{fmtQ(Number(v))}</Text> },
+    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
+    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) > 0 ? '#ff7f00' : '#6b7280' }}>{fmtQ(Number(v))}</Text> },
   ]
 
   const payCols = [
     { title: 'Fecha', dataIndex: 'paymentDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
-    { title: 'Número', dataIndex: 'paymentNumber', width: 140, render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> },
+    { title: 'Número', dataIndex: 'paymentNumber', width: 140, render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> },
     { title: 'Concepto', dataIndex: 'concept', render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text> },
     { title: 'Referencia', dataIndex: 'reference', width: 120, render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text> },
-    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{fmtQ(v)}</Text> },
+    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(v)}</Text> },
   ]
 
   const ncCols = [
     { title: 'Fecha', dataIndex: 'invoiceDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'invoiceNumber', width: 140,
-      render: (v: string, r: PurchaseInvoice) => <Link to={`/compras/notas-credito-proveedor/${r.id}`} style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{v}</Link>,
+      render: (v: string, r: PurchaseInvoice) => <Link to={`/compras/notas-credito-proveedor/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{v}</Link>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
       render: (v: string) => { const c = BILL_STATUS_CONFIG[v as keyof typeof BILL_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
-    { title: 'Total NC', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{fmtQ(v)}</Text> },
-    { title: 'Saldo NC', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{fmtQ(Number(v ?? 0))}</Text> },
+    { title: 'Total NC', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(v)}</Text> },
+    { title: 'Saldo NC', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(Number(v ?? 0))}</Text> },
   ]
 
   const stmtCols = [
     { title: 'Fecha', dataIndex: 'date', width: 100, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
-    { title: 'Tipo', dataIndex: 'type', width: 90, render: (v: string) => <Tag color={v === 'Factura' ? 'blue' : 'green'} style={{ fontSize: 11 }}>{v}</Tag> },
+    { title: 'Tipo', dataIndex: 'type', width: 90, render: (v: string) => <Tag color={v === 'Factura' ? '#1faec2' : '#2ea172'} style={{ fontSize: 11 }}>{v}</Tag> },
     {
       title: 'Referencia', dataIndex: 'ref',
       render: (v: string, r: any) => r.route
-        ? <Link to={r.route} style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Link>
-        : <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>,
+        ? <Link to={r.route} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>
+        : <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>,
     },
-    { title: 'Cargo', dataIndex: 'debit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#fa8c16' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
-    { title: 'Abono', dataIndex: 'credit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+    { title: 'Cargo', dataIndex: 'debit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#ff7f00' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+    { title: 'Abono', dataIndex: 'credit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
     {
       title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 130,
-      render: (v: number) => <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: v > 0 ? '#fa8c16' : '#52c41a' }}>{fmtQ(Math.abs(v))}{v < 0 ? ' CR' : ''}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#ff7f00' : '#2ea172' }}>{fmtQ(Math.abs(v))}{v < 0 ? ' CR' : ''}</Text>,
     },
   ]
 
@@ -289,16 +289,16 @@ export default function ProveedorDetallePage() {
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-        marginBottom: 20, padding: '10px 0', borderBottom: '1px solid #f0f0f0',
+        marginBottom: 20, padding: '10px 0', borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/compras/proveedores')}>
           Proveedores
         </Button>
         <Divider type="vertical" />
-        <Avatar size={40} style={{ background: isCompany ? '#fa8c16' : '#7c3aed', flexShrink: 0 }}
+        <Avatar size={40} style={{ background: isCompany ? '#ff7f00' : '#ff7f00', flexShrink: 0 }}
           icon={isCompany ? <BankOutlined /> : <UserOutlined />} />
         <div>
-          <Title level={5} style={{ margin: 0, color: '#1B3A6B' }}>{vendor.name || vendor.legalName}</Title>
+          <Title level={5} style={{ margin: 0, color: '#0a0a0a' }}>{vendor.name || vendor.legalName}</Title>
           {vendor.taxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT: {vendor.taxId}</Text>}
         </div>
         <Badge status={statusCfg.color} text={statusCfg.label} style={{ marginLeft: 4 }} />
@@ -309,7 +309,7 @@ export default function ProveedorDetallePage() {
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={() => navigate('/compras/facturas/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}
-          style={{ background: '#fa8c16', borderColor: '#fa8c16' }}
+          style={{ background: '#ff7f00', borderColor: '#ff7f00' }}
         >
           Nueva factura
         </Button>
@@ -328,14 +328,14 @@ export default function ProveedorDetallePage() {
       {/* ── Stats row ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Cuentas por pagar', value: fmtQ(saldoPendiente), color: saldoPendiente > 0 ? '#fa8c16' : '#52c41a', sub: 'Saldo pendiente de pago' },
-          { label: 'Total comprado', value: fmtQ(totalComprado), color: '#1B3A6B', sub: `${bills.filter(b => b.status !== 'voided').length} facturas` },
-          { label: 'Total pagado', value: fmtQ(totalPagado), color: '#52c41a', sub: `${payments.length} pagos realizados` },
-          { label: 'Facturas vencidas', value: String(facturasVencidas), color: facturasVencidas > 0 ? '#ff4d4f' : '#52c41a', sub: facturasVencidas > 0 ? 'Requieren pago urgente' : 'Todo al día' },
+          { label: 'Cuentas por pagar', value: fmtQ(saldoPendiente), color: saldoPendiente > 0 ? '#ff7f00' : '#2ea172', sub: 'Saldo pendiente de pago' },
+          { label: 'Total comprado', value: fmtQ(totalComprado), color: '#1faec2', sub: `${bills.filter(b => b.status !== 'voided').length} facturas` },
+          { label: 'Total pagado', value: fmtQ(totalPagado), color: '#2ea172', sub: `${payments.length} pagos realizados` },
+          { label: 'Facturas vencidas', value: String(facturasVencidas), color: facturasVencidas > 0 ? '#e5484d' : '#2ea172', sub: facturasVencidas > 0 ? 'Requieren pago urgente' : 'Todo al día' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 10, padding: '14px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', borderLeft: `4px solid ${s.color}` }}>
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{s.label}</Text>
-            <div style={{ fontSize: 20, fontWeight: 800, color: s.color, fontFamily: 'monospace', lineHeight: 1.2 }}>{s.value}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: s.color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{s.value}</div>
             <Text type="secondary" style={{ fontSize: 11 }}>{s.sub}</Text>
           </div>
         ))}
@@ -354,7 +354,7 @@ export default function ProveedorDetallePage() {
               {/* Columna izquierda */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>Contacto</Text>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>Contacto</Text>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {vendor.legalName && vendor.legalName !== vendor.name && (
                       <div>
@@ -364,25 +364,25 @@ export default function ProveedorDetallePage() {
                     )}
                     {vendor.email && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <MailOutlined style={{ color: '#fa8c16', fontSize: 14 }} />
+                        <MailOutlined style={{ color: '#ff7f00', fontSize: 14 }} />
                         <a href={`mailto:${vendor.email}`} style={{ fontSize: 13 }}>{vendor.email}</a>
                       </div>
                     )}
                     {vendor.phone && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <PhoneOutlined style={{ color: '#fa8c16', fontSize: 14 }} />
+                        <PhoneOutlined style={{ color: '#ff7f00', fontSize: 14 }} />
                         <Text style={{ fontSize: 13 }}>{vendor.phone}</Text>
                       </div>
                     )}
                     {vendor.mobile && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <MobileOutlined style={{ color: '#fa8c16', fontSize: 14 }} />
+                        <MobileOutlined style={{ color: '#ff7f00', fontSize: 14 }} />
                         <Text style={{ fontSize: 13 }}>{vendor.mobile}</Text>
                       </div>
                     )}
                     {vendor.website && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <GlobalOutlined style={{ color: '#fa8c16', fontSize: 14 }} />
+                        <GlobalOutlined style={{ color: '#ff7f00', fontSize: 14 }} />
                         <a href={vendor.website} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>{vendor.website}</a>
                       </div>
                     )}
@@ -394,9 +394,9 @@ export default function ProveedorDetallePage() {
 
                 {billingAddr?.address && (
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Dirección</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Dirección</Text>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <EnvironmentOutlined style={{ color: '#fa8c16', fontSize: 14, marginTop: 2 }} />
+                      <EnvironmentOutlined style={{ color: '#ff7f00', fontSize: 14, marginTop: 2 }} />
                       <div style={{ fontSize: 13, lineHeight: 1.6 }}>
                         {billingAddr.address && <div>{billingAddr.address}</div>}
                         {billingAddr.street2 && <div>{billingAddr.street2}</div>}
@@ -408,29 +408,29 @@ export default function ProveedorDetallePage() {
                 )}
 
                 <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Otros detalles</Text>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Otros detalles</Text>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 0', fontSize: 13 }}>
                     <Text type="secondary">N° Proveedor</Text>
-                    <Text strong style={{ fontFamily: 'monospace' }}>{vendor.vendorNumber || '—'}</Text>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{vendor.vendorNumber || '—'}</Text>
                     <Text type="secondary">Moneda</Text>
                     <Text>{vendor.currency || 'GTQ'}</Text>
                     <Text type="secondary">Términos de pago</Text>
                     <Text>{vendor.paymentTerms || '—'}</Text>
                     <Text type="secondary">Tipo fiscal</Text>
                     <Text style={{ fontSize: 12 }}>{TAX_TREATMENT_LABELS[vendor.taxTreatment ?? ''] ?? vendor.taxTreatment ?? '—'}</Text>
-                    {vendor.taxCode && <><Text type="secondary">IVA</Text><Tag color="blue" style={{ fontSize: 11 }}>{vendor.taxCode}</Tag></>}
-                    {vendor.tdsEnabled && vendor.tdsTaxCode && <><Text type="secondary">ISR</Text><Tag color="purple" style={{ fontSize: 11 }}>{vendor.tdsTaxCode}</Tag></>}
+                    {vendor.taxCode && <><Text type="secondary">IVA</Text><Tag color="#1faec2" style={{ fontSize: 11 }}>{vendor.taxCode}</Tag></>}
+                    {vendor.tdsEnabled && vendor.tdsTaxCode && <><Text type="secondary">ISR</Text><Tag color="#6b7280" style={{ fontSize: 11 }}>{vendor.tdsTaxCode}</Tag></>}
                   </div>
                 </div>
 
                 {/* Cuenta bancaria del proveedor */}
                 {vendor.bankAccount?.accountNumber && (
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Cuenta bancaria</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Cuenta bancaria</Text>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 0', fontSize: 13 }}>
                       {vendor.bankAccount.bankName && <><Text type="secondary">Banco</Text><Text>{vendor.bankAccount.bankName}</Text></>}
                       <Text type="secondary">N° de cuenta</Text>
-                      <Text style={{ fontFamily: 'monospace' }}>{vendor.bankAccount.accountNumber}</Text>
+                      <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{vendor.bankAccount.accountNumber}</Text>
                       {vendor.bankAccount.accountType && <><Text type="secondary">Tipo</Text><Text>{vendor.bankAccount.accountType}</Text></>}
                       {vendor.bankAccount.currency && <><Text type="secondary">Moneda</Text><Text>{vendor.bankAccount.currency}</Text></>}
                     </div>
@@ -439,17 +439,17 @@ export default function ProveedorDetallePage() {
 
                 {vendor.contacts && vendor.contacts.length > 0 && (
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Personas de contacto</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Personas de contacto</Text>
                     {vendor.contacts.slice(0, 3).map((c, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                        <Avatar size={32} style={{ background: '#fa8c16', flexShrink: 0 }}>
+                        <Avatar size={32} style={{ background: '#ff7f00', flexShrink: 0 }}>
                           {((c.firstName?.[0] ?? '') + (c.lastName?.[0] ?? '')).toUpperCase() || '?'}
                         </Avatar>
                         <div>
                           <Text strong style={{ fontSize: 13 }}>{[c.salutation, c.firstName, c.lastName].filter(Boolean).join(' ')}</Text>
                           {c.designation && <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{c.designation}</Text>}
-                          {c.email && <div style={{ fontSize: 12 }}><MailOutlined style={{ marginRight: 4, color: '#888' }} />{c.email}</div>}
-                          {c.phone && <div style={{ fontSize: 12 }}><PhoneOutlined style={{ marginRight: 4, color: '#888' }} />{c.phone}</div>}
+                          {c.email && <div style={{ fontSize: 12 }}><MailOutlined style={{ marginRight: 4, color: '#6b7280' }} />{c.email}</div>}
+                          {c.phone && <div style={{ fontSize: 12 }}><PhoneOutlined style={{ marginRight: 4, color: '#6b7280' }} />{c.phone}</div>}
                         </div>
                       </div>
                     ))}
@@ -457,8 +457,8 @@ export default function ProveedorDetallePage() {
                 )}
 
                 {vendor.notes && (
-                  <div style={{ background: '#fffbe6', borderRadius: 10, padding: '14px 16px', border: '1px solid #ffe58f' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#ad6800', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Notas internas</Text>
+                  <div style={{ background: '#fff2e5', borderRadius: 10, padding: '14px 16px', border: '1px solid rgba(255,127,0,0.25)' }}>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#b35900', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Notas internas</Text>
                     <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{vendor.notes}</Text>
                   </div>
                 )}
@@ -467,18 +467,18 @@ export default function ProveedorDetallePage() {
               {/* Columna derecha */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>Cuentas por pagar</Text>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>Cuentas por pagar</Text>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     <Statistic
-                      title={<Text style={{ fontSize: 11, color: '#888' }}>Saldo pendiente</Text>}
+                      title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Saldo pendiente</Text>}
                       value={saldoPendiente} precision={2} prefix="Q"
-                      valueStyle={{ color: saldoPendiente > 0 ? '#fa8c16' : '#52c41a', fontSize: 20, fontFamily: 'monospace' }}
+                      valueStyle={{ color: saldoPendiente > 0 ? '#ff7f00' : '#2ea172', fontSize: 20, fontVariantNumeric: 'tabular-nums' }}
                       formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                     />
                     <Statistic
-                      title={<Text style={{ fontSize: 11, color: '#888' }}>Total comprado</Text>}
+                      title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Total comprado</Text>}
                       value={totalComprado} precision={2} prefix="Q"
-                      valueStyle={{ color: '#1B3A6B', fontSize: 20, fontFamily: 'monospace' }}
+                      valueStyle={{ color: '#0a0a0a', fontSize: 20, fontVariantNumeric: 'tabular-nums' }}
                       formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                     />
                   </div>
@@ -486,10 +486,10 @@ export default function ProveedorDetallePage() {
 
                 <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       Compras ({chartData.startLabel} – {chartData.endLabel})
                     </Text>
-                    <Text style={{ fontSize: 18, fontWeight: 800, color: '#fa8c16', fontFamily: 'monospace' }}>
+                    <Text style={{ fontSize: 18, fontWeight: 800, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>
                       {fmtQ(chartData.periodTotal)}
                     </Text>
                   </div>
@@ -507,18 +507,18 @@ export default function ProveedorDetallePage() {
 
                 <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Últimas facturas</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Últimas facturas</Text>
                   </div>
                   {bills.slice(0, 5).map(b => {
                     const sCfg = BILL_STATUS_CONFIG[b.status as keyof typeof BILL_STATUS_CONFIG]
                     return (
-                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #fafbfc' }}>
                         <div>
-                          <Link to={`/compras/facturas/${b.id}`} style={{ fontSize: 13, fontFamily: 'monospace', color: '#1B3A6B' }}>{b.invoiceNumber}</Link>
+                          <Link to={`/compras/facturas/${b.id}`} style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{b.invoiceNumber}</Link>
                           <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{dayjs(b.invoiceDate).format('DD/MM/YYYY')}</Text>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 600 }}>{fmtQ(Number(b.total))}</div>
+                          <div style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtQ(Number(b.total))}</div>
                           <Tag color={sCfg?.color} style={{ fontSize: 10, margin: 0 }}>{sCfg?.label ?? b.status}</Tag>
                         </div>
                       </div>
@@ -545,7 +545,7 @@ export default function ProveedorDetallePage() {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
                         <Button size="small" type="primary" icon={<PlusOutlined />}
-                          style={{ background: '#fa8c16', borderColor: '#fa8c16' }}
+                          style={{ background: '#ff7f00', borderColor: '#ff7f00' }}
                           onClick={() => navigate('/compras/facturas/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}>
                           Nueva factura
                         </Button>
@@ -603,13 +603,13 @@ export default function ProveedorDetallePage() {
                 </Tooltip>
                 <div style={{ marginLeft: 'auto' }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>Saldo del período: </Text>
-                  <Text strong style={{ fontFamily: 'monospace', color: stmtTotal > 0 ? '#fa8c16' : '#52c41a', fontSize: 14 }}>
+                  <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: stmtTotal > 0 ? '#ff7f00' : '#2ea172', fontSize: 14 }}>
                     {fmtQ(Math.abs(stmtTotal))}{stmtTotal < 0 ? ' CR' : ''}
                   </Text>
                 </div>
               </div>
 
-              <div style={{ background: '#fa8c16', borderRadius: '10px 10px 0 0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ background: '#ff7f00', borderRadius: '10px 10px 0 0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Estado de cuenta — Proveedor</Text>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>{vendor.name || vendor.legalName}</Text>
@@ -632,22 +632,22 @@ export default function ProveedorDetallePage() {
                 style={{ background: '#fff', borderRadius: '0 0 10px 10px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
                 summary={() => (
                   <Table.Summary fixed>
-                    <Table.Summary.Row style={{ background: '#fff7e6' }}>
+                    <Table.Summary.Row style={{ background: '#fff2e5' }}>
                       <Table.Summary.Cell index={0} colSpan={3}>
                         <Text strong style={{ fontSize: 12 }}>Total del período</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#fa8c16' }}>
+                        <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#ff7f00' }}>
                           {fmtQ(statementRows.reduce((s, r) => s + r.debit, 0))}
                         </Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={4} align="right">
-                        <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>
+                        <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>
                           {fmtQ(statementRows.reduce((s, r) => s + r.credit, 0))}
                         </Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={5} align="right">
-                        <Text strong style={{ fontFamily: 'monospace', fontSize: 13, color: stmtTotal > 0 ? '#fa8c16' : '#52c41a' }}>
+                        <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: stmtTotal > 0 ? '#ff7f00' : '#2ea172' }}>
                           {fmtQ(Math.abs(stmtTotal))}{stmtTotal < 0 ? ' CR' : ''}
                         </Text>
                       </Table.Summary.Cell>
@@ -679,7 +679,7 @@ export default function ProveedorDetallePage() {
                   ? <Empty description="Sin comentarios aún" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   : comments.map(c => (
                       <div key={c.id} style={{ display: 'flex', gap: 12, background: '#fff', borderRadius: 10, padding: '12px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                        <Avatar size={36} style={{ background: c.type === 'activity' ? '#52c41a' : '#fa8c16', flexShrink: 0 }}>
+                        <Avatar size={36} style={{ background: c.type === 'activity' ? '#2ea172' : '#ff7f00', flexShrink: 0 }}>
                           {c.type === 'activity' ? '⚙' : (c.userName?.[0]?.toUpperCase() ?? <MessageOutlined />)}
                         </Avatar>
                         <div style={{ flex: 1 }}>
@@ -687,7 +687,7 @@ export default function ProveedorDetallePage() {
                             <Text strong style={{ fontSize: 13 }}>{c.userName ?? 'Usuario'}</Text>
                             <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(c.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
                           </div>
-                          {c.action && <Tag color="orange" style={{ fontSize: 10, marginBottom: 4 }}>{c.action}</Tag>}
+                          {c.action && <Tag color="#ff7f00" style={{ fontSize: 10, marginBottom: 4 }}>{c.action}</Tag>}
                           <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: '#333' }}>{c.text}</Text>
                         </div>
                       </div>
@@ -697,7 +697,7 @@ export default function ProveedorDetallePage() {
               </div>
 
               <div style={{ background: '#fff', borderRadius: 10, padding: '16px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
+                <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
                   Agregar comentario
                 </Text>
                 <TextArea
@@ -711,7 +711,7 @@ export default function ProveedorDetallePage() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <Button type="primary" icon={<SendOutlined />} loading={addingComment}
                     disabled={!commentText.trim()} onClick={handleAddComment}
-                    style={{ background: '#fa8c16', borderColor: '#fa8c16' }}>
+                    style={{ background: '#ff7f00', borderColor: '#ff7f00' }}>
                     Guardar comentario
                   </Button>
                 </div>
@@ -729,7 +729,7 @@ export default function ProveedorDetallePage() {
         footer={[
           <Button key="cancel" onClick={() => setEmailModal(false)}>Cancelar</Button>,
           <Button key="send" type="primary" icon={<SendOutlined />} loading={sendingEmail}
-            onClick={handleSendEmail} style={{ background: '#fa8c16', borderColor: '#fa8c16' }}>
+            onClick={handleSendEmail} style={{ background: '#ff7f00', borderColor: '#ff7f00' }}>
             Enviar
           </Button>,
         ]}

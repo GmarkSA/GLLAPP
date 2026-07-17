@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Alert, Button, Card, Select, Space, Spin, Table, Tag, Typography, message,
 } from 'antd'
-import { SaveOutlined, ThunderboltOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons'
+import { AccountBookOutlined, CheckCircleOutlined, SaveOutlined, ThunderboltOutlined, WarningOutlined } from '@ant-design/icons'
 import {
   getCuentasPlanilla, guardarCuentasPlanilla, validarCuentasPlanilla,
   type ConceptoCuentaPlanilla,
@@ -10,7 +10,7 @@ import {
 import { getAccounts, type Account } from '../../../api/catalogo'
 
 const { Text, Title } = Typography
-const NAVY = '#1B3A6B'
+const NAVY = '#1faec2'
 
 /** Palabras clave para el botón "usar catálogo sugerido" */
 const KEYWORDS: Record<string, string[]> = {
@@ -122,7 +122,7 @@ export default function CuentasPlanillaPage() {
             render: (_, c: ConceptoCuentaPlanilla) => (
               <Space size={6}>
                 <Text style={{ fontSize: 12 }}>{c.etiqueta.replace(/^(Gasto|Pasivo) — /, '')}</Text>
-                {c.obligatoria && <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>obligatoria</Tag>}
+                {c.obligatoria && <Tag color="#1faec2" style={{ fontSize: 10, margin: 0 }}>obligatoria</Tag>}
               </Space>
             ),
           },
@@ -148,11 +148,14 @@ export default function CuentasPlanillaPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: NAVY }}>Cuentas contables de planilla</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Mapeo de cada concepto de nómina a su cuenta del catálogo — requisito para contabilizar planillas
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AccountBookOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Cuentas contables de planilla</Title>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Mapeo de cada concepto de nómina a su cuenta del catálogo — requisito para contabilizar planillas
+            </Text>
+          </div>
         </div>
         <Space>
           <Button icon={<ThunderboltOutlined />} onClick={sugerir}>Usar catálogo sugerido</Button>

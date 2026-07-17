@@ -117,23 +117,23 @@ export const deleteImportacion = (id: string) => api.delete(`${IMP}/${id}`)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const ITEM_TYPE_CONFIG: Record<ItemType, { label: string; color: string; description: string }> = {
-  bien:      { label: 'Bien',      color: '#1677ff', description: 'Producto físico con inventario' },
-  servicio:  { label: 'Servicio',  color: '#52c41a', description: 'Servicio sin inventario físico' },
-  exento:    { label: 'Exento',    color: '#8c8c8c', description: 'Bien o servicio exento de IVA' },
-  importado: { label: 'Importado', color: '#722ed1', description: 'Bien importado del exterior' },
+  bien:      { label: 'Bien',      color: '#1faec2', description: 'Producto físico con inventario' },
+  servicio:  { label: 'Servicio',  color: '#2ea172', description: 'Servicio sin inventario físico' },
+  exento:    { label: 'Exento',    color: '#6b7280', description: 'Bien o servicio exento de IVA' },
+  importado: { label: 'Importado', color: '#6b7280', description: 'Bien importado del exterior' },
 }
 
 export const USAGE_TYPE_CONFIG: Record<UsageType, { label: string; color: string }> = {
-  purchase: { label: 'Solo compra',    color: 'orange' },
-  sale:     { label: 'Solo venta',     color: 'blue'   },
-  both:     { label: 'Compra y venta', color: 'green'  },
+  purchase: { label: 'Solo compra',    color: '#ff7f00' },
+  sale:     { label: 'Solo venta',     color: '#1faec2'   },
+  both:     { label: 'Compra y venta', color: '#2ea172'  },
 }
 
 export const ITEM_CATEGORY_CONFIG: Record<ItemCategory, { label: string; color: string }> = {
-  finished_good:    { label: 'Producto terminado', color: '#1677ff' },
-  raw_material:     { label: 'Materia prima',      color: '#fa8c16' },
-  work_in_progress: { label: 'En proceso',         color: '#722ed1' },
-  supply:           { label: 'Suministro',          color: '#52c41a' },
+  finished_good:    { label: 'Producto terminado', color: '#1faec2' },
+  raw_material:     { label: 'Materia prima',      color: '#ff7f00' },
+  work_in_progress: { label: 'En proceso',         color: '#6b7280' },
+  supply:           { label: 'Suministro',          color: '#2ea172' },
 }
 
 export const UNITS = ['und', 'caja', 'kg', 'g', 'lb', 'lt', 'ml', 'mt', 'cm', 'hr', 'día', 'par', 'docena', 'resma', 'rollo']

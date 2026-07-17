@@ -38,7 +38,7 @@ const SRC_COLOR: Record<string, string> = {
   credit_note:              'purple',
   credit_note_refund:       'purple',
   purchase_invoice:         'volcano',
-  purchase_invoice_payment: 'geekblue',
+  purchase_invoice_payment: '#1faec2',
 }
 
 function TipoTag({ sourceType, entryType }: { sourceType?: string | null; entryType?: string | null }) {
@@ -148,7 +148,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
       title: 'Fecha', dataIndex: 'date', width: 95,
       sorter: (a, b) => String(a.date).localeCompare(String(b.date)),
       render: (v: string) => (
-        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{String(v).substring(0, 10)}</Text>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{String(v).substring(0, 10)}</Text>
       ),
     },
     {
@@ -172,7 +172,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
           return (
             <span
               role="button"
-              style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff', cursor: 'pointer', textDecoration: 'none' }}
+              style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2', cursor: 'pointer', textDecoration: 'none' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}
               onClick={() => { onClose(); navigate(url) }}
@@ -181,7 +181,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
             </span>
           )
         }
-        return <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>{num}</Text>
+        return <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{num}</Text>
       },
     },
     ...(hasRef ? [{
@@ -191,7 +191,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
       sorter: (a: LibroMayorMovement, b: LibroMayorMovement) =>
         (a.reference || '').localeCompare(b.reference || ''),
       render: (v: string | null | undefined) => v
-        ? <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>{v}</Text>
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>{v}</Text>
         : null,
     }] : []),
     ...(hasContact ? [{
@@ -207,27 +207,27 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
     {
       title: 'Descripción', dataIndex: 'description', ellipsis: true,
       sorter: (a, b) => (a.description || '').localeCompare(b.description || ''),
-      render: (v: string) => <Text style={{ fontSize: 12, color: '#595959' }}>{v || '—'}</Text>,
+      render: (v: string) => <Text style={{ fontSize: 12, color: '#6b7280' }}>{v || '—'}</Text>,
     },
     {
       title: 'Débito', dataIndex: 'debit', width: 110, align: 'right' as const,
       sorter: (a, b) => a.debit - b.debit,
       render: (v: number) => v > 0
-        ? <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>{fmtQ(v)}</Text>
-        : <Text style={{ color: '#d9d9d9', fontSize: 12 }}>—</Text>,
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{fmtQ(v)}</Text>
+        : <Text style={{ color: '#9aa1ab', fontSize: 12 }}>—</Text>,
     },
     {
       title: 'Crédito', dataIndex: 'credit', width: 110, align: 'right' as const,
       sorter: (a, b) => a.credit - b.credit,
       render: (v: number) => v > 0
-        ? <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</Text>
-        : <Text style={{ color: '#d9d9d9', fontSize: 12 }}>—</Text>,
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>{fmtQ(v)}</Text>
+        : <Text style={{ color: '#9aa1ab', fontSize: 12 }}>—</Text>,
     },
     {
       title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
       sorter: (a, b) => a.balance - b.balance,
       render: (v: number) => (
-        <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: v >= 0 ? '#1B3A6B' : '#cf1322' }}>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v >= 0 ? '#1faec2' : '#e5484d' }}>
           {fmtQ(Math.abs(v))}
         </Text>
       ),
@@ -277,10 +277,10 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
           <>
             <Row gutter={10} style={{ marginBottom: 14 }}>
               {[
-                { label: 'Saldo Inicial',  value: data.openingBalance, color: '#595959' },
-                { label: 'Total Débitos',  value: data.totalDebit,     color: '#1677ff' },
-                { label: 'Total Créditos', value: data.totalCredit,    color: '#cf1322' },
-                { label: 'Saldo Final',    value: data.closingBalance, color: data.closingBalance >= 0 ? '#389e0d' : '#cf1322' },
+                { label: 'Saldo Inicial',  value: data.openingBalance, color: '#6b7280' },
+                { label: 'Total Débitos',  value: data.totalDebit,     color: '#1faec2' },
+                { label: 'Total Créditos', value: data.totalCredit,    color: '#e5484d' },
+                { label: 'Saldo Final',    value: data.closingBalance, color: data.closingBalance >= 0 ? '#2ea172' : '#e5484d' },
               ].map(k => (
                 <Col span={6} key={k.label}>
                   <Card size="small" styles={{ body: { padding: '8px 10px' } }}>
@@ -288,7 +288,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
                       title={<span style={{ fontSize: 10 }}>{k.label}</span>}
                       value={k.value}
                       precision={2}
-                      valueStyle={{ fontSize: 12, fontFamily: 'monospace', color: k.color }}
+                      valueStyle={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: k.color }}
                       formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                     />
                   </Card>
@@ -308,22 +308,22 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
                 columns={columns}
                 pagination={data.movements.length > 50 ? { pageSize: 50, showTotal: t => `${t} movimientos` } : false}
                 summary={() => (
-                  <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+                  <Table.Summary.Row style={{ background: '#fafbfc' }}>
                     <Table.Summary.Cell index={0} colSpan={columns.length - 3}>
                       <Text strong style={{ fontSize: 12 }}>Totales del período</Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={columns.length - 3} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>
                         {fmtQ(data.totalDebit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={columns.length - 2} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>
                         {fmtQ(data.totalCredit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={columns.length - 1} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: data.closingBalance >= 0 ? '#389e0d' : '#cf1322' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: data.closingBalance >= 0 ? '#2ea172' : '#e5484d' }}>
                         {fmtQ(Math.abs(data.closingBalance))}
                       </Text>
                     </Table.Summary.Cell>

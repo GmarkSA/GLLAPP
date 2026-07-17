@@ -470,8 +470,8 @@ export default function CategorizarDrawer({
       align: 'right',
       render: (v, row) => (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-          <Text strong style={{ color: '#cf1322' }}>{moneyFmt(Number(v), account?.currency)}</Text>
-          {isExactMatch(Number(row.balance)) && <Tag color="green" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>Coincide</Tag>}
+          <Text strong style={{ color: '#e5484d' }}>{moneyFmt(Number(v), account?.currency)}</Text>
+          {isExactMatch(Number(row.balance)) && <Tag color="#2ea172" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>Coincide</Tag>}
         </div>
       ),
     },
@@ -521,8 +521,8 @@ export default function CategorizarDrawer({
       align: 'right',
       render: (v, row) => (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-          <Text strong style={{ color: '#cf1322' }}>{moneyFmt(Number(v), account?.currency)}</Text>
-          {isExactMatch(Number(row.balance)) && <Tag color="green" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>Coincide</Tag>}
+          <Text strong style={{ color: '#e5484d' }}>{moneyFmt(Number(v), account?.currency)}</Text>
+          {isExactMatch(Number(row.balance)) && <Tag color="#2ea172" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>Coincide</Tag>}
         </div>
       ),
     },
@@ -546,8 +546,8 @@ export default function CategorizarDrawer({
 
   const journalCols = [
     { title: 'Cuenta', key: 'cuenta', ellipsis: true, render: (_: any, l: any) => <Text style={{ fontSize: 12 }}>{l.accountCode} — {l.accountName}</Text> },
-    { title: 'Debe', dataIndex: 'debe', width: 110, align: 'right' as const, render: (v: number) => v ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{moneyFmt(v)}</Text> : <Text type="secondary">—</Text> },
-    { title: 'Haber', dataIndex: 'haber', width: 110, align: 'right' as const, render: (v: number) => v ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{moneyFmt(v)}</Text> : <Text type="secondary">—</Text> },
+    { title: 'Debe', dataIndex: 'debe', width: 110, align: 'right' as const, render: (v: number) => v ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{moneyFmt(v)}</Text> : <Text type="secondary">—</Text> },
+    { title: 'Haber', dataIndex: 'haber', width: 110, align: 'right' as const, render: (v: number) => v ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{moneyFmt(v)}</Text> : <Text type="secondary">—</Text> },
   ]
 
   if (!transaction) return null
@@ -579,7 +579,7 @@ export default function CategorizarDrawer({
           <div style={{ textAlign: 'right' }}>
             <Text type="secondary" style={{ fontSize: 11 }}>MONTO{isForeign ? ` (${account?.currency})` : ''}</Text>
             <div>
-              <Text strong style={{ fontSize: 18, color: isCredit ? '#389e0d' : '#cf1322' }}>
+              <Text strong style={{ fontSize: 18, color: isCredit ? '#2ea172' : '#e5484d' }}>
                 {isCredit ? '+' : '–'} {moneyFmt(Number(transaction.amount), account?.currency)}
               </Text>
             </div>
@@ -738,8 +738,8 @@ export default function CategorizarDrawer({
 
           {/* ── Anticipo ─────────────────────────────────────────────── */}
           {isCredit ? showCustomerForm ? (
-            <div style={{ border: '1px solid #722ed1', borderRadius: 6, padding: 10, marginBottom: 8 }}>
-              <Text strong style={{ fontSize: 12, color: '#722ed1', display: 'block', marginBottom: 6 }}>
+            <div style={{ border: '1px solid #6b7280', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+              <Text strong style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }}>
                 Cliente para el anticipo (cta {accountDefaults.customerAdvanceAccountCode || '2110'})
               </Text>
               <Select
@@ -767,7 +767,7 @@ export default function CategorizarDrawer({
                   icon={<ClockCircleOutlined />}
                   loading={savingAdvance}
                   disabled={!selectedCustomerId}
-                  style={{ flex: 1, background: '#722ed1', borderColor: '#722ed1' }}
+                  style={{ flex: 1, background: '#6b7280', borderColor: '#6b7280' }}
                   onClick={applyAsCustomerAdvance}
                 >
                   Registrar anticipo
@@ -781,7 +781,7 @@ export default function CategorizarDrawer({
             <Button
               block
               icon={<ClockCircleOutlined />}
-              style={{ marginBottom: 8, borderColor: '#722ed1', color: '#722ed1' }}
+              style={{ marginBottom: 8, borderColor: '#6b7280', color: '#6b7280' }}
               onClick={() => { setShowCustomerForm(true); searchCustomers('') }}
             >
               Anticipo de cliente
@@ -790,8 +790,8 @@ export default function CategorizarDrawer({
               </Text>
             </Button>
           ) : showVendorForm ? (
-            <div style={{ border: '1px solid #722ed1', borderRadius: 6, padding: 10, marginBottom: 8 }}>
-              <Text strong style={{ fontSize: 12, color: '#722ed1', display: 'block', marginBottom: 6 }}>
+            <div style={{ border: '1px solid #6b7280', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+              <Text strong style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }}>
                 Proveedor para el anticipo (cta {accountDefaults.vendorAdvanceAccountCode || '1500'})
               </Text>
               <Select
@@ -819,7 +819,7 @@ export default function CategorizarDrawer({
                   icon={<ClockCircleOutlined />}
                   loading={savingAdvance}
                   disabled={!selectedVendorId}
-                  style={{ flex: 1, background: '#722ed1', borderColor: '#722ed1' }}
+                  style={{ flex: 1, background: '#6b7280', borderColor: '#6b7280' }}
                   onClick={applyAsVendorAdvance}
                 >
                   Registrar anticipo
@@ -833,7 +833,7 @@ export default function CategorizarDrawer({
             <Button
               block
               icon={<ClockCircleOutlined />}
-              style={{ marginBottom: 8, borderColor: '#722ed1', color: '#722ed1' }}
+              style={{ marginBottom: 8, borderColor: '#6b7280', color: '#6b7280' }}
               onClick={() => { setShowVendorForm(true); searchVendors('') }}
             >
               Anticipo a proveedor

@@ -89,7 +89,7 @@ function AccountSelectorModal({ open, accounts, selected, title, onClose, onChan
       width={640}
       footer={
         <Space>
-          <Button type="primary" style={{ background: '#1B3A6B' }} onClick={() => { onChange(checked); onClose() }}>
+          <Button type="primary" style={{ background: '#1faec2' }} onClick={() => { onChange(checked); onClose() }}>
             Actualizar
           </Button>
           <Button onClick={onClose}>Cancelar</Button>
@@ -97,8 +97,8 @@ function AccountSelectorModal({ open, accounts, selected, title, onClose, onChan
       }
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#cf1322', fontWeight: 500 }}>Seleccionar cuentas *</span>
-        <a onClick={selectAll} style={{ color: '#1B3A6B', fontSize: 12 }}>Seleccionar todo</a>
+        <span style={{ color: '#e5484d', fontWeight: 500 }}>Seleccionar cuentas *</span>
+        <a onClick={selectAll} style={{ color: '#1faec2', fontSize: 12 }}>Seleccionar todo</a>
       </div>
       <Input
         prefix={<SearchOutlined />}
@@ -107,7 +107,7 @@ function AccountSelectorModal({ open, accounts, selected, title, onClose, onChan
         onChange={e => setSearch(e.target.value)}
         style={{ marginBottom: 8 }}
       />
-      <div style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: 4, padding: 8 }}>
+      <div style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid rgba(10,10,10,0.08)', borderRadius: 4, padding: 8 }}>
         {nodes.length ? (
           <Tree
             checkable
@@ -117,7 +117,7 @@ function AccountSelectorModal({ open, accounts, selected, title, onClose, onChan
             onCheck={(keys: any) => setChecked(Array.isArray(keys) ? keys : keys.checked)}
           />
         ) : (
-          <div style={{ textAlign: 'center', padding: 24, color: '#8c8c8c' }}>Sin resultados</div>
+          <div style={{ textAlign: 'center', padding: 24, color: '#6b7280' }}>Sin resultados</div>
         )}
       </div>
     </Modal>
@@ -207,7 +207,7 @@ export default function PresupuestoFormPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 700, margin: '0 auto' }}>
-      <Title level={4} style={{ color: '#1B3A6B' }}>Nuevo presupuesto</Title>
+      <Title level={4} style={{ color: '#0a0a0a' }}>Nuevo presupuesto</Title>
 
       <Steps current={step} items={stepItems} style={{ marginBottom: 32 }} size="small" />
 
@@ -253,7 +253,7 @@ export default function PresupuestoFormPage() {
             <Divider />
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button type="primary" style={{ background: '#1B3A6B' }}
+              <Button type="primary" style={{ background: '#1faec2' }}
                 onClick={async () => {
                   try { await form.validateFields(['nombre', 'anioFiscal', 'periodo']); setStep(1) }
                   catch { }
@@ -271,7 +271,7 @@ export default function PresupuestoFormPage() {
               <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
             ) : (
               <>
-                <div style={{ color: '#8c8c8c', fontSize: 11, fontWeight: 600, marginBottom: 12, letterSpacing: 1 }}>
+                <div style={{ color: '#6b7280', fontSize: 11, fontWeight: 600, marginBottom: 12, letterSpacing: 1 }}>
                   CUENTAS DE INGRESOS Y GASTOS
                 </div>
 
@@ -287,7 +287,7 @@ export default function PresupuestoFormPage() {
                   </Space>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: '1px solid #f5f5f5' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: '1px solid #fafbfc' }}>
                   <span style={{ fontWeight: 500 }}>Cuentas de gastos</span>
                   <Space>
                     {selectedGastos.length > 0 && (
@@ -320,8 +320,8 @@ export default function PresupuestoFormPage() {
 
                 {totalSelected > 0 && (
                   <div style={{ marginTop: 12, padding: '8px 12px', background: '#f0f9ff', borderRadius: 6, border: '1px solid #bae6fd' }}>
-                    <CheckCircleOutlined style={{ color: '#0ea5e9', marginRight: 6 }} />
-                    <Text style={{ color: '#0369a1', fontSize: 13 }}>
+                    <CheckCircleOutlined style={{ color: '#1faec2', marginRight: 6 }} />
+                    <Text style={{ color: '#374151', fontSize: 13 }}>
                       {totalSelected} cuentas seleccionadas en total
                     </Text>
                   </div>
@@ -334,7 +334,7 @@ export default function PresupuestoFormPage() {
               <Button onClick={() => setStep(0)}>← Anterior</Button>
               <Space>
                 <Button onClick={() => navigate('/contabilidad/presupuesto')}>Cancelar</Button>
-                <Button type="primary" style={{ background: '#1B3A6B' }}
+                <Button type="primary" style={{ background: '#1faec2' }}
                   loading={saving} onClick={handleCreate}>
                   Crear presupuesto
                 </Button>

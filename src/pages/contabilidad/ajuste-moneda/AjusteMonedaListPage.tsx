@@ -138,7 +138,7 @@ export default function AjusteMonedaListPage() {
       render: (v: string, r: AjusteMonedaLinea) => (
         <div>
           <div style={{ fontWeight: 600 }}>{v}</div>
-          <div style={{ fontSize: 11, color: '#8c8c8c' }}>{r.accountCode}</div>
+          <div style={{ fontSize: 11, color: '#6b7280' }}>{r.accountCode}</div>
         </div>
       ) },
     { title: 'Proveedor / Factura', key: 'aux', width: 190,
@@ -146,31 +146,31 @@ export default function AjusteMonedaListPage() {
         r.vendorName || r.invoiceNumber ? (
           <div>
             {r.vendorName && <div style={{ fontSize: 12, fontWeight: 500 }}>{r.vendorName}</div>}
-            {r.invoiceNumber && <div style={{ fontSize: 11, color: '#1B3A6B', fontFamily: 'monospace' }}>{r.invoiceNumber}</div>}
+            {r.invoiceNumber && <div style={{ fontSize: 11, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{r.invoiceNumber}</div>}
           </div>
-        ) : <span style={{ color: '#bfbfbf', fontSize: 11 }}>—</span>
+        ) : <span style={{ color: '#9aa1ab', fontSize: 11 }}>—</span>
       ) },
     { title: 'Monto USD', dataIndex: 'saldoUSD', key: 'usd', align: 'right' as const,
       render: (v: number) => (
-        <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{fmtUSD(v)}</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtUSD(v)}</span>
       ) },
     { title: 'TC Histórico', dataIndex: 'tcHistorico', key: 'tch', align: 'right' as const,
       render: (v: number) => (
-        <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#595959' }}>{fmtTC(v)}</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#6b7280' }}>{fmtTC(v)}</span>
       ) },
     { title: 'Valor Libro GTQ', dataIndex: 'saldoGTQ', key: 'gtq', align: 'right' as const,
-      render: (v: number) => <span style={{ fontFamily: 'monospace' }}>{fmtQ(v)}</span> },
+      render: (v: number) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> },
     { title: 'TC Cierre', key: 'tccierre', align: 'right' as const,
       render: () => (
-        <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>
           {fmtTC(form.getFieldValue('tipoCambio') ?? 0)}
         </span>
       ) },
     { title: 'Valor Revaluado GTQ', dataIndex: 'saldoRevaluado', key: 'rev', align: 'right' as const,
-      render: (v: number) => <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{fmtQ(v)}</span> },
+      render: (v: number) => <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtQ(v)}</span> },
     { title: 'Gan. / Pérd. GTQ', dataIndex: 'gananciasPerdidas', key: 'gp', align: 'right' as const,
       render: (v: number) => (
-        <span style={{ color: v >= 0 ? '#389e0d' : '#cf1322', fontWeight: 700, fontFamily: 'monospace' }}>
+        <span style={{ color: v >= 0 ? '#2ea172' : '#e5484d', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
           {v >= 0 ? '+' : ''}{fmtQ(v)}
         </span>
       ) },
@@ -180,17 +180,17 @@ export default function AjusteMonedaListPage() {
     { title: 'Fecha de Ajuste', dataIndex: 'fechaAjuste', key: 'fecha',
       render: (v: string) => dayjs(v).format('DD MMMM YYYY') },
     { title: 'Moneda', dataIndex: 'moneda', key: 'moneda',
-      render: (v: string) => <Tag color="blue">{v}</Tag> },
+      render: (v: string) => <Tag color="#1faec2">{v}</Tag> },
     { title: 'Tipo de Cambio', dataIndex: 'tipoCambio', key: 'tc',
       render: (v: number) => `1 ${/*will be filled*/''} = ${Number(v).toFixed(6)} GTQ` },
     { title: 'Ganancias / Pérdidas', dataIndex: 'gananciasPerdidas', key: 'gp', align: 'right' as const,
       render: (v: number) => (
-        <span style={{ color: Number(v) >= 0 ? '#389e0d' : '#cf1322', fontWeight: 600 }}>
+        <span style={{ color: Number(v) >= 0 ? '#2ea172' : '#e5484d', fontWeight: 600 }}>
           {Number(v) >= 0 ? '+' : ''}GTQ{Math.abs(Number(v)).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
         </span>
       ) },
     { title: 'Estado', dataIndex: 'status', key: 'status',
-      render: (v: string) => <Tag color="green">Publicado</Tag> },
+      render: (v: string) => <Tag color="#2ea172">Publicado</Tag> },
     {
       title: '',
       key: 'actions',
@@ -216,7 +216,7 @@ export default function AjusteMonedaListPage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <DollarOutlined style={{ marginRight: 8 }} />
             Ajustes de la Moneda Base
           </Title>
@@ -224,7 +224,7 @@ export default function AjusteMonedaListPage() {
             Revaluación de cuentas en moneda extranjera al tipo de cambio de cierre
           </Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
           onClick={() => { setOpen(true); setStep('form'); setPreview([]) }}>
           + Nuevo
         </Button>
@@ -291,7 +291,7 @@ export default function AjusteMonedaListPage() {
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
               <Button onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="primary" style={{ background: '#1B3A6B' }}
+              <Button type="primary" style={{ background: '#1faec2' }}
                 loading={saving} onClick={handleContinuar}>
                 Continuar →
               </Button>
@@ -300,27 +300,27 @@ export default function AjusteMonedaListPage() {
         ) : (
           <div>
             {/* Resumen header */}
-            <div style={{ padding: '10px 16px', background: '#f0f5ff', borderRadius: 6, marginBottom: 16,
+            <div style={{ padding: '10px 16px', background: '#fafbfc', borderRadius: 6, marginBottom: 16,
               display: 'flex', gap: 40, alignItems: 'center', flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Moneda</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Moneda</div>
                 <div style={{ fontWeight: 700 }}>{form.getFieldValue('moneda')}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Fecha de ajuste</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Fecha de ajuste</div>
                 <div style={{ fontWeight: 700 }}>{form.getFieldValue('fechaAjuste')?.format('DD/MM/YYYY')}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>TC cierre</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>TC cierre</div>
                 <div style={{ fontWeight: 700 }}>{Number(form.getFieldValue('tipoCambio')).toFixed(6)} GTQ</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Cuentas afectadas</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Cuentas afectadas</div>
                 <div style={{ fontWeight: 700 }}>{preview.length}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Gan./Pérd. neta</div>
-                <div style={{ fontWeight: 700, color: netTotal >= 0 ? '#389e0d' : '#cf1322' }}>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Gan./Pérd. neta</div>
+                <div style={{ fontWeight: 700, color: netTotal >= 0 ? '#2ea172' : '#e5484d' }}>
                   {netTotal >= 0 ? '+' : ''}{fmtQ(netTotal)}
                 </div>
               </div>
@@ -341,18 +341,18 @@ export default function AjusteMonedaListPage() {
                       pagination={false}
                       scroll={{ x: 950 }}
                       summary={() => (
-                        <Table.Summary.Row style={{ background: '#f5f5f5' }}>
+                        <Table.Summary.Row style={{ background: '#fafbfc' }}>
                           <Table.Summary.Cell index={0} colSpan={5}>
                             <strong>TOTAL</strong>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={1} align="right" />
                           <Table.Summary.Cell index={2} align="right">
-                            <strong style={{ fontFamily: 'monospace' }}>
+                            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
                               {fmtQ(preview.reduce((s, l) => s + l.saldoRevaluado, 0))}
                             </strong>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={3} align="right">
-                            <strong style={{ color: netTotal >= 0 ? '#389e0d' : '#cf1322', fontFamily: 'monospace' }}>
+                            <strong style={{ color: netTotal >= 0 ? '#2ea172' : '#e5484d', fontVariantNumeric: 'tabular-nums' }}>
                               {netTotal >= 0 ? '+' : ''}{fmtQ(netTotal)}
                             </strong>
                           </Table.Summary.Cell>
@@ -414,18 +414,18 @@ export default function AjusteMonedaListPage() {
                     const polizaColumns = [
                       { title: 'Descripción', dataIndex: 'descripcion', key: 'desc',
                         render: (v: string, r: any) => (
-                          <span style={{ fontWeight: r.tipo === 'fx' ? 700 : 400, color: r.tipo === 'fx' ? '#1B3A6B' : undefined }}>
+                          <span style={{ fontWeight: r.tipo === 'fx' ? 700 : 400, color: r.tipo === 'fx' ? '#1faec2' : undefined }}>
                             {v}
                           </span>
                         ) },
                       { title: 'Débito', dataIndex: 'debito', key: 'deb', width: 160, align: 'right' as const,
                         render: (v: number) => v > 0
-                          ? <span style={{ fontFamily: 'monospace' }}>{fmtQ(v)}</span>
-                          : <span style={{ color: '#d9d9d9' }}>—</span> },
+                          ? <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span>
+                          : <span style={{ color: '#9aa1ab' }}>—</span> },
                       { title: 'Crédito', dataIndex: 'credito', key: 'cred', width: 160, align: 'right' as const,
                         render: (v: number) => v > 0
-                          ? <span style={{ fontFamily: 'monospace' }}>{fmtQ(v)}</span>
-                          : <span style={{ color: '#d9d9d9' }}>—</span> },
+                          ? <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span>
+                          : <span style={{ color: '#9aa1ab' }}>—</span> },
                     ]
 
                     const totalDeb = Math.round((totalGain + totalLoss) * 100) / 100
@@ -440,13 +440,13 @@ export default function AjusteMonedaListPage() {
                         pagination={false}
                         rowClassName={(r: any) => r.tipo === 'fx' ? '' : ''}
                         summary={() => (
-                          <Table.Summary.Row style={{ background: '#f5f5f5', fontWeight: 700 }}>
+                          <Table.Summary.Row style={{ background: '#fafbfc', fontWeight: 700 }}>
                             <Table.Summary.Cell index={0}><strong>TOTAL</strong></Table.Summary.Cell>
                             <Table.Summary.Cell index={1} align="right">
-                              <strong style={{ fontFamily: 'monospace' }}>{fmtQ(totalDeb)}</strong>
+                              <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totalDeb)}</strong>
                             </Table.Summary.Cell>
                             <Table.Summary.Cell index={2} align="right">
-                              <strong style={{ fontFamily: 'monospace' }}>{fmtQ(totalCred)}</strong>
+                              <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totalCred)}</strong>
                             </Table.Summary.Cell>
                           </Table.Summary.Row>
                         )}
@@ -459,7 +459,7 @@ export default function AjusteMonedaListPage() {
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
               <Button onClick={() => setStep('form')}>← Regresar</Button>
-              <Button type="primary" style={{ background: '#1B3A6B' }}
+              <Button type="primary" style={{ background: '#1faec2' }}
                 loading={saving} onClick={handleGuardar}>
                 Guardar y Publicar
               </Button>

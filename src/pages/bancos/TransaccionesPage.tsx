@@ -294,7 +294,7 @@ function ImportModal({ open, account, onClose, onSaved }: {
           columns={[
             { title: 'Fecha', dataIndex: 'transactionDate', width: 100 },
             { title: 'Descripcion', dataIndex: 'description', ellipsis: true },
-            { title: 'Tipo', dataIndex: 'type', width: 90, render: v => <Tag color={v === 'credit' ? 'green' : 'red'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
+            { title: 'Tipo', dataIndex: 'type', width: 90, render: v => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
             { title: 'Monto', dataIndex: 'amount', width: 120, align: 'right', render: v => moneyFmt(Number(v), account?.currency) },
           ]}
         />
@@ -366,7 +366,7 @@ function PolizaModal({ jeId, isForeign, onClose }: {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
             <div><Text type="secondary" style={{ fontSize: 11 }}>FECHA</Text><div><Text strong>{String(je.entryDate).split('T')[0].split('-').reverse().join('/')}</Text></div></div>
-            <div><Text type="secondary" style={{ fontSize: 11 }}>ESTADO</Text><div><Tag color={je.status === 'posted' ? 'green' : 'orange'}>{je.status}</Tag></div></div>
+            <div><Text type="secondary" style={{ fontSize: 11 }}>ESTADO</Text><div><Tag color={je.status === 'posted' ? '#2ea172' : '#ff7f00'}>{je.status}</Tag></div></div>
             {isForeign && <div><Text type="secondary" style={{ fontSize: 11 }}>TIPO DE CAMBIO</Text><div><Text strong>{je.exchangeRate}</Text></div></div>}
           </div>
 
@@ -398,8 +398,8 @@ function PolizaModal({ jeId, isForeign, onClose }: {
             pagination={false}
             columns={[
               { title: 'Cuenta', ellipsis: true, render: (_: any, l: any) => <Text style={{ fontSize: 12 }}>{l.accountCode} — {l.accountName}</Text> },
-              { title: 'Debe',  dataIndex: 'debit',  width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: v > 0 ? '#1B3A6B' : '#ccc' }}>{fmtQ(v)}</Text> },
-              { title: 'Haber', dataIndex: 'credit', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: v > 0 ? '#389e0d' : '#ccc' }}>{fmtQ(v)}</Text> },
+              { title: 'Debe',  dataIndex: 'debit',  width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#1faec2' : '#ccc' }}>{fmtQ(v)}</Text> },
+              { title: 'Haber', dataIndex: 'credit', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#2ea172' : '#ccc' }}>{fmtQ(v)}</Text> },
             ]}
             style={{ marginBottom: 12 }}
           />
@@ -414,7 +414,7 @@ function PolizaModal({ jeId, isForeign, onClose }: {
                   type="primary"
                   icon={<CheckCircleOutlined />}
                   loading={saving}
-                  style={{ background: '#389e0d', borderColor: '#389e0d' }}
+                  style={{ background: '#2ea172', borderColor: '#2ea172' }}
                   onClick={handlePublish}
                 >
                   Publicar póliza
@@ -537,7 +537,7 @@ export default function TransaccionesPage() {
       width: 150,
       align: 'right',
       render: (_, row) => row.type === 'credit'
-        ? <Text strong style={{ fontFamily: 'monospace', color: '#389e0d' }}>+ {moneyFmt(Number(row.amount), account?.currency)}</Text>
+        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>+ {moneyFmt(Number(row.amount), account?.currency)}</Text>
         : <Text type="secondary">—</Text>,
     },
     {
@@ -546,15 +546,15 @@ export default function TransaccionesPage() {
       width: 150,
       align: 'right',
       render: (_, row) => row.type === 'debit'
-        ? <Text strong style={{ fontFamily: 'monospace', color: '#cf1322' }}>- {moneyFmt(Number(row.amount), account?.currency)}</Text>
+        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>- {moneyFmt(Number(row.amount), account?.currency)}</Text>
         : <Text type="secondary">—</Text>,
     },
-    { title: 'Saldo', dataIndex: 'runningBalance', width: 130, align: 'right', render: v => v == null ? <Text type="secondary">—</Text> : <Text style={{ fontFamily: 'monospace' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
+    { title: 'Saldo', dataIndex: 'runningBalance', width: 130, align: 'right', render: v => v == null ? <Text type="secondary">—</Text> : <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
     { title: 'Estado', dataIndex: 'status', width: 120, render: v => {
       const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
       return <Tag color={cfg.color}>{cfg.label}</Tag>
     } },
-    { title: 'Cuenta contable', key: 'account', width: 180, render: (_, row) => row.accountName || row.accountCode ? <Tooltip title={row.accountName}><Tag color="purple">{row.accountCode || row.accountName}</Tag></Tooltip> : <Tag color="orange">Sin categorizar</Tag> },
+    { title: 'Cuenta contable', key: 'account', width: 180, render: (_, row) => row.accountName || row.accountCode ? <Tooltip title={row.accountName}><Tag color="#6b7280">{row.accountCode || row.accountName}</Tag></Tooltip> : <Tag color="#ff7f00">Sin categorizar</Tag> },
     {
       title: '',
       key: 'actions',
@@ -567,7 +567,7 @@ export default function TransaccionesPage() {
             <Tooltip title={row.matchedJournalEntryId ? 'Ver póliza contable' : 'Sin póliza registrada'}>
               <Button
                 size="small" type="text"
-                icon={<FileTextOutlined style={{ color: row.matchedJournalEntryId ? NAVY : '#d9d9d9' }} />}
+                icon={<FileTextOutlined style={{ color: row.matchedJournalEntryId ? NAVY : 'rgba(10,10,10,0.08)' }} />}
                 disabled={!row.matchedJournalEntryId}
                 onClick={() => row.matchedJournalEntryId && setPolizaJeId(row.matchedJournalEntryId)}
               />
@@ -577,7 +577,7 @@ export default function TransaccionesPage() {
             <>
               <Tooltip title="Marcar conciliada">
                 <Button
-                  size="small" type="text" icon={<CheckCircleOutlined style={{ color: '#389e0d' }} />}
+                  size="small" type="text" icon={<CheckCircleOutlined style={{ color: '#2ea172' }} />}
                   onClick={() => Modal.confirm({
                     title: 'Marcar como conciliada',
                     content: 'Esta accion deja preparada la transaccion para conciliacion formal.',
@@ -589,7 +589,7 @@ export default function TransaccionesPage() {
               </Tooltip>
               <Tooltip title="Marcar pendiente">
                 <Button
-                  size="small" type="text" icon={<RollbackOutlined style={{ color: '#d46b08' }} />}
+                  size="small" type="text" icon={<RollbackOutlined style={{ color: '#ff7f00' }} />}
                   onClick={() => Modal.confirm({
                     title: 'Marcar como pendiente',
                     content: row.matchedJournalEntryId
@@ -657,7 +657,7 @@ export default function TransaccionesPage() {
             {accountTypeIcon(account.type, cfg.color)}
           </div>
           <div>
-            <Title level={4} style={{ margin: 0, color: NAVY }}>{account.name}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{account.name}</Title>
             <Text type="secondary">{account.bankName} - {account.currency}</Text>
           </div>
         </div>
@@ -671,9 +671,9 @@ export default function TransaccionesPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
         <Card size="small" style={panelStyle}><Statistic title="Saldo sistema" value={account.currentBalance} formatter={v => moneyFmt(Number(v), account.currency)} valueStyle={{ color: NAVY, fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Ingresos filtrados" value={summary.incoming} formatter={v => moneyFmt(Number(v), account.currency)} valueStyle={{ color: '#389e0d', fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Egresos filtrados" value={summary.outgoing} formatter={v => moneyFmt(Number(v), account.currency)} valueStyle={{ color: '#cf1322', fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Pendientes" value={summary.pending} valueStyle={{ color: summary.pending ? '#d46b08' : '#389e0d', fontSize: 18 }} /></Card>
+        <Card size="small" style={panelStyle}><Statistic title="Ingresos filtrados" value={summary.incoming} formatter={v => moneyFmt(Number(v), account.currency)} valueStyle={{ color: '#2ea172', fontSize: 18 }} /></Card>
+        <Card size="small" style={panelStyle}><Statistic title="Egresos filtrados" value={summary.outgoing} formatter={v => moneyFmt(Number(v), account.currency)} valueStyle={{ color: '#e5484d', fontSize: 18 }} /></Card>
+        <Card size="small" style={panelStyle}><Statistic title="Pendientes" value={summary.pending} valueStyle={{ color: summary.pending ? '#ff7f00' : '#2ea172', fontSize: 18 }} /></Card>
       </div>
 
       <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>

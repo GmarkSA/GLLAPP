@@ -15,9 +15,9 @@ export function PageHeader({ icon, title, subtitle, actions }: PageHeaderProps) 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 24, color: colors.primary }}>{icon}</span>
+        <span style={{ fontSize: 24, color: colors.action }}>{icon}</span>
         <div>
-          <Title level={4} style={{ margin: 0, color: colors.primary }}>{title}</Title>
+          <Title level={4} style={{ margin: 0, color: colors.ink }}>{title}</Title>
           {subtitle && <Text type="secondary">{subtitle}</Text>}
         </div>
       </div>

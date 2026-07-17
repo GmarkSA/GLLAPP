@@ -98,7 +98,7 @@ export default function AccountSelect({
           <Space size={6}>
             <Tag
               color={BALANCE_COLOR[a.balanceType ?? ''] ?? 'default'}
-              style={{ fontFamily: 'monospace', fontSize: 11, minWidth: 52, textAlign: 'center' }}
+              style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, minWidth: 52, textAlign: 'center' }}
             >
               {a.code}
             </Tag>
@@ -111,8 +111,8 @@ export default function AccountSelect({
         if (!acct) return <span>{opt.label}</span>
         return (
           <Space size={6}>
-            <BookOutlined style={{ color: '#1677ff', fontSize: 12 }} />
-            <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>{acct.code}</span>
+            <BookOutlined style={{ color: '#1faec2', fontSize: 12 }} />
+            <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{acct.code}</span>
             <span style={{ fontSize: 13 }}>{acct.name}</span>
           </Space>
         )

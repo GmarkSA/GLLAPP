@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DeleteOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import { ControlOutlined, DeleteOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import AccountSelect from '../../components/AccountSelect'
 import { useCompanyStore } from '../../store/companyStore'
 import {
@@ -209,7 +209,7 @@ export default function ReglasBancariasPage() {
     ) },
     { title: 'Cuenta contable', dataIndex: ['action', 'accountCode'], width: 160, render: (_, row) => row.action?.accountCode || row.action?.accountName || <Text type="secondary">Sin asignar</Text> },
     { title: 'Aplicada', dataIndex: 'timesApplied', width: 100, align: 'right' },
-    { title: 'Estado', dataIndex: 'isActive', width: 100, render: v => <Tag color={v ? 'green' : 'default'}>{v ? 'Activa' : 'Inactiva'}</Tag> },
+    { title: 'Estado', dataIndex: 'isActive', width: 100, render: v => <Tag color={v ? '#2ea172' : 'default'}>{v ? 'Activa' : 'Inactiva'}</Tag> },
     { title: '', key: 'actions', fixed: 'right', width: 120, render: (_, row) => (
       <Space>
         <Button size="small" icon={<PlayCircleOutlined />} onClick={() => handleApply(row.id)} />
@@ -223,9 +223,12 @@ export default function ReglasBancariasPage() {
   return (
     <div>
       <div style={pageHeaderStyle}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: NAVY }}>Reglas bancarias</Title>
-          <Text type="secondary">Automatiza la categorizacion de movimientos importados por descripcion, referencia, monto, tipo o moneda.</Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <ControlOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Reglas bancarias</Title>
+            <Text type="secondary">Automatiza la categorizacion de movimientos importados por descripcion, referencia, monto, tipo o moneda.</Text>
+          </div>
         </div>
         <Space wrap>
           <Select

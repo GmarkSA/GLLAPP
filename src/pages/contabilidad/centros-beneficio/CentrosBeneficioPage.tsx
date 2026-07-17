@@ -92,7 +92,7 @@ export default function CentrosBeneficioPage() {
               size="small"
               icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
               danger={r.activo}
-              style={!r.activo ? { color: '#52c41a', borderColor: '#52c41a' } : undefined}
+              style={!r.activo ? { color: '#2ea172', borderColor: '#2ea172' } : undefined}
             >
               {r.activo ? 'Bloquear' : 'Desbloquear'}
             </Button>
@@ -105,9 +105,9 @@ export default function CentrosBeneficioPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Centros de Beneficio / Líneas de Negocio</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Centros de Beneficio / Líneas de Negocio</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openNew}
-          style={{ background: '#1B3A6B' }}>Nueva</Button>
+          style={{ background: '#1faec2' }}>Nueva</Button>
       </div>
 
       <Table
@@ -120,7 +120,7 @@ export default function CentrosBeneficioPage() {
         title={editing ? 'Editar Centro de Beneficio' : 'Nuevo Centro de Beneficio'}
         open={modal} onCancel={() => setModal(false)}
         onOk={handleSave} okText="Guardar" confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={form} layout="vertical" size="small" style={{ marginTop: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>

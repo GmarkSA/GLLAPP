@@ -120,7 +120,7 @@ export default function PaymentTermsSelect({
   const dropdownRender = (menu: React.ReactNode) => (
     <div>
       {menu}
-      <div style={{ borderTop: '1px solid #f0f0f0', padding: '8px 10px' }}>
+      <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', padding: '8px 10px' }}>
         {!addMode ? (
           <Button
             type="dashed"
@@ -187,11 +187,11 @@ export default function PaymentTermsSelect({
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Space size={6}>
               {item?.days !== null && item?.days !== undefined ? (
-                <Tag color="blue" style={{ fontSize: 10, fontFamily: 'monospace', minWidth: 28, textAlign: 'center' }}>
+                <Tag color="#1faec2" style={{ fontSize: 10, fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'center' }}>
                   {item.days === 0 ? '0d' : `${item.days}d`}
                 </Tag>
               ) : (
-                <Tag color="purple" style={{ fontSize: 10 }}>custom</Tag>
+                <Tag color="#6b7280" style={{ fontSize: 10 }}>custom</Tag>
               )}
               <Text style={{ fontSize: 13 }}>{opt.label?.toString()}</Text>
             </Space>
@@ -212,7 +212,7 @@ export default function PaymentTermsSelect({
         if (!item && opt.value) return <span style={{ fontSize: 13 }}>{String(opt.value)}</span>
         return (
           <Space size={6}>
-            <ClockCircleOutlined style={{ color: '#1677ff', fontSize: 12 }} />
+            <ClockCircleOutlined style={{ color: '#1faec2', fontSize: 12 }} />
             <span style={{ fontSize: 13 }}>{item?.label || String(opt.value || '')}</span>
             {item?.days != null && (
               <Text type="secondary" style={{ fontSize: 11 }}>({item.days} días)</Text>

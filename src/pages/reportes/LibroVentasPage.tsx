@@ -4,7 +4,7 @@ import {
   Card, Button, Table, Typography, Breadcrumb, Select, Space,
   Tag, InputNumber, message,
 } from 'antd'
-import { HomeOutlined, SearchOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons'
+import { HomeOutlined, SearchOutlined, PrinterOutlined, FileExcelOutlined, LineChartOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 import {
@@ -48,8 +48,8 @@ const FIELD_MAP: Record<string, string> = {
 }
 
 const CATEGORIA_COLOR: Record<string, string> = {
-  bienes:      '#1B3A6B',
-  servicios:   '#2563eb',
+  bienes:      '#1faec2',
+  servicios:   '#1faec2',
   exportacion: '#059669',
   exento:      '#6b7280',
 }
@@ -88,15 +88,15 @@ const FIXED_HEADER_COLS = [
     render: (v: string, r: any) => {
       const isDiff = v && r.fecha && new Date(v).toDateString() !== new Date(r.fecha).toDateString()
       return (
-        <span style={{ fontSize: 11, color: isDiff ? '#d97706' : undefined, fontWeight: isDiff ? 600 : undefined }}>
+        <span style={{ fontSize: 11, color: isDiff ? '#ff7f00' : undefined, fontWeight: isDiff ? 600 : undefined }}>
           {fmtD(v)}
         </span>
       )
     },
   },
   { title: 'Serie',            dataIndex: 'felSerie',   width: 55,  sorter: (a: any, b: any) => (a.felSerie || '').localeCompare(b.felSerie || ''), render: (v: string) => <span style={{ fontSize: 11 }}>{v || '—'}</span> },
-  { title: 'No. Documento',    dataIndex: 'felNumero',  width: 100, sorter: (a: any, b: any) => (a.felNumero || '').localeCompare(b.felNumero || ''), render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || '—'}</span> },
-  { title: 'NIT Cliente',      dataIndex: 'nitCliente',    width: 100, sorter: (a: any, b: any) => (a.nitCliente || '').localeCompare(b.nitCliente || ''), render: (v: string) => <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{v || 'CF'}</span> },
+  { title: 'No. Documento',    dataIndex: 'felNumero',  width: 100, sorter: (a: any, b: any) => (a.felNumero || '').localeCompare(b.felNumero || ''), render: (v: string) => <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> },
+  { title: 'NIT Cliente',      dataIndex: 'nitCliente',    width: 100, sorter: (a: any, b: any) => (a.nitCliente || '').localeCompare(b.nitCliente || ''), render: (v: string) => <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{v || 'CF'}</span> },
   { title: 'Nombre del Cliente', dataIndex: 'nombreCliente', ellipsis: true, width: 180, sorter: (a: any, b: any) => (a.nombreCliente || '').localeCompare(b.nombreCliente || ''), render: (v: string) => <span style={{ fontSize: 11 }}>{v}</span> },
 ]
 
@@ -142,11 +142,11 @@ function TotalsRow({ data, colsConfig }: { data: LibroVentasReport; colsConfig: 
   return (
     <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
       <Table.Summary.Cell index={0} colSpan={8}>
-        <Text strong style={{ fontSize: 11, color: '#1B3A6B' }}>TOTALES — {data.count} documentos</Text>
+        <Text strong style={{ fontSize: 11, color: '#1faec2' }}>TOTALES — {data.count} documentos</Text>
       </Table.Summary.Cell>
       {vals.map((v, i) => (
         <Table.Summary.Cell key={i} index={8 + i} align="right">
-          <Text strong style={{ fontSize: 11, color: v > 0 ? '#1B3A6B' : '#d1d5db' }}>
+          <Text strong style={{ fontSize: 11, color: v > 0 ? '#1faec2' : '#d1d5db' }}>
             {v > 0 ? fmt(v) : '—'}
           </Text>
         </Table.Summary.Cell>
@@ -166,7 +166,7 @@ function ResumenIVA({
 
   return (
     <Card
-      title={<span style={{ color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>Resumen por Categoría — Insumo Formulario IVA (SAT)</span>}
+      title={<span style={{ color: '#374151', fontWeight: 700, fontSize: 13 }}>Resumen por Categoría — Insumo Formulario IVA (SAT)</span>}
       style={{ marginTop: 16 }}
       styles={{ body: { padding: '12px 16px' } }}
     >
@@ -186,37 +186,37 @@ function ResumenIVA({
               const found = resumen.find(r => r.categoria === col.key)
               const { cantidad = 0, base = 0, iva = 0, total = 0 } = found ?? {}
               return (
-                <tr key={col.key} style={{ borderBottom: '1px solid #f0f0f0', opacity: cantidad === 0 ? 0.35 : 1 }}>
+                <tr key={col.key} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)', opacity: cantidad === 0 ? 0.35 : 1 }}>
                   <td style={{ padding: '7px 12px' }}>
                     <span style={{
                       display: 'inline-block', width: 10, height: 10, borderRadius: 2,
-                      background: CATEGORIA_COLOR[col.key] ?? '#9ca3af', marginRight: 8,
+                      background: CATEGORIA_COLOR[col.key] ?? '#9aa1ab', marginRight: 8,
                     }} />
                     <span style={{ fontWeight: cantidad > 0 ? 600 : 400, color: CATEGORIA_COLOR[col.key] ?? '#6b7280' }}>
                       {col.label}
                     </span>
                   </td>
                   <td style={{ textAlign: 'center', padding: '7px 12px', color: '#6b7280' }}>{cantidad > 0 ? cantidad : '—'}</td>
-                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace' }}>{base  > 0 ? fmtQ(base)  : '—'}</td>
-                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace', color: '#2563eb' }}>{iva > 0 ? fmtQ(iva) : '—'}</td>
-                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{total > 0 ? fmtQ(total) : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontVariantNumeric: 'tabular-nums' }}>{base  > 0 ? fmtQ(base)  : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{iva > 0 ? fmtQ(iva) : '—'}</td>
+                  <td style={{ textAlign: 'right',  padding: '7px 12px', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{total > 0 ? fmtQ(total) : '—'}</td>
                 </tr>
               )
             })}
           </tbody>
           <tfoot>
-            <tr style={{ background: '#1B3A6B', color: '#fff' }}>
+            <tr style={{ background: '#1faec2', color: '#fff' }}>
               <td style={{ padding: '8px 12px', fontWeight: 700 }}>TOTAL PERÍODO</td>
               <td style={{ textAlign: 'center', padding: '8px 12px', fontWeight: 700 }}>
                 {resumen.reduce((s, r) => s + (r.cantidad ?? 0), 0)}
               </td>
-              <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
+              <td style={{ textAlign: 'right', padding: '8px 12px', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                 {fmtQ(resumen.reduce((s, r) => s + (r.base ?? 0), 0))}
               </td>
-              <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
+              <td style={{ textAlign: 'right', padding: '8px 12px', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                 {fmtQ(totals.iva)}
               </td>
-              <td style={{ textAlign: 'right', padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>
+              <td style={{ textAlign: 'right', padding: '8px 12px', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                 {fmtQ(totals.total)}
               </td>
             </tr>
@@ -364,7 +364,7 @@ export default function LibroVentasPage() {
   }))
 
   return (
-    <div>
+    <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
@@ -375,9 +375,12 @@ export default function LibroVentasPage() {
       />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
-          Libro de Ventas y Servicios — SAT Guatemala
-        </Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <LineChartOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
+            Libro de Ventas y Servicios — SAT Guatemala
+          </Title>
+        </div>
         <Space>
           <Space size={4}>
             <Text style={{ fontSize: 12, color: '#6b7280' }}>Folio inicial:</Text>
@@ -400,7 +403,7 @@ export default function LibroVentasPage() {
           <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={load}>Generar</Button>
           {data && (
             <>
-              <Button icon={<FileExcelOutlined />} loading={downloading} onClick={handleExcel} style={{ color: '#16a34a', borderColor: '#16a34a' }}>Excel</Button>
+              <Button icon={<FileExcelOutlined />} loading={downloading} onClick={handleExcel} style={{ color: '#2ea172', borderColor: '#2ea172' }}>Excel</Button>
               <Button icon={<PrinterOutlined />} onClick={handlePrint}>Imprimir / PDF</Button>
             </>
           )}
@@ -413,11 +416,11 @@ export default function LibroVentasPage() {
 
           <div style={{ marginBottom: 8, fontSize: 11, color: '#6b7280' }}>
             {pages} hoja{pages !== 1 ? 's' : ''} carta estimada{pages !== 1 ? 's' : ''}
-            &nbsp;·&nbsp; Folios asignados: <strong style={{ color: '#1B3A6B' }}>{folioInicio} al {folioFin}</strong>
+            &nbsp;·&nbsp; Folios asignados: <strong style={{ color: '#1faec2' }}>{folioInicio} al {folioFin}</strong>
             &nbsp;·&nbsp; Próximo reporte iniciará en folio <strong>{folioFin + 1}</strong>
           </div>
 
-          <div style={{ background: '#1B3A6B', color: '#fff', fontSize: 10, fontWeight: 600, padding: '4px 8px', borderRadius: '6px 6px 0 0' }}>
+          <div style={{ background: '#1faec2', color: '#fff', fontSize: 10, fontWeight: 600, padding: '4px 8px', borderRadius: '6px 6px 0 0' }}>
             VALOR BASE (sin IVA) — por categoría SAT
           </div>
 
@@ -440,7 +443,7 @@ export default function LibroVentasPage() {
 
       {!data && !loading && (
         <Card>
-          <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: '#9aa1ab' }}>
             Seleccione un período y presione <strong>Generar</strong> para ver el Libro de Ventas.
           </div>
         </Card>

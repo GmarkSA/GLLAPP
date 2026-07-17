@@ -280,7 +280,7 @@ export default function OrdenCompraFormPage() {
   )
 
   return (
-    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ padding: '24px', background: '#fafbfc', minHeight: '100vh' }}>
       <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
@@ -294,7 +294,7 @@ export default function OrdenCompraFormPage() {
 
         {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>{id ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}</span>}>
+          <Card title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}</span>}>
             <Form form={form} layout="vertical" size="small">
               {/* Fila 1: Proveedor (span 2 cols) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
@@ -402,7 +402,7 @@ export default function OrdenCompraFormPage() {
                 <Button
                   block icon={<SaveOutlined />} loading={saving}
                   onClick={() => handleSave(true)}
-                  style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                  style={{ borderColor: '#1faec2', color: '#1faec2' }}
                 >
                   Guardar borrador
                 </Button>
@@ -423,7 +423,7 @@ export default function OrdenCompraFormPage() {
                 <Button
                   block icon={<SendOutlined />} loading={sending}
                   onClick={handleSend}
-                  style={{ borderColor: '#1890ff', color: '#1890ff' }}
+                  style={{ borderColor: '#1faec2', color: '#1faec2' }}
                 >
                   Marcar como enviada
                 </Button>
@@ -441,7 +441,7 @@ export default function OrdenCompraFormPage() {
                       message.success('Orden marcada como Recibida')
                     } catch { message.error('Error') } finally { setSending(false) }
                   }}
-                  style={{ borderColor: '#16a34a', color: '#16a34a' }}
+                  style={{ borderColor: '#2ea172', color: '#2ea172' }}
                 >
                   Marcar como recibida
                 </Button>
@@ -452,7 +452,7 @@ export default function OrdenCompraFormPage() {
                 <Button
                   block icon={<FilePdfOutlined />}
                   onClick={handlePrint}
-                  style={{ borderColor: '#fa8c16', color: '#fa8c16' }}
+                  style={{ borderColor: '#ff7f00', color: '#ff7f00' }}
                 >
                   Imprimir / PDF
                 </Button>
@@ -463,7 +463,7 @@ export default function OrdenCompraFormPage() {
                 <Button
                   block icon={<MailOutlined />}
                   onClick={() => setEmailModal(true)}
-                  style={{ borderColor: '#52c41a', color: '#52c41a' }}
+                  style={{ borderColor: '#2ea172', color: '#2ea172' }}
                 >
                   Enviar por correo
                 </Button>
@@ -474,7 +474,7 @@ export default function OrdenCompraFormPage() {
                 <Button
                   block icon={<SwapOutlined />} loading={converting}
                   onClick={handleConvert}
-                  style={{ borderColor: '#52c41a', color: '#52c41a' }}
+                  style={{ borderColor: '#2ea172', color: '#2ea172' }}
                 >
                   Convertir a Factura Proveedor
                 </Button>
@@ -508,7 +508,7 @@ export default function OrdenCompraFormPage() {
         onCancel={() => { setEmailModal(false); setEmailTo('') }}
         onOk={handleSendEmail}
         okText="Enviar"
-        okButtonProps={{ loading: sendingEmail, disabled: !emailTo.trim(), style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: sendingEmail, disabled: !emailTo.trim(), style: { background: '#1faec2' } }}
         cancelText="Cancelar"
       >
         <p style={{ marginBottom: 12 }}>

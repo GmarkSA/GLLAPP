@@ -327,7 +327,7 @@ export default function FacturaFormPage() {
   // (felCollapseItems eliminado — FEL ahora siempre visible como Card)
 
   return (
-    <div style={{ padding: '12px 16px', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ padding: '12px 16px', background: '#fafbfc', minHeight: '100vh' }}>
       <PageHeader
         icon={<FileTextOutlined />}
         title={id ? 'Editar Factura' : 'Nueva Factura'}
@@ -341,7 +341,7 @@ export default function FacturaFormPage() {
           {/* ── 1. Datos generales ─────────────────────────────────────────── */}
           <Card
             size="small"
-            title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>{id ? 'Editar Factura' : 'Nueva Factura'}</span>}
+            title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Factura' : 'Nueva Factura'}</span>}
             styles={{ body: { padding: '12px 16px 4px' } }}
           >
             <Form
@@ -391,7 +391,7 @@ export default function FacturaFormPage() {
                 <Form.Item name="dueDate" style={{ marginBottom: 8 }}
                   label={
                     <span>Vencimiento{customerTermsLabel && (
-                      <Tag color="blue" style={{ fontSize: 10, marginLeft: 4 }}>{customerTermsLabel}</Tag>
+                      <Tag color="#1faec2" style={{ fontSize: 10, marginLeft: 4 }}>{customerTermsLabel}</Tag>
                     )}</span>
                   }
                 >
@@ -452,14 +452,14 @@ export default function FacturaFormPage() {
           <Card
             size="small"
             style={{ borderColor: '#d6e4ff' }}
-            styles={{ header: { background: '#f0f5ff', borderBottom: '1px solid #d6e4ff', minHeight: 36 }, body: { padding: '10px 14px 4px' } }}
+            styles={{ header: { background: '#fafbfc', borderBottom: '1px solid #d6e4ff', minHeight: 36 }, body: { padding: '10px 14px 4px' } }}
             title={
               <Space>
-                <SafetyCertificateOutlined style={{ color: '#1B3A6B', fontSize: 13 }} />
-                <span style={{ color: '#1B3A6B', fontWeight: 600, fontSize: 13 }}>
+                <SafetyCertificateOutlined style={{ color: '#1faec2', fontSize: 13 }} />
+                <span style={{ color: '#1faec2', fontWeight: 600, fontSize: 13 }}>
                   Datos FEL — Factura Electrónica SAT Guatemala
                 </span>
-                <Tag color="blue" style={{ fontSize: 10 }}>SAT</Tag>
+                <Tag color="#1faec2" style={{ fontSize: 10 }}>SAT</Tag>
               </Space>
             }
           >
@@ -480,10 +480,10 @@ export default function FacturaFormPage() {
               {/* Fila 2: UUID, URL, Autorización, Fecha + Exenta */}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="felUuid" label="UUID" style={{ marginBottom: 8 }}>
-                  <Input placeholder="UUID SAT" style={{ fontFamily: 'monospace', fontSize: 11 }} />
+                  <Input placeholder="UUID SAT" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }} />
                 </Form.Item>
                 <Form.Item name="felUrl" label="URL Verificación" style={{ marginBottom: 8 }}>
-                  <Input placeholder="https://report.feel.com.gt/..." prefix={<GlobalOutlined style={{ color: '#8c8c8c' }} />} />
+                  <Input placeholder="https://report.feel.com.gt/..." prefix={<GlobalOutlined style={{ color: '#6b7280' }} />} />
                 </Form.Item>
                 <Form.Item name="felAutorizacion" label="Autorización" style={{ marginBottom: 8 }}>
                   <Input placeholder="No. autorización SAT" />
@@ -503,7 +503,7 @@ export default function FacturaFormPage() {
                   const active = felFrases.some(x => x.tipoFrase === f.tipoFrase && x.codigoEscenario === f.codigoEscenario)
                   return (
                     <Tag key={`${f.tipoFrase}-${f.codigoEscenario}`}
-                      color={active ? 'blue' : 'default'}
+                      color={active ? '#1faec2' : 'default'}
                       style={{ cursor: 'pointer', padding: '2px 8px', fontSize: 11 }}
                       onClick={() => toggleFrase(f.tipoFrase, f.codigoEscenario)}
                     >
@@ -514,8 +514,8 @@ export default function FacturaFormPage() {
               </div>
 
               {/* Exportación — solo para facturas de exportación */}
-              <div style={{ borderTop: '1px dashed #d9d9d9', paddingTop: 8, marginTop: 2 }}>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 6, fontWeight: 500, letterSpacing: '.02em' }}>
+              <div style={{ borderTop: '1px dashed rgba(10,10,10,0.08)', paddingTop: 8, marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, fontWeight: 500, letterSpacing: '.02em' }}>
                   EXPORTACIÓN / CONSIGNACIÓN
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: '0 12px' }}>
@@ -539,7 +539,7 @@ export default function FacturaFormPage() {
           {/* ── 3. Líneas de factura ────────────────────────────────────────── */}
           <Card
             size="small"
-            title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>Líneas de Factura</span>}
+            title={<span style={{ color: '#1faec2', fontWeight: 600 }}>Líneas de Factura</span>}
             styles={{ body: { padding: '8px 12px' } }}
           >
             <LineItemsEditor
@@ -555,17 +555,17 @@ export default function FacturaFormPage() {
         <div style={{ width: 270, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
 
           {/* Acciones */}
-          <Card size="small" title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>Acciones</span>}>
+          <Card size="small" title={<span style={{ color: '#1faec2', fontWeight: 600 }}>Acciones</span>}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Button block icon={<SaveOutlined />} loading={saving}
                 onClick={() => handleSave('draft')}
-                style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                style={{ borderColor: '#1faec2', color: '#1faec2' }}
               >
                 Guardar borrador
               </Button>
               <Button block icon={<SendOutlined />} loading={saving}
                 onClick={() => handleSave('sent')}
-                style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                style={{ borderColor: '#1faec2', color: '#1faec2' }}
               >
                 Guardar y marcar enviada
               </Button>
@@ -584,19 +584,19 @@ export default function FacturaFormPage() {
 
           {/* FEL — estado de certificación */}
           <Card size="small"
-            style={{ borderColor: felCertResult?.success ? '#b7eb8f' : watchSerie ? '#b7eb8f' : '#91d5ff' }}
-            styles={{ header: { background: watchSerie || felCertResult?.success ? '#f6ffed' : '#e6f7ff', borderBottom: '1px solid', minHeight: 36 } }}
+            style={{ borderColor: felCertResult?.success ? '#c3e5d8' : watchSerie ? '#c3e5d8' : '#91d5ff' }}
+            styles={{ header: { background: watchSerie || felCertResult?.success ? '#e8f5ef' : '#e6fafd', borderBottom: '1px solid', minHeight: 36 } }}
             title={
               <Space style={{ fontSize: 12 }}>
                 {watchSerie
-                  ? <CheckCircleFilled style={{ color: '#52c41a', fontSize: 13 }} />
+                  ? <CheckCircleFilled style={{ color: '#2ea172', fontSize: 13 }} />
                   : felCertResult?.success === false
-                    ? <CloseCircleFilled style={{ color: '#ff4d4f', fontSize: 13 }} />
+                    ? <CloseCircleFilled style={{ color: '#e5484d', fontSize: 13 }} />
                     : certifying
-                      ? <LoadingOutlined style={{ color: '#1890ff', fontSize: 13 }} />
-                      : <SafetyCertificateOutlined style={{ color: '#1890ff', fontSize: 13 }} />
+                      ? <LoadingOutlined style={{ color: '#1faec2', fontSize: 13 }} />
+                      : <SafetyCertificateOutlined style={{ color: '#1faec2', fontSize: 13 }} />
                 }
-                <span style={{ color: watchSerie ? '#52c41a' : '#1890ff', fontWeight: 600 }}>
+                <span style={{ color: watchSerie ? '#2ea172' : '#1faec2', fontWeight: 600 }}>
                   FEL Guatemala
                 </span>
               </Space>
@@ -605,7 +605,7 @@ export default function FacturaFormPage() {
             <div style={{ fontSize: 12, lineHeight: 1.9 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text type="secondary">Tipo doc.</Text>
-                <Tag color="blue" style={{ fontSize: 10 }}>{watchTipoDoc || 'FACT'}</Tag>
+                <Tag color="#1faec2" style={{ fontSize: 10 }}>{watchTipoDoc || 'FACT'}</Tag>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text type="secondary">Exenta IVA</Text>
@@ -643,7 +643,7 @@ export default function FacturaFormPage() {
                 </div>
               )}
               {felCertResult?.success === false && (
-                <div style={{ marginTop: 6, color: '#ff4d4f', fontSize: 11 }}>
+                <div style={{ marginTop: 6, color: '#e5484d', fontSize: 11 }}>
                   {felCertResult.mensaje}
                 </div>
               )}
@@ -651,7 +651,7 @@ export default function FacturaFormPage() {
           </Card>
 
           {/* Notas y Términos — compacto */}
-          <Card size="small" title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>Notas y Términos</span>}
+          <Card size="small" title={<span style={{ color: '#1faec2', fontWeight: 600 }}>Notas y Términos</span>}
             styles={{ body: { padding: '8px 12px' } }}
           >
             <Form form={form} layout="vertical" size="small">

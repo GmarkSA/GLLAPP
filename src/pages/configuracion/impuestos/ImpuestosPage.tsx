@@ -25,10 +25,10 @@ const { TextArea } = Input
 // ── Helpers de presentación ────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  iva:          { label: 'IVA',            color: 'blue'   },
+  iva:          { label: 'IVA',            color: '#1faec2'   },
   iva_exento:   { label: 'IVA Exento',     color: 'default'},
-  iva_retenida: { label: 'IVA Retenida',   color: 'orange' },
-  isr:          { label: 'ISR',            color: 'purple' },
+  iva_retenida: { label: 'IVA Retenida',   color: '#ff7f00' },
+  isr:          { label: 'ISR',            color: '#6b7280' },
   other:        { label: 'Otro',           color: 'cyan'   },
 }
 
@@ -166,10 +166,10 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
   const fmt = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
   return (
-    <div style={{ background: '#f0f7ff', borderRadius: 8, padding: 16, marginTop: 12, border: '1px solid #bae0ff' }}>
+    <div style={{ background: '#e6fafd', borderRadius: 8, padding: 16, marginTop: 12, border: '1px solid rgba(31,174,194,0.2)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <CalculatorOutlined style={{ color: '#1B3A6B' }} />
-        <Text strong style={{ color: '#1B3A6B' }}>Vista previa del cálculo</Text>
+        <CalculatorOutlined style={{ color: '#1faec2' }} />
+        <Text strong style={{ color: '#1faec2' }}>Vista previa del cálculo</Text>
       </div>
 
       {/* Controles de entrada */}
@@ -206,7 +206,7 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
 
           {/* Encabezado: precio → base (para IVA simple inclusivo o ISR en modo factura) */}
           {(tax.isInclusive && tax.subtype === 'simple') || (isProgressive && inputMode === 'invoice') ? (
-            <div style={{ background: '#f8faff', padding: '10px 14px', borderBottom: '1px solid #f0f0f0' }}>
+            <div style={{ background: '#e6fafd', padding: '10px 14px', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <Text type="secondary">
                   {tax.isInclusive ? '💰 Precio con IVA incluido' : 'Valor factura (con IVA)'}
@@ -217,14 +217,14 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
                 <Text type="secondary">
                   {tax.isInclusive ? `Base gravable (÷ ${1 + Number(tax.rate) / 100})` : 'Base sin IVA (÷ 1.12)'}
                 </Text>
-                <Text strong style={{ color: '#1B3A6B' }}>{fmt(result.baseAmount)}</Text>
+                <Text strong style={{ color: '#1faec2' }}>{fmt(result.baseAmount)}</Text>
               </div>
             </div>
           ) : null}
 
           {/* Desglose por tramos */}
           <div style={{ padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', marginBottom: 8, letterSpacing: 0.5 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 8, letterSpacing: 0.5 }}>
               DESGLOSE
             </div>
             {/* Tabla de tramos */}
@@ -235,14 +235,14 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
                 gap: 4,
                 fontSize: 13,
                 padding: '4px 0',
-                borderBottom: i < result.breakdown.length - 1 ? '1px dashed #f0f0f0' : 'none',
+                borderBottom: i < result.breakdown.length - 1 ? '1px dashed rgba(10,10,10,0.08)' : 'none',
                 alignItems: 'center',
               }}>
                 <Text type="secondary">{row.label}</Text>
                 <Text type="secondary" style={{ textAlign: 'right', fontSize: 12 }}>
                   {fmt(row.taxable)}
                 </Text>
-                <Tag color="blue" style={{ margin: 0, textAlign: 'center', fontSize: 11 }}>
+                <Tag color="#1faec2" style={{ margin: 0, textAlign: 'center', fontSize: 11 }}>
                   {row.rate}%
                 </Tag>
                 <Text style={{ textAlign: 'right', fontWeight: 500 }}>
@@ -257,10 +257,10 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
           {/* Totales */}
           <div style={{ padding: '10px 14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text strong style={{ color: '#1B3A6B', fontSize: 14 }}>
+              <Text strong style={{ color: '#0a0a0a', fontSize: 14 }}>
                 {tax.isWithholding ? '🔒 Total retención ISR' : 'Impuesto total'}
               </Text>
-              <Text strong style={{ color: '#1B3A6B', fontSize: 16 }}>
+              <Text strong style={{ color: '#0a0a0a', fontSize: 16 }}>
                 {fmt(result.total)}
               </Text>
             </div>
@@ -273,12 +273,12 @@ function TaxCalculator({ tax, liveTiers }: { tax: Tax; liveTiers?: TaxTier[] }) 
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>Menos retención</Text>
-                  <Text style={{ fontSize: 12, color: '#ff4d4f' }}>- {fmt(result.total)}</Text>
+                  <Text style={{ fontSize: 12, color: '#e5484d' }}>- {fmt(result.total)}</Text>
                 </div>
                 <Divider style={{ margin: '6px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text strong style={{ fontSize: 13 }}>Pago neto al proveedor</Text>
-                  <Text strong style={{ fontSize: 13, color: '#52c41a' }}>{fmt(result.netPayment)}</Text>
+                  <Text strong style={{ fontSize: 13, color: '#2ea172' }}>{fmt(result.netPayment)}</Text>
                 </div>
               </>
             )}
@@ -315,18 +315,18 @@ function TiersEditor({
       {tiers.map((tier, i) => (
         <div key={i} style={{
           display: 'flex', gap: 8, alignItems: 'center',
-          background: '#f8faff', borderRadius: 8, padding: '10px 12px', marginBottom: 8,
+          background: '#e6fafd', borderRadius: 8, padding: '10px 12px', marginBottom: 8,
         }}>
           <div style={{
             width: 28, height: 28, borderRadius: '50%',
-            background: '#1B3A6B', color: '#fff',
+            background: '#1faec2', color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 12, fontWeight: 700, flexShrink: 0,
           }}>
             {i + 1}
           </div>
           <div style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Descripción</Text>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>Descripción</Text>
             <Input
               size="small"
               value={tier.label}
@@ -335,7 +335,7 @@ function TiersEditor({
             />
           </div>
           <div style={{ width: 120 }}>
-            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>
               Límite superior (Q)
             </Text>
             <InputNumber
@@ -348,7 +348,7 @@ function TiersEditor({
             />
           </div>
           <div style={{ width: 80 }}>
-            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Tasa %</Text>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>Tasa %</Text>
             <InputNumber
               size="small"
               style={{ width: '100%' }}
@@ -490,7 +490,7 @@ function TaxModal({
       onCancel={onClose}
       onOk={handleSave}
       okText={isEditing ? 'Guardar cambios' : 'Crear impuesto'}
-      okButtonProps={{ loading, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading, style: { background: '#1faec2' } }}
       width={700}
       destroyOnClose
     >
@@ -611,7 +611,7 @@ function TaxModal({
         )}
 
         {/* Cuentas contables */}
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '12px 0' }}>
           Cuentas contables (para partidas automáticas)
         </Divider>
         <Row gutter={16}>
@@ -667,7 +667,7 @@ function TaxModal({
         </Form.Item>
 
         {/* Vinculación a Libros SAT — opciones dinámicas desde Configuración → Columnas Libros SAT */}
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '12px 0' }}>
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '12px 0' }}>
           Vinculación a Libros SAT
         </Divider>
         <Row gutter={16}>
@@ -804,7 +804,7 @@ export default function ImpuestosPage() {
       render: (v, r) => (
         <Space>
           <Text code style={{ fontSize: 12 }}>{v}</Text>
-          {r.isSystem && <Tooltip title="Impuesto del sistema"><InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 11 }} /></Tooltip>}
+          {r.isSystem && <Tooltip title="Impuesto del sistema"><InfoCircleOutlined style={{ color: '#6b7280', fontSize: 11 }} /></Tooltip>}
         </Space>
       ),
     },
@@ -838,7 +838,7 @@ export default function ImpuestosPage() {
       render: (v: string, r) => (
         <div>
           <div style={{ fontSize: 12 }}>{SUBTYPE_LABELS[v] ?? v}</div>
-          <Text type="secondary" style={{ fontSize: 12, fontWeight: 600, color: '#1B3A6B' }}>
+          <Text type="secondary" style={{ fontSize: 12, fontWeight: 600, color: '#0a0a0a' }}>
             {rateDisplay(r)}
           </Text>
         </div>
@@ -858,7 +858,7 @@ export default function ImpuestosPage() {
       title: '',
       width: 40,
       render: (_, r) => r.isWithholding
-        ? <Tooltip title="Retención — el comprador retiene este impuesto"><Badge color="orange" text="" /></Tooltip>
+        ? <Tooltip title="Retención — el comprador retiene este impuesto"><Badge color="#ff7f00" text="" /></Tooltip>
         : null,
     },
     {
@@ -906,7 +906,7 @@ export default function ImpuestosPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Impuestos</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Impuestos</Title>
           <Text type="secondary">
             Configura impuestos por pais para la empresa activa y vincula cada impuesto al libro fiscal
           </Text>
@@ -922,7 +922,7 @@ export default function ImpuestosPage() {
             icon={<ThunderboltOutlined />}
             loading={seeding}
             onClick={handleSeed}
-            style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+            style={{ borderColor: '#1faec2', color: '#1faec2' }}
           >
             Cargar plantilla fiscal
           </Button>
@@ -930,7 +930,7 @@ export default function ImpuestosPage() {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setModal({ open: true, tax: null })}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
           >
             Nuevo impuesto
           </Button>

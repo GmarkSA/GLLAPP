@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, Col, Row, Typography, Statistic, Tag, Space, Tooltip, Progress, Table } from 'antd'
-import { InfoCircleOutlined, CheckOutlined, CloseOutlined, MinusOutlined } from '@ant-design/icons'
+import { InfoCircleOutlined, CheckOutlined, CloseOutlined, MinusOutlined, RiseOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
 import { getTasasRendimiento, type TasasRendimientoData, type RatioItem } from '../../api/reportes'
@@ -33,17 +33,17 @@ function evalRatio(item: RatioItem): RatioStatus {
 }
 
 const STATUS_COLOR: Record<RatioStatus, string> = {
-  good:    '#389e0d',
-  warn:    '#d46b08',
-  bad:     '#cf1322',
-  neutral: '#8c8c8c',
+  good:    '#2ea172',
+  warn:    '#ff7f00',
+  bad:     '#e5484d',
+  neutral: '#6b7280',
 }
 
 const STATUS_ICON: Record<RatioStatus, React.ReactNode> = {
-  good:    <CheckOutlined style={{ color: '#52c41a' }} />,
-  warn:    <MinusOutlined style={{ color: '#fa8c16' }} />,
-  bad:     <CloseOutlined style={{ color: '#ff4d4f' }} />,
-  neutral: <MinusOutlined style={{ color: '#d9d9d9' }} />,
+  good:    <CheckOutlined style={{ color: '#2ea172' }} />,
+  warn:    <MinusOutlined style={{ color: '#ff7f00' }} />,
+  bad:     <CloseOutlined style={{ color: '#e5484d' }} />,
+  neutral: <MinusOutlined style={{ color: '#9aa1ab' }} />,
 }
 
 function RatioCard({ item }: { item: RatioItem }) {
@@ -54,12 +54,12 @@ function RatioCard({ item }: { item: RatioItem }) {
   return (
     <Card
       size="small"
-      style={{ borderRadius: 10, border: `1px solid #f0f0f0`, height: '100%' }}
+      style={{ borderRadius: 10, border: `1px solid rgba(10,10,10,0.08)`, height: '100%' }}
       bodyStyle={{ padding: 16 }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#262626' }}>{item.nombre}</Text>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#0a0a0a' }}>{item.nombre}</Text>
           {item.descripcion && (
             <Tooltip title={item.descripcion}>
               <InfoCircleOutlined style={{ color: '#bbb', marginLeft: 4, fontSize: 11 }} />
@@ -69,7 +69,7 @@ function RatioCard({ item }: { item: RatioItem }) {
         {STATUS_ICON[status]}
       </div>
       <div style={{ marginBottom: 4 }}>
-        <Text strong style={{ fontSize: 22, fontFamily: 'monospace', color }}>
+        <Text strong style={{ fontSize: 22, fontVariantNumeric: 'tabular-nums', color }}>
           {val === null ? 'N/A' : `${fmtN(val)}${item.unidad || 'x'}`}
         </Text>
       </div>
@@ -83,10 +83,10 @@ function RatioCard({ item }: { item: RatioItem }) {
   )
 }
 
-function RatioSection({ title, items, color }: { title: string; items: RatioItem[]; color: string }) {
+function RatioSection({ title, items }: { title: string; items: RatioItem[] }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <Title level={5} style={{ color, marginBottom: 10, fontSize: 13 }}>{title}</Title>
+      <Title level={5} style={{ color: '#0a0a0a', marginBottom: 10, fontSize: 13 }}>{title}</Title>
       <Row gutter={[12, 12]}>
         {items.map(item => (
           <Col xs={24} sm={12} md={8} lg={6} key={item.nombre}>
@@ -121,6 +121,7 @@ export default function TasasRendimientoPage() {
 
   return (
     <ReportLayout
+      icon={<RiseOutlined />}
       title="Tasas de Rendimiento"
       subtitle="Ratios e Indicadores Financieros · Análisis de Rentabilidad"
       tipoExport="tasas-rendimiento"
@@ -137,7 +138,7 @@ export default function TasasRendimientoPage() {
 
           {/* Base numbers */}
           <Card size="small" style={{ borderRadius: 8, marginBottom: 20 }} bodyStyle={{ padding: '12px 16px' }}>
-            <Text strong style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>
+            <Text strong style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 8 }}>
               BASE DEL ANÁLISIS
             </Text>
             <Row gutter={16}>
@@ -153,7 +154,7 @@ export default function TasasRendimientoPage() {
                   <div>
                     <Text type="secondary" style={{ fontSize: 10 }}>{k}</Text>
                     <div>
-                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: Number(v) < 0 ? '#cf1322' : '#262626' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) < 0 ? '#e5484d' : '#0a0a0a' }}>
                         {fmtQ(Number(v))}
                       </Text>
                     </div>
@@ -163,17 +164,17 @@ export default function TasasRendimientoPage() {
             </Row>
           </Card>
 
-          <RatioSection title="🏦 Liquidez" items={data.liquidez} color="#1677ff" />
-          <RatioSection title="📊 Endeudamiento" items={data.endeudamiento} color="#722ed1" />
-          <RatioSection title="📈 Rentabilidad" items={data.rentabilidad} color="#389e0d" />
-          <RatioSection title="⚙️ Eficiencia" items={data.eficiencia} color="#fa8c16" />
+          <RatioSection title="🏦 Liquidez" items={data.liquidez} />
+          <RatioSection title="📊 Endeudamiento" items={data.endeudamiento} />
+          <RatioSection title="📈 Rentabilidad" items={data.rentabilidad} />
+          <RatioSection title="⚙️ Eficiencia" items={data.eficiencia} />
 
           {/* Legend */}
           <Card size="small" style={{ borderRadius: 8, marginTop: 8 }} bodyStyle={{ padding: '10px 16px' }}>
             <Space size={16} wrap>
-              <Space size={4}><CheckOutlined style={{ color: '#52c41a' }} /><Text style={{ fontSize: 11 }}>Óptimo</Text></Space>
-              <Space size={4}><MinusOutlined style={{ color: '#fa8c16' }} /><Text style={{ fontSize: 11 }}>Aceptable</Text></Space>
-              <Space size={4}><CloseOutlined style={{ color: '#ff4d4f' }} /><Text style={{ fontSize: 11 }}>Requiere atención</Text></Space>
+              <Space size={4}><CheckOutlined style={{ color: '#2ea172' }} /><Text style={{ fontSize: 11 }}>Óptimo</Text></Space>
+              <Space size={4}><MinusOutlined style={{ color: '#ff7f00' }} /><Text style={{ fontSize: 11 }}>Aceptable</Text></Space>
+              <Space size={4}><CloseOutlined style={{ color: '#e5484d' }} /><Text style={{ fontSize: 11 }}>Requiere atención</Text></Space>
               <Text type="secondary" style={{ fontSize: 11 }}>
                 Nota: La liquidez circulante usa 60% del pasivo como proxy del pasivo corriente. Configure sub-tipos de cuentas para cálculo exacto.
               </Text>

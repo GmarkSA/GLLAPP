@@ -22,16 +22,16 @@ const { Title, Text } = Typography
 
 // ─── Color map ────────────────────────────────────────────────────────────────
 const BALANCE_TYPE_COLOR: Record<string, string> = {
-  'Activo':          'blue',
-  'Activo Fijo':     'geekblue',
-  'Pasivo':          'red',
-  'Capital':         'purple',
-  'Ingresos':        'green',
-  'Costos':          'orange',
-  'Gastos':          'volcano',
-  'Otros Ingresos':  'cyan',
-  'Otros Gastos':    'magenta',
-  'Cuentas de Orden':'default',
+  'Activo':          '#1faec2',
+  'Activo Fijo':     '#1faec2',
+  'Pasivo':          '#e5484d',
+  'Capital':         '#2ea172',
+  'Ingresos':        '#2ea172',
+  'Costos':          '#ff7f00',
+  'Gastos':          '#ff7f00',
+  'Otros Ingresos':  '#2ea172',
+  'Otros Gastos':    '#ff7f00',
+  'Cuentas de Orden':'#6b7280',
 }
 
 const BALANCE_TYPE_ORDER = [
@@ -44,7 +44,7 @@ const BALANCE_TYPE_ORDER = [
 function FlagIcon({ active, icon, title }: { active: boolean; icon: React.ReactNode; title: string }) {
   return (
     <Tooltip title={title}>
-      <span style={{ color: active ? '#1677ff' : '#d9d9d9', fontSize: 15 }}>{icon}</span>
+      <span style={{ color: active ? '#1faec2' : 'rgba(10,10,10,0.08)', fontSize: 15 }}>{icon}</span>
     </Tooltip>
   )
 }
@@ -181,7 +181,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
           <Input.TextArea rows={2} placeholder="Descripción opcional" />
         </Form.Item>
 
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c' }}>Configuración automática del grupo</Divider>
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280' }}>Configuración automática del grupo</Divider>
 
         <Space style={{ width: '100%' }} wrap>
           <Form.Item name="balanceType" label="Tipo de balance" style={{ marginBottom: 0 }}>
@@ -198,7 +198,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
           </Form.Item>
         </Space>
 
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', marginTop: 16 }}>Flags / Comportamiento</Divider>
+        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', marginTop: 16 }}>Flags / Comportamiento</Divider>
 
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="bankLinking" label="Vinculación con bancos" valuePropName="checked" style={{ marginBottom: 4 }}>
@@ -218,7 +218,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Space size={4}>
                 Activos fijos
                 <Tooltip title="Habilita el control de depreciación y amortización para cuentas de Propiedad, Planta y Equipo (160) y Activo Diferido (170)">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -229,10 +229,10 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
             style={{ marginBottom: 4 }}
             label={
               <Space size={4}>
-                <MinusCircleOutlined style={{ color: isContra ? '#cf1322' : '#8c8c8c' }} />
+                <MinusCircleOutlined style={{ color: isContra ? '#e5484d' : '#6b7280' }} />
                 Cuenta contra-activo
                 <Tooltip title="Marca esta cuenta como contra-activo: su saldo se resta al activo relacionado en el Balance General. Usar en cuentas de Depreciación Acumulada, Amortización Acumulada u otras deducciones de activos.">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -260,7 +260,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Space size={4}>
                 Requiere conciliación
                 <Tooltip title="La cuenta debe conciliarse periódicamente con un estado externo: banco, tarjeta de crédito o estado de cuenta de proveedor/cliente">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -275,7 +275,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Space size={4}>
                 Cuenta de inventario
                 <Tooltip title="Permite vincular esta cuenta con artículos del módulo de Inventario (típicamente grupo 130 — Inventarios)">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -283,7 +283,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
             <Switch />
           </Form.Item>
 
-          <Divider titlePlacement="left" style={{ fontSize: 12, color: '#8c8c8c', margin: '8px 0' }}>Dimensiones analíticas</Divider>
+          <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '8px 0' }}>Dimensiones analíticas</Divider>
 
           <Form.Item
             name="requiresCostCenter"
@@ -293,7 +293,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Space size={4}>
                 Exige Centro de Costo
                 <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Costo asignado. Aplica típicamente a cuentas de Costos (5xxx) y Gastos (6xxx).">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -308,7 +308,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Space size={4}>
                 Exige Centro de Beneficio
                 <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Beneficio asignado. Puede aplicar a cualquier tipo de cuenta para segmentación por línea de negocio.">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -446,7 +446,7 @@ export default function CatalogoPage() {
       title: 'Código',
       dataIndex: 'code',
       width: 90,
-      render: (v: string) => <Tag style={{ fontFamily: 'monospace', fontSize: 12, margin: 0 }}>{v}</Tag>,
+      render: (v: string) => <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, margin: 0 }}>{v}</Tag>,
     },
     {
       title: 'Nombre',
@@ -464,7 +464,7 @@ export default function CatalogoPage() {
       dataIndex: 'normalBalance',
       width: 110,
       render: (v: string) => (
-        <Tag color={v === 'debit' ? 'blue' : 'red'}>
+        <Tag color={v === 'debit' ? '#1faec2' : '#e5484d'}>
           {v === 'debit' ? 'Débito' : 'Crédito'}
         </Tag>
       ),
@@ -488,7 +488,7 @@ export default function CatalogoPage() {
       width: 120,
       align: 'right',
       render: (v: number) => (
-        <Text style={{ fontFamily: 'monospace', color: v < 0 ? '#ff4d4f' : undefined }}>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v < 0 ? '#e5484d' : undefined }}>
           {Number(v || 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
         </Text>
       ),
@@ -535,13 +535,13 @@ export default function CatalogoPage() {
         width={320}
         style={{
           background: '#fff',
-          borderRight: '1px solid #f0f0f0',
+          borderRight: '1px solid rgba(10,10,10,0.08)',
           overflow: 'auto',
           height: '100%',
         }}
       >
         <div style={{ padding: '16px 12px 8px' }}>
-          <Title level={5} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={5} style={{ margin: 0, color: '#0a0a0a' }}>
             <AuditOutlined style={{ marginRight: 8 }} />
             Grupos contables
           </Title>
@@ -553,19 +553,19 @@ export default function CatalogoPage() {
           style={{
             padding: '8px 16px',
             cursor: 'pointer',
-            background: selectedGroup === null ? '#e6f4ff' : 'transparent',
-            borderRight: selectedGroup === null ? '3px solid #1677ff' : '3px solid transparent',
+            background: selectedGroup === null ? '#e6fafd' : 'transparent',
+            borderRight: selectedGroup === null ? '3px solid #1faec2' : '3px solid transparent',
             marginBottom: 4,
           }}
         >
-          <Text strong={selectedGroup === null} style={{ color: selectedGroup === null ? '#1677ff' : undefined }}>
+          <Text strong={selectedGroup === null} style={{ color: selectedGroup === null ? '#1faec2' : undefined }}>
             Todos
           </Text>
           <Tag style={{ marginLeft: 8, fontSize: 10 }} color="default">{accounts.length}</Tag>
         </div>
 
         {loadingGroups ? (
-          <div style={{ padding: 16, color: '#8c8c8c' }}>Cargando...</div>
+          <div style={{ padding: 16, color: '#6b7280' }}>Cargando...</div>
         ) : (
           BALANCE_TYPE_ORDER.map(bt => {
             const sectionGroups = groupsBySection[bt]
@@ -576,10 +576,10 @@ export default function CatalogoPage() {
                   padding: '6px 12px 2px',
                   fontSize: 11,
                   fontWeight: 600,
-                  color: '#8c8c8c',
+                  color: '#6b7280',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
-                  borderTop: '1px solid #f5f5f5',
+                  borderTop: '1px solid #fafbfc',
                   marginTop: 4,
                 }}>
                   <Tag color={BALANCE_TYPE_COLOR[bt]} style={{ fontSize: 10 }}>{bt}</Tag>
@@ -594,20 +594,20 @@ export default function CatalogoPage() {
                         style={{
                           padding: '6px 12px 6px 16px',
                           cursor: 'pointer',
-                          background: isSelected ? '#e6f4ff' : 'transparent',
-                          borderRight: isSelected ? '3px solid #1677ff' : '3px solid transparent',
+                          background: isSelected ? '#e6fafd' : 'transparent',
+                          borderRight: isSelected ? '3px solid #1faec2' : '3px solid transparent',
                           borderBottom: 'none',
                           transition: 'background 0.15s',
                         }}
                       >
                         <div style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                          <Tag style={{ fontFamily: 'monospace', fontSize: 11, flexShrink: 0 }} color={isSelected ? 'blue' : 'default'}>
+                          <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, flexShrink: 0 }} color={isSelected ? '#1faec2' : 'default'}>
                             {g.groupCode}
                           </Tag>
                           <Text
                             style={{
                               fontSize: 12,
-                              color: isSelected ? '#1677ff' : undefined,
+                              color: isSelected ? '#1faec2' : undefined,
                               fontWeight: isSelected ? 600 : undefined,
                               whiteSpace: 'normal',
                               lineHeight: 1.3,
@@ -627,7 +627,7 @@ export default function CatalogoPage() {
       </Sider>
 
       {/* ── Right content: accounts table ── */}
-      <Content style={{ padding: 20, overflow: 'auto', background: '#fafafa' }}>
+      <Content style={{ padding: 20, overflow: 'auto', background: '#fafbfc' }}>
         {/* Header bar */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
@@ -645,21 +645,21 @@ export default function CatalogoPage() {
                         onChange={e => setEditingGroupName(e.target.value)}
                         onPressEnter={saveGroupName}
                         onBlur={saveGroupName}
-                        style={{ fontSize: 18, fontWeight: 600, width: 380, color: '#1B3A6B' }}
+                        style={{ fontSize: 18, fontWeight: 600, width: 380, color: '#0a0a0a' }}
                       />
-                      <Button size="small" type="text" icon={<CheckOutlined style={{ color: '#52c41a' }} />} onClick={saveGroupName} />
-                      <Button size="small" type="text" icon={<CloseOutlined style={{ color: '#ff4d4f' }} />} onClick={() => setEditingGroupId(null)} />
+                      <Button size="small" type="text" icon={<CheckOutlined style={{ color: '#2ea172' }} />} onClick={saveGroupName} />
+                      <Button size="small" type="text" icon={<CloseOutlined style={{ color: '#e5484d' }} />} onClick={() => setEditingGroupId(null)} />
                     </Space>
                   ) : (
                     <Space size={6} align="center">
-                      <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+                      <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
                         {selectedGroupInfo.name}
                       </Title>
                       <Tooltip title="Editar nombre del grupo">
                         <Button
                           type="text"
                           size="small"
-                          icon={<EditOutlined style={{ color: '#8c8c8c' }} />}
+                          icon={<EditOutlined style={{ color: '#6b7280' }} />}
                           onClick={e => startEditGroup(selectedGroupInfo, e)}
                         />
                       </Tooltip>
@@ -673,7 +673,7 @@ export default function CatalogoPage() {
                 </Text>
               </>
             ) : (
-              <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
                 Todas las cuentas contables
               </Title>
             )}
@@ -686,7 +686,7 @@ export default function CatalogoPage() {
                 icon={<ReloadOutlined />}
                 loading={seeding}
                 onClick={handleSeed}
-                style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                style={{ borderColor: '#1faec2', color: '#0a0a0a' }}
               >
                 {groups.length === 0 ? 'Inicializar catálogo GLL' : `Completar catálogo GLL (${groups.length}/68)`}
               </Button>
@@ -695,7 +695,7 @@ export default function CatalogoPage() {
               type="primary"
               icon={<PlusOutlined />}
               onClick={openNew}
-              style={{ background: '#1B3A6B' }}
+              style={{ background: '#1faec2' }}
             >
               Nueva cuenta
             </Button>

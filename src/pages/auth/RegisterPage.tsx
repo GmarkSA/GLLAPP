@@ -12,7 +12,7 @@ export default function RegisterPage() {
   const onFinish = async (values: any) => {
     try {
       await register(values)
-      message.success('¡Empresa creada exitosamente! Bienvenido a ContaERP')
+      message.success('¡Empresa creada exitosamente! Bienvenido a Lucía')
       navigate('/dashboard')
     } catch (err: any) {
       message.error(err?.response?.data?.message || 'Error al crear la cuenta')
@@ -22,19 +22,19 @@ export default function RegisterPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1B3A6B 0%, #2563eb 100%)',
+      background: 'linear-gradient(135deg, #1faec2 0%, #1faec2 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
     }}>
       <Card style={{ width: '100%', maxWidth: 460, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
             width: 56, height: 56, borderRadius: 12,
-            background: 'linear-gradient(135deg, #1B3A6B, #2563eb)',
+            background: 'linear-gradient(135deg, #1faec2, #1faec2)',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
           }}>
             <BookOutlined style={{ fontSize: 28, color: '#fff' }} />
           </div>
-          <Title level={3} style={{ margin: 0, color: '#1B3A6B' }}>Crear tu empresa</Title>
+          <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>Crear tu empresa</Title>
           <Text type="secondary">14 días gratis, sin tarjeta de crédito</Text>
         </div>
 
@@ -70,7 +70,7 @@ export default function RegisterPage() {
               htmlType="submit"
               block
               loading={isLoading}
-              style={{ height: 44, background: '#1B3A6B' }}
+              style={{ height: 44, background: '#1faec2' }}
             >
               Crear empresa gratis
             </Button>

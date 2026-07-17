@@ -189,12 +189,12 @@ export default function NotaCreditoDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</Text> },
-    { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="orange">{v}%</Tag> : null },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="#ff7f00">{v}%</Tag> : null },
     { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v}%</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 130, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontFamily: 'monospace', color: '#cf1322', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d', fontSize: 13 }}>{fmtQ(v)}</Text>,
     },
   ]
 
@@ -209,16 +209,16 @@ export default function NotaCreditoDetallePage() {
     },
     {
       title: 'DÉBITO', dataIndex: 'debe', width: 130, align: 'right' as const,
-      render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
+      render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
     },
     {
       title: 'CRÉDITO', dataIndex: 'haber', width: 130, align: 'right' as const,
-      render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace', color: v > 0 ? '#389e0d' : undefined }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
+      render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#2ea172' : undefined }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
     },
   ]
 
-  const ribbonColors: Record<string, string> = { voided: '#ff4d4f', draft: '#8c8c8c', sent: '#cf1322', partial: '#fa8c16' }
-  const ribbonColor = ribbonColors[nc.status] ?? '#cf1322'
+  const ribbonColors: Record<string, string> = { voided: '#e5484d', draft: '#6b7280', sent: '#e5484d', partial: '#ff7f00' }
+  const ribbonColor = ribbonColors[nc.status] ?? '#e5484d'
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -226,7 +226,7 @@ export default function NotaCreditoDetallePage() {
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-        marginBottom: 16, padding: '10px 0', borderBottom: '1px solid #f0f0f0',
+        marginBottom: 16, padding: '10px 0', borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/notas-credito')}>
           Notas de crédito
@@ -234,7 +234,7 @@ export default function NotaCreditoDetallePage() {
         <Divider type="vertical" />
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
         {nc.felStatus && (
-          <Tag color={nc.felStatus === 'certificada' ? 'green' : 'orange'} icon={<SafetyCertificateOutlined />} style={{ margin: 0 }}>
+          <Tag color={nc.felStatus === 'certificada' ? '#2ea172' : '#ff7f00'} icon={<SafetyCertificateOutlined />} style={{ margin: 0 }}>
             {nc.felStatus}
           </Tag>
         )}
@@ -247,7 +247,7 @@ export default function NotaCreditoDetallePage() {
         {nc.status === 'draft' && (
           <Button
             type="primary" icon={<SendOutlined />} loading={emitting} onClick={handleEmitir}
-            style={{ background: nc.felTipoDocumento === 'NABN' ? '#fa8c16' : '#cf1322', borderColor: nc.felTipoDocumento === 'NABN' ? '#fa8c16' : '#cf1322' }}
+            style={{ background: nc.felTipoDocumento === 'NABN' ? '#ff7f00' : '#e5484d', borderColor: nc.felTipoDocumento === 'NABN' ? '#ff7f00' : '#e5484d' }}
           >
             Emitir FEL ({nc.felTipoDocumento || 'NCRE'})
           </Button>
@@ -256,14 +256,14 @@ export default function NotaCreditoDetallePage() {
           <>
             <Button
               icon={<CheckCircleOutlined />}
-              style={{ color: '#1B3A6B', borderColor: '#1B3A6B' }}
+              style={{ color: '#1faec2', borderColor: '#1faec2' }}
               onClick={() => { loadInvoicesForApply(); setShowApply(true) }}
             >
               Aplicar a factura
             </Button>
             <Button
               icon={<DollarOutlined />}
-              style={{ color: '#52c41a', borderColor: '#52c41a' }}
+              style={{ color: '#2ea172', borderColor: '#2ea172' }}
               onClick={() => { loadBankAccounts(); setShowRefund(true) }}
             >
               Reembolso
@@ -274,7 +274,7 @@ export default function NotaCreditoDetallePage() {
           <Button danger icon={<StopOutlined />} onClick={() => setShowVoid(true)}>Anular</Button>
         )}
         {nc.status !== 'draft' && (
-          <Button icon={<SyncOutlined />} loading={recomputing} onClick={handleRecompute} style={{ color: '#722ed1', borderColor: '#722ed1' }}>
+          <Button icon={<SyncOutlined />} loading={recomputing} onClick={handleRecompute} style={{ color: '#6b7280', borderColor: '#6b7280' }}>
             Recalcular cuentas
           </Button>
         )}
@@ -312,7 +312,7 @@ export default function NotaCreditoDetallePage() {
             {company.logoUrl && (
               <img src={company.logoUrl} alt="logo" style={{ maxHeight: 56, maxWidth: 160, objectFit: 'contain', marginBottom: 12 }} />
             )}
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{company.name}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{company.name}</Title>
             {company.address && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{company.address}</Text>}
             {(company.city || company.country) && (
               <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
@@ -322,10 +322,10 @@ export default function NotaCreditoDetallePage() {
             {company.taxId && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>NIT: {company.taxId}</Text>}
           </div>
           <div style={{ textAlign: 'right', minWidth: 240 }}>
-            <Title level={3} style={{ margin: '0 0 4px', color: '#cf1322' }}>
+            <Title level={3} style={{ margin: '0 0 4px', color: '#e5484d' }}>
               Nota de Crédito
             </Title>
-            <Tag color={nc.felTipoDocumento === 'NABN' ? 'orange' : 'red'} style={{ marginBottom: 12 }}>
+            <Tag color={nc.felTipoDocumento === 'NABN' ? '#ff7f00' : '#e5484d'} style={{ marginBottom: 12 }}>
               {nc.felTipoDocumento || 'NCRE'}
             </Tag>
             {canAct && (
@@ -333,7 +333,7 @@ export default function NotaCreditoDetallePage() {
                 <Text type="secondary" style={{ fontSize: 11, display: 'block', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
                   Crédito disponible
                 </Text>
-                <Text style={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace', color: '#52c41a' }}>
+                <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>
                   {fmtGTQ(Number(nc.creditBalance))}
                 </Text>
               </div>
@@ -343,7 +343,7 @@ export default function NotaCreditoDetallePage() {
                 <Text type="secondary" style={{ fontSize: 11, display: 'block', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
                   Total nota
                 </Text>
-                <Text style={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace', color: '#cf1322' }}>
+                <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>
                   {fmtGTQ(Number(nc.total))}
                 </Text>
               </div>
@@ -359,7 +359,7 @@ export default function NotaCreditoDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Nota de crédito a
             </Text>
-            <Text strong style={{ fontSize: 15, color: '#1B3A6B', display: 'block' }}>{nc.customerName}</Text>
+            <Text strong style={{ fontSize: 15, color: '#1faec2', display: 'block' }}>{nc.customerName}</Text>
             {nc.customerTaxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT: {nc.customerTaxId}</Text>}
             {nc.creditNoteReason && (
               <div style={{ marginTop: 10 }}>
@@ -372,18 +372,18 @@ export default function NotaCreditoDetallePage() {
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <tbody>
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6, width: '50%' }}>Número</td>
-                  <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontFamily: 'monospace', color: '#cf1322' }}>{nc.invoiceNumber}</Text></td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6, width: '50%' }}>Número</td>
+                  <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>{nc.invoiceNumber}</Text></td>
                 </tr>
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6 }}>Fecha</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6 }}>Fecha</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong>{dayjs(nc.invoiceDate).format('DD MMM YYYY')}</Text></td>
                 </tr>
                 {nc.originalInvoice && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Factura original</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Factura original</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}>
-                      <Link to={`/ventas/facturas/${nc.originalInvoiceId}`} style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>
+                      <Link to={`/ventas/facturas/${nc.originalInvoiceId}`} style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                         {nc.originalInvoice.invoiceNumber}
                       </Link>
                     </td>
@@ -391,14 +391,14 @@ export default function NotaCreditoDetallePage() {
                 )}
                 {nc.felSerie && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Serie</td>
-                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontFamily: 'monospace' }}>{nc.felSerie}</Text></td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Serie</td>
+                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{nc.felSerie}</Text></td>
                   </tr>
                 )}
                 {nc.felNumero && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Número SAT</td>
-                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontFamily: 'monospace' }}>{nc.felNumero}</Text></td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Número SAT</td>
+                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{nc.felNumero}</Text></td>
                   </tr>
                 )}
               </tbody>
@@ -415,7 +415,7 @@ export default function NotaCreditoDetallePage() {
             pagination={false}
             size="small"
             scroll={{ x: 600 }}
-            style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+            style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
             <div style={{ minWidth: 280 }}>
@@ -426,12 +426,12 @@ export default function NotaCreditoDetallePage() {
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total nota de crédito</Text>
-                <Text strong style={{ fontSize: 14, color: '#cf1322', fontFamily: 'monospace' }}>{fmtGTQ(Number(nc.total))}</Text>
+                <Text strong style={{ fontSize: 14, color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(nc.total))}</Text>
               </div>
               {canAct && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                   <Text strong style={{ fontSize: 14 }}>Crédito disponible</Text>
-                  <Text strong style={{ fontSize: 14, color: '#52c41a', fontFamily: 'monospace' }}>{fmtGTQ(Number(nc.creditBalance))}</Text>
+                  <Text strong style={{ fontSize: 14, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(nc.creditBalance))}</Text>
                 </div>
               )}
             </div>
@@ -440,13 +440,13 @@ export default function NotaCreditoDetallePage() {
 
         {/* ── Más información ───────────────────────────────────────────────── */}
         <Divider style={{ margin: 0 }} />
-        <div style={{ padding: '20px 40px', background: '#fafafa' }}>
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+        <div style={{ padding: '20px 40px', background: '#fafbfc' }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
             Más información
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '10px 0', fontSize: 13 }}>
             <Text type="secondary">N° Nota de crédito</Text>
-            <Text strong style={{ fontFamily: 'monospace', color: '#cf1322' }}>{nc.invoiceNumber}</Text>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>{nc.invoiceNumber}</Text>
             {company.name && <><Text type="secondary">Empresa</Text><Text>{company.name}</Text></>}
             <Text type="secondary">Moneda</Text><Text>{nc.currency}</Text>
           </div>
@@ -454,15 +454,15 @@ export default function NotaCreditoDetallePage() {
           {isFelCertified && (
             <>
               <Divider style={{ margin: '16px 0 14px' }} />
-              <Text style={{ fontSize: 11, fontWeight: 700, color: '#cf1322', textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 12 }}>
+              <Text style={{ fontSize: 11, fontWeight: 700, color: '#e5484d', textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 12 }}>
                 Campos FEL / SAT
               </Text>
               <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '10px 0', fontSize: 13 }}>
                 {nc.felTipoDocumento && <><Text type="secondary">Tipo de documento</Text><Text>{nc.felTipoDocumento}</Text></>}
-                {nc.felSerie && <><Text type="secondary">Serie</Text><Text style={{ fontFamily: 'monospace' }}>{nc.felSerie}</Text></>}
-                {nc.felNumero && <><Text type="secondary">Número</Text><Text style={{ fontFamily: 'monospace' }}>{nc.felNumero}</Text></>}
-                {nc.felAutorizacion && <><Text type="secondary">Autorización</Text><Text style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{nc.felAutorizacion}</Text></>}
-                {nc.felUuid && <><Text type="secondary">UUID</Text><Text style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{nc.felUuid}</Text></>}
+                {nc.felSerie && <><Text type="secondary">Serie</Text><Text style={{ fontVariantNumeric: 'tabular-nums' }}>{nc.felSerie}</Text></>}
+                {nc.felNumero && <><Text type="secondary">Número</Text><Text style={{ fontVariantNumeric: 'tabular-nums' }}>{nc.felNumero}</Text></>}
+                {nc.felAutorizacion && <><Text type="secondary">Autorización</Text><Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, wordBreak: 'break-all' }}>{nc.felAutorizacion}</Text></>}
+                {nc.felUuid && <><Text type="secondary">UUID</Text><Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, wordBreak: 'break-all' }}>{nc.felUuid}</Text></>}
                 {(nc as any).felUrl && (
                   <>
                     <Text type="secondary">URL</Text>
@@ -480,7 +480,7 @@ export default function NotaCreditoDetallePage() {
         {/* ── Diario / Póliza contable ──────────────────────────────────────── */}
         <Divider style={{ margin: 0 }} />
         <div style={{ padding: '20px 40px 28px' }}>
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
             Diario
           </Text>
           {nc.status === 'draft' && (
@@ -496,16 +496,16 @@ export default function NotaCreditoDetallePage() {
               <Table
                 dataSource={salesEntries} columns={journalCols} rowKey="key"
                 size="small" pagination={false}
-                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}
+                style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}
                 summary={() => (
                   <Table.Summary fixed>
-                    <Table.Summary.Row style={{ background: '#fafafa' }}>
+                    <Table.Summary.Row style={{ background: '#fafbfc' }}>
                       <Table.Summary.Cell index={0} colSpan={2}><Text strong style={{ fontSize: 12 }}>Total</Text></Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
-                        <Text strong style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(salesTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                        <Text strong style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{Number(salesTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ fontSize: 12, fontFamily: 'monospace', color: '#389e0d' }}>{Number(salesTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                        <Text strong style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>{Number(salesTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>
                   </Table.Summary>
@@ -516,22 +516,22 @@ export default function NotaCreditoDetallePage() {
           {/* Póliza reversión costo/inventario */}
           {costEntries.length > 0 && (
             <>
-              <Text style={{ fontSize: 12, fontWeight: 600, color: '#722ed1', display: 'block', marginBottom: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 6 }}>
                 Nota de crédito — Reversión de costo / Inventario
               </Text>
               <Table
                 dataSource={costEntries} columns={journalCols} rowKey="key"
                 size="small" pagination={false}
-                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+                style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
                 summary={() => (
                   <Table.Summary fixed>
-                    <Table.Summary.Row style={{ background: '#fafafa' }}>
+                    <Table.Summary.Row style={{ background: '#fafbfc' }}>
                       <Table.Summary.Cell index={0} colSpan={2}><Text strong style={{ fontSize: 12 }}>Total</Text></Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
-                        <Text strong style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(costTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                        <Text strong style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{Number(costTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ fontSize: 12, fontFamily: 'monospace', color: '#389e0d' }}>{Number(costTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                        <Text strong style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>{Number(costTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>
                   </Table.Summary>
@@ -558,10 +558,10 @@ export default function NotaCreditoDetallePage() {
 
       <Modal title="Aplicar nota de crédito a factura" open={showApply}
         onCancel={() => { setShowApply(false); applyForm.resetFields() }}
-        onOk={handleApply} confirmLoading={applying} okText="Aplicar crédito" okButtonProps={{ style: { background: '#1B3A6B' } }}
+        onOk={handleApply} confirmLoading={applying} okText="Aplicar crédito" okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Crédito disponible: <Text strong style={{ color: '#52c41a' }}>{fmtQ(Number(nc.creditBalance))}</Text>
+          Crédito disponible: <Text strong style={{ color: '#2ea172' }}>{fmtQ(Number(nc.creditBalance))}</Text>
         </Text>
         <Form form={applyForm} layout="vertical">
           <Form.Item name="invoiceId" label="Factura destino" rules={[{ required: true, message: 'Selecciona una factura' }]}>
@@ -577,10 +577,10 @@ export default function NotaCreditoDetallePage() {
 
       <Modal title="Reembolso en efectivo / banco" open={showRefund}
         onCancel={() => { setShowRefund(false); refundForm.resetFields() }}
-        onOk={handleRefund} confirmLoading={refunding} okText="Registrar reembolso" okButtonProps={{ style: { background: '#52c41a' } }}
+        onOk={handleRefund} confirmLoading={refunding} okText="Registrar reembolso" okButtonProps={{ style: { background: '#2ea172' } }}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Crédito disponible: <Text strong style={{ color: '#52c41a' }}>{fmtQ(Number(nc.creditBalance))}</Text>
+          Crédito disponible: <Text strong style={{ color: '#2ea172' }}>{fmtQ(Number(nc.creditBalance))}</Text>
         </Text>
         <Form form={refundForm} layout="vertical" initialValues={{ mode: 'cash', paymentDate: dayjs() }}>
           <Form.Item name="amount" label="Monto a reembolsar"

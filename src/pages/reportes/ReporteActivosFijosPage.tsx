@@ -4,7 +4,7 @@ import {
   Divider, Row, Col, Modal, Form, Input, message, Space,
 } from 'antd'
 import {
-  PrinterOutlined, FileExcelOutlined, FilePdfOutlined, MailOutlined, FilterOutlined,
+  AppstoreOutlined, PrinterOutlined, FileExcelOutlined, FilePdfOutlined, MailOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
@@ -234,13 +234,13 @@ export default function ReporteActivosFijosPage() {
     {
       title: 'N.º Activo', dataIndex: 'assetNumber', width: 110,
       render: (_: any, r: TableRow) => r.isGroup ? null
-        : <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.assetNumber}</Text>,
+        : <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{r.assetNumber}</Text>,
     },
     {
       title: 'Nombre / Descripción', dataIndex: 'name',
       render: (_: any, r: TableRow) => {
         if (r.isGroup) return (
-          <Text strong style={{ color: '#1B3A6B', fontSize: 12 }}>
+          <Text strong style={{ color: '#1faec2', fontSize: 12 }}>
             {r.claseNombre}
             <Text type="secondary" style={{ fontWeight: 400, marginLeft: 8 }}>
               ({r.groupCount} {r.groupCount === 1 ? 'activo' : 'activos'})
@@ -284,27 +284,27 @@ export default function ReporteActivosFijosPage() {
     {
       title: 'Costo Original', dataIndex: 'originalCost', width: 130, align: 'right' as const,
       render: (_: any, r: TableRow) => r.isGroup
-        ? <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{Q(r.groupCosto)}</Text>
-        : <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(r.originalCost)}</Text>,
+        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{Q(r.groupCosto)}</Text>
+        : <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(r.originalCost)}</Text>,
     },
     {
       title: 'Dep. Acumulada', dataIndex: 'accumulatedDepreciation', width: 130, align: 'right' as const,
       render: (_: any, r: TableRow) => r.isGroup
-        ? <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#fa8c16' }}>{Q(r.groupDepAcum)}</Text>
-        : <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#fa8c16' }}>{Q(r.accumulatedDepreciation)}</Text>,
+        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#ff7f00' }}>{Q(r.groupDepAcum)}</Text>
+        : <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#ff7f00' }}>{Q(r.accumulatedDepreciation)}</Text>,
     },
     {
       title: 'Valor en Libros', dataIndex: 'currentBookValue', width: 130, align: 'right' as const,
       render: (_: any, r: TableRow) => r.isGroup
-        ? <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#16a34a' }}>{Q(r.groupValLib)}</Text>
-        : <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#16a34a' }}>{Q(r.currentBookValue)}</Text>,
+        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{Q(r.groupValLib)}</Text>
+        : <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{Q(r.currentBookValue)}</Text>,
     },
     {
       title: '% Amort.', dataIndex: 'pctAmortizado', width: 78, align: 'center' as const,
       render: (_: any, r: TableRow) => {
         if (r.isGroup) return null
         const pct = r.pctAmortizado ?? 0
-        const color = pct >= 90 ? '#ff4d4f' : pct >= 50 ? '#fa8c16' : '#16a34a'
+        const color = pct >= 90 ? '#e5484d' : pct >= 50 ? '#ff7f00' : '#2ea172'
         return <Text style={{ fontSize: 12, color, fontWeight: 600 }}>{pct}%</Text>
       },
     },
@@ -312,22 +312,22 @@ export default function ReporteActivosFijosPage() {
       title: 'Dep. Mensual', dataIndex: 'depreciacionMensual', width: 115, align: 'right' as const,
       render: (_: any, r: TableRow) => r.isGroup ? null
         : r.depreciacionMensual
-          ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(r.depreciacionMensual)}</Text>
+          ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(r.depreciacionMensual)}</Text>
           : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>,
     },
     {
       title: 'Fecha de Baja', dataIndex: 'disposedAt', width: 105,
       render: (_: any, r: TableRow) => r.isGroup ? null
         : r.disposedAt
-          ? <Text style={{ fontSize: 12, color: '#cf1322' }}>{dayjs(r.disposedAt).format('DD/MM/YYYY')}</Text>
+          ? <Text style={{ fontSize: 12, color: '#e5484d' }}>{dayjs(r.disposedAt).format('DD/MM/YYYY')}</Text>
           : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
     },
     {
       title: 'Valor de Baja/Venta', dataIndex: 'disposalValue', width: 140, align: 'right' as const,
       render: (_: any, r: TableRow) => r.isGroup
-        ? (r.groupBajaValor ? <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{Q(r.groupBajaValor)}</Text> : null)
+        ? (r.groupBajaValor ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>{Q(r.groupBajaValor)}</Text> : null)
         : r.disposalValue
-          ? <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{Q(r.disposalValue)}</Text>
+          ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>{Q(r.disposalValue)}</Text>
           : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
     },
   ]
@@ -345,18 +345,21 @@ export default function ReporteActivosFijosPage() {
 
       {/* ── Encabezado ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Reporte de Activos Fijos</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Generado el {dayjs().format('DD/MM/YYYY HH:mm')} · {filtered.length} activos
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AppstoreOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Reporte de Activos Fijos</Title>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Generado el {dayjs().format('DD/MM/YYYY HH:mm')} · {filtered.length} activos
+            </Text>
+          </div>
         </div>
         <Space className="no-print" wrap>
-          <Button icon={<FileExcelOutlined />} style={{ color: '#16a34a', borderColor: '#16a34a' }}
+          <Button icon={<FileExcelOutlined />} style={{ color: '#2ea172', borderColor: '#2ea172' }}
             onClick={handleExcel}>
             Excel
           </Button>
-          <Button icon={<FilePdfOutlined />} style={{ color: '#cf1322', borderColor: '#cf1322' }}
+          <Button icon={<FilePdfOutlined />} style={{ color: '#e5484d', borderColor: '#e5484d' }}
             onClick={() => window.print()}>
             PDF
           </Button>
@@ -369,54 +372,54 @@ export default function ReporteActivosFijosPage() {
       {/* ── KPI Cards ──────────────────────────────────────────────────────── */}
       <Row gutter={[14, 14]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={8} lg={4}>
-          <Card size="small" style={{ borderLeft: '4px solid #1B3A6B' }}>
+          <Card size="small" style={{ borderLeft: '4px solid #1faec2' }}>
             <Statistic
-              title={<Text style={{ fontSize: 11, color: '#888' }}>Total activos</Text>}
+              title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Total activos</Text>}
               value={kpi.totalActivos}
-              valueStyle={{ fontSize: 20, color: '#1B3A6B' }}
+              valueStyle={{ fontSize: 20, color: '#1faec2' }}
             />
-            <Text style={{ fontSize: 11, color: '#888' }}>{kpi.countActivos} en operación</Text>
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>{kpi.countActivos} en operación</Text>
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={5}>
-          <Card size="small" style={{ borderLeft: '4px solid #1B3A6B' }}>
+          <Card size="small" style={{ borderLeft: '4px solid #1faec2' }}>
             <Statistic
-              title={<Text style={{ fontSize: 11, color: '#888' }}>Costo original</Text>}
+              title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Costo original</Text>}
               value={kpi.totalCosto} precision={2} prefix="Q"
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-              valueStyle={{ fontSize: 16, color: '#1B3A6B' }}
+              valueStyle={{ fontSize: 16, color: '#1faec2' }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={5}>
-          <Card size="small" style={{ borderLeft: '4px solid #fa8c16' }}>
+          <Card size="small" style={{ borderLeft: '4px solid #ff7f00' }}>
             <Statistic
-              title={<Text style={{ fontSize: 11, color: '#888' }}>Dep. acumulada</Text>}
+              title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Dep. acumulada</Text>}
               value={kpi.totalDepAcum} precision={2} prefix="Q"
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-              valueStyle={{ fontSize: 16, color: '#fa8c16' }}
+              valueStyle={{ fontSize: 16, color: '#ff7f00' }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={5}>
-          <Card size="small" style={{ borderLeft: '4px solid #16a34a' }}>
+          <Card size="small" style={{ borderLeft: '4px solid #2ea172' }}>
             <Statistic
-              title={<Text style={{ fontSize: 11, color: '#888' }}>Valor en libros</Text>}
+              title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Valor en libros</Text>}
               value={kpi.totalValLib} precision={2} prefix="Q"
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-              valueStyle={{ fontSize: 16, color: '#16a34a' }}
+              valueStyle={{ fontSize: 16, color: '#2ea172' }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={5}>
           <Card size="small" style={{ borderLeft: '4px solid #2f54eb' }}>
             <Statistic
-              title={<Text style={{ fontSize: 11, color: '#888' }}>Dep. mensual en curso</Text>}
+              title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Dep. mensual en curso</Text>}
               value={kpi.depMensual} precision={2} prefix="Q"
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               valueStyle={{ fontSize: 16, color: '#2f54eb' }}
             />
-            <Text style={{ fontSize: 11, color: '#888' }}>
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>
               Anual: Q {(kpi.depMensual * 12).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             </Text>
           </Card>
@@ -426,15 +429,15 @@ export default function ReporteActivosFijosPage() {
       {/* Baja card (sólo si hay bajas) */}
       {kpi.totalBajas > 0 && (
         <div style={{
-          background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 8,
+          background: '#fff1f0', border: '1px solid #f8c9cb', borderRadius: 8,
           padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16,
         }}>
-          <Text style={{ fontSize: 12, color: '#cf1322', fontWeight: 600 }}>
+          <Text style={{ fontSize: 12, color: '#e5484d', fontWeight: 600 }}>
             Bajas / Ventas: {kpi.totalBajas} activos
           </Text>
           <Divider type="vertical" />
-          <Text style={{ fontSize: 12, color: '#cf1322' }}>
-            Valor recuperado: <Text strong style={{ fontFamily: 'monospace' }}>{Q(kpi.totalBajaValor)}</Text>
+          <Text style={{ fontSize: 12, color: '#e5484d' }}>
+            Valor recuperado: <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{Q(kpi.totalBajaValor)}</Text>
           </Text>
         </div>
       )}
@@ -443,9 +446,9 @@ export default function ReporteActivosFijosPage() {
       <div className="no-print" style={{
         display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
         marginBottom: 16, padding: '10px 14px',
-        background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8,
+        background: '#fafbfc', border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8,
       }}>
-        <FilterOutlined style={{ color: '#888' }} />
+        <FilterOutlined style={{ color: '#6b7280' }} />
         <Select allowClear placeholder="Estado" size="small" style={{ width: 130 }}
           value={filtroEstado} onChange={setFiltroEstado}
           options={[
@@ -485,30 +488,30 @@ export default function ReporteActivosFijosPage() {
         rowKey="key"
         rowClassName={r => r.isGroup ? 'af-group-row' : ''}
         scroll={{ x: 1700 }}
-        style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+        style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
         summary={() => (
           <Table.Summary fixed>
-            <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+            <Table.Summary.Row style={{ background: '#fafbfc' }}>
               {/* cols 0-6: N.º | Nombre | Clase | C.Costo | C.Beneficio | Estado | Fecha Adq. */}
               <Table.Summary.Cell index={0} colSpan={7}>
-                <Text strong style={{ color: '#1B3A6B', fontSize: 12 }}>
+                <Text strong style={{ color: '#1faec2', fontSize: 12 }}>
                   TOTAL GENERAL — {filtered.length} activos
                 </Text>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={7} align="right">
-                <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{Q(grandTotal.costo)}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{Q(grandTotal.costo)}</Text>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={8} align="right">
-                <Text strong style={{ fontFamily: 'monospace', color: '#fa8c16' }}>{Q(grandTotal.depAcum)}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#ff7f00' }}>{Q(grandTotal.depAcum)}</Text>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={9} align="right">
-                <Text strong style={{ fontFamily: 'monospace', color: '#16a34a' }}>{Q(grandTotal.valLib)}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>{Q(grandTotal.valLib)}</Text>
               </Table.Summary.Cell>
               {/* cols 10-12: % Amort | Dep. Mensual | Fecha de Baja */}
               <Table.Summary.Cell index={10} colSpan={3} />
               <Table.Summary.Cell index={13} align="right">
                 {grandTotal.bajaValor > 0 && (
-                  <Text strong style={{ fontFamily: 'monospace', color: '#cf1322' }}>{Q(grandTotal.bajaValor)}</Text>
+                  <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>{Q(grandTotal.bajaValor)}</Text>
                 )}
               </Table.Summary.Cell>
             </Table.Summary.Row>
@@ -539,7 +542,7 @@ export default function ReporteActivosFijosPage() {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button onClick={() => { setShowEmail(false); emailForm.resetFields() }}>Cancelar</Button>
             <Button type="primary" htmlType="submit" icon={<MailOutlined />}
-              style={{ background: '#1B3A6B' }}>
+              style={{ background: '#1faec2' }}>
               Abrir correo
             </Button>
           </div>

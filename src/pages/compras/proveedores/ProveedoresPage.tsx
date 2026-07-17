@@ -26,10 +26,10 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 }
 
 const TAX_TREATMENT_CONFIG: Record<string, { label: string; color: string }> = {
-  taxable:                { label: 'Contribuyente',  color: 'blue'    },
+  taxable:                { label: 'Contribuyente',  color: '#1faec2'    },
   exempt:                 { label: 'Exento',         color: 'default' },
-  contribuyente_especial: { label: 'C. Especial',    color: 'orange'  },
-  gobierno:               { label: 'Gobierno',       color: 'purple'  },
+  contribuyente_especial: { label: 'C. Especial',    color: '#ff7f00'  },
+  gobierno:               { label: 'Gobierno',       color: '#6b7280'  },
   exportador:             { label: 'Exportador',     color: 'cyan'    },
 }
 
@@ -90,7 +90,7 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
           <Space>
             <Avatar
               style={{
-                background: r.type === 'employee' ? '#d46b08' : r.type === 'individual' ? '#7c3aed' : '#1B3A6B',
+                background: r.type === 'employee' ? '#ff7f00' : r.type === 'individual' ? '#ff7f00' : '#1faec2',
                 flexShrink: 0,
               }}
               size={36}
@@ -99,11 +99,11 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
               {!r.name ? 'P' : r.name[0]}
             </Avatar>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#1B3A6B', lineHeight: 1.3 }}>{r.name}</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: '#1faec2', lineHeight: 1.3 }}>{r.name}</div>
               {r.legalName && r.legalName !== r.name && (
                 <Text type="secondary" style={{ fontSize: 11 }}>{r.legalName}</Text>
               )}
-              <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+              <div style={{ fontSize: 11, color: '#6b7280' }}>
                 {r.vendorNumber}{r.taxId && ` · NIT: ${r.taxId}`}
               </div>
             </div>
@@ -111,7 +111,7 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
         ) }
     case 'vendorNumber':
       return { ...base, title: 'N° Proveedor', dataIndex: 'vendorNumber', width: 120,
-        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+        render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'type':
       return { ...base, title: 'Tipo', dataIndex: 'type', width: 130,
         render: (v: string) => <Tag style={{ fontSize: 11 }}>{TYPE_LABELS[v] ?? v}</Tag> }
@@ -120,13 +120,13 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
         render: (v: string) => v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text> }
     case 'taxId':
       return { ...base, title: 'NIT', dataIndex: 'taxId', width: 110,
-        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+        render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'contacto':
       return { ...base, title: 'Contacto', width: 200,
         render: (_: any, r: Vendor) => (
           <div style={{ fontSize: 12 }}>
-            {r.email && <div><MailOutlined style={{ color: '#8c8c8c', marginRight: 4 }} />{r.email}</div>}
-            {r.phone && <div style={{ marginTop: 2 }}><PhoneOutlined style={{ color: '#8c8c8c', marginRight: 4 }} />{r.phone}</div>}
+            {r.email && <div><MailOutlined style={{ color: '#6b7280', marginRight: 4 }} />{r.email}</div>}
+            {r.phone && <div style={{ marginTop: 2 }}><PhoneOutlined style={{ color: '#6b7280', marginRight: 4 }} />{r.phone}</div>}
           </div>
         ) }
     case 'email':
@@ -154,18 +154,18 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
       return { ...base, title: 'Impuesto', width: 120,
         render: (_: any, r: Vendor) => (
           <Space size={4} direction="vertical" style={{ gap: 2 }}>
-            {r.taxCode        && <Tag color="blue"   style={{ fontSize: 11 }}>{r.taxCode}</Tag>}
-            {r.tdsEnabled && r.tdsTaxCode && <Tag color="purple" style={{ fontSize: 11 }}>ISR: {r.tdsTaxCode}</Tag>}
-            {r.ivaRetentionCode && <Tag color="orange" style={{ fontSize: 11 }}>{r.ivaRetentionCode}</Tag>}
+            {r.taxCode        && <Tag color="#1faec2"   style={{ fontSize: 11 }}>{r.taxCode}</Tag>}
+            {r.tdsEnabled && r.tdsTaxCode && <Tag color="#6b7280" style={{ fontSize: 11 }}>ISR: {r.tdsTaxCode}</Tag>}
+            {r.ivaRetentionCode && <Tag color="#ff7f00" style={{ fontSize: 11 }}>{r.ivaRetentionCode}</Tag>}
           </Space>
         ) }
     case 'taxCode':
       return { ...base, title: 'Código IVA', dataIndex: 'taxCode', width: 110,
-        render: (v: string) => v ? <Tag color="blue" style={{ fontSize: 11 }}>{v}</Tag> : <Text type="secondary">—</Text> }
+        render: (v: string) => v ? <Tag color="#1faec2" style={{ fontSize: 11 }}>{v}</Tag> : <Text type="secondary">—</Text> }
     case 'balance':
       return { ...base, title: 'Saldo', dataIndex: 'balance', width: 110, align: 'right' as const,
         render: (v: number) => (
-          <Text strong style={{ color: Number(v) > 0 ? '#1B3A6B' : '#8c8c8c' }}>
+          <Text strong style={{ color: Number(v) > 0 ? '#1faec2' : '#6b7280' }}>
             {Number(v) > 0 ? fmtQ(v) : '—'}
           </Text>
         ) }
@@ -270,11 +270,14 @@ export default function ProveedoresPage() {
     <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Proveedores</Title>
-          <Text type="secondary">Datos maestros de proveedores vinculados a impuestos y contabilidad</Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <UserOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Proveedores</Title>
+            <Text type="secondary">Datos maestros de proveedores vinculados a impuestos y contabilidad</Text>
+          </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/compras/proveedores/nuevo')} style={{ background: '#1B3A6B' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/compras/proveedores/nuevo')} style={{ background: '#1faec2' }}>
           Nuevo proveedor
         </Button>
       </div>
@@ -320,7 +323,7 @@ export default function ProveedoresPage() {
               <Button
                 size="small"
                 icon={<SettingOutlined />}
-                style={{ border: colPopover ? '1px solid #1B3A6B' : undefined, color: colPopover ? '#1B3A6B' : undefined }}
+                style={{ border: colPopover ? '1px solid #1faec2' : undefined, color: colPopover ? '#1faec2' : undefined }}
               >
                 Columnas
               </Button>

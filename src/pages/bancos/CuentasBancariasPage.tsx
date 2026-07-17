@@ -163,14 +163,14 @@ export default function CuentasBancariasPage() {
       dataIndex: 'currentBalance',
       width: 160,
       align: 'right',
-      render: (v, row) => <Text strong style={{ fontFamily: 'monospace', color: Number(v) < 0 ? '#cf1322' : NAVY }}>{moneyFmt(Number(v), row.currency)}</Text>,
+      render: (v, row) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: Number(v) < 0 ? '#e5484d' : NAVY }}>{moneyFmt(Number(v), row.currency)}</Text>,
     },
     {
       title: 'Saldo banco',
       dataIndex: 'bankBalance',
       width: 160,
       align: 'right',
-      render: (v, row) => v == null ? <Text type="secondary">Pendiente</Text> : <Text style={{ fontFamily: 'monospace' }}>{moneyFmt(Number(v), row.currency)}</Text>,
+      render: (v, row) => v == null ? <Text type="secondary">Pendiente</Text> : <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(Number(v), row.currency)}</Text>,
     },
     {
       title: 'Diferencia',
@@ -180,7 +180,7 @@ export default function CuentasBancariasPage() {
       render: (_, row) => {
         if (row.bankBalance == null) return <Text type="secondary">-</Text>
         const diff = Number(row.bankBalance) - Number(row.currentBalance)
-        return <Text style={{ fontFamily: 'monospace', color: Math.abs(diff) > 0.01 ? '#cf1322' : '#389e0d' }}>{moneyFmt(diff, row.currency)}</Text>
+        return <Text style={{ fontVariantNumeric: 'tabular-nums', color: Math.abs(diff) > 0.01 ? '#e5484d' : '#2ea172' }}>{moneyFmt(diff, row.currency)}</Text>
       },
     },
     {
@@ -188,15 +188,15 @@ export default function CuentasBancariasPage() {
       dataIndex: 'glAccountCode',
       width: 220,
       render: (_, row) => row.glAccountCode
-        ? <Tooltip title={row.glAccountName}><Tag color="purple">{row.glAccountCode}</Tag></Tooltip>
-        : <Tag color="orange">Sin vincular</Tag>,
+        ? <Tooltip title={row.glAccountName}><Tag color="#6b7280">{row.glAccountCode}</Tag></Tooltip>
+        : <Tag color="#ff7f00">Sin vincular</Tag>,
     },
     {
       title: 'Pendientes',
       dataIndex: 'uncategorizedCount',
       width: 110,
       align: 'center',
-      render: v => <Tag color={Number(v || 0) > 0 ? 'orange' : 'green'}>{Number(v || 0)}</Tag>,
+      render: v => <Tag color={Number(v || 0) > 0 ? '#ff7f00' : '#2ea172'}>{Number(v || 0)}</Tag>,
     },
     {
       title: 'Ultimo estado',
@@ -213,7 +213,7 @@ export default function CuentasBancariasPage() {
       title: 'Estado',
       dataIndex: 'status',
       width: 110,
-      render: v => <Tag color={v === 'active' ? 'green' : 'default'}>{v === 'active' ? 'Activa' : 'Inactiva'}</Tag>,
+      render: v => <Tag color={v === 'active' ? '#2ea172' : 'default'}>{v === 'active' ? 'Activa' : 'Inactiva'}</Tag>,
     },
     {
       title: '',
@@ -252,12 +252,15 @@ export default function CuentasBancariasPage() {
   return (
     <div>
       <div style={pageHeaderStyle}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: NAVY }}>Bancos y Tesoreria</Title>
-          <Text type="secondary">
-            Cuentas bancarias, tarjetas y saldos por empresa
-            {activeCompany ? ` - ${activeCompany.tradeName || activeCompany.legalName}` : ''}
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <BankOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Bancos y Tesorería</Title>
+            <Text type="secondary">
+              Cuentas bancarias, tarjetas y saldos por empresa
+              {activeCompany ? ` - ${activeCompany.tradeName || activeCompany.legalName}` : ''}
+            </Text>
+          </div>
         </div>
         <Space wrap>
           <Button icon={<SwapOutlined />} onClick={() => navigate('/bancos/transferencias/nueva')}>Agregar transacción</Button>
@@ -269,9 +272,9 @@ export default function CuentasBancariasPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
         <Card size="small" style={panelStyle}><Statistic title="Saldo activo" value={totals.balance} formatter={v => moneyFmt(Number(v))} valueStyle={{ color: NAVY, fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Cuentas activas" value={totals.active} prefix={<BankOutlined />} valueStyle={{ color: '#389e0d', fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Tarjetas" value={totals.cards} prefix={<ApartmentOutlined />} valueStyle={{ color: '#ff4d4f', fontSize: 18 }} /></Card>
-        <Card size="small" style={panelStyle}><Statistic title="Sin categorizar" value={totals.pending} prefix={<BranchesOutlined />} valueStyle={{ color: totals.pending ? '#d46b08' : '#389e0d', fontSize: 18 }} /></Card>
+        <Card size="small" style={panelStyle}><Statistic title="Cuentas activas" value={totals.active} prefix={<BankOutlined />} valueStyle={{ color: '#2ea172', fontSize: 18 }} /></Card>
+        <Card size="small" style={panelStyle}><Statistic title="Tarjetas" value={totals.cards} prefix={<ApartmentOutlined />} valueStyle={{ color: '#e5484d', fontSize: 18 }} /></Card>
+        <Card size="small" style={panelStyle}><Statistic title="Sin categorizar" value={totals.pending} prefix={<BranchesOutlined />} valueStyle={{ color: totals.pending ? '#ff7f00' : '#2ea172', fontSize: 18 }} /></Card>
       </div>
 
       <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>

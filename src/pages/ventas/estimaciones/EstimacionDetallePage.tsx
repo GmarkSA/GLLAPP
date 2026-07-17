@@ -109,20 +109,20 @@ export default function EstimacionDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</Text> },
-    { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="orange">{v}%</Tag> : null },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="#ff7f00">{v}%</Tag> : null },
     { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v ?? 12}%</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 130, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text>,
     },
   ]
 
   const ribbonColors: Record<string, string> = {
-    draft: '#8c8c8c', sent: '#1890ff', accepted: '#52c41a',
-    declined: '#ff4d4f', invoiced: '#722ed1', expired: '#fa8c16',
+    draft: '#6b7280', sent: '#1faec2', accepted: '#2ea172',
+    declined: '#e5484d', invoiced: '#6b7280', expired: '#ff7f00',
   }
-  const ribbonColor = ribbonColors[est.status] ?? '#8c8c8c'
+  const ribbonColor = ribbonColors[est.status] ?? '#6b7280'
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -130,14 +130,14 @@ export default function EstimacionDetallePage() {
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-        marginBottom: 16, padding: '10px 0', borderBottom: '1px solid #f0f0f0',
+        marginBottom: 16, padding: '10px 0', borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/estimaciones')}>
           Cotizaciones
         </Button>
         <Divider type="vertical" />
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
-        {isExpired && <Tag color="orange"><CalendarOutlined style={{ marginRight: 4 }} />Vencida</Tag>}
+        {isExpired && <Tag color="#ff7f00"><CalendarOutlined style={{ marginRight: 4 }} />Vencida</Tag>}
         <Divider type="vertical" />
         {canEdit && (
           <Button icon={<EditOutlined />} onClick={() => navigate(`/ventas/estimaciones/${est.id}/editar`)}>
@@ -155,14 +155,14 @@ export default function EstimacionDetallePage() {
         {canConvert && (
           <Button
             type="primary" icon={<FileTextOutlined />} loading={converting} onClick={handleConvert}
-            style={{ background: '#1B3A6B', borderColor: '#1B3A6B' }}
+            style={{ background: '#1faec2', borderColor: '#1faec2' }}
           >
             Convertir a factura
           </Button>
         )}
         {est.status === 'invoiced' && est.invoiceId && (
           <Link to={`/ventas/facturas/${est.invoiceId}`}>
-            <Button icon={<FileTextOutlined />} style={{ color: '#722ed1', borderColor: '#722ed1' }}>Ver factura</Button>
+            <Button icon={<FileTextOutlined />} style={{ color: '#6b7280', borderColor: '#6b7280' }}>Ver factura</Button>
           </Link>
         )}
         <Button icon={<CopyOutlined />} onClick={handleDuplicate}>Duplicar</Button>
@@ -196,7 +196,7 @@ export default function EstimacionDetallePage() {
             {company.logoUrl && (
               <img src={company.logoUrl} alt="logo" style={{ maxHeight: 56, maxWidth: 160, objectFit: 'contain', marginBottom: 12 }} />
             )}
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{company.name}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{company.name}</Title>
             {company.address && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{company.address}</Text>}
             {(company.city || company.country) && (
               <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
@@ -206,15 +206,15 @@ export default function EstimacionDetallePage() {
             {company.taxId && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>NIT: {company.taxId}</Text>}
           </div>
           <div style={{ textAlign: 'right', minWidth: 240 }}>
-            <Title level={3} style={{ margin: '0 0 4px', color: '#1B3A6B' }}>Cotización</Title>
-            <Text style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 12 }}>
+            <Title level={3} style={{ margin: '0 0 4px', color: '#0a0a0a' }}>Cotización</Title>
+            <Text style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 12 }}>
               {est.estimateNumber}
             </Text>
             <div>
               <Text type="secondary" style={{ fontSize: 11, display: 'block', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
                 Total
               </Text>
-              <Text style={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace', color: '#1B3A6B' }}>
+              <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
                 {fmtGTQ(Number(est.total))}
               </Text>
             </div>
@@ -229,43 +229,43 @@ export default function EstimacionDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Cotizando a
             </Text>
-            <Text strong style={{ fontSize: 15, color: '#1B3A6B', display: 'block' }}>{est.customerName}</Text>
+            <Text strong style={{ fontSize: 15, color: '#1faec2', display: 'block' }}>{est.customerName}</Text>
             {est.customerTaxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT: {est.customerTaxId}</Text>}
           </div>
           <div>
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <tbody>
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6, width: '50%' }}>Número</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6, width: '50%' }}>Número</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}>
-                    <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{est.estimateNumber}</Text>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{est.estimateNumber}</Text>
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6 }}>Fecha</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6 }}>Fecha</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}>
                     <Text strong>{dayjs(est.estimateDate).format('DD MMM YYYY')}</Text>
                   </td>
                 </tr>
                 {est.expiryDate && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Vence</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Vence</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}>
-                      <Text strong style={{ color: isExpired ? '#fa8c16' : undefined }}>
+                      <Text strong style={{ color: isExpired ? '#ff7f00' : undefined }}>
                         {dayjs(est.expiryDate).format('DD MMM YYYY')}
                       </Text>
                     </td>
                   </tr>
                 )}
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6 }}>Moneda</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6 }}>Moneda</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong>{est.currency}</Text></td>
                 </tr>
                 {est.invoiceId && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Factura</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Factura</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}>
-                      <Link to={`/ventas/facturas/${est.invoiceId}`} style={{ color: '#722ed1', fontFamily: 'monospace', fontSize: 12 }}>
+                      <Link to={`/ventas/facturas/${est.invoiceId}`} style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                         Ver factura
                       </Link>
                     </td>
@@ -285,28 +285,28 @@ export default function EstimacionDetallePage() {
             pagination={false}
             size="small"
             scroll={{ x: 600 }}
-            style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+            style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
             <div style={{ minWidth: 280 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">Subtotal</Text>
-                <Text style={{ fontFamily: 'monospace' }}>{fmtQ(Number(est.subtotal))}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(est.subtotal))}</Text>
               </div>
               {Number(est.discountAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text type="secondary">Descuento</Text>
-                  <Text style={{ color: '#fa8c16', fontFamily: 'monospace' }}>−{fmtQ(Number(est.discountAmount))}</Text>
+                  <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>−{fmtQ(Number(est.discountAmount))}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">IVA (12%)</Text>
-                <Text style={{ fontFamily: 'monospace' }}>{fmtQ(Number(est.taxAmount))}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(est.taxAmount))}</Text>
               </div>
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
-                <Text strong style={{ fontSize: 14, color: '#1B3A6B', fontFamily: 'monospace' }}>{fmtGTQ(Number(est.total))}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(est.total))}</Text>
               </div>
             </div>
           </div>
@@ -319,7 +319,7 @@ export default function EstimacionDetallePage() {
             <div style={{ padding: '20px 40px', display: 'grid', gridTemplateColumns: est.notes && est.termsAndConditions ? '1fr 1fr' : '1fr', gap: 24 }}>
               {est.notes && (
                 <div>
-                  <Text style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                     Observaciones
                   </Text>
                   <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{est.notes}</Text>
@@ -327,7 +327,7 @@ export default function EstimacionDetallePage() {
               )}
               {est.termsAndConditions && (
                 <div>
-                  <Text style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                     Términos y condiciones
                   </Text>
                   <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{est.termsAndConditions}</Text>
@@ -339,13 +339,13 @@ export default function EstimacionDetallePage() {
 
         {/* ── Más información ───────────────────────────────────────────────── */}
         <Divider style={{ margin: 0 }} />
-        <div style={{ padding: '20px 40px 28px', background: '#fafafa' }}>
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+        <div style={{ padding: '20px 40px 28px', background: '#fafbfc' }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
             Más información
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '10px 0', fontSize: 13 }}>
             <Text type="secondary">N° Cotización</Text>
-            <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{est.estimateNumber}</Text>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{est.estimateNumber}</Text>
             {company.name && <><Text type="secondary">Empresa</Text><Text>{company.name}</Text></>}
             <Text type="secondary">Moneda</Text><Text>{est.currency}</Text>
             <Text type="secondary">Fecha creación</Text>
@@ -353,7 +353,7 @@ export default function EstimacionDetallePage() {
             {est.invoiceId && (
               <>
                 <Text type="secondary">Factura generada</Text>
-                <Link to={`/ventas/facturas/${est.invoiceId}`} style={{ color: '#722ed1' }}>
+                <Link to={`/ventas/facturas/${est.invoiceId}`} style={{ color: '#6b7280' }}>
                   Ver factura vinculada
                 </Link>
               </>
@@ -367,7 +367,7 @@ export default function EstimacionDetallePage() {
         title={`Enviar cotización ${est.estimateNumber}`}
         open={showSend}
         onCancel={() => { setShowSend(false); sendForm.resetFields() }}
-        onOk={handleSend} confirmLoading={sending} okText="Enviar" okButtonProps={{ style: { background: '#1B3A6B' } }}
+        onOk={handleSend} confirmLoading={sending} okText="Enviar" okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={sendForm} layout="vertical">
           <Form.Item name="to" label="Correo del cliente"

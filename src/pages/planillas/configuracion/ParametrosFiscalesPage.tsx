@@ -3,7 +3,7 @@ import {
   Alert, Button, Card, Form, InputNumber, Input, Select, Space, Spin, Switch,
   Table, Tag, Typography, message,
 } from 'antd'
-import { SaveOutlined, DownloadOutlined } from '@ant-design/icons'
+import { AuditOutlined, DownloadOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getParametroFiscal, guardarParametroFiscal, type ParametroFiscalAnual,
@@ -12,7 +12,7 @@ import {
 
 const { Text, Title } = Typography
 
-const NAVY = '#1B3A6B'
+const NAVY = '#1faec2'
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const ACTIVIDAD_LABEL: Record<string, string> = {
@@ -105,11 +105,14 @@ export default function ParametrosFiscalesPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: NAVY }}>Parámetros fiscales y laborales</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            ISR (Dto. 10-2012 / 13-2026) · IGSS · Bonificación incentivo (Dto. 78-89) · Jornadas (CT Arts. 116-124)
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AuditOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Parámetros fiscales y laborales</Title>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              ISR (Dto. 10-2012 / 13-2026) · IGSS · Bonificación incentivo (Dto. 78-89) · Jornadas (CT Arts. 116-124)
+            </Text>
+          </div>
         </div>
         <Space>
           <Select
@@ -118,8 +121,8 @@ export default function ParametrosFiscalesPage() {
               .map(y => ({ value: y, label: `Año fiscal ${y}` }))}
           />
           {existe
-            ? <Tag color="green">año configurado</Tag>
-            : <Tag color="orange">valores de ley precargados — validar y guardar</Tag>}
+            ? <Tag color="#2ea172">año configurado</Tag>
+            : <Tag color="#ff7f00">valores de ley precargados — validar y guardar</Tag>}
           <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={guardar}
             style={{ background: NAVY }}>
             {existe ? `Guardar ${anio}` : `Validar y guardar ${anio}`}
@@ -239,8 +242,8 @@ export default function ParametrosFiscalesPage() {
               columns={[
                 { title: 'Actividad económica', dataIndex: 'tipoActividadEconomica', render: (v: string) => ACTIVIDAD_LABEL[v] ?? v },
                 { title: 'Circunscripción', dataIndex: 'circunscripcionEconomica', width: 190, render: (v: string) => v === 'CE1' ? 'CE1 — Depto. Guatemala' : 'CE2 — Resto del país' },
-                { title: 'Diario', dataIndex: 'montoDiario', width: 130, align: 'right', render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
-                { title: 'Mensual', dataIndex: 'montoMensual', width: 140, align: 'right', render: (v: number) => <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
+                { title: 'Diario', dataIndex: 'montoDiario', width: 130, align: 'right', render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
+                { title: 'Mensual', dataIndex: 'montoMensual', width: 140, align: 'right', render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
               ]}
             />
           )}

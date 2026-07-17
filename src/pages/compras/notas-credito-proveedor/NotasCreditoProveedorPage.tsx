@@ -70,12 +70,12 @@ export default function NotasCreditoProveedorPage() {
   const columns: ColumnsType<PurchaseInvoice> = [
     {
       title: '# Nota', dataIndex: 'invoiceNumber', width: 150, fixed: 'left',
-      render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>,
     },
     {
       title: '# Doc. Proveedor', dataIndex: 'vendorInvoiceNumber', width: 150,
       render: (v: string) => v
-        ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>
         : <Text type="secondary">—</Text>,
     },
     {
@@ -93,11 +93,11 @@ export default function NotasCreditoProveedorPage() {
     },
     {
       title: 'Serie FEL', dataIndex: 'felSerie', width: 90,
-      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</span>,
+      render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</span>,
     },
     {
       title: 'No. SAT', dataIndex: 'felNumber', width: 110,
-      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</span>,
+      render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</span>,
     },
     {
       title: 'Monto', dataIndex: 'total', width: 130, align: 'right',
@@ -106,7 +106,7 @@ export default function NotasCreditoProveedorPage() {
         if (cur !== 'GTQ' && Number(r.exchangeRate) > 1) {
           return (
             <div style={{ textAlign: 'right' }}>
-              <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 700 }}>
+              <Text style={{ fontSize: 13, color: '#e5484d', fontWeight: 700 }}>
                 {cur} {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               </Text>
               <br />
@@ -116,7 +116,7 @@ export default function NotasCreditoProveedorPage() {
             </div>
           )
         }
-        return <Text strong style={{ color: '#dc2626', fontFamily: 'monospace' }}>{fmtGTQ(v)}</Text>
+        return <Text strong style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(v)}</Text>
       },
     },
     {
@@ -151,9 +151,9 @@ export default function NotasCreditoProveedorPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <FileTextOutlined style={{ fontSize: 24, color: '#dc2626' }} />
+          <FileTextOutlined style={{ fontSize: 24, color: '#e5484d' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Notas de Crédito — Proveedor</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Notas de Crédito — Proveedor</Title>
             <Text type="secondary">Documentos que reducen saldo a pagar a proveedor</Text>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function NotasCreditoProveedorPage() {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => navigate('/compras/notas-credito-proveedor/nueva')}
-          style={{ background: '#dc2626', borderColor: '#dc2626' }}
+          style={{ background: '#e5484d', borderColor: '#e5484d' }}
         >
           Nueva nota de crédito
         </Button>

@@ -18,9 +18,9 @@ import {
 const { Title, Text } = Typography
 
 const TIPO_CONFIG: Record<UbicacionType, { label: string; color: string; icon: string; desc: string }> = {
-  bodega:   { label: 'Bodega / Almacén',   color: 'blue',    icon: '🏭', desc: 'Zona de almacenamiento físico dentro de un almacén' },
-  pos:      { label: 'Punto de Venta',     color: 'green',   icon: '🛒', desc: 'Terminal de venta — usa stock de todos los almacenes' },
-  transito: { label: 'En tránsito',        color: 'orange',  icon: '🚚', desc: 'Mercancía en camino entre ubicaciones' },
+  bodega:   { label: 'Bodega / Almacén',   color: '#1faec2',    icon: '🏭', desc: 'Zona de almacenamiento físico dentro de un almacén' },
+  pos:      { label: 'Punto de Venta',     color: '#2ea172',   icon: '🛒', desc: 'Terminal de venta — usa stock de todos los almacenes' },
+  transito: { label: 'En tránsito',        color: '#ff7f00',  icon: '🚚', desc: 'Mercancía en camino entre ubicaciones' },
   scrap:    { label: 'Baja / Scrap',       color: 'default', icon: '🗑️', desc: 'Zona de productos dados de baja o dañados' },
 }
 
@@ -59,7 +59,7 @@ function UbicacionModal({ open, record, almacenes, onClose, onSaved }: {
       title={record ? 'Editar ubicación' : 'Nueva ubicación'}
       open={open} onOk={handleOk} onCancel={onClose}
       okText="Guardar" width={560}
-      okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}
@@ -86,8 +86,8 @@ function UbicacionModal({ open, record, almacenes, onClose, onSaved }: {
         </Space>
 
         {tipoWatch === 'pos' && (
-          <div style={{ background: '#f0fff4', border: '1px solid #b7eb8f', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-            <strong style={{ color: '#52c41a' }}>🛒 Punto de Venta</strong>
+          <div style={{ background: '#f0fff4', border: '1px solid #c3e5d8', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
+            <strong style={{ color: '#2ea172' }}>🛒 Punto de Venta</strong>
             <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
               Los POS acceden al <strong>stock consolidado de todos los almacenes</strong> para poder facturar.
               Al registrar una venta desde este POS, el sistema descontará del almacén con disponibilidad.
@@ -151,14 +151,14 @@ export default function UbicacionesPage() {
   const columns: ColumnsType<Ubicacion> = [
     {
       title: 'Código', dataIndex: 'code', width: 110,
-      render: v => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{v}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text>,
     },
     {
       title: 'Nombre / Ubicación', dataIndex: 'name',
       render: (v, r) => (
         <div>
           <div style={{ fontWeight: 500 }}>{v}</div>
-          {r.address && <div style={{ fontSize: 11, color: '#8c8c8c' }}>{r.address}</div>}
+          {r.address && <div style={{ fontSize: 11, color: '#6b7280' }}>{r.address}</div>}
         </div>
       ),
     },
@@ -171,7 +171,7 @@ export default function UbicacionesPage() {
     },
     {
       title: 'Almacén padre', dataIndex: 'almacenId', width: 160,
-      render: v => v ? <Tag color="blue">{almacenMap[v] || v}</Tag> : <Text type="secondary">—</Text>,
+      render: v => v ? <Tag color="#1faec2">{almacenMap[v] || v}</Tag> : <Text type="secondary">—</Text>,
     },
     {
       title: 'Responsable', dataIndex: 'manager', width: 140,
@@ -191,7 +191,7 @@ export default function UbicacionesPage() {
         <Space size={4}>
           {row.type === 'pos' && (
             <Button size="small" type="primary" icon={<PlayCircleOutlined />}
-              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              style={{ background: '#2ea172', borderColor: '#2ea172' }}
               onClick={() => navigate(`/pos${row.id ? `?pos=${row.id}` : ''}`)}>
               Abrir
             </Button>
@@ -219,7 +219,7 @@ export default function UbicacionesPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <EnvironmentOutlined style={{ marginRight: 8 }} /> Ubicaciones / Puntos de Venta
           </Title>
           <Text type="secondary">
@@ -228,7 +228,7 @@ export default function UbicacionesPage() {
         </div>
         <Button type="primary" icon={<PlusOutlined />}
           onClick={() => { setEditing(null); setModal(true) }}
-          style={{ background: '#1B3A6B' }}>
+          style={{ background: '#1faec2' }}>
           Nueva ubicación
         </Button>
       </div>
@@ -240,13 +240,13 @@ export default function UbicacionesPage() {
           const active = tipoFilt === k
           return (
             <Card key={k} size="small" style={{ borderRadius: 8, textAlign: 'center', cursor: 'pointer',
-              border: `2px solid ${active ? '#1B3A6B' : '#f0f0f0'}`,
-              background: active ? '#f0f5ff' : '#fff' }}
+              border: `2px solid ${active ? '#1faec2' : 'rgba(10,10,10,0.08)'}`,
+              background: active ? '#fafbfc' : '#fff' }}
               onClick={() => setTipoFilt(active ? undefined : k)}>
               <div style={{ fontSize: 24 }}>{cfg.icon}</div>
-              <div style={{ fontWeight: 600, color: '#1B3A6B', fontSize: 13 }}>{cfg.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#1B3A6B' }}>{count}</div>
-              <div style={{ fontSize: 11, color: '#8c8c8c', marginTop: 2 }}>{cfg.desc}</div>
+              <div style={{ fontWeight: 600, color: '#1faec2', fontSize: 13 }}>{cfg.label}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1faec2' }}>{count}</div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{cfg.desc}</div>
             </Card>
           )
         })}
@@ -278,8 +278,8 @@ export default function UbicacionesPage() {
           pagination={{ pageSize: 20, showSizeChanger: false }}
           locale={{ emptyText: (
             <div style={{ padding: '40px 0', textAlign: 'center' }}>
-              <ShopOutlined style={{ fontSize: 40, color: '#d9d9d9', display: 'block', marginBottom: 8 }} />
-              <div style={{ color: '#8c8c8c' }}>Sin ubicaciones registradas</div>
+              <ShopOutlined style={{ fontSize: 40, color: '#9aa1ab', display: 'block', marginBottom: 8 }} />
+              <div style={{ color: '#6b7280' }}>Sin ubicaciones registradas</div>
               <div style={{ fontSize: 12, color: '#bbb', marginTop: 4 }}>
                 Define bodegas, puntos de venta o zonas de almacenamiento
               </div>

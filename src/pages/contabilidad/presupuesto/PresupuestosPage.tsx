@@ -77,9 +77,9 @@ export default function PresupuestosPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Presupuestos</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Presupuestos</Title>
         <Button type="primary" icon={<PlusOutlined />}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
           onClick={() => navigate('/contabilidad/presupuesto/nuevo')}>
           Nuevo
         </Button>
@@ -88,11 +88,11 @@ export default function PresupuestosPage() {
       {!loading && data.length === 0 ? (
         <Card style={{ textAlign: 'center', padding: '60px 0' }}>
           <Empty
-            image={<FundProjectionScreenOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
+            image={<FundProjectionScreenOutlined style={{ fontSize: 64, color: '#9aa1ab' }} />}
             imageStyle={{ height: 80 }}
             description={
               <div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: '#262626', marginBottom: 8 }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#0a0a0a', marginBottom: 8 }}>
                   Presupueste las finanzas de su negocio. Esté al tanto de sus gastos.
                 </div>
                 <Text type="secondary">
@@ -101,7 +101,7 @@ export default function PresupuestosPage() {
               </div>
             }
           >
-            <Button type="primary" size="large" style={{ background: '#1B3A6B', marginTop: 16 }}
+            <Button type="primary" size="large" style={{ background: '#1faec2', marginTop: 16 }}
               onClick={() => navigate('/contabilidad/presupuesto/nuevo')}>
               CREAR PRESUPUESTO
             </Button>

@@ -80,7 +80,7 @@ function buildColDef(
   switch (key) {
     case 'invoiceNumber':
       return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 120, fixed: 'left' as const,
-        render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
+        render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> }
     case 'customer':
       return { ...base, title: 'Cliente', width: 220,
         render: (_: any, r: Invoice) => (
@@ -91,7 +91,7 @@ function buildColDef(
         ) }
     case 'customerTaxId':
       return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
-        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+        render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'invoiceDate':
       return { ...base, title: 'Fecha Factura', dataIndex: 'invoiceDate', width: 110,
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
@@ -99,16 +99,16 @@ function buildColDef(
       return { ...base, title: 'Fecha Contabiliz.', dataIndex: 'accountingDate', width: 115,
         render: (v: string, r: Invoice) => {
           const diff = v && r.invoiceDate && new Date(v).toDateString() !== new Date(r.invoiceDate).toDateString()
-          return <span style={{ fontSize: 12, color: diff ? '#d97706' : undefined, fontWeight: diff ? 600 : undefined }}>
+          return <span style={{ fontSize: 12, color: diff ? '#ff7f00' : undefined, fontWeight: diff ? 600 : undefined }}>
             {v ? dayjs(v).format('DD/MM/YYYY') : '—'}
           </span>
         } }
     case 'felSerie':
       return { ...base, title: 'Serie FEL', dataIndex: 'felSerie', width: 80,
-        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+        render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'felNumero':
       return { ...base, title: 'No. SAT', dataIndex: 'felNumero', width: 100,
-        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+        render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'currency':
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 80,
         render: (v: string) => <Tag style={{ fontSize: 11 }}>{v || 'GTQ'}</Tag> }
@@ -116,14 +116,14 @@ function buildColDef(
       return { ...base, title: 'T/C', dataIndex: 'exchangeRate', width: 90, align: 'right' as const,
         render: (v: number, r: Invoice) =>
           r.currency && r.currency !== 'GTQ'
-            ? <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(v).toFixed(4)}</span>
+            ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{Number(v).toFixed(4)}</span>
             : <Text type="secondary">—</Text> }
     case 'dueDate':
       return { ...base, title: 'Vence', dataIndex: 'dueDate', width: 105,
         render: (v: string, r: Invoice) => {
           if (!v) return <Text type="secondary">—</Text>
           const isOver = r.status === 'overdue'
-          return <span style={{ fontSize: 12, color: isOver ? '#ff4d4f' : undefined }}>
+          return <span style={{ fontSize: 12, color: isOver ? '#e5484d' : undefined }}>
             {dayjs(v).format('DD/MM/YYYY')}
           </span>
         } }
@@ -144,12 +144,12 @@ function buildColDef(
     case 'paidAmount':
       return { ...base, title: 'Pagado', dataIndex: 'paidAmount', width: 120, align: 'right' as const,
         render: (v: number) => Number(v) > 0
-          ? <span style={{ fontSize: 12, color: '#52c41a' }}>{fmt(v)}</span>
+          ? <span style={{ fontSize: 12, color: '#2ea172' }}>{fmt(v)}</span>
           : <Text type="secondary">—</Text> }
     case 'balance':
       return { ...base, title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
         render: (v: number) => (
-          <Text style={{ fontWeight: 700, fontSize: 13, color: Number(v) > 0 ? '#cf1322' : '#52c41a' }}>
+          <Text style={{ fontWeight: 700, fontSize: 13, color: Number(v) > 0 ? '#e5484d' : '#2ea172' }}>
             {fmt(v)}
           </Text>
         ) }
@@ -315,7 +315,7 @@ export default function FacturasPage() {
               <Tooltip title="Registrar pago">
                 <Button size="small" icon={<DollarOutlined />}
                   onClick={() => navigate(`/ventas/facturas/${r.id}?accion=pago`)}
-                  style={{ color: '#52c41a', borderColor: '#52c41a' }} />
+                  style={{ color: '#2ea172', borderColor: '#2ea172' }} />
               </Tooltip>
             )}
             {!isVoided && (
@@ -346,7 +346,7 @@ export default function FacturasPage() {
         title="Facturas de venta"
         subtitle="Gestión de facturas emitidas a clientes"
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1B3A6B' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }}>
             Nueva factura
           </Button>
         }
@@ -355,10 +355,10 @@ export default function FacturasPage() {
       {/* Stats */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         {[
-          { title: 'Total Facturado', value: stats.totalFacturado, icon: <DollarOutlined />,            color: '#1B3A6B' },
-          { title: 'Pendiente',       value: stats.pendiente,       icon: <ClockCircleOutlined />,        color: '#fa8c16' },
-          { title: 'Vencidas',        value: stats.vencidas,        icon: <ExclamationCircleOutlined />,  color: '#ff4d4f' },
-          { title: 'Cobradas',        value: stats.cobradas,        icon: <CheckCircleOutlined />,        color: '#52c41a' },
+          { title: 'Total Facturado', value: stats.totalFacturado, icon: <DollarOutlined />,            color: '#1faec2' },
+          { title: 'Pendiente',       value: stats.pendiente,       icon: <ClockCircleOutlined />,        color: '#ff7f00' },
+          { title: 'Vencidas',        value: stats.vencidas,        icon: <ExclamationCircleOutlined />,  color: '#e5484d' },
+          { title: 'Cobradas',        value: stats.cobradas,        icon: <CheckCircleOutlined />,        color: '#2ea172' },
         ].map(s => (
           <Col span={6} key={s.title}>
             <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -411,7 +411,7 @@ export default function FacturasPage() {
               >
                 <Tooltip title="Configurar columnas">
                   <Button size="small" icon={<SettingOutlined />}
-                    style={{ border: colPopover ? '1px solid #1B3A6B' : undefined, color: colPopover ? '#1B3A6B' : undefined }}>
+                    style={{ border: colPopover ? '1px solid #1faec2' : undefined, color: colPopover ? '#1faec2' : undefined }}>
                     Columnas
                   </Button>
                 </Tooltip>
@@ -424,8 +424,8 @@ export default function FacturasPage() {
       {/* Bulk action bar */}
       {selectedRowKeys.length > 0 && (
         <div style={{ background: '#e6f4ff', border: '1px solid #91caff', borderRadius: 8, padding: '8px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Text strong style={{ color: '#1677ff' }}>{selectedRowKeys.length} factura(s) seleccionada(s)</Text>
-          <Button type="primary" size="small" icon={<CheckSquareOutlined />} loading={bulkLoading} onClick={handleBulkMarcarEnviadas} style={{ background: '#52c41a', borderColor: '#52c41a' }}>
+          <Text strong style={{ color: '#1faec2' }}>{selectedRowKeys.length} factura(s) seleccionada(s)</Text>
+          <Button type="primary" size="small" icon={<CheckSquareOutlined />} loading={bulkLoading} onClick={handleBulkMarcarEnviadas} style={{ background: '#2ea172', borderColor: '#2ea172' }}>
             Marcar como Enviadas
           </Button>
           <Button size="small" type="text" onClick={() => setSelectedRowKeys([])}>Deseleccionar</Button>

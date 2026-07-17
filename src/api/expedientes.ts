@@ -267,43 +267,43 @@ export const TIPO_MOVIMIENTO_CONFIG: Record<TipoMovimiento, {
   label: string; icon: string; color: string
   needsOrigen: boolean; needsDestino: boolean; flow: 'entrada' | 'salida' | 'traslado' | 'ajuste'
 }> = {
-  entrada_compra:     { label: 'Entrada por compra',          icon: '📥', color: '#52c41a', needsOrigen: false, needsDestino: true,  flow: 'entrada'  },
-  entrada_produccion: { label: 'Entrada por producción',      icon: '🏭', color: '#1677ff', needsOrigen: false, needsDestino: true,  flow: 'entrada'  },
-  entrada_devolucion: { label: 'Devolución de cliente',       icon: '↩️', color: '#13c2c2', needsOrigen: false, needsDestino: true,  flow: 'entrada'  },
-  salida_venta:       { label: 'Salida por venta',            icon: '📤', color: '#ff4d4f', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
-  salida_produccion:  { label: 'Consumo para producción',     icon: '⚙️', color: '#fa8c16', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
-  salida_baja:        { label: 'Baja / Merma / Scrap',        icon: '🗑️', color: '#8c8c8c', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
-  traslado:           { label: 'Traslado entre ubicaciones',  icon: '🔄', color: '#722ed1', needsOrigen: true,  needsDestino: true,  flow: 'traslado' },
-  ajuste:             { label: 'Ajuste de inventario',        icon: '⚖️', color: '#faad14', needsOrigen: false, needsDestino: false, flow: 'ajuste'   },
+  entrada_compra:     { label: 'Entrada por compra',          icon: '📥', color: '#2ea172', needsOrigen: false, needsDestino: true,  flow: 'entrada'  },
+  entrada_produccion: { label: 'Entrada por producción',      icon: '🏭', color: '#1faec2', needsOrigen: false, needsDestino: true,  flow: 'entrada'  },
+  entrada_devolucion: { label: 'Devolución de cliente',       icon: '↩️', color: '#1faec2', needsOrigen: false, needsDestino: true,  flow: 'entrada'  },
+  salida_venta:       { label: 'Salida por venta',            icon: '📤', color: '#e5484d', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
+  salida_produccion:  { label: 'Consumo para producción',     icon: '⚙️', color: '#ff7f00', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
+  salida_baja:        { label: 'Baja / Merma / Scrap',        icon: '🗑️', color: '#6b7280', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
+  traslado:           { label: 'Traslado entre ubicaciones',  icon: '🔄', color: '#6b7280', needsOrigen: true,  needsDestino: true,  flow: 'traslado' },
+  ajuste:             { label: 'Ajuste de inventario',        icon: '⚖️', color: '#ff7f00', needsOrigen: false, needsDestino: false, flow: 'ajuste'   },
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const EXPEDIENTE_STATUS: Record<ExpedienteStatus, { label: string; color: string }> = {
-  abierto:     { label: 'Abierto',       color: 'blue'    },
-  en_transito: { label: 'En tránsito',   color: 'orange'  },
-  en_aduana:   { label: 'En aduana',     color: 'purple'  },
+  abierto:     { label: 'Abierto',       color: '#1faec2'    },
+  en_transito: { label: 'En tránsito',   color: '#ff7f00'  },
+  en_aduana:   { label: 'En aduana',     color: '#6b7280'  },
   bodega:      { label: 'En bodega',     color: 'cyan'    },
-  confirmado:  { label: 'Confirmado',    color: 'green'   },
+  confirmado:  { label: 'Confirmado',    color: '#2ea172'   },
   anulado:     { label: 'Anulado',       color: 'default' },
 }
 
 export const DOCUMENT_TYPE_CONFIG: Record<DocumentType, { label: string; color: string; isFob: boolean }> = {
-  factura_fob:    { label: 'Factura FOB (proveedor)', color: '#1677ff', isFob: true  },
-  flete:          { label: 'Flete / Transporte',       color: '#fa8c16', isFob: false },
-  seguro:         { label: 'Seguro',                    color: '#52c41a', isFob: false },
-  dai:            { label: 'DAI (Derechos Arancelarios)', color: '#ff4d4f', isFob: false },
-  agente_aduanal: { label: 'Agente Aduanal',           color: '#722ed1', isFob: false },
-  almacenaje:     { label: 'Almacenaje / Bodegaje',    color: '#13c2c2', isFob: false },
+  factura_fob:    { label: 'Factura FOB (proveedor)', color: '#1faec2', isFob: true  },
+  flete:          { label: 'Flete / Transporte',       color: '#ff7f00', isFob: false },
+  seguro:         { label: 'Seguro',                    color: '#2ea172', isFob: false },
+  dai:            { label: 'DAI (Derechos Arancelarios)', color: '#e5484d', isFob: false },
+  agente_aduanal: { label: 'Agente Aduanal',           color: '#6b7280', isFob: false },
+  almacenaje:     { label: 'Almacenaje / Bodegaje',    color: '#1faec2', isFob: false },
   iva_importacion:{ label: 'IVA de Importación (12%)', color: '#eb2f96', isFob: false },
-  otro:           { label: 'Otro cargo',               color: '#8c8c8c', isFob: false },
+  otro:           { label: 'Otro cargo',               color: '#6b7280', isFob: false },
 }
 
 export const AJUSTE_TYPE_CONFIG = {
-  entrada:      { label: 'Entrada',           color: 'green',   sign: +1 },
-  salida:       { label: 'Salida',            color: 'red',     sign: -1 },
-  conteo_fisico:{ label: 'Conteo físico',     color: 'blue',    sign:  0 },
-  merma:        { label: 'Merma / Pérdida',   color: 'orange',  sign: -1 },
-  devolucion:   { label: 'Devolución',        color: 'purple',  sign: +1 },
+  entrada:      { label: 'Entrada',           color: '#2ea172',   sign: +1 },
+  salida:       { label: 'Salida',            color: '#e5484d',     sign: -1 },
+  conteo_fisico:{ label: 'Conteo físico',     color: '#1faec2',    sign:  0 },
+  merma:        { label: 'Merma / Pérdida',   color: '#ff7f00',  sign: -1 },
+  devolucion:   { label: 'Devolución',        color: '#6b7280',  sign: +1 },
 }
 
 // ─── Producción ───────────────────────────────────────────────────────────────

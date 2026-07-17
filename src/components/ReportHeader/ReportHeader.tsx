@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function ReportHeader({ empresa, reportName, period, folioInicio, folioFin }: Props) {
-  const tradeName = empresa?.company_name ?? 'ContaERP'
+  const tradeName = empresa?.company_name ?? 'Lucía'
   const legalName = empresa?.legal_name   ?? ''
   const nit       = empresa?.tax_id       ?? ''
   const currency  = empresa?.currency     ?? 'GTQ'
@@ -17,11 +17,11 @@ export default function ReportHeader({ empresa, reportName, period, folioInicio,
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-      borderBottom: '2px solid #1B3A6B', paddingBottom: 10, marginBottom: 12,
+      borderBottom: '2px solid #1faec2', paddingBottom: 10, marginBottom: 12,
     }}>
       {/* Datos empresa */}
       <div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#1B3A6B', lineHeight: 1.3 }}>{tradeName}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#1faec2', lineHeight: 1.3 }}>{tradeName}</div>
         {legalName && legalName !== tradeName && (
           <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>{legalName}</div>
         )}
@@ -43,11 +43,11 @@ export default function ReportHeader({ empresa, reportName, period, folioInicio,
           Moneda: <strong>{currency}</strong>
         </div>
         <div style={{
-          border: '1.5px solid #1B3A6B', borderRadius: 6, padding: '4px 14px',
+          border: '1.5px solid #1faec2', borderRadius: 6, padding: '4px 14px',
           textAlign: 'center', minWidth: 70,
         }}>
-          <div style={{ fontSize: 9, color: '#9ca3af', letterSpacing: 1, textTransform: 'uppercase', lineHeight: 1 }}>Folio</div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#1B3A6B', lineHeight: 1.3, fontFamily: 'monospace' }}>
+          <div style={{ fontSize: 9, color: '#9aa1ab', letterSpacing: 1, textTransform: 'uppercase', lineHeight: 1 }}>Folio</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1faec2', lineHeight: 1.3, fontVariantNumeric: 'tabular-nums' }}>
             {folioInicio === folioFin ? folioInicio : `${folioInicio}–${folioFin}`}
           </div>
         </div>

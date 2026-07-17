@@ -96,15 +96,15 @@ export default function DiariosManualesPage() {
       title: 'Descripción', dataIndex: 'description', ellipsis: true,
       render: (v: string) => (
         <Tooltip title={v}>
-          <span style={{ color: '#262626' }}>{v || <span style={{ color: '#bfbfbf' }}>—</span>}</span>
+          <span style={{ color: '#0a0a0a' }}>{v || <span style={{ color: '#9aa1ab' }}>—</span>}</span>
         </Tooltip>
       ),
     },
     {
       title: 'Referencia', dataIndex: 'reference', width: 150,
       render: (v?: string) => v
-        ? <span style={{ color: '#595959', fontFamily: 'monospace' }}>{v}</span>
-        : <span style={{ color: '#bfbfbf' }}>—</span>,
+        ? <span style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{v}</span>
+        : <span style={{ color: '#9aa1ab' }}>—</span>,
     },
     {
       title: 'Tipo', dataIndex: 'type', width: 105,
@@ -120,7 +120,7 @@ export default function DiariosManualesPage() {
       title: 'Total', dataIndex: 'totalDebit', width: 150, align: 'right' as const,
       render: (v: number, r: AsientoListItem) => (
         <span style={{ fontWeight: 500 }}>
-          <span style={{ color: '#8c8c8c', fontSize: 11, marginRight: 4 }}>{r.currency ?? 'GTQ'}</span>
+          <span style={{ color: '#6b7280', fontSize: 11, marginRight: 4 }}>{r.currency ?? 'GTQ'}</span>
           {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -149,7 +149,7 @@ export default function DiariosManualesPage() {
                 okText="Publicar"
                 onConfirm={() => act(r.id, () => postAsiento(r.id), 'Asiento publicado')}>
                 <Button size="small" type="primary" icon={<CheckCircleOutlined />}
-                  style={{ background: '#1B3A6B' }} loading={acting === r.id} />
+                  style={{ background: '#1faec2' }} loading={acting === r.id} />
               </Popconfirm>
             </Tooltip>
           )}
@@ -205,11 +205,11 @@ export default function DiariosManualesPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Todos los diarios manuales</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Todos los diarios manuales</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={load} />
           <Button type="primary" icon={<PlusOutlined />}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
             onClick={() => navigate('/contabilidad/diarios-manuales/nuevo')}>
             Nuevo
           </Button>

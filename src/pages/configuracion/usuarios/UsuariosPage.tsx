@@ -363,7 +363,7 @@ export default function UsuariosPage() {
       title: 'Usuario',
       render: (_, r) => (
         <Space>
-          <Avatar style={{ background: '#1B3A6B', fontSize: 12 }} size={34}>
+          <Avatar style={{ background: '#1faec2', fontSize: 12 }} size={34}>
             {r.firstName?.[0]}{r.lastName?.[0]}
           </Avatar>
           <div>
@@ -377,9 +377,9 @@ export default function UsuariosPage() {
       title: 'Rol',
       width: 240,
       render: (_, r) => r.roles?.length
-        ? r.roles.map(role => <Tag key={role.id} color="blue" icon={<TeamOutlined />}>{role.name}</Tag>)
+        ? r.roles.map(role => <Tag key={role.id} color="#1faec2" icon={<TeamOutlined />}>{role.name}</Tag>)
         : r.isSuperAdmin
-          ? <Tag color="red" icon={<CrownOutlined />}>Super Admin</Tag>
+          ? <Tag color="#e5484d" icon={<CrownOutlined />}>Super Admin</Tag>
           : <Tag color="default">Sin rol</Tag>,
     },
     {
@@ -427,7 +427,7 @@ export default function UsuariosPage() {
       title: 'Rol',
       render: (_, r) => (
         <Space>
-          <KeyOutlined style={{ color: '#1B3A6B' }} />
+          <KeyOutlined style={{ color: '#1faec2' }} />
           <div>
             <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
             {r.description && <Text type="secondary" style={{ fontSize: 12 }}>{r.description}</Text>}
@@ -439,8 +439,8 @@ export default function UsuariosPage() {
       title: 'Tipo',
       width: 110,
       render: (_, r) => r.isSystem
-        ? <Tag color="geekblue">Sistema</Tag>
-        : <Tag color="green">Personalizado</Tag>,
+        ? <Tag color="#1faec2">Sistema</Tag>
+        : <Tag color="#2ea172">Personalizado</Tag>,
     },
     {
       title: 'Permisos',
@@ -481,9 +481,12 @@ export default function UsuariosPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Usuarios y Roles</Title>
-        <Text type="secondary">Gestiona quién tiene acceso al tenant y qué puede hacer</Text>
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <TeamOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+        <div>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Usuarios y Roles</Title>
+          <Text type="secondary">Gestiona quién tiene acceso al tenant y qué puede hacer</Text>
+        </div>
       </div>
 
       <Tabs
@@ -496,7 +499,7 @@ export default function UsuariosPage() {
               <>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
                   <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}
-                    style={{ background: '#1B3A6B' }}>
+                    style={{ background: '#1faec2' }}>
                     Nuevo usuario
                   </Button>
                 </div>
@@ -520,7 +523,7 @@ export default function UsuariosPage() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
                   <Button type="primary" icon={<PlusOutlined />}
                     onClick={() => { roleForm.resetFields(); setModal('newRole') }}
-                    style={{ background: '#1B3A6B' }}>
+                    style={{ background: '#1faec2' }}>
                     Nuevo rol
                   </Button>
                 </div>
@@ -547,7 +550,7 @@ export default function UsuariosPage() {
         onOk={handleCreate}
         confirmLoading={saving}
         okText="Crear"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={480}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
@@ -585,7 +588,7 @@ export default function UsuariosPage() {
         onOk={handleEdit}
         confirmLoading={saving}
         okText="Guardar"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={480}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
@@ -634,11 +637,11 @@ export default function UsuariosPage() {
               const overrides = companyOverrides[c.id] ?? {}
               const moduleItems = Object.entries(MODULE_LABELS).filter(([k]) => k !== 'platform')
               return (
-                <div key={c.id} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 8, marginBottom: 8 }}>
+                <div key={c.id} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)', paddingBottom: 8, marginBottom: 8 }}>
                   {/* Fila empresa + checkbox */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
                     <Space>
-                      <BankOutlined style={{ color: '#1B3A6B' }} />
+                      <BankOutlined style={{ color: '#1faec2' }} />
                       <div>
                         <div style={{ fontWeight: 500, fontSize: 13 }}>{c.legalName}</div>
                         <Text type="secondary" style={{ fontSize: 11 }}>{c.countryCode} · {c.currencyCode}</Text>
@@ -700,7 +703,7 @@ export default function UsuariosPage() {
         onOk={handleCreateRole}
         confirmLoading={saving}
         okText="Crear"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={roleForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="name" label="Nombre del rol" rules={[{ required: true }]}>
@@ -718,7 +721,7 @@ export default function UsuariosPage() {
           <Space>
             <LockOutlined />
             <span>Permisos — <strong>{editingRole?.name}</strong></span>
-            {editingRole?.isSystem && <Tag color="geekblue" style={{ marginLeft: 4 }}>Sistema</Tag>}
+            {editingRole?.isSystem && <Tag color="#1faec2" style={{ marginLeft: 4 }}>Sistema</Tag>}
           </Space>
         }
         open={drawerOpen}
@@ -727,7 +730,7 @@ export default function UsuariosPage() {
         extra={
           editingRole?.name !== 'superadmin' && (
             <Button type="primary" loading={savingPerms} onClick={handleSavePerms}
-              style={{ background: '#1B3A6B' }}>
+              style={{ background: '#1faec2' }}>
               Guardar permisos
             </Button>
           )
@@ -751,7 +754,7 @@ export default function UsuariosPage() {
                     indeterminate={!isModuleComplete(group) && isModulePartial(group)}
                     onChange={e => toggleModule(group, e.target.checked)}
                   />
-                  <Text strong style={{ color: '#1B3A6B', fontSize: 13 }}>
+                  <Text strong style={{ color: '#1faec2', fontSize: 13 }}>
                     {MODULE_LABELS[group.module] ?? group.module}
                   </Text>
                 </div>
@@ -759,7 +762,7 @@ export default function UsuariosPage() {
                 {/* Tabla de submodulos */}
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
-                    <tr style={{ background: '#fafafa' }}>
+                    <tr style={{ background: '#fafbfc' }}>
                       <th style={thStyle}>Módulo</th>
                       <th style={{ ...thStyle, width: 56, textAlign: 'center' }}>Todo</th>
                       {MAIN_ACTIONS.map(a => (
@@ -775,7 +778,7 @@ export default function UsuariosPage() {
                       const extras = EXTRA_ACTIONS.filter(a => row.perms[a])
                       return (
                         <tr key={row.submodule}
-                          style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          style={{ background: idx % 2 === 0 ? '#fff' : '#fafbfc' }}>
                           <td style={tdStyle}>
                             {SUBMODULE_LABELS[row.submodule] ?? row.submodule}
                           </td>
@@ -793,7 +796,7 @@ export default function UsuariosPage() {
                                   checked={checkedSlugs.has(row.perms[action])}
                                   onChange={e => toggleSlug(row.perms[action], e.target.checked)}
                                 />
-                              ) : <span style={{ color: '#d9d9d9' }}>—</span>}
+                              ) : <span style={{ color: '#9aa1ab' }}>—</span>}
                             </td>
                           ))}
                           <td style={tdStyle}>
@@ -809,7 +812,7 @@ export default function UsuariosPage() {
                                   </label>
                                 ))}
                               </Space>
-                              : <span style={{ color: '#d9d9d9', fontSize: 11 }}>—</span>
+                              : <span style={{ color: '#9aa1ab', fontSize: 11 }}>—</span>
                             }
                           </td>
                         </tr>
@@ -832,11 +835,11 @@ const thStyle: React.CSSProperties = {
   textAlign: 'left',
   fontWeight: 600,
   color: '#555',
-  borderBottom: '1px solid #e8e8e8',
+  borderBottom: '1px solid rgba(10,10,10,0.08)',
 }
 
 const tdStyle: React.CSSProperties = {
   padding: '6px 10px',
-  borderBottom: '1px solid #f0f0f0',
+  borderBottom: '1px solid rgba(10,10,10,0.08)',
   verticalAlign: 'middle',
 }

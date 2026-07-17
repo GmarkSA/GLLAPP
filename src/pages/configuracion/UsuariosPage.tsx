@@ -135,7 +135,7 @@ export default function UsuariosPage() {
       width: 130,
       render: (v: boolean) => v
         ? <Tag color="gold" style={{ fontSize: 11 }}>Superadmin</Tag>
-        : <Tag color="blue" style={{ fontSize: 11 }}>Usuario</Tag>,
+        : <Tag color="#1faec2" style={{ fontSize: 11 }}>Usuario</Tag>,
     },
     {
       title: 'Estado',
@@ -188,13 +188,13 @@ export default function UsuariosPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Usuarios y Roles</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Usuarios y Roles</Title>
           <Text type="secondary">Gestiona los usuarios con acceso a tu empresa</Text>
         </div>
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={openCreate}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nuevo usuario
         </Button>
@@ -219,7 +219,7 @@ export default function UsuariosPage() {
         onCancel={() => { setModal(null); form.resetFields() }}
         onOk={handleSave}
         okText="Guardar"
-        okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
         cancelText="Cancelar"
         width={460}
       >
@@ -276,7 +276,7 @@ export default function UsuariosPage() {
         onCancel={() => { setModal(null); pwForm.resetFields() }}
         onOk={handleResetPassword}
         okText="Cambiar contraseña"
-        okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
         cancelText="Cancelar"
         width={400}
       >

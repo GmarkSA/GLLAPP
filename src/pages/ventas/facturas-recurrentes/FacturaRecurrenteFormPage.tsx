@@ -228,7 +228,7 @@ export default function FacturaRecurrenteFormPage() {
     <div style={{ padding: '24px 28px', maxWidth: 1400 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/facturas-recurrentes')} />
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
           {isEdit ? 'Editar plantilla recurrente' : 'Nueva plantilla recurrente'}
         </Title>
       </div>
@@ -238,7 +238,7 @@ export default function FacturaRecurrenteFormPage() {
 
         {/* ── Información general ─────────────────────────────────────── */}
         <div style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-          <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Información general</Text>
+          <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Información general</Text>
           <Divider style={{ margin: '10px 0 16px' }} />
 
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -276,7 +276,7 @@ export default function FacturaRecurrenteFormPage() {
 
         {/* ── Programación ─────────────────────────────────────────────── */}
         <div style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-          <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Programación</Text>
+          <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Programación</Text>
           <Divider style={{ margin: '10px 0 16px' }} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
@@ -294,8 +294,8 @@ export default function FacturaRecurrenteFormPage() {
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap', marginTop: 4 }}>
             <div style={{ paddingBottom: 5 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Próx. generación: <strong style={{ color: '#1B3A6B' }}>{proximaFecha.format('DD/MM/YYYY')}</strong>
-                <Tag color="blue" style={{ marginLeft: 6, fontSize: 11 }}>{FRECUENCIA_LABELS[frecuencia]}</Tag>
+                Próx. generación: <strong style={{ color: '#1faec2' }}>{proximaFecha.format('DD/MM/YYYY')}</strong>
+                <Tag color="#1faec2" style={{ marginLeft: 6, fontSize: 11 }}>{FRECUENCIA_LABELS[frecuencia]}</Tag>
               </Text>
             </div>
 
@@ -316,7 +316,7 @@ export default function FacturaRecurrenteFormPage() {
 
         {/* ── Detalle de la factura ────────────────────────────────────── */}
         <div style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-          <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Detalle de la factura</Text>
+          <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Detalle de la factura</Text>
           <Divider style={{ margin: '10px 0 16px' }} />
 
           <LineItemsEditor
@@ -331,16 +331,16 @@ export default function FacturaRecurrenteFormPage() {
             <div style={{ minWidth: 260, background: '#f8f9fb', borderRadius: 8, padding: '12px 16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>Subtotal (base)</Text>
-                <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(totales.subtotal)}</Text>
+                <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totales.subtotal)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>IVA (impuesto)</Text>
-                <Text style={{ fontSize: 12, fontFamily: 'monospace', color: '#1677ff' }}>{fmtQ(totales.taxAmount)}</Text>
+                <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(totales.taxAmount)}</Text>
               </div>
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text strong style={{ fontSize: 14 }}>Total factura</Text>
-                <Text strong style={{ fontSize: 16, color: '#1B3A6B', fontFamily: 'monospace' }}>{fmtQ(totales.total)}</Text>
+                <Text strong style={{ fontSize: 16, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totales.total)}</Text>
               </div>
             </div>
           </div>
@@ -350,14 +350,14 @@ export default function FacturaRecurrenteFormPage() {
         <Card
           size="small"
           style={{ borderColor: '#d6e4ff', marginBottom: 16 }}
-          styles={{ header: { background: '#f0f5ff', borderBottom: '1px solid #d6e4ff', minHeight: 36 }, body: { padding: '10px 14px 4px' } }}
+          styles={{ header: { background: '#fafbfc', borderBottom: '1px solid #d6e4ff', minHeight: 36 }, body: { padding: '10px 14px 4px' } }}
           title={
             <Space>
-              <SafetyCertificateOutlined style={{ color: '#1B3A6B', fontSize: 13 }} />
-              <span style={{ color: '#1B3A6B', fontWeight: 600, fontSize: 13 }}>
+              <SafetyCertificateOutlined style={{ color: '#1faec2', fontSize: 13 }} />
+              <span style={{ color: '#1faec2', fontWeight: 600, fontSize: 13 }}>
                 Datos FEL — Factura Electrónica SAT Guatemala
               </span>
-              <Tag color="blue" style={{ fontSize: 10 }}>SAT</Tag>
+              <Tag color="#1faec2" style={{ fontSize: 10 }}>SAT</Tag>
             </Space>
           }
         >
@@ -412,7 +412,7 @@ export default function FacturaRecurrenteFormPage() {
               return (
                 <Tag
                   key={`${f.tipoFrase}-${f.codigoEscenario}`}
-                  color={active ? 'blue' : 'default'}
+                  color={active ? '#1faec2' : 'default'}
                   style={{ cursor: 'pointer', padding: '2px 8px', fontSize: 11 }}
                   onClick={() => toggleFrase(f.tipoFrase, f.codigoEscenario)}
                 >
@@ -423,8 +423,8 @@ export default function FacturaRecurrenteFormPage() {
           </div>
 
           {/* Exportación / Consignación */}
-          <div style={{ borderTop: '1px dashed #d9d9d9', paddingTop: 8, marginTop: 2 }}>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 6, fontWeight: 500, letterSpacing: '.02em' }}>
+          <div style={{ borderTop: '1px dashed rgba(10,10,10,0.08)', paddingTop: 8, marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, fontWeight: 500, letterSpacing: '.02em' }}>
               EXPORTACIÓN / CONSIGNACIÓN
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: '0 12px' }}>
@@ -438,7 +438,7 @@ export default function FacturaRecurrenteFormPage() {
                 <Input placeholder="Nombre del consignatario" />
               </Form.Item>
               <Form.Item name="direccionConsignatario" label="Dirección Consignatario" style={{ marginBottom: 8 }}>
-                <Input placeholder="Dirección destino" prefix={<GlobalOutlined style={{ color: '#8c8c8c' }} />} />
+                <Input placeholder="Dirección destino" prefix={<GlobalOutlined style={{ color: '#6b7280' }} />} />
               </Form.Item>
             </div>
           </div>
@@ -454,7 +454,7 @@ export default function FacturaRecurrenteFormPage() {
         {/* ── Acciones ─────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
           <Button onClick={() => navigate('/ventas/facturas-recurrentes')}>Cancelar</Button>
-          <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving} style={{ background: '#1B3A6B' }}>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving} style={{ background: '#1faec2' }}>
             {isEdit ? 'Guardar cambios' : 'Crear plantilla'}
           </Button>
         </div>

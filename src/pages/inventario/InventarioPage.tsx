@@ -74,7 +74,7 @@ export default function InventarioPage() {
       render: (v: string) => (
         <Text
           copyable
-          style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}
+          style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}
         >
           {v || '—'}
         </Text>
@@ -128,10 +128,10 @@ export default function InventarioPage() {
         }
         const isBelowReorder = r.reorderPoint != null && v <= r.reorderPoint
         const isBelowMin     = r.minimumStock != null && v < r.minimumStock
-        const color = isBelowMin ? '#ff4d4f' : isBelowReorder ? '#fa8c16' : '#52c41a'
+        const color = isBelowMin ? '#e5484d' : isBelowReorder ? '#ff7f00' : '#2ea172'
         return (
           <Tooltip title={isBelowMin ? 'Bajo mínimo' : isBelowReorder ? 'Bajo punto de reorden' : 'Stock OK'}>
-            <Text style={{ fontFamily: 'monospace', color, fontWeight: 600 }}>
+            <Text style={{ fontVariantNumeric: 'tabular-nums', color, fontWeight: 600 }}>
               {Number(v || 0).toLocaleString('es-GT')}
             </Text>
           </Tooltip>
@@ -144,7 +144,7 @@ export default function InventarioPage() {
       width: 110,
       align: 'right',
       render: (v: number) => (
-        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>
       ),
     },
     {
@@ -153,7 +153,7 @@ export default function InventarioPage() {
       width: 110,
       align: 'right',
       render: (v: number) => (
-        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>
       ),
     },
     {
@@ -187,7 +187,7 @@ export default function InventarioPage() {
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <InboxOutlined style={{ marginRight: 8 }} />
             Inventario de Artículos
           </Title>
@@ -197,7 +197,7 @@ export default function InventarioPage() {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => navigate('/inventario/nuevo')}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nuevo artículo
         </Button>
@@ -210,7 +210,7 @@ export default function InventarioPage() {
             <Statistic
               title="Artículos activos"
               value={activeProducts.length}
-              valueStyle={{ color: '#1B3A6B', fontWeight: 700 }}
+              valueStyle={{ color: '#0a0a0a', fontWeight: 700 }}
             />
           </Card>
         </Col>
@@ -219,7 +219,7 @@ export default function InventarioPage() {
             <Statistic
               title="Total SKUs"
               value={skuCount}
-              valueStyle={{ color: '#1677ff', fontWeight: 700 }}
+              valueStyle={{ color: '#1faec2', fontWeight: 700 }}
             />
           </Card>
         </Col>
@@ -230,18 +230,18 @@ export default function InventarioPage() {
               value={totalValue}
               precision={2}
               prefix="Q"
-              valueStyle={{ color: '#52c41a', fontWeight: 700, fontSize: 18 }}
+              valueStyle={{ color: '#2ea172', fontWeight: 700, fontSize: 18 }}
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card size="small" style={{ borderRadius: 8, borderColor: belowMinCount > 0 ? '#fa8c16' : undefined }}>
+          <Card size="small" style={{ borderRadius: 8, borderColor: belowMinCount > 0 ? '#ff7f00' : undefined }}>
             <Statistic
               title="Artículos bajo mínimo"
               value={belowMinCount}
-              prefix={belowMinCount > 0 ? <WarningOutlined style={{ color: '#fa8c16' }} /> : undefined}
-              valueStyle={{ color: belowMinCount > 0 ? '#fa8c16' : '#52c41a', fontWeight: 700 }}
+              prefix={belowMinCount > 0 ? <WarningOutlined style={{ color: '#ff7f00' }} /> : undefined}
+              valueStyle={{ color: belowMinCount > 0 ? '#ff7f00' : '#2ea172', fontWeight: 700 }}
             />
           </Card>
         </Col>
@@ -319,17 +319,17 @@ export default function InventarioPage() {
           locale={{
             emptyText: (
               <Empty
-                image={<InboxOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
+                image={<InboxOutlined style={{ fontSize: 48, color: '#9aa1ab' }} />}
                 description={
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: '#8c8c8c', marginBottom: 8 }}>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: '#6b7280', marginBottom: 8 }}>
                       Sin artículos registrados
                     </div>
                     <Button
                       type="primary"
                       icon={<PlusOutlined />}
                       onClick={() => navigate('/inventario/nuevo')}
-                      style={{ background: '#1B3A6B' }}
+                      style={{ background: '#1faec2' }}
                     >
                       Crear primer artículo
                     </Button>

@@ -161,8 +161,8 @@ export default function BankPaymentConfigPage() {
       render: (_: any, r: BankPaymentConfig) => r.achEnabled
         ? (
           <Space direction="vertical" size={0}>
-            <Tag color="blue">{ACH_FORMATS.find(f => f.value === r.achFileFormat)?.label ?? r.achFileFormat}</Tag>
-            <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+            <Tag color="#1faec2">{ACH_FORMATS.find(f => f.value === r.achFileFormat)?.label ?? r.achFileFormat}</Tag>
+            <Text type="secondary" style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
               {r.achNomenclature ?? ''}
             </Text>
           </Space>

@@ -101,8 +101,8 @@ export default function DiariosRecurrentesPage() {
       render: (_: any, r: AsientoRecurrente) => (
         <div>
           <div style={{ fontWeight: 500 }}>{r.nombre}</div>
-          {r.descripcion && <div style={{ fontSize: 11, color: '#8c8c8c', marginTop: 2 }}>{r.descripcion}</div>}
-          {r.autoPublicar && <div style={{ fontSize: 10, color: '#1B3A6B', marginTop: 2 }}>⚡ Auto-publica</div>}
+          {r.descripcion && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{r.descripcion}</div>}
+          {r.autoPublicar && <div style={{ fontSize: 10, color: '#1faec2', marginTop: 2 }}>⚡ Auto-publica</div>}
         </div>
       ),
     },
@@ -151,7 +151,7 @@ export default function DiariosRecurrentesPage() {
               okText="Generar"
               onConfirm={() => handleGenerar(r)}>
               <Button size="small" type="primary" icon={<PlayCircleOutlined />}
-                style={{ background: '#1B3A6B' }}
+                style={{ background: '#1faec2' }}
                 loading={acting === r.id}
                 disabled={!r.activo} />
             </Popconfirm>
@@ -192,7 +192,7 @@ export default function DiariosRecurrentesPage() {
         if (!r.asientoGeneradoId) return '—'
         const label = r.asientoGeneradoEntryNumber ?? 'Ver asiento'
         return (
-          <Button type="link" size="small" style={{ padding: 0, fontFamily: 'monospace', fontWeight: 600 }}
+          <Button type="link" size="small" style={{ padding: 0, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}
             onClick={() => { setHistModal(false); navigate(`/contabilidad/diarios-manuales/${r.asientoGeneradoId}`) }}>
             {label}
           </Button>
@@ -225,7 +225,7 @@ export default function DiariosRecurrentesPage() {
     {
       title: 'Error', dataIndex: 'errorMsg',
       render: (v: string | null) => v
-        ? <Tooltip title={v}><span style={{ color: '#f5222d', fontSize: 11 }}>⚠ {v.slice(0, 50)}{v.length > 50 ? '…' : ''}</span></Tooltip>
+        ? <Tooltip title={v}><span style={{ color: '#e5484d', fontSize: 11 }}>⚠ {v.slice(0, 50)}{v.length > 50 ? '…' : ''}</span></Tooltip>
         : '—',
     },
   ]
@@ -233,11 +233,11 @@ export default function DiariosRecurrentesPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Diarios recurrentes</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Diarios recurrentes</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={load} />
           <Button type="primary" icon={<PlusOutlined />}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
             onClick={() => navigate('/contabilidad/diarios-recurrentes/nueva')}>
             Nueva plantilla
           </Button>

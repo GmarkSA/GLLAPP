@@ -22,7 +22,7 @@ const fmtQ = (n: number | undefined | null, cur = 'GTQ') =>
   n != null ? `${cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
 
 const INVOICE_STATUS_COLOR: Record<string, string> = {
-  sent: 'blue', partial: 'geekblue', paid: 'green', voided: 'red', overdue: 'red', draft: 'default',
+  sent: '#1faec2', partial: '#1faec2', paid: '#2ea172', voided: '#e5484d', overdue: '#e5484d', draft: 'default',
 }
 const INVOICE_STATUS_LABEL: Record<string, string> = {
   sent: 'Enviada', partial: 'Pago parcial', paid: 'Pagada',
@@ -97,7 +97,7 @@ export default function PagoRecibidoDetallePage() {
     {
       title: 'Número de factura', dataIndex: 'number',
       render: (v: string, r: any) => (
-        <a onClick={() => navigate(`/ventas/facturas/${r.id}`)} style={{ color: '#1B3A6B', fontFamily: 'monospace' }}>
+        <a onClick={() => navigate(`/ventas/facturas/${r.id}`)} style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>
           {v}
         </a>
       ),
@@ -108,11 +108,11 @@ export default function PagoRecibidoDetallePage() {
     },
     {
       title: 'Importe de la factura', dataIndex: 'total', width: 180, align: 'right' as const,
-      render: (v: number) => <Text style={{ fontFamily: 'monospace' }}>{fmtQ(v, pago.currency)}</Text>,
+      render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v, pago.currency)}</Text>,
     },
     {
       title: 'Importe del pago', dataIndex: 'paid', width: 160, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(v, pago.currency)}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v, pago.currency)}</Text>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 120,
@@ -125,7 +125,7 @@ export default function PagoRecibidoDetallePage() {
       title: 'Cuenta',
       render: (_, r) => (
         <Space>
-          <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{r.accountCode}</Text>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{r.accountCode}</Text>
           <Text>{r.accountName}</Text>
         </Space>
       ),
@@ -137,13 +137,13 @@ export default function PagoRecibidoDetallePage() {
     {
       title: 'Débito', dataIndex: 'debit', width: 130, align: 'right' as const,
       render: (v) => Number(v) > 0
-        ? <Text strong style={{ fontFamily: 'monospace' }}>{Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
         : <Text type="secondary">0.00</Text>,
     },
     {
       title: 'Crédito', dataIndex: 'credit', width: 130, align: 'right' as const,
       render: (v) => Number(v) > 0
-        ? <Text strong style={{ fontFamily: 'monospace', color: '#389e0d' }}>{Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>{Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
         : <Text type="secondary">0.00</Text>,
     },
   ]
@@ -163,7 +163,7 @@ export default function PagoRecibidoDetallePage() {
             onConfirm={handleReprocess}
             okText="Reprocesar" cancelText="Cancelar"
           >
-            <Button icon={<SyncOutlined />} loading={reprocessing} style={{ borderColor: '#1890ff', color: '#1890ff' }}>
+            <Button icon={<SyncOutlined />} loading={reprocessing} style={{ borderColor: '#1faec2', color: '#1faec2' }}>
               Reprocesar póliza
             </Button>
           </Popconfirm>
@@ -188,7 +188,7 @@ export default function PagoRecibidoDetallePage() {
 
         {/* Encabezado del recibo */}
         <div style={{
-          background: '#1B3A6B',
+          background: '#1faec2',
           padding: '20px 32px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -212,7 +212,7 @@ export default function PagoRecibidoDetallePage() {
             <div style={{ color: '#fff', fontSize: 11, fontWeight: 600, letterSpacing: 1, marginBottom: 2 }}>
               IMPORTE RECIBIDO
             </div>
-            <div style={{ color: '#fff', fontSize: 22, fontWeight: 800, fontFamily: 'monospace', lineHeight: 1.2 }}>
+            <div style={{ color: '#fff', fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
               {fmtQ(pago.amount, pago.currency)}
             </div>
           </div>
@@ -238,7 +238,7 @@ export default function PagoRecibidoDetallePage() {
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 Número de referencia
               </Text>
-              <Text strong style={{ fontSize: 14, fontFamily: 'monospace' }}>{pago.reference ?? '—'}</Text>
+              <Text strong style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{pago.reference ?? '—'}</Text>
             </div>
             <div>
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -257,7 +257,7 @@ export default function PagoRecibidoDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Recibido de
             </Text>
-            <Text strong style={{ fontSize: 16, color: '#1B3A6B' }}>
+            <Text strong style={{ fontSize: 16, color: '#1faec2' }}>
               {customer?.name ?? pago.customerName ?? pago.customerId}
             </Text>
             {(customer?.taxId ?? pago.customerTaxId) && (
@@ -270,7 +270,7 @@ export default function PagoRecibidoDetallePage() {
           {/* Tabla de facturas */}
           {invoiceRows.length > 0 && (
             <div style={{ marginBottom: 28 }}>
-              <Text style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
                 Pago de
               </Text>
               <Table
@@ -279,7 +279,7 @@ export default function PagoRecibidoDetallePage() {
                 rowKey="key"
                 size="small"
                 pagination={false}
-                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+                style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
               />
             </div>
           )}
@@ -304,7 +304,7 @@ export default function PagoRecibidoDetallePage() {
             {je && (
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Póliza:{' '}
-                <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{je.entryNumber}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{je.entryNumber}</Text>
               </Text>
             )}
           </div>
@@ -314,8 +314,8 @@ export default function PagoRecibidoDetallePage() {
         {(bankAcc || pago.notes) && (
           <>
             <Divider style={{ margin: 0 }} />
-            <div style={{ padding: '20px 32px', background: '#fafafa' }}>
-              <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+            <div style={{ padding: '20px 32px', background: '#fafbfc' }}>
+              <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
                 Más información
               </Text>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 32px' }}>
@@ -323,7 +323,7 @@ export default function PagoRecibidoDetallePage() {
                   <div>
                     <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 3 }}>Depósito para</Text>
                     <Space size={6}>
-                      <BankOutlined style={{ color: '#1B3A6B' }} />
+                      <BankOutlined style={{ color: '#1faec2' }} />
                       <Text strong style={{ fontSize: 13 }}>{bankAcc.name}</Text>
                       {bankAcc.bankName && <Text type="secondary" style={{ fontSize: 12 }}>— {bankAcc.bankName}</Text>}
                       {bankAcc.accountNumber && <Text type="secondary" style={{ fontSize: 12 }}>({bankAcc.accountNumber})</Text>}
@@ -334,10 +334,10 @@ export default function PagoRecibidoDetallePage() {
                   <div>
                     <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 3 }}>Factura</Text>
                     <Space size={6}>
-                      <FileTextOutlined style={{ color: '#1B3A6B' }} />
+                      <FileTextOutlined style={{ color: '#1faec2' }} />
                       <a
                         onClick={() => navigate(`/ventas/facturas/${invoice.id}`)}
-                        style={{ color: '#1B3A6B', fontSize: 13, fontFamily: 'monospace' }}
+                        style={{ color: '#1faec2', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}
                       >
                         {invoice.invoiceNumber}
                       </a>
@@ -361,7 +361,7 @@ export default function PagoRecibidoDetallePage() {
         {/* ── Diario / Póliza contable ──────────────────────────────────────── */}
         <Divider style={{ margin: 0 }} />
         <div style={{ padding: '20px 32px' }}>
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
             Diario
           </Text>
 
@@ -370,8 +370,8 @@ export default function PagoRecibidoDetallePage() {
               <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>{je.description}</Text>
                 <Space>
-                  <Button size="small" style={{ borderColor: '#d9d9d9', fontSize: 12 }}>Acumulación</Button>
-                  <Button size="small" style={{ borderColor: '#d9d9d9', fontSize: 12 }}>Efectivo</Button>
+                  <Button size="small" style={{ borderColor: 'rgba(10,10,10,0.08)', fontSize: 12 }}>Acumulación</Button>
+                  <Button size="small" style={{ borderColor: 'rgba(10,10,10,0.08)', fontSize: 12 }}>Efectivo</Button>
                 </Space>
               </div>
               <Table
@@ -380,20 +380,20 @@ export default function PagoRecibidoDetallePage() {
                 rowKey="id"
                 size="small"
                 pagination={false}
-                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+                style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
                 summary={() => (
                   <Table.Summary fixed>
-                    <Table.Summary.Row style={{ background: '#fafafa' }}>
+                    <Table.Summary.Row style={{ background: '#fafbfc' }}>
                       <Table.Summary.Cell index={0} colSpan={2}>
                         <Text strong style={{ fontSize: 12 }}>Total</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
-                        <Text strong style={{ fontFamily: 'monospace' }}>
+                        <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {Number(je.totalDebit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                         </Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ fontFamily: 'monospace', color: '#389e0d' }}>
+                        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>
                           {Number(je.totalCredit).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                         </Text>
                       </Table.Summary.Cell>

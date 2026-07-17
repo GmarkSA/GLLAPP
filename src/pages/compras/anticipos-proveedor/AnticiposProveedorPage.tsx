@@ -17,8 +17,8 @@ const fmtQ = (n: number, cur = 'GTQ') =>
 
 const STATUS_COLOR: Record<string, string> = {
   open:    'blue',
-  partial: 'orange',
-  applied: 'green',
+  partial: '#ff7f00',
+  applied: '#2ea172',
   voided:  'red',
 }
 
@@ -70,7 +70,7 @@ export default function AnticiposProveedorPage() {
   const columns: ColumnsType<VendorAdvance> = [
     {
       title: 'Número', dataIndex: 'advanceNumber', width: 160,
-      render: (v) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>,
+      render: (v) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>,
     },
     {
       title: 'Proveedor', dataIndex: 'vendorName', ellipsis: true,
@@ -82,12 +82,12 @@ export default function AnticiposProveedorPage() {
     },
     {
       title: 'Monto', dataIndex: 'amount', width: 140, align: 'right',
-      render: (v, r) => <Text style={{ fontFamily: 'monospace' }}>{fmtQ(v, r.currency)}</Text>,
+      render: (v, r) => <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v, r.currency)}</Text>,
     },
     {
       title: 'Saldo', dataIndex: 'balance', width: 140, align: 'right',
       render: (v, r) => (
-        <Text strong style={{ fontFamily: 'monospace', color: Number(v) > 0 ? '#d46b08' : '#52c41a' }}>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: Number(v) > 0 ? '#ff7f00' : '#2ea172' }}>
           {fmtQ(v, r.currency)}
         </Text>
       ),
@@ -126,9 +126,9 @@ export default function AnticiposProveedorPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <WalletOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <WalletOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Anticipos a Proveedores</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Anticipos a Proveedores</Title>
             <Text type="secondary">Prepagos y anticipos registrados a proveedores</Text>
           </div>
         </div>

@@ -98,10 +98,10 @@ export default function OrdenCompraDetallePage() {
   const canConvert = ['sent', 'received'].includes(po.status)
 
   const ribbonColors: Record<string, string> = {
-    draft: '#8c8c8c', sent: '#1890ff', received: '#06b6d4',
-    billed: '#722ed1', cancelled: '#ff4d4f',
+    draft: '#6b7280', sent: '#1faec2', received: '#06b6d4',
+    billed: '#6b7280', cancelled: '#e5484d',
   }
-  const ribbonColor = ribbonColors[po.status] ?? '#8c8c8c'
+  const ribbonColor = ribbonColors[po.status] ?? '#6b7280'
 
   const itemColumns = [
     { title: '#', width: 36, render: (_: any, __: any, i: number) => <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text> },
@@ -115,11 +115,11 @@ export default function OrdenCompraDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</Text> },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
     { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v ?? 12}%</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 140, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text>,
     },
   ]
 
@@ -135,7 +135,7 @@ export default function OrdenCompraDetallePage() {
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-        marginBottom: 16, padding: '10px 0', borderBottom: '1px solid #f0f0f0',
+        marginBottom: 16, padding: '10px 0', borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/compras/ordenes')}>
           Órdenes de compra
@@ -161,7 +161,7 @@ export default function OrdenCompraDetallePage() {
         )}
         {canConvert && (
           <Button type="primary" icon={<FileTextOutlined />} onClick={handleConvert}
-            style={{ background: '#1B3A6B', borderColor: '#1B3A6B' }}>
+            style={{ background: '#1faec2', borderColor: '#1faec2' }}>
             Convertir a factura proveedor
           </Button>
         )}
@@ -198,7 +198,7 @@ export default function OrdenCompraDetallePage() {
             {company.logoUrl && (
               <img src={company.logoUrl} alt="logo" style={{ maxHeight: 56, maxWidth: 160, objectFit: 'contain', marginBottom: 12 }} />
             )}
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{company.name}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{company.name}</Title>
             {company.address && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{company.address}</Text>}
             {(company.city || company.country) && (
               <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
@@ -208,12 +208,12 @@ export default function OrdenCompraDetallePage() {
             {company.taxId && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>NIT: {company.taxId}</Text>}
           </div>
           <div style={{ textAlign: 'right', minWidth: 240 }}>
-            <Title level={3} style={{ margin: '0 0 12px', color: '#1B3A6B' }}>Orden de Compra</Title>
+            <Title level={3} style={{ margin: '0 0 12px', color: '#0a0a0a' }}>Orden de Compra</Title>
             <div>
               <Text type="secondary" style={{ fontSize: 11, display: 'block', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
                 Total estimado
               </Text>
-              <Text style={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace', color: '#1B3A6B' }}>
+              <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
                 {fmtGTQ(Number(po.total) || calcTotal, po.currency)}
               </Text>
             </div>
@@ -228,7 +228,7 @@ export default function OrdenCompraDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Orden a
             </Text>
-            <Text strong style={{ fontSize: 15, color: '#1B3A6B', display: 'block' }}>{po.vendorName}</Text>
+            <Text strong style={{ fontSize: 15, color: '#1faec2', display: 'block' }}>{po.vendorName}</Text>
             {po.notes && (
               <div style={{ marginTop: 10 }}>
                 <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>Notas</Text>
@@ -240,32 +240,32 @@ export default function OrdenCompraDetallePage() {
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <tbody>
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6, width: '50%' }}>Número OC</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6, width: '50%' }}>Número OC</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}>
-                    <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{po.orderNumber}</Text>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{po.orderNumber}</Text>
                   </td>
                 </tr>
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6 }}>Fecha</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6 }}>Fecha</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}>
                     <Text strong>{dayjs(po.orderDate).format('DD MMM YYYY')}</Text>
                   </td>
                 </tr>
                 {po.expectedDeliveryDate && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Entrega esperada</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Entrega esperada</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}>
                       <Text strong>{dayjs(po.expectedDeliveryDate).format('DD MMM YYYY')}</Text>
                     </td>
                   </tr>
                 )}
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6 }}>Moneda</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6 }}>Moneda</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong>{po.currency}</Text></td>
                 </tr>
                 {po.paymentTerms && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Términos de pago</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Términos de pago</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text>{po.paymentTerms}</Text></td>
                   </tr>
                 )}
@@ -278,17 +278,17 @@ export default function OrdenCompraDetallePage() {
         <div style={{ padding: '0 40px 24px' }}>
           <Table columns={itemColumns} dataSource={po.items ?? []} rowKey={(_, i) => String(i)}
             pagination={false} size="small" scroll={{ x: 620 }}
-            style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }} />
+            style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }} />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
             <div style={{ minWidth: 280 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">IVA estimado</Text>
-                <Text style={{ fontFamily: 'monospace' }}>{fmtGTQ(calcTax, po.currency)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(calcTax, po.currency)}</Text>
               </div>
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
-                <Text strong style={{ fontSize: 14, color: '#1B3A6B', fontFamily: 'monospace' }}>{fmtGTQ(Number(po.total) || calcTotal, po.currency)}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(po.total) || calcTotal, po.currency)}</Text>
               </div>
             </div>
           </div>
@@ -296,13 +296,13 @@ export default function OrdenCompraDetallePage() {
 
         {/* ── Más información ─────────────────────────────────────────────── */}
         <Divider style={{ margin: 0 }} />
-        <div style={{ padding: '20px 40px 28px', background: '#fafafa' }}>
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+        <div style={{ padding: '20px 40px 28px', background: '#fafbfc' }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
             Más información
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '10px 0', fontSize: 13 }}>
             <Text type="secondary">N° Orden de compra</Text>
-            <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{po.orderNumber}</Text>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{po.orderNumber}</Text>
             {company.name && <><Text type="secondary">Empresa</Text><Text>{company.name}</Text></>}
             <Text type="secondary">Moneda</Text><Text>{po.currency}</Text>
             <Text type="secondary">Creada</Text><Text>{dayjs(po.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
@@ -314,7 +314,7 @@ export default function OrdenCompraDetallePage() {
       <Modal title={`Enviar OC ${po.orderNumber} al proveedor`} open={showSend}
         onCancel={() => { setShowSend(false); sendForm.resetFields() }}
         onOk={handleSend} confirmLoading={sending} okText="Enviar"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}>
+        okButtonProps={{ style: { background: '#1faec2' } }}>
         <Form form={sendForm} layout="vertical">
           <Form.Item name="to" label="Correo del proveedor"
             rules={[{ required: true, message: 'El correo es requerido' }, { type: 'email', message: 'Correo inválido' }]}>

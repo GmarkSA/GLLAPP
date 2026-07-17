@@ -244,8 +244,8 @@ export default function InvoicePrint({ invoice, company, formatId }: Props) {
 
         {/* FEL data */}
         {(invoice.felUuid || invoice.felAutorizacion) && (
-          <div style={{ flex: 1, background: '#f0f5ff', padding: `${fs * 0.5}px ${fs * 0.8}px`, borderRadius: 4, border: '1px solid #d6e4ff' }}>
-            <div style={{ fontWeight: 700, fontSize: fs - 1, textTransform: 'uppercase', marginBottom: 4, color: '#1B3A6B' }}>
+          <div style={{ flex: 1, background: '#fafbfc', padding: `${fs * 0.5}px ${fs * 0.8}px`, borderRadius: 4, border: '1px solid #d6e4ff' }}>
+            <div style={{ fontWeight: 700, fontSize: fs - 1, textTransform: 'uppercase', marginBottom: 4, color: '#1faec2' }}>
               Certificación FEL — SAT Guatemala
             </div>
             {invoice.felSerie && (
@@ -273,7 +273,7 @@ export default function InvoicePrint({ invoice, company, formatId }: Props) {
       {/* ── TABLA DE LÍNEAS ────────────────────────────────────────────────── */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: fs, marginBottom: fs }}>
         <thead>
-          <tr style={{ background: '#1B3A6B', color: '#fff' }}>
+          <tr style={{ background: '#1faec2', color: '#fff' }}>
             <th style={{ padding: `${fs * 0.4}px ${fs * 0.6}px`, textAlign: 'left',  width: 28  }}>#</th>
             <th style={{ padding: `${fs * 0.4}px ${fs * 0.6}px`, textAlign: 'left'           }}>Descripción</th>
             <th style={{ padding: `${fs * 0.4}px ${fs * 0.6}px`, textAlign: 'center', width: 50 }}>Unidad</th>
@@ -288,7 +288,7 @@ export default function InvoicePrint({ invoice, company, formatId }: Props) {
         <tbody>
           {(invoice.items ?? []).map((item, i) => (
             <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9', pageBreakInside: 'avoid' }}>
-              <td style={{ padding: `${fs * 0.4}px ${fs * 0.6}px`, color: '#888', textAlign: 'right' }}>
+              <td style={{ padding: `${fs * 0.4}px ${fs * 0.6}px`, color: '#6b7280', textAlign: 'right' }}>
                 {i + 1}
               </td>
               <td style={{ padding: `${fs * 0.4}px ${fs * 0.6}px` }}>
@@ -334,13 +334,13 @@ export default function InvoicePrint({ invoice, company, formatId }: Props) {
             </tr>
             {!invoice.facturaExenta && tax > 0 && (
               <tr>
-                <td style={{ padding: `2px ${fs * 0.5}px`, color: '#1677ff', fontWeight: 500 }}>IVA (12%)</td>
-                <td style={{ padding: `2px ${fs * 0.5}px`, textAlign: 'right', color: '#1677ff', fontWeight: 500 }}>
+                <td style={{ padding: `2px ${fs * 0.5}px`, color: '#1faec2', fontWeight: 500 }}>IVA (12%)</td>
+                <td style={{ padding: `2px ${fs * 0.5}px`, textAlign: 'right', color: '#1faec2', fontWeight: 500 }}>
                   Q {fmt(tax)}
                 </td>
               </tr>
             )}
-            <tr style={{ background: '#1B3A6B', color: '#fff' }}>
+            <tr style={{ background: '#1faec2', color: '#fff' }}>
               <td style={{ padding: `${fs * 0.5}px ${fs * 0.8}px`, fontWeight: 700, fontSize: fs + 2 }}>
                 TOTAL A PAGAR ({invoice.currency ?? 'GTQ'})
               </td>
@@ -382,7 +382,7 @@ export default function InvoicePrint({ invoice, company, formatId }: Props) {
 
       {/* ── PIE ────────────────────────────────────────────────────────────── */}
       <div style={{ ...divider }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs - 2, color: '#888' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs - 2, color: '#6b7280' }}>
         <span>Documento generado con ConTaERP</span>
         <span>Impreso: {new Date().toLocaleDateString('es-GT')}</span>
       </div>

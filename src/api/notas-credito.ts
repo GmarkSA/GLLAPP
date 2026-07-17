@@ -108,9 +108,9 @@ export interface RefundCreditDto {
 // ─── Configuración de estado ──────────────────────────────────────────────────
 export const NC_STATUS_CONFIG: Record<NcStatus, { label: string; color: string }> = {
   draft:   { label: 'Borrador',          color: 'default'  },
-  sent:    { label: 'Emitida',           color: 'blue'     },
-  partial: { label: 'Aplicada parcial',  color: 'geekblue' },
-  paid:    { label: 'Aplicada total',    color: 'green'    },
+  sent:    { label: 'Emitida',           color: '#1faec2'     },
+  partial: { label: 'Aplicada parcial',  color: '#1faec2' },
+  paid:    { label: 'Aplicada total',    color: '#2ea172'    },
   voided:  { label: 'Anulada',           color: 'volcano'  },
 }
 

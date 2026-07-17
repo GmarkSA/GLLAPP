@@ -20,7 +20,7 @@ import {
 } from '../../../api/planillas-empleados'
 
 const { Text, Title } = Typography
-const NAVY = '#1B3A6B'
+const NAVY = '#1faec2'
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const MOTIVO_LABEL: Record<string, string> = {
@@ -301,11 +301,11 @@ export default function EmpleadoFormPage() {
     { title: 'Vigencia desde', dataIndex: 'fechaInicio', width: 120, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
     {
       title: 'Hasta', dataIndex: 'fechaFin', width: 120,
-      render: (v: string | null) => v ? dayjs(v).format('DD/MM/YYYY') : <Tag color="green" style={{ fontSize: 10 }}>vigente</Tag>,
+      render: (v: string | null) => v ? dayjs(v).format('DD/MM/YYYY') : <Tag color="#2ea172" style={{ fontSize: 10 }}>vigente</Tag>,
     },
     {
       title: 'Salario mensual', dataIndex: 'salarioOrdinarioMensual', width: 140, align: 'right' as const,
-      render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     { title: 'Motivo', dataIndex: 'motivoCambio', width: 130, render: (v: string) => MOTIVO_LABEL[v] ?? v },
     { title: 'Tipo de contrato', dataIndex: 'tipoContrato', width: 140, render: (v: string) => TIPO_CONTRATO_LABORAL_LABEL[v] ?? v },
@@ -318,7 +318,7 @@ export default function EmpleadoFormPage() {
         <Space align="start">
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/planillas/empleados')} style={{ marginTop: 2 }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: NAVY }}>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
               {esNuevo ? 'Nuevo empleado' : empleado ? nombreCompleto(empleado) : 'Empleado'}
             </Title>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -465,7 +465,7 @@ export default function EmpleadoFormPage() {
               </Form.Item>
             </div>
             {esNuevo && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px', borderTop: '1px dashed #d9d9d9', paddingTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px', borderTop: '1px dashed rgba(10,10,10,0.08)', paddingTop: 12 }}>
                 <Form.Item name="salarioInicial" label="Salario ordinario mensual (Q)"
                   tooltip="Crea la primera vigencia del historial salarial. Los cambios posteriores se hacen con 'Cambiar salario' para no perder trazabilidad."
                   rules={[{ required: true, message: 'Requerido' }]}>
@@ -604,7 +604,7 @@ export default function EmpleadoFormPage() {
             extra={
               empleado.salarioVigente != null && (
                 <Text style={{ fontSize: 12 }}>
-                  Vigente: <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(empleado.salarioVigente)}</Text>
+                  Vigente: <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(empleado.salarioVigente)}</Text>
                 </Text>
               )
             }>

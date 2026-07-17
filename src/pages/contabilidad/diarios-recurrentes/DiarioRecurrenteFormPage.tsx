@@ -304,7 +304,7 @@ export default function DiarioRecurrenteFormPage() {
         if (!r.asientoGeneradoId) return '—'
         const label = r.asientoGeneradoEntryNumber ?? 'Ver asiento'
         return (
-          <Button type="link" size="small" style={{ padding: 0, fontFamily: 'monospace', fontWeight: 600 }}
+          <Button type="link" size="small" style={{ padding: 0, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}
             onClick={() => navigate(`/contabilidad/diarios-manuales/${r.asientoGeneradoId}`)}>
             {label}
           </Button>
@@ -447,7 +447,7 @@ export default function DiarioRecurrenteFormPage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contabilidad/diarios-recurrentes')}>
           Volver
         </Button>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{pageTitle}</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{pageTitle}</Title>
         {plantilla && <Tag color={plantilla.activo ? 'success' : 'default'}>{plantilla.activo ? 'Activa' : 'Inactiva'}</Tag>}
         <div style={{ flex: 1 }} />
         {!isNew && !desdeDiario && plantilla?.activo && (
@@ -517,7 +517,7 @@ export default function DiarioRecurrenteFormPage() {
                     addonAfter={
                       <Tooltip title="Recargar tasa desde configuración">
                         <ReloadOutlined spin={loadingRate} onClick={() => fetchRate(currency)}
-                          style={{ cursor: 'pointer', color: '#1B3A6B' }} />
+                          style={{ cursor: 'pointer', color: '#1faec2' }} />
                       </Tooltip>
                     } />
                 </Form.Item>
@@ -554,8 +554,8 @@ export default function DiarioRecurrenteFormPage() {
             showExpandColumn: false,
             expandedRowKeys: lines.map(l => l.key),
             expandedRowRender: (r: LineState) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 6px', background: '#fafafa' }}>
-                <span style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Dimensiones:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 6px', background: '#fafbfc' }}>
+                <span style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>Dimensiones:</span>
                 <SelectorDimensionesAnaliticas
                   layout="compact" size="small"
                   centrosCosto={centrosCosto} centrosBeneficio={centrosBeneficio}
@@ -579,13 +579,13 @@ export default function DiarioRecurrenteFormPage() {
                 <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr style={{ fontWeight: 700, fontSize: 14 }}>
-                <td style={{ padding: '4px 20px', borderTop: '1px solid #f0f0f0' }}>Total ({currency})</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', borderTop: '1px solid rgba(10,10,10,0.08)' }}>Total ({currency})</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid rgba(10,10,10,0.08)' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid rgba(10,10,10,0.08)' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#f5222d' : '#52c41a' }}>Diferencia</td>
-                <td colSpan={2} style={{ padding: '4px 20px', textAlign: 'right', color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600 }}>{fmtCur(Math.abs(diferencia))}</td>
+                <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#e5484d' : '#2ea172' }}>Diferencia</td>
+                <td colSpan={2} style={{ padding: '4px 20px', textAlign: 'right', color: diferencia !== 0 ? '#e5484d' : '#2ea172', fontWeight: 600 }}>{fmtCur(Math.abs(diferencia))}</td>
               </tr>
             </tbody>
           </table>
@@ -593,7 +593,7 @@ export default function DiarioRecurrenteFormPage() {
 
         <Divider style={{ margin: '16px 0' }} />
         <Space>
-          <Button type="primary" icon={<SaveOutlined />} style={{ background: '#1B3A6B' }}
+          <Button type="primary" icon={<SaveOutlined />} style={{ background: '#1faec2' }}
             loading={saving} disabled={Math.abs(diferencia) > 0.01} onClick={handleSave}>
             {isNew || desdeDiario ? 'Crear plantilla' : 'Guardar cambios'}
           </Button>
@@ -605,8 +605,8 @@ export default function DiarioRecurrenteFormPage() {
         <>
           <Divider style={{ margin: '24px 0 12px' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <HistoryOutlined style={{ color: '#1B3A6B' }} />
-            <span style={{ fontWeight: 600, color: '#1B3A6B' }}>
+            <HistoryOutlined style={{ color: '#1faec2' }} />
+            <span style={{ fontWeight: 600, color: '#1faec2' }}>
               Historial de generaciones {historial.length > 0 ? `(${historial.length})` : ''}
             </span>
           </div>

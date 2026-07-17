@@ -4,7 +4,7 @@ import {
   Popconfirm, Tag, Divider, Tooltip,
 } from 'antd'
 import {
-  ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, BookOutlined, DeleteOutlined,
   PlusOutlined, SaveOutlined, ReloadOutlined, InfoCircleOutlined,
 } from '@ant-design/icons'
 import {
@@ -63,9 +63,9 @@ function ColumnsEditor({
       bodyStyle={{ padding: 0 }}
     >
       {/* Header */}
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(10,10,10,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <Text strong style={{ color: '#1B3A6B', fontSize: 14 }}>{title}</Text>
+          <Text strong style={{ color: '#0a0a0a', fontSize: 14 }}>{title}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>{subtitle}</Text>
         </div>
@@ -78,7 +78,7 @@ function ColumnsEditor({
       <div style={{
         display: 'grid', gridTemplateColumns: '44px 120px 1fr 56px 36px',
         alignItems: 'center', gap: '0 8px',
-        padding: '6px 16px', background: '#fafafa', borderBottom: '1px solid #f0f0f0',
+        padding: '6px 16px', background: '#fafbfc', borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
         <div />
         <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Clave</Text>
@@ -95,7 +95,7 @@ function ColumnsEditor({
             display: 'grid', gridTemplateColumns: '44px 120px 1fr 56px 36px',
             alignItems: 'center', gap: '0 8px',
             padding: '9px 16px', borderBottom: '1px solid #f8f8f8',
-            background: col.isActive ? '#fff' : '#fafafa',
+            background: col.isActive ? '#fff' : '#fafbfc',
             opacity: col.isActive ? 1 : 0.55,
             transition: 'opacity 0.2s',
           }}
@@ -123,7 +123,7 @@ function ColumnsEditor({
           </Space>
 
           {/* Clave (readonly) */}
-          <Tag style={{ fontFamily: 'monospace', fontSize: 11, maxWidth: 116, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, maxWidth: 116, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {col.key}
           </Tag>
 
@@ -161,23 +161,23 @@ function ColumnsEditor({
 
       {/* Formulario agregar nueva columna */}
       {showAdd && (
-        <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', background: '#f9fbff' }}>
+        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(10,10,10,0.08)', background: '#e6fafd' }}>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
             Nueva columna — la clave es el identificador interno; la etiqueta es lo que ve el usuario
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr auto auto', gap: 8, alignItems: 'center' }}>
             <div>
-              <Text style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 2 }}>Clave (key)</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 2 }}>Clave (key)</Text>
               <Input
                 size="small"
                 placeholder="ej: accesorios"
                 value={addingKey}
                 onChange={e => setAddingKey(e.target.value)}
-                style={{ fontFamily: 'monospace', fontSize: 12 }}
+                style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}
               />
             </div>
             <div>
-              <Text style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 2 }}>Etiqueta en el reporte</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 2 }}>Etiqueta en el reporte</Text>
               <Input
                 size="small"
                 placeholder="ej: Compra de Accesorios"
@@ -187,7 +187,7 @@ function ColumnsEditor({
                 autoFocus
               />
             </div>
-            <Button size="small" type="primary" onClick={addColumn} style={{ background: '#1B3A6B', marginTop: 16 }}>
+            <Button size="small" type="primary" onClick={addColumn} style={{ background: '#1faec2', marginTop: 16 }}>
               Agregar
             </Button>
             <Button size="small" onClick={() => { setShowAdd(false); setAddingKey(''); setAddingLabel('') }} style={{ marginTop: 16 }}>
@@ -232,11 +232,14 @@ export default function LibroSATPage() {
     <div style={{ maxWidth: 1100 }}>
       {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Columnas de Libros SAT</Title>
-          <Text type="secondary">
-            Define las columnas del Libro de Compras y Ventas. Los impuestos se vinculan a estas columnas.
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <BookOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Columnas de Libros SAT</Title>
+            <Text type="secondary">
+              Define las columnas del Libro de Compras y Ventas. Los impuestos se vinculan a estas columnas.
+            </Text>
+          </div>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleReset} disabled={loading}>
@@ -246,7 +249,7 @@ export default function LibroSATPage() {
             type="primary" icon={<SaveOutlined />}
             loading={saving} disabled={loading}
             onClick={handleSave}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
           >
             Guardar cambios
           </Button>
@@ -255,10 +258,10 @@ export default function LibroSATPage() {
 
       {/* Nota explicativa */}
       <div style={{
-        background: '#f0f7ff', border: '1px solid #bae0ff', borderRadius: 8,
+        background: '#e6fafd', border: '1px solid rgba(31,174,194,0.2)', borderRadius: 8,
         padding: '10px 16px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start',
       }}>
-        <InfoCircleOutlined style={{ color: '#1677ff', marginTop: 2, flexShrink: 0 }} />
+        <InfoCircleOutlined style={{ color: '#1faec2', marginTop: 2, flexShrink: 0 }} />
         <Text style={{ fontSize: 12 }}>
           <strong>Clave</strong> = identificador interno estable que se asigna en cada impuesto — no cambia aunque renombres la etiqueta.{' '}
           <strong>Etiqueta</strong> = texto que aparece en el encabezado del reporte SAT.

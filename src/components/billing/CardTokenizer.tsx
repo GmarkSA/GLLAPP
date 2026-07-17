@@ -132,7 +132,7 @@ export default function CardTokenizer({ onToken, loading }: CardTokenizerProps) 
           htmlType="submit"
           loading={tokenizing || loading}
           block
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Confirmar pago
         </Button>

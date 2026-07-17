@@ -10,7 +10,7 @@ const COUNTRY_FLAG: Record<string, string> = {
 }
 
 const CURRENCY_COLOR: Record<string, string> = {
-  GTQ: '#1B3A6B', USD: '#155724', HNL: '#721c24', NIO: '#0f766e', EUR: '#856404',
+  GTQ: '#1faec2', USD: '#155724', HNL: '#721c24', NIO: '#0f766e', EUR: '#856404',
 }
 
 export default function CompanyContextBar() {
@@ -21,7 +21,7 @@ export default function CompanyContextBar() {
   if (!activeCompany) return null
 
   const flag = COUNTRY_FLAG[activeCompany.countryCode] ?? <GlobalOutlined />
-  const currColor = CURRENCY_COLOR[activeCompany.currencyCode] ?? '#1B3A6B'
+  const currColor = CURRENCY_COLOR[activeCompany.currencyCode] ?? '#1faec2'
 
   return (
     <div style={{
@@ -29,15 +29,15 @@ export default function CompanyContextBar() {
       alignItems: 'center',
       gap: 8,
       padding: '0 4px',
-      borderLeft: '1px solid #f0f0f0',
+      borderLeft: '1px solid rgba(10,10,10,0.08)',
       marginLeft: 8,
     }}>
       {/* Grupo empresarial */}
       {tenantGroupName && (
         <Tooltip title="Grupo empresarial">
           <Space size={4} style={{ cursor: 'default' }}>
-            <ApartmentOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />
-            <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{tenantGroupName}</Text>
+            <ApartmentOutlined style={{ color: '#6b7280', fontSize: 12 }} />
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>{tenantGroupName}</Text>
           </Space>
         </Tooltip>
       )}
@@ -45,8 +45,8 @@ export default function CompanyContextBar() {
       {/* Empresa activa */}
       <Tooltip title="Empresa activa">
         <Space size={4} style={{ cursor: 'default' }}>
-          <BankOutlined style={{ color: '#1B3A6B', fontSize: 13 }} />
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#1B3A6B' }}>
+          <BankOutlined style={{ color: '#1faec2', fontSize: 13 }} />
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#1faec2' }}>
             {flag} {activeCompany.legalName}
           </Text>
         </Space>

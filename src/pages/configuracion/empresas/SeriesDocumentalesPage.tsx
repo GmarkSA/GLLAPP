@@ -11,16 +11,16 @@ import { useCompanyStore } from '../../../store/companyStore'
 const { Title } = Typography
 
 const DOC_TYPES = [
-  { value: 'FACT',  label: 'Facturas de Venta',     color: 'blue' },
-  { value: 'NC',    label: 'Notas de Crédito',       color: 'orange' },
-  { value: 'ND',    label: 'Notas de Débito',        color: 'red' },
+  { value: 'FACT',  label: 'Facturas de Venta',     color: '#1faec2' },
+  { value: 'NC',    label: 'Notas de Crédito',       color: '#ff7f00' },
+  { value: 'ND',    label: 'Notas de Débito',        color: '#e5484d' },
   { value: 'REC',   label: 'Recibos',                color: 'cyan' },
-  { value: 'PAG',   label: 'Pagos Recibidos',        color: 'green' },
+  { value: 'PAG',   label: 'Pagos Recibidos',        color: '#2ea172' },
   { value: 'ANT',   label: 'Anticipos',              color: 'lime' },
-  { value: 'OC',    label: 'Órdenes de Compra',      color: 'purple' },
+  { value: 'OC',    label: 'Órdenes de Compra',      color: '#6b7280' },
   { value: 'GAS',   label: 'Gastos',                 color: 'volcano' },
   { value: 'AF',    label: 'Activos Fijos',           color: 'magenta' },
-  { value: 'COT',   label: 'Cotizaciones',            color: 'geekblue' },
+  { value: 'COT',   label: 'Cotizaciones',            color: '#1faec2' },
   { value: 'FPROV', label: 'Facturas Proveedor',      color: 'gold' },
   { value: 'MOV',   label: 'Movimientos Inventario', color: 'default' },
 ]
@@ -115,7 +115,7 @@ export default function SeriesDocumentalesPage() {
       width: 150,
       render: (_: any, r: DocumentSeries) => {
         const next = String(r.currentNumber + 1).padStart(r.padding, '0')
-        return <span style={{ color: '#1B3A6B', fontWeight: 600 }}>→ {r.series}-{next}</span>
+        return <span style={{ color: '#1faec2', fontWeight: 600 }}>→ {r.series}-{next}</span>
       },
     },
     {
@@ -138,12 +138,12 @@ export default function SeriesDocumentalesPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>
-            <NumberOutlined style={{ marginRight: 8, color: '#1B3A6B' }} />
+            <NumberOutlined style={{ marginRight: 8, color: '#1faec2' }} />
             Series de Documentos
           </Title>
-          <div style={{ color: '#888', fontSize: 12, marginTop: 2 }}>{activeCompany.legalName}</div>
+          <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{activeCompany.legalName}</div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }} onClick={openCreate}>
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }} onClick={openCreate}>
           Nueva serie
         </Button>
       </div>
@@ -164,7 +164,7 @@ export default function SeriesDocumentalesPage() {
         onOk={handleSave}
         confirmLoading={saving}
         okText={editing ? 'Guardar' : 'Crear'}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
           <Form.Item name="documentType" label="Tipo de Documento" rules={[{ required: true }]}>

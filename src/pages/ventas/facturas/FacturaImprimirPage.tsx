@@ -97,7 +97,7 @@ export default function FacturaImprimirPage() {
         body {
           font-family: 'Arial', 'Helvetica', sans-serif;
           font-size: ${cfg.fontSize}px;
-          background: ${cfg.isTicket ? '#fff' : '#e8e8e8'};
+          background: ${cfg.isTicket ? '#fff' : 'rgba(10,10,10,0.08)'};
           margin: 0; padding: 0;
           color: #000;
         }
@@ -112,16 +112,16 @@ export default function FacturaImprimirPage() {
 
         /* ── Header ── */
         .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: ${cfg.isTicket ? '8px' : '24px'}; }
-        .hdr-left .co-name { font-size: ${cfg.fontSize + (cfg.isTicket ? 2 : 5)}px; font-weight: 700; color: #1B3A6B; }
+        .hdr-left .co-name { font-size: ${cfg.fontSize + (cfg.isTicket ? 2 : 5)}px; font-weight: 700; color: #1faec2; }
         .hdr-left .co-sub  { font-size: ${cfg.fontSize - 1}px; color: #555; margin-top: 2px; }
         .hdr-right { text-align: ${cfg.isTicket ? 'center' : 'right'}; ${cfg.isTicket ? 'width:100%;' : ''} }
-        .doc-type  { font-size: ${cfg.fontSize - 1}px; color: #888; text-transform: uppercase; letter-spacing: .05em; }
-        .doc-num   { font-size: ${cfg.fontSize + (cfg.isTicket ? 1 : 4)}px; font-weight: 700; color: #1B3A6B; margin-top: 2px; }
+        .doc-type  { font-size: ${cfg.fontSize - 1}px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+        .doc-num   { font-size: ${cfg.fontSize + (cfg.isTicket ? 1 : 4)}px; font-weight: 700; color: #1faec2; margin-top: 2px; }
         .doc-dates { font-size: ${cfg.fontSize - 1}px; color: #555; margin-top: 4px; line-height: 1.6; }
 
         /* ── Dividers ── */
         .divider       { border: none; border-top: 1px solid #ccc; margin: ${cfg.isTicket ? '6px 0' : '16px 0'}; }
-        .divider-thick { border: none; border-top: 2px solid #1B3A6B; margin: ${cfg.isTicket ? '6px 0' : '16px 0'}; }
+        .divider-thick { border: none; border-top: 2px solid #1faec2; margin: ${cfg.isTicket ? '6px 0' : '16px 0'}; }
 
         /* ── Info grid ── */
         .info-grid {
@@ -130,23 +130,23 @@ export default function FacturaImprimirPage() {
           gap: 16px;
           margin-bottom: 20px;
         }
-        .info-box { border: 1px solid #e8e8e8; border-radius: 5px; padding: 10px 12px; margin-bottom: ${cfg.isTicket ? '6px' : '0'}; }
-        .info-box.fel { border-color: #91caff; background: #f0f7ff; }
-        .info-lbl { font-size: ${cfg.fontSize - 2}px; text-transform: uppercase; color: #888; letter-spacing: .05em; margin-bottom: 4px; font-weight: 600; }
+        .info-box { border: 1px solid rgba(10,10,10,0.08); border-radius: 5px; padding: 10px 12px; margin-bottom: ${cfg.isTicket ? '6px' : '0'}; }
+        .info-box.fel { border-color: rgba(31,174,194,0.35); background: #e6fafd; }
+        .info-lbl { font-size: ${cfg.fontSize - 2}px; text-transform: uppercase; color: #6b7280; letter-spacing: .05em; margin-bottom: 4px; font-weight: 600; }
         .info-val { font-size: ${cfg.fontSize}px; font-weight: 500; }
         .info-sub { font-size: ${cfg.fontSize - 2}px; color: #666; margin-top: 2px; word-break: break-all; }
 
         /* ── Tabla ── */
         table  { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        thead tr { background: #1B3A6B; }
+        thead tr { background: #1faec2; }
         thead th {
           color: #fff; font-size: ${cfg.fontSize - 1}px;
           padding: ${cfg.isTicket ? '4px 4px' : '7px 10px'};
           text-align: left; font-weight: 600; white-space: nowrap;
         }
         thead th.r { text-align: right; }
-        tbody tr { border-bottom: 1px solid #f0f0f0; }
-        tbody tr:nth-child(even) { background: #fafafa; }
+        tbody tr { border-bottom: 1px solid rgba(10,10,10,0.08); }
+        tbody tr:nth-child(even) { background: #fafbfc; }
         tbody td {
           font-size: ${cfg.isTicket ? cfg.fontSize - 1 : cfg.fontSize}px;
           padding: ${cfg.isTicket ? '4px 4px' : '7px 10px'};
@@ -161,20 +161,20 @@ export default function FacturaImprimirPage() {
         .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 20px; }
         .totals-box  { width: ${cfg.isTicket ? '100%' : '260px'}; }
         .tot-row     { display: flex; justify-content: space-between; padding: 3px 0; font-size: ${cfg.fontSize}px; }
-        .tot-row.iva { color: #1677ff; font-weight: 500; }
+        .tot-row.iva { color: #1faec2; font-weight: 500; }
         .tot-row.grand {
           font-weight: 700; font-size: ${cfg.fontSize + (cfg.isTicket ? 4 : 3)}px;
-          color: #fff; background: #1B3A6B;
+          color: #fff; background: #1faec2;
           border-radius: 5px; padding: 8px 12px; margin-top: 6px;
         }
 
         /* ── Notas / FEL / Footer ── */
-        .section { border-top: 1px solid #e8e8e8; padding-top: 14px; margin-top: 6px; }
-        .section-title { font-size: ${cfg.fontSize - 2}px; text-transform: uppercase; color: #888; letter-spacing: .05em; margin-bottom: 5px; font-weight: 600; }
+        .section { border-top: 1px solid rgba(10,10,10,0.08); padding-top: 14px; margin-top: 6px; }
+        .section-title { font-size: ${cfg.fontSize - 2}px; text-transform: uppercase; color: #6b7280; letter-spacing: .05em; margin-bottom: 5px; font-weight: 600; }
         .section-body  { font-size: ${cfg.fontSize - 1}px; color: #444; white-space: pre-wrap; line-height: 1.5; }
 
         .footer {
-          margin-top: 20px; border-top: 1px solid #e8e8e8; padding-top: 10px;
+          margin-top: 20px; border-top: 1px solid rgba(10,10,10,0.08); padding-top: 10px;
           font-size: ${cfg.fontSize - 2}px; color: #aaa;
           display: flex; justify-content: space-between;
           ${cfg.isTicket ? 'text-align:center; display:block;' : ''}
@@ -183,7 +183,7 @@ export default function FacturaImprimirPage() {
         /* ── Botón manual (solo pantalla) ── */
         .print-btn {
           position: fixed; bottom: 24px; right: 24px; z-index: 999;
-          padding: 10px 22px; background: #1B3A6B; color: #fff;
+          padding: 10px 22px; background: #1faec2; color: #fff;
           border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
           box-shadow: 0 2px 8px rgba(0,0,0,.3); display: flex; align-items: center; gap: 8px;
         }
@@ -242,7 +242,7 @@ export default function FacturaImprimirPage() {
 
           {(invoice.felUuid || invoice.felAutorizacion || invoice.felSerie) && !cfg.isTicket && (
             <div className="info-box fel">
-              <div className="info-lbl" style={{ color: '#1B3A6B' }}>Certificación FEL — SAT Guatemala</div>
+              <div className="info-lbl" style={{ color: '#1faec2' }}>Certificación FEL — SAT Guatemala</div>
               {invoice.felSerie && <div className="info-sub"><strong>Serie:</strong> {invoice.felSerie} &nbsp; <strong>Núm:</strong> {invoice.felNumero}</div>}
               {invoice.felAutorizacion && <div className="info-sub"><strong>Aut:</strong> {invoice.felAutorizacion}</div>}
               {invoice.felUuid && <div className="info-sub"><strong>UUID:</strong> {invoice.felUuid}</div>}
@@ -306,7 +306,7 @@ export default function FacturaImprimirPage() {
             {discount > 0 && (
               <div className="tot-row">
                 <span style={{ color: '#666' }}>Descuento ({invoice.discountPercent}%)</span>
-                <span style={{ color: '#cf1322' }}>− {fmtQ(discount)}</span>
+                <span style={{ color: '#e5484d' }}>− {fmtQ(discount)}</span>
               </div>
             )}
             <div className="tot-row">

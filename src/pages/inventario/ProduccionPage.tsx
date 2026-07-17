@@ -22,7 +22,7 @@ const { Title, Text } = Typography
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   borrador:   { label: 'Borrador',    color: 'default', icon: <ToolOutlined /> },
-  en_proceso: { label: 'En proceso',  color: 'blue',    icon: <PlayCircleOutlined /> },
+  en_proceso: { label: 'En proceso',  color: '#1faec2',    icon: <PlayCircleOutlined /> },
   completada: { label: 'Completada',  color: 'success', icon: <CheckCircleOutlined /> },
   cancelada:  { label: 'Cancelada',   color: 'error',   icon: <CloseCircleOutlined /> },
 }
@@ -121,7 +121,7 @@ function NuevaOrdenModal({ open, almacenes, onClose, onSaved }: {
       title: 'Material / Componente', render: (_, r) => (
         <div>
           <div style={{ fontWeight: 500 }}>{r.productName}</div>
-          {r.productSku && <span style={{ fontSize: 11, color: '#8c8c8c', fontFamily: 'monospace' }}>{r.productSku}</span>}
+          {r.productSku && <span style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{r.productSku}</span>}
         </div>
       ),
     },
@@ -143,7 +143,7 @@ function NuevaOrdenModal({ open, almacenes, onClose, onSaved }: {
       title={<><ToolOutlined /> Nueva orden de producción</>}
       open={open} onOk={handleSave} onCancel={onClose}
       okText="Crear orden" width={760}
-      okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
       <Divider titlePlacement="left" style={{ marginTop: 0 }}>Producto a producir</Divider>
@@ -226,7 +226,7 @@ function NuevaOrdenModal({ open, almacenes, onClose, onSaved }: {
           )}
         />
       ) : (
-        <div style={{ textAlign: 'center', padding: '12px', background: '#fafafa', borderRadius: 6, color: '#bbb' }}>
+        <div style={{ textAlign: 'center', padding: '12px', background: '#fafbfc', borderRadius: 6, color: '#bbb' }}>
           Sin materiales — define qué componentes se necesitan para producir
         </div>
       )}
@@ -264,7 +264,7 @@ function CompletarModal({ open, orden, onClose, onDone }: {
 
   return (
     <Modal title="Completar orden de producción" open={open} onOk={handleOk} onCancel={onClose}
-      okText="Completar" okButtonProps={{ loading, style: { background: '#52c41a' } }}>
+      okText="Completar" okButtonProps={{ loading, style: { background: '#2ea172' } }}>
       <p style={{ color: '#666', marginBottom: 16 }}>
         Al completar, se descontarán los materiales del stock y se agregará el producto terminado.
       </p>
@@ -333,13 +333,13 @@ export default function ProduccionPage() {
   const columns: ColumnsType<OrdenProduccion> = [
     {
       title: 'Código', dataIndex: 'codigo', width: 150,
-      render: v => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{v}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text>,
     },
     {
       title: 'Producto terminado', render: (_, r) => (
         <div>
           <div style={{ fontWeight: 500 }}>{r.productoNombre || r.productoId}</div>
-          {r.productoSku && <span style={{ fontSize: 11, color: '#8c8c8c', fontFamily: 'monospace' }}>{r.productoSku}</span>}
+          {r.productoSku && <span style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{r.productoSku}</span>}
         </div>
       ),
     },
@@ -349,14 +349,14 @@ export default function ProduccionPage() {
         <div>
           <div><Text strong>{Number(r.cantidadOrdenada)}</Text> <Text type="secondary" style={{ fontSize: 11 }}>ordenada</Text></div>
           {Number(r.cantidadProducida) > 0 && (
-            <div><Text style={{ color: '#52c41a' }}>{Number(r.cantidadProducida)}</Text> <Text type="secondary" style={{ fontSize: 11 }}>producida</Text></div>
+            <div><Text style={{ color: '#2ea172' }}>{Number(r.cantidadProducida)}</Text> <Text type="secondary" style={{ fontSize: 11 }}>producida</Text></div>
           )}
         </div>
       ),
     },
     {
       title: 'Almacén', dataIndex: 'almacenId', width: 140,
-      render: v => v ? <Tag color="blue">{almacenMap[v] || v}</Tag> : <Text type="secondary">—</Text>,
+      render: v => v ? <Tag color="#1faec2">{almacenMap[v] || v}</Tag> : <Text type="secondary">—</Text>,
     },
     {
       title: 'Fecha estimada', dataIndex: 'fechaEstimada', width: 130,
@@ -376,7 +376,7 @@ export default function ProduccionPage() {
           {row.status === 'borrador' && (
             <Tooltip title="Iniciar producción">
               <Button size="small" type="primary" icon={<PlayCircleOutlined />}
-                style={{ background: '#1677ff' }}
+                style={{ background: '#1faec2' }}
                 onClick={() => handleIniciar(row.id)}>
                 Iniciar
               </Button>
@@ -385,7 +385,7 @@ export default function ProduccionPage() {
           {row.status === 'en_proceso' && (
             <Tooltip title="Marcar como completada">
               <Button size="small" type="primary" icon={<CheckCircleOutlined />}
-                style={{ background: '#52c41a' }}
+                style={{ background: '#2ea172' }}
                 onClick={() => setCompletarOrdenObj(row)}>
                 Completar
               </Button>
@@ -413,12 +413,12 @@ export default function ProduccionPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <ToolOutlined style={{ marginRight: 8 }} /> Producción
           </Title>
           <Text type="secondary">Órdenes de producción — convierte materias primas en productos terminados</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
           onClick={() => setModalNew(true)}>
           Nueva orden
         </Button>
@@ -430,15 +430,15 @@ export default function ProduccionPage() {
           <Col key={k} xs={12} sm={6}>
             <Card size="small" style={{
               borderRadius: 8, cursor: 'pointer', textAlign: 'center',
-              border: `2px solid ${statusFilt === k ? '#1B3A6B' : '#f0f0f0'}`,
-              background: statusFilt === k ? '#f0f5ff' : '#fff',
+              border: `2px solid ${statusFilt === k ? '#1faec2' : 'rgba(10,10,10,0.08)'}`,
+              background: statusFilt === k ? '#fafbfc' : '#fff',
             }}
               onClick={() => setStatusFilt(statusFilt === k ? undefined : k)}>
               <div style={{ fontSize: 22, marginBottom: 2 }}>
                 {k === 'borrador' ? '📋' : k === 'en_proceso' ? '⚙️' : k === 'completada' ? '✅' : '❌'}
               </div>
               <Statistic title={cfg.label} value={stats[k as keyof typeof stats]}
-                valueStyle={{ fontSize: 22, color: '#1B3A6B' }} />
+                valueStyle={{ fontSize: 22, color: '#0a0a0a' }} />
             </Card>
           </Col>
         ))}
@@ -471,8 +471,8 @@ export default function ProduccionPage() {
           }}
           locale={{ emptyText: (
             <div style={{ padding: '40px 0', textAlign: 'center' }}>
-              <ToolOutlined style={{ fontSize: 40, color: '#d9d9d9', display: 'block', marginBottom: 8 }} />
-              <div style={{ color: '#8c8c8c' }}>Sin órdenes de producción</div>
+              <ToolOutlined style={{ fontSize: 40, color: '#9aa1ab', display: 'block', marginBottom: 8 }} />
+              <div style={{ color: '#6b7280' }}>Sin órdenes de producción</div>
               <div style={{ fontSize: 12, color: '#bbb' }}>Crea una nueva orden para comenzar</div>
             </div>
           )}}

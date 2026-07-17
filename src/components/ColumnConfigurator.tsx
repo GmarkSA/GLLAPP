@@ -86,7 +86,7 @@ export default function ColumnConfigurator({
   return (
     <div style={{ width: 280 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <Text strong style={{ fontSize: 13, color: '#1B3A6B' }}>Columnas visibles</Text>
+        <Text strong style={{ fontSize: 13, color: '#374151' }}>Columnas visibles</Text>
         <Tooltip title="Restaurar columnas por defecto">
           <Button size="small" type="text" icon={<ReloadOutlined />} onClick={reset} style={{ color: '#6b7280' }} />
         </Tooltip>
@@ -122,10 +122,10 @@ export default function ColumnConfigurator({
               <Space size={0}>
                 <Button size="small" type="text" icon={<ArrowUpOutlined style={{ fontSize: 9 }} />}
                   onClick={() => move(col.key, -1)} disabled={idx === 0}
-                  style={{ padding: '0 3px', height: 20, color: '#9ca3af' }} />
+                  style={{ padding: '0 3px', height: 20, color: '#9aa1ab' }} />
                 <Button size="small" type="text" icon={<ArrowDownOutlined style={{ fontSize: 9 }} />}
                   onClick={() => move(col.key, 1)} disabled={idx === sorted.length - 1}
-                  style={{ padding: '0 3px', height: 20, color: '#9ca3af' }} />
+                  style={{ padding: '0 3px', height: 20, color: '#9aa1ab' }} />
               </Space>
             </div>
           )

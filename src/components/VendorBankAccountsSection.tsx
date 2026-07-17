@@ -123,7 +123,7 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
       key: 'account',
       render: (_: any, r: VendorBankAccount) => (
         <Space direction="vertical" size={0}>
-          <Text style={{ fontFamily: 'monospace' }}>{r.accountNumber ?? '—'}</Text>
+          <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{r.accountNumber ?? '—'}</Text>
           <Text type="secondary" style={{ fontSize: 11 }}>
             {ACCOUNT_TYPES.find(t => t.value === r.accountType)?.label ?? r.accountType ?? ''}
             {r.currency ? ` · ${r.currency}` : ''}
@@ -136,8 +136,8 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
       key: 'codes',
       render: (_: any, r: VendorBankAccount) => (
         <Space direction="vertical" size={0}>
-          {r.bankCodeGTQ && <Tag color="blue">GTQ: {r.bankCodeGTQ}</Tag>}
-          {r.bankCodeUSD && <Tag color="green">USD: {r.bankCodeUSD}</Tag>}
+          {r.bankCodeGTQ && <Tag color="#1faec2">GTQ: {r.bankCodeGTQ}</Tag>}
+          {r.bankCodeUSD && <Tag color="#2ea172">USD: {r.bankCodeUSD}</Tag>}
         </Space>
       ),
     },
@@ -146,7 +146,7 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
       dataIndex: 'isAchEnabled',
       width: 60,
       render: (v: boolean) => v
-        ? <CheckCircleOutlined style={{ color: '#52c41a' }} />
+        ? <CheckCircleOutlined style={{ color: '#2ea172' }} />
         : <Text type="secondary">—</Text>,
     },
     {

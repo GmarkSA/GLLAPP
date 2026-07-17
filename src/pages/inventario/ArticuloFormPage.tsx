@@ -80,7 +80,7 @@ export default function ArticuloFormPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/inventario')} />
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             {isEdit ? 'Editar artículo' : 'Nuevo artículo'}
           </Title>
           <Text type="secondary">
@@ -110,7 +110,7 @@ export default function ArticuloFormPage() {
 
         {/* ── Card 1: Identificación y clasificación ───────────────────── */}
         <Card
-          title={<Space><TagOutlined style={{ color: '#1677ff' }} /> Identificación y clasificación</Space>}
+          title={<Space><TagOutlined style={{ color: '#1faec2' }} /> Identificación y clasificación</Space>}
           style={{ borderRadius: 10, marginBottom: 16 }}
         >
           <Row gutter={16}>
@@ -125,7 +125,7 @@ export default function ArticuloFormPage() {
                 label="SKU / Código"
                 tooltip="Si lo dejas vacío, se genera automáticamente"
               >
-                <Input placeholder="Se genera automáticamente" style={{ fontFamily: 'monospace' }} />
+                <Input placeholder="Se genera automáticamente" style={{ fontVariantNumeric: 'tabular-nums' }} />
               </Form.Item>
             </Col>
           </Row>
@@ -182,7 +182,7 @@ export default function ArticuloFormPage() {
 
         {/* ── Card 2: Flags de inventario ──────────────────────────────── */}
         <Card
-          title={<Space><InboxOutlined style={{ color: '#52c41a' }} /> Control de inventario</Space>}
+          title={<Space><InboxOutlined style={{ color: '#2ea172' }} /> Control de inventario</Space>}
           style={{ borderRadius: 10, marginBottom: 16 }}
         >
           <Row gutter={32}>
@@ -194,7 +194,7 @@ export default function ArticuloFormPage() {
                   <Space>
                     ¿Lleva control de stock?
                     <Tooltip title="Activa el seguimiento de existencias físicas. Los servicios normalmente no son inventariables.">
-                      <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                      <InfoCircleOutlined style={{ color: '#6b7280' }} />
                     </Tooltip>
                   </Space>
                 }
@@ -211,7 +211,7 @@ export default function ArticuloFormPage() {
                     <Space>
                       ¿Se produce internamente?
                       <Tooltip title="Indica que este artículo se fabrica a partir de materias primas (vs. comprado a proveedor).">
-                        <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                        <InfoCircleOutlined style={{ color: '#6b7280' }} />
                       </Tooltip>
                     </Space>
                   }
@@ -254,7 +254,7 @@ export default function ArticuloFormPage() {
 
         {/* ── Card 3: Precios y costos ─────────────────────────────────── */}
         <Card
-          title={<Space><DollarOutlined style={{ color: '#fa8c16' }} /> Precios y costos</Space>}
+          title={<Space><DollarOutlined style={{ color: '#ff7f00' }} /> Precios y costos</Space>}
           style={{ borderRadius: 10, marginBottom: 16 }}
         >
           <Row gutter={16}>
@@ -375,7 +375,7 @@ export default function ArticuloFormPage() {
 
         {/* ── Card 5: Vinculación contable ─────────────────────────────── */}
         <Card
-          title={<Space><LinkOutlined style={{ color: '#722ed1' }} /> Vinculación contable</Space>}
+          title={<Space><LinkOutlined style={{ color: '#6b7280' }} /> Vinculación contable</Space>}
           style={{ borderRadius: 10, marginBottom: 16 }}
         >
           <Row gutter={16}>
@@ -515,7 +515,7 @@ export default function ArticuloFormPage() {
             htmlType="submit"
             icon={<SaveOutlined />}
             loading={saving}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
           >
             {isEdit ? 'Guardar cambios' : 'Crear artículo'}
           </Button>

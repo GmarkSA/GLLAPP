@@ -1,0 +1,5 @@
+<svg width="240" height="72" viewBox="0 0 240 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lucía">
+  <rect x="8" y="6" width="20" height="60" rx="6" fill="#24cae2"/>
+  <rect x="31" y="36" width="20" height="30" rx="6" fill="#ff7f00"/>
+  <text x="56" y="58" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" letter-spacing="-2" fill="#0a0a0a">ucía</text>
+</svg>

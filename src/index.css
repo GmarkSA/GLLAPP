@@ -1,10 +1,67 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap');
 
+/* ============================================================
+   GLL DESIGN TOKENS — single source of truth para CSS
+   Espejados en src/styles/theme.ts para uso en JS/inline styles
+   ============================================================ */
+:root {
+  /* Acción principal */
+  --gll-cyan:           #1faec2;
+  --gll-cyan-hover:     #1a97a8;
+  --gll-cyan-soft:      #e6fafd;
+
+  /* Acento — un CTA naranja por pantalla */
+  --gll-orange:         #ff7f00;
+  --gll-orange-hover:   #e06f00;
+  --gll-orange-soft:    #fff2e5;
+
+  /* Identidad / momentos de marca — solo loaders, spinners */
+  --gll-brand-vibe:     #24cae2;
+
+  /* Textos */
+  --gll-ink:            #0a0a0a;
+  --gll-muted:          #6b7280;
+  --gll-muted-2:        #9aa1ab;
+
+  /* Fondos */
+  --gll-bg:             #fbfcfe;
+  --gll-surface:        #ffffff;
+
+  /* Bordes */
+  --gll-border:         rgba(10,10,10,0.08);
+  --gll-border-strong:  rgba(10,10,10,0.14);
+
+  /* Hover de fila tabla — muy sutil */
+  --gll-row-hover:      rgba(31,174,194,0.055);
+
+  /* Semánticos financieros */
+  --gll-success:        #2ea172;
+  --gll-success-soft:   #e8f5ef;
+  --gll-danger:         #e5484d;
+  --gll-danger-soft:    #fdecec;
+
+  /* Forma / sombra */
+  --gll-radius:         12px;
+  --gll-radius-sm:      8px;
+  --gll-shadow-rest:    0 1px 2px rgba(10,10,10,0.04), 0 1px 3px rgba(10,10,10,0.03);
+  --gll-shadow-hover:   0 4px 12px rgba(10,10,10,0.08), 0 2px 4px rgba(10,10,10,0.04);
+
+  /* Transición estándar */
+  --gll-ease:           cubic-bezier(0.22,0.61,0.36,1);
+  --gll-dur:            180ms;
+
+  /* Ranking / podium — excepción decorativa aislada */
+  --rank-gold:   #d4af37;
+  --rank-silver: #9e9e9e;
+  --rank-bronze: #cd7f32;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-  background: #f0f2f7;
+  background: var(--gll-bg);
+  color: var(--gll-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -17,71 +74,128 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
 
-/* Scrollbar del sidebar (fondo oscuro → thumb claro) */
-.sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.25) transparent; }
+/* Scrollbar del sidebar (fondo blanco → thumb oscuro) */
+.sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgba(10,10,10,0.12) transparent; }
 .sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
-.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(10,10,10,0.12); border-radius: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(10,10,10,0.22); }
 
 /* Layout base */
-.ant-layout { background: #f0f2f7 !important; }
+.ant-layout { background: var(--gll-bg) !important; }
 
-/* Cards con sombra suave tipo Apple */
+/* Cards */
 .ant-card {
-  border-radius: 14px !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04) !important;
-  border: 1px solid rgba(0,0,0,0.06) !important;
-  transition: box-shadow 0.2s ease, transform 0.2s ease !important;
+  border-radius: var(--gll-radius) !important;
+  box-shadow: var(--gll-shadow-rest) !important;
+  border: 1px solid var(--gll-border) !important;
+  transition: box-shadow var(--gll-dur) var(--gll-ease), transform var(--gll-dur) var(--gll-ease) !important;
 }
 .ant-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.06) !important;
+  box-shadow: var(--gll-shadow-hover) !important;
+  transform: translateY(-2px) !important;
 }
 
-/* Botón primario con gradiente */
+/* Botón primario */
 .ant-btn-primary {
-  background: linear-gradient(135deg, #1B3A6B 0%, #2d5fa6 100%) !important;
+  background: var(--gll-cyan) !important;
   border: none !important;
-  box-shadow: 0 2px 8px rgba(27,58,107,0.35) !important;
-  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 8px rgba(31,174,194,0.3) !important;
+  transition: all var(--gll-dur) var(--gll-ease) !important;
 }
 .ant-btn-primary:hover {
+  background: var(--gll-cyan-hover) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 16px rgba(27,58,107,0.4) !important;
+  box-shadow: 0 4px 14px rgba(31,174,194,0.38) !important;
 }
 
-/* Inputs más refinados */
+/* Inputs */
 .ant-input, .ant-input-affix-wrapper,
 .ant-select-selector, .ant-picker {
-  border-radius: 10px !important;
-  border-color: rgba(0,0,0,0.1) !important;
-  transition: all 0.2s ease !important;
+  border-radius: var(--gll-radius-sm) !important;
+  border-color: var(--gll-border-strong) !important;
+  transition: all var(--gll-dur) var(--gll-ease) !important;
 }
 .ant-input:focus, .ant-input-affix-wrapper:focus,
 .ant-input-affix-wrapper-focused {
-  box-shadow: 0 0 0 3px rgba(27,58,107,0.12) !important;
+  box-shadow: 0 0 0 3px rgba(31,174,194,0.14) !important;
 }
 
-/* Tabla más limpia */
-.ant-table { border-radius: 12px !important; overflow: hidden; }
+/* Tabla */
+.ant-table { border-radius: var(--gll-radius) !important; overflow: hidden; }
 .ant-table-thead > tr > th {
-  background: #f8f9fc !important;
+  background: #fafbfc !important;
   font-weight: 600 !important;
-  font-size: 13px !important;
-  letter-spacing: 0.03em !important;
-  color: #6b7280 !important;
-  text-transform: uppercase !important;
-  text-align: center !important;
+  font-size: 12px !important;
+  letter-spacing: 0.04em !important;
+  color: #374151 !important;
+  text-transform: none !important;
 }
 .ant-table-tbody > tr:hover > td {
-  background: #f5f7ff !important;
+  background: var(--gll-row-hover) !important;
+}
+/* tabular-nums en celdas de tabla */
+.ant-table-tbody > tr > td,
+.ant-statistic-content-value {
+  font-variant-numeric: tabular-nums;
 }
 
-/* Tags más pill */
+/* Tags pill */
 .ant-tag { border-radius: 20px !important; font-weight: 500 !important; }
 
-/* Modal con bordes redondeados */
-.ant-modal-content { border-radius: 18px !important; overflow: hidden; }
+/* Tags preset — palette Notion-style (transparent tints, no sólidos) */
+.ant-tag-success {
+  background: rgba(46,161,114,0.08) !important;
+  border-color: rgba(46,161,114,0.20) !important;
+  color: #1a7a54 !important;
+}
+.ant-tag-success .anticon { color: #2ea172 !important; }
+
+.ant-tag-warning {
+  background: rgba(255,127,0,0.08) !important;
+  border-color: rgba(255,127,0,0.22) !important;
+  color: #b35900 !important;
+}
+.ant-tag-warning .anticon { color: #ff7f00 !important; }
+
+.ant-tag-error {
+  background: rgba(229,72,77,0.08) !important;
+  border-color: rgba(229,72,77,0.20) !important;
+  color: #b91c1f !important;
+}
+.ant-tag-error .anticon { color: #e5484d !important; }
+
+/* Alerts — palette Notion-style (transparent tints, no sólidos) */
+.ant-alert-success {
+  background: rgba(46,161,114,0.07) !important;
+  border-color: rgba(46,161,114,0.20) !important;
+}
+.ant-alert-success .ant-alert-icon { color: #2ea172 !important; }
+.ant-alert-success .ant-alert-message { color: #1a7a54 !important; }
+
+.ant-alert-warning {
+  background: rgba(255,127,0,0.07) !important;
+  border-color: rgba(255,127,0,0.22) !important;
+}
+.ant-alert-warning .ant-alert-icon { color: #ff7f00 !important; }
+.ant-alert-warning .ant-alert-message { color: #b35900 !important; }
+
+.ant-alert-error {
+  background: rgba(229,72,77,0.07) !important;
+  border-color: rgba(229,72,77,0.20) !important;
+}
+.ant-alert-error .ant-alert-icon { color: #e5484d !important; }
+.ant-alert-error .ant-alert-message { color: #b91c1f !important; }
+
+.ant-alert-info {
+  background: rgba(31,174,194,0.07) !important;
+  border-color: rgba(31,174,194,0.20) !important;
+}
+.ant-alert-info .ant-alert-icon { color: #1faec2 !important; }
+.ant-alert-info .ant-alert-message { color: #0e8fa0 !important; }
+
+/* Modales */
+.ant-modal-content { border-radius: 16px !important; overflow: hidden; }
 
 /* Animación fade para page transitions */
 @keyframes pageFadeIn {

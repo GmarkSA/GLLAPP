@@ -57,7 +57,7 @@ export default function EnterpriseBreadcrumb() {
   // Empresa activa como segundo nivel contextual
   if (activeCompany) {
     items.push({
-      title: <span style={{ fontSize: 11, color: '#1B3A6B', fontWeight: 600 }}>{activeCompany.legalName}</span>,
+      title: <span style={{ fontSize: 11, color: '#1faec2', fontWeight: 600 }}>{activeCompany.legalName}</span>,
     })
   }
 
@@ -74,14 +74,14 @@ export default function EnterpriseBreadcrumb() {
     items.push({
       title: isLast
         ? <span style={{ fontSize: 11, color: '#555' }}>{label}</span>
-        : <span style={{ fontSize: 11, color: '#1677ff', cursor: 'pointer' }} onClick={() => navigate(currentPath)}>{label}</span>,
+        : <span style={{ fontSize: 11, color: '#1faec2', cursor: 'pointer' }} onClick={() => navigate(currentPath)}>{label}</span>,
     })
   }
 
   if (items.length <= 1) return null
 
   return (
-    <div style={{ padding: '4px 24px 0', borderBottom: '1px solid #f5f5f5' }}>
+    <div style={{ padding: '4px 24px 0', borderBottom: '1px solid #fafbfc' }}>
       <Breadcrumb items={items} separator="›" style={{ fontSize: 11 }} />
     </div>
   )

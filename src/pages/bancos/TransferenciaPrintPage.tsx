@@ -44,7 +44,7 @@ export default function TransferenciaPrintPage() {
   }, [payment, loading])
 
   if (loading) return <div style={{ padding: 40 }}>Cargando...</div>
-  if (error || !payment) return <div style={{ padding: 40, color: 'red' }}>{error ?? 'Error'}</div>
+  if (error || !payment) return <div style={{ padding: 40, color: '#e5484d' }}>{error ?? 'Error'}</div>
 
   const today    = dayjs(payment.paymentDate).format('DD/MM/YYYY')
   const invoices = payment.appliedInvoices ?? []
@@ -58,12 +58,12 @@ export default function TransferenciaPrintPage() {
         body { margin: 0; font-family: 'Arial', sans-serif; font-size: 10pt; color: #000; background: #fff; }
 
         .screen-bar {
-          background: #1B3A6B; color: #fff; padding: 10px 16px;
+          background: #1faec2; color: #fff; padding: 10px 16px;
           display: flex; gap: 12px; align-items: center; font-size: 12px;
         }
         .screen-bar button {
           padding: 5px 14px; border: none; border-radius: 4px;
-          background: #fff; color: #1B3A6B; font-weight: 600; cursor: pointer;
+          background: #fff; color: #1faec2; font-weight: 600; cursor: pointer;
         }
 
         .page { max-width: 17.59cm; margin: 20px auto; padding: 0; }
@@ -71,17 +71,17 @@ export default function TransferenciaPrintPage() {
         /* Header empresa */
         .co-header {
           display: flex; justify-content: space-between; align-items: flex-start;
-          border-bottom: 3px solid #1B3A6B; padding-bottom: 10px; margin-bottom: 16px;
+          border-bottom: 3px solid #1faec2; padding-bottom: 10px; margin-bottom: 16px;
         }
-        .co-name { font-size: 14pt; font-weight: 700; color: #1B3A6B; margin: 0 0 2px; }
+        .co-name { font-size: 14pt; font-weight: 700; color: #1faec2; margin: 0 0 2px; }
         .co-sub  { font-size: 8.5pt; color: #444; line-height: 1.5; }
 
         /* Título documento */
         .doc-title {
           text-align: center; font-size: 13pt; font-weight: 700;
           letter-spacing: 0.06em; text-transform: uppercase;
-          border: 2px solid #1B3A6B; padding: 6px 0; margin-bottom: 18px;
-          color: #1B3A6B;
+          border: 2px solid #1faec2; padding: 6px 0; margin-bottom: 18px;
+          color: #1faec2;
         }
 
         /* Datos del pago */
@@ -95,7 +95,7 @@ export default function TransferenciaPrintPage() {
         /* Tabla facturas */
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 9.5pt; }
         th {
-          background: #1B3A6B; color: #fff; padding: 5px 8px;
+          background: #1faec2; color: #fff; padding: 5px 8px;
           text-align: left; font-weight: 600;
         }
         td { padding: 4px 8px; border-bottom: 1px solid #ddd; }
@@ -105,10 +105,10 @@ export default function TransferenciaPrintPage() {
         /* Totals */
         .total-row {
           display: flex; justify-content: flex-end; gap: 20px;
-          border-top: 2px solid #1B3A6B; padding-top: 8px; margin-bottom: 24px;
+          border-top: 2px solid #1faec2; padding-top: 8px; margin-bottom: 24px;
           font-size: 11pt;
         }
-        .total-label { font-weight: 700; color: #1B3A6B; }
+        .total-label { font-weight: 700; color: #1faec2; }
         .total-value { font-weight: 700; font-family: 'Courier New', monospace; min-width: 120px; text-align: right; }
 
         /* Firmas */
@@ -157,7 +157,7 @@ export default function TransferenciaPrintPage() {
             </div>
           </div>
           <div style={{ textAlign: 'right', minWidth: 140 }}>
-            <div style={{ fontWeight: 700, fontSize: '10pt', color: '#1B3A6B' }}>{payment.paymentNumber}</div>
+            <div style={{ fontWeight: 700, fontSize: '10pt', color: '#1faec2' }}>{payment.paymentNumber}</div>
             <div style={{ fontSize: '9pt', color: '#555' }}>{today}</div>
           </div>
         </div>
@@ -186,7 +186,7 @@ export default function TransferenciaPrintPage() {
           {payment.reference && (
             <div className="info-row" style={{ gridColumn: '1 / -1' }}>
               <span className="info-label">Referencia / No. transacción:</span>
-              <span className="info-value" style={{ fontFamily: 'monospace' }}>{payment.reference}</span>
+              <span className="info-value" style={{ fontVariantNumeric: 'tabular-nums' }}>{payment.reference}</span>
             </div>
           )}
           {payment.notes && (
@@ -212,7 +212,7 @@ export default function TransferenciaPrintPage() {
                 {invoices.map((inv, i) => (
                   <tr key={inv.purchaseInvoiceId}>
                     <td>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{inv.invoiceNumber}</td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>{inv.invoiceNumber}</td>
                     <td className="td-right">{fmtQ(inv.amount, payment.currency)}</td>
                   </tr>
                 ))}

@@ -6,7 +6,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  ArrowLeftOutlined, PrinterOutlined, BulbOutlined,
+  ArrowLeftOutlined, PrinterOutlined, BulbOutlined, PieChartOutlined,
   WarningOutlined, CloseCircleOutlined, InfoCircleOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -21,7 +21,7 @@ import { insightsCentrosBeneficio, type Insight, type InsightNivel } from '../..
 const { Text } = Typography
 const { RangePicker } = DatePicker
 
-const NAVY = '#1B3A6B'
+const ACTION = '#1faec2'
 const fmtQ = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtCol = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
@@ -34,10 +34,10 @@ const PRESETS = [
 ]
 
 const INSIGHT_META: Record<InsightNivel, { color: string; icon: React.ReactNode }> = {
-  danger:  { color: '#cf1322', icon: <CloseCircleOutlined /> },
-  warning: { color: '#d46b08', icon: <WarningOutlined /> },
-  info:    { color: '#1677ff', icon: <InfoCircleOutlined /> },
-  success: { color: '#389e0d', icon: <CheckCircleOutlined /> },
+  danger:  { color: '#e5484d', icon: <CloseCircleOutlined /> },
+  warning: { color: '#ff7f00', icon: <WarningOutlined /> },
+  info:    { color: '#1faec2', icon: <InfoCircleOutlined /> },
+  success: { color: '#2ea172', icon: <CheckCircleOutlined /> },
 }
 
 function InsightsPanel({ insights }: { insights: Insight[] }) {
@@ -45,17 +45,17 @@ function InsightsPanel({ insights }: { insights: Insight[] }) {
   return (
     <Card
       size="small" style={{ borderRadius: 8, marginBottom: 16 }}
-      title={<Space size={6}><BulbOutlined style={{ color: '#d4a017' }} /><Text strong style={{ fontSize: 13 }}>Análisis automático</Text></Space>}
+      title={<Space size={6}><BulbOutlined style={{ color: '#ff7f00' }} /><Text strong style={{ fontSize: 13 }}>Análisis automático</Text></Space>}
       styles={{ body: { padding: '8px 16px' } }}
     >
       {insights.map((ins, i) => {
         const meta = INSIGHT_META[ins.nivel]
         return (
-          <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderTop: i > 0 ? '1px solid #f0f0f0' : undefined }}>
+          <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderTop: i > 0 ? '1px solid rgba(10,10,10,0.08)' : undefined }}>
             <span style={{ color: meta.color, fontSize: 15, marginTop: 1 }}>{meta.icon}</span>
             <div>
               <Text strong style={{ fontSize: 12, color: meta.color }}>{ins.titulo}</Text>
-              <div style={{ fontSize: 12, color: '#595959', lineHeight: 1.5 }}>{ins.detalle}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>{ins.detalle}</div>
             </div>
           </div>
         )
@@ -214,7 +214,7 @@ export default function RentabilidadCentrosBeneficioPage() {
         type: 'bar',
         data: cs.map(c => ({
           value: Math.round(c.utilidadOperativa * 100) / 100,
-          itemStyle: { color: c.utilidadOperativa >= 0 ? NAVY : '#cf1322' },
+          itemStyle: { color: c.utilidadOperativa >= 0 ? ACTION : '#e5484d' },
         })),
         barMaxWidth: 22,
         label: { show: true, position: 'right', fontSize: 10, formatter: (p: any) => fmtCol(p.value) },
@@ -252,17 +252,17 @@ export default function RentabilidadCentrosBeneficioPage() {
   // Tabla matriz
   const tableColumns: ColumnsType<FilaMatriz> = useMemo(() => {
     const cellStyle = (row: FilaMatriz): React.CSSProperties => ({
-      fontFamily: 'monospace', fontSize: row.kind === 'cuenta' ? 11 : 12,
+      fontVariantNumeric: 'tabular-nums', fontSize: row.kind === 'cuenta' ? 11 : 12,
       fontWeight: row.kind === 'grand' ? 700 : 400,
     })
     const renderVal = (v: number | null, row: FilaMatriz) => {
       if (v == null) return <Text type="secondary">—</Text>
       if (row.kind === 'pct') {
-        const color = v < 0 ? '#cf1322' : v > 0 ? '#389e0d' : '#8c8c8c'
+        const color = v < 0 ? '#e5484d' : v > 0 ? '#2ea172' : '#6b7280'
         return <span style={{ ...cellStyle(row), color }}>{v.toFixed(1)}%</span>
       }
       const shown = row.negate ? -v : v
-      const color = row.kind === 'grand' ? (v < 0 ? '#cf1322' : '#389e0d') : (shown < 0 ? '#cf1322' : undefined)
+      const color = row.kind === 'grand' ? (v < 0 ? '#e5484d' : '#2ea172') : (shown < 0 ? '#e5484d' : undefined)
       const content = <span style={{ ...cellStyle(row), color }}>{fmtCol(shown)}</span>
       if (row.kind === 'cuenta' && row.accountId) {
         return (
@@ -281,7 +281,7 @@ export default function RentabilidadCentrosBeneficioPage() {
           <Text strong={row.kind !== 'seccion' && row.kind !== 'cuenta'}
             style={{
               fontSize: row.kind === 'cuenta' ? 11 : 12,
-              color: row.kind === 'grand' ? NAVY : row.kind === 'cuenta' ? '#595959' : undefined,
+              color: row.kind === 'grand' ? ACTION : row.kind === 'cuenta' ? '#6b7280' : undefined,
             }}>
             {v}
           </Text>
@@ -292,8 +292,8 @@ export default function RentabilidadCentrosBeneficioPage() {
           <Tooltip title={c.responsable ? `Responsable: ${c.responsable}` : undefined}>
             <div style={{ fontSize: 11, lineHeight: 1.3, textAlign: 'center' as const, cursor: c.centroId ? 'pointer' : undefined }}
               onClick={() => c.centroId && setDetalleCentro(centroKey(c))}>
-              <div style={{ fontWeight: 700, color: c.centroId ? NAVY : '#8c8c8c' }}>{c.nombre}</div>
-              <div style={{ color: '#8c8c8c', fontWeight: 400 }}>{c.codigo}</div>
+              <div style={{ fontWeight: 700, color: c.centroId ? ACTION : '#6b7280' }}>{c.nombre}</div>
+              <div style={{ color: '#6b7280', fontWeight: 400 }}>{c.codigo}</div>
             </div>
           </Tooltip>
         ),
@@ -305,7 +305,7 @@ export default function RentabilidadCentrosBeneficioPage() {
       {
         title: <div style={{ fontSize: 11, fontWeight: 700 }}>Total</div>,
         key: '__total', width: 135, align: 'right' as const,
-        onCell: () => ({ style: { background: '#fafafa' } }),
+        onCell: () => ({ style: { background: '#fafbfc' } }),
         render: (_: any, row: FilaMatriz) => renderVal(row.values['__total'] ?? null, row),
       },
     ]
@@ -319,12 +319,13 @@ export default function RentabilidadCentrosBeneficioPage() {
   const sinDatos = !loading && data && columnas.length === 0
 
   return (
-    <div>
+    <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <Space align="start">
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
+          <PieChartOutlined style={{ fontSize: 22, color: '#1faec2', marginTop: 4 }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: NAVY }}>Rentabilidad por Centro de Beneficio</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#0a0a0a' }}>Rentabilidad por Centro de Beneficio</div>
             <Text type="secondary" style={{ fontSize: 12 }}>Estado de resultados analítico por línea de negocio</Text>
           </div>
         </Space>
@@ -369,7 +370,7 @@ export default function RentabilidadCentrosBeneficioPage() {
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} styles={{ body: { padding: '12px 8px' } }}>
                   <Statistic title={<span style={{ fontSize: 11 }}>Ingresos del período</span>}
                     value={data.totales.ingresos + data.totales.otrosIngresos} precision={2} prefix="Q"
-                    valueStyle={{ fontSize: 14, fontFamily: 'monospace', color: NAVY }}
+                    valueStyle={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', color: ACTION }}
                     formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })} />
                   {data.totalesComp && (
                     <Text type="secondary" style={{ fontSize: 11 }}>
@@ -382,7 +383,7 @@ export default function RentabilidadCentrosBeneficioPage() {
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} styles={{ body: { padding: '12px 8px' } }}>
                   <Statistic title={<span style={{ fontSize: 11 }}>Utilidad operativa</span>}
                     value={data.totales.utilidadOperativa} precision={2} prefix="Q"
-                    valueStyle={{ fontSize: 14, fontFamily: 'monospace', color: data.totales.utilidadOperativa >= 0 ? '#389e0d' : '#cf1322' }}
+                    valueStyle={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', color: data.totales.utilidadOperativa >= 0 ? '#2ea172' : '#e5484d' }}
                     formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })} />
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     Margen {data.totales.margenOperativo != null ? `${data.totales.margenOperativo.toFixed(1)}%` : '—'}
@@ -393,7 +394,7 @@ export default function RentabilidadCentrosBeneficioPage() {
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} styles={{ body: { padding: '12px 8px' } }}>
                   <Statistic title={<span style={{ fontSize: 11 }}>Centro líder</span>}
                     value={kpis?.lider?.nombre ?? '—'}
-                    valueStyle={{ fontSize: 14, fontWeight: 600, color: '#389e0d' }} />
+                    valueStyle={{ fontSize: 14, fontWeight: 600, color: '#2ea172' }} />
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     {kpis?.lider?.margenOperativo != null ? `${kpis.lider.margenOperativo.toFixed(1)}% margen` : 'sin datos'}
                   </Text>
@@ -403,7 +404,7 @@ export default function RentabilidadCentrosBeneficioPage() {
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} styles={{ body: { padding: '12px 8px' } }}>
                   <Statistic title={<span style={{ fontSize: 11 }}>En riesgo</span>}
                     value={kpis?.riesgo?.nombre ?? 'Ninguno'}
-                    valueStyle={{ fontSize: 14, fontWeight: 600, color: kpis?.riesgo ? '#cf1322' : '#389e0d' }} />
+                    valueStyle={{ fontSize: 14, fontWeight: 600, color: kpis?.riesgo ? '#e5484d' : '#2ea172' }} />
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     {kpis?.riesgo ? `pérdida de ${fmtCol(Math.abs(kpis.riesgo.utilidadOperativa))}` : 'todos con utilidad'}
                   </Text>
@@ -423,8 +424,8 @@ export default function RentabilidadCentrosBeneficioPage() {
                 expandable={{ indentSize: 12 }}
                 onRow={row => ({
                   style: {
-                    background: row.kind === 'grand' ? '#f0f5ff' : row.kind === 'pct' ? '#fafafa' : row.kind === 'cuenta' ? '#fcfcfc' : undefined,
-                    borderTop: row.kind === 'grand' ? `2px solid #d9d9d9` : undefined,
+                    background: row.kind === 'grand' ? '#fafbfc' : row.kind === 'pct' ? '#fafbfc' : row.kind === 'cuenta' ? '#fcfcfc' : undefined,
+                    borderTop: row.kind === 'grand' ? `2px solid rgba(10,10,10,0.08)` : undefined,
                   },
                 })}
               />
@@ -440,13 +441,13 @@ export default function RentabilidadCentrosBeneficioPage() {
                   size="small" rowKey="accountId" pagination={false}
                   dataSource={[...centroDetalle.cuentas].sort((a, b) => a.code.localeCompare(b.code))}
                   columns={[
-                    { title: 'Código', dataIndex: 'code', width: 110, render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>{v}</Text> },
+                    { title: 'Código', dataIndex: 'code', width: 110, render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>{v}</Text> },
                     { title: 'Cuenta', dataIndex: 'name', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
                     { title: 'Sección', dataIndex: 'balanceType', width: 130, render: (v: string) => <Tag style={{ fontSize: 10 }}>{v}</Tag> },
                     {
                       title: 'Saldo', dataIndex: 'balance', width: 140, align: 'right',
                       render: (v: number, row) => (
-                        <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', fontFamily: 'monospace', fontSize: 12, color: v < 0 ? '#cf1322' : undefined }}
+                        <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v < 0 ? '#e5484d' : undefined }}
                           onClick={() => setDrilldown({ accountId: row.accountId, accountName: row.name, fromDate: from, toDate: to })}>
                           {fmtQ(v)}
                         </span>

@@ -39,7 +39,7 @@ function CentroModal({ open, record, onClose, onSaved }: {
     <Modal
       title={record ? 'Editar centro de costo' : 'Nuevo centro de costo'}
       open={open} onOk={handleOk} onCancel={onClose}
-      okText="Guardar" okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okText="Guardar" okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }} initialValues={{ isActive: true }}>
@@ -82,11 +82,11 @@ export default function CentrosPage() {
 
   const columns: ColumnsType<Centro> = [
     { title: 'Código', dataIndex: 'code', width: 100,
-      render: v => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{v}</Text> },
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text> },
     { title: 'Nombre', dataIndex: 'name' },
     { title: 'Descripción', dataIndex: 'description', ellipsis: true, render: v => v || '—' },
     { title: 'Cta. GL', width: 100,
-      render: (_, r) => r.glAccountId ? <Tag color="purple">Vinculada</Tag> : <Tag color="default">Sin vínculo</Tag> },
+      render: (_, r) => r.glAccountId ? <Tag color="#2ea172">Vinculada</Tag> : <Tag color="default">Sin vínculo</Tag> },
     { title: 'Acciones', width: 80, render: (_, row) => (
       <Space size={4}>
         <Button size="small" type="text" icon={<EditOutlined />}
@@ -104,13 +104,13 @@ export default function CentrosPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <BranchesOutlined style={{ marginRight: 8 }} /> Centros de costo
           </Title>
           <Text type="secondary">Define centros de costo para distribución de inventario y gastos por área</Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />}
-          onClick={() => { setEditing(null); setModal(true) }} style={{ background: '#1B3A6B' }}>
+          onClick={() => { setEditing(null); setModal(true) }} style={{ background: '#1faec2' }}>
           Nuevo centro
         </Button>
       </div>

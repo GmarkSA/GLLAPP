@@ -29,7 +29,7 @@ const fmtQ = (n: number, currency = 'GTQ') =>
 
 const STATUS_COLOR: Record<string, string> = {
   pending:    'orange',
-  reconciled: 'green',
+  reconciled: '#2ea172',
   excluded:   'default',
 }
 const STATUS_LABEL: Record<string, string> = {
@@ -72,7 +72,7 @@ function AddTransactionModal({ accountId, currency, open, onClose, onSaved }: {
       onCancel={() => { form.resetFields(); onClose() }}
       onOk={handleOk}
       okText="Registrar"
-      okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}
@@ -87,10 +87,10 @@ function AddTransactionModal({ accountId, currency, open, onClose, onSaved }: {
             <Form.Item name="type" label="Tipo" rules={[{ required: true }]}>
               <Select>
                 <Option value="debit">
-                  <span style={{ color: '#cf1322' }}>↓ Débito (salida)</span>
+                  <span style={{ color: '#e5484d' }}>↓ Débito (salida)</span>
                 </Option>
                 <Option value="credit">
-                  <span style={{ color: '#389e0d' }}>↑ Crédito (entrada)</span>
+                  <span style={{ color: '#2ea172' }}>↑ Crédito (entrada)</span>
                 </Option>
               </Select>
             </Form.Item>
@@ -173,7 +173,7 @@ function ImportModal({ accountId, open, onClose, onSaved }: {
     { title: 'Fecha',       dataIndex: 'date',        width: 100 },
     { title: 'Descripción', dataIndex: 'description', ellipsis: true },
     { title: 'Tipo',        dataIndex: 'type',        width: 80,
-      render: t => <Tag color={t === 'credit' ? 'green' : 'red'}>{t === 'credit' ? 'Entrada' : 'Salida'}</Tag> },
+      render: t => <Tag color={t === 'credit' ? '#2ea172' : '#e5484d'}>{t === 'credit' ? 'Entrada' : 'Salida'}</Tag> },
     { title: 'Monto',       dataIndex: 'amount',      width: 110, align: 'right',
       render: n => n.toLocaleString('es-GT', { minimumFractionDigits: 2 }) },
   ]
@@ -187,7 +187,7 @@ function ImportModal({ accountId, open, onClose, onSaved }: {
       footer={preview ? [
         <Button key="back" onClick={() => setPreview(false)}>Atrás</Button>,
         <Button key="import" type="primary" loading={saving} onClick={handleImport}
-          style={{ background: '#1B3A6B' }}>
+          style={{ background: '#1faec2' }}>
           Importar {rows.length} movimientos
         </Button>,
       ] : null}
@@ -203,7 +203,7 @@ function ImportModal({ accountId, open, onClose, onSaved }: {
             description={
               <div style={{ fontSize: 12 }}>
                 <div>El archivo debe tener la siguiente estructura (incluir encabezados):</div>
-                <code style={{ display: 'block', marginTop: 6, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                <code style={{ display: 'block', marginTop: 6, background: '#fafbfc', padding: 8, borderRadius: 4 }}>
                   date,description,amount,type,reference<br />
                   2024-01-15,Pago proveedor,5000.00,debit,CHK001<br />
                   2024-01-16,Depósito cliente,12000.00,credit,DEP002
@@ -220,7 +220,7 @@ function ImportModal({ accountId, open, onClose, onSaved }: {
             showUploadList={false}
             style={{ borderRadius: 8 }}
           >
-            <p className="ant-upload-drag-icon"><UploadOutlined style={{ fontSize: 32, color: '#1677ff' }} /></p>
+            <p className="ant-upload-drag-icon"><UploadOutlined style={{ fontSize: 32, color: '#1faec2' }} /></p>
             <p className="ant-upload-text">Haz clic o arrastra un archivo CSV aquí</p>
             <p className="ant-upload-hint">Solo archivos .csv con el formato indicado</p>
           </Upload.Dragger>
@@ -272,15 +272,15 @@ function CategorizeModal({ tx, open, onClose, onSaved, accountId }: {
       onCancel={onClose}
       onOk={handleOk}
       okText="Guardar categoría"
-      okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
       {tx && (
         <div>
           <div style={{ background: '#f9f9f9', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: '#8c8c8c' }}>{dayjs(tx.transactionDate).format('DD/MM/YYYY')}</div>
+            <div style={{ fontSize: 12, color: '#6b7280' }}>{dayjs(tx.transactionDate).format('DD/MM/YYYY')}</div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>{tx.description}</div>
-            <div style={{ fontSize: 16, fontFamily: 'monospace', color: tx.type === 'credit' ? '#389e0d' : '#cf1322' }}>
+            <div style={{ fontSize: 16, fontVariantNumeric: 'tabular-nums', color: tx.type === 'credit' ? '#2ea172' : '#e5484d' }}>
               {tx.type === 'credit' ? '+' : '-'} {Number(tx.amount).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function BancoDetallePage() {
       render: (desc, row) => (
         <div>
           <div style={{ fontWeight: 500 }}>{desc}</div>
-          {row.reference && <div style={{ fontSize: 11, color: '#8c8c8c' }}>Ref: {row.reference}</div>}
+          {row.reference && <div style={{ fontSize: 11, color: '#6b7280' }}>Ref: {row.reference}</div>}
         </div>
       ),
     },
@@ -424,7 +424,7 @@ export default function BancoDetallePage() {
       width: 150,
       align: 'right',
       render: (_, row) => row.type === 'credit'
-        ? <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#389e0d' }}>
+        ? <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#2ea172' }}>
             + {Number(row.amount).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </span>
         : <Text type="secondary">—</Text>,
@@ -435,7 +435,7 @@ export default function BancoDetallePage() {
       width: 150,
       align: 'right',
       render: (_, row) => row.type === 'debit'
-        ? <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#cf1322' }}>
+        ? <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#e5484d' }}>
             - {Number(row.amount).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </span>
         : <Text type="secondary">—</Text>,
@@ -445,8 +445,8 @@ export default function BancoDetallePage() {
       key: 'account',
       width: 180,
       render: (_, row) => row.accountCode
-        ? <Tooltip title={row.accountName}><Tag color="purple">{row.accountCode}</Tag></Tooltip>
-        : <Tag color="orange">Sin categorizar</Tag>,
+        ? <Tooltip title={row.accountName}><Tag color="#6b7280">{row.accountCode}</Tag></Tooltip>
+        : <Tag color="#ff7f00">Sin categorizar</Tag>,
     },
     {
       title: 'Estado',
@@ -495,16 +495,16 @@ export default function BancoDetallePage() {
             {cfg.icon}
           </div>
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
               {account.name}
-              {account.isPrimary && <Tag color="blue" style={{ marginLeft: 8, fontSize: 11 }}>Principal</Tag>}
+              {account.isPrimary && <Tag color="#1faec2" style={{ marginLeft: 8, fontSize: 11 }}>Principal</Tag>}
             </Title>
             <Space size={6}>
               <Tag color={cfg.color}>{cfg.label}</Tag>
               <Tag>{account.currency}</Tag>
               {account.bankName && <Text type="secondary" style={{ fontSize: 12 }}>{account.bankName}</Text>}
               {account.accountNumber && (
-                <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>
+                <Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
                   ···{account.accountNumber.slice(-4)}
                 </Text>
               )}
@@ -543,7 +543,7 @@ export default function BancoDetallePage() {
               value={account.currentBalance}
               precision={2}
               prefix={account.currency === 'GTQ' ? 'Q' : '$'}
-              valueStyle={{ fontFamily: 'monospace', fontSize: 18, color: Number(account.currentBalance) >= 0 ? '#1B3A6B' : '#cf1322' }}
+              valueStyle={{ fontVariantNumeric: 'tabular-nums', fontSize: 18, color: Number(account.currentBalance) >= 0 ? '#1faec2' : '#e5484d' }}
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             />
           </Card>
@@ -553,7 +553,7 @@ export default function BancoDetallePage() {
             <Statistic
               title={<span style={{ fontSize: 11 }}>Total movimientos</span>}
               value={total}
-              valueStyle={{ fontSize: 18, color: '#1B3A6B' }}
+              valueStyle={{ fontSize: 18, color: '#0a0a0a' }}
             />
           </Card>
         </Col>
@@ -562,7 +562,7 @@ export default function BancoDetallePage() {
             <Statistic
               title={<span style={{ fontSize: 11 }}>Sin categorizar</span>}
               value={account.uncategorizedCount || 0}
-              valueStyle={{ fontSize: 18, color: (account.uncategorizedCount || 0) > 0 ? '#d46b08' : '#389e0d' }}
+              valueStyle={{ fontSize: 18, color: (account.uncategorizedCount || 0) > 0 ? '#ff7f00' : '#2ea172' }}
             />
           </Card>
         </Col>
@@ -570,10 +570,10 @@ export default function BancoDetallePage() {
           <Card size="small" style={{ borderRadius: 8 }} bodyStyle={{ padding: '12px 16px' }}>
             {account.glAccountCode ? (
               <div>
-                <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 4 }}>Cuenta contable vinculada</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Cuenta contable vinculada</div>
                 <Space>
-                  <LinkOutlined style={{ color: '#722ed1' }} />
-                  <Text style={{ fontFamily: 'monospace', color: '#722ed1', fontWeight: 600 }}>
+                  <LinkOutlined style={{ color: '#6b7280' }} />
+                  <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#6b7280', fontWeight: 600 }}>
                     {account.glAccountCode}
                   </Text>
                   <Text ellipsis style={{ fontSize: 12, maxWidth: 100 }}>{account.glAccountName}</Text>
@@ -581,7 +581,7 @@ export default function BancoDetallePage() {
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 4 }}>Cuenta contable</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Cuenta contable</div>
                 <Text type="warning" style={{ fontSize: 12 }}>Sin vincular</Text>
               </div>
             )}
@@ -599,7 +599,7 @@ export default function BancoDetallePage() {
               Importar extracto
             </Button>
             <Button size="small" type="primary" icon={<PlusOutlined />}
-              onClick={() => setAddOpen(true)} style={{ background: '#1B3A6B' }}>
+              onClick={() => setAddOpen(true)} style={{ background: '#1faec2' }}>
               Agregar
             </Button>
           </Space>

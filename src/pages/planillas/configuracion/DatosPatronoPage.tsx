@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Form, Input, Spin, Typography, message } from 'antd'
-import { SaveOutlined } from '@ant-design/icons'
+import { IdcardOutlined, SaveOutlined } from '@ant-design/icons'
 import { getPatrono, guardarPatrono, type ConfiguracionPatrono } from '../../../api/planillas'
 
 const { Text, Title } = Typography
-const NAVY = '#1B3A6B'
+const NAVY = '#1faec2'
 
 export default function DatosPatronoPage() {
   const [form] = Form.useForm<ConfiguracionPatrono>()
@@ -36,11 +36,14 @@ export default function DatosPatronoPage() {
   return (
     <div style={{ maxWidth: 860 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: NAVY }}>Datos del patrono</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Fuente única para el archivo IGSS, contratos laborales, finiquitos y recibos de pago
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <IdcardOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Datos del patrono</Title>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Fuente única para el archivo IGSS, contratos laborales, finiquitos y recibos de pago
+            </Text>
+          </div>
         </div>
         <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={guardar} style={{ background: NAVY }}>
           Guardar

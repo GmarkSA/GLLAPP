@@ -350,7 +350,7 @@ export default function ActivosFijosPage() {
                 onConfirm={() => handleActivar(r.id)}
               >
                 <Button size="small" type="primary" icon={<CheckCircleOutlined />}
-                  style={{ background: '#1B3A6B' }} loading={actLoading} />
+                  style={{ background: '#1faec2' }} loading={actLoading} />
               </Popconfirm>
             </Tooltip>
           )}
@@ -406,13 +406,13 @@ export default function ActivosFijosPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Activos Fijos</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Activos Fijos</Title>
         <Space>
           <Button icon={<ImportOutlined />} onClick={abrirImport}>
             Importar saldos iniciales
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openNew}
-            style={{ background: '#1B3A6B' }}>Nuevo Activo</Button>
+            style={{ background: '#1faec2' }}>Nuevo Activo</Button>
         </Space>
       </div>
 
@@ -449,7 +449,7 @@ export default function ActivosFijosPage() {
         title={editing ? `Editar ${editing.assetNumber}` : 'Nuevo Activo Fijo'}
         open={modalForm} onCancel={() => setModalForm(false)}
         onOk={handleSave} okText="Guardar" confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={660}
       >
         <Form form={form} layout="vertical" size="small" style={{ marginTop: 16 }}>
@@ -487,13 +487,13 @@ export default function ActivosFijosPage() {
                 tooltip="Solo para traslado de saldos iniciales. Dejar vacío para activos nuevos."
                 extra={
                   depAcum > 0 && costo > 0
-                    ? <span style={{ fontSize: 11, color: '#1B3A6B' }}>
+                    ? <span style={{ fontSize: 11, color: '#1faec2' }}>
                         Valor en libros al ingresar: <strong>Q {valorEnLibros.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
                         {residual > 0 && depAcum >= costo - residual
-                          ? <span style={{ color: '#f5222d' }}> — excede el valor depreciable</span>
+                          ? <span style={{ color: '#e5484d' }}> — excede el valor depreciable</span>
                           : null}
                       </span>
-                    : <span style={{ fontSize: 11, color: '#8c8c8c' }}>Solo para migración desde otro sistema</span>
+                    : <span style={{ fontSize: 11, color: '#6b7280' }}>Solo para migración desde otro sistema</span>
                 }
               >
                 <InputNumber style={{ width: 200 }} min={0} precision={2}
@@ -526,7 +526,7 @@ export default function ActivosFijosPage() {
         open={modalVender} onCancel={() => setModalVender(false)}
         onOk={handleVender} okText="Registrar venta"
         confirmLoading={actLoading}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={formVender} layout="vertical" size="small" style={{ marginTop: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -571,7 +571,7 @@ export default function ActivosFijosPage() {
             <Space>
               <Button onClick={() => setImportStep(0)}>Volver</Button>
               <Button type="primary" loading={importando}
-                style={{ background: '#1B3A6B' }}
+                style={{ background: '#1faec2' }}
                 onClick={handleConfirmarImport}>
                 Importar {csvFilas.length} activos
               </Button>
@@ -608,7 +608,7 @@ export default function ActivosFijosPage() {
                 Descargar plantilla CSV
               </Button>
               <Upload accept=".csv" beforeUpload={handleCSVFile} showUploadList={false}>
-                <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
+                <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1faec2' }}>
                   Seleccionar archivo CSV
                 </Button>
               </Upload>

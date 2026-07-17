@@ -155,7 +155,7 @@ export default function SelectorDimensionesAnaliticas({
           <span>
             Centro de Beneficio
             <Tooltip title="Línea de negocio a la que pertenece esta transacción. Permite generar Estado de Resultados y Balance General segmentados.">
-              <InfoCircleOutlined style={{ marginLeft: 4, color: '#8c8c8c' }} />
+              <InfoCircleOutlined style={{ marginLeft: 4, color: '#6b7280' }} />
             </Tooltip>
           </span>
         }
@@ -169,7 +169,7 @@ export default function SelectorDimensionesAnaliticas({
           <span>
             Centro de Costo
             <Tooltip title="Área de responsabilidad para el análisis de gastos y costos. Solo aplica a cuentas de tipo Costo o Gasto.">
-              <InfoCircleOutlined style={{ marginLeft: 4, color: '#8c8c8c' }} />
+              <InfoCircleOutlined style={{ marginLeft: 4, color: '#6b7280' }} />
             </Tooltip>
           </span>
         }

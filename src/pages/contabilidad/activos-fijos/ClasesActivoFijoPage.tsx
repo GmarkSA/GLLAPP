@@ -57,8 +57,8 @@ const AccountCellSelect = memo(function AccountCellSelect({
         if (!acct) return <span style={{ color: '#bbb' }}>—</span>
         return (
           <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
-            <BookOutlined style={{ color: '#1677ff', fontSize: 11, flexShrink: 0 }} />
-            <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1677ff', flexShrink: 0 }}>{acct.code}</span>
+            <BookOutlined style={{ color: '#1faec2', fontSize: 11, flexShrink: 0 }} />
+            <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#1faec2', flexShrink: 0 }}>{acct.code}</span>
             <span style={{ fontSize: 11, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {acct.name}
             </span>
@@ -67,7 +67,7 @@ const AccountCellSelect = memo(function AccountCellSelect({
       }}
       optionRender={opt => (
         <span style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-          <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#1B3A6B', flexShrink: 0 }}>
+          <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#1faec2', flexShrink: 0 }}>
             {(opt.data as any).code}
           </span>
           <span style={{ fontSize: 12, color: '#333' }}>{(opt.data as any).name}</span>
@@ -219,7 +219,7 @@ export default function ClasesActivoFijoPage() {
   const acctCol = (field: keyof Pending, title: string): ColumnsType<ClaseActivoFijo>[number] => ({
     title: <span style={{ fontSize: 11 }}>{title}</span>,
     width: 140,
-    render: (_: unknown, r: ClaseActivoFijo) => !r.id ? <span style={{ color: '#d9d9d9' }}>—</span> : (
+    render: (_: unknown, r: ClaseActivoFijo) => !r.id ? <span style={{ color: '#9aa1ab' }}>—</span> : (
       <AccountCellSelect
         accounts={accounts}
         value={val(r, field as keyof ClaseActivoFijo) as string | null}
@@ -232,9 +232,9 @@ export default function ClasesActivoFijoPage() {
     {
       title: 'Código', dataIndex: 'codigo', width: 80, fixed: 'left',
       render: (v: string, r: ClaseActivoFijo) => (
-        <span style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 700, fontSize: 13 }}>
+        <span style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 700, fontSize: 13 }}>
           {v}
-          {!r.id && <Tag color="blue" style={{ marginLeft: 4, fontSize: 10 }}>plantilla</Tag>}
+          {!r.id && <Tag color="#1faec2" style={{ marginLeft: 4, fontSize: 10 }}>plantilla</Tag>}
         </span>
       ),
     },
@@ -290,7 +290,7 @@ export default function ClasesActivoFijoPage() {
       title: <span style={{ fontSize: 11 }}>Estado</span>, width: 90,
       render: (_: unknown, r: ClaseActivoFijo) => r.id
         ? <Tag color={r.activo ? 'success' : 'default'}>{r.activo ? 'Activo' : 'Bloqueado'}</Tag>
-        : <Tag color="blue">Plantilla</Tag>,
+        : <Tag color="#1faec2">Plantilla</Tag>,
     },
     {
       title: 'Acciones', width: 175, fixed: 'right',
@@ -301,7 +301,7 @@ export default function ClasesActivoFijoPage() {
             disabled={!isDirty(r.id!)}
             onClick={() => handleSave(r)}
             style={isDirty(r.id!)
-              ? { background: '#389e0d', borderColor: '#389e0d', color: '#fff', padding: '0 6px' }
+              ? { background: '#2ea172', borderColor: '#2ea172', color: '#fff', padding: '0 6px' }
               : { padding: '0 6px' }} />
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
           <Button size="small" icon={<CopyOutlined />} title="Copiar como" onClick={() => openCopiar(r)} />
@@ -309,7 +309,7 @@ export default function ClasesActivoFijoPage() {
             <Button size="small"
               icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
               danger={r.activo}
-              style={!r.activo ? { color: '#52c41a', borderColor: '#52c41a' } : undefined}
+              style={!r.activo ? { color: '#2ea172', borderColor: '#2ea172' } : undefined}
             />
           </Popconfirm>
           <Popconfirm title="¿Eliminar esta clase?" onConfirm={() => handleEliminar(r)} okButtonProps={{ danger: true }}>
@@ -323,10 +323,10 @@ export default function ClasesActivoFijoPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Clases de Activo Fijo (ISR Guatemala)</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Clases de Activo Fijo (ISR Guatemala)</Title>
         <Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={openNueva}
-            style={{ background: '#1B3A6B' }}>
+            style={{ background: '#1faec2' }}>
             Agregar
           </Button>
           <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}>
@@ -353,7 +353,7 @@ export default function ClasesActivoFijoPage() {
       />
 
       <style>{`
-        .row-dirty td { background: #fffbe6 !important; }
+        .row-dirty td { background: rgba(255,127,0,0.10) !important; }
         .ant-table-cell { vertical-align: middle; }
       `}</style>
 
@@ -365,7 +365,7 @@ export default function ClasesActivoFijoPage() {
         onOk={handleEditSave}
         okText="Guardar"
         confirmLoading={editSaving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={420}
       >
         <Form form={editForm} layout="vertical" size="small" style={{ marginTop: 12 }}>
@@ -383,14 +383,14 @@ export default function ClasesActivoFijoPage() {
         onOk={handleNuevaSave}
         okText="Crear"
         confirmLoading={nuevaSaving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={460}
       >
         <Form form={nuevaForm} layout="vertical" size="small" style={{ marginTop: 12 }}
           initialValues={{ tasaDepreciacionAnual: 0.20, vidaUtilMeses: 60, esNoDepreciable: false }}>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12 }}>
             <Form.Item name="codigo" label="Código" rules={[{ required: true, message: 'Requerido' }]}>
-              <Input placeholder="Ej: 3100" style={{ fontFamily: 'monospace' }} />
+              <Input placeholder="Ej: 3100" style={{ fontVariantNumeric: 'tabular-nums' }} />
             </Form.Item>
             <Form.Item name="nombre" label="Nombre de la clase" rules={[{ required: true, message: 'Requerido' }]}>
               <Input placeholder="Ej: VEHÍCULOS DE CARGA" />

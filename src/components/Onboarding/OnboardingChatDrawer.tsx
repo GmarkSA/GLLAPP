@@ -22,7 +22,7 @@ export default function OnboardingChatDrawer() {
     <Drawer
       open={chatOpen}
       onClose={() => setChatOpen(false)}
-      title={<Space><RobotOutlined style={{ color: '#1B3A6B' }} /> Asistente de configuración</Space>}
+      title={<Space><RobotOutlined style={{ color: '#1faec2' }} /> Asistente de configuración</Space>}
       width={380}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -42,7 +42,7 @@ export default function OnboardingChatDrawer() {
                   alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
                   maxWidth: '88%',
                   marginLeft: m.role === 'user' ? 'auto' : 0,
-                  background: m.role === 'user' ? '#1B3A6B' : '#f0f2f7',
+                  background: m.role === 'user' ? '#1faec2' : '#f0f2f7',
                   color: m.role === 'user' ? '#fff' : '#1a1a2e',
                   borderRadius: 10,
                   padding: '8px 12px',
@@ -54,7 +54,7 @@ export default function OnboardingChatDrawer() {
                     type="link"
                     size="small"
                     icon={<ArrowRightOutlined />}
-                    style={{ padding: '4px 0', height: 'auto', color: '#1B3A6B' }}
+                    style={{ padding: '4px 0', height: 'auto', color: '#1faec2' }}
                     onClick={() => { navigate(m.suggestedAction!.route); setChatOpen(false) }}
                   >
                     {m.suggestedAction.label}
@@ -74,7 +74,7 @@ export default function OnboardingChatDrawer() {
             onPressEnter={submit}
             disabled={isSending}
           />
-          <Button type="primary" icon={<SendOutlined />} onClick={submit} loading={isSending} style={{ background: '#1B3A6B' }} />
+          <Button type="primary" icon={<SendOutlined />} onClick={submit} loading={isSending} style={{ background: '#1faec2' }} />
         </Space.Compact>
       </div>
     </Drawer>

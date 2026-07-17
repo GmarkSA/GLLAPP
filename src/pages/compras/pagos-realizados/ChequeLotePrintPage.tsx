@@ -119,7 +119,7 @@ export default function ChequeLotePrintPage() {
   }, [loading, checks])
 
   if (loading) return <div style={{ padding: 40, fontFamily: 'Arial' }}>Cargando {ids.length} cheque{ids.length > 1 ? 's' : ''}…</div>
-  if (error)   return <div style={{ padding: 40, color: 'red', fontFamily: 'Arial' }}>{error}</div>
+  if (error)   return <div style={{ padding: 40, color: '#e5484d', fontFamily: 'Arial' }}>{error}</div>
 
   // Determinar el formato del primer cheque para la regla @page
   const firstFmt = CHECK_FORMATS[detectFormat(checks[0]?.payment.bankName)] ?? CHECK_FORMATS.generic
@@ -158,7 +158,7 @@ export default function ChequeLotePrintPage() {
         }
         .screen-controls {
           padding: 16px;
-          background: #1B3A6B;
+          background: #1faec2;
           color: white;
           display: flex;
           gap: 12px;
@@ -172,7 +172,7 @@ export default function ChequeLotePrintPage() {
           border: none;
           border-radius: 4px;
           background: white;
-          color: #1B3A6B;
+          color: #1faec2;
           font-weight: 600;
         }
         @media print {

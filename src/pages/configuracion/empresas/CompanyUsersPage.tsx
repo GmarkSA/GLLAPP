@@ -13,8 +13,8 @@ import { useCompanyStore } from '../../../store/companyStore'
 const { Title } = Typography
 
 const COMPANY_ROLES = [
-  { value: 'admin',    label: 'Administrador Empresa', color: 'blue' },
-  { value: 'contador', label: 'Contador',              color: 'purple' },
+  { value: 'admin',    label: 'Administrador Empresa', color: '#1faec2' },
+  { value: 'contador', label: 'Contador',              color: '#6b7280' },
   { value: 'usuario',  label: 'Usuario',               color: 'default' },
   { value: 'consulta', label: 'Consulta',              color: 'cyan' },
 ]
@@ -123,10 +123,10 @@ export default function CompanyUsersPage() {
         const initials = `${u.firstName?.[0] ?? ''}${u.lastName?.[0] ?? ''}`.toUpperCase()
         return (
           <Space>
-            <Avatar size={28} style={{ background: '#1B3A6B', fontSize: 11 }}>{initials || <UserOutlined />}</Avatar>
+            <Avatar size={28} style={{ background: '#1faec2', fontSize: 11 }}>{initials || <UserOutlined />}</Avatar>
             <div>
               <div style={{ fontWeight: 500, fontSize: 13 }}>{u.firstName} {u.lastName}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>{u.email}</div>
+              <div style={{ fontSize: 11, color: '#6b7280' }}>{u.email}</div>
             </div>
           </Space>
         )
@@ -150,7 +150,7 @@ export default function CompanyUsersPage() {
       render: (_: any, r: CompanyUser) => {
         const u = getUser(r.userId)
         if (u?.isSuperAdmin) {
-          return <Tag color="red">Super Admin</Tag>
+          return <Tag color="#e5484d">Super Admin</Tag>
         }
         const current = roleLabel(r.roleIds)
         return (
@@ -194,17 +194,17 @@ export default function CompanyUsersPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>
-            <UserOutlined style={{ marginRight: 8, color: '#1B3A6B' }} />
+            <UserOutlined style={{ marginRight: 8, color: '#1faec2' }} />
             Usuarios — {companyName}
           </Title>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
             {assignments.length} usuario{assignments.length !== 1 ? 's' : ''} con acceso
           </div>
         </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
           onClick={() => setModal(true)}
           disabled={availableUsers.length === 0}
         >
@@ -229,7 +229,7 @@ export default function CompanyUsersPage() {
         onOk={handleAssign}
         confirmLoading={saving}
         okText="Asignar"
-        okButtonProps={{ style: { background: '#1B3A6B' }, disabled: !selectedUser }}
+        okButtonProps={{ style: { background: '#1faec2' }, disabled: !selectedUser }}
       >
         <div style={{ marginTop: 16 }}>
           <Select
@@ -245,7 +245,7 @@ export default function CompanyUsersPage() {
             }))}
           />
           {availableUsers.length === 0 && (
-            <div style={{ marginTop: 8, color: '#888', fontSize: 12 }}>
+            <div style={{ marginTop: 8, color: '#6b7280', fontSize: 12 }}>
               Todos los usuarios del tenant ya tienen acceso a esta empresa.
             </div>
           )}

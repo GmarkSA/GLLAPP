@@ -39,7 +39,7 @@ function GrupoModal({ open, record, onClose, onSaved }: {
     <Modal
       title={record ? 'Editar grupo' : 'Nuevo grupo de artículos'}
       open={open} onOk={handleOk} onCancel={onClose}
-      okText="Guardar" okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okText="Guardar" okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       width={600} destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
@@ -55,7 +55,7 @@ function GrupoModal({ open, record, onClose, onSaved }: {
           <Input.TextArea rows={2} />
         </Form.Item>
         <div style={{ background: '#f9f9f9', borderRadius: 8, padding: 12, marginBottom: 12 }}>
-          <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>
+          <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 8 }}>
             Cuentas contables por defecto para artículos de este grupo
           </Text>
           <Form.Item name="inventoryAccountId" label="Cuenta de inventario">
@@ -101,14 +101,14 @@ export default function GruposPage() {
 
   const columns: ColumnsType<GrupoArticulo> = [
     { title: 'Código', dataIndex: 'code', width: 100,
-      render: v => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{v}</Text> },
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text> },
     { title: 'Nombre', dataIndex: 'name' },
     { title: 'Descripción', dataIndex: 'description', ellipsis: true, render: v => v || '—' },
     { title: 'Ctas. contables', width: 120,
       render: (_, r) => {
         const count = [r.inventoryAccountId, r.salesAccountId, r.costAccountId, r.purchaseAccountId].filter(Boolean).length
         return count > 0
-          ? <Tag color="purple">{count} cuenta{count !== 1 ? 's' : ''}</Tag>
+          ? <Tag color="#6b7280">{count} cuenta{count !== 1 ? 's' : ''}</Tag>
           : <Tag color="default">Sin configurar</Tag>
       } },
     { title: 'Acciones', width: 90, render: (_, row) => (
@@ -128,13 +128,13 @@ export default function GruposPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <ApartmentOutlined style={{ marginRight: 8 }} /> Grupos de artículos
           </Title>
           <Text type="secondary">Agrupa artículos por familia y define cuentas contables y tasas de impuesto por defecto</Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />}
-          onClick={() => { setEditing(null); setModal(true) }} style={{ background: '#1B3A6B' }}>
+          onClick={() => { setEditing(null); setModal(true) }} style={{ background: '#1faec2' }}>
           Nuevo grupo
         </Button>
       </div>

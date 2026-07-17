@@ -261,7 +261,7 @@ const TABLE_COMPONENTS = {
         style={{
           ...props.style,
           background:    '#e8f0fe',
-          color:         '#1B3A6B',
+          color:         '#1faec2',
           fontWeight:    700,
           fontSize:      11,
           textTransform: 'uppercase' as const,
@@ -524,13 +524,13 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
           return (
             <div>
               {row.productId && selectedOpt ? (
-                <Tag style={{ fontFamily: 'monospace', fontSize: 10, margin: 0 }}>
+                <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 10, margin: 0 }}>
                   {selectedOpt.product.sku ?? selectedOpt.product.name}
                 </Tag>
               ) : <span style={{ color: '#ccc', fontSize: 11 }}>—</span>}
               {stock !== null && (
                 <div style={{ marginTop: 4 }}>
-                  <Tag color={stock === 0 ? 'red' : stockOk ? 'green' : 'orange'} style={{ fontSize: 10, margin: 0 }}>
+                  <Tag color={stock === 0 ? '#e5484d' : stockOk ? '#2ea172' : '#ff7f00'} style={{ fontSize: 10, margin: 0 }}>
                     Exist: {stock.toFixed(0)}
                   </Tag>
                 </div>
@@ -548,7 +548,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
                   closable
                   onClose={() => update(row._key, { productId: undefined, stockOnHand: undefined, isInventoriable: false })}
                   style={{
-                    margin: 0, fontFamily: 'monospace', fontSize: 11,
+                    margin: 0, fontVariantNumeric: 'tabular-nums', fontSize: 11,
                     background: '#e6f4ff', borderColor: '#91caff', color: '#0958d9',
                     lineHeight: '20px',
                   }}
@@ -558,7 +558,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
                 {stock !== null && (
                   <Tooltip title={stockOk ? `Disponible: ${stock}` : `Insuficiente: ${stock} disponibles`}>
                     <Tag
-                      color={stock === 0 ? 'red' : stockOk ? 'green' : 'orange'}
+                      color={stock === 0 ? '#e5484d' : stockOk ? '#2ea172' : '#ff7f00'}
                       style={{ fontSize: 10, margin: 0, cursor: 'default' }}
                     >
                       {!stockOk && <WarningOutlined style={{ marginRight: 2 }} />}
@@ -580,11 +580,11 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
                   label: (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>
-                        {o.product.sku && <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#888', marginRight: 4 }}>[{o.product.sku}]</span>}
+                        {o.product.sku && <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280', marginRight: 4 }}>[{o.product.sku}]</span>}
                         {o.product.name}
                       </span>
                       {o.product.isInventoriable && (
-                        <span style={{ fontSize: 10, color: Number(o.product.stockOnHand) > 0 ? '#52c41a' : '#ff4d4f', marginLeft: 8 }}>
+                        <span style={{ fontSize: 10, color: Number(o.product.stockOnHand) > 0 ? '#2ea172' : '#e5484d', marginLeft: 8 }}>
                           {Number(o.product.stockOnHand ?? 0).toFixed(0)}
                         </span>
                       )}
@@ -616,7 +616,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
               </Typography.Text>
               {acc && (
                 <div style={{ marginTop: 4 }}>
-                  <Tag style={{ fontSize: 10, margin: 0, background: '#f6ffed', borderColor: '#b7eb8f', color: '#389e0d' }}>
+                  <Tag style={{ fontSize: 10, margin: 0, background: '#e8f5ef', borderColor: '#c3e5d8', color: '#2ea172' }}>
                     {acc.code}
                   </Tag>
                 </div>
@@ -637,7 +637,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
             {/* Cuenta contable — pequeña, debajo */}
             {row.productId && acc ? (
               <Tooltip title={acc.name}>
-                <Tag style={{ fontSize: 10, margin: 0, width: 'fit-content', background: '#f6ffed', borderColor: '#b7eb8f', color: '#389e0d' }}>
+                <Tag style={{ fontSize: 10, margin: 0, width: 'fit-content', background: '#e8f5ef', borderColor: '#c3e5d8', color: '#2ea172' }}>
                   ▪ {acc.code} — {acc.name.length > 22 ? acc.name.slice(0, 22) + '…' : acc.name}
                 </Tag>
               </Tooltip>
@@ -731,8 +731,8 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
       title: 'Desc.%', dataIndex: 'discountPercent', width: 95, align: 'center' as const,
       render: (_: any, row: LineItem) => readOnly
         ? (row.discountPercent > 0
-            ? <Tag color="orange" style={{ fontSize: 11, margin: 0 }}>{row.discountPercent}%</Tag>
-            : <span style={{ color: '#d9d9d9' }}>—</span>)
+            ? <Tag color="#ff7f00" style={{ fontSize: 11, margin: 0 }}>{row.discountPercent}%</Tag>
+            : <span style={{ color: '#9aa1ab' }}>—</span>)
         : <CellInputNumber
             value={row.discountPercent}
             onCommit={v => update(row._key, { discountPercent: v })}
@@ -748,7 +748,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
           return (
             <span style={{ fontSize: 12 }}>
               {row.taxName ?? `IVA ${row.taxPercent}%`}{' '}
-              <Tag color="blue" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px', margin: 0 }}>{row.taxPercent}%</Tag>
+              <Tag color="#1faec2" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px', margin: 0 }}>{row.taxPercent}%</Tag>
             </span>
           )
         }
@@ -780,11 +780,11 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
       title: 'Amount', dataIndex: 'lineTotal', width: 150, align: 'right' as const,
       render: (_: any, row: LineItem) => (
         <div style={{ textAlign: 'right', lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 15 }}>
+          <div style={{ fontWeight: 700, color: '#1faec2', fontSize: 15 }}>
             {Number(row.lineTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
           {row.lineTax > 0 && (
-            <div style={{ fontSize: 12, color: '#1677ff', fontWeight: 500 }}>
+            <div style={{ fontSize: 12, color: '#1faec2', fontWeight: 500 }}>
               IVA: {Number(row.lineTax).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             </div>
           )}
@@ -830,7 +830,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
             type="link"
             icon={<PlusOutlined />}
             onClick={addRow}
-            style={{ color: '#1B3A6B', fontWeight: 500, padding: 0 }}
+            style={{ color: '#1faec2', fontWeight: 500, padding: 0 }}
           >
             + Agregar nueva fila
           </Button>
@@ -843,7 +843,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
         justifyContent: 'flex-end',
         alignItems:     'stretch',
         borderTop:      '2px solid #adc6ff',
-        background:     '#f0f5ff',
+        background:     '#fafbfc',
       }}>
         {/* Subtotal */}
         <div style={{
@@ -852,10 +852,10 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
           textAlign:    'right',
           minWidth:     160,
         }}>
-          <div style={{ fontSize: 11, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+          <div style={{ fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
             Subtotal (base)
           </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#595959' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>
             {currency === 'USD' ? '$' : 'Q'} {totals.subtotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
@@ -868,10 +868,10 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
           minWidth:     160,
           background:   '#e6f0ff',
         }}>
-          <div style={{ fontSize: 11, color: '#1677ff', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2, fontWeight: 600 }}>
+          <div style={{ fontSize: 11, color: '#1faec2', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2, fontWeight: 600 }}>
             IVA (impuesto)
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#1677ff' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#1faec2' }}>
             {currency === 'USD' ? '$' : 'Q'} {totals.taxAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
@@ -881,7 +881,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
           padding:      '10px 24px',
           textAlign:    'right',
           minWidth:     180,
-          background:   '#1B3A6B',
+          background:   '#1faec2',
         }}>
           <div style={{ fontSize: 11, color: '#adc6ff', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
             Total Factura
