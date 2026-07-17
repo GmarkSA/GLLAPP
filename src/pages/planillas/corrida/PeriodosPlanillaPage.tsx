@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getPeriodosPlanilla, crearPeriodoPlanilla, descargarArchivoIGSS, type PeriodoPlanilla,
+  getPeriodosPlanilla, crearPeriodoPlanilla, crearCorridaEspecial, descargarArchivoIGSS, type PeriodoPlanilla,
 } from '../../../api/planillas-corrida'
 
 const { Text, Title } = Typography
@@ -46,20 +46,28 @@ export default function PeriodosPlanillaPage() {
   // anulando la planilla (pago → planilla → póliza) vuelven a habilitarse.
   const anioSel = Form.useWatch('anio', form)
   const mesSel = Form.useWatch('mes', form)
+  const tipoSel = Form.useWatch('tipo', form) ?? 'ORDINARIA'
+  const esEspecial = tipoSel !== 'ORDINARIA'
   const yaCorrida = (anio: number, mes: number, quincena: number) =>
     periodos.some(p => p.anio === anio && p.mes === mes && p.quincena === quincena)
+  const yaCorridaEspecial = (anio: number, tipo: string) =>
+    periodos.some(p => p.anio === anio && p.tipo === tipo)
 
   const crear = async () => {
     try {
       const vals = await form.validateFields()
       setCreando(true)
-      const periodo = await crearPeriodoPlanilla(vals)
-      message.success(`Corrida ${MESES[vals.mes - 1]} ${vals.anio} — ${vals.quincena === 1 ? '1ra' : '2da'} quincena creada con ${periodo.totalEmpleados} empleados`)
+      const periodo = vals.tipo !== 'ORDINARIA'
+        ? await crearCorridaEspecial({ anio: vals.anio, tipo: vals.tipo })
+        : await crearPeriodoPlanilla(vals)
+      message.success(vals.tipo !== 'ORDINARIA'
+        ? `Corrida de ${vals.tipo === 'BONO14' ? 'Bono 14' : 'Aguinaldo'} ${vals.anio} creada con ${periodo.totalEmpleados} empleados`
+        : `Corrida ${MESES[vals.mes - 1]} ${vals.anio} — ${vals.quincena === 1 ? '1ra' : '2da'} quincena creada con ${periodo.totalEmpleados} empleados`)
       setModalOpen(false)
       navigate(`/planillas/corridas/${periodo.id}`)
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Error creando la corrida')
+      message.error(e?.response?.data?.error?.message || e?.response?.data?.message || 'Error creando la corrida')
     } finally {
       setCreando(false)
     }
@@ -68,7 +76,14 @@ export default function PeriodosPlanillaPage() {
   const columns: ColumnsType<PeriodoPlanilla> = [
     {
       title: 'Período', key: 'periodo', width: 200,
-      render: (_, p) => (
+      render: (_, p) => p.quincena === 0 ? (
+        <div>
+          <Text strong style={{ fontSize: 12, color: NAVY }}>{p.tipo === 'BONO14' ? 'Bono 14' : 'Aguinaldo'} {p.anio}</Text>
+          <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+            {p.tipo === 'BONO14' ? `jul/${p.anio - 1} → jun/${p.anio}` : `dic/${p.anio - 1} → nov/${p.anio}`} · corrida anual
+          </div>
+        </div>
+      ) : (
         <div>
           <Text strong style={{ fontSize: 12, color: NAVY }}>{MESES[p.mes - 1]} {p.anio}</Text>
           <div style={{ fontSize: 11, color: '#8c8c8c' }}>{p.quincena === 1 ? '1ra quincena (1-15)' : '2da quincena (16-fin)'}</div>
@@ -167,7 +182,7 @@ export default function PeriodosPlanillaPage() {
         <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }}
           onClick={() => {
             const dia = dayjs().date()
-            form.setFieldsValue({ anio: anioActual, mes: dayjs().month() + 1, quincena: dia <= 15 ? 1 : 2 })
+            form.setFieldsValue({ tipo: 'ORDINARIA', anio: anioActual, mes: dayjs().month() + 1, quincena: dia <= 15 ? 1 : 2 })
             setModalOpen(true)
           }}>
           Nueva corrida
@@ -194,30 +209,46 @@ export default function PeriodosPlanillaPage() {
         confirmLoading={creando}
       >
         <Form form={form} layout="vertical" size="small">
+          <Form.Item name="tipo" label="Tipo de corrida" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'ORDINARIA', label: 'Ordinaria (quincenal)' },
+              { value: 'BONO14', label: 'Bono 14 — anual (jul → jun, pago 15/jul)' },
+              { value: 'AGUINALDO', label: 'Aguinaldo — anual (dic → nov, pago 15/dic)' },
+            ].map(o => {
+              const corrida = o.value !== 'ORDINARIA' && !!anioSel && yaCorridaEspecial(anioSel, o.value)
+              return { ...o, label: corrida ? `${o.label} — ya corrida` : o.label, disabled: corrida }
+            })} />
+          </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
             <Form.Item name="anio" label="Año" rules={[{ required: true }]}>
               <Select options={[anioActual - 1, anioActual, anioActual + 1].map(y => ({ value: y, label: y }))} />
             </Form.Item>
-            <Form.Item name="mes" label="Mes" rules={[{ required: true }]}>
-              <Select options={MESES.map((m, i) => {
-                const completo = !!anioSel && yaCorrida(anioSel, i + 1, 1) && yaCorrida(anioSel, i + 1, 2)
-                return { value: i + 1, label: completo ? `${m} — ya corrido` : m, disabled: completo }
-              })} />
-            </Form.Item>
-            <Form.Item name="quincena" label="Quincena" rules={[{ required: true }]}>
-              <Select options={[
-                { value: 1, label: '1ra (días 1-15)' },
-                { value: 2, label: '2da (16-fin de mes)' },
-              ].map(o => {
-                const corrida = !!anioSel && !!mesSel && yaCorrida(anioSel, mesSel, o.value)
-                return { ...o, label: corrida ? `${o.label} — ya corrida` : o.label, disabled: corrida }
-              })} />
-            </Form.Item>
+            {!esEspecial && (
+              <Form.Item name="mes" label="Mes" rules={[{ required: !esEspecial }]}>
+                <Select options={MESES.map((m, i) => {
+                  const completo = !!anioSel && yaCorrida(anioSel, i + 1, 1) && yaCorrida(anioSel, i + 1, 2)
+                  return { value: i + 1, label: completo ? `${m} — ya corrido` : m, disabled: completo }
+                })} />
+              </Form.Item>
+            )}
+            {!esEspecial && (
+              <Form.Item name="quincena" label="Quincena" rules={[{ required: !esEspecial }]}>
+                <Select options={[
+                  { value: 1, label: '1ra (días 1-15)' },
+                  { value: 2, label: '2da (16-fin de mes)' },
+                ].map(o => {
+                  const corrida = !!anioSel && !!mesSel && yaCorrida(anioSel, mesSel, o.value)
+                  return { ...o, label: corrida ? `${o.label} — ya corrida` : o.label, disabled: corrida }
+                })} />
+              </Form.Item>
+            )}
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            1ra quincena: paga la mitad del salario, sin deducciones. 2da quincena: paga la
-            otra mitad + horas extra + bonificación incentivo completa, y ahí se descuentan
-            IGSS, ISR y otras deducciones calculados sobre el mes completo.
+            {esEspecial
+              ? (tipoSel === 'BONO14'
+                ? 'Calcula el Bono 14 de cada empleado (Dto. 42-92): salario × días trabajados del 1/jul al 30/jun ÷ 365, por tramo salarial. Exento de IGSS e ISR; el asiento liquida la provisión acumulada y solo postea el ajuste.'
+                : 'Calcula el Aguinaldo de cada empleado (Dto. 76-78): salario × días trabajados del 1/dic al 30/nov ÷ 365, por tramo salarial. Exento de IGSS e ISR; el asiento liquida la provisión acumulada y solo postea el ajuste.')
+              : '1ra quincena: paga la mitad del salario, sin deducciones. 2da quincena: paga la otra mitad + horas extra + bonificación incentivo completa, y ahí se descuentan IGSS, ISR y otras deducciones calculados sobre el mes completo.'}
           </Text>
         </Form>
       </Modal>
