@@ -62,7 +62,7 @@ function PlanCard({
   const displayPrice = currency === 'GTQ' ? priceUSD * exchangeRate : priceUSD
   const isFree = priceUSD === 0
 
-  const borderColor = isActive ? '#1B3A6B' : '#e8e8e8'
+  const borderColor = isActive ? '#1faec2' : 'rgba(10,10,10,0.08)'
 
   return (
     <Card
@@ -75,7 +75,7 @@ function PlanCard({
       {isActive && (
         <div style={{
           position: 'absolute', top: -1, right: 16,
-          background: '#1B3A6B', color: '#fff',
+          background: '#1faec2', color: '#fff',
           fontSize: 11, fontWeight: 700, padding: '2px 10px',
           borderRadius: '0 0 6px 6px', letterSpacing: '.05em',
         }}>
@@ -84,12 +84,12 @@ function PlanCard({
       )}
 
       <div style={{ textAlign: 'center', paddingBottom: 16 }}>
-        <Tag color={plan.plan === 'enterprise' ? 'gold' : plan.plan === 'professional' ? 'blue' : 'default'}
+        <Tag color={plan.plan === 'enterprise' ? 'gold' : plan.plan === 'professional' ? '#1faec2' : 'default'}
           style={{ fontSize: 11, marginBottom: 8 }}
         >
           {plan.plan.toUpperCase()}
         </Tag>
-        <div style={{ fontSize: 28, fontWeight: 800, color: '#1B3A6B', lineHeight: 1 }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#1faec2', lineHeight: 1 }}>
           {isFree ? 'Gratis' : money(displayPrice, currency)}
         </div>
         {!isFree && (
@@ -108,20 +108,20 @@ function PlanCard({
 
       <Space direction="vertical" size={6} style={{ width: '100%', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <TeamOutlined style={{ color: '#1B3A6B' }} />
+          <TeamOutlined style={{ color: '#1faec2' }} />
           <Text style={{ fontSize: 13 }}>
             {plan.maxCompanies >= 999 ? 'Empresas ilimitadas' : `${plan.maxCompanies} empresa${plan.maxCompanies > 1 ? 's' : ''}`}
           </Text>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <TeamOutlined style={{ color: '#1B3A6B' }} />
+          <TeamOutlined style={{ color: '#1faec2' }} />
           <Text style={{ fontSize: 13 }}>
             {plan.maxUsers >= 999 ? 'Usuarios ilimitados' : `${plan.maxUsers} usuarios`}
           </Text>
         </div>
         {plan.features.map((f, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <CheckCircleOutlined style={{ color: '#16a34a', fontSize: 12 }} />
+            <CheckCircleOutlined style={{ color: '#2ea172', fontSize: 12 }} />
             <Text style={{ fontSize: 12 }}>{f}</Text>
           </div>
         ))}
@@ -132,7 +132,7 @@ function PlanCard({
         block
         disabled={isActive}
         onClick={() => onSelect(plan)}
-        style={isActive ? {} : { background: '#1B3A6B', borderColor: '#1B3A6B' }}
+        style={isActive ? {} : { background: '#1faec2', borderColor: '#1faec2' }}
       >
         {isActive ? 'Plan actual' : isFree ? 'Usar gratis' : 'Seleccionar'}
       </Button>
@@ -186,17 +186,17 @@ function CardForm({
   return (
     <div>
       <div style={{
-        background: '#f0f5ff', borderRadius: 8, padding: '12px 16px',
+        background: '#fafbfc', borderRadius: 8, padding: '12px 16px',
         marginBottom: 20, border: '1px solid #d6e4ff',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <Text strong style={{ color: '#1B3A6B' }}>Plan {plan.displayName}</Text>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#1B3A6B' }}>
+            <Text strong style={{ color: '#1faec2' }}>Plan {plan.displayName}</Text>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#1faec2' }}>
               {money(displayPrice, currency)} <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>/ mes</Text>
             </div>
           </div>
-          <LockOutlined style={{ fontSize: 28, color: '#1B3A6B', opacity: 0.4 }} />
+          <LockOutlined style={{ fontSize: 28, color: '#1faec2', opacity: 0.4 }} />
         </div>
         <Text type="secondary" style={{ fontSize: 11 }}>
           Pago seguro procesado por QPayPro Sandbox. La tarjeta se envia al backend para tokenizacion/cobro y no se almacena completa.
@@ -210,7 +210,7 @@ function CardForm({
           <Input
             autoComplete="cc-name"
             name="ccname"
-            prefix={<CreditCardOutlined style={{ color: '#8c8c8c' }} />}
+            prefix={<CreditCardOutlined style={{ color: '#6b7280' }} />}
             placeholder="JUAN GARCIA LOPEZ"
             style={{ textTransform: 'uppercase' }}
           />
@@ -235,10 +235,10 @@ function CardForm({
             inputMode="numeric"
             prefix={
               cardDisplay.startsWith('4')
-                ? <Tag color="blue" style={{ padding: '0 4px', fontSize: 11 }}>VISA</Tag>
+                ? <Tag color="#1faec2" style={{ padding: '0 4px', fontSize: 11 }}>VISA</Tag>
                 : cardDisplay
-                  ? <Tag color="orange" style={{ padding: '0 4px', fontSize: 11 }}>MC</Tag>
-                  : <CreditCardOutlined style={{ color: '#8c8c8c' }} />
+                  ? <Tag color="#ff7f00" style={{ padding: '0 4px', fontSize: 11 }}>MC</Tag>
+                  : <CreditCardOutlined style={{ color: '#6b7280' }} />
             }
             placeholder="0000 0000 0000 0000"
             maxLength={19}
@@ -283,7 +283,7 @@ function CardForm({
               inputMode="numeric"
               placeholder="000"
               maxLength={4}
-              suffix={<LockOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />}
+              suffix={<LockOutlined style={{ color: '#6b7280', fontSize: 12 }} />}
               onChange={e => {
                 form.setFieldValue('cvv', e.target.value.replace(/\D/g, ''))
               }}
@@ -301,7 +301,7 @@ function CardForm({
         <div style={{ display: 'flex', gap: 10 }}>
           <Button block onClick={onCancel} disabled={saving}>Cancelar</Button>
           <Button type="primary" block loading={saving} onClick={handleSubmit}
-            style={{ background: '#1B3A6B', flex: 2 }}
+            style={{ background: '#1faec2', flex: 2 }}
             icon={<LockOutlined />}
           >
             Pagar {money(displayPrice, currency)} / mes
@@ -375,7 +375,7 @@ function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[
 
   if (!payments.length) {
     return (
-      <div style={{ textAlign: 'center', padding: 32, color: '#8c8c8c' }}>
+      <div style={{ textAlign: 'center', padding: 32, color: '#6b7280' }}>
         <DollarOutlined style={{ fontSize: 32, marginBottom: 8 }} />
         <div>Sin historial de cobros</div>
       </div>
@@ -445,8 +445,8 @@ function BillingFelModal({
       afterOpenChange={o => { if (o) handleOpen() }}
       title={
         <Space>
-          <FileTextOutlined style={{ color: '#1B3A6B' }} />
-          <span style={{ color: '#1B3A6B', fontWeight: 600 }}>
+          <FileTextOutlined style={{ color: '#1faec2' }} />
+          <span style={{ color: '#1faec2', fontWeight: 600 }}>
             Factura Electrónica — SAT Guatemala
           </span>
         </Space>
@@ -458,13 +458,13 @@ function BillingFelModal({
     >
       {/* Resumen del pago */}
       <div style={{
-        background: '#f0f5ff', borderRadius: 8, padding: '12px 16px',
+        background: '#fafbfc', borderRadius: 8, padding: '12px 16px',
         marginBottom: 20, border: '1px solid #d6e4ff',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <Text type="secondary" style={{ fontSize: 12 }}>Pago por suscripción</Text>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#1B3A6B' }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#1faec2' }}>
               {money(amount, currency)} — Plan {planName}
             </div>
           </div>
@@ -475,8 +475,8 @@ function BillingFelModal({
       {/* Resultado exitoso */}
       {result?.success ? (
         <div style={{ textAlign: 'center', padding: '12px 0' }}>
-          <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 12 }} />
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#1B3A6B', marginBottom: 8 }}>
+          <CheckCircleOutlined style={{ fontSize: 48, color: '#2ea172', marginBottom: 12 }} />
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1faec2', marginBottom: 8 }}>
             Factura emitida correctamente
           </div>
           {result.simulated && (
@@ -508,7 +508,7 @@ function BillingFelModal({
               </div>
             )}
           </div>
-          <Button type="primary" onClick={onClose} style={{ background: '#1B3A6B' }}>
+          <Button type="primary" onClick={onClose} style={{ background: '#1faec2' }}>
             Cerrar
           </Button>
         </div>
@@ -534,7 +534,7 @@ function BillingFelModal({
               style={{ textTransform: 'uppercase' }}
               suffix={
                 <Tooltip title="Escribe CF para Consumidor Final sin NIT">
-                  <span style={{ color: '#8c8c8c', fontSize: 11, cursor: 'help' }}>?</span>
+                  <span style={{ color: '#6b7280', fontSize: 11, cursor: 'help' }}>?</span>
                 </Tooltip>
               }
               onChange={e => {
@@ -580,7 +580,7 @@ function BillingFelModal({
             <Button block onClick={onClose}>Omitir por ahora</Button>
             <Button type="primary" block loading={loading} onClick={handleSubmit}
               icon={<FileTextOutlined />}
-              style={{ background: '#1B3A6B', flex: 2 }}
+              style={{ background: '#1faec2', flex: 2 }}
             >
               Emitir factura FEL
             </Button>
@@ -695,13 +695,13 @@ export default function SubscriptionPage() {
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Suscripción y Facturación</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Suscripción y Facturación</Title>
         <Text type="secondary">Gestiona tu plan, tarjeta de pago e historial de cobros</Text>
       </div>
 
       {/* Selector de moneda */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Text strong style={{ color: '#1B3A6B' }}>Planes disponibles</Text>
+        <Text strong style={{ color: '#1faec2' }}>Planes disponibles</Text>
         <Space>
           <Text type="secondary" style={{ fontSize: 13 }}>Ver precios en:</Text>
           <Select
@@ -715,7 +715,7 @@ export default function SubscriptionPage() {
             ]}
           />
           {currency === 'GTQ' && (
-            <Tag color="blue" style={{ fontSize: 11 }}>
+            <Tag color="#1faec2" style={{ fontSize: 11 }}>
               T/C: Q {exchangeRate.toFixed(4)} / USD
               {rateInfo.updatedBy && (
                 <span style={{ marginLeft: 4, opacity: 0.75 }}>
@@ -747,8 +747,8 @@ export default function SubscriptionPage() {
         style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}
         title={
           <Space>
-            <ClockCircleOutlined style={{ color: '#1B3A6B' }} />
-            <span style={{ color: '#1B3A6B', fontWeight: 600 }}>Historial de cobros</span>
+            <ClockCircleOutlined style={{ color: '#1faec2' }} />
+            <span style={{ color: '#1faec2', fontWeight: 600 }}>Historial de cobros</span>
           </Space>
         }
         extra={<Button size="small" icon={<SyncOutlined />} onClick={load} loading={loading}>Actualizar</Button>}
@@ -763,8 +763,8 @@ export default function SubscriptionPage() {
         open={modalOpen}
         title={
           <Space>
-            <CreditCardOutlined style={{ color: '#1B3A6B' }} />
-            <span style={{ color: '#1B3A6B' }}>
+            <CreditCardOutlined style={{ color: '#1faec2' }} />
+            <span style={{ color: '#1faec2' }}>
               {isNewSubscription || !hasCard ? 'Activar suscripción' : `Cambiar a plan ${selectedPlan?.displayName}`}
             </span>
           </Space>
@@ -804,7 +804,7 @@ export default function SubscriptionPage() {
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
               <Button onClick={() => setModalOpen(false)}>Cancelar</Button>
               <Button type="primary" loading={changingPlan} onClick={handleChangePlanConfirm}
-                style={{ background: '#1B3A6B' }}
+                style={{ background: '#1faec2' }}
                 icon={<CheckCircleOutlined />}
               >
                 Confirmar cambio
@@ -817,11 +817,11 @@ export default function SubscriptionPage() {
       {/* Aviso de seguridad */}
       <div style={{ textAlign: 'center', marginTop: 20 }}>
         <Space>
-          <LockOutlined style={{ color: '#8c8c8c' }} />
+          <LockOutlined style={{ color: '#6b7280' }} />
           <Text type="secondary" style={{ fontSize: 12 }}>
             Pagos seguros procesados por <strong>QPay Pro</strong> · Visa · Mastercard · PCI-DSS
           </Text>
-          <WarningOutlined style={{ color: '#8c8c8c' }} />
+          <WarningOutlined style={{ color: '#6b7280' }} />
           <Text type="secondary" style={{ fontSize: 12 }}>
             Tus datos de tarjeta nunca se almacenan en nuestros servidores
           </Text>

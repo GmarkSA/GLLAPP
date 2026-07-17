@@ -93,7 +93,7 @@ export default function CentrosCostoPage() {
               size="small"
               icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
               danger={r.activo}
-              style={!r.activo ? { color: '#52c41a', borderColor: '#52c41a' } : undefined}
+              style={!r.activo ? { color: '#2ea172', borderColor: '#2ea172' } : undefined}
             >
               {r.activo ? 'Bloquear' : 'Desbloquear'}
             </Button>
@@ -106,9 +106,9 @@ export default function CentrosCostoPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Centros de Costo</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Centros de Costo</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openNew}
-          style={{ background: '#1B3A6B' }}>Nuevo</Button>
+          style={{ background: '#1faec2' }}>Nuevo</Button>
       </div>
 
       <Table
@@ -121,7 +121,7 @@ export default function CentrosCostoPage() {
         title={editing ? 'Editar Centro de Costo' : 'Nuevo Centro de Costo'}
         open={modal} onCancel={() => setModal(false)}
         onOk={handleSave} okText="Guardar" confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={form} layout="vertical" size="small" style={{ marginTop: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>

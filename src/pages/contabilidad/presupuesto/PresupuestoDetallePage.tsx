@@ -273,7 +273,7 @@ export default function PresupuestoDetallePage() {
       return allowed.includes(info.type)
     })
 
-    if (!rows.length) return <div style={{ padding: 24, color: '#8c8c8c', textAlign: 'center' }}>Sin cuentas en esta sección. Agrega cuentas con el botón "Agregar O Quitar Cuentas".</div>
+    if (!rows.length) return <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Sin cuentas en esta sección. Agrega cuentas con el botón "Agregar O Quitar Cuentas".</div>
 
     const totalByPeriodo = Array.from({ length: periodoCount }, (_, i) =>
       rows.reduce((s, [aid]) => {
@@ -287,7 +287,7 @@ export default function PresupuestoDetallePage() {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
           <thead>
-            <tr style={{ background: '#fafafa', borderBottom: '2px solid #e8e8e8' }}>
+            <tr style={{ background: '#fafbfc', borderBottom: '2px solid rgba(10,10,10,0.08)' }}>
               <th style={thStyle}>CUENTA</th>
               {labels.map(l => <th key={l} style={{ ...thStyle, minWidth: 100, textAlign: 'right' }}>{l} {budget.anioFiscal}</th>)}
               <th style={{ ...thStyle, minWidth: 110, textAlign: 'right', fontWeight: 700 }}>TOTAL</th>
@@ -298,7 +298,7 @@ export default function PresupuestoDetallePage() {
               const rowTotal = Array.from({ length: periodoCount }, (_, i) => i + 1)
                 .reduce((s, p) => s + (edited.get(cellKey(accountId, p)) ?? info.periodos[p] ?? 0), 0)
               return (
-                <tr key={accountId} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <tr key={accountId} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
                   <td style={{ padding: '4px 12px', minWidth: 200, maxWidth: 260, fontWeight: 500 }}>
                     <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       title={`${info.code} — ${info.name}`}>
@@ -306,7 +306,7 @@ export default function PresupuestoDetallePage() {
                     </div>
                     {!isReadonly && (
                       <a
-                        style={{ fontSize: 10, color: '#1B3A6B', opacity: 0.7, display: 'block', lineHeight: '14px' }}
+                        style={{ fontSize: 10, color: '#1faec2', opacity: 0.7, display: 'block', lineHeight: '14px' }}
                         onClick={() => { setAutoModal({ accountId, name: info.name }); setAutoTipo('FIJO'); setAutoValor(0) }}
                       >
                         Autocompletar ›
@@ -321,7 +321,7 @@ export default function PresupuestoDetallePage() {
                     return (
                       <td key={p} style={{ padding: '2px 4px', textAlign: 'right' }}>
                         <div style={{ position: 'relative' }}>
-                          {isEdited && <div style={{ position: 'absolute', top: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#1677ff', zIndex: 1 }} />}
+                          {isEdited && <div style={{ position: 'absolute', top: 2, left: 2, width: 6, height: 6, borderRadius: '50%', background: '#1faec2', zIndex: 1 }} />}
                           <BudgetCell
                             value={displayVal}
                             disabled={isReadonly}
@@ -331,7 +331,7 @@ export default function PresupuestoDetallePage() {
                       </td>
                     )
                   })}
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 600, color: '#1B3A6B' }}>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 600, color: '#1faec2' }}>
                     {rowTotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
@@ -339,14 +339,14 @@ export default function PresupuestoDetallePage() {
             })}
           </tbody>
           <tfoot>
-            <tr style={{ background: '#f6f6f6', fontWeight: 700, borderTop: '2px solid #d9d9d9' }}>
+            <tr style={{ background: '#f6f6f6', fontWeight: 700, borderTop: '2px solid rgba(10,10,10,0.08)' }}>
               <td style={{ padding: '6px 12px' }}>Total</td>
               {totalByPeriodo.map((t, i) => (
                 <td key={i} style={{ padding: '6px 8px', textAlign: 'right' }}>
                   {t.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                 </td>
               ))}
-              <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1B3A6B' }}>
+              <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1faec2' }}>
                 {grandTotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               </td>
             </tr>
@@ -362,11 +362,11 @@ export default function PresupuestoDetallePage() {
       label: 'Cuentas de ingresos y gastos',
       children: (
         <>
-          <div style={{ fontWeight: 700, color: '#1B3A6B', padding: '8px 12px 4px', background: '#f0f5ff', borderRadius: 4, marginBottom: 8 }}>
+          <div style={{ fontWeight: 700, color: '#1faec2', padding: '8px 12px 4px', background: '#fafbfc', borderRadius: 4, marginBottom: 8 }}>
             Ingresos
           </div>
           {renderTable('income')}
-          <div style={{ fontWeight: 700, color: '#1B3A6B', padding: '8px 12px 4px', background: '#fff7e6', borderRadius: 4, margin: '16px 0 8px' }}>
+          <div style={{ fontWeight: 700, color: '#0a0a0a', padding: '8px 12px 4px', background: '#fff2e5', borderRadius: 4, margin: '16px 0 8px' }}>
             Gastos
           </div>
           {renderTable('expense')}
@@ -387,7 +387,7 @@ export default function PresupuestoDetallePage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contabilidad/presupuesto')}>Volver</Button>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{budget.nombre}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{budget.nombre}</Title>
             <Tag color={STATUS_COLOR[budget.status]}>{STATUS_LABEL[budget.status]}</Tag>
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -396,11 +396,11 @@ export default function PresupuestoDetallePage() {
             </Text>
             {budget.centroCostoId && (() => {
               const cc = centrosCosto.find(c => c.id === budget.centroCostoId)
-              return <Tag color="blue" style={{ fontSize: 11 }}>CC: {cc ? `${cc.codigo} — ${cc.nombre}` : budget.centroCostoId}</Tag>
+              return <Tag color="#1faec2" style={{ fontSize: 11 }}>CC: {cc ? `${cc.codigo} — ${cc.nombre}` : budget.centroCostoId}</Tag>
             })()}
             {budget.centroBeneficioId && (() => {
               const cb = centrosBeneficio.find(c => c.id === budget.centroBeneficioId)
-              return <Tag color="green" style={{ fontSize: 11 }}>CB: {cb ? `${cb.codigo} — ${cb.nombre}` : budget.centroBeneficioId}</Tag>
+              return <Tag color="#2ea172" style={{ fontSize: 11 }}>CB: {cb ? `${cb.codigo} — ${cb.nombre}` : budget.centroBeneficioId}</Tag>
             })()}
             {budget.notas             && <Text type="secondary" style={{ fontSize: 11, fontStyle: 'italic' }}>{budget.notas}</Text>}
           </div>
@@ -433,7 +433,7 @@ export default function PresupuestoDetallePage() {
           <Space>
             <Text type="secondary" style={{ fontSize: 12 }}>{edited.size} cambios sin guardar</Text>
             <Button danger size="small" onClick={() => setEdited(new Map())}>Descartar</Button>
-            <Button type="primary" size="small" style={{ background: '#1B3A6B' }}
+            <Button type="primary" size="small" style={{ background: '#1faec2' }}
               icon={<SaveOutlined />} loading={saving} onClick={handleSave}>
               Guardar cambios
             </Button>
@@ -453,7 +453,7 @@ export default function PresupuestoDetallePage() {
         onOk={handlePrefill}
         okText="Aplicar"
         confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={prefillForm} layout="vertical" size="small"
           initialValues={{ tipo: 'FIJO', anioFuenteDatos: budget.anioFiscal - 1 }}>
@@ -481,7 +481,7 @@ export default function PresupuestoDetallePage() {
         onOk={handleCopy}
         okText="Copiar"
         confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Form form={copyForm} layout="vertical" size="small"
           initialValues={{ targetYear: budget.anioFiscal + 1 }}>
@@ -502,7 +502,7 @@ export default function PresupuestoDetallePage() {
         width={600}
         footer={
           <Space>
-            <Button type="primary" style={{ background: modoCuentas === 'add' ? '#1B3A6B' : '#cf1322' }}
+            <Button type="primary" style={{ background: modoCuentas === 'add' ? '#1faec2' : '#e5484d' }}
               loading={actingCuentas} disabled={!cuentasChecked.length}
               onClick={handleCuentas}>
               {modoCuentas === 'add' ? `Agregar ${cuentasChecked.length || ''}` : `Quitar ${cuentasChecked.length || ''}`}
@@ -522,7 +522,7 @@ export default function PresupuestoDetallePage() {
         </Space>
         <Input prefix={<SearchOutlined />} placeholder="Buscar cuenta..."
           value={cuentasSearch} onChange={e => setCuentasSearch(e.target.value)} style={{ marginBottom: 8 }} />
-        <div style={{ maxHeight: 380, overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: 4, padding: 8 }}>
+        <div style={{ maxHeight: 380, overflowY: 'auto', border: '1px solid rgba(10,10,10,0.08)', borderRadius: 4, padding: 8 }}>
           <Tree checkable defaultExpandAll treeData={cuentasTree}
             checkedKeys={cuentasChecked}
             onCheck={(keys: any) => setCuentasChecked(Array.isArray(keys) ? keys : keys.checked)} />
@@ -536,12 +536,12 @@ export default function PresupuestoDetallePage() {
         onCancel={() => setAutoModal(null)}
         onOk={handleApplyAutocompletar}
         okText="Aplicar"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={480}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, marginBottom: 4 }}>TIPO</div>
+            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>TIPO</div>
             <Select
               style={{ width: '100%' }}
               value={autoTipo}
@@ -554,7 +554,7 @@ export default function PresupuestoDetallePage() {
             />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>
               {autoTipo === 'AJUSTE_PORCENTAJE' ? 'PORCENTAJE (%)' : 'MONTO (Q)'}
             </div>
             <InputNumber
@@ -569,14 +569,14 @@ export default function PresupuestoDetallePage() {
 
         {autoModal && (
           <>
-            <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, marginBottom: 6 }}>VISTA PREVIA</div>
+            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>VISTA PREVIA</div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%' }}>
                 <thead>
-                  <tr style={{ background: '#fafafa' }}>
-                    <th style={{ padding: '4px 8px', textAlign: 'left', color: '#8c8c8c' }}>Período</th>
-                    <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8c8c8c' }}>Actual</th>
-                    <th style={{ padding: '4px 8px', textAlign: 'right', color: '#1B3A6B', fontWeight: 700 }}>Nuevo</th>
+                  <tr style={{ background: '#fafbfc' }}>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', color: '#6b7280' }}>Período</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right', color: '#6b7280' }}>Actual</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'right', color: '#1faec2', fontWeight: 700 }}>Nuevo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -585,12 +585,12 @@ export default function PresupuestoDetallePage() {
                     const current = getCellValue(autoModal.accountId, p)
                     const next    = computeAutoVal(current)
                     return (
-                      <tr key={p} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <tr key={p} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
                         <td style={{ padding: '3px 8px' }}>{label}</td>
-                        <td style={{ padding: '3px 8px', textAlign: 'right', color: '#8c8c8c' }}>
+                        <td style={{ padding: '3px 8px', textAlign: 'right', color: '#6b7280' }}>
                           {current.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                         </td>
-                        <td style={{ padding: '3px 8px', textAlign: 'right', fontWeight: 600, color: '#1B3A6B' }}>
+                        <td style={{ padding: '3px 8px', textAlign: 'right', fontWeight: 600, color: '#1faec2' }}>
                           {next.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
@@ -598,7 +598,7 @@ export default function PresupuestoDetallePage() {
                   })}
                   {periodoCount > 6 && (
                     <tr>
-                      <td colSpan={3} style={{ padding: '3px 8px', color: '#8c8c8c', textAlign: 'center' }}>
+                      <td colSpan={3} style={{ padding: '3px 8px', color: '#6b7280', textAlign: 'center' }}>
                         … y {periodoCount - 6} período(s) más
                       </td>
                     </tr>
@@ -615,6 +615,6 @@ export default function PresupuestoDetallePage() {
 
 const thStyle: React.CSSProperties = {
   padding: '8px 12px', textAlign: 'left', fontSize: 11,
-  fontWeight: 700, color: '#8c8c8c', letterSpacing: '0.5px',
-  position: 'sticky', top: 0, background: '#fafafa', zIndex: 2,
+  fontWeight: 700, color: '#6b7280', letterSpacing: '0.5px',
+  position: 'sticky', top: 0, background: '#fafbfc', zIndex: 2,
 }

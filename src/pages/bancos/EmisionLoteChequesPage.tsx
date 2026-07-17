@@ -104,15 +104,15 @@ export default function EmisionLoteChequesPage() {
       ),
     },
     { title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
-      render: (val) => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{val}</Text> },
+      render: (val) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{val}</Text> },
     { title: 'Vencimiento', dataIndex: 'dueDate', width: 110,
       render: (d) => {
         if (!d) return <Text type="secondary">—</Text>
         const days = dayjs(d).diff(dayjs(), 'day')
-        return <Tag color={days < 0 ? 'red' : days <= 7 ? 'orange' : 'green'}>{dayjs(d).format('DD/MM/YYYY')}</Tag>
+        return <Tag color={days < 0 ? '#e5484d' : days <= 7 ? '#ff7f00' : '#2ea172'}>{dayjs(d).format('DD/MM/YYYY')}</Tag>
       } },
     { title: 'Saldo', dataIndex: 'balance', width: 130, align: 'right' as const,
-      render: (val) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(Number(val))}</Text> },
+      render: (val) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(Number(val))}</Text> },
     {
       title: 'Monto a pagar', key: 'amt', width: 150, align: 'right' as const,
       render: (_, r) => {
@@ -178,11 +178,11 @@ export default function EmisionLoteChequesPage() {
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <Space>
-          <PrinterOutlined style={{ fontSize: 20, color: '#1B3A6B' }} />
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Emisión de cheques en lote</Title>
+          <PrinterOutlined style={{ fontSize: 20, color: '#1faec2' }} />
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Emisión de cheques en lote</Title>
         </Space>
         {totalChecks > 0 && (
-          <Tag color="blue" style={{ fontSize: 13, padding: '4px 12px' }}>
+          <Tag color="#1faec2" style={{ fontSize: 13, padding: '4px 12px' }}>
             {totalChecks} proveedor{totalChecks > 1 ? 'es' : ''} seleccionado{totalChecks > 1 ? 's' : ''} — {fmtQ(grandTotal)}
           </Tag>
         )}
@@ -268,7 +268,7 @@ export default function EmisionLoteChequesPage() {
                       </Space>
                       <Space>
                         {selCount > 0 && (
-                          <Tag color="blue">
+                          <Tag color="#1faec2">
                             <ThunderboltOutlined /> {selCount} selec. — {fmtQ(selTotal)}
                           </Tag>
                         )}
@@ -293,13 +293,13 @@ export default function EmisionLoteChequesPage() {
                     pagination={false}
                     onRow={(r) => ({ onClick: () => toggleInvoice(v.vendorId, v.vendorName, r), style: { cursor: 'pointer' } })}
                     summary={() => selCount > 0 ? (
-                      <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+                      <Table.Summary.Row style={{ background: '#fafbfc' }}>
                         <Table.Summary.Cell index={0} colSpan={3}>
                           <Text strong>{selCount} factura{selCount > 1 ? 's' : ''} seleccionada{selCount > 1 ? 's' : ''}</Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={3} />
                         <Table.Summary.Cell index={4} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(selTotal)}</Text>
+                          <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(selTotal)}</Text>
                         </Table.Summary.Cell>
                       </Table.Summary.Row>
                     ) : null}
@@ -313,7 +313,7 @@ export default function EmisionLoteChequesPage() {
         {/* Resumen del lote y botón */}
         {totalChecks > 0 && (
           <Card
-            style={{ marginTop: 16, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', background: '#f0f5ff' }}
+            style={{ marginTop: 16, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', background: '#fafbfc' }}
             bordered={false}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -334,7 +334,7 @@ export default function EmisionLoteChequesPage() {
                   htmlType="submit"
                   loading={submitting}
                   icon={<PrinterOutlined />}
-                  style={{ background: '#1B3A6B' }}
+                  style={{ background: '#1faec2' }}
                   size="middle"
                 >
                   Generar {totalChecks} {mode === 'check' ? `cheque${totalChecks > 1 ? 's' : ''}` : `pago${totalChecks > 1 ? 's' : ''}`} — {fmtQ(grandTotal)}

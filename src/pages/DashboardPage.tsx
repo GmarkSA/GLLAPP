@@ -24,11 +24,11 @@ const { RangePicker } = DatePicker
 // ── Constantes ──────────────────────────────────────────────────────────────
 
 const bucketMeta = [
-  { key: 'current',    label: 'Corriente', color: '#0ea5e9' },
-  { key: 'days_1_30', label: '1-30',       color: '#16a34a' },
-  { key: 'days_31_60',label: '31-60',      color: '#d97706' },
-  { key: 'days_61_90',label: '61-90',      color: '#f97316' },
-  { key: 'over_90',   label: '+90 días',   color: '#dc2626' },
+  { key: 'current',    label: 'Corriente', color: '#2ea172' },
+  { key: 'days_1_30', label: '1-30',       color: '#1faec2' },
+  { key: 'days_31_60',label: '31-60',      color: '#ff7f00' },
+  { key: 'days_61_90',label: '61-90',      color: '#e06f00' },
+  { key: 'over_90',   label: '+90 días',   color: '#e5484d' },
 ] as const
 
 const cardStyle: React.CSSProperties = {
@@ -54,9 +54,9 @@ function money(v: unknown, cur = 'GTQ'): string {
 function pct(v: unknown): string { return `${toNum(v).toFixed(1)}%` }
 
 function riskColor(v: number): string {
-  if (v >= 50) return '#dc2626'
-  if (v >= 25) return '#f97316'
-  return '#16a34a'
+  if (v >= 50) return '#e5484d'
+  if (v >= 25) return '#ff7f00'
+  return '#2ea172'
 }
 
 function entityName(row: ExecutiveAgingRow, kind: 'ar' | 'ap'): string {
@@ -108,9 +108,9 @@ function SummaryCard({
       <Spin spinning={loading} size="small">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           <Statistic
-            title={<Text style={{ fontSize: 12, color: '#5f6b7a' }}>{title}</Text>}
+            title={<Text style={{ fontSize: 12, color: '#6b7280' }}>{title}</Text>}
             value={isMoney ? money(value, currency) : toNum(value)}
-            valueStyle={{ color: '#102a56', fontSize: 20, fontWeight: 700 }}
+            valueStyle={{ color: '#0a0a0a', fontSize: 20, fontWeight: 700 }}
           />
           <div style={{
             width: 42, height: 42, borderRadius: 8,
@@ -212,13 +212,13 @@ function AgingPanel({ title, section, kind, currency }: {
       {/* KPI row */}
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
-          <SummaryCard title={`Total ${title}`} value={section.total} icon={<FileTextOutlined />} color="#0ea5e9" currency={currency} />
+          <SummaryCard title={`Total ${title}`} value={section.total} icon={<FileTextOutlined />} color="#1faec2" currency={currency} />
         </Col>
         <Col xs={24} md={6}>
           <SummaryCard title="Vencido" value={section.overdue} subtitle={pct(section.overduePct)} icon={<WarningOutlined />} color={overdueColor} currency={currency} />
         </Col>
         <Col xs={24} md={6}>
-          <SummaryCard title="+90 días" value={section.critical} subtitle={pct(section.criticalPct)} icon={<WarningOutlined />} color="#dc2626" currency={currency} />
+          <SummaryCard title="+90 días" value={section.critical} subtitle={pct(section.criticalPct)} icon={<WarningOutlined />} color="#e5484d" currency={currency} />
         </Col>
         <Col xs={24} md={6}>
           <Card bordered={false} style={cardStyle}>
@@ -244,15 +244,15 @@ function AgingPanel({ title, section, kind, currency }: {
       {hasCritical && (
         <Card
           bordered={false}
-          style={{ ...cardStyle, borderLeft: '4px solid #dc2626' }}
+          style={{ ...cardStyle, borderLeft: '4px solid #e5484d' }}
           bodyStyle={{ padding: '12px 16px' }}
           title={
             <Space>
-              <WarningOutlined style={{ color: '#dc2626' }} />
-              <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>
+              <WarningOutlined style={{ color: '#e5484d' }} />
+              <span style={{ color: '#e5484d', fontSize: 13, fontWeight: 600 }}>
                 Top críticos +90 días — atención inmediata
               </span>
-              <Tag color="red">{section.topCritical.length}</Tag>
+              <Tag color="#e5484d">{section.topCritical.length}</Tag>
             </Space>
           }
         >
@@ -264,7 +264,7 @@ function AgingPanel({ title, section, kind, currency }: {
                 minWidth: 180,
               }}>
                 <Text strong style={{ fontSize: 12, display: 'block' }}>{entityName(row, kind)}</Text>
-                <Text style={{ color: '#dc2626', fontSize: 13, fontWeight: 700 }}>
+                <Text style={{ color: '#e5484d', fontSize: 13, fontWeight: 700 }}>
                   {money(row.over_90, currency)}
                 </Text>
                 <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
@@ -306,13 +306,13 @@ function AgingPanel({ title, section, kind, currency }: {
         return (
           <Card
             bordered={false}
-            style={hasAdv ? { ...cardStyle, borderLeft: '3px solid #16a34a' } : cardStyle}
+            style={hasAdv ? { ...cardStyle, borderLeft: '3px solid #2ea172' } : cardStyle}
             title={
               hasAdv ? (
                 <Space>
                   <span style={{ fontWeight: 600 }}>{titleText}</span>
                   <Tag
-                    color={(section.apNetTotal ?? 0) < 0 ? 'blue' : 'success'}
+                    color={(section.apNetTotal ?? 0) < 0 ? '#1faec2' : 'success'}
                     style={{ fontSize: 11 }}
                   >
                     Anticipos: {money(section.totalAdvances, currency)}
@@ -356,16 +356,16 @@ function AgingPanel({ title, section, kind, currency }: {
                         : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
                     })),
                     {
-                      title: <span style={{ color: '#16a34a', fontWeight: 600 }}>Anticipos</span>,
+                      title: <span style={{ color: '#2ea172', fontWeight: 600 }}>Anticipos</span>,
                       dataIndex: 'anticipo' as keyof MergedRow,
                       width: 170,
                       align: 'right' as const,
                       render: (_: any, r: MergedRow) => r.anticipo > 0 ? (
                         <div style={{ textAlign: 'right' }}>
                           {r.advanceNums.map(n => (
-                            <div key={n} style={{ fontSize: 10, color: '#16a34a', fontWeight: 600 }}>{n}</div>
+                            <div key={n} style={{ fontSize: 10, color: '#2ea172', fontWeight: 600 }}>{n}</div>
                           ))}
-                          <Text style={{ color: '#16a34a', fontWeight: 700 }}>({money(r.anticipo, currency)})</Text>
+                          <Text style={{ color: '#2ea172', fontWeight: 700 }}>({money(r.anticipo, currency)})</Text>
                         </div>
                       ) : <Text type="secondary">—</Text>,
                     },
@@ -376,7 +376,7 @@ function AgingPanel({ title, section, kind, currency }: {
                       align: 'right' as const,
                       render: (_: any, r: MergedRow) => (
                         <Tag
-                          color={r.neto < 0 ? 'success' : r.neto === 0 ? 'default' : 'purple'}
+                          color={r.neto < 0 ? 'success' : r.neto === 0 ? 'default' : '#6b7280'}
                           style={{ fontWeight: 700 }}
                         >
                           {r.neto < 0
@@ -412,9 +412,9 @@ function CashFlowPanel({ data, currency }: { data: ExecutiveDashboardData; curre
   if (!cash) return <Empty description="Sin datos de flujo de caja" />
 
   const flows = [
-    { label: 'Operación',    value: cash.operating.total,   color: '#16a34a', items: cash.operating.adjustments },
-    { label: 'Inversión',    value: cash.investing.total,   color: '#0ea5e9', items: cash.investing.items },
-    { label: 'Financiación', value: cash.financing.total,   color: '#7c3aed', items: cash.financing.items },
+    { label: 'Operación',    value: cash.operating.total,   color: '#2ea172', items: cash.operating.adjustments },
+    { label: 'Inversión',    value: cash.investing.total,   color: '#1faec2', items: cash.investing.items },
+    { label: 'Financiación', value: cash.financing.total,   color: '#6b7280', items: cash.financing.items },
   ]
   const max = Math.max(...flows.map(f => Math.abs(toNum(f.value))), 1)
 
@@ -427,7 +427,7 @@ function CashFlowPanel({ data, currency }: { data: ExecutiveDashboardData; curre
       data: flows.map(f => ({
         value: toNum(f.value),
         itemStyle: {
-          color: toNum(f.value) >= 0 ? f.color : '#dc2626',
+          color: toNum(f.value) >= 0 ? f.color : '#e5484d',
           borderRadius: [4, 4, 0, 0],
         },
       })),
@@ -438,13 +438,13 @@ function CashFlowPanel({ data, currency }: { data: ExecutiveDashboardData; curre
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} md={8}>
-        <SummaryCard title="Variación neta de caja" value={cash.netCashChange} icon={<BankOutlined />} color={toNum(cash.netCashChange) < 0 ? '#dc2626' : '#16a34a'} currency={currency} subtitle={toNum(cash.netCashChange) < 0 ? 'Caja decreció en el período' : 'Caja creció en el período'} />
+        <SummaryCard title="Variación neta de caja" value={cash.netCashChange} icon={<BankOutlined />} color={toNum(cash.netCashChange) < 0 ? '#e5484d' : '#2ea172'} currency={currency} subtitle={toNum(cash.netCashChange) < 0 ? 'Caja decreció en el período' : 'Caja creció en el período'} />
       </Col>
       <Col xs={24} md={8}>
-        <SummaryCard title="Caja final estimada" value={cash.totalCashEnd} icon={<DollarOutlined />} color="#0ea5e9" currency={currency} />
+        <SummaryCard title="Caja final estimada" value={cash.totalCashEnd} icon={<DollarOutlined />} color="#1faec2" currency={currency} />
       </Col>
       <Col xs={24} md={8}>
-        <SummaryCard title="Cuentas de caja" value={cash.cashAccounts.length} icon={<BankOutlined />} color="#7c3aed" currency={currency} isMoney={false} />
+        <SummaryCard title="Cuentas de caja" value={cash.cashAccounts.length} icon={<BankOutlined />} color="#1faec2" currency={currency} isMoney={false} />
       </Col>
 
       {/* Gráfico de barras por actividad */}
@@ -462,19 +462,19 @@ function CashFlowPanel({ data, currency }: { data: ExecutiveDashboardData; curre
               <div key={flow.label}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Text strong style={{ fontSize: 13, color: flow.color }}>{flow.label}</Text>
-                  <Text strong style={{ color: toNum(flow.value) < 0 ? '#dc2626' : flow.color }}>
+                  <Text strong style={{ color: toNum(flow.value) < 0 ? '#e5484d' : flow.color }}>
                     {money(flow.value, currency)}
                   </Text>
                 </div>
                 <Progress
                   percent={Math.round(Math.abs(toNum(flow.value)) / max * 100)}
-                  showInfo={false} strokeColor={toNum(flow.value) < 0 ? '#dc2626' : flow.color}
+                  showInfo={false} strokeColor={toNum(flow.value) < 0 ? '#e5484d' : flow.color}
                   style={{ marginBottom: flow.items?.length ? 4 : 12 }}
                 />
                 {flow.items?.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 12, borderLeft: `2px solid ${flow.color}33`, marginBottom: 2 }}>
                     <Text type="secondary" style={{ fontSize: 11 }}>{item.label}</Text>
-                    <Text style={{ fontSize: 11, color: toNum(item.amount) < 0 ? '#dc2626' : '#374151' }}>
+                    <Text style={{ fontSize: 11, color: toNum(item.amount) < 0 ? '#e5484d' : '#374151' }}>
                       {money(item.amount, currency)}
                     </Text>
                   </div>
@@ -500,7 +500,7 @@ function CashFlowPanel({ data, currency }: { data: ExecutiveDashboardData; curre
                 {
                   title: 'Cambio en el período', align: 'right', width: 200,
                   render: (_, r) => (
-                    <Text strong style={{ color: toNum(r.change) < 0 ? '#dc2626' : '#16a34a' }}>
+                    <Text strong style={{ color: toNum(r.change) < 0 ? '#e5484d' : '#2ea172' }}>
                       {money(r.change, currency)}
                     </Text>
                   ),
@@ -517,19 +517,19 @@ function CashFlowPanel({ data, currency }: { data: ExecutiveDashboardData; curre
 // ── KpiPanel ──────────────────────────────────────────────────────────────────
 
 function ratioColor(item: RatioItem): string {
-  if (item.valor == null) return '#8c8c8c'
+  if (item.valor == null) return '#6b7280'
   const v = toNum(item.valor)
   const ideal = item.ideal ?? ''
   // Liquidez: > 1 es bueno
-  if (ideal.includes('>1') || ideal.includes('> 1') || ideal.toLowerCase().includes('mayor')) return v >= 1 ? '#16a34a' : '#dc2626'
+  if (ideal.includes('>1') || ideal.includes('> 1') || ideal.toLowerCase().includes('mayor')) return v >= 1 ? '#2ea172' : '#e5484d'
   // Endeudamiento: menor es mejor (< 50% o < 0.5)
   if (ideal.includes('<') && (ideal.includes('%') || Number(ideal.replace(/[^0-9.]/g, '')) < 1)) {
     const limit = parseFloat(ideal.replace(/[^0-9.]/g, '')) || 50
-    return v < limit ? '#16a34a' : v < limit * 1.3 ? '#d97706' : '#dc2626'
+    return v < limit ? '#2ea172' : v < limit * 1.3 ? '#ff7f00' : '#e5484d'
   }
   // Rentabilidad: positivo es bueno
-  if (ideal.includes('>') && ideal.includes('0')) return v > 0 ? '#16a34a' : '#dc2626'
-  return v > 0 ? '#16a34a' : v === 0 ? '#8c8c8c' : '#dc2626'
+  if (ideal.includes('>') && ideal.includes('0')) return v > 0 ? '#2ea172' : '#e5484d'
+  return v > 0 ? '#2ea172' : v === 0 ? '#6b7280' : '#e5484d'
 }
 
 function KpiPanel({ ratios, payables, currency }: { ratios: ExecutiveDashboardData['ratios']; payables: ExecutiveDashboardData['payables']; currency: string }) {
@@ -598,13 +598,13 @@ function KpiPanel({ ratios, payables, currency }: { ratios: ExecutiveDashboardDa
                       </Text>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <Tag color={color === '#16a34a' ? 'success' : color === '#dc2626' ? 'error' : color === '#d97706' ? 'warning' : 'default'}
+                      <Tag color={color === '#2ea172' ? 'success' : color === '#e5484d' ? 'error' : color === '#ff7f00' ? 'warning' : 'default'}
                         style={{ fontSize: 13, fontWeight: 700, minWidth: 56, textAlign: 'center' }}
                       >
                         {v}
                       </Tag>
                       {item.ideal && (
-                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
+                        <div style={{ fontSize: 10, color: '#9aa1ab', marginTop: 2 }}>
                           Ideal: {item.ideal}
                         </div>
                       )}
@@ -635,18 +635,18 @@ function OverdueInvoicesPanel({ invoices, currency }: { invoices: any[]; currenc
         { title: 'Cliente', dataIndex: 'customerName', render: v => <Text>{v}</Text> },
         {
           title: 'Vencimiento', dataIndex: 'dueDate', width: 120,
-          render: v => v ? <Text style={{ color: '#dc2626' }}>{dayjs(v).format('DD/MM/YYYY')}</Text> : '—',
+          render: v => v ? <Text style={{ color: '#e5484d' }}>{dayjs(v).format('DD/MM/YYYY')}</Text> : '—',
         },
         {
           title: 'Días vencida', width: 110, align: 'right',
           render: (_, r) => {
             const days = r.dueDate ? dayjs().diff(dayjs(r.dueDate), 'day') : 0
-            return <Tag color={days > 90 ? 'red' : days > 30 ? 'orange' : 'gold'}>{days}d</Tag>
+            return <Tag color={days > 90 ? '#e5484d' : days > 30 ? '#ff7f00' : 'gold'}>{days}d</Tag>
           },
         },
         {
           title: 'Saldo', dataIndex: 'balance', align: 'right', width: 150,
-          render: v => <Text strong style={{ color: '#dc2626' }}>{money(v, currency)}</Text>,
+          render: v => <Text strong style={{ color: '#e5484d' }}>{money(v, currency)}</Text>,
         },
       ]}
     />
@@ -671,9 +671,9 @@ function ResumenTab({ data, currency, loading }: {
     xAxis: { type: 'category', data: ['Período actual'], axisLabel: { show: false } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => `${(v / 1000).toFixed(0)}k`, fontSize: 10 } },
     series: [
-      { name: 'Ventas',       type: 'bar', barWidth: 45, data: [toNum(s.salesTotal)],    itemStyle: { color: '#2563eb', borderRadius: [4,4,0,0] } },
-      { name: 'Compras',      type: 'bar', barWidth: 45, data: [toNum(s.purchasesTotal)],itemStyle: { color: '#7c3aed', borderRadius: [4,4,0,0] } },
-      { name: 'Utilidad Neta',type: 'bar', barWidth: 45, data: [toNum(s.netIncome)],     itemStyle: { color: toNum(s.netIncome) >= 0 ? '#16a34a' : '#dc2626', borderRadius: [4,4,0,0] } },
+      { name: 'Ventas',       type: 'bar', barWidth: 45, data: [toNum(s.salesTotal)],    itemStyle: { color: '#1faec2', borderRadius: [4,4,0,0] } },
+      { name: 'Compras',      type: 'bar', barWidth: 45, data: [toNum(s.purchasesTotal)],itemStyle: { color: '#ff7f00', borderRadius: [4,4,0,0] } },
+      { name: 'Utilidad Neta',type: 'bar', barWidth: 45, data: [toNum(s.netIncome)],     itemStyle: { color: toNum(s.netIncome) >= 0 ? '#2ea172' : '#e5484d', borderRadius: [4,4,0,0] } },
     ],
     grid: { left: '3%', right: '3%', top: '8%', bottom: '14%', containLabel: true },
   }), [s, currency])
@@ -683,20 +683,20 @@ function ResumenTab({ data, currency, loading }: {
       {/* Fila 1: métricas P&L */}
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
-          <SummaryCard loading={loading} title="Ventas del período" value={s.salesTotal} icon={<RiseOutlined />} color="#2563eb" currency={currency}
+          <SummaryCard loading={loading} title="Ventas del período" value={s.salesTotal} icon={<RiseOutlined />} color="#1faec2" currency={currency}
             subtitle={`Margen bruto: ${pct(s.grossMargin)}`} />
         </Col>
         <Col xs={12} md={6}>
-          <SummaryCard loading={loading} title="Compras / Gastos" value={s.purchasesTotal} icon={<BarChartOutlined />} color="#7c3aed" currency={currency}
+          <SummaryCard loading={loading} title="Compras / Gastos" value={s.purchasesTotal} icon={<BarChartOutlined />} color="#ff7f00" currency={currency}
             subtitle={`Margen operativo: ${pct(s.operatingMargin)}`} />
         </Col>
         <Col xs={12} md={6}>
           <SummaryCard loading={loading} title="Utilidad neta" value={s.netIncome} icon={<LineChartOutlined />}
-            color={s.netIncome < 0 ? '#dc2626' : '#16a34a'} currency={currency}
+            color={s.netIncome < 0 ? '#e5484d' : '#2ea172'} currency={currency}
             subtitle={`Margen neto: ${pct(s.netMargin)}`} />
         </Col>
         <Col xs={12} md={6}>
-          <SummaryCard loading={loading} title="Caja final estimada" value={s.cashEnd} icon={<BankOutlined />} color="#0ea5e9" currency={currency}
+          <SummaryCard loading={loading} title="Caja final estimada" value={s.cashEnd} icon={<BankOutlined />} color="#1faec2" currency={currency}
             subtitle={`Variación: ${money(s.cashNetChange, currency)}`} />
         </Col>
       </Row>
@@ -704,7 +704,7 @@ function ResumenTab({ data, currency, loading }: {
       {/* Fila 2: métricas de gestión */}
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
-          <SummaryCard loading={loading} title="CxC total" value={s.arTotal} icon={<FileTextOutlined />} color="#0ea5e9" currency={currency}
+          <SummaryCard loading={loading} title="CxC total" value={s.arTotal} icon={<FileTextOutlined />} color="#1faec2" currency={currency}
             subtitle={`Vencido: ${money(s.arOverdue, currency)}`} />
         </Col>
         <Col xs={12} md={6}>
@@ -712,15 +712,15 @@ function ResumenTab({ data, currency, loading }: {
             <Spin spinning={loading} size="small">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <Text style={{ fontSize: 12, color: '#5f6b7a' }}>CxP total</Text>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#102a56' }}>{money(s.apTotal, currency)}</div>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>CxP total</Text>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#0a0a0a' }}>{money(s.apTotal, currency)}</div>
                   {(s.totalAdvances ?? 0) > 0 && (
                     <div style={{ marginTop: 2 }}>
-                      <Text style={{ fontSize: 11, color: '#16a34a' }}>
+                      <Text style={{ fontSize: 11, color: '#2ea172' }}>
                         Anticipos: ({money(s.totalAdvances, currency)})
                       </Text>
                       <br />
-                      <Text style={{ fontSize: 12, fontWeight: 700, color: (s.apNetTotal ?? s.apTotal) <= 0 ? '#16a34a' : '#7c3aed' }}>
+                      <Text style={{ fontSize: 12, fontWeight: 700, color: (s.apNetTotal ?? s.apTotal) <= 0 ? '#2ea172' : '#e5484d' }}>
                         Neto: {money(s.apNetTotal ?? s.apTotal, currency)}
                       </Text>
                     </div>
@@ -729,7 +729,7 @@ function ResumenTab({ data, currency, loading }: {
                     <Text type="secondary" style={{ fontSize: 12 }}>Vencido: {money(s.apOverdue, currency)}</Text>
                   )}
                 </div>
-                <div style={{ width: 42, height: 42, borderRadius: 8, background: '#7c3aed14', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 8, background: '#ff7f0014', color: '#ff7f00', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
                   <WarningOutlined />
                 </div>
               </div>
@@ -739,10 +739,10 @@ function ResumenTab({ data, currency, loading }: {
         <Col xs={12} md={6}>
           <Card bordered={false} style={cardStyle}>
             <Statistic
-              title={<Text style={{ fontSize: 12, color: '#5f6b7a' }}>Facturas vencidas</Text>}
+              title={<Text style={{ fontSize: 12, color: '#6b7280' }}>Facturas vencidas</Text>}
               value={s.overdueInvoices}
               suffix="documentos"
-              valueStyle={{ color: s.overdueInvoices > 0 ? '#dc2626' : '#16a34a', fontSize: 20, fontWeight: 700 }}
+              valueStyle={{ color: s.overdueInvoices > 0 ? '#e5484d' : '#2ea172', fontSize: 20, fontWeight: 700 }}
               prefix={<WarningOutlined />}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -753,10 +753,10 @@ function ResumenTab({ data, currency, loading }: {
         <Col xs={12} md={6}>
           <Card bordered={false} style={cardStyle}>
             <Text type="secondary" style={{ fontSize: 12 }}>Apalancamiento CxP/CxC</Text>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#102a56', margin: '4px 0' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#0a0a0a', margin: '4px 0' }}>
               {s.commercialLeverage == null ? '—' : `${s.commercialLeverage.toFixed(2)}x`}
             </div>
-            <Tag color={s.commercialLeverage == null ? 'default' : s.commercialLeverage > 1.5 ? 'red' : s.commercialLeverage > 1 ? 'orange' : 'green'}>
+            <Tag color={s.commercialLeverage == null ? 'default' : s.commercialLeverage > 1.5 ? '#e5484d' : s.commercialLeverage > 1 ? '#ff7f00' : '#2ea172'}>
               {s.commercialLeverage == null ? 'Sin datos' : s.commercialLeverage > 1 ? 'CxP > CxC (alerta)' : 'Equilibrado'}
             </Tag>
           </Card>
@@ -772,19 +772,19 @@ function ResumenTab({ data, currency, loading }: {
               <Col span={8}>
                 <div style={{ textAlign: 'center' }}>
                   <Text type="secondary" style={{ fontSize: 11 }}>Margen bruto</Text>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: toNum(s.grossMargin) < 0 ? '#dc2626' : '#16a34a' }}>{pct(s.grossMargin)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: toNum(s.grossMargin) < 0 ? '#e5484d' : '#2ea172' }}>{pct(s.grossMargin)}</div>
                 </div>
               </Col>
               <Col span={8}>
                 <div style={{ textAlign: 'center' }}>
                   <Text type="secondary" style={{ fontSize: 11 }}>Margen operativo</Text>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: toNum(s.operatingMargin) < 0 ? '#dc2626' : '#0369a1' }}>{pct(s.operatingMargin)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: toNum(s.operatingMargin) < 0 ? '#e5484d' : '#374151' }}>{pct(s.operatingMargin)}</div>
                 </div>
               </Col>
               <Col span={8}>
                 <div style={{ textAlign: 'center' }}>
                   <Text type="secondary" style={{ fontSize: 11 }}>Margen neto</Text>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: toNum(s.netMargin) < 0 ? '#dc2626' : '#16a34a' }}>{pct(s.netMargin)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: toNum(s.netMargin) < 0 ? '#e5484d' : '#2ea172' }}>{pct(s.netMargin)}</div>
                 </div>
               </Col>
             </Row>
@@ -834,14 +834,14 @@ function ResumenTab({ data, currency, loading }: {
 
       {/* Fila 4: facturas vencidas recientes */}
       {data.recent?.overdueInvoices?.length > 0 && (
-        <Card bordered={false} style={{ ...cardStyle, borderLeft: '4px solid #dc2626' }}
+        <Card bordered={false} style={{ ...cardStyle, borderLeft: '4px solid #e5484d' }}
           title={
             <Space>
-              <WarningOutlined style={{ color: '#dc2626' }} />
-              <span style={{ color: '#dc2626', fontWeight: 600 }}>
+              <WarningOutlined style={{ color: '#e5484d' }} />
+              <span style={{ color: '#e5484d', fontWeight: 600 }}>
                 Facturas de clientes vencidas — requieren seguimiento
               </span>
-              <Tag color="red">{data.recent.overdueInvoices.length}</Tag>
+              <Tag color="#e5484d">{data.recent.overdueInvoices.length}</Tag>
             </Space>
           }
         >
@@ -923,7 +923,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#102a56' }}>Dashboard Ejecutivo</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Dashboard Ejecutivo</Title>
           <Text type="secondary">
             {data
               ? `${data.company?.company_name ?? 'Empresa'} · ${data.period.from} — ${data.period.to}`
@@ -959,7 +959,7 @@ export default function DashboardPage() {
           items={tabs}
           type="card"
           tabBarExtraContent={
-            <Tag icon={<BarChartOutlined />} color="blue">
+            <Tag icon={<BarChartOutlined />} color="#1faec2">
               Datos reales · corte {data.period.asOf}
             </Tag>
           }

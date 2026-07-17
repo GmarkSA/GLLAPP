@@ -43,11 +43,11 @@ export default function NoCompanyGuard({ children }: Props) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <Result
-          icon={<BankOutlined style={{ color: '#1B3A6B' }} />}
+          icon={<BankOutlined style={{ color: '#1faec2' }} />}
           title="Sin empresas asignadas"
           subTitle="No tiene empresas asignadas a su usuario. Contacte a su administrador para obtener acceso."
           extra={
-            <Button type="primary" style={{ background: '#1B3A6B' }} onClick={() => window.location.reload()}>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={() => window.location.reload()}>
               Reintentar
             </Button>
           }

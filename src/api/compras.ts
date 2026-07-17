@@ -397,11 +397,11 @@ export const getVendors = (params?: { search?: string; isActive?: boolean; limit
 // ─── Status helpers ───────────────────────────────────────────────────────────
 export const BILL_STATUS_CONFIG: Record<BillStatus, { label: string; color: string }> = {
   draft:            { label: 'Borrador',          color: 'default'  },
-  pending_approval: { label: 'Pendiente aprobación', color: 'purple' },
-  open:             { label: 'Pendiente',          color: 'orange'  },
-  partial:          { label: 'Pago parcial',       color: 'geekblue'},
-  paid:             { label: 'Pagada',             color: 'green'   },
-  overdue:          { label: 'Vencida',            color: 'red'     },
+  pending_approval: { label: 'Pendiente aprobación', color: '#6b7280' },
+  open:             { label: 'Pendiente',          color: '#ff7f00'  },
+  partial:          { label: 'Pago parcial',       color: '#1faec2'},
+  paid:             { label: 'Pagada',             color: '#2ea172'   },
+  overdue:          { label: 'Vencida',            color: '#e5484d'     },
   voided:           { label: 'Anulada',            color: 'volcano' },
 }
 
@@ -444,9 +444,9 @@ export const IDP_RATES: Record<string, number> = {
 
 export const PO_STATUS_CONFIG: Record<POStatus, { label: string; color: string }> = {
   draft:     { label: 'Borrador',   color: 'default' },
-  sent:      { label: 'Enviada',    color: 'blue'    },
+  sent:      { label: 'Enviada',    color: '#1faec2'    },
   received:  { label: 'Recibida',   color: 'cyan'    },
-  billed:    { label: 'Facturada',  color: 'green'   },
+  billed:    { label: 'Facturada',  color: '#2ea172'   },
   cancelled: { label: 'Cancelada',  color: 'volcano' },
 }
 

@@ -104,13 +104,13 @@ function ContactPersonRow({
     <Card
       size="small"
       bordered={false}
-      style={{ background: '#f8faff', borderRadius: 8, marginBottom: 12 }}
+      style={{ background: '#e6fafd', borderRadius: 8, marginBottom: 12 }}
       extra={
         !isOnly && (
           <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={onRemove} />
         )
       }
-      title={<Text style={{ fontSize: 13, color: '#1B3A6B' }}>Contacto {index + 1}</Text>}
+      title={<Text style={{ fontSize: 13, color: '#1faec2' }}>Contacto {index + 1}</Text>}
     >
       <Row gutter={12}>
         <Col xs={24} md={4}>
@@ -283,7 +283,7 @@ export default function ClienteFormPage() {
             onClick={() => navigate('/ventas/clientes')}
           />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
               {isNew ? 'Nuevo cliente' : 'Editar cliente'}
             </Title>
             <Text type="secondary">
@@ -295,7 +295,7 @@ export default function ClienteFormPage() {
           <Button
             type="primary" icon={<SaveOutlined />}
             onClick={handleSave} loading={saving}
-            style={{ marginLeft: 'auto', background: '#1B3A6B', minWidth: 140 }}
+            style={{ marginLeft: 'auto', background: '#1faec2', minWidth: 140 }}
           >
             {isNew ? 'Crear cliente' : 'Guardar cambios'}
           </Button>
@@ -381,12 +381,12 @@ export default function ClienteFormPage() {
                             <Button loading={lookingUp} onClick={() => handleSatLookup('CUI')} style={{ fontSize: 11 }} title="Buscar CUI en SAT">CUI</Button>
                           </Space.Compact>
                           {lookupStatus === 'found' && (
-                            <div style={{ marginTop: 4, fontSize: 11, color: '#52c41a' }}>
+                            <div style={{ marginTop: 4, fontSize: 11, color: '#2ea172' }}>
                               <CheckCircleOutlined /> Datos cargados desde SAT
                             </div>
                           )}
                           {lookupStatus === 'not_found' && (
-                            <div style={{ marginTop: 4, fontSize: 11, color: '#fa8c16' }}>
+                            <div style={{ marginTop: 4, fontSize: 11, color: '#ff7f00' }}>
                               <ExclamationCircleOutlined /> NIT/CUI no encontrado — completa manualmente
                             </div>
                           )}
@@ -466,7 +466,7 @@ export default function ClienteFormPage() {
                           <Option key={t.value} value={t.value}>
                             <div>
                               <div style={{ fontWeight: 500 }}>{t.label}</div>
-                              <div style={{ fontSize: 11, color: '#8c8c8c' }}>{t.desc}</div>
+                              <div style={{ fontSize: 11, color: '#6b7280' }}>{t.desc}</div>
                             </div>
                           </Option>
                         ))}
@@ -478,9 +478,9 @@ export default function ClienteFormPage() {
                       <Col xs={24} md={12}>
                         <Card
                           size="small" bordered={false}
-                          style={{ background: '#f0f7ff', borderRadius: 8, marginBottom: 16 }}
+                          style={{ background: '#e6fafd', borderRadius: 8, marginBottom: 16 }}
                         >
-                          <div style={{ fontWeight: 600, color: '#1B3A6B', marginBottom: 8 }}>
+                          <div style={{ fontWeight: 600, color: '#1faec2', marginBottom: 8 }}>
                             IVA aplicable en facturas de venta
                           </div>
                           <Form.Item name="taxCode" label="Impuesto IVA" style={{ marginBottom: 0 }}>
@@ -489,7 +489,7 @@ export default function ClienteFormPage() {
                                 ? ivaTaxes.map(t => (
                                   <Option key={t.code} value={t.code}>
                                     <Space>
-                                      <Tag color="blue">{t.code}</Tag>
+                                      <Tag color="#1faec2">{t.code}</Tag>
                                       {t.name}
                                     </Space>
                                   </Option>
@@ -506,9 +506,9 @@ export default function ClienteFormPage() {
                         <Col xs={24} md={12}>
                           <Card
                             size="small" bordered={false}
-                            style={{ background: '#fff7e6', borderRadius: 8, marginBottom: 16 }}
+                            style={{ background: '#fff2e5', borderRadius: 8, marginBottom: 16 }}
                           >
-                            <div style={{ fontWeight: 600, color: '#d46b08', marginBottom: 8 }}>
+                            <div style={{ fontWeight: 600, color: '#ff7f00', marginBottom: 8 }}>
                               Retención de IVA (cliente retenedor)
                             </div>
                             <Form.Item name="ivaRetentionCode" label="Porcentaje de retención IVA" style={{ marginBottom: 0 }}>
@@ -526,9 +526,9 @@ export default function ClienteFormPage() {
                       <Col xs={24} md={12}>
                         <Card
                           size="small" bordered={false}
-                          style={{ background: '#f9f0ff', borderRadius: 8, marginBottom: 16 }}
+                          style={{ background: '#fafbfc', borderRadius: 8, marginBottom: 16 }}
                         >
-                          <div style={{ fontWeight: 600, color: '#531dab', marginBottom: 8 }}>
+                          <div style={{ fontWeight: 600, color: '#0a0a0a', marginBottom: 8 }}>
                             ISR — Impuesto Sobre la Renta (retención en origen)
                           </div>
                           <Form.Item name="tdsEnabled" label="¿Este cliente retiene ISR?" valuePropName="checked">
@@ -547,7 +547,7 @@ export default function ClienteFormPage() {
                                 ? isrTaxes.map(t => (
                                   <Option key={t.code} value={t.code}>
                                     <Space>
-                                      <Tag color="purple">{t.code}</Tag>
+                                      <Tag color="#6b7280">{t.code}</Tag>
                                       {t.name}
                                     </Space>
                                   </Option>
@@ -616,13 +616,13 @@ export default function ClienteFormPage() {
                 key: 'address', label: <><EnvironmentOutlined /> Dirección</>,
                 children: (
                   <div style={{ padding: '16px 0' }}>
-                    <Title level={5} style={{ color: '#1B3A6B', marginBottom: 16 }}>
+                    <Title level={5} style={{ color: '#0a0a0a', marginBottom: 16 }}>
                       Dirección de facturación
                     </Title>
                     <AddressForm prefix="billingAddress" />
 
                     <Divider />
-                    <Title level={5} style={{ color: '#1B3A6B', marginBottom: 8 }}>
+                    <Title level={5} style={{ color: '#0a0a0a', marginBottom: 8 }}>
                       Dirección de envío
                     </Title>
                     <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>

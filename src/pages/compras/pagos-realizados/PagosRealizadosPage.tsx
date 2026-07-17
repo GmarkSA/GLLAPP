@@ -34,7 +34,7 @@ const MODE_LABELS: Record<string, string> = {
 const STATUS_COLOR: Record<string, string> = {
   draft:   'default',
   issued:  'blue',
-  cleared: 'green',
+  cleared: '#2ea172',
   voided:  'red',
 }
 
@@ -126,7 +126,7 @@ export default function PagosRealizadosPage() {
   const columns: ColumnsType<VendorPayment> = [
     {
       title: 'Número', dataIndex: 'paymentNumber', width: 160,
-      render: (v) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>,
+      render: (v) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>,
     },
     {
       title: 'Proveedor', dataIndex: 'vendorName', ellipsis: true,
@@ -159,14 +159,14 @@ export default function PagosRealizadosPage() {
       title: 'Cheque', dataIndex: 'checkNumber', width: 130,
       render: (v, r) => v ? (
         <Space size={4}>
-          <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>
           {r.checkType && <Tag style={{ fontSize: 10 }}>{r.checkType === 'physical' ? 'Físico' : 'Elec.'}</Tag>}
         </Space>
       ) : <Text type="secondary">—</Text>,
     },
     {
       title: 'Monto', dataIndex: 'amount', width: 130, align: 'right',
-      render: (v, r) => <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(v, r.currency)}</Text>,
+      render: (v, r) => <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v, r.currency)}</Text>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 105,
@@ -252,9 +252,9 @@ export default function PagosRealizadosPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <DollarOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <DollarOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Pagos a Proveedores</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Pagos a Proveedores</Title>
             <Text type="secondary">Registro de cheques, transferencias y pagos masivos</Text>
           </div>
         </div>
@@ -263,7 +263,7 @@ export default function PagosRealizadosPage() {
             <Button
               icon={<PrinterOutlined />}
               onClick={handlePrintSelected}
-              style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+              style={{ borderColor: '#1faec2', color: '#1faec2' }}
             >
               Imprimir {selectedChecks.length} cheque{selectedChecks.length > 1 ? 's' : ''}
             </Button>
@@ -271,7 +271,7 @@ export default function PagosRealizadosPage() {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
             onClick={() => navigate('/bancos/pagos-realizados/nuevo')}
           >
             Nuevo pago
@@ -426,9 +426,9 @@ export default function PagosRealizadosPage() {
                       render: (code: string, row: any) => <><Text code style={{ fontSize: 11 }}>{code}</Text> {row.accountName}</> },
                     { title: 'Descripción', dataIndex: 'description', ellipsis: true },
                     { title: 'Débito', dataIndex: 'debit', align: 'right', width: 110,
-                      render: (v: number) => v > 0 ? <Text style={{ color: '#cf1322' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
+                      render: (v: number) => v > 0 ? <Text style={{ color: '#e5484d' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
                     { title: 'Crédito', dataIndex: 'credit', align: 'right', width: 110,
-                      render: (v: number) => v > 0 ? <Text style={{ color: '#389e0d' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
+                      render: (v: number) => v > 0 ? <Text style={{ color: '#2ea172' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
                   ]}
                   summary={(rows) => {
                     const totalD = rows.reduce((s, r) => s + Number(r.debit  ?? 0), 0)
@@ -437,13 +437,13 @@ export default function PagosRealizadosPage() {
                     return (
                       <Table.Summary.Row>
                         <Table.Summary.Cell index={0} colSpan={2}>
-                          {hasFx && <Tag color="orange">Incluye diferencial cambiario</Tag>}
+                          {hasFx && <Tag color="#ff7f00">Incluye diferencial cambiario</Tag>}
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={2} align="right">
-                          <Text strong style={{ color: '#cf1322' }}>Q {totalD.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                          <Text strong style={{ color: '#e5484d' }}>Q {totalD.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={3} align="right">
-                          <Text strong style={{ color: '#389e0d' }}>Q {totalC.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                          <Text strong style={{ color: '#2ea172' }}>Q {totalC.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                         </Table.Summary.Cell>
                       </Table.Summary.Row>
                     )
@@ -490,7 +490,7 @@ export default function PagosRealizadosPage() {
               <Button
                 type="primary"
                 icon={<PrinterOutlined />}
-                style={{ background: '#1B3A6B' }}
+                style={{ background: '#1faec2' }}
                 onClick={() => {
                   window.open(`/bancos/pagos-realizados/${previewId}/cheque`, '_blank')
                   setPreviewId(null)
@@ -506,15 +506,15 @@ export default function PagosRealizadosPage() {
       <style>{`
         .row-void td { opacity: 0.45; text-decoration: line-through; }
         .pagos-table .ant-checkbox-inner {
-          border: 2px solid #1B3A6B !important;
+          border: 2px solid #1faec2 !important;
           border-radius: 3px !important;
         }
         .pagos-table .ant-checkbox-checked .ant-checkbox-inner {
-          background-color: #1B3A6B !important;
-          border-color: #1B3A6B !important;
+          background-color: #1faec2 !important;
+          border-color: #1faec2 !important;
         }
         .pagos-table .ant-checkbox:hover .ant-checkbox-inner {
-          border-color: #1B3A6B !important;
+          border-color: #1faec2 !important;
         }
       `}</style>
     </div>

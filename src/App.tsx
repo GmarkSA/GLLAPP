@@ -169,9 +169,9 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function ComingSoon({ title }: { title: string }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#8c8c8c' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#6b7280' }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
-      <div style={{ fontSize: 20, fontWeight: 600, color: '#1B3A6B' }}>Módulo {title}</div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: '#0a0a0a' }}>Módulo {title}</div>
       <div style={{ fontSize: 14, marginTop: 8 }}>En desarrollo — próximamente disponible</div>
     </div>
   )

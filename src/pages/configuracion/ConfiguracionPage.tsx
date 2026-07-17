@@ -162,7 +162,7 @@ function OrganizationSection({
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Perfil de organización</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Perfil de organización</Title>
           <Text type="secondary">Información general de tu empresa que aparece en documentos y reportes</Text>
         </div>
 
@@ -174,7 +174,7 @@ function OrganizationSection({
                 size={96}
                 src={logoUrl}
                 style={{
-                  background: logoUrl ? 'transparent' : '#1B3A6B',
+                  background: logoUrl ? 'transparent' : '#1faec2',
                   fontSize: 32, fontWeight: 700,
                   border: '3px solid #e8edf5',
                 }}
@@ -190,7 +190,7 @@ function OrganizationSection({
                 <div style={{
                   position: 'absolute', bottom: 0, right: 0,
                   width: 28, height: 28, borderRadius: '50%',
-                  background: '#1B3A6B', cursor: 'pointer',
+                  background: '#1faec2', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   border: '2px solid #fff',
                 }}>
@@ -202,7 +202,7 @@ function OrganizationSection({
               </Upload>
             </div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 16, color: '#1B3A6B' }}>
+              <div style={{ fontWeight: 600, fontSize: 16, color: '#0a0a0a' }}>
                 {profile?.name || 'Tu empresa'}
               </div>
               <Text type="secondary" style={{ fontSize: 13 }}>
@@ -317,7 +317,7 @@ function OrganizationSection({
               icon={<SaveOutlined />}
               loading={saving}
               onClick={handleSave}
-              style={{ background: '#1B3A6B', minWidth: 160 }}
+              style={{ background: '#1faec2', minWidth: 160 }}
             >
               Guardar cambios
             </Button>
@@ -372,7 +372,7 @@ function FiscalSection({
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Configuración fiscal</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Configuración fiscal</Title>
           <Text type="secondary">Parámetros para la generación de documentos fiscales y reportes</Text>
         </div>
 
@@ -424,11 +424,11 @@ function FiscalSection({
 
           <SectionCard title={fiscalMeta.invoiceName} icon={<FileTextOutlined />}>
             <div style={{
-              background: '#f0f7ff', borderRadius: 8, padding: '16px 20px',
-              border: '1px solid #bae0ff', marginBottom: 16,
+              background: '#e6fafd', borderRadius: 8, padding: '16px 20px',
+              border: '1px solid rgba(31,174,194,0.2)', marginBottom: 16,
             }}>
               <Space>
-                <Tag color="blue">{fiscalMeta.authority}</Tag>
+                <Tag color="#1faec2">{fiscalMeta.authority}</Tag>
                 <Text style={{ fontSize: 13 }}>
                   La configuracion de facturacion electronica se realiza en la seccion <strong>Integraciones</strong>
                 </Text>
@@ -474,7 +474,7 @@ function FiscalSection({
             <Button
               type="primary" size="large" icon={<SaveOutlined />}
               loading={saving} onClick={handleSave}
-              style={{ background: '#1B3A6B', minWidth: 160 }}
+              style={{ background: '#1faec2', minWidth: 160 }}
             >
               Guardar cambios
             </Button>
@@ -618,7 +618,7 @@ function CurrencySection() {
     <div style={{ maxWidth: 860 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Monedas</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Monedas</Title>
           <Text type="secondary">
             Moneda local: {localCurrencyCode}{localCurrencyMeta ? ` (${localCurrencyMeta.name})` : ''}. Consolidacion: USD.
           </Text>
@@ -639,7 +639,7 @@ function CurrencySection() {
               setModalOpen(true)
               if (usdAvailable) form.setFieldsValue({ code: 'USD' })
             }}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
             disabled={availableToAdd.length === 0}
           >
             Agregar moneda
@@ -668,7 +668,7 @@ function CurrencySection() {
               title: 'Moneda',
               render: (_, r) => (
                 <Space>
-                  <Tag style={{ fontFamily: 'monospace', fontSize: 13, padding: '2px 8px' }}>
+                  <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, padding: '2px 8px' }}>
                     {r.code}
                   </Tag>
                   <div>
@@ -758,7 +758,7 @@ function CurrencySection() {
                   title: 'Fuente',
                   dataIndex: 'source',
                   width: 110,
-                  render: (v: string) => <Tag color={v === 'banguat' ? 'blue' : 'default'}>{v}</Tag>,
+                  render: (v: string) => <Tag color={v === 'banguat' ? '#1faec2' : 'default'}>{v}</Tag>,
                 },
               ]}
             />
@@ -773,7 +773,7 @@ function CurrencySection() {
         onCancel={() => { setModalOpen(false); form.resetFields() }}
         onOk={handleAdd}
         okText="Agregar"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         destroyOnClose
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
@@ -789,7 +789,7 @@ function CurrencySection() {
               {availableToAdd.map(c => (
                 <Option key={c.code} value={c.code} label={`${c.code} ${c.name}`}>
                   <Space>
-                    <Tag style={{ fontFamily: 'monospace' }}>{c.code}</Tag>
+                    <Tag style={{ fontVariantNumeric: 'tabular-nums' }}>{c.code}</Tag>
                     <span>{c.name}</span>
                     <Text type="secondary" style={{ fontSize: 12 }}>({c.country})</Text>
                   </Space>
@@ -892,7 +892,7 @@ function AccountDefaultsSection() {
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Cuentas por defecto</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Cuentas por defecto</Title>
           <Text type="secondary">
             Define las cuentas contables que se usarán automáticamente al registrar anticipos y documentos sin cuenta específica
           </Text>
@@ -1033,7 +1033,7 @@ function AccountDefaultsSection() {
             icon={<SaveOutlined />}
             loading={saving}
             onClick={handleSave}
-            style={{ background: '#1B3A6B', minWidth: 160 }}
+            style={{ background: '#1faec2', minWidth: 160 }}
           >
             Guardar cambios
           </Button>
@@ -1077,7 +1077,7 @@ function PreferencesSection() {
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Preferencias</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Preferencias</Title>
           <Text type="secondary">Opciones de comportamiento del sistema para esta empresa</Text>
         </div>
 
@@ -1102,7 +1102,7 @@ function PreferencesSection() {
             icon={<SaveOutlined />}
             loading={saving}
             onClick={handleSave}
-            style={{ background: '#1B3A6B', minWidth: 160 }}
+            style={{ background: '#1faec2', minWidth: 160 }}
           >
             Guardar cambios
           </Button>
@@ -1152,7 +1152,7 @@ function ContabilidadSection() {
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Contabilidad</Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Contabilidad</Title>
           <Text type="secondary">
             Configuración de dimensiones analíticas para centros de costo y centros de beneficio
           </Text>
@@ -1165,7 +1165,7 @@ function ContabilidadSection() {
           </Text>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '12px 0', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
               <Switch checked={exigirCC} onChange={setExigirCC} />
               <div>
                 <Text strong style={{ fontSize: 14 }}>Exigir Centro de Costo en cuentas marcadas</Text>
@@ -1197,7 +1197,7 @@ function ContabilidadSection() {
           <Button
             type="primary" size="large" icon={<SaveOutlined />}
             loading={saving} onClick={handleSave}
-            style={{ background: '#1B3A6B', minWidth: 160 }}
+            style={{ background: '#1faec2', minWidth: 160 }}
           >
             Guardar cambios
           </Button>
@@ -1211,13 +1211,13 @@ function ComingSoonSection({ title, description }: { title: string; description:
   return (
     <div style={{ maxWidth: 860 }}>
       <div style={{ marginBottom: 28 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{title}</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{title}</Title>
         <Text type="secondary">{description}</Text>
       </div>
       <Card bordered={false} style={cardStyle}>
-        <div style={{ textAlign: 'center', padding: '48px 24px', color: '#8c8c8c' }}>
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6b7280' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#1B3A6B', marginBottom: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#0a0a0a', marginBottom: 8 }}>
             En desarrollo
           </div>
           <div style={{ fontSize: 14 }}>Esta sección estará disponible próximamente</div>
@@ -1237,8 +1237,8 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
       bodyStyle={{ padding: '20px 24px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ color: '#1B3A6B', fontSize: 16 }}>{icon}</span>
-        <span style={{ fontWeight: 600, color: '#1B3A6B', fontSize: 14 }}>{title}</span>
+        <span style={{ color: '#1faec2', fontSize: 16 }}>{icon}</span>
+        <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 14 }}>{title}</span>
       </div>
       <Divider style={{ margin: '0 0 20px' }} />
       {children}
@@ -1316,7 +1316,7 @@ export default function ConfiguracionPage() {
       case 'notifications':
         return <ComingSoonSection title="Notificaciones" description="Configura alertas por correo y notificaciones del sistema" />
       case 'integrations':
-        return <ComingSoonSection title="Integraciones" description="Conecta ContaERP con servicios externos: FEL, bancos, pagos" />
+        return <ComingSoonSection title="Integraciones" description="Conecta Lucía con servicios externos: FEL, bancos, pagos" />
       case 'security':
         return <ComingSoonSection title="Seguridad" description="Autenticación, tokens de API y registro de actividad" />
       case 'devspace':
@@ -1342,7 +1342,7 @@ export default function ConfiguracionPage() {
         }}
       >
         <div style={{ padding: '20px 16px 12px' }}>
-          <Text style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>
             Configuración
           </Text>
         </div>

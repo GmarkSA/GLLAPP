@@ -20,12 +20,12 @@ const { Title, Text } = Typography
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const MODULOS: { label: string; value: ModuloBloqueable; color: string }[] = [
-  { label: 'Todos los módulos', value: 'TODOS',         color: 'red'     },
-  { label: 'Ventas',            value: 'VENTAS',         color: 'blue'    },
-  { label: 'Compras',           value: 'COMPRAS',        color: 'orange'  },
+  { label: 'Todos los módulos', value: 'TODOS',         color: '#e5484d'     },
+  { label: 'Ventas',            value: 'VENTAS',         color: '#1faec2'    },
+  { label: 'Compras',           value: 'COMPRAS',        color: '#ff7f00'  },
   { label: 'Bancos',            value: 'BANCOS',         color: 'cyan'    },
-  { label: 'Contabilidad',      value: 'CONTABILIDAD',   color: 'purple'  },
-  { label: 'Inventario',        value: 'INVENTARIO',     color: 'green'   },
+  { label: 'Contabilidad',      value: 'CONTABILIDAD',   color: '#6b7280'  },
+  { label: 'Inventario',        value: 'INVENTARIO',     color: '#2ea172'   },
   { label: 'Proyectos',         value: 'PROYECTOS',      color: 'lime'    },
   { label: 'Reportes',          value: 'REPORTES',       color: 'gold'    },
   { label: 'Automatización',    value: 'AUTOMATIZACION', color: 'volcano' },
@@ -38,7 +38,7 @@ const MESES_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','N
 
 const cellBase: React.CSSProperties = {
   width: 42, minWidth: 42, textAlign: 'center',
-  padding: '6px 4px', borderBottom: '1px solid #f0f0f0',
+  padding: '6px 4px', borderBottom: '1px solid rgba(10,10,10,0.08)',
   cursor: 'pointer', userSelect: 'none',
 }
 
@@ -55,11 +55,11 @@ function CeldaBloqueo({
   const isBlocked = !!bloqueo && bloqueo.estado !== 'DESBLOQUEADO'
 
   let bg        = 'transparent'
-  let border    = '1px solid #d9d9d9'
-  let iconColor = '#d9d9d9'
+  let border    = '1px solid rgba(10,10,10,0.08)'
+  let iconColor = 'rgba(10,10,10,0.08)'
 
-  if (isBlocked && inherited) { bg = '#fff1f0'; border = '1px solid #ffa39e'; iconColor = '#ff7875' }
-  else if (isBlocked)         { bg = '#1B3A6B'; border = '1px solid #1B3A6B'; iconColor = '#fff' }
+  if (isBlocked && inherited) { bg = '#fff1f0'; border = '1px solid #f8c9cb'; iconColor = '#e5484d' }
+  else if (isBlocked)         { bg = '#1faec2'; border = '1px solid #1faec2'; iconColor = '#fff' }
 
   const box = (
     <div
@@ -185,8 +185,8 @@ export default function BloqueoTransaccionesPage() {
   const thStyle: React.CSSProperties = {
     padding: '8px 4px',
     fontSize: 11, fontWeight: 700,
-    color: '#8c8c8c',
-    borderBottom: '2px solid #e8e8e8',
+    color: '#6b7280',
+    borderBottom: '2px solid rgba(10,10,10,0.08)',
     textAlign: 'center',
     minWidth: 42,
     userSelect: 'none',
@@ -196,7 +196,7 @@ export default function BloqueoTransaccionesPage() {
     <div style={{ padding: 24 }}>
       {/* Cabecera */}
       <div style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
           <LockOutlined style={{ marginRight: 8 }} />
           Bloqueo de Transacciones
         </Title>
@@ -213,7 +213,7 @@ export default function BloqueoTransaccionesPage() {
             <span>
               <strong>Período bloqueado</strong>
               {` hasta ${dayjs(vigente.periodoFin + 'T00:00:00').format('DD MMMM YYYY')} — `}
-              <Tag color="red">{vigente.modulo}</Tag>
+              <Tag color="#e5484d">{vigente.modulo}</Tag>
             </span>
           }
           description={`Motivo: ${vigente.motivo}`}
@@ -239,14 +239,14 @@ export default function BloqueoTransaccionesPage() {
             {mesKeys.map(k => <col key={k} />)}
           </colgroup>
           <thead>
-            <tr style={{ background: '#fafafa' }}>
+            <tr style={{ background: '#fafbfc' }}>
               <th style={{ ...thStyle, textAlign: 'left', paddingLeft: 12 }}>Módulo</th>
               {mesKeys.map((k, i) => {
                 const isCurrent = k === curMes
                 return (
                   <th key={k} style={{
                     ...thStyle,
-                    color: isCurrent ? '#1B3A6B' : '#8c8c8c',
+                    color: isCurrent ? '#1faec2' : '#6b7280',
                     background: isCurrent ? '#e6f0ff' : 'transparent',
                     borderRadius: isCurrent ? '4px 4px 0 0' : 0,
                   }}>
@@ -260,13 +260,13 @@ export default function BloqueoTransaccionesPage() {
             {MODULOS.map((mod, rowIdx) => (
               <tr
                 key={mod.value}
-                style={{ background: rowIdx === 0 ? '#fff8f8' : rowIdx % 2 === 0 ? '#fafafa' : '#fff' }}
+                style={{ background: rowIdx === 0 ? '#fff8f8' : rowIdx % 2 === 0 ? '#fafbfc' : '#fff' }}
               >
                 {/* Columna módulo */}
                 <td style={{
                   padding: '8px 12px',
-                  borderBottom: '1px solid #f0f0f0',
-                  borderRight: '1px solid #f0f0f0',
+                  borderBottom: '1px solid rgba(10,10,10,0.08)',
+                  borderRight: '1px solid rgba(10,10,10,0.08)',
                 }}>
                   <Tag color={mod.color} style={{ margin: 0, fontSize: 11 }}>{mod.label}</Tag>
                 </td>
@@ -281,7 +281,7 @@ export default function BloqueoTransaccionesPage() {
                   return (
                     <td key={mesKey} style={{
                       ...cellBase,
-                      background: isCurrent ? '#f0f5ff' : undefined,
+                      background: isCurrent ? '#fafbfc' : undefined,
                     }}>
                       <CeldaBloqueo
                         bloqueo={bloqueo}
@@ -307,9 +307,9 @@ export default function BloqueoTransaccionesPage() {
       {/* Leyenda */}
       <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
         {[
-          { icon: <LockOutlined style={{ color: '#fff', fontSize: 11 }} />, bg: '#1B3A6B', label: 'Bloqueado' },
-          { icon: null, bg: '#fff1f0', border: '#ffa39e', label: 'Heredado (Todos los módulos)' },
-          { icon: null, bg: 'transparent', border: '#d9d9d9', label: 'Abierto' },
+          { icon: <LockOutlined style={{ color: '#fff', fontSize: 11 }} />, bg: '#1faec2', label: 'Bloqueado' },
+          { icon: null, bg: '#fff1f0', border: '#f8c9cb', label: 'Heredado (Todos los módulos)' },
+          { icon: null, bg: 'transparent', border: 'rgba(10,10,10,0.08)', label: 'Abierto' },
         ].map(l => (
           <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{

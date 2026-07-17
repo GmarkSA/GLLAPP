@@ -13,10 +13,14 @@ const COUNTRY_FLAG: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  active: '#52c41a', suspended: '#faad14', liquidated: '#ff4d4f',
+  active: '#2ea172', suspended: '#ff7f00', liquidated: '#e5484d',
 }
 
-export default function CompanySelector() {
+interface CompanySelectorProps {
+  placement?: 'sidebar' | 'header'
+}
+
+export default function CompanySelector({ placement = 'sidebar' }: CompanySelectorProps) {
   const navigate         = useNavigate()
   const activeCompany    = useCompanyStore(s => s.activeCompany)
   const companies        = useCompanyStore(s => s.companies)
@@ -59,7 +63,7 @@ export default function CompanySelector() {
       overflow: 'hidden',
     }}>
       {/* Header búsqueda */}
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0f0f0' }}>
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
         <Input
           ref={searchRef}
           prefix={<SearchOutlined style={{ color: '#bbb' }} />}
@@ -94,14 +98,14 @@ export default function CompanySelector() {
               background: c.id === activeCompany?.id ? '#e6f4ff' : 'transparent',
               transition: 'background 0.15s',
             }}
-            onMouseEnter={e => { if (c.id !== activeCompany?.id) e.currentTarget.style.background = '#fafafa' }}
+            onMouseEnter={e => { if (c.id !== activeCompany?.id) e.currentTarget.style.background = '#fafbfc' }}
             onMouseLeave={e => { e.currentTarget.style.background = c.id === activeCompany?.id ? '#e6f4ff' : 'transparent' }}
           >
             {/* Icono estado */}
             <Tooltip title={c.status === 'active' ? 'Activa' : 'Inactiva'}>
               <div style={{
                 width: 8, height: 8, borderRadius: '50%',
-                background: STATUS_COLOR[c.status] ?? '#d9d9d9',
+                background: STATUS_COLOR[c.status] ?? 'rgba(10,10,10,0.08)',
                 flexShrink: 0,
               }} />
             </Tooltip>
@@ -112,25 +116,25 @@ export default function CompanySelector() {
                 {COUNTRY_FLAG[c.countryCode] ?? '🏢'} {c.legalName}
               </div>
               {c.tradeName && c.tradeName !== c.legalName && (
-                <div style={{ fontSize: 11, color: '#888' }}>{c.tradeName}</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>{c.tradeName}</div>
               )}
               <Space size={4} style={{ marginTop: 2 }}>
                 <Tag style={{ fontSize: 10, padding: '0 5px', margin: 0 }}>{c.countryCode}</Tag>
-                <Tag color="blue" style={{ fontSize: 10, padding: '0 5px', margin: 0 }}>{c.currencyCode}</Tag>
+                <Tag color="#1faec2" style={{ fontSize: 10, padding: '0 5px', margin: 0 }}>{c.currencyCode}</Tag>
                 {c.taxId && <span style={{ fontSize: 10, color: '#aaa' }}>NIT: {c.taxId}</span>}
               </Space>
             </div>
 
             {/* Check activa */}
             {c.id === activeCompany?.id && (
-              <CheckOutlined style={{ color: '#1677ff', fontSize: 13 }} />
+              <CheckOutlined style={{ color: '#1faec2', fontSize: 13 }} />
             )}
           </div>
         ))}
       </div>
 
       {/* Footer acciones */}
-      <div style={{ borderTop: '1px solid #f0f0f0', padding: '6px 8px', display: 'flex', gap: 4 }}>
+      <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', padding: '6px 8px', display: 'flex', gap: 4 }}>
         <div
           onClick={() => { setOpen(false); loadCompanies() }}
           style={{ flex: 1, padding: '5px 8px', cursor: 'pointer', borderRadius: 4, color: '#666', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
@@ -139,7 +143,7 @@ export default function CompanySelector() {
         </div>
         <div
           onClick={() => { setOpen(false); navigate('/configuracion/empresas/nueva') }}
-          style={{ flex: 1, padding: '5px 8px', cursor: 'pointer', borderRadius: 4, color: '#1677ff', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+          style={{ flex: 1, padding: '5px 8px', cursor: 'pointer', borderRadius: 4, color: '#1faec2', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
         >
           <PlusOutlined /> Nueva empresa
         </div>
@@ -153,6 +157,8 @@ export default function CompanySelector() {
     </div>
   )
 
+  const isHeader = placement === 'header'
+
   return (
     <Dropdown
       open={open}
@@ -161,38 +167,68 @@ export default function CompanySelector() {
       trigger={['click']}
       placement="bottomLeft"
     >
-      <div style={{
-        margin: '4px 8px 8px',
-        padding: '8px 10px',
-        borderRadius: 6,
-        background: open ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        color: 'white',
-        transition: 'background 0.2s',
-        border: '1px solid rgba(255,255,255,0.1)',
-      }}
-        onMouseEnter={e => !open && (e.currentTarget.style.background = 'rgba(255,255,255,0.13)')}
-        onMouseLeave={e => !open && (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-      >
-        <BankOutlined style={{ fontSize: 15, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {isHeader ? (
+        /* ── Header pill — cyan sólido, letra blanca ── */
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          cursor: 'pointer', padding: '0 10px 0 8px',
+          height: 28,
+          borderRadius: 20,
+          background: open ? '#1a97a8' : '#1faec2',
+          border: 'none',
+          transition: 'background 0.2s',
+        }}
+          onMouseEnter={e => !open && (e.currentTarget.style.background = '#1a97a8')}
+          onMouseLeave={e => !open && (e.currentTarget.style.background = '#1faec2')}
+        >
+          <BankOutlined style={{ fontSize: 11, color: '#fff', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>
             {activeCompany
               ? `${COUNTRY_FLAG[activeCompany.countryCode] ?? ''} ${activeCompany.legalName}`
               : 'Seleccionar empresa'}
-          </div>
+          </span>
           {activeCompany && (
-            <div style={{ fontSize: 10, opacity: 0.65, marginTop: 1 }}>
-              {activeCompany.countryCode} · {activeCompany.currencyCode}
-              {companies.length > 1 && ` · ${companies.length} empresas`}
-            </div>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: 500, flexShrink: 0 }}>
+              {activeCompany.currencyCode}
+            </span>
           )}
+          <DownOutlined style={{ fontSize: 8, color: 'rgba(255,255,255,0.85)', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
         </div>
-        <DownOutlined style={{ fontSize: 9, opacity: 0.7, flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-      </div>
+      ) : (
+        /* ── Sidebar vertical — fondo claro (sidebar blanco) ── */
+        <div style={{
+          margin: '4px 8px 8px',
+          padding: '8px 10px',
+          borderRadius: 6,
+          background: open ? 'rgba(10,10,10,0.07)' : 'rgba(10,10,10,0.03)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          color: '#0a0a0a',
+          transition: 'background 0.2s',
+          border: '1px solid rgba(10,10,10,0.09)',
+        }}
+          onMouseEnter={e => !open && (e.currentTarget.style.background = 'rgba(10,10,10,0.06)')}
+          onMouseLeave={e => !open && (e.currentTarget.style.background = 'rgba(10,10,10,0.03)')}
+        >
+          <BankOutlined style={{ fontSize: 15, color: '#ff7f00', flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {activeCompany
+                ? `${COUNTRY_FLAG[activeCompany.countryCode] ?? ''} ${activeCompany.legalName}`
+                : 'Seleccionar empresa'}
+            </div>
+            {activeCompany && (
+              <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>
+                {activeCompany.countryCode} · {activeCompany.currencyCode}
+                {companies.length > 1 && ` · ${companies.length} empresas`}
+              </div>
+            )}
+          </div>
+          <DownOutlined style={{ fontSize: 9, color: '#9aa1ab', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+        </div>
+      )}
     </Dropdown>
   )
 }

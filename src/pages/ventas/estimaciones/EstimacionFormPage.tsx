@@ -256,7 +256,7 @@ export default function EstimacionFormPage() {
   }
 
   return (
-    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ padding: '24px', background: '#fafbfc', minHeight: '100vh' }}>
       <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
@@ -270,7 +270,7 @@ export default function EstimacionFormPage() {
         {/* LEFT COLUMN */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Header fields */}
-          <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>{id ? 'Editar Cotización' : 'Nueva Cotización'}</span>}>
+          <Card title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Cotización' : 'Nueva Cotización'}</span>}>
             <Form form={form} layout="vertical" initialValues={{ currency: 'GTQ', discountPercent: 0 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                 <Form.Item
@@ -384,7 +384,7 @@ export default function EstimacionFormPage() {
                   icon={<SaveOutlined />}
                   loading={saving}
                   onClick={() => handleSave(true)}
-                  style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                  style={{ borderColor: '#1faec2', color: '#1faec2' }}
                 >
                   Guardar borrador
                 </Button>
@@ -396,7 +396,7 @@ export default function EstimacionFormPage() {
                   icon={<FileTextOutlined />}
                   loading={saving}
                   onClick={() => handleSave(false)}
-                  style={{ background: '#1B3A6B', borderColor: '#1B3A6B' }}
+                  style={{ background: '#1faec2', borderColor: '#1faec2' }}
                 >
                   Guardar cotización
                 </Button>
@@ -409,7 +409,7 @@ export default function EstimacionFormPage() {
                   icon={<SendOutlined />}
                   loading={sending}
                   onClick={handleSend}
-                  style={{ borderColor: '#1890ff', color: '#1890ff' }}
+                  style={{ borderColor: '#1faec2', color: '#1faec2' }}
                 >
                   Marcar como enviada
                 </Button>
@@ -421,7 +421,7 @@ export default function EstimacionFormPage() {
                   block
                   icon={<FilePdfOutlined />}
                   onClick={handlePrint}
-                  style={{ borderColor: '#fa8c16', color: '#fa8c16' }}
+                  style={{ borderColor: '#ff7f00', color: '#ff7f00' }}
                 >
                   Descargar / Imprimir PDF
                 </Button>
@@ -433,7 +433,7 @@ export default function EstimacionFormPage() {
                   block
                   icon={<MailOutlined />}
                   onClick={() => setEmailModal(true)}
-                  style={{ borderColor: '#52c41a', color: '#52c41a' }}
+                  style={{ borderColor: '#2ea172', color: '#2ea172' }}
                 >
                   Enviar por correo
                 </Button>
@@ -446,7 +446,7 @@ export default function EstimacionFormPage() {
                     block
                     icon={<SwapOutlined />}
                     onClick={() => setConvertModal(true)}
-                    style={{ borderColor: '#52c41a', color: '#52c41a' }}
+                    style={{ borderColor: '#2ea172', color: '#2ea172' }}
                   >
                     Convertir a Factura
                   </Button>
@@ -481,7 +481,7 @@ export default function EstimacionFormPage() {
         onCancel={() => { setEmailModal(false); setEmailTo('') }}
         onOk={handleSendEmail}
         okText="Enviar"
-        okButtonProps={{ loading: sendingEmail, disabled: !emailTo.trim(), style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: sendingEmail, disabled: !emailTo.trim(), style: { background: '#1faec2' } }}
         cancelText="Cancelar"
       >
         <p style={{ marginBottom: 12 }}>
@@ -496,7 +496,7 @@ export default function EstimacionFormPage() {
           onPressEnter={handleSendEmail}
           autoFocus
         />
-        <p style={{ marginTop: 10, color: '#888', fontSize: 12 }}>
+        <p style={{ marginTop: 10, color: '#6b7280', fontSize: 12 }}>
           La cotización quedará marcada como <strong>Enviada</strong>.
         </p>
       </Modal>
@@ -508,11 +508,11 @@ export default function EstimacionFormPage() {
         onCancel={() => setConvertModal(false)}
         onOk={handleConvert}
         okText="Convertir"
-        okButtonProps={{ loading: converting, style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: converting, style: { background: '#1faec2' } }}
         cancelText="Cancelar"
       >
         <p>¿Convertir esta cotización a factura de venta?</p>
-        <p style={{ color: '#8c8c8c', fontSize: 13 }}>
+        <p style={{ color: '#6b7280', fontSize: 13 }}>
           Se creará una nueva factura en borrador con los mismos ítems y montos.
           La cotización quedará marcada como <em>Facturada</em>.
         </p>

@@ -57,7 +57,7 @@ export default function EstimacionPrintPage() {
           .no-print { display: none !important; }
           .print-page { box-shadow: none !important; border: none !important; }
         }
-        body { font-family: Arial, sans-serif; background: #f0f0f0; }
+        body { font-family: Arial, sans-serif; background: rgba(10,10,10,0.08); }
         .print-page {
           background: #fff;
           max-width: 850px;
@@ -66,44 +66,44 @@ export default function EstimacionPrintPage() {
           box-shadow: 0 2px 16px rgba(0,0,0,0.15);
         }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
-        .org-name { font-size: 22px; font-weight: 700; color: #1B3A6B; }
+        .org-name { font-size: 22px; font-weight: 700; color: #1faec2; }
         .org-sub { font-size: 12px; color: #666; margin-top: 4px; }
         .doc-title { text-align: right; }
-        .doc-number { font-size: 20px; font-weight: 700; color: #1B3A6B; font-family: monospace; }
+        .doc-number { font-size: 20px; font-weight: 700; color: #1faec2; font-family: monospace; }
         .status-badge {
           display: inline-block; padding: 2px 10px; border-radius: 20px;
           font-size: 11px; font-weight: 600; margin-top: 6px;
           background: #e6f4ff; color: #0958d9; border: 1px solid #91caff;
         }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
-        .info-box { border: 1px solid #e8e8e8; border-radius: 6px; padding: 12px 14px; }
-        .info-label { font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .info-box { border: 1px solid rgba(10,10,10,0.08); border-radius: 6px; padding: 12px 14px; }
+        .info-label { font-size: 10px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin-bottom: 6px; }
         .info-value { font-size: 13px; color: #222; font-weight: 500; }
         .info-sub   { font-size: 11px; color: #666; margin-top: 2px; }
         .dates-row  { display: flex; gap: 32px; margin-bottom: 28px; }
         .date-item  { }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        thead tr { background: #1B3A6B; }
+        thead tr { background: #1faec2; }
         thead th { color: #fff; font-size: 11px; padding: 8px 10px; text-align: left; font-weight: 600; }
         thead th.right { text-align: right; }
-        tbody tr { border-bottom: 1px solid #f0f0f0; }
-        tbody tr:nth-child(even) { background: #fafafa; }
+        tbody tr { border-bottom: 1px solid rgba(10,10,10,0.08); }
+        tbody tr:nth-child(even) { background: #fafbfc; }
         tbody td { font-size: 12px; padding: 8px 10px; color: #333; }
         tbody td.right { text-align: right; font-family: monospace; }
         tbody td.center { text-align: center; }
         .totals { display: flex; justify-content: flex-end; margin-bottom: 28px; }
         .totals-box { width: 260px; }
         .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
-        .totals-row.total { font-weight: 700; font-size: 15px; color: #1B3A6B;
-          border-top: 2px solid #1B3A6B; padding-top: 8px; margin-top: 4px; }
-        .notes-section { border-top: 1px solid #e8e8e8; padding-top: 16px; margin-top: 8px; }
-        .notes-title { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .totals-row.total { font-weight: 700; font-size: 15px; color: #1faec2;
+          border-top: 2px solid #1faec2; padding-top: 8px; margin-top: 4px; }
+        .notes-section { border-top: 1px solid rgba(10,10,10,0.08); padding-top: 16px; margin-top: 8px; }
+        .notes-title { font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin-bottom: 6px; }
         .notes-text  { font-size: 12px; color: #444; white-space: pre-wrap; }
-        .footer { margin-top: 32px; border-top: 1px solid #e8e8e8; padding-top: 12px;
+        .footer { margin-top: 32px; border-top: 1px solid rgba(10,10,10,0.08); padding-top: 12px;
           font-size: 10px; color: #aaa; text-align: center; }
         .print-btn {
           position: fixed; bottom: 24px; right: 24px; z-index: 999;
-          padding: 10px 22px; background: #1B3A6B; color: #fff;
+          padding: 10px 22px; background: #1faec2; color: #fff;
           border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
@@ -129,12 +129,12 @@ export default function EstimacionPrintPage() {
             {org?.email && <div className="org-sub">{org.email}</div>}
           </div>
           <div className="doc-title">
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>COTIZACIÓN</div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>COTIZACIÓN</div>
             <div className="doc-number">{estimate.estimateNumber}</div>
             <div className={`status-badge`} style={{
-              background: statusCfg.color === 'blue' ? '#e6f4ff' : statusCfg.color === 'green' ? '#f6ffed' : '#fafafa',
-              color:      statusCfg.color === 'blue' ? '#0958d9' : statusCfg.color === 'green' ? '#389e0d' : '#666',
-              borderColor:statusCfg.color === 'blue' ? '#91caff' : statusCfg.color === 'green' ? '#b7eb8f' : '#d9d9d9',
+              background: statusCfg.color === 'blue' ? '#e6f4ff' : statusCfg.color === 'green' ? '#e8f5ef' : '#fafbfc',
+              color:      statusCfg.color === 'blue' ? '#0958d9' : statusCfg.color === 'green' ? '#2ea172' : '#666',
+              borderColor:statusCfg.color === 'blue' ? '#91caff' : statusCfg.color === 'green' ? '#c3e5d8' : 'rgba(10,10,10,0.08)',
             }}>
               {statusCfg.label}
             </div>
@@ -211,7 +211,7 @@ export default function EstimacionPrintPage() {
             {discount > 0 && (
               <div className="totals-row">
                 <span style={{ color: '#666' }}>Descuento</span>
-                <span style={{ color: '#cf1322' }}>− {fmtQ(discount, estimate.currency)}</span>
+                <span style={{ color: '#e5484d' }}>− {fmtQ(discount, estimate.currency)}</span>
               </div>
             )}
             <div className="totals-row">

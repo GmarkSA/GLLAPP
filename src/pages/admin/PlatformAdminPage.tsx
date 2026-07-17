@@ -53,8 +53,8 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           size="small"
           title={
             <Space>
-              <GlobalOutlined style={{ color: '#1B3A6B' }} />
-              <span style={{ color: '#1B3A6B', fontWeight: 600 }}>
+              <GlobalOutlined style={{ color: '#1faec2' }} />
+              <span style={{ color: '#1faec2', fontWeight: 600 }}>
                 Tipo de cambio GTQ / USD para suscripciones
               </span>
             </Space>
@@ -98,7 +98,7 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 
           <Button
             type="primary" loading={saving} onClick={handleSave}
-            style={{ background: '#1B3A6B', width: '100%' }}
+            style={{ background: '#1faec2', width: '100%' }}
           >
             Guardar tipo de cambio
           </Button>
@@ -110,8 +110,8 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           size="small"
           title={
             <Space>
-              <CheckCircleOutlined style={{ color: '#16a34a' }} />
-              <span style={{ color: '#1B3A6B', fontWeight: 600 }}>Vista previa en GTQ</span>
+              <CheckCircleOutlined style={{ color: '#2ea172' }} />
+              <span style={{ color: '#1faec2', fontWeight: 600 }}>Vista previa en GTQ</span>
             </Space>
           }
           style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}
@@ -122,19 +122,19 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           {plans.map(plan => (
             <div key={plan.plan} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 0', borderBottom: '1px solid #f0f0f0',
+              padding: '10px 0', borderBottom: '1px solid rgba(10,10,10,0.08)',
             }}>
-              <Tag color={Number(plan.priceMonthly) === 0 ? 'default' : plan.plan === 'enterprise' ? 'gold' : 'blue'}>
+              <Tag color={Number(plan.priceMonthly) === 0 ? 'default' : plan.plan === 'enterprise' ? 'gold' : '#1faec2'}>
                 {plan.displayName}
               </Tag>
               {Number(plan.priceMonthly) === 0 ? (
                 <Tag color="success">Gratis</Tag>
               ) : (
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1B3A6B' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1faec2' }}>
                     Q {(Number(plan.priceMonthly) * rate).toFixed(2)}
                   </div>
-                  <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  <div style={{ fontSize: 11, color: '#9aa1ab' }}>
                     (${Number(plan.priceMonthly).toFixed(2)} USD)
                   </div>
                 </div>
@@ -149,7 +149,7 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 const unwrap = (r: any) => r.data?.data ?? r.data
 
 const PLAN_COLOR: Record<string, string> = {
-  basic: 'default', professional: 'blue', enterprise: 'gold',
+  basic: 'default', professional: '#1faec2', enterprise: 'gold',
 }
 const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   active: 'success', trial: 'default', suspended: 'warning', cancelled: 'error',
@@ -444,7 +444,7 @@ export default function PlatformAdminPage() {
       render: (_, r) => (
         <div>
           <b style={{ fontSize: 13 }}>{r.name}</b>
-          {r.legalName && r.legalName !== r.name && <div style={{ fontSize: 11, color: '#888' }}>{r.legalName}</div>}
+          {r.legalName && r.legalName !== r.name && <div style={{ fontSize: 11, color: '#6b7280' }}>{r.legalName}</div>}
           {r.taxId && <div style={{ fontSize: 11, color: '#aaa' }}>NIT: {r.taxId}</div>}
         </div>
       ),
@@ -501,7 +501,7 @@ export default function PlatformAdminPage() {
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={3} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>
             <GlobalOutlined style={{ marginRight: 10 }} />Platform Admin
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>Vista global de todos los tenants y planes</Text>
@@ -514,10 +514,10 @@ export default function PlatformAdminPage() {
       {/* Stats */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         {[
-          { title: 'Tenants', value: stats?.totalTenants ?? tenants.length, icon: <GlobalOutlined style={{ color: '#1B3A6B' }} /> },
-          { title: 'Activos', value: stats?.active ?? 0, icon: <Badge status="success" />, color: '#52c41a' },
-          { title: 'Total Empresas', value: totalCompanies, icon: <BankOutlined style={{ color: '#1677ff' }} /> },
-          { title: 'Total Usuarios', value: totalUsers, icon: <TeamOutlined style={{ color: '#722ed1' }} /> },
+          { title: 'Tenants', value: stats?.totalTenants ?? tenants.length, icon: <GlobalOutlined style={{ color: '#1faec2' }} /> },
+          { title: 'Activos', value: stats?.active ?? 0, icon: <Badge status="success" />, color: '#2ea172' },
+          { title: 'Total Empresas', value: totalCompanies, icon: <BankOutlined style={{ color: '#1faec2' }} /> },
+          { title: 'Total Usuarios', value: totalUsers, icon: <TeamOutlined style={{ color: '#6b7280' }} /> },
         ].map(s => (
           <Col span={6} key={s.title}>
             <Card size="small">
@@ -534,16 +534,16 @@ export default function PlatformAdminPage() {
             key: 'tenants',
             label: <Space><GlobalOutlined />Tenants ({tenants.length})</Space>,
             children: (
-              <Card size="small" extra={<Tag color="orange">Super Admin</Tag>}>
+              <Card size="small" extra={<Tag color="#ff7f00">Super Admin</Tag>}>
                 {stats && (
                   <div style={{ marginBottom: 12 }}>
                     <Space size={8} wrap>
                       <Text type="secondary" style={{ fontSize: 12 }}>Por plan:</Text>
                       <Tag>Basic: {stats.byPlan.basic}</Tag>
-                      <Tag color="blue">Professional: {stats.byPlan.professional}</Tag>
+                      <Tag color="#1faec2">Professional: {stats.byPlan.professional}</Tag>
                       <Tag color="gold">Enterprise: {stats.byPlan.enterprise}</Tag>
-                      <Tag color="orange">Trial: {stats.trial}</Tag>
-                      <Tag color="red">Suspendidos: {stats.suspended}</Tag>
+                      <Tag color="#ff7f00">Trial: {stats.trial}</Tag>
+                      <Tag color="#e5484d">Suspendidos: {stats.suspended}</Tag>
                     </Space>
                   </div>
                 )}
@@ -557,7 +557,7 @@ export default function PlatformAdminPage() {
             children: (
               <>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreatePlan} style={{ background: '#1B3A6B' }}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreatePlan} style={{ background: '#1faec2' }}>
                   Nuevo plan
                 </Button>
               </div>
@@ -597,27 +597,27 @@ export default function PlatformAdminPage() {
                           value={Number(plan.priceMonthly)}
                           prefix="$"
                           suffix={`/ mes ${plan.currency}`}
-                          valueStyle={{ fontSize: 24, color: '#1B3A6B' }}
+                          valueStyle={{ fontSize: 24, color: '#0a0a0a' }}
                         />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12, fontSize: 13 }}>
                         <Space>
-                          <BankOutlined style={{ color: '#1677ff' }} />
+                          <BankOutlined style={{ color: '#1faec2' }} />
                           <Text>{plan.maxCompanies >= 999 ? 'Empresas ilimitadas' : `${plan.maxCompanies} empresa${plan.maxCompanies !== 1 ? 's' : ''}`}</Text>
                         </Space>
                         <Space>
-                          <TeamOutlined style={{ color: '#722ed1' }} />
+                          <TeamOutlined style={{ color: '#6b7280' }} />
                           <Text>{plan.maxUsers >= 999 ? 'Usuarios ilimitados' : `${plan.maxUsers} usuario${plan.maxUsers !== 1 ? 's' : ''}`}</Text>
                         </Space>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {(plan.features || []).map((f, i) => (
                           <div key={i} style={{ fontSize: 12, color: '#555' }}>
-                            <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 6 }} />{f}
+                            <CheckCircleOutlined style={{ color: '#2ea172', marginRight: 6 }} />{f}
                           </div>
                         ))}
                       </div>
-                      <div style={{ marginTop: 12, color: '#888', fontSize: 11 }}>
+                      <div style={{ marginTop: 12, color: '#6b7280', fontSize: 11 }}>
                         {tenants.filter(t => (t.plan ?? 'basic') === plan.plan).length} tenant(s) en este plan
                       </div>
                     </Card>
@@ -671,7 +671,7 @@ export default function PlatformAdminPage() {
                     dataSource={detail.companies}
                     expandable={{
                       expandedRowRender: (c) => (
-                        <div style={{ padding: '8px 16px', background: '#fafafa' }}>
+                        <div style={{ padding: '8px 16px', background: '#fafbfc' }}>
                           <Text style={{ fontSize: 12, fontWeight: 500 }}>Asignar usuario a {c.legalName}:</Text>
                           <Space style={{ marginTop: 8 }}>
                             <Select
@@ -684,7 +684,7 @@ export default function PlatformAdminPage() {
                               })) ?? []}
                             />
                             <Button size="small" type="primary" loading={savingAssign && assigningCompanyId === c.id}
-                              style={{ background: '#1B3A6B' }}
+                              style={{ background: '#1faec2' }}
                               onClick={() => handleAssignUserToCompany(detail.id, c.id)}>
                               Asignar
                             </Button>
@@ -698,7 +698,7 @@ export default function PlatformAdminPage() {
                         render: (_, c) => (
                           <div>
                             <b>{c.legalName}</b>
-                            <div style={{ fontSize: 11, color: '#888' }}>{c.companyNumber ?? 'Sin codigo'} · {c.taxId ?? 'Sin tax id'}</div>
+                            <div style={{ fontSize: 11, color: '#6b7280' }}>{c.companyNumber ?? 'Sin codigo'} · {c.taxId ?? 'Sin tax id'}</div>
                           </div>
                         ),
                       },
@@ -740,7 +740,7 @@ export default function PlatformAdminPage() {
                         title: 'Roles',
                         width: 160,
                         render: (_, u) => u.isSuperAdmin
-                          ? <Tag color="red">SuperAdmin</Tag>
+                          ? <Tag color="#e5484d">SuperAdmin</Tag>
                           : (u.roles?.length ? u.roles.map(r => <Tag key={r}>{r}</Tag>) : <Tag>Usuario</Tag>),
                       },
                       { title: 'Estado', dataIndex: 'status', width: 100, render: (v: string) => <Badge status={v === 'active' ? 'success' : 'warning'} text={v} /> },
@@ -780,7 +780,7 @@ export default function PlatformAdminPage() {
         onOk={handleSavePlan}
         confirmLoading={savingPlan}
         okText="Guardar"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={480}
       >
         <Form form={planForm} layout="vertical" style={{ marginTop: 16 }}>

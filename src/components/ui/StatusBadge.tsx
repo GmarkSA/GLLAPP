@@ -9,7 +9,7 @@ interface StatusConfig {
 const STATUS_MAP: Record<string, StatusConfig> = {
   // Facturas / documentos
   draft:     { label: 'Borrador',   color: 'default' },
-  sent:      { label: 'Enviada',    color: 'blue'    },
+  sent:      { label: 'Enviada',    color: '#1faec2'    },
   paid:      { label: 'Pagada',     color: 'success' },
   partial:   { label: 'Parcial',    color: 'warning' },
   overdue:   { label: 'Vencida',    color: 'error'   },

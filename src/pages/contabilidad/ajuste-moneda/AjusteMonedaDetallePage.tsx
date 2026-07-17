@@ -81,7 +81,7 @@ export default function AjusteMonedaDetallePage() {
         const { vendor } = resolveCxpInfo(r)
         return vendor
           ? <span style={{ fontSize: 12, fontWeight: 500 }}>{vendor}</span>
-          : <span style={{ color: '#bfbfbf' }}>—</span>
+          : <span style={{ color: '#9aa1ab' }}>—</span>
       },
     },
     {
@@ -91,8 +91,8 @@ export default function AjusteMonedaDetallePage() {
       render: (_: any, r: AjusteMonedaLinea) => {
         const { invoice } = resolveCxpInfo(r)
         return invoice
-          ? <span style={{ fontSize: 11, color: '#1B3A6B', fontFamily: 'monospace' }}>{invoice}</span>
-          : <span style={{ color: '#bfbfbf' }}>—</span>
+          ? <span style={{ fontSize: 11, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{invoice}</span>
+          : <span style={{ color: '#9aa1ab' }}>—</span>
       },
     },
     {
@@ -102,7 +102,7 @@ export default function AjusteMonedaDetallePage() {
       align: 'right' as const,
       width: 110,
       render: (v: number) => (
-        <span style={{ fontFamily: 'monospace' }}>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
           {Number(v) < 0 ? '-' : ''}{fmtUSD(Math.abs(Number(v)))}
         </span>
       ),
@@ -113,7 +113,7 @@ export default function AjusteMonedaDetallePage() {
       key: 'gtq',
       align: 'right' as const,
       width: 110,
-      render: (v: number) => <span style={{ fontFamily: 'monospace' }}>{fmtQ(Number(v))}</span>,
+      render: (v: number) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(v))}</span>,
     },
     {
       title: 'Revaluado GTQ',
@@ -121,7 +121,7 @@ export default function AjusteMonedaDetallePage() {
       key: 'rev',
       align: 'right' as const,
       width: 120,
-      render: (v: number) => <strong style={{ fontFamily: 'monospace' }}>{fmtQ(Number(v))}</strong>,
+      render: (v: number) => <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(v))}</strong>,
     },
     {
       title: 'Gan./Pérd.',
@@ -132,7 +132,7 @@ export default function AjusteMonedaDetallePage() {
       render: (v: number) => {
         const n = Number(v)
         return (
-          <span style={{ color: n >= 0 ? '#389e0d' : '#cf1322', fontWeight: 700, fontFamily: 'monospace' }}>
+          <span style={{ color: n >= 0 ? '#2ea172' : '#e5484d', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
             {n >= 0 ? '+' : ''}{fmtQ(n)}
           </span>
         )
@@ -146,7 +146,7 @@ export default function AjusteMonedaDetallePage() {
       render: (_: any, r: AjusteMonedaLinea) => (
         <div>
           <div style={{ fontWeight: 600, fontSize: 12 }}>{r.accountName}</div>
-          <div style={{ fontSize: 11, color: '#8c8c8c', fontFamily: 'monospace' }}>{r.accountCode}</div>
+          <div style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{r.accountCode}</div>
         </div>
       ),
     },
@@ -158,10 +158,10 @@ export default function AjusteMonedaDetallePage() {
       render: (_: any, r: AjusteMonedaLinea) => {
         const gp  = Number(r.gananciasPerdidas)
         const abs = Math.abs(gp)
-        if (abs < 0.004) return <span style={{ color: '#d9d9d9' }}>—</span>
+        if (abs < 0.004) return <span style={{ color: '#9aa1ab' }}>—</span>
         // Loss → CXP is Haber; Gain → CXP is Debe (show in muted)
         return (
-          <span style={{ fontFamily: 'monospace', color: gp < 0 ? undefined : '#aaaaaa' }}>
+          <span style={{ fontVariantNumeric: 'tabular-nums', color: gp < 0 ? undefined : '#aaaaaa' }}>
             {fmtQ(abs)}
           </span>
         )
@@ -175,11 +175,11 @@ export default function AjusteMonedaDetallePage() {
       render: (_: any, r: AjusteMonedaLinea) => {
         const gp    = Number(r.gananciasPerdidas)
         const fxLine = gp < 0 ? jeFxLossLine : jeFxGainLine
-        if (!fxLine) return <span style={{ color: '#bfbfbf' }}>—</span>
+        if (!fxLine) return <span style={{ color: '#9aa1ab' }}>—</span>
         return (
           <div>
             <div style={{ fontWeight: 600, fontSize: 12 }}>{fxLine.accountName}</div>
-            <div style={{ fontSize: 11, color: '#8c8c8c', fontFamily: 'monospace' }}>{fxLine.accountCode}</div>
+            <div style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{fxLine.accountCode}</div>
           </div>
         )
       },
@@ -192,10 +192,10 @@ export default function AjusteMonedaDetallePage() {
       render: (_: any, r: AjusteMonedaLinea) => {
         const gp  = Number(r.gananciasPerdidas)
         const abs = Math.abs(gp)
-        if (abs < 0.004) return <span style={{ color: '#d9d9d9' }}>—</span>
+        if (abs < 0.004) return <span style={{ color: '#9aa1ab' }}>—</span>
         // Loss → FX is Debe; Gain → FX is Haber (show in muted)
         return (
-          <span style={{ fontFamily: 'monospace', color: gp < 0 ? undefined : '#aaaaaa' }}>
+          <span style={{ fontVariantNumeric: 'tabular-nums', color: gp < 0 ? undefined : '#aaaaaa' }}>
             {fmtQ(abs)}
           </span>
         )
@@ -211,7 +211,7 @@ export default function AjusteMonedaDetallePage() {
           onClick={() => navigate('/contabilidad/ajuste-moneda')}>
           Ajustes de la moneda base
         </Button>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
           {moneda} – Ajuste de la moneda
           {data.status === 'void' && <Tag color="default" style={{ marginLeft: 12 }}>ANULADO</Tag>}
         </Title>
@@ -229,7 +229,7 @@ export default function AjusteMonedaDetallePage() {
         </div>
         <div>
           <Text type="secondary" style={{ fontSize: 12 }}>Ganancia / Pérdida neta</Text>
-          <div style={{ fontWeight: 700, fontSize: 15, color: netGP >= 0 ? '#389e0d' : '#cf1322' }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: netGP >= 0 ? '#2ea172' : '#e5484d' }}>
             {netGP >= 0 ? '+' : ''}{fmtQ(netGP)}
           </div>
         </div>
@@ -237,10 +237,10 @@ export default function AjusteMonedaDetallePage() {
           <div>
             <Text type="secondary" style={{ fontSize: 12 }}>Póliza</Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 700, fontSize: 15, fontFamily: 'monospace', color: '#1B3A6B' }}>
+              <span style={{ fontWeight: 700, fontSize: 15, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
                 {je.entryNumber}
               </span>
-              <Button size="small" type="link" style={{ color: '#1B3A6B', padding: 0, fontSize: 12 }}
+              <Button size="small" type="link" style={{ color: '#1faec2', padding: 0, fontSize: 12 }}
                 onClick={() => navigate(`/contabilidad/diarios-manuales/${je.id}`)}>
                 Ver →
               </Button>
@@ -270,32 +270,32 @@ export default function AjusteMonedaDetallePage() {
               {/* Proveedor + Factura (2 cols) */}
               <Table.Summary.Cell index={0} colSpan={2}><strong>TOTAL</strong></Table.Summary.Cell>
               {/* Saldo USD */}
-              <Table.Summary.Cell index={1} align="right"><span style={{ color: '#d9d9d9' }}>—</span></Table.Summary.Cell>
+              <Table.Summary.Cell index={1} align="right"><span style={{ color: '#9aa1ab' }}>—</span></Table.Summary.Cell>
               {/* Saldo GTQ */}
               <Table.Summary.Cell index={2} align="right">
-                <strong style={{ fontFamily: 'monospace' }}>{fmtQ(totalGTQ)}</strong>
+                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totalGTQ)}</strong>
               </Table.Summary.Cell>
               {/* Revaluado GTQ */}
               <Table.Summary.Cell index={3} align="right">
-                <strong style={{ fontFamily: 'monospace' }}>{fmtQ(totalRev)}</strong>
+                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totalRev)}</strong>
               </Table.Summary.Cell>
               {/* Gan./Pérd. — vacío en total, los montos van en Haber/Debe */}
-              <Table.Summary.Cell index={4} align="right"><span style={{ color: '#d9d9d9' }}>—</span></Table.Summary.Cell>
+              <Table.Summary.Cell index={4} align="right"><span style={{ color: '#9aa1ab' }}>—</span></Table.Summary.Cell>
               {/* Cta. Proveedor */}
-              <Table.Summary.Cell index={5} align="right"><span style={{ color: '#d9d9d9' }}>—</span></Table.Summary.Cell>
+              <Table.Summary.Cell index={5} align="right"><span style={{ color: '#9aa1ab' }}>—</span></Table.Summary.Cell>
               {/* Haber */}
               <Table.Summary.Cell index={6} align="right">
                 {totalHaber > 0.004
-                  ? <strong style={{ fontFamily: 'monospace' }}>{fmtQ(totalHaber)}</strong>
-                  : <span style={{ color: '#d9d9d9' }}>—</span>}
+                  ? <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totalHaber)}</strong>
+                  : <span style={{ color: '#9aa1ab' }}>—</span>}
               </Table.Summary.Cell>
               {/* Cta. Diferencial */}
-              <Table.Summary.Cell index={7} align="right"><span style={{ color: '#d9d9d9' }}>—</span></Table.Summary.Cell>
+              <Table.Summary.Cell index={7} align="right"><span style={{ color: '#9aa1ab' }}>—</span></Table.Summary.Cell>
               {/* Debe */}
               <Table.Summary.Cell index={8} align="right">
                 {totalDebe > 0.004
-                  ? <strong style={{ fontFamily: 'monospace' }}>{fmtQ(totalDebe)}</strong>
-                  : <span style={{ color: '#d9d9d9' }}>—</span>}
+                  ? <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totalDebe)}</strong>
+                  : <span style={{ color: '#9aa1ab' }}>—</span>}
               </Table.Summary.Cell>
             </Table.Summary.Row>
           )

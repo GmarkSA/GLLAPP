@@ -17,6 +17,7 @@ const { Text } = Typography
 interface ReportLayoutProps {
   title: string
   subtitle: string
+  icon?: React.ReactNode
   tipoExport: string        // e.g. 'balance-general'
   loading?: boolean
   error?: string | null
@@ -46,7 +47,7 @@ const YEAR_PRESETS = [
 ]
 
 export default function ReportLayout({
-  title, subtitle, tipoExport, loading, error, children,
+  title, subtitle, icon, tipoExport, loading, error, children,
   singleDate, date, fromDate, toDate,
   onDateChange, onRangeChange,
   extra, exportParams = {},
@@ -113,7 +114,7 @@ export default function ReportLayout({
   }
 
   return (
-    <div>
+    <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       {/* Header */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
@@ -125,8 +126,9 @@ export default function ReportLayout({
             onClick={() => navigate('/reportes')}
             style={{ marginTop: 2 }}
           />
+          {icon && <span style={{ fontSize: 22, color: '#1faec2', lineHeight: 1, display: 'flex', alignItems: 'center' }}>{icon}</span>}
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#1B3A6B' }}>{title}</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#0a0a0a' }}>{title}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>{subtitle}</Text>
           </div>
         </Space>
@@ -172,20 +174,18 @@ export default function ReportLayout({
           {/* Export actions */}
           <Tooltip title="Exportar Excel">
             <Button
-              icon={<FileExcelOutlined />}
+              icon={<FileExcelOutlined style={{ color: '#217346' }} />}
               loading={exporting}
               onClick={() => handleExport('excel')}
-              style={{ color: '#217346', borderColor: '#217346' }}
             >
               Excel
             </Button>
           </Tooltip>
           <Tooltip title="Exportar PDF">
             <Button
-              icon={<FilePdfOutlined />}
+              icon={<FilePdfOutlined style={{ color: '#c0392b' }} />}
               loading={exporting}
               onClick={() => handleExport('pdf')}
-              style={{ color: '#c0392b', borderColor: '#c0392b' }}
             >
               PDF
             </Button>
@@ -232,7 +232,7 @@ export default function ReportLayout({
       <Modal
         title={
           <Space>
-            <NumberOutlined style={{ color: '#1677ff' }} />
+            <NumberOutlined style={{ color: '#1faec2' }} />
             Folio y Correlativo SAT
           </Space>
         }
@@ -244,8 +244,7 @@ export default function ReportLayout({
             <Button icon={<FilePdfOutlined />} type="primary" danger onClick={() => handleFolioExport('pdf')}>
               Exportar PDF con folio
             </Button>
-            <Button icon={<FileExcelOutlined />} type="primary" onClick={() => handleFolioExport('excel')}
-              style={{ background: '#217346', borderColor: '#217346' }}>
+            <Button icon={<FileExcelOutlined style={{ color: '#217346' }} />} onClick={() => handleFolioExport('excel')}>
               Exportar Excel con folio
             </Button>
           </Space>
@@ -275,7 +274,7 @@ export default function ReportLayout({
               <Space size={4}>
                 Correlativo del reporte
                 <Tooltip title="Número secuencial del libro contable para este año fiscal. Se incrementa automáticamente.">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -288,7 +287,7 @@ export default function ReportLayout({
               <Space size={4}>
                 Folio (número de página inicial)
                 <Tooltip title="Número de la primera página de este reporte en el libro habilitado por SAT.">
-                  <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
                 </Tooltip>
               </Space>
             }
@@ -298,7 +297,7 @@ export default function ReportLayout({
         </Form>
         {folioData && (
           <div style={{ marginTop: 8 }}>
-            <Tag color="blue">
+            <Tag color="#1faec2">
               Correlativo {folioData.current_correlativo} · Año {folioData.fiscal_year}
             </Tag>
             {folioData.last_generated && (

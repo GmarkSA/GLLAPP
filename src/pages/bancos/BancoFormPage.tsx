@@ -86,7 +86,7 @@ export default function BancoFormPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/bancos')} />
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             {isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria'}
           </Title>
           <Text type="secondary">
@@ -103,7 +103,7 @@ export default function BancoFormPage() {
       >
         {/* ── Identificación ─────────────────────────────────────────────── */}
         <Card
-          title={<Space><BankOutlined style={{ color: '#1677ff' }} /> Información de la cuenta</Space>}
+          title={<Space><BankOutlined style={{ color: '#1faec2' }} /> Información de la cuenta</Space>}
           style={{ borderRadius: 10, marginBottom: 16 }}
           bodyStyle={{ paddingBottom: 4 }}
         >
@@ -219,10 +219,10 @@ export default function BancoFormPage() {
         <Card
           title={
             <Space>
-              <LinkOutlined style={{ color: '#722ed1' }} />
+              <LinkOutlined style={{ color: '#6b7280' }} />
               Vinculación al catálogo contable
               <Tooltip title="Vincula esta cuenta bancaria con una cuenta de Balance en el catálogo contable. El saldo se calculará automáticamente desde los asientos contables registrados.">
-                <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 14 }} />
+                <InfoCircleOutlined style={{ color: '#6b7280', fontSize: 14 }} />
               </Tooltip>
             </Space>
           }
@@ -294,7 +294,7 @@ export default function BancoFormPage() {
             htmlType="submit"
             icon={<SaveOutlined />}
             loading={saving}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
           >
             {isEdit ? 'Guardar cambios' : 'Crear cuenta'}
           </Button>

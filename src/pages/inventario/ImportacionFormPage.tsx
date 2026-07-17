@@ -137,7 +137,7 @@ function AddLineaModal({ open, onClose, onAdd, showWeight, showVolume }: {
       onOk={handleOk}
       onCancel={() => { form.resetFields(); onClose() }}
       okText="Agregar"
-      okButtonProps={{ style: { background: '#1B3A6B' } }}
+      okButtonProps={{ style: { background: '#1faec2' } }}
       destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
@@ -153,7 +153,7 @@ function AddLineaModal({ open, onClose, onAdd, showWeight, showVolume }: {
             {products.map(p => (
               <Option key={p.id} value={p.id}>
                 <Space>
-                  <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>{p.sku}</Text>
+                  <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{p.sku}</Text>
                   <Text>{p.name}</Text>
                 </Space>
               </Option>
@@ -342,7 +342,7 @@ export default function ImportacionFormPage() {
       title: 'SKU',
       dataIndex: 'productSku',
       width: 100,
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{v}</Text>,
     },
     {
       title: 'Artículo',
@@ -361,49 +361,49 @@ export default function ImportacionFormPage() {
       dataIndex: 'unitCostFob',
       width: 100,
       align: 'right',
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>,
     },
     {
       title: 'Total FOB',
       dataIndex: 'totalFob',
       width: 110,
       align: 'right',
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
     {
       title: 'Flete',
       dataIndex: 'proratedFreight',
       width: 90,
       align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text>,
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text>,
     },
     {
       title: 'Seguro',
       dataIndex: 'proratedInsurance',
       width: 90,
       align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text>,
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text>,
     },
     {
       title: 'DAI',
       dataIndex: 'proratedCustomsDuty',
       width: 90,
       align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text>,
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text>,
     },
     {
       title: 'IVA imp.',
       dataIndex: 'proratedIva',
       width: 90,
       align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text>,
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text>,
     },
     {
       title: 'Otros',
       dataIndex: 'proratedOther',
       width: 80,
       align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text>,
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text>,
     },
     {
       title: 'Costo aterrizaje/u',
@@ -411,7 +411,7 @@ export default function ImportacionFormPage() {
       width: 140,
       align: 'right',
       render: v => (
-        <Text style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1B3A6B', fontSize: 13 }}>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#1faec2', fontSize: 13 }}>
           {fmtQ(v, 4)}
         </Text>
       ),
@@ -444,7 +444,7 @@ export default function ImportacionFormPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/inventario/importaciones')} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
               {isView ? 'Detalle de importación' : 'Nueva importación'}
             </Title>
             <Text type="secondary">
@@ -453,10 +453,10 @@ export default function ImportacionFormPage() {
           </div>
         </div>
         {confirmed && (
-          <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '6px 16px' }}>
+          <div style={{ background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 8, padding: '6px 16px' }}>
             <Space>
-              <CheckCircleOutlined style={{ color: '#52c41a' }} />
-              <Text style={{ color: '#389e0d', fontWeight: 600 }}>Importación confirmada</Text>
+              <CheckCircleOutlined style={{ color: '#2ea172' }} />
+              <Text style={{ color: '#2ea172', fontWeight: 600 }}>Importación confirmada</Text>
             </Space>
           </div>
         )}
@@ -528,10 +528,10 @@ export default function ImportacionFormPage() {
             <Card
               title={
                 <Space>
-                  <CalculatorOutlined style={{ color: '#fa8c16' }} />
+                  <CalculatorOutlined style={{ color: '#ff7f00' }} />
                   Costos a prorratear
                   <Tooltip title="Estos costos se distribuyen entre todos los artículos según el método de prorrateo seleccionado.">
-                    <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 13 }} />
+                    <InfoCircleOutlined style={{ color: '#6b7280', fontSize: 13 }} />
                   </Tooltip>
                 </Space>
               }
@@ -544,7 +544,7 @@ export default function ImportacionFormPage() {
                   value={totalFobSum}
                   precision={2}
                   prefix="Q"
-                  valueStyle={{ fontSize: 16, fontFamily: 'monospace', color: '#1B3A6B' }}
+                  valueStyle={{ fontSize: 16, fontVariantNumeric: 'tabular-nums', color: '#0a0a0a' }}
                   formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                 />
               </div>
@@ -585,11 +585,11 @@ export default function ImportacionFormPage() {
                 value={totalLandedSum}
                 precision={2}
                 prefix="Q"
-                valueStyle={{ fontSize: 20, fontFamily: 'monospace', fontWeight: 700, color: '#52c41a' }}
+                valueStyle={{ fontSize: 20, fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#2ea172' }}
                 formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               />
               {totalFobSum > 0 && (
-                <div style={{ marginTop: 4, fontSize: 12, color: '#8c8c8c' }}>
+                <div style={{ marginTop: 4, fontSize: 12, color: '#6b7280' }}>
                   Factor de aterrizaje: ×{((totalLandedSum / totalFobSum) || 0).toFixed(6)}
                 </div>
               )}
@@ -603,7 +603,7 @@ export default function ImportacionFormPage() {
                 <Space>
                   Artículos a importar
                   {lineas.length > 0 && (
-                    <span style={{ fontSize: 12, color: '#8c8c8c' }}>({lineas.length} artículos)</span>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>({lineas.length} artículos)</span>
                   )}
                 </Space>
               }
@@ -615,14 +615,14 @@ export default function ImportacionFormPage() {
                   size="small"
                   icon={<PlusOutlined />}
                   onClick={() => setAddOpen(true)}
-                  style={{ background: '#1B3A6B' }}
+                  style={{ background: '#1faec2' }}
                 >
                   Agregar artículo
                 </Button>
               )}
             >
               {lineas.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 0', color: '#8c8c8c' }}>
+                <div style={{ textAlign: 'center', padding: '32px 0', color: '#6b7280' }}>
                   <div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>
                   <div>Agrega los artículos que se están importando</div>
                   <div style={{ fontSize: 12, marginTop: 4 }}>El prorrateo se calculará automáticamente</div>
@@ -641,25 +641,25 @@ export default function ImportacionFormPage() {
                         <Text strong>TOTALES</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={4} align="right">
-                        <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(totalFobSum)}</Text>
+                        <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totalFobSum)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={5} align="right">
-                        <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedFreight, 0), 4)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedFreight, 0), 4)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={6} align="right">
-                        <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedInsurance, 0), 4)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedInsurance, 0), 4)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={7} align="right">
-                        <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedCustomsDuty, 0), 4)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedCustomsDuty, 0), 4)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={8} align="right">
-                        <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedIva, 0), 4)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedIva, 0), 4)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={9} align="right">
-                        <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedOther, 0), 4)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(lineas.reduce((s, l) => s + l.proratedOther, 0), 4)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={10} align="right">
-                        <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(totalLandedSum)}</Text>
+                        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(totalLandedSum)}</Text>
                       </Table.Summary.Cell>
                       {!confirmed && <Table.Summary.Cell index={11} />}
                     </Table.Summary.Row>
@@ -708,19 +708,19 @@ export default function ImportacionFormPage() {
                     description={
                       <div style={{ maxWidth: 300 }}>
                         <div>Se actualizará el <strong>Costo Promedio Ponderado</strong> de cada artículo con los costos de aterrizaje calculados.</div>
-                        <div style={{ marginTop: 8, color: '#ff4d4f' }}>Esta acción no se puede deshacer.</div>
+                        <div style={{ marginTop: 8, color: '#e5484d' }}>Esta acción no se puede deshacer.</div>
                       </div>
                     }
                     onConfirm={handleConfirm}
                     okText="Confirmar" cancelText="Cancelar"
-                    okButtonProps={{ style: { background: '#1B3A6B' }, loading: confirming }}
+                    okButtonProps={{ style: { background: '#1faec2' }, loading: confirming }}
                   >
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       loading={confirming}
                       disabled={lineas.length === 0}
-                      style={{ background: '#1B3A6B' }}
+                      style={{ background: '#1faec2' }}
                     >
                       Confirmar importación
                     </Button>

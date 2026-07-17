@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
   BankOutlined, BarChartOutlined, SettingOutlined,
   LogoutOutlined, UserOutlined, BellOutlined,
   ProjectOutlined, AuditOutlined, InboxOutlined,
-  MenuFoldOutlined, MenuUnfoldOutlined, BookOutlined,
+  MenuFoldOutlined, MenuUnfoldOutlined,
   TabletOutlined, SearchOutlined, GlobalOutlined,
   TeamOutlined,
 } from '@ant-design/icons'
@@ -14,7 +14,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import { useCompanyStore } from '../store/companyStore'
 import CompanySelector from '../components/CompanySelector'
-import CompanyContextBar from '../components/CompanyContextBar'
 import NoCompanyGuard from '../components/NoCompanyGuard'
 import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
 import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
@@ -126,7 +125,8 @@ const pageVariants = {
 }
 
 export default function MainLayout() {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
+  const lastNavKey = useRef('')
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
@@ -152,6 +152,11 @@ export default function MainLayout() {
   useEffect(() => {
     if (isCajero) navigate('/pos', { replace: true })
   }, [isCajero])
+
+  // Al expandir el sidebar, abrir el submenú del módulo recién navegado
+  useEffect(() => {
+    if (!collapsed) setOpenKeys(getOpenKey(lastNavKey.current || location.pathname))
+  }, [collapsed])
 
   // 1. Filtrar por enabledModules de la empresa activa
   // 2. Filtrar Platform Admin solo para superadmin
@@ -180,41 +185,32 @@ export default function MainLayout() {
         collapsed={collapsed}
         width={248}
         style={{
-          background: 'linear-gradient(180deg, #0f2347 0%, #1B3A6B 60%, #1e4080 100%)',
+          background: '#ffffff',
           position: 'fixed',
           height: '100vh',
           left: 0,
           top: 0,
           zIndex: 100,
-          boxShadow: '4px 0 24px rgba(0,0,0,0.15)',
-          transition: 'width 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          borderRight: '1px solid rgba(10,10,10,0.08)',
+          boxShadow: '2px 0 8px rgba(10,10,10,0.04)',
+          transition: 'width 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         }}
+        onClick={() => { if (collapsed) setCollapsed(false) }}
       >
         {/* Logo */}
         <div style={{
-          height: 64,
+          height: 72,
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'flex-start',
-          padding: collapsed ? 0 : '0 20px',
-          gap: 10,
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          padding: collapsed ? 0 : '0 10px 0 0',
+          borderBottom: '1px solid rgba(10,10,10,0.06)',
           marginBottom: 8,
         }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(96,165,250,0.4)',
-            flexShrink: 0,
-          }}>
-            <BookOutlined style={{ fontSize: 16, color: '#fff' }} />
-          </div>
-          {!collapsed && (
-            <div>
-              <div style={{ color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1.2 }}>ContaERP</div>
-              <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 500 }}>GLL Consulting</div>
-            </div>
+          {collapsed ? (
+            <img src="/lucia-icon.svg" alt="Lucía" style={{ width: 34, height: 34 }} />
+          ) : (
+            <img src="/lucia-logo.svg?v=3" alt="Lucía" style={{ height: 64, width: 'auto', marginLeft: 32 }} />
           )}
         </div>
 
@@ -223,17 +219,14 @@ export default function MainLayout() {
           overflowY: 'auto',
           overflowX: 'hidden',
         }}>
-          {/* Company Selector */}
-          {!collapsed && <CompanySelector />}
-
           <Menu
-            theme="dark"
+            theme="light"
             mode="inline"
             selectedKeys={[location.pathname]}
             openKeys={openKeys}
             onOpenChange={handleOpenChange}
             items={visibleMenuItems}
-            onClick={({ key }) => navigate(key)}
+            onClick={({ key }) => { lastNavKey.current = key; navigate(key) }}
             style={{
               background: 'transparent',
               borderRight: 'none',
@@ -246,7 +239,7 @@ export default function MainLayout() {
       {/* ── Main area ───────────────────────────────────────────── */}
       <Layout style={{
         marginLeft: collapsed ? 80 : 248,
-        transition: 'margin 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        transition: 'margin 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }}>
 
         {/* Header glassmorphism */}
@@ -275,7 +268,7 @@ export default function MainLayout() {
                 style={{ color: '#6b7280', borderRadius: 8 }}
               />
             </Tooltip>
-            <CompanyContextBar />
+            <CompanySelector placement="header" />
             <OnboardingProgressBadge />
           </Space>
 
@@ -314,7 +307,7 @@ export default function MainLayout() {
                 <Avatar
                   size={30}
                   style={{
-                    background: 'linear-gradient(135deg, #1B3A6B, #2d5fa6)',
+                    background: 'linear-gradient(135deg, #ff9a30, #ff7f00)',
                     fontSize: 12, fontWeight: 700,
                   }}
                 >
@@ -326,7 +319,7 @@ export default function MainLayout() {
                       ? (user.fullName || `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email)
                       : 'Usuario'}
                   </div>
-                  <div style={{ fontSize: 10, color: '#9ca3af' }}>
+                  <div style={{ fontSize: 10, color: '#9aa1ab' }}>
                     {user?.isSuperAdmin ? 'Super Admin' : 'Administrador'}
                   </div>
                 </div>
@@ -339,7 +332,7 @@ export default function MainLayout() {
         <EnterpriseBreadcrumb />
 
         {/* Contenido con transición */}
-        <Content style={{ padding: 24, minHeight: 'calc(100vh - 60px)' }}>
+        <Content style={{ padding: 24, minHeight: 'calc(100vh - 60px)' }} onClick={() => setCollapsed(true)}>
           <NoCompanyGuard>
           <AnimatePresence mode="wait">
             <motion.div

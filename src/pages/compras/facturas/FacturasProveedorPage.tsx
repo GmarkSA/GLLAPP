@@ -37,7 +37,7 @@ function FmtDual({ amount, currency, exchangeRate, bold }: {
   if (cur !== 'GTQ' && fx > 1) {
     return (
       <div style={{ textAlign: 'right' }}>
-        <Text style={{ fontSize: 13, color: '#0369a1', fontWeight: bold ? 700 : 600 }}>
+        <Text style={{ fontSize: 13, color: '#374151', fontWeight: bold ? 700 : 600 }}>
           {cur} {n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
         </Text>
         <br />
@@ -109,10 +109,10 @@ function buildColDef(
   switch (key) {
     case 'invoiceNumber':
       return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 140, fixed: 'left' as const,
-        render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
+        render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> }
     case 'vendorInvoiceNumber':
       return { ...base, title: '# Fact. Proveedor', dataIndex: 'vendorInvoiceNumber', width: 140,
-        render: (v: string) => v ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text> }
+        render: (v: string) => v ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text> }
     case 'vendor':
       return { ...base, title: 'Proveedor', width: 200,
         render: (_: any, r: PurchaseInvoice) => (
@@ -123,7 +123,7 @@ function buildColDef(
         ) }
     case 'vendorTaxId':
       return { ...base, title: 'NIT Proveedor', dataIndex: 'vendorTaxId', width: 120,
-        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+        render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'invoiceType':
       return { ...base, title: 'Tipo', dataIndex: 'invoiceType', width: 130,
         render: (v: string) => {
@@ -137,16 +137,16 @@ function buildColDef(
       return { ...base, title: 'Fecha Contabiliz.', dataIndex: 'accountingDate', width: 115,
         render: (v: string, r: PurchaseInvoice) => {
           const diff = v && r.invoiceDate && new Date(v).toDateString() !== new Date(r.invoiceDate as any).toDateString()
-          return <span style={{ fontSize: 12, color: diff ? '#d97706' : undefined, fontWeight: diff ? 600 : undefined }}>
+          return <span style={{ fontSize: 12, color: diff ? '#ff7f00' : undefined, fontWeight: diff ? 600 : undefined }}>
             {v ? dayjs(v).format('DD/MM/YYYY') : '—'}
           </span>
         } }
     case 'felSerie':
       return { ...base, title: 'Serie FEL', dataIndex: 'felSerie', width: 80,
-        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+        render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'felNumber':
       return { ...base, title: 'No. SAT', dataIndex: 'felNumber', width: 100,
-        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+        render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'currency':
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 75,
         render: (v: string) => <Tag style={{ fontSize: 11 }}>{v || 'GTQ'}</Tag> }
@@ -154,7 +154,7 @@ function buildColDef(
       return { ...base, title: 'T/C', dataIndex: 'exchangeRate', width: 90, align: 'right' as const,
         render: (v: number, r: PurchaseInvoice) =>
           (r.currency && r.currency !== 'GTQ')
-            ? <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(v).toFixed(4)}</span>
+            ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{Number(v).toFixed(4)}</span>
             : <Text type="secondary">—</Text> }
     case 'paymentTerms':
       return { ...base, title: 'Términos Pago', dataIndex: 'paymentTerms', width: 130,
@@ -164,7 +164,7 @@ function buildColDef(
         render: (v: string, r: PurchaseInvoice) => {
           if (!v) return <Text type="secondary">—</Text>
           const isOver = r.status === 'overdue'
-          return <span style={{ fontSize: 12, color: isOver ? '#ff4d4f' : undefined, fontWeight: isOver ? 600 : undefined }}>
+          return <span style={{ fontSize: 12, color: isOver ? '#e5484d' : undefined, fontWeight: isOver ? 600 : undefined }}>
             {dayjs(v).format('DD/MM/YYYY')}
           </span>
         } }
@@ -176,13 +176,13 @@ function buildColDef(
         render: (v: number, r: PurchaseInvoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} /> }
     case 'idpAmount':
       return { ...base, title: 'IDP', dataIndex: 'idpAmount', width: 90, align: 'right' as const,
-        render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#d97706' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
+        render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#ff7f00' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
     case 'isrRetentionAmount':
       return { ...base, title: 'Ret. ISR', dataIndex: 'isrRetentionAmount', width: 100, align: 'right' as const,
-        render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#7c3aed' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
+        render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#ff7f00' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
     case 'ivaRetentionAmount':
       return { ...base, title: 'Ret. IVA', dataIndex: 'ivaRetentionAmount', width: 100, align: 'right' as const,
-        render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#7c3aed' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
+        render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#ff7f00' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
         render: (v: number, r: PurchaseInvoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} bold /> }
@@ -198,7 +198,7 @@ function buildColDef(
           const isFx = r.currency && r.currency !== 'GTQ' && Number(r.exchangeRate) > 1
           if (isFx) return (
             <div style={{ textAlign: 'right' }}>
-              <Text style={{ fontSize: 13, fontWeight: 700, color: Number(v) > 0 ? '#0369a1' : '#52c41a' }}>
+              <Text style={{ fontSize: 13, fontWeight: 700, color: Number(v) > 0 ? '#374151' : '#2ea172' }}>
                 {r.currency} {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               </Text>
               <br />
@@ -207,7 +207,7 @@ function buildColDef(
               </Text>
             </div>
           )
-          return <Text style={{ fontWeight: 700, color: Number(v) > 0 ? '#cf1322' : '#52c41a' }}>{fmtGTQ(v)}</Text>
+          return <Text style={{ fontWeight: 700, color: Number(v) > 0 ? '#e5484d' : '#2ea172' }}>{fmtGTQ(v)}</Text>
         } }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 110,
@@ -344,7 +344,7 @@ export default function FacturasProveedorPage() {
             {!isPaid && !isVoided && (
               <Tooltip title="Ir a Pagos a Proveedores">
                 <Button size="small" icon={<DollarOutlined />}
-                  style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                  style={{ color: '#2ea172', borderColor: '#2ea172' }}
                   onClick={() => openPay(r)} />
               </Tooltip>
             )}
@@ -369,16 +369,16 @@ export default function FacturasProveedorPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ShopOutlined style={{ fontSize: 24, color: '#1B3A6B' }} />
+          <ShopOutlined style={{ fontSize: 24, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Facturas de proveedor</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Facturas de proveedor</Title>
             <Text type="secondary">Registro de facturas recibidas de proveedores</Text>
           </div>
         </div>
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={() => navigate('/compras/facturas/nueva')}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nueva factura proveedor
         </Button>
@@ -428,8 +428,8 @@ export default function FacturasProveedorPage() {
                     size="small"
                     icon={<SettingOutlined />}
                     style={{
-                      border: colPopover ? '1px solid #1B3A6B' : undefined,
-                      color:  colPopover ? '#1B3A6B' : undefined,
+                      border: colPopover ? '1px solid #1faec2' : undefined,
+                      color:  colPopover ? '#1faec2' : undefined,
                     }}
                   >
                     Columnas

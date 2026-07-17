@@ -71,7 +71,7 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
   switch (key) {
     case 'invoiceNumber':
       return { ...base, title: 'N° NC', dataIndex: 'invoiceNumber', width: 155, fixed: 'left' as const,
-        render: (v: string) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12 }}>{v}</Text> }
+        render: (v: string) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 12 }}>{v}</Text> }
     case 'invoiceDate':
       return { ...base, title: 'Fecha', dataIndex: 'invoiceDate', width: 105,
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
@@ -85,11 +85,11 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
         ) }
     case 'customerTaxId':
       return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
-        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+        render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'originalInvoice':
       return { ...base, title: 'Factura Original', width: 150,
         render: (_: any, r: NotaCredito) => r.originalInvoice
-          ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.originalInvoice.invoiceNumber}</Text>
+          ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{r.originalInvoice.invoiceNumber}</Text>
           : <Text type="secondary" style={{ fontSize: 11 }}>—</Text> }
     case 'creditNoteReason':
       return { ...base, title: 'Motivo', dataIndex: 'creditNoteReason', ellipsis: true,
@@ -99,24 +99,24 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
         render: (v: string) => <Tag style={{ fontSize: 11 }}>{v || 'GTQ'}</Tag> }
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const,
-        render: (v: number) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</span> }
+        render: (v: number) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 100, align: 'right' as const,
-        render: (v: number) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</span> }
+        render: (v: number) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 120, align: 'right' as const,
-        render: (v: number) => <Text strong style={{ fontFamily: 'monospace', fontSize: 13 }}>{fmtQ(v)}</Text> }
+        render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmtQ(v)}</Text> }
     case 'creditBalance':
       return { ...base, title: 'Crédito disp.', dataIndex: 'creditBalance', width: 120, align: 'right' as const,
         render: (v: number) => (
-          <Text strong style={{ fontFamily: 'monospace', fontSize: 13, color: Number(v) > 0 ? '#52c41a' : '#bbb' }}>
+          <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: Number(v) > 0 ? '#2ea172' : '#bbb' }}>
             {fmtQ(v)}
           </Text>
         ) }
     case 'appliedCreditAmount':
       return { ...base, title: 'Crédito aplicado', dataIndex: 'appliedCreditAmount', width: 130, align: 'right' as const,
         render: (v: number) => Number(v) > 0
-          ? <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#1677ff' }}>{fmtQ(v)}</span>
+          ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v)}</span>
           : <Text type="secondary">—</Text> }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 130,
@@ -127,14 +127,14 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
     case 'felStatus':
       return { ...base, title: 'FEL', dataIndex: 'felStatus', width: 100,
         render: (v: string) => v
-          ? <Tag color={v === 'certificada' ? 'green' : v === 'error' ? 'red' : 'default'}>{v}</Tag>
+          ? <Tag color={v === 'certificada' ? '#2ea172' : v === 'error' ? '#e5484d' : 'default'}>{v}</Tag>
           : <Text type="secondary">—</Text> }
     case 'felSerie':
       return { ...base, title: 'Serie FEL', dataIndex: 'felSerie', width: 80,
-        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+        render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'felNumero':
       return { ...base, title: 'No. SAT', dataIndex: 'felNumero', width: 100,
-        render: (v: string) => <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '—'}</span> }
+        render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'notes':
       return { ...base, title: 'Notas', dataIndex: 'notes', width: 150, ellipsis: true,
         render: (v: string) => v
@@ -238,13 +238,13 @@ export default function NotasCreditoPage() {
           </Tooltip>
           {r.status === 'draft' && (
             <Tooltip title="Editar">
-              <Button size="small" type="text" icon={<EditOutlined style={{ color: '#1B3A6B' }} />}
+              <Button size="small" type="text" icon={<EditOutlined style={{ color: '#1faec2' }} />}
                 onClick={() => navigate(`/ventas/notas-credito/${r.id}/editar`)} />
             </Tooltip>
           )}
           {r.status === 'draft' && (
             <Tooltip title="Emitir FEL">
-              <Button size="small" type="text" icon={<SendOutlined style={{ color: '#52c41a' }} />}
+              <Button size="small" type="text" icon={<SendOutlined style={{ color: '#2ea172' }} />}
                 loading={emitting === r.id}
                 onClick={() => handleEmitir(r.id)} />
             </Tooltip>
@@ -275,13 +275,13 @@ export default function NotasCreditoPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <FileTextOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <FileTextOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Notas de Crédito</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Notas de Crédito</Title>
             <Text type="secondary">Gestión de devoluciones y ajustes a clientes</Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
           onClick={() => navigate('/ventas/notas-credito/nueva')}>
           Nueva Nota de Crédito
         </Button>
@@ -323,7 +323,7 @@ export default function NotasCreditoPage() {
           >
             <Tooltip title="Configurar columnas">
               <Button size="small" icon={<SettingOutlined />}
-                style={{ border: colPopover ? '1px solid #1B3A6B' : undefined, color: colPopover ? '#1B3A6B' : undefined }}>
+                style={{ border: colPopover ? '1px solid #1faec2' : undefined, color: colPopover ? '#1faec2' : undefined }}>
                 Columnas
               </Button>
             </Tooltip>
@@ -340,7 +340,7 @@ export default function NotasCreditoPage() {
         ].map(s => (
           <Col span={8} key={s.title}>
             <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-              <Statistic title={s.title} value={s.value} formatter={v => s.fmt(Number(v))} valueStyle={{ fontSize: 16, color: '#1B3A6B' }} />
+              <Statistic title={s.title} value={s.value} formatter={v => s.fmt(Number(v))} valueStyle={{ fontSize: 16, color: '#0a0a0a' }} />
             </Card>
           </Col>
         ))}

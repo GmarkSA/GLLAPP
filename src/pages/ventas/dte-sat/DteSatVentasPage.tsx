@@ -33,17 +33,17 @@ const POLL_INTERVAL_MS = 20_000
 
 const statusConfig: Record<SatEmitidosStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:   { label: 'Cliente pendiente', color: 'gold',    icon: <WarningOutlined /> },
-  ready:     { label: 'Listo',             color: 'green',   icon: <CheckCircleOutlined /> },
+  ready:     { label: 'Listo',             color: '#2ea172',   icon: <CheckCircleOutlined /> },
   duplicate: { label: 'Duplicado',         color: 'volcano', icon: <FileTextOutlined /> },
-  posted:    { label: 'Contabilizado',     color: 'blue',    icon: <BookOutlined /> },
-  error:     { label: 'Error',             color: 'red',     icon: <WarningOutlined /> },
+  posted:    { label: 'Contabilizado',     color: '#1faec2',    icon: <BookOutlined /> },
+  error:     { label: 'Error',             color: '#e5484d',     icon: <WarningOutlined /> },
 }
 
 const jobStatusConfig: Record<string, { label: string; color: string }> = {
   queued:    { label: 'En cola',    color: 'default' },
   running:   { label: 'Ejecutando', color: 'processing' },
-  succeeded: { label: 'Finalizado', color: 'green' },
-  failed:    { label: 'Error',      color: 'red' },
+  succeeded: { label: 'Finalizado', color: '#2ea172' },
+  failed:    { label: 'Error',      color: '#e5484d' },
 }
 
 function money(value: unknown) {
@@ -477,7 +477,7 @@ export default function DteSatVentasPage() {
       dataIndex: 'fechaEmision',
       width: 95,
       sorter: (a, b) => String(a.fechaEmision ?? '').localeCompare(String(b.fechaEmision ?? '')),
-      render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v ? String(v).substring(0, 10) : '—'}</Text>,
+      render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v ? String(v).substring(0, 10) : '—'}</Text>,
     },
     {
       title: 'Tipo / Serie / No.',
@@ -488,7 +488,7 @@ export default function DteSatVentasPage() {
           <Tag style={{ fontSize: 10, padding: '0 4px', margin: 0, lineHeight: '18px', flexShrink: 0 }}>
             {r.tipoDocumento ?? 'FACT'}
           </Tag>
-          <Text style={{ fontSize: 11, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+          <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
             {r.serie ?? '—'} / {r.numeroDte ?? '—'}
           </Text>
         </span>
@@ -500,7 +500,7 @@ export default function DteSatVentasPage() {
       width: 130,
       render: (v: string) => (
         <Tooltip title={v}>
-          <Text style={{ fontSize: 11, fontFamily: 'monospace', cursor: 'default' }}>
+          <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', cursor: 'default' }}>
             {v?.slice(0, 12)}…
           </Text>
         </Tooltip>
@@ -530,7 +530,7 @@ export default function DteSatVentasPage() {
       width: 150,
       render: (_: unknown, r: SatDteEmitidos) => {
         if (r.status === 'error') return (
-          <Tag color="red" icon={<WarningOutlined />} style={{ fontSize: 10 }}>Error</Tag>
+          <Tag color="#e5484d" icon={<WarningOutlined />} style={{ fontSize: 10 }}>Error</Tag>
         )
         if (r.status === 'duplicate') return (
           <Tag color="volcano" icon={<FileTextOutlined />} style={{ fontSize: 10 }}>Duplicado</Tag>
@@ -552,13 +552,13 @@ export default function DteSatVentasPage() {
               {steps.map((step, i) => (
                 <Tooltip key={i} title={step.tip}>
                   <span style={{ fontSize: 13, lineHeight: 1, cursor: 'default',
-                    color: step.done ? (step.last ? '#16a34a' : '#1B3A6B') : '#d1d5db' }}>
+                    color: step.done ? (step.last ? '#2ea172' : '#1faec2') : '#d1d5db' }}>
                     {step.done ? '●' : '○'}
                   </span>
                 </Tooltip>
               ))}
             </div>
-            <Text type={s4 ? undefined : 'secondary'} style={{ fontSize: 10, color: s4 ? '#16a34a' : undefined }}>
+            <Text type={s4 ? undefined : 'secondary'} style={{ fontSize: 10, color: s4 ? '#2ea172' : undefined }}>
               {label}
             </Text>
           </div>
@@ -600,7 +600,7 @@ export default function DteSatVentasPage() {
                   size="small"
                   icon={<EyeOutlined />}
                   onClick={() => r.invoiceId && navigate(`/ventas/facturas/${r.invoiceId}`)}
-                  style={{ fontSize: 11, borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                  style={{ fontSize: 11, borderColor: '#1faec2', color: '#1faec2' }}
                 >
                   Ver factura
                 </Button>
@@ -612,7 +612,7 @@ export default function DteSatVentasPage() {
                   type="primary"
                   icon={<BookOutlined />}
                   onClick={() => openStepper(r)}
-                  style={{ fontSize: 11, background: '#1B3A6B' }}
+                  style={{ fontSize: 11, background: '#1faec2' }}
                 >
                   Procesar
                 </Button>
@@ -632,7 +632,7 @@ export default function DteSatVentasPage() {
       title: 'Iniciado',
       dataIndex: 'createdAt',
       width: 160,
-      render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—'}</Text>,
+      render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—'}</Text>,
     },
     {
       title: 'Rango',
@@ -657,14 +657,14 @@ export default function DteSatVentasPage() {
       dataIndex: 'importedCount',
       width: 100,
       align: 'right' as const,
-      render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v ?? 0}</Text>,
+      render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{v ?? 0}</Text>,
     },
     {
       title: 'Duplicados',
       dataIndex: 'duplicateCount',
       width: 100,
       align: 'right' as const,
-      render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v ?? 0}</Text>,
+      render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{v ?? 0}</Text>,
     },
     {
       title: '',
@@ -714,7 +714,7 @@ export default function DteSatVentasPage() {
                     {stepperDte.tipoDocumento ?? 'FACT'} · {stepperDte.serie ?? '—'}/{stepperDte.numeroDte ?? '—'}
                   </Text>
                 </div>
-                <Text strong style={{ fontSize: 18, color: '#1B3A6B' }}>{money(stepperDte.total)}</Text>
+                <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total)}</Text>
               </div>
               <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
                 { title: 'DTE' },
@@ -752,7 +752,7 @@ export default function DteSatVentasPage() {
                   <Descriptions.Item label="Subtotal">{money(stepperDte.subtotal)}</Descriptions.Item>
                   <Descriptions.Item label="IVA">{money(stepperDte.totalIva)}</Descriptions.Item>
                   <Descriptions.Item label="Total" span={2}>
-                    <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>{money(stepperDte.total)}</Text>
+                    <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(stepperDte.total)}</Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="Archivos" span={2}>
                     <Space size={16}>
@@ -761,7 +761,7 @@ export default function DteSatVentasPage() {
                         : <Text type="secondary">XML</Text>}
                       {stepperDte.pdfUrl
                         ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
-                        : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#d97706' }}>Ver en SAT ↗</a>}
+                        : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#ff7f00' }}>Ver en SAT ↗</a>}
                     </Space>
                   </Descriptions.Item>
                 </Descriptions>
@@ -774,7 +774,7 @@ export default function DteSatVentasPage() {
                 stepperCustomer ? (
                   <div style={{ padding: '16px 0' }}>
                     <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                      <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
+                      <CheckCircleOutlined style={{ fontSize: 44, color: '#2ea172', display: 'block', marginBottom: 10 }} />
                       <Text strong style={{ fontSize: 15 }}>Cliente vinculado</Text>
                       <br />
                       <Text type="secondary">{stepperCustomer.name} · NIT: {stepperDte.nitReceptor}</Text>
@@ -970,15 +970,15 @@ export default function DteSatVentasPage() {
                 const invoiceId = (stepperResult.invoice as any)?.id
                 return (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <CheckCircleOutlined style={{ fontSize: 52, color: '#16a34a', marginBottom: 14 }} />
+                  <CheckCircleOutlined style={{ fontSize: 52, color: '#2ea172', marginBottom: 14 }} />
                   <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>DTE Procesado Correctamente</Text>
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
+                  <div style={{ background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
                     <div>
                       <Text type="secondary">{isNC3 ? 'Nota de Crédito:' : 'Factura:'}</Text>{' '}
                       <Text strong>{invoiceNumber}</Text>
                     </div>
                     {(stepperResult.invoice as any)?.journalEntryId && (
-                      <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#16a34a' }}>Generada automáticamente</Text></div>
+                      <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#2ea172' }}>Generada automáticamente</Text></div>
                     )}
                     <div><Text type="secondary">Total:</Text> <Text strong>{money(stepperDte?.total)}</Text></div>
                   </div>
@@ -995,7 +995,7 @@ export default function DteSatVentasPage() {
             </div>
 
             {/* Footer navegación */}
-            <div style={{ padding: '12px 24px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '12px 24px', borderTop: '1px solid rgba(10,10,10,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Button
                 onClick={() => { if (stepperStep > 0) setStepperStep(s => s - 1); else closeStepper() }}
                 disabled={stepperStep === 3 || stepperLoading}
@@ -1004,7 +1004,7 @@ export default function DteSatVentasPage() {
               </Button>
               <Space>
                 {stepperStep === 0 && (
-                  <Button type="primary" style={{ background: '#1B3A6B' }} onClick={() => setStepperStep(1)}>
+                  <Button type="primary" style={{ background: '#1faec2' }} onClick={() => setStepperStep(1)}>
                     Siguiente →
                   </Button>
                 )}
@@ -1012,7 +1012,7 @@ export default function DteSatVentasPage() {
                   <Tooltip title={stepperCustomer && !stepperCustomer.receivableAccountId
                     ? 'Configura la Cuenta CxC del cliente antes de continuar'
                     : undefined}>
-                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                    <Button type="primary" style={{ background: '#1faec2' }}
                       disabled={!stepperCustomer || !stepperCustomer.receivableAccountId || stepperLoading}
                       onClick={() => {
                         if (stepperCustomer) {
@@ -1028,7 +1028,7 @@ export default function DteSatVentasPage() {
                 )}
                 {stepperStep === 2 && (
                   <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}
-                    style={{ background: '#1B3A6B' }} onClick={handlePost}>
+                    style={{ background: '#1faec2' }} onClick={handlePost}>
                     Registrar y Contabilizar
                   </Button>
                 )}
@@ -1041,7 +1041,7 @@ export default function DteSatVentasPage() {
                     }}>
                       Procesar siguiente DTE
                     </Button>
-                    <Button type="primary" style={{ background: '#1B3A6B' }} onClick={closeStepper}>
+                    <Button type="primary" style={{ background: '#1faec2' }} onClick={closeStepper}>
                       Cerrar
                     </Button>
                   </Space>
@@ -1060,7 +1060,7 @@ export default function DteSatVentasPage() {
         <Modal
           open={batchOpen}
           width={820}
-          title={<Space><ThunderboltOutlined style={{ color: '#16a34a' }} />Registro masivo — {batchRows.length} DTE{batchRows.length > 1 ? 's' : ''}</Space>}
+          title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} />Registro masivo — {batchRows.length} DTE{batchRows.length > 1 ? 's' : ''}</Space>}
           footer={null}
           maskClosable={false}
           onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
@@ -1086,7 +1086,7 @@ export default function DteSatVentasPage() {
                 </thead>
                 <tbody>
                   {batchRows.map(row => (
-                    <tr key={row.id} style={{ borderBottom: '1px solid #f0f0f0', background: row.missing ? '#fff7ed' : undefined }}>
+                    <tr key={row.id} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)', background: row.missing ? 'rgba(255,127,0,0.10)' : undefined }}>
                       <td style={{ padding: '6px 10px' }}><Text style={{ fontSize: 12 }}>{row.label}</Text></td>
                       <td style={{ padding: '4px 6px' }}>
                         {row.status === 'pending' ? (
@@ -1110,7 +1110,7 @@ export default function DteSatVentasPage() {
                           <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountLabel ?? '—'}</Text>
                         )}
                         {row.missing && row.status === 'pending' && (
-                          <div style={{ color: '#d97706', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                          <div style={{ color: '#ff7f00', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
                         )}
                       </td>
                       <td style={{ padding: '4px 6px' }}>
@@ -1136,7 +1136,7 @@ export default function DteSatVentasPage() {
                           <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountingDate?.format('DD/MM/YYYY') ?? '—'}</Text>
                         )}
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11 }}>{money(row.total)}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{money(row.total)}</td>
                       <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                         {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
                         {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
@@ -1158,9 +1158,9 @@ export default function DteSatVentasPage() {
                     </Text>
                   )}
                   {allDone && (
-                    <Text style={{ fontSize: 12, color: '#16a34a' }}>
+                    <Text style={{ fontSize: 12, color: '#2ea172' }}>
                       ✓ {batchRows.filter(r => r.status === 'ok').length} registrado{batchRows.filter(r => r.status === 'ok').length !== 1 ? 's' : ''}
-                      {batchRows.some(r => r.status === 'error') && <span style={{ color: '#dc2626' }}> · {batchRows.filter(r => r.status === 'error').length} con error</span>}
+                      {batchRows.some(r => r.status === 'error') && <span style={{ color: '#e5484d' }}> · {batchRows.filter(r => r.status === 'error').length} con error</span>}
                     </Text>
                   )}
                 </div>
@@ -1169,12 +1169,12 @@ export default function DteSatVentasPage() {
                   {!allDone ? (
                     <Button type="primary" icon={<ThunderboltOutlined />} loading={batchRunning}
                       disabled={!canProcess}
-                      style={{ background: canProcess ? '#16a34a' : undefined, borderColor: canProcess ? '#16a34a' : undefined }}
+                      style={{ background: canProcess ? '#2ea172' : undefined, borderColor: canProcess ? '#2ea172' : undefined }}
                       onClick={handleBatchPost}>
                       Registrar {batchRows.filter(r => !r.missing && r.accountId).length} DTE{batchRows.filter(r => !r.missing && r.accountId).length !== 1 ? 's' : ''}
                     </Button>
                   ) : (
-                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                    <Button type="primary" style={{ background: '#1faec2' }}
                       onClick={() => { setBatchOpen(false); setBatchRows([]) }}>
                       Cerrar
                     </Button>
@@ -1190,12 +1190,12 @@ export default function DteSatVentasPage() {
       {/* ─── Import Card ──────────────────────────────────────────────────── */}
       <Card
         bordered={false}
-        style={{ borderTop: '3px solid #1B3A6B' }}
+        style={{ borderTop: '3px solid #1faec2' }}
         styles={{ body: { paddingTop: 10, paddingBottom: 10 } }}
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
-              <Title level={4} style={{ margin: 0, color: '#102a56' }}>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
                 DTE SAT — Emitidos{hasRunningJobs && <Spin size="small" style={{ marginLeft: 8 }} />}
               </Title>
               <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
@@ -1208,7 +1208,7 @@ export default function DteSatVentasPage() {
                 ⚠ Configura credenciales SAT en <strong>Configuración → Configuración fiscal</strong>
               </div>
             ) : (
-              <div style={{ fontSize: 11, color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 11, color: '#2ea172', background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
                 ✓ NIT {satCredentials.satNit} configurado
               </div>
             )}
@@ -1254,7 +1254,7 @@ export default function DteSatVentasPage() {
             <Col xs={24} md={10}>
               <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
                 disabled={!satCredentials.satNit}
-                block style={{ background: '#1B3A6B' }}>
+                block style={{ background: '#1faec2' }}>
                 Importar Emitidos
               </Button>
             </Col>
@@ -1308,7 +1308,7 @@ export default function DteSatVentasPage() {
                     <Button
                       size="small"
                       icon={<ThunderboltOutlined />}
-                      style={{ background: '#16a34a', borderColor: '#16a34a', color: '#fff' }}
+                      style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}
                       onClick={openBatchModal}
                     >
                       Registrar {selectedIds.length} seleccionado{selectedIds.length > 1 ? 's' : ''}

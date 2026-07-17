@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component<Props, State> {
           subTitle={this.state.error.message}
           extra={[
             <pre key="stack" style={{
-              textAlign: 'left', background: '#f5f5f5', padding: 16,
+              textAlign: 'left', background: '#fafbfc', padding: 16,
               borderRadius: 8, fontSize: 12, maxHeight: 300, overflow: 'auto',
               whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>

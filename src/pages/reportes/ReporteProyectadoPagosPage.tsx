@@ -23,12 +23,12 @@ const fmtQ = (n: number) =>
 const BUCKET_ORDER = ['overdue', 'd7', 'd15', 'd30', 'd60', 'd90plus']
 
 const BUCKET_STYLE: Record<string, { color: string; badgeColor: string; bg: string }> = {
-  overdue:  { color: '#cf1322', badgeColor: 'red',    bg: '#fff1f0' },
-  d7:       { color: '#d46b08', badgeColor: 'orange', bg: '#fff7e6' },
-  d15:      { color: '#ad6800', badgeColor: 'gold',   bg: '#fffbe6' },
-  d30:      { color: '#1B3A6B', badgeColor: 'blue',   bg: '#e6f4ff' },
-  d60:      { color: '#237804', badgeColor: 'green',  bg: '#f6ffed' },
-  d90plus:  { color: '#555',    badgeColor: 'default', bg: '#fafafa' },
+  overdue:  { color: '#e5484d', badgeColor: '#e5484d',    bg: '#fdecec' },
+  d7:       { color: '#ff7f00', badgeColor: '#ff7f00', bg: '#fff2e5' },
+  d15:      { color: '#b35900', badgeColor: '#ff7f00',   bg: '#fff2e5' },
+  d30:      { color: '#1faec2', badgeColor: '#1faec2',   bg: '#e6fafd' },
+  d60:      { color: '#2ea172', badgeColor: '#2ea172',  bg: '#e8f5ef' },
+  d90plus:  { color: '#555',    badgeColor: 'default', bg: '#fafbfc' },
 }
 
 export default function ReporteProyectadoPagosPage() {
@@ -61,7 +61,7 @@ export default function ReporteProyectadoPagosPage() {
     },
     {
       title: 'Factura', dataIndex: 'invoiceNumber', width: 145,
-      render: (v) => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>,
+      render: (v) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>,
     },
     {
       title: 'F. Factura', dataIndex: 'invoiceDate', width: 105,
@@ -75,7 +75,7 @@ export default function ReporteProyectadoPagosPage() {
         const label = d < 0
           ? `Vencida (${Math.abs(d)}d)`
           : d === 0 ? 'Hoy' : `En ${d}d`
-        const color = d < 0 ? 'red' : d <= 7 ? 'orange' : 'blue'
+        const color = d < 0 ? '#e5484d' : d <= 7 ? '#ff7f00' : '#1faec2'
         return (
           <Tooltip title={dayjs(v).format('DD/MM/YYYY')}>
             <Tag color={color} style={{ fontSize: 11 }}>{label}</Tag>
@@ -85,11 +85,11 @@ export default function ReporteProyectadoPagosPage() {
     },
     {
       title: 'Moneda', dataIndex: 'currency', width: 75, align: 'center',
-      render: (v) => v !== 'GTQ' ? <Tag color="purple">{v}</Tag> : null,
+      render: (v) => v !== 'GTQ' ? <Tag color="#6b7280">{v}</Tag> : null,
     },
     {
       title: 'Saldo', dataIndex: 'balanceGTQ', width: 130, align: 'right',
-      render: (v) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(v)}</Text>,
+      render: (v) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v)}</Text>,
     },
     {
       key: 'action', width: 100, align: 'center',
@@ -119,9 +119,9 @@ export default function ReporteProyectadoPagosPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <CalendarOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <CalendarOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Reporte Proyectado de Pagos</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Reporte Proyectado de Pagos</Title>
             <Text type="secondary">Flujo de caja por vencimientos CxP</Text>
           </div>
         </div>
@@ -143,10 +143,10 @@ export default function ReporteProyectadoPagosPage() {
       {/* KPIs semáforo */}
       <Row gutter={12} style={{ marginBottom: 16 }}>
         {[
-          { key: 'overdue', label: 'Vencidas',        value: overdueTotal, color: '#cf1322', icon: <WarningOutlined /> },
-          { key: 'd7',      label: 'Vence en 7 días', value: d7Total,      color: '#d46b08', icon: <DollarOutlined /> },
+          { key: 'overdue', label: 'Vencidas',        value: overdueTotal, color: '#e5484d', icon: <WarningOutlined /> },
+          { key: 'd7',      label: 'Vence en 7 días', value: d7Total,      color: '#ff7f00', icon: <DollarOutlined /> },
           { key: 'd15',     label: 'Vence en 15 días', value: d15Total,    color: '#ad6800', icon: <DollarOutlined /> },
-          { key: 'd30',     label: 'Vence en 30 días', value: d30Total,    color: '#1B3A6B', icon: <DollarOutlined /> },
+          { key: 'd30',     label: 'Vence en 30 días', value: d30Total,    color: '#1faec2', icon: <DollarOutlined /> },
           { key: 'total',   label: 'Total CxP pendiente', value: data?.grandTotal ?? 0, color: '#555', icon: <DollarOutlined /> },
         ].map(kpi => (
           <Col span={4} key={kpi.key} style={{ minWidth: 160 }}>
@@ -207,7 +207,7 @@ export default function ReporteProyectadoPagosPage() {
                 />
                 <Text strong style={{ color: style.color, fontSize: 14 }}>{bucket.label}</Text>
               </Space>
-              <Text strong style={{ fontFamily: 'monospace', color: style.color, fontSize: 15 }}>
+              <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: style.color, fontSize: 15 }}>
                 {fmtQ(bucket.total)}
               </Text>
             </div>
@@ -230,7 +230,7 @@ export default function ReporteProyectadoPagosPage() {
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={5} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', color: style.color }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: style.color }}>
                         {fmtQ(bucket.total)}
                       </Text>
                     </Table.Summary.Cell>
@@ -248,13 +248,13 @@ export default function ReporteProyectadoPagosPage() {
       {data && data.grandTotal > 0 && (
         <Card
           bordered={false}
-          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', background: '#f0f5ff' }}
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', background: '#fafbfc' }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text strong style={{ fontSize: 14 }}>
               Total CxP pendiente al {refDate.format('DD/MM/YYYY')} — {data.total} factura{data.total !== 1 ? 's' : ''}
             </Text>
-            <Text strong style={{ fontFamily: 'monospace', fontSize: 20, color: '#1B3A6B' }}>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 20, color: '#1faec2' }}>
               {fmtQ(data.grandTotal)}
             </Text>
           </div>

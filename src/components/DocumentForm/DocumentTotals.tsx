@@ -56,7 +56,7 @@ const Row = ({ label, value, sub, danger, bold, large, muted }: {
         style={{
           fontSize:   large ? 15 : 13,
           fontWeight: bold  ? 600  : 400,
-          color:      muted ? '#8c8c8c' : undefined,
+          color:      muted ? '#6b7280' : undefined,
         }}
       >
         {label}
@@ -71,7 +71,7 @@ const Row = ({ label, value, sub, danger, bold, large, muted }: {
       style={{
         fontSize:   large ? 15 : 13,
         fontWeight: bold  ? 600  : 400,
-        color:      danger ? '#ff4d4f' : (bold ? '#1B3A6B' : undefined),
+        color:      danger ? '#e5484d' : (bold ? '#1faec2' : undefined),
         textAlign:  'right',
         minWidth:   90,
       }}
@@ -126,7 +126,7 @@ export default function DocumentTotals({
       {/* ── Descuento ────────────────────────────────────────────────────── */}
       {showDiscountInput && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0' }}>
-          <Text style={{ fontSize: 13, color: '#8c8c8c' }}>Descuento (%)</Text>
+          <Text style={{ fontSize: 13, color: '#6b7280' }}>Descuento (%)</Text>
           <InputNumber
             size="small"
             style={{ width: 100 }}
@@ -169,17 +169,17 @@ export default function DocumentTotals({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 13, color: '#8c8c8c' }}>
+                  <Text style={{ fontSize: 13, color: '#6b7280' }}>
                     {t.name}
                   </Text>
                   <Tag
-                    color="blue"
+                    color="#1faec2"
                     style={{ fontSize: 10, padding: '0 5px', lineHeight: '18px', margin: 0 }}
                   >
                     {t.rate}%
                   </Tag>
                 </div>
-                <Text style={{ fontSize: 13, color: '#595959' }}>
+                <Text style={{ fontSize: 13, color: '#6b7280' }}>
                   {fmtNum(scaledAmt, currency)}
                 </Text>
               </div>
@@ -191,17 +191,17 @@ export default function DocumentTotals({
             display:         'flex',
             justifyContent:  'space-between',
             alignItems:      'center',
-            background:      '#f8faff',
+            background:      '#e6fafd',
             borderRadius:    6,
             padding:         '6px 10px',
             margin:          '6px 0',
             border:          '1px solid #e8edf5',
           }}>
-            <Text style={{ fontSize: 12, color: '#595959', fontWeight: 500 }}>
+            <Text style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>
               Importe total de impuestos
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: 600, color: '#1B3A6B' }}>
+              <Text style={{ fontSize: 13, fontWeight: 600, color: '#1faec2' }}>
                 {displayTax.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               </Text>
               <Tag style={{ margin: 0, fontSize: 11 }}>{currency}</Tag>
@@ -224,7 +224,7 @@ export default function DocumentTotals({
         display:        'flex',
         justifyContent: 'space-between',
         alignItems:     'center',
-        background:     '#1B3A6B',
+        background:     '#1faec2',
         borderRadius:   8,
         padding:        '12px 14px',
         marginTop:      4,

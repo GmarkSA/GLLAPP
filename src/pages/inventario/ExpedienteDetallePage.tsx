@@ -114,7 +114,7 @@ function AddDocumentoModal({ expedienteId, open, onClose, onSaved }: {
       onOk={handleOk}
       onCancel={() => { form.resetFields(); onClose() }}
       okText="Agregar"
-      okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       width={600}
       destroyOnClose
     >
@@ -136,12 +136,12 @@ function AddDocumentoModal({ expedienteId, open, onClose, onSaved }: {
         {docType && (
           <>
             <div style={{
-              background: '#f0f7ff', border: '1px solid #bae0ff',
+              background: '#e6fafd', border: '1px solid rgba(31,174,194,0.2)',
               borderRadius: 8, padding: '12px 16px', marginBottom: 16,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <LinkOutlined style={{ color: '#1677ff' }} />
-                <Text strong style={{ color: '#1677ff', fontSize: 13 }}>
+                <LinkOutlined style={{ color: '#1faec2' }} />
+                <Text strong style={{ color: '#1faec2', fontSize: 13 }}>
                   {isFob ? 'Vincular a factura de proveedor (módulo Compras)' : 'Vincular a gasto registrado (módulo Compras)'}
                 </Text>
               </div>
@@ -290,7 +290,7 @@ function AddLineaModal({ expedienteId, open, onClose, onSaved }: {
       onOk={handleOk}
       onCancel={() => { form.resetFields(); onClose() }}
       okText="Agregar"
-      okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
@@ -305,7 +305,7 @@ function AddLineaModal({ expedienteId, open, onClose, onSaved }: {
             {products.map(p => (
               <Option key={p.id} value={p.id}>
                 <Space>
-                  <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1677ff' }}>{p.sku}</Text>
+                  <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{p.sku}</Text>
                   {p.name}
                 </Space>
               </Option>
@@ -457,7 +457,7 @@ export default function ExpedienteDetallePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/inventario/expedientes')} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Nuevo expediente de importación</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Nuevo expediente de importación</Title>
             <Text type="secondary">Se generará automáticamente el número de expediente (IMP-YYYY-NNN)</Text>
           </div>
         </div>
@@ -492,7 +492,7 @@ export default function ExpedienteDetallePage() {
             </Form.Item>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
               <Button onClick={() => navigate('/inventario/expedientes')}>Cancelar</Button>
-              <Button type="primary" htmlType="submit" loading={creating} style={{ background: '#1B3A6B' }}>
+              <Button type="primary" htmlType="submit" loading={creating} style={{ background: '#1faec2' }}>
                 Crear expediente
               </Button>
             </div>
@@ -522,20 +522,20 @@ export default function ExpedienteDetallePage() {
       },
     },
     { title: 'No. Documento', dataIndex: 'documentNumber', width: 130,
-      render: v => v ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> : '—' },
+      render: v => v ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> : '—' },
     { title: 'Proveedor/Emisor', dataIndex: 'supplierName', ellipsis: true,
       render: v => v || '—' },
     { title: 'Moneda', dataIndex: 'currency', width: 80,
       render: (c, r) => <Tooltip title={`Tasa: ${r.exchangeRate}`}><Tag>{c}</Tag></Tooltip> },
     { title: 'Monto orig.', dataIndex: 'amount', width: 110, align: 'right',
-      render: (v, r) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>
+      render: (v, r) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
         {r.currency} {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
       </Text> },
     { title: 'Monto GTQ', dataIndex: 'amountGTQ', width: 110, align: 'right',
-      render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
+      render: v => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
     { title: 'Ref. Contable', width: 100,
       render: (_, r) => (r.compraId || r.gastoId)
-        ? <Tag color="purple">Vinculado</Tag>
+        ? <Tag color="#2ea172">Vinculado</Tag>
         : <Tag color="default">Sin vínculo</Tag> },
     ...(isEditable ? [{
       title: '', width: 48,
@@ -550,24 +550,24 @@ export default function ExpedienteDetallePage() {
   // Linea columns
   const linCols: ColumnsType<ExpedienteLinea> = [
     { title: 'SKU', dataIndex: 'productSku', width: 100,
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v}</Text> },
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{v}</Text> },
     { title: 'Artículo', dataIndex: 'productName', ellipsis: true },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right',
       render: v => Number(v).toLocaleString('es-GT', { maximumFractionDigits: 4 }) },
     { title: 'FOB/u', dataIndex: 'unitCostFob', width: 100, align: 'right',
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v, 4)}</Text> },
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v, 4)}</Text> },
     { title: 'Total FOB', dataIndex: 'totalFob', width: 110, align: 'right',
-      render: v => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
     { title: 'Flete', dataIndex: 'proratedFlete', width: 90, align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text> },
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text> },
     { title: 'Seguro', dataIndex: 'proratedSeguro', width: 80, align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text> },
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text> },
     { title: 'DAI', dataIndex: 'proratedDai', width: 80, align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text> },
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text> },
     { title: 'IVA', dataIndex: 'proratedIva', width: 80, align: 'right',
-      render: v => <Text style={{ fontSize: 11, color: '#595959' }}>{fmtQ(v, 4)}</Text> },
+      render: v => <Text style={{ fontSize: 11, color: '#6b7280' }}>{fmtQ(v, 4)}</Text> },
     { title: 'Costo Aterrizaje/u', dataIndex: 'landedCostPerUnit', width: 150, align: 'right',
-      render: v => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 13 }}>{fmtQ(v, 4)}</Text> },
+      render: v => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v, 4)}</Text> },
     ...(isEditable ? [{
       title: '', width: 48,
       render: (_: any, row: ExpedienteLinea) => (
@@ -586,7 +586,7 @@ export default function ExpedienteDetallePage() {
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/inventario/expedientes')} />
           <div>
             <Space>
-              <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
                 <GlobalOutlined style={{ marginRight: 8 }} />
                 {exp.expedienteNo}
               </Title>
@@ -606,14 +606,14 @@ export default function ExpedienteDetallePage() {
                 description="Se actualizará el costo promedio ponderado (CPP) de cada artículo. Esta acción no se puede deshacer."
                 onConfirm={handleConfirmar}
                 okText="Confirmar" cancelText="Cancelar"
-                okButtonProps={{ style: { background: '#52c41a' }, loading: confirming }}
+                okButtonProps={{ style: { background: '#2ea172' }, loading: confirming }}
               >
                 <Button
                   type="primary"
                   icon={<CheckCircleOutlined />}
                   loading={confirming}
                   disabled={(exp.lineas?.length || 0) === 0 || (exp.documentos?.length || 0) === 0}
-                  style={{ background: '#1B3A6B' }}
+                  style={{ background: '#1faec2' }}
                 >
                   Confirmar
                 </Button>
@@ -666,7 +666,7 @@ export default function ExpedienteDetallePage() {
           <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
             <Statistic title={<span style={{ fontSize: 11 }}>Total FOB</span>}
               value={exp.totalFob} precision={2} prefix="Q"
-              valueStyle={{ fontSize: 15, fontFamily: 'monospace', color: '#1B3A6B' }}
+              valueStyle={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', color: '#0a0a0a' }}
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })} />
           </Card>
         </Col>
@@ -674,7 +674,7 @@ export default function ExpedienteDetallePage() {
           <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
             <Statistic title={<span style={{ fontSize: 11 }}>Costos adicionales</span>}
               value={exp.totalCosts} precision={2} prefix="Q"
-              valueStyle={{ fontSize: 15, fontFamily: 'monospace', color: '#fa8c16' }}
+              valueStyle={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', color: '#ff7f00' }}
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })} />
           </Card>
         </Col>
@@ -682,7 +682,7 @@ export default function ExpedienteDetallePage() {
           <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
             <Statistic title={<span style={{ fontSize: 11 }}>Costo total aterrizaje</span>}
               value={exp.totalLandedCost} precision={2} prefix="Q"
-              valueStyle={{ fontSize: 15, fontFamily: 'monospace', fontWeight: 700, color: '#52c41a' }}
+              valueStyle={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#2ea172' }}
               formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })} />
           </Card>
         </Col>
@@ -692,7 +692,7 @@ export default function ExpedienteDetallePage() {
               value={exp.totalFob > 0 ? ((exp.totalLandedCost / exp.totalFob) || 1) : 1}
               precision={6}
               prefix="×"
-              valueStyle={{ fontSize: 15, fontFamily: 'monospace', color: '#722ed1' }} />
+              valueStyle={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', color: '#6b7280' }} />
           </Card>
         </Col>
       </Row>
@@ -703,13 +703,13 @@ export default function ExpedienteDetallePage() {
         style={{ borderRadius: 10, marginBottom: 16 }}
         extra={isEditable && (
           <Button size="small" type="primary" icon={<PlusOutlined />}
-            onClick={() => setAddDocOpen(true)} style={{ background: '#1B3A6B' }}>
+            onClick={() => setAddDocOpen(true)} style={{ background: '#1faec2' }}>
             Agregar documento
           </Button>
         )}
       >
         {(exp.documentos?.length || 0) === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#8c8c8c' }}>
+          <div style={{ textAlign: 'center', padding: '24px 0', color: '#6b7280' }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
             <div>Agrega los documentos de costo vinculados a esta importación</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>Factura del proveedor, flete, seguro, DAI, agente aduanal, etc.</div>
@@ -724,7 +724,7 @@ export default function ExpedienteDetallePage() {
                   <Text strong>TOTAL GTQ</Text>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={5} align="right">
-                  <Text strong style={{ fontFamily: 'monospace' }}>
+                  <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {fmtQ((exp.documentos || []).reduce((s, d) => s + Number(d.amountGTQ), 0))}
                   </Text>
                 </Table.Summary.Cell>
@@ -741,13 +741,13 @@ export default function ExpedienteDetallePage() {
         style={{ borderRadius: 10 }}
         extra={isEditable && (
           <Button size="small" type="primary" icon={<PlusOutlined />}
-            onClick={() => setAddLinOpen(true)} style={{ background: '#1B3A6B' }}>
+            onClick={() => setAddLinOpen(true)} style={{ background: '#1faec2' }}>
             Agregar artículo
           </Button>
         )}
       >
         {(exp.lineas?.length || 0) === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#8c8c8c' }}>
+          <div style={{ textAlign: 'center', padding: '24px 0', color: '#6b7280' }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>📦</div>
             <div>Agrega los artículos que se están importando con sus cantidades y costo FOB</div>
           </div>

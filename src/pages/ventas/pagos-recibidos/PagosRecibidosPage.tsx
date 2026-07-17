@@ -26,8 +26,8 @@ const fmtQ = (n: number) =>
   `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const INVOICE_STATUS_COLOR: Record<string, string> = {
-  sent: 'blue', partial: 'geekblue', paid: 'green', voided: 'red', draft: 'default',
-  pending: 'gold', overdue: 'orange',
+  sent: '#1faec2', partial: '#1faec2', paid: '#2ea172', voided: '#e5484d', draft: 'default',
+  pending: 'gold', overdue: '#ff7f00',
 }
 const INVOICE_STATUS_LABEL: Record<string, string> = {
   sent: 'Enviada', partial: 'Parcial', paid: 'Pagada', voided: 'Anulada',
@@ -73,7 +73,7 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
       return { ...base, title: 'N° Pago', dataIndex: 'paymentNumber', width: 175, fixed: 'left' as const,
         render: (v: string, r: PagoRecibido) => (
           <Space direction="vertical" size={2}>
-            <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12 }}>{v}</Text>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 12 }}>{v}</Text>
             {r.isAdvance && (
               <Tag icon={<BankOutlined />} color="gold" style={{ fontSize: 10, lineHeight: '16px', margin: 0 }}>Anticipo</Tag>
             )}
@@ -92,12 +92,12 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
         ) }
     case 'customerTaxId':
       return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
-        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+        render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'documento':
       return { ...base, title: 'Documento', dataIndex: 'invoiceNumber', width: 165,
         render: (v: string, r: PagoRecibido) => v ? (
           <Space direction="vertical" size={2}>
-            <Text style={{ fontFamily: 'monospace', fontSize: 12, color: r.isAdvance ? '#d48806' : undefined, fontWeight: r.isAdvance ? 600 : undefined }}>
+            <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: r.isAdvance ? '#d48806' : undefined, fontWeight: r.isAdvance ? 600 : undefined }}>
               {v}
             </Text>
             {r.isAdvance
@@ -113,7 +113,7 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
     case 'invoiceTotal':
       return { ...base, title: 'Total Factura', dataIndex: 'invoiceTotal', width: 120, align: 'right' as const,
         render: (v: number) => v != null
-          ? <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(v)}</span>
+          ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span>
           : <Text type="secondary">—</Text> }
     case 'currency':
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 80,
@@ -130,7 +130,7 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
           : <Text type="secondary">—</Text> }
     case 'amount':
       return { ...base, title: 'Monto', dataIndex: 'amount', width: 130, align: 'right' as const,
-        render: (v: number) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 13 }}>{fmtQ(v)}</Text> }
+        render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text> }
     case 'isAdvance':
       return { ...base, title: 'Anticipo', dataIndex: 'isAdvance', width: 90, align: 'center' as const,
         render: (v: boolean) => v
@@ -240,13 +240,13 @@ export default function PagosRecibidosPage() {
           {r.journalEntryId
             ? (
               <Tooltip title="Ver póliza contable">
-                <Button size="small" type="text" icon={<BookOutlined style={{ color: '#1B3A6B' }} />}
+                <Button size="small" type="text" icon={<BookOutlined style={{ color: '#1faec2' }} />}
                   loading={polizaLoading}
                   onClick={() => handleVerPoliza(r.journalEntryId!)} />
               </Tooltip>
             ) : (
               <Tooltip title="Generar póliza contable">
-                <Button size="small" type="text" icon={<SyncOutlined style={{ color: '#d97706' }} />}
+                <Button size="small" type="text" icon={<SyncOutlined style={{ color: '#ff7f00' }} />}
                   loading={reprocessing === r.id}
                   onClick={() => handleGenerarPoliza(r.id)} />
               </Tooltip>
@@ -272,13 +272,13 @@ export default function PagosRecibidosPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <DollarOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <DollarOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Pagos Recibidos</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Pagos Recibidos</Title>
             <Text type="secondary">Registro de cobros aplicados a facturas</Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
           onClick={() => navigate('/ventas/pagos-recibidos/nuevo')}>
           Registrar Pago
         </Button>
@@ -331,7 +331,7 @@ export default function PagosRecibidosPage() {
           >
             <Tooltip title="Configurar columnas">
               <Button size="small" icon={<SettingOutlined />}
-                style={{ border: colPopover ? '1px solid #1B3A6B' : undefined, color: colPopover ? '#1B3A6B' : undefined }}>
+                style={{ border: colPopover ? '1px solid #1faec2' : undefined, color: colPopover ? '#1faec2' : undefined }}>
                 Columnas
               </Button>
             </Tooltip>
@@ -342,10 +342,10 @@ export default function PagosRecibidosPage() {
       {/* KPIs */}
       <Row gutter={12} style={{ marginBottom: 12 }}>
         {[
-          { title: 'Total operaciones',   value: total,         fmt: (v: number) => String(v), color: '#1B3A6B' },
-          { title: 'Monto cobrado',       value: totalMonto,    fmt: fmtQ,                       color: '#1B3A6B' },
+          { title: 'Total operaciones',   value: total,         fmt: (v: number) => String(v), color: '#1faec2' },
+          { title: 'Monto cobrado',       value: totalMonto,    fmt: fmtQ,                       color: '#1faec2' },
           { title: 'Anticipos recibidos', value: totalAnticipos,fmt: fmtQ,                       color: '#d48806' },
-          { title: 'Pagos hoy',           value: pagosHoy,      fmt: (v: number) => String(v), color: '#1B3A6B' },
+          { title: 'Pagos hoy',           value: pagosHoy,      fmt: (v: number) => String(v), color: '#1faec2' },
         ].map(s => (
           <Col span={6} key={s.title}>
             <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -383,15 +383,15 @@ export default function PagosRecibidosPage() {
               <Descriptions.Item label="Descripción" span={2}>{polizaData.description}</Descriptions.Item>
               <Descriptions.Item label="Referencia">{polizaData.reference || '—'}</Descriptions.Item>
               <Descriptions.Item label="Estado">
-                <Tag color={polizaData.status === 'posted' ? 'green' : 'orange'}>
+                <Tag color={polizaData.status === 'posted' ? '#2ea172' : '#ff7f00'}>
                   {polizaData.status === 'posted' ? 'Publicada' : polizaData.status}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Total Débito">
-                <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(polizaData.totalDebit)}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(polizaData.totalDebit)}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="Total Crédito">
-                <Text strong style={{ fontFamily: 'monospace' }}>{fmtQ(polizaData.totalCredit)}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(polizaData.totalCredit)}</Text>
               </Descriptions.Item>
             </Descriptions>
             <Table
@@ -400,10 +400,10 @@ export default function PagosRecibidosPage() {
               dataSource={polizaData.lines}
               rowKey={(_, i) => String(i)}
               columns={[
-                { title: 'Cuenta', dataIndex: 'accountCode', width: 100, render: (v: string, r: any) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v} — {r.accountName}</span> },
+                { title: 'Cuenta', dataIndex: 'accountCode', width: 100, render: (v: string, r: any) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v} — {r.accountName}</span> },
                 { title: 'Descripción', dataIndex: 'description', ellipsis: true },
-                { title: 'Débito',  dataIndex: 'debit',  align: 'right' as const, width: 110, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
-                { title: 'Crédito', dataIndex: 'credit', align: 'right' as const, width: 110, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+                { title: 'Débito',  dataIndex: 'debit',  align: 'right' as const, width: 110, render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+                { title: 'Crédito', dataIndex: 'credit', align: 'right' as const, width: 110, render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
               ]}
             />
           </>

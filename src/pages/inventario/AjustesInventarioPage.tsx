@@ -66,7 +66,7 @@ function NuevoAjusteModal({ open, onClose, onSaved }: {
     <Modal
       title={<Space><AuditOutlined /> Nuevo ajuste de inventario</Space>}
       open={open} onOk={handleOk} onCancel={() => { form.resetFields(); setLines([{ _key: 0, productId: '', quantity: 0 }]); onClose() }}
-      okText="Registrar ajuste" okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okText="Registrar ajuste" okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       width={680} destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}
@@ -96,7 +96,7 @@ function NuevoAjusteModal({ open, onClose, onSaved }: {
         </Form.Item>
 
         {/* Lines */}
-        <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 12 }}>
+        <div style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, padding: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text strong style={{ fontSize: 13 }}>Artículos</Text>
             <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={addLine}>
@@ -157,7 +157,7 @@ export default function AjustesInventarioPage() {
 
   const columns: ColumnsType<AjusteInventario> = [
     { title: 'Código', dataIndex: 'code', width: 130,
-      render: v => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{v}</Text> },
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text> },
     { title: 'Fecha', dataIndex: 'date', width: 100,
       render: d => dayjs(d).format('DD/MM/YYYY') },
     { title: 'Tipo', dataIndex: 'ajusteType', width: 130,
@@ -169,20 +169,20 @@ export default function AjustesInventarioPage() {
     { title: 'Artículos', width: 80,
       render: (_, r) => <Tag>{r.lineas?.length || '—'}</Tag> },
     { title: 'Estado', dataIndex: 'status', width: 100,
-      render: v => <Tag color={v === 'confirmed' ? 'green' : 'orange'}>{v === 'confirmed' ? 'Confirmado' : 'Borrador'}</Tag> },
+      render: v => <Tag color={v === 'confirmed' ? '#2ea172' : '#ff7f00'}>{v === 'confirmed' ? 'Confirmado' : 'Borrador'}</Tag> },
   ]
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <AuditOutlined style={{ marginRight: 8 }} /> Ajustes de inventario
           </Title>
           <Text type="secondary">Registra entradas, salidas, mermas, devoluciones y conteos físicos</Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />}
-          onClick={() => setModal(true)} style={{ background: '#1B3A6B' }}>
+          onClick={() => setModal(true)} style={{ background: '#1faec2' }}>
           Nuevo ajuste
         </Button>
       </div>

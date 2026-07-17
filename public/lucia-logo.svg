@@ -1,0 +1,6 @@
+<svg width="175" height="88" viewBox="0 0 175 88" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lucía, una app de GLL">
+  <rect x="8" y="10" width="20" height="68" rx="6" fill="#24cae2"/>
+  <rect x="31" y="44" width="20" height="34" rx="6" fill="#ff7f00"/>
+  <text x="56" y="64" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" letter-spacing="-2" fill="#0a0a0a">ucía</text>
+  <text x="59" y="80" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" letter-spacing="0.2" fill="#6b7280">una app de GLL</text>
+</svg>

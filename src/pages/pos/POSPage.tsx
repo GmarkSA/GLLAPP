@@ -99,9 +99,9 @@ function BankConfigModal({ open, posId, accounts, onClose }: {
       title={<><BankOutlined /> Cuentas bancarias del POS</>}
       open={open} onOk={handleSave} onCancel={onClose}
       okText="Guardar configuración" width={520}
-      okButtonProps={{ style: { background: '#1B3A6B' } }}
+      okButtonProps={{ style: { background: '#1faec2' } }}
     >
-      <div style={{ background: '#f0f5ff', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#555' }}>
+      <div style={{ background: '#fafbfc', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#555' }}>
         <BankOutlined style={{ marginRight: 6 }} />
         Cada cobro registrará automáticamente un <strong>ingreso en la cuenta seleccionada</strong>.
         Si no vinculas una cuenta, la venta se procesa igual pero <strong>sin registro bancario</strong>.
@@ -192,10 +192,10 @@ function QuickCreateCustomerModal({ open, onClose, onCreated }: {
       title={<><UserAddOutlined /> Nuevo cliente</>}
       open={open} onOk={handleSave} onCancel={onClose}
       okText="Crear cliente" width={460}
-      okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
-      <div style={{ background: '#f0f5ff', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1B3A6B' }}>
+      <div style={{ background: '#fafbfc', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1faec2' }}>
         El cliente quedará registrado en el <strong>maestro de clientes del ERP</strong> y disponible para futuras ventas.
       </div>
       <Form form={form} layout="vertical" size="small">
@@ -210,12 +210,12 @@ function QuickCreateCustomerModal({ open, onClose, onCreated }: {
             <Button loading={lookingUp} onClick={() => handleLookup('CUI')} style={{ fontSize: 11 }}>CUI</Button>
           </Input.Group>
           {lookupStatus === 'found' && (
-            <div style={{ marginTop: 4, fontSize: 11, color: '#52c41a' }}>
+            <div style={{ marginTop: 4, fontSize: 11, color: '#2ea172' }}>
               <CheckCircleOutlined /> Datos encontrados y cargados
             </div>
           )}
           {lookupStatus === 'not_found' && (
-            <div style={{ marginTop: 4, fontSize: 11, color: '#fa8c16' }}>
+            <div style={{ marginTop: 4, fontSize: 11, color: '#ff7f00' }}>
               <span>⚠️</span> No encontrado en SAT — completa el nombre manualmente
             </div>
           )}
@@ -244,37 +244,37 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: () => void }
     <div
       onClick={() => !noStock && onAdd()}
       style={{
-        background: noStock ? '#fafafa' : '#fff',
-        border: `1.5px solid ${noStock ? '#f0f0f0' : '#e8e8e8'}`,
+        background: noStock ? '#fafbfc' : '#fff',
+        border: `1.5px solid ${noStock ? 'rgba(10,10,10,0.08)' : 'rgba(10,10,10,0.08)'}`,
         borderRadius: 10, padding: '12px 10px',
         cursor: noStock ? 'not-allowed' : 'pointer',
         transition: 'all 0.15s', opacity: noStock ? 0.55 : 1, userSelect: 'none',
       }}
-      onMouseEnter={e => { if (!noStock) (e.currentTarget as HTMLDivElement).style.borderColor = '#1B3A6B' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = noStock ? '#f0f0f0' : '#e8e8e8' }}
+      onMouseEnter={e => { if (!noStock) (e.currentTarget as HTMLDivElement).style.borderColor = '#1faec2' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = noStock ? 'rgba(10,10,10,0.08)' : 'rgba(10,10,10,0.08)' }}
     >
       <div style={{
         height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: noStock ? '#f5f5f5' : '#f0f5ff', borderRadius: 8, marginBottom: 8, fontSize: 26,
+        background: noStock ? '#fafbfc' : '#fafbfc', borderRadius: 8, marginBottom: 8, fontSize: 26,
       }}>
         {product.itemType === 'servicio' ? '🛠️' : '📦'}
       </div>
       {product.sku && (
-        <div style={{ fontSize: 10, color: '#bbb', fontFamily: 'monospace', marginBottom: 2 }}>{product.sku}</div>
+        <div style={{ fontSize: 10, color: '#bbb', fontVariantNumeric: 'tabular-nums', marginBottom: 2 }}>{product.sku}</div>
       )}
       <div style={{
-        fontSize: 12, fontWeight: 600, color: '#1B3A6B', lineHeight: 1.3,
+        fontSize: 12, fontWeight: 600, color: '#1faec2', lineHeight: 1.3,
         marginBottom: 6, minHeight: 28, overflow: 'hidden', display: '-webkit-box',
         WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
       }}>
         {product.name}
       </div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: '#1B3A6B', marginBottom: 4 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#1faec2', marginBottom: 4 }}>
         Q {Number(product.salesPrice ?? 0).toFixed(2)}
       </div>
       <Badge
         count={noStock ? 'Sin stock' : `Stock: ${stock}`}
-        style={{ background: noStock ? '#ff4d4f' : stock < 5 ? '#faad14' : '#52c41a', fontSize: 10 }}
+        style={{ background: noStock ? '#e5484d' : stock < 5 ? '#ff7f00' : '#2ea172', fontSize: 10 }}
       />
     </div>
   )
@@ -285,14 +285,14 @@ function CartRow({ item, onQty, onRemove }: {
   item: CartItem; onQty: (d: number) => void; onRemove: () => void
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #fafbfc' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#1B3A6B', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#1faec2', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {item.product.name}
         </div>
-        <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+        <div style={{ fontSize: 11, color: '#6b7280' }}>
           Q {Number(item.unitPrice).toFixed(2)} c/u
-          {item.discount > 0 && <Tag color="orange" style={{ marginLeft: 4, fontSize: 10 }}>-{item.discount}%</Tag>}
+          {item.discount > 0 && <Tag color="#ff7f00" style={{ marginLeft: 4, fontSize: 10 }}>-{item.discount}%</Tag>}
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -300,7 +300,7 @@ function CartRow({ item, onQty, onRemove }: {
         <span style={{ minWidth: 28, textAlign: 'center', fontWeight: 600, fontSize: 13 }}>{item.quantity}</span>
         <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => onQty(1)} />
       </div>
-      <div style={{ minWidth: 65, textAlign: 'right', fontWeight: 700, fontSize: 13, color: '#1B3A6B' }}>
+      <div style={{ minWidth: 65, textAlign: 'right', fontWeight: 700, fontSize: 13, color: '#1faec2' }}>
         Q {item.lineTotal.toFixed(2)}
       </div>
       <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={onRemove} />
@@ -334,40 +334,40 @@ function ReceiptModal({ open, data, onClose }: {
   const felOk = data.felStatus === 'certificada'
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={380} title={null} styles={{ body: { padding: 0 } }}>
-      <div style={{ padding: '24px 28px', fontFamily: 'monospace' }}>
+      <div style={{ padding: '24px 28px', fontVariantNumeric: 'tabular-nums' }}>
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <CheckCircleOutlined style={{ fontSize: 44, color: '#52c41a' }} />
+          <CheckCircleOutlined style={{ fontSize: 44, color: '#2ea172' }} />
           <div style={{ fontSize: 16, fontWeight: 700, marginTop: 8 }}>¡Venta completada!</div>
-          <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+          <div style={{ fontSize: 12, color: '#6b7280' }}>
             {now.toLocaleDateString('es-GT')} {now.toLocaleTimeString('es-GT')}
           </div>
         </div>
         <Divider style={{ margin: '8px 0' }} />
         {data.invoiceNumber && (
           <div style={{ textAlign: 'center', marginBottom: 6 }}>
-            <Tag color="blue" style={{ fontSize: 13 }}>Factura: {data.invoiceNumber}</Tag>
+            <Tag color="#1faec2" style={{ fontSize: 13 }}>Factura: {data.invoiceNumber}</Tag>
           </div>
         )}
         {/* Estado FEL */}
         <div style={{ textAlign: 'center', marginBottom: 10 }}>
           {felOk ? (
             <div>
-              <Tag color="green" style={{ fontSize: 11, marginBottom: 2 }}>
+              <Tag color="#2ea172" style={{ fontSize: 11, marginBottom: 2 }}>
                 ✓ FEL Certificada — SAT
               </Tag>
               {data.felSerie && data.felNumero && (
-                <div style={{ fontSize: 10, color: '#52c41a' }}>
+                <div style={{ fontSize: 10, color: '#2ea172' }}>
                   Serie {data.felSerie} · No. {data.felNumero}
                 </div>
               )}
               {data.felUuid && (
-                <div style={{ fontSize: 9, color: '#8c8c8c', marginTop: 2 }}>
+                <div style={{ fontSize: 9, color: '#6b7280', marginTop: 2 }}>
                   UUID: {data.felUuid.slice(0, 20)}…
                 </div>
               )}
             </div>
           ) : data.felStatus === 'error' ? (
-            <Tag color="orange" style={{ fontSize: 11 }}>
+            <Tag color="#ff7f00" style={{ fontSize: 11 }}>
               ⚠ FEL pendiente — certificar desde Facturas
             </Tag>
           ) : null}
@@ -375,7 +375,7 @@ function ReceiptModal({ open, data, onClose }: {
         <div style={{ fontSize: 12, marginBottom: 8 }}>
           <Text type="secondary">Cliente: </Text><strong>{data.customerName}</strong>
         </div>
-        <div style={{ background: '#fafafa', borderRadius: 6, padding: '8px 10px', marginBottom: 12 }}>
+        <div style={{ background: '#fafbfc', borderRadius: 6, padding: '8px 10px', marginBottom: 12 }}>
           {data.items.map((item, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
               <span>{item.quantity}x {item.product.name}</span>
@@ -393,14 +393,14 @@ function ReceiptModal({ open, data, onClose }: {
           <Divider style={{ margin: '6px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16 }}>
             <span>TOTAL</span>
-            <span style={{ color: '#1B3A6B' }}>Q {data.total.toFixed(2)}</span>
+            <span style={{ color: '#1faec2' }}>Q {data.total.toFixed(2)}</span>
           </div>
           {data.paymentMethod === 'efectivo' && data.received != null && (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, color: '#8c8c8c' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, color: '#6b7280' }}>
                 <span>Recibido</span><span>Q {Number(data.received).toFixed(2)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#52c41a', fontWeight: 700 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#2ea172', fontWeight: 700 }}>
                 <span>Cambio</span><span>Q {Math.max(0, data.change ?? 0).toFixed(2)}</span>
               </div>
             </>
@@ -409,7 +409,7 @@ function ReceiptModal({ open, data, onClose }: {
         <Divider style={{ margin: '12px 0' }} />
         <div style={{ display: 'flex', gap: 8 }}>
           <Button icon={<PrinterOutlined />} style={{ flex: 1 }} onClick={() => window.print()}>Imprimir</Button>
-          <Button type="primary" style={{ flex: 1, background: '#1B3A6B' }} onClick={onClose}>Nueva venta</Button>
+          <Button type="primary" style={{ flex: 1, background: '#1faec2' }} onClick={onClose}>Nueva venta</Button>
         </div>
       </div>
     </Modal>
@@ -632,7 +632,7 @@ export default function POSPage() {
       {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 20px', height: 52, background: '#1B3A6B', flexShrink: 0,
+        padding: '0 20px', height: 52, background: '#1faec2', flexShrink: 0,
         boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -642,11 +642,11 @@ export default function POSPage() {
           </Button>
           <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.2)' }} />
           <div>
-            <span style={{ color: '#60a5fa', fontWeight: 700, fontSize: 16 }}>🛒 Terminal POS</span>
+            <span style={{ color: '#1faec2', fontWeight: 700, fontSize: 16 }}>🛒 Terminal POS</span>
             {posInfo && <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginLeft: 8 }}>— {posInfo.name}</span>}
           </div>
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'monospace' }}>
+        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
           {clock.toLocaleTimeString('es-GT')} · {clock.toLocaleDateString('es-GT')}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -655,7 +655,7 @@ export default function POSPage() {
             icon={<BankOutlined />}
             style={{
               color: Object.values(bankConfig).some(Boolean)
-                ? '#60a5fa'        // blue = at least one account linked
+                ? '#1faec2'        // blue = at least one account linked
                 : 'rgba(255,255,255,0.45)',
             }}
             title={Object.values(bankConfig).some(Boolean)
@@ -705,12 +705,12 @@ export default function POSPage() {
         {/* ── RIGHT: Cart + Checkout ───────────────────────────────────────── */}
         <div style={{
           width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column',
-          background: '#fff', borderLeft: '1px solid #e8e8e8', overflow: 'hidden',
+          background: '#fff', borderLeft: '1px solid rgba(10,10,10,0.08)', overflow: 'hidden',
         }}>
 
           {/* Customer selector */}
-          <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid #f0f0f0' }}>
-            <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>CLIENTE</span>
               <Button
                 type="link" size="small" icon={<UserAddOutlined />}
@@ -738,11 +738,11 @@ export default function POSPage() {
               optionFilterProp="label"
             />
             {customer.id !== CF_CUSTOMER.id && (
-              <div style={{ fontSize: 11, color: '#52c41a', marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: '#2ea172', marginTop: 4 }}>
                 ✓ {customer.name}
                 {(customer as any).taxId && (customer as any).taxId !== 'CF'
                   ? ` — NIT: ${(customer as any).taxId}` : ''}
-                <Button type="link" size="small" style={{ fontSize: 11, padding: '0 0 0 8px', color: '#ff4d4f', height: 'auto' }}
+                <Button type="link" size="small" style={{ fontSize: 11, padding: '0 0 0 8px', color: '#e5484d', height: 'auto' }}
                   onClick={() => { setCustomer(CF_CUSTOMER); setCustSearch('') }}>
                   ✕ Quitar
                 </Button>
@@ -767,34 +767,34 @@ export default function POSPage() {
           </div>
 
           {/* Totals + Payment */}
-          <div style={{ borderTop: '1px solid #f0f0f0', padding: '10px 14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#8c8c8c', marginBottom: 3 }}>
+          <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', padding: '10px 14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280', marginBottom: 3 }}>
               <span>Subtotal (sin IVA)</span><span>Q {subtotalSinIva.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280', marginBottom: 6 }}>
               <span>IVA (12%)</span><span>Q {ivaTotal.toFixed(2)}</span>
             </div>
             <div style={{
               display: 'flex', justifyContent: 'space-between',
-              fontSize: 20, fontWeight: 800, color: '#1B3A6B',
-              background: '#f0f5ff', borderRadius: 8, padding: '8px 10px', marginBottom: 10,
+              fontSize: 20, fontWeight: 800, color: '#1faec2',
+              background: '#fafbfc', borderRadius: 8, padding: '8px 10px', marginBottom: 10,
             }}>
               <span>TOTAL</span><span>Q {grandTotal.toFixed(2)}</span>
             </div>
 
             {/* Payment method */}
-            <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>FORMA DE PAGO</span>
               {(() => {
                 const linkedId  = bankConfig[paymentMethod as keyof POSBankConfig]
                 const linkedAcc = linkedId ? bankAccounts.find(a => a.id === linkedId) : null
                 return linkedAcc ? (
-                  <span style={{ fontSize: 10, color: '#52c41a' }}>
+                  <span style={{ fontSize: 10, color: '#2ea172' }}>
                     🏦 {linkedAcc.name}
                   </span>
                 ) : bankAccounts.length > 0 ? (
                   <button
-                    style={{ fontSize: 10, color: '#faad14', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    style={{ fontSize: 10, color: '#ff7f00', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     onClick={() => setShowBankConfig(true)}
                   >
                     Sin cuenta vinculada — configurar
@@ -819,20 +819,20 @@ export default function POSPage() {
               <>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 3 }}>Recibido (Q)</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Recibido (Q)</div>
                     <InputNumber
                       style={{ width: '100%' }} min={0} step={10} prefix="Q"
                       placeholder="0.00" value={receivedAmt} onChange={v => setReceivedAmt(v)}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 3 }}>Cambio (Q)</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Cambio (Q)</div>
                     <div style={{
                       height: 32, lineHeight: '32px', textAlign: 'center', borderRadius: 6,
-                      background: change >= 0 ? '#f6ffed' : '#fff1f0',
+                      background: change >= 0 ? '#e8f5ef' : '#fff1f0',
                       fontWeight: 700, fontSize: 15,
-                      color: change >= 0 ? '#52c41a' : '#ff4d4f',
-                      border: `1px solid ${change >= 0 ? '#b7eb8f' : '#ffa39e'}`,
+                      color: change >= 0 ? '#2ea172' : '#e5484d',
+                      border: `1px solid ${change >= 0 ? '#c3e5d8' : '#f8c9cb'}`,
                     }}>
                       Q {Math.max(0, change).toFixed(2)}
                     </div>
@@ -856,7 +856,7 @@ export default function POSPage() {
               type="primary" block size="large" loading={processing}
               disabled={cart.length === 0} onClick={handleCheckout}
               style={{
-                background: cart.length > 0 ? '#1B3A6B' : undefined,
+                background: cart.length > 0 ? '#1faec2' : undefined,
                 height: 52, fontSize: 17, fontWeight: 700, borderRadius: 8, letterSpacing: 1,
               }}
               icon={<CheckCircleOutlined />}

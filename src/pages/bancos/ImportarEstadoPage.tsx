@@ -172,7 +172,7 @@ export default function ImportarEstadoPage() {
   const previewColumns: ColumnsType<ParsedRow> = [
     { title: 'Fecha', dataIndex: 'transactionDate', width: 110, render: v => dayjs(v).format('DD/MM/YYYY') },
     { title: 'Descripcion', dataIndex: 'description', ellipsis: true },
-    { title: 'Tipo', dataIndex: 'type', width: 100, render: v => <Tag color={v === 'credit' ? 'green' : 'red'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
+    { title: 'Tipo', dataIndex: 'type', width: 100, render: v => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
     { title: 'Monto', dataIndex: 'amount', width: 130, align: 'right', render: v => money(Number(v), selectedAccount?.currency) },
     { title: 'Referencia', dataIndex: 'reference', width: 150 },
   ]
@@ -183,7 +183,7 @@ export default function ImportarEstadoPage() {
         <div>
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/bancos')} />
-            <Title level={4} style={{ margin: 0, color: NAVY }}>Importar estado de cuenta</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Importar estado de cuenta</Title>
           </Space>
           <div><Text type="secondary">Carga Excel o CSV, asigna columnas y revisa la vista previa antes de importar.</Text></div>
         </div>
@@ -272,7 +272,7 @@ export default function ImportarEstadoPage() {
             { title: 'Filas', dataIndex: 'totalRows', width: 90, align: 'right' },
             { title: 'Importadas', dataIndex: 'importedCount', width: 110, align: 'right' },
             { title: 'Omitidas', dataIndex: 'skippedCount', width: 100, align: 'right' },
-            { title: 'Estado', dataIndex: 'status', width: 110, render: v => <Tag color={v === 'completed' ? 'green' : 'red'}>{v === 'completed' ? 'Completado' : 'Fallido'}</Tag> },
+            { title: 'Estado', dataIndex: 'status', width: 110, render: v => <Tag color={v === 'completed' ? '#2ea172' : '#e5484d'}>{v === 'completed' ? 'Completado' : 'Fallido'}</Tag> },
           ]}
         />
       </Card>

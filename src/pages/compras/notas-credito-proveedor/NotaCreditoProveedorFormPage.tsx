@@ -302,31 +302,31 @@ export default function NotaCreditoProveedorFormPage() {
         <Breadcrumb items={[
           { title: <Link to="/"><HomeOutlined /></Link> },
           { title: <Link to="/compras/notas-credito-proveedor">Notas de Crédito Proveedor</Link> },
-          { title: <span style={{ color: '#dc2626' }}>{id ? 'Editar' : 'Nueva'}</span> },
+          { title: <span style={{ color: '#e5484d' }}>{id ? 'Editar' : 'Nueva'}</span> },
         ]} />
         <Space size={6}>
           {canApprove && (
             <Button size="small" icon={<SaveOutlined />} loading={saving} onClick={handleSaveDraft}
-              style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}>
+              style={{ borderColor: '#1faec2', color: '#1faec2' }}>
               Borrador
             </Button>
           )}
           {canApprove && (
             <Button size="small" type="primary" icon={<CheckOutlined />} loading={approving}
               onClick={handleSaveAndOpen}
-              style={{ background: '#dc2626', borderColor: '#dc2626' }}>
+              style={{ background: '#e5484d', borderColor: '#e5484d' }}>
               Guardar y abrir
             </Button>
           )}
           {!!id && docStatus === 'open' && <>
             <Button size="small" icon={<SyncOutlined />} loading={regenerating} onClick={handleRegenerate}
-              style={{ borderColor: '#7c3aed', color: '#7c3aed' }}>
+              style={{ borderColor: '#ff7f00', color: '#ff7f00' }}>
               Regenerar póliza
             </Button>
             <Button size="small" danger onClick={handleVoid}>Anular</Button>
           </>}
           {docStatus && (
-            <Tag color={docStatus === 'paid' ? 'green' : docStatus === 'voided' ? 'volcano' : docStatus === 'open' ? 'orange' : 'default'}>
+            <Tag color={docStatus === 'paid' ? '#2ea172' : docStatus === 'voided' ? 'volcano' : docStatus === 'open' ? '#ff7f00' : 'default'}>
               {docStatus === 'pending_approval' ? 'Pendiente' : docStatus}
             </Tag>
           )}
@@ -339,7 +339,7 @@ export default function NotaCreditoProveedorFormPage() {
           display: 'flex', alignItems: 'center', gap: 10, padding: '4px 12px',
           marginBottom: 8, background: '#f0f9ff', borderRadius: 6, border: '1px solid #bae6fd',
         }}>
-          <span style={{ fontWeight: 600, color: '#0369a1', fontSize: 12 }}>1 {vendorCurrency} =</span>
+          <span style={{ fontWeight: 600, color: '#374151', fontSize: 12 }}>1 {vendorCurrency} =</span>
           {editingRate ? (
             <input type="number" value={exchangeRate} step={0.000001} autoFocus
               style={{ width: 110, border: '1px solid #bae6fd', borderRadius: 4, padding: '1px 6px', fontSize: 12 }}
@@ -347,13 +347,13 @@ export default function NotaCreditoProveedorFormPage() {
               onBlur={() => setEditingRate(false)}
             />
           ) : (
-            <span style={{ fontWeight: 700, color: '#0369a1', fontFamily: 'monospace', fontSize: 12 }}>
+            <span style={{ fontWeight: 700, color: '#374151', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
               {loadingFx ? '...' : exchangeRate.toFixed(6)} GTQ
             </span>
           )}
           <Button size="small" type="text" icon={<EditOutlined />}
-            onClick={() => setEditingRate(!editingRate)} style={{ color: '#0369a1' }} />
-          <span style={{ fontSize: 11, color: '#9ca3af' }}>
+            onClick={() => setEditingRate(!editingRate)} style={{ color: '#374151' }} />
+          <span style={{ fontSize: 11, color: '#9aa1ab' }}>
             {fxMeta ? `${dayjs(fxMeta.effectiveDate).format('DD/MM/YYYY')} — ${fxMeta.source}` : ''}
           </span>
         </div>
@@ -435,27 +435,27 @@ export default function NotaCreditoProveedorFormPage() {
             items={items} taxes={taxes} onChange={setItems}
             docType="bill" vendorDefaultTaxId={vendorDefaultTaxId} currency={watchCurr}
           />
-          <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 10, paddingTop: 8 }}>
+          <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', marginTop: 10, paddingTop: 8 }}>
             <div style={{ maxWidth: 360, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#6b7280', fontSize: 12 }}>Subtotal</Text>
-                <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>Q {fmt(totals.subtotal)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>Q {fmt(totals.subtotal)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#6b7280', fontSize: 12 }}>IVA</Text>
-                <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>Q {fmt(totals.taxAmount)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>Q {fmt(totals.taxAmount)}</Text>
               </div>
               <Divider style={{ margin: '3px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#dc2626', borderRadius: 6, padding: '5px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e5484d', borderRadius: 6, padding: '5px 14px' }}>
                 <Text style={{ color: '#fff', fontWeight: 600, fontSize: 12 }}>Total N/C</Text>
-                <Text style={{ color: '#fff', fontWeight: 800, fontFamily: 'monospace', fontSize: 13 }}>
+                <Text style={{ color: '#fff', fontWeight: 800, fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
                   {watchCurr} {fmt(totals.total)}
                 </Text>
               </div>
               {vendorCurrency !== 'GTQ' && exchangeRate > 1 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280', fontSize: 11 }}>
                   <span>Equivalente GTQ</span>
-                  <span style={{ fontFamily: 'monospace' }}>Q {fmt(Math.round(totals.total * exchangeRate * 100) / 100)}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>Q {fmt(Math.round(totals.total * exchangeRate * 100) / 100)}</span>
                 </div>
               )}
             </div>
@@ -466,13 +466,13 @@ export default function NotaCreditoProveedorFormPage() {
       {/* ── Póliza contable (solo cuando está aprobada) ─────────────────────── */}
       {journalEntry && (
         <Card
-          title={<span style={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>Póliza — {journalEntry.entryNumber}</span>}
+          title={<span style={{ color: '#e5484d', fontWeight: 600, fontSize: 13 }}>Póliza — {journalEntry.entryNumber}</span>}
           styles={{ body: { padding: '4px 0 0 0' } }}
           style={{ marginTop: 8 }}
           extra={
             <Space size={4}>
               <Text style={{ fontSize: 11, color: '#6b7280' }}>{dayjs(journalEntry.entryDate).format('DD/MM/YYYY')}</Text>
-              <Tag color={journalEntry.status === 'posted' ? 'green' : 'default'} style={{ fontSize: 10 }}>
+              <Tag color={journalEntry.status === 'posted' ? '#2ea172' : 'default'} style={{ fontSize: 10 }}>
                 {journalEntry.status === 'posted' ? 'Publicado' : journalEntry.status}
               </Tag>
             </Space>
@@ -484,7 +484,7 @@ export default function NotaCreditoProveedorFormPage() {
               {
                 title: 'Cuenta', width: 220,
                 render: (_: any, l: JournalEntryLine) => (
-                  <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{l.accountCode} — {l.accountName}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{l.accountCode} — {l.accountName}</span>
                 ),
               },
               {
@@ -494,27 +494,27 @@ export default function NotaCreditoProveedorFormPage() {
               {
                 title: 'Débito', dataIndex: 'debit', align: 'right', width: 110,
                 render: (v: number) => Number(v) > 0
-                  ? <span style={{ fontWeight: 600, color: '#1B3A6B', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(v))}</span>
-                  : <span style={{ color: '#d9d9d9' }}>—</span>,
+                  ? <span style={{ fontWeight: 600, color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>Q {fmt(Number(v))}</span>
+                  : <span style={{ color: '#9aa1ab' }}>—</span>,
               },
               {
                 title: 'Crédito', dataIndex: 'credit', align: 'right', width: 110,
                 render: (v: number) => Number(v) > 0
-                  ? <span style={{ fontWeight: 600, color: '#dc2626', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(v))}</span>
-                  : <span style={{ color: '#d9d9d9' }}>—</span>,
+                  ? <span style={{ fontWeight: 600, color: '#e5484d', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>Q {fmt(Number(v))}</span>
+                  : <span style={{ color: '#9aa1ab' }}>—</span>,
               },
             ]}
             summary={() => (
               <Table.Summary fixed>
                 <Table.Summary.Row style={{ background: '#fff5f5' }}>
                   <Table.Summary.Cell index={0} colSpan={2}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase' }}>Totales</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Totales</span>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={2} align="right">
-                    <span style={{ fontWeight: 800, color: '#1B3A6B', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(journalEntry.totalDebit))}</span>
+                    <span style={{ fontWeight: 800, color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>Q {fmt(Number(journalEntry.totalDebit))}</span>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={3} align="right">
-                    <span style={{ fontWeight: 800, color: '#dc2626', fontFamily: 'monospace', fontSize: 11 }}>Q {fmt(Number(journalEntry.totalCredit))}</span>
+                    <span style={{ fontWeight: 800, color: '#e5484d', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>Q {fmt(Number(journalEntry.totalCredit))}</span>
                   </Table.Summary.Cell>
                 </Table.Summary.Row>
               </Table.Summary>

@@ -100,7 +100,7 @@ export default function FacturasRecurrentesPage() {
       dataIndex: 'codigoPlantilla',
       width: 110,
       render: (v: string, r: FacturaRecurrente) => (
-        <Link to={`/ventas/facturas-recurrentes/${r.id}/editar`} style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Link>
+        <Link to={`/ventas/facturas-recurrentes/${r.id}/editar`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>
       ),
     },
     {
@@ -118,7 +118,7 @@ export default function FacturasRecurrentesPage() {
       title: 'Frecuencia',
       dataIndex: 'frecuencia',
       width: 110,
-      render: (v: string) => <Tag color="blue">{FRECUENCIA_LABELS[v as keyof typeof FRECUENCIA_LABELS] ?? v}</Tag>,
+      render: (v: string) => <Tag color="#1faec2">{FRECUENCIA_LABELS[v as keyof typeof FRECUENCIA_LABELS] ?? v}</Tag>,
     },
     {
       title: 'Próxima generación',
@@ -127,7 +127,7 @@ export default function FacturasRecurrentesPage() {
       render: (v: string) => {
         const d = dayjs(v)
         const atrasada = d.isBefore(dayjs(), 'day')
-        return <Text style={{ color: atrasada ? '#ff4d4f' : '#1B3A6B', fontSize: 13 }}>{d.format('DD/MM/YYYY')}</Text>
+        return <Text style={{ color: atrasada ? '#e5484d' : '#1faec2', fontSize: 13 }}>{d.format('DD/MM/YYYY')}</Text>
       },
     },
     {
@@ -145,7 +145,7 @@ export default function FacturasRecurrentesPage() {
       dataIndex: 'generarFEL',
       width: 60,
       align: 'center' as const,
-      render: (v: boolean) => v ? <Tag color="green" style={{ fontSize: 10 }}>FEL</Tag> : <Text type="secondary" style={{ fontSize: 10 }}>—</Text>,
+      render: (v: boolean) => v ? <Tag color="#2ea172" style={{ fontSize: 10 }}>FEL</Tag> : <Text type="secondary" style={{ fontSize: 10 }}>—</Text>,
     },
     {
       title: 'Estado',
@@ -205,17 +205,17 @@ export default function FacturasRecurrentesPage() {
         if (r.facturaExiste === false) return (
           <Space size={6}>
             <Tooltip title="Esta factura fue eliminada">
-              <Text delete type="secondary" style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>
+              <Text delete type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>
             </Tooltip>
             <Popconfirm title="¿Eliminar este registro del historial?" okText="Sí" cancelText="No" onConfirm={() => handleEliminarHistorial(r.id)}>
               <Button type="text" size="small" icon={<DeleteOutlined />} danger />
             </Popconfirm>
           </Space>
         )
-        return <Link to={`/ventas/facturas/${r.facturaGeneradaId}`} style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Link>
+        return <Link to={`/ventas/facturas/${r.facturaGeneradaId}`} style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Link>
       }
     },
-    { title: 'UUID FEL', dataIndex: 'felUuid', width: 200, render: (v: string) => v ? <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>{v}</Text> : <Text type="secondary">—</Text> },
+    { title: 'UUID FEL', dataIndex: 'felUuid', width: 200, render: (v: string) => v ? <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{v}</Text> : <Text type="secondary">—</Text> },
     {
       title: 'Estado', dataIndex: 'estadoGeneracion', width: 90,
       render: (v: string) => <Tag color={v === 'EXITOSA' ? 'success' : 'error'}>{v}</Tag>,
@@ -226,11 +226,14 @@ export default function FacturasRecurrentesPage() {
   return (
     <div style={{ padding: '24px 28px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Facturas Recurrentes</Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>Plantillas de facturación automática</Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <HistoryOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Facturas Recurrentes</Title>
+            <Text type="secondary" style={{ fontSize: 13 }}>Plantillas de facturación automática</Text>
+          </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }} onClick={() => navigate('/ventas/facturas-recurrentes/nueva')}>
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }} onClick={() => navigate('/ventas/facturas-recurrentes/nueva')}>
           Nueva plantilla
         </Button>
       </div>

@@ -420,22 +420,22 @@ export const deleteEstimate = (id: string) =>
 // ─── Status helpers ───────────────────────────────────────────────────────────
 export const INVOICE_STATUS_CONFIG: Record<InvoiceStatus, { label: string; color: string }> = {
   draft:       { label: 'Borrador',     color: 'default'  },
-  pending:     { label: 'Pendiente',    color: 'orange'   },
-  sent:        { label: 'Enviada',      color: 'blue'     },
-  partial:     { label: 'Pago parcial', color: 'geekblue' },
-  paid:        { label: 'Pagada',       color: 'green'    },
-  overdue:     { label: 'Vencida',      color: 'red'      },
+  pending:     { label: 'Pendiente',    color: '#ff7f00'   },
+  sent:        { label: 'Enviada',      color: '#1faec2'     },
+  partial:     { label: 'Pago parcial', color: '#1faec2' },
+  paid:        { label: 'Pagada',       color: '#2ea172'    },
+  overdue:     { label: 'Vencida',      color: '#e5484d'      },
   voided:      { label: 'Anulada',      color: 'volcano'  },
-  written_off: { label: 'Condonada',    color: 'purple'   },
+  written_off: { label: 'Condonada',    color: '#6b7280'   },
 }
 
 export const ESTIMATE_STATUS_CONFIG: Record<EstimateStatus, { label: string; color: string }> = {
   draft:    { label: 'Borrador',    color: 'default' },
-  sent:     { label: 'Enviada',     color: 'blue'    },
-  accepted: { label: 'Aceptada',    color: 'green'   },
-  declined: { label: 'Rechazada',   color: 'red'     },
-  invoiced: { label: 'Facturada',   color: 'purple'  },
-  expired:  { label: 'Vencida',     color: 'orange'  },
+  sent:     { label: 'Enviada',     color: '#1faec2'    },
+  accepted: { label: 'Aceptada',    color: '#2ea172'   },
+  declined: { label: 'Rechazada',   color: '#e5484d'     },
+  invoiced: { label: 'Facturada',   color: '#6b7280'  },
+  expired:  { label: 'Vencida',     color: '#ff7f00'  },
 }
 
 export const FEL_TIPOS_DOCUMENTO = [

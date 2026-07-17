@@ -34,8 +34,8 @@ const statusLabel: Record<string, string> = {
   partial: 'Pago parcial', paid: 'Pagada', overdue: 'Vencida',
 }
 const statusColor: Record<string, string> = {
-  draft: 'default', pending: 'orange', sent: 'blue',
-  partial: 'geekblue', paid: 'green', overdue: 'red',
+  draft: 'default', pending: '#ff7f00', sent: '#1faec2',
+  partial: '#1faec2', paid: '#2ea172', overdue: '#e5484d',
 }
 
 interface CustomerOption { value: string; label: string; commercialName?: string; taxId?: string }
@@ -338,9 +338,9 @@ export default function NotaCreditoFormPage() {
           style={{ marginTop: 12 }}
           message={
             <span>
-              Documento: <Tag color="blue"><b>NCRE — Nota de Crédito</b></Tag>
+              Documento: <Tag color="#1faec2"><b>NCRE — Nota de Crédito</b></Tag>
               Factura emitida hace <b>{diasTranscurridos} días</b>.{' '}
-              Te quedan <b style={{ color: '#52c41a' }}>{diasRestantes} días</b> dentro del plazo legal de 60 días.
+              Te quedan <b style={{ color: '#2ea172' }}>{diasRestantes} días</b> dentro del plazo legal de 60 días.
             </span>
           }
         />
@@ -355,7 +355,7 @@ export default function NotaCreditoFormPage() {
         style={{ marginTop: 12 }}
         message={
           <span>
-            Documento cambiado a: <Tag color="orange"><b>NABN — Nota de Abono</b></Tag>
+            Documento cambiado a: <Tag color="#ff7f00"><b>NABN — Nota de Abono</b></Tag>
           </span>
         }
         description={
@@ -385,7 +385,7 @@ export default function NotaCreditoFormPage() {
             { title: <Link to="/ventas/notas-credito">Notas de Crédito</Link> },
             { title: isEditMode ? 'Editar' : 'Nueva' },
           ]} />
-          <Tag color={isNabn ? 'orange' : 'blue'} style={{ fontSize: 11 }}>FEL: {docType}</Tag>
+          <Tag color={isNabn ? '#ff7f00' : '#1faec2'} style={{ fontSize: 11 }}>FEL: {docType}</Tag>
           {isEditMode && <Tag color="gold" style={{ fontSize: 11 }}>Edición</Tag>}
         </Space>
         <Space size={6}>
@@ -397,7 +397,7 @@ export default function NotaCreditoFormPage() {
           </Button>
           <Button size="small" type="primary" icon={<SendOutlined />}
             onClick={handleSaveAndEmit} loading={saving && emitting}
-            style={{ background: isNabn ? '#d46b08' : '#1B3A6B', borderColor: isNabn ? '#d46b08' : '#1B3A6B' }}>
+            style={{ background: isNabn ? '#ff7f00' : '#1faec2', borderColor: isNabn ? '#ff7f00' : '#1faec2' }}>
             Emitir FEL ({docType})
           </Button>
         </Space>
@@ -448,7 +448,7 @@ export default function NotaCreditoFormPage() {
               <Space size={4}>
                 <span>Factura original</span>
                 <Tooltip title="NCRE ≤60 días · NABN >60 días (SAT Guatemala)">
-                  <InfoCircleOutlined style={{ color: '#888', fontSize: 11 }} />
+                  <InfoCircleOutlined style={{ color: '#6b7280', fontSize: 11 }} />
                 </Tooltip>
               </Space>
             }>
@@ -473,13 +473,13 @@ export default function NotaCreditoFormPage() {
                 return (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <div>
-                      <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12 }}>{inv.invoiceNumber}</Text>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 12 }}>{inv.invoiceNumber}</Text>
                       <Text type="secondary" style={{ fontSize: 10, marginLeft: 6 }}>{dayjs(inv.invoiceDate).format('DD/MM/YYYY')}</Text>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <Tag color={statusColor[inv.status] ?? 'default'} style={{ fontSize: 10, margin: 0 }}>{statusLabel[inv.status] ?? inv.status}</Tag>
-                      <Tag color={enPlazo ? 'green' : 'orange'} style={{ fontSize: 10, margin: 0 }}>{enPlazo ? `${LIMITE_DIAS_NCRE - dias}d NCRE` : `NABN ${dias}d`}</Tag>
-                      <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmt(inv.total)}</Text>
+                      <Tag color={enPlazo ? '#2ea172' : '#ff7f00'} style={{ fontSize: 10, margin: 0 }}>{enPlazo ? `${LIMITE_DIAS_NCRE - dias}d NCRE` : `NABN ${dias}d`}</Tag>
+                      <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmt(inv.total)}</Text>
                     </div>
                   </div>
                 )
@@ -504,18 +504,18 @@ export default function NotaCreditoFormPage() {
           {/* FEL — datos pre-emisión */}
           <div style={{ borderTop: '1px dashed #e5e7eb', paddingTop: 6, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <SafetyCertificateOutlined style={{ color: '#1B3A6B', fontSize: 12 }} />
-              <span style={{ color: '#1B3A6B', fontWeight: 600, fontSize: 12 }}>
+              <SafetyCertificateOutlined style={{ color: '#1faec2', fontSize: 12 }} />
+              <span style={{ color: '#1faec2', fontWeight: 600, fontSize: 12 }}>
                 Datos FEL — Factura Electrónica SAT Guatemala
               </span>
-              <Tag color="blue" style={{ fontSize: 10 }}>SAT</Tag>
-              {watchSerie && <Tag color="green" style={{ fontSize: 10 }}>Certificada</Tag>}
+              <Tag color="#1faec2" style={{ fontSize: 10 }}>SAT</Tag>
+              {watchSerie && <Tag color="#2ea172" style={{ fontSize: 10 }}>Certificada</Tag>}
             </div>
 
             {/* Fila 1: Tipo Doc (read-only) | Lugar Expedición | Frases | Exenta */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 10px', alignItems: 'end' }}>
               <Form.Item label="Tipo Documento" style={{ marginBottom: 8 }}>
-                <Tag color={isNabn ? 'orange' : 'blue'} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4 }}>
+                <Tag color={isNabn ? '#ff7f00' : '#1faec2'} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4 }}>
                   {docType} — {isNabn ? 'Nota de Abono' : 'Nota de Crédito'}
                 </Tag>
               </Form.Item>
@@ -554,10 +554,10 @@ export default function NotaCreditoFormPage() {
             {/* Fila 3: UUID | URL Verificación */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
               <Form.Item name="felUuid" label="UUID" style={{ marginBottom: 8 }}>
-                <Input placeholder="UUID SAT" style={{ fontFamily: 'monospace', fontSize: 11 }} />
+                <Input placeholder="UUID SAT" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }} />
               </Form.Item>
               <Form.Item name="felUrl" label="URL Verificación" style={{ marginBottom: 4 }}>
-                <Input placeholder="https://report.feel.com.gt/..." prefix={<GlobalOutlined style={{ color: '#8c8c8c' }} />} />
+                <Input placeholder="https://report.feel.com.gt/..." prefix={<GlobalOutlined style={{ color: '#6b7280' }} />} />
               </Form.Item>
             </div>
 
@@ -566,11 +566,11 @@ export default function NotaCreditoFormPage() {
               <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
                 {(felCertResult?.url || form.getFieldValue('felUrl')) && (
                   <a href={felCertResult?.url || form.getFieldValue('felUrl')} target="_blank" rel="noreferrer"
-                    style={{ fontSize: 11, color: '#1B3A6B' }}>
+                    style={{ fontSize: 11, color: '#1faec2' }}>
                     <LinkOutlined /> Ver en SAT
                   </a>
                 )}
-                <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+                <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 10, color: '#6b7280' }}>
                   UUID: {felCertResult?.uuid || watchUuid}
                 </span>
               </div>
@@ -589,16 +589,16 @@ export default function NotaCreditoFormPage() {
             <div style={{ width: 300 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>Subtotal</Text>
-                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmt(subtotal)}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmt(subtotal)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>IVA (12%)</Text>
-                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmt(taxAmount)}</Text>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmt(taxAmount)}</Text>
               </div>
               <Divider style={{ margin: '4px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
                 <Text strong style={{ fontSize: 13 }}>Total {docType}</Text>
-                <Text strong style={{ fontFamily: 'monospace', fontSize: 13, color: isNabn ? '#d46b08' : '#cf1322' }}>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: isNabn ? '#ff7f00' : '#e5484d' }}>
                   {fmt(total)}
                 </Text>
               </div>

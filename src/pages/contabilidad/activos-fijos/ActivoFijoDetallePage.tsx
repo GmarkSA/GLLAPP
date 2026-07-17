@@ -304,8 +304,8 @@ export default function ActivoFijoDetallePage() {
         smooth: false,
         symbol: 'circle',
         symbolSize: 5,
-        itemStyle: { color: (params: any) => depreciados.has(labelsExt[params.dataIndex]) ? '#389e0d' : '#1B3A6B' },
-        lineStyle: { color: '#1B3A6B', width: 2 },
+        itemStyle: { color: (params: any) => depreciados.has(labelsExt[params.dataIndex]) ? '#2ea172' : '#1faec2' },
+        lineStyle: { color: '#1faec2', width: 2 },
         areaStyle: { color: 'rgba(27,58,107,0.08)' },
       }],
     }
@@ -315,11 +315,11 @@ export default function ActivoFijoDetallePage() {
   const historialColumns = [
     {
       title: 'Período', dataIndex: 'periodo', width: 100,
-      render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>,
     },
     { title: 'Cuota',           dataIndex: 'cuota',                   width: 130, align: 'right' as const, render: (v: number) => Q(v) },
     { title: 'Dep. Acumulada',  dataIndex: 'depreciacionAcumuladaFin', width: 140, align: 'right' as const, render: (v: number) => <Text type="warning">{Q(v)}</Text> },
-    { title: 'Valor en Libros', dataIndex: 'valorLibroFin',            width: 140, align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#1B3A6B' }}>{Q(v)}</Text> },
+    { title: 'Valor en Libros', dataIndex: 'valorLibroFin',            width: 140, align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#1faec2' }}>{Q(v)}</Text> },
     { title: 'Fecha',           dataIndex: 'fechaCalculo',             width: 130, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
     {
       title: 'Póliza', dataIndex: 'asientoId', width: 90,
@@ -351,7 +351,7 @@ export default function ActivoFijoDetallePage() {
     },
     { title: 'Valor depreciación',          dataIndex: 'cuota',        align: 'right' as const, render: (v: number) => Q(v) },
     { title: 'Dep. acumulada',              dataIndex: 'depAcumulada', align: 'right' as const, render: (v: number) => <Text type="warning">{Q(v)}</Text> },
-    { title: 'Valor actual',                dataIndex: 'valorLibro',   align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#1B3A6B' }}>{Q(v)}</Text> },
+    { title: 'Valor actual',                dataIndex: 'valorLibro',   align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#1faec2' }}>{Q(v)}</Text> },
   ]
 
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
@@ -453,14 +453,14 @@ export default function ActivoFijoDetallePage() {
       {/* ── Cabecera ────────────────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8,
-        padding: '14px 0 12px', borderBottom: '1px solid #f0f0f0', marginBottom: 20,
+        padding: '14px 0 12px', borderBottom: '1px solid rgba(10,10,10,0.08)', marginBottom: 20,
       }}>
         <Button size="small" icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/contabilidad/activos-fijos')}>
           Activos Fijos
         </Button>
         <Divider type="vertical" />
-        <Title level={5} style={{ margin: 0, color: '#1B3A6B', fontWeight: 700 }}>
+        <Title level={5} style={{ margin: 0, color: '#0a0a0a', fontWeight: 700 }}>
           {activo.name}
         </Title>
         <Tag color={ESTADO_COLOR[activo.estado as EstadoActivoFijo]} style={{ margin: 0 }}>
@@ -475,14 +475,14 @@ export default function ActivoFijoDetallePage() {
           )}
           {esBorrador && (
             <Button size="small" type="primary" icon={<CheckCircleOutlined />}
-              style={{ background: '#389e0d', borderColor: '#389e0d' }}
+              style={{ background: '#2ea172', borderColor: '#2ea172' }}
               onClick={() => { formActivar.resetFields(); setModalActivar(true) }}>
               Marcar como activo
             </Button>
           )}
           {esActivo && depreciable && (
             <Button size="small" icon={<ThunderboltOutlined />}
-              style={{ color: '#722ed1', borderColor: '#722ed1' }}
+              style={{ color: '#6b7280', borderColor: '#6b7280' }}
               onClick={() => { formDep.resetFields(); setModalDep(true) }}>
               Registrar depreciación
             </Button>
@@ -529,27 +529,27 @@ export default function ActivoFijoDetallePage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
         <Card size="small" style={{ borderRadius: 10 }}>
           <Statistic
-            title={<Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tipo de activo fijo</Text>}
+            title={<Text style={{ fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tipo de activo fijo</Text>}
             value={clase ? `${clase.codigo} — ${clase.nombre}` : 'Sin clase asignada'}
-            valueStyle={{ fontSize: 14, color: '#1B3A6B', fontWeight: 600 }}
+            valueStyle={{ fontSize: 14, color: '#0a0a0a', fontWeight: 600 }}
           />
         </Card>
         <Card size="small" style={{ borderRadius: 10 }}>
           <Statistic
-            title={<Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Valor de compra</Text>}
+            title={<Text style={{ fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Valor de compra</Text>}
             value={Q(activo.originalCost)}
-            valueStyle={{ fontSize: 16, color: '#1B3A6B', fontFamily: 'monospace', fontWeight: 700 }}
+            valueStyle={{ fontSize: 16, color: '#0a0a0a', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}
           />
         </Card>
         <Card size="small" style={{ borderRadius: 10 }}>
           <Statistic
-            title={<Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Valor actual (en libros)</Text>}
+            title={<Text style={{ fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Valor actual (en libros)</Text>}
             value={Q(activo.currentBookValue)}
             valueStyle={{
               fontSize: 16,
-              fontFamily: 'monospace',
+              fontVariantNumeric: 'tabular-nums',
               fontWeight: 700,
-              color: Number(activo.currentBookValue) < Number(activo.originalCost) ? '#fa8c16' : '#389e0d',
+              color: Number(activo.currentBookValue) < Number(activo.originalCost) ? '#ff7f00' : '#2ea172',
             }}
           />
         </Card>
@@ -564,31 +564,31 @@ export default function ActivoFijoDetallePage() {
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20,
             padding: '14px 16px', borderRadius: 10,
-            background: resultado > 0 ? '#f6ffed' : resultado < 0 ? '#fff1f0' : '#f5f5f5',
-            border: `1px solid ${resultado > 0 ? '#b7eb8f' : resultado < 0 ? '#ffa39e' : '#d9d9d9'}`,
+            background: resultado > 0 ? '#e8f5ef' : resultado < 0 ? '#fff1f0' : '#fafbfc',
+            border: `1px solid ${resultado > 0 ? '#c3e5d8' : resultado < 0 ? '#f8c9cb' : 'rgba(10,10,10,0.08)'}`,
           }}>
             <div>
-              <Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Fecha de venta</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Fecha de venta</Text>
               <Text strong>{activo.disposedAt ? dayjs(activo.disposedAt).format('DD/MM/YYYY') : '—'}</Text>
             </div>
             <div>
-              <Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Precio de venta (neto)</Text>
-              <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{Q(precioNeto)}</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Precio de venta (neto)</Text>
+              <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{Q(precioNeto)}</Text>
             </div>
             <div>
-              <Text style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Valor en libros</Text>
-              <Text strong style={{ fontFamily: 'monospace', color: '#fa8c16' }}>{Q(valorLibro)}</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Valor en libros</Text>
+              <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#ff7f00' }}>{Q(valorLibro)}</Text>
             </div>
             <div>
               <Text style={{
                 fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', fontWeight: 700,
-                color: resultado > 0 ? '#389e0d' : resultado < 0 ? '#cf1322' : '#888',
+                color: resultado > 0 ? '#2ea172' : resultado < 0 ? '#e5484d' : '#6b7280',
               }}>
                 {resultado > 0 ? '↑ Ganancia en venta' : resultado < 0 ? '↓ Pérdida en venta' : 'Sin resultado'}
               </Text>
               <Text strong style={{
-                fontFamily: 'monospace', fontSize: 15,
-                color: resultado > 0 ? '#389e0d' : resultado < 0 ? '#cf1322' : '#888',
+                fontVariantNumeric: 'tabular-nums', fontSize: 15,
+                color: resultado > 0 ? '#2ea172' : resultado < 0 ? '#e5484d' : '#6b7280',
               }}>
                 {resultado !== 0 ? Q(Math.abs(resultado)) : '—'}
               </Text>
@@ -610,17 +610,17 @@ export default function ActivoFijoDetallePage() {
 
                 {/* Detalles del activo */}
                 <div>
-                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
                     Detalles del activo
                   </Text>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px 32px', fontSize: 13 }}>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Nombre del activo</Text><Text strong>{activo.name}</Text></div>
-                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Número de activo</Text><Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{activo.assetNumber}</Text></div>
+                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Número de activo</Text><Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{activo.assetNumber}</Text></div>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Fecha de compra</Text><Text>{dayjs(activo.acquisitionDate).format('DD MMM YYYY')}</Text></div>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Valor residual</Text><Text>{Q(activo.salvageValue)}</Text></div>
-                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Dep. acumulada</Text><Text style={{ color: '#fa8c16' }}>{Q(activo.accumulatedDepreciation)}</Text></div>
+                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Dep. acumulada</Text><Text style={{ color: '#ff7f00' }}>{Q(activo.accumulatedDepreciation)}</Text></div>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Ubicación</Text><Text>{activo.location ?? '—'}</Text></div>
-                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Número de serie</Text><Text style={{ fontFamily: 'monospace' }}>{activo.serialNumber ?? '—'}</Text></div>
+                    <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Número de serie</Text><Text style={{ fontVariantNumeric: 'tabular-nums' }}>{activo.serialNumber ?? '—'}</Text></div>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Centro de Costo</Text><Text>{activo.centroCostoId ? (centrosCosto.find(c => c.id === activo.centroCostoId)?.nombre ?? activo.centroCostoId) : '—'}</Text></div>
                     <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Centro de Beneficio</Text><Text>{activo.centroBeneficioId ? (centrosBeneficio.find(c => c.id === activo.centroBeneficioId)?.nombre ?? activo.centroBeneficioId) : '—'}</Text></div>
                     {activo.description && (
@@ -636,7 +636,7 @@ export default function ActivoFijoDetallePage() {
 
                 {/* Detalles de la depreciación */}
                 <div>
-                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
                     Detalles de la depreciación
                   </Text>
                   {clase?.esNoDepreciable ? (
@@ -647,7 +647,7 @@ export default function ActivoFijoDetallePage() {
                       <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Frecuencia</Text><Text>Mensual</Text></div>
                       <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Tasa anual</Text><Text>{clase ? `${(Number(clase.tasaDepreciacionAnual) * 100).toFixed(2)}%` : '—'}</Text></div>
                       <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Vida útil (meses)</Text><Text>{clase?.vidaUtilMeses ?? '—'}</Text></div>
-                      <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Cuota mensual</Text><Text style={{ fontFamily: 'monospace', color: '#722ed1' }}>{activo.depreciacionMensual ? Q(activo.depreciacionMensual) : esBorrador ? 'Se calcula al activar' : '—'}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Cuota mensual</Text><Text style={{ fontVariantNumeric: 'tabular-nums', color: '#6b7280' }}>{activo.depreciacionMensual ? Q(activo.depreciacionMensual) : esBorrador ? 'Se calcula al activar' : '—'}</Text></div>
                       <div><Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Inicio depreciación</Text><Text>{dayjs(activo.acquisitionDate).add(1, 'month').startOf('month').format('DD MMM YYYY')}</Text></div>
                     </div>
                   )}
@@ -658,33 +658,33 @@ export default function ActivoFijoDetallePage() {
                 {/* Detalles de la cuenta */}
                 {clase && (clase.cuentaAltasId || clase.cuentaDepreciacionAcumuladaId || clase.cuentaGastoDepreciacionId) && (
                   <div>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
                       Detalles de la cuenta
                     </Text>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px 32px', fontSize: 13 }}>
                       <div>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Cuenta de activo fijo</Text>
-                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaAltasId)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{cuentaName(clase.cuentaAltasId)}</Text>
                       </div>
                       <div>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Cuenta depreciación acumulada</Text>
-                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaDepreciacionAcumuladaId)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{cuentaName(clase.cuentaDepreciacionAcumuladaId)}</Text>
                       </div>
                       <div>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Cuenta gastos de depreciación</Text>
-                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaGastoDepreciacionId)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{cuentaName(clase.cuentaGastoDepreciacionId)}</Text>
                       </div>
                       <div>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Costo de Venta AF</Text>
-                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaCostoVentaAFId)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{cuentaName(clase.cuentaCostoVentaAFId)}</Text>
                       </div>
                       <div>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Ganancia por Venta AF</Text>
-                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaGananciaPorVentaId)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{cuentaName(clase.cuentaGananciaPorVentaId)}</Text>
                       </div>
                       <div>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Pérdida por Venta AF</Text>
-                        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{cuentaName(clase.cuentaPerdidaPorVentaId)}</Text>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{cuentaName(clase.cuentaPerdidaPorVentaId)}</Text>
                       </div>
                     </div>
                   </div>
@@ -703,10 +703,10 @@ export default function ActivoFijoDetallePage() {
                     <Divider style={{ margin: '4px 0' }} />
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                        <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                           {labelMap[pol.sourceDocumentType] ?? pol.sourceDocumentType}
                         </Text>
-                        <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 12, fontWeight: 600 }}>
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 12, fontWeight: 600 }}>
                           {pol.entryNumber}
                         </Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>
@@ -724,7 +724,7 @@ export default function ActivoFijoDetallePage() {
                         pagination={false}
                         rowKey="id"
                         dataSource={pol.lines}
-                        style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
+                        style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 6, overflow: 'hidden' }}
                         columns={[
                           {
                             title: 'Cuenta', dataIndex: 'accountCode',
@@ -739,27 +739,27 @@ export default function ActivoFijoDetallePage() {
                           {
                             title: 'Débito', dataIndex: 'debit', width: 120, align: 'right' as const,
                             render: (v: number) => Number(v) > 0
-                              ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                              ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(v)}</Text>
                               : null,
                           },
                           {
                             title: 'Crédito', dataIndex: 'credit', width: 120, align: 'right' as const,
                             render: (v: number) => Number(v) > 0
-                              ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                              ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(v)}</Text>
                               : null,
                           },
                         ]}
                         summary={() => (
                           <Table.Summary>
-                            <Table.Summary.Row style={{ background: '#fafafa' }}>
+                            <Table.Summary.Row style={{ background: '#fafbfc' }}>
                               <Table.Summary.Cell index={0} colSpan={2}>
                                 <Text strong style={{ fontSize: 12 }}>Total</Text>
                               </Table.Summary.Cell>
                               <Table.Summary.Cell index={2} align="right">
-                                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(pol.totalDebit)}</Text>
+                                <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(pol.totalDebit)}</Text>
                               </Table.Summary.Cell>
                               <Table.Summary.Cell index={3} align="right">
-                                <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(pol.totalCredit)}</Text>
+                                <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(pol.totalCredit)}</Text>
                               </Table.Summary.Cell>
                             </Table.Summary.Row>
                           </Table.Summary>
@@ -782,7 +782,7 @@ export default function ActivoFijoDetallePage() {
                 {/* Gráfica — solo activos vigentes */}
                 {!esDisposed && chartOption && (
                   <div style={{ marginBottom: 24 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Curva de depreciación — Valor en libros
                     </Text>
                     <ReactECharts option={chartOption} style={{ height: 220 }} />
@@ -807,7 +807,7 @@ export default function ActivoFijoDetallePage() {
                 {/* Previsión — solo activos vigentes */}
                 {!esDisposed && prevision.length > 0 && (
                   <>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Previsión de depreciación
                     </Text>
                     <Table
@@ -825,7 +825,7 @@ export default function ActivoFijoDetallePage() {
                 {historial.length > 0 && (
                   <>
                     {!esDisposed && <Divider style={{ margin: '20px 0 12px' }} />}
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Historial registrado
                     </Text>
                     <Table
@@ -848,7 +848,7 @@ export default function ActivoFijoDetallePage() {
       />
 
       <style>{`
-        .row-dep-done td { background: #f6ffed !important; }
+        .row-dep-done td { background: #e8f5ef !important; }
       `}</style>
 
       {/* ── Modal: Marcar como activo ──────────────────────────────────────── */}
@@ -859,7 +859,7 @@ export default function ActivoFijoDetallePage() {
         onOk={handleActivar}
         confirmLoading={savingAct}
         okText="Activar"
-        okButtonProps={{ style: { background: '#389e0d', borderColor: '#389e0d' } }}
+        okButtonProps={{ style: { background: '#2ea172', borderColor: '#2ea172' } }}
         width={420}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
@@ -888,7 +888,7 @@ export default function ActivoFijoDetallePage() {
         onOk={handleDepreciar}
         confirmLoading={savingDep}
         okText="Registrar"
-        okButtonProps={{ style: { background: '#722ed1', borderColor: '#722ed1' } }}
+        okButtonProps={{ style: { background: '#6b7280', borderColor: '#6b7280' } }}
         width={360}
       >
         <Form form={formDep} layout="vertical" size="small">
@@ -906,7 +906,7 @@ export default function ActivoFijoDetallePage() {
         onOk={handleEdit}
         confirmLoading={savingEdit}
         okText="Guardar"
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={540}
       >
         <Form form={formEdit} layout="vertical" size="small" style={{ marginTop: 8 }}>
@@ -925,7 +925,7 @@ export default function ActivoFijoDetallePage() {
               <Input />
             </Form.Item>
             <Form.Item name="serialNumber" label="Número de serie">
-              <Input style={{ fontFamily: 'monospace' }} />
+              <Input style={{ fontVariantNumeric: 'tabular-nums' }} />
             </Form.Item>
           </div>
           <Form.Item name="description" label="Descripción">
@@ -990,19 +990,19 @@ export default function ActivoFijoDetallePage() {
             {polizaPreview && (
               <>
                 <Divider style={{ margin: '16px 0 12px' }}>
-                  <Text style={{ fontSize: 12, color: '#888' }}>Póliza de reversa que se generará</Text>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>Póliza de reversa que se generará</Text>
                 </Divider>
 
                 {/* Banner ganancia / pérdida + ISR estimado */}
                 <div style={{
                   padding: '10px 14px', borderRadius: 6, marginBottom: 12,
-                  background: polizaPreview.ganancia > 0 ? '#f6ffed' : polizaPreview.ganancia < 0 ? '#fff1f0' : '#f5f5f5',
-                  border: `1px solid ${polizaPreview.ganancia > 0 ? '#b7eb8f' : polizaPreview.ganancia < 0 ? '#ffa39e' : '#d9d9d9'}`,
+                  background: polizaPreview.ganancia > 0 ? '#e8f5ef' : polizaPreview.ganancia < 0 ? '#fff1f0' : '#fafbfc',
+                  border: `1px solid ${polizaPreview.ganancia > 0 ? '#c3e5d8' : polizaPreview.ganancia < 0 ? '#f8c9cb' : 'rgba(10,10,10,0.08)'}`,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <Text strong style={{
                       fontSize: 13,
-                      color: polizaPreview.ganancia > 0 ? '#389e0d' : polizaPreview.ganancia < 0 ? '#cf1322' : '#888',
+                      color: polizaPreview.ganancia > 0 ? '#2ea172' : polizaPreview.ganancia < 0 ? '#e5484d' : '#6b7280',
                     }}>
                       {polizaPreview.ganancia > 0 ? '↑ Ganancia en venta:'
                         : polizaPreview.ganancia < 0 ? '↓ Pérdida en venta:'
@@ -1010,8 +1010,8 @@ export default function ActivoFijoDetallePage() {
                     </Text>
                     {polizaPreview.ganancia !== 0 && (
                       <Text style={{
-                        fontFamily: 'monospace', fontWeight: 700, fontSize: 14,
-                        color: polizaPreview.ganancia > 0 ? '#389e0d' : '#cf1322',
+                        fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 14,
+                        color: polizaPreview.ganancia > 0 ? '#2ea172' : '#e5484d',
                       }}>
                         {Q(Math.abs(polizaPreview.ganancia))}
                       </Text>
@@ -1022,9 +1022,9 @@ export default function ActivoFijoDetallePage() {
                     </Text>
                   </div>
                   {polizaPreview.isr > 0 && (
-                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #b7eb8f', display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 11, color: '#389e0d' }}>ISR estimado 10% (Art. 84 LUE):</Text>
-                      <Text style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#389e0d' }}>
+                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #c3e5d8', display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: '#2ea172' }}>ISR estimado 10% (Art. 84 LUE):</Text>
+                      <Text style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 12, color: '#2ea172' }}>
                         {Q(polizaPreview.isr)}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 10 }}>— a pagar dentro de los 10 días del mes siguiente</Text>
@@ -1038,17 +1038,17 @@ export default function ActivoFijoDetallePage() {
                   pagination={false}
                   rowKey="key"
                   dataSource={polizaPreview.lines}
-                  style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
+                  style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 6, overflow: 'hidden' }}
                   columns={[
                     {
                       title: 'Cuenta', dataIndex: 'cuenta',
                       render: (v: string, r: any) => {
                         const colorMap: Record<string, string> = {
-                          cobro:   '#1B3A6B',
-                          depAcum: '#fa8c16',
-                          activo:  '#595959',
-                          ganancia:'#389e0d',
-                          perdida: '#cf1322',
+                          cobro:   '#1faec2',
+                          depAcum: '#ff7f00',
+                          activo:  '#6b7280',
+                          ganancia:'#2ea172',
+                          perdida: '#e5484d',
                         }
                         return <Text style={{ fontSize: 12, color: colorMap[r.tipo] ?? 'inherit' }}>{v}</Text>
                       },
@@ -1056,29 +1056,29 @@ export default function ActivoFijoDetallePage() {
                     {
                       title: 'Débito', dataIndex: 'debit', width: 120, align: 'right' as const,
                       render: (v: number) => v > 0
-                        ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(v)}</Text>
                         : null,
                     },
                     {
                       title: 'Crédito', dataIndex: 'credit', width: 120, align: 'right' as const,
                       render: (v: number) => v > 0
-                        ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(v)}</Text>
                         : null,
                     },
                   ]}
                   summary={() => (
                     <Table.Summary>
-                      <Table.Summary.Row style={{ background: '#fafafa' }}>
+                      <Table.Summary.Row style={{ background: '#fafbfc' }}>
                         <Table.Summary.Cell index={0}>
                           <Text strong style={{ fontSize: 12 }}>Total</Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={1} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                          <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                             {Q(polizaPreview.totalDebit)}
                           </Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={2} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                          <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                             {Q(polizaPreview.totalCredit)}
                           </Text>
                         </Table.Summary.Cell>
@@ -1093,7 +1093,7 @@ export default function ActivoFijoDetallePage() {
               <Button onClick={closeVenderModal}>Cancelar</Button>
               <Button
                 type="primary" loading={savingVenta} onClick={handleVender}
-                style={{ background: '#1B3A6B' }} icon={<DollarOutlined />}
+                style={{ background: '#1faec2' }} icon={<DollarOutlined />}
               >
                 Registrar venta
               </Button>
@@ -1109,7 +1109,7 @@ export default function ActivoFijoDetallePage() {
             extra={[
               <Button
                 key="ventas" type="primary"
-                style={{ background: '#1B3A6B' }}
+                style={{ background: '#1faec2' }}
                 onClick={() => { closeVenderModal(); navigate('/ventas/facturas/nueva') }}
               >
                 Ir a Ventas → Crear factura FEL
@@ -1147,21 +1147,21 @@ export default function ActivoFijoDetallePage() {
         {polizaBajaPreview && (
           <>
             <Divider style={{ margin: '16px 0 12px' }}>
-              <Text style={{ fontSize: 12, color: '#888' }}>Póliza contable que se generará</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>Póliza contable que se generará</Text>
             </Divider>
 
             {/* Banner valor en libros */}
             <div style={{
               padding: '10px 14px', borderRadius: 6, marginBottom: 12,
-              background: polizaBajaPreview.valorLibro > 0 ? '#fff1f0' : '#f5f5f5',
-              border: `1px solid ${polizaBajaPreview.valorLibro > 0 ? '#ffa39e' : '#d9d9d9'}`,
+              background: polizaBajaPreview.valorLibro > 0 ? '#fff1f0' : '#fafbfc',
+              border: `1px solid ${polizaBajaPreview.valorLibro > 0 ? '#f8c9cb' : 'rgba(10,10,10,0.08)'}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <Text strong style={{ fontSize: 13, color: polizaBajaPreview.valorLibro > 0 ? '#cf1322' : '#888' }}>
+                <Text strong style={{ fontSize: 13, color: polizaBajaPreview.valorLibro > 0 ? '#e5484d' : '#6b7280' }}>
                   {polizaBajaPreview.valorLibro > 0 ? '↓ Pérdida por deterioro:' : '✓ Activo totalmente depreciado'}
                 </Text>
                 {polizaBajaPreview.valorLibro > 0 && (
-                  <Text style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14, color: '#cf1322' }}>
+                  <Text style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 14, color: '#e5484d' }}>
                     {Q(polizaBajaPreview.valorLibro)}
                   </Text>
                 )}
@@ -1176,14 +1176,14 @@ export default function ActivoFijoDetallePage() {
               pagination={false}
               rowKey="key"
               dataSource={polizaBajaPreview.lines}
-              style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
+              style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 6, overflow: 'hidden' }}
               columns={[
                 {
                   title: 'Cuenta', dataIndex: 'cuenta',
                   render: (v: string, r: any) => (
                     <Text style={{
                       fontSize: 12,
-                      color: r.tipo === 'perdida' ? '#cf1322' : r.tipo === 'activo' ? '#1B3A6B' : 'inherit',
+                      color: r.tipo === 'perdida' ? '#e5484d' : r.tipo === 'activo' ? '#1faec2' : 'inherit',
                     }}>
                       {v}
                     </Text>
@@ -1192,29 +1192,29 @@ export default function ActivoFijoDetallePage() {
                 {
                   title: 'Débito', dataIndex: 'debit', width: 120, align: 'right' as const,
                   render: (v: number) => v > 0
-                    ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                    ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(v)}</Text>
                     : null,
                 },
                 {
                   title: 'Crédito', dataIndex: 'credit', width: 120, align: 'right' as const,
                   render: (v: number) => v > 0
-                    ? <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{Q(v)}</Text>
+                    ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Q(v)}</Text>
                     : null,
                 },
               ]}
               summary={() => (
                 <Table.Summary>
-                  <Table.Summary.Row style={{ background: '#fafafa' }}>
+                  <Table.Summary.Row style={{ background: '#fafbfc' }}>
                     <Table.Summary.Cell index={0}>
                       <Text strong style={{ fontSize: 12 }}>Total</Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={1} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                         {Q(polizaBajaPreview.totalDebit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={2} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                         {Q(polizaBajaPreview.totalCredit)}
                       </Text>
                     </Table.Summary.Cell>

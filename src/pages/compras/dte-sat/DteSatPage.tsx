@@ -33,17 +33,17 @@ const POLL_INTERVAL_MS = 20_000 // 20 segundos — polling para jobs en ejecuci�
 
 const statusConfig: Record<SatDteStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:    { label: 'Proveedor pendiente', color: 'gold',    icon: <WarningOutlined /> },
-  ready:      { label: 'Listo',               color: 'green',   icon: <CheckCircleOutlined /> },
+  ready:      { label: 'Listo',               color: '#2ea172',   icon: <CheckCircleOutlined /> },
   duplicate:  { label: 'Duplicado',           color: 'volcano', icon: <FileTextOutlined /> },
-  posted:     { label: 'Contabilizado',        color: 'blue',    icon: <BookOutlined /> },
-  error:      { label: 'Error',               color: 'red',     icon: <WarningOutlined /> },
+  posted:     { label: 'Contabilizado',        color: '#1faec2',    icon: <BookOutlined /> },
+  error:      { label: 'Error',               color: '#e5484d',     icon: <WarningOutlined /> },
 }
 
 const jobStatusConfig: Record<string, { label: string; color: string }> = {
   queued:    { label: 'En cola',    color: 'default' },
   running:   { label: 'Ejecutando', color: 'processing' },
-  succeeded: { label: 'Finalizado', color: 'green' },
-  failed:    { label: 'Error',      color: 'red' },
+  succeeded: { label: 'Finalizado', color: '#2ea172' },
+  failed:    { label: 'Error',      color: '#e5484d' },
 }
 
 function money(value: unknown, currency = 'GTQ') {
@@ -653,7 +653,7 @@ export default function DteSatPage() {
       width: 160,
       render: (v: string) => (
         <Tooltip title={v}>
-          <Text style={{ fontSize: 12, fontFamily: 'monospace', cursor: 'default' }}>
+          <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', cursor: 'default' }}>
             {v?.slice(0, 14)}…
           </Text>
         </Tooltip>
@@ -688,7 +688,7 @@ export default function DteSatPage() {
       onFilter: (val, row) => row.status === val,
       render: (_, row) => {
         if (row.status === 'error') return (
-          <Tag color="red" icon={<WarningOutlined />} style={{ fontSize: 10 }}>Error</Tag>
+          <Tag color="#e5484d" icon={<WarningOutlined />} style={{ fontSize: 10 }}>Error</Tag>
         )
         if (row.status === 'duplicate') return (
           <Tag color="volcano" icon={<FileTextOutlined />} style={{ fontSize: 10 }}>Duplicado</Tag>
@@ -724,7 +724,7 @@ export default function DteSatPage() {
                     lineHeight: 1,
                     cursor: 'default',
                     color: step.done
-                      ? (step.last ? '#16a34a' : '#1B3A6B')
+                      ? (step.last ? '#2ea172' : '#1faec2')
                       : '#d1d5db',
                   }}>
                     {step.done ? '●' : '○'}
@@ -734,7 +734,7 @@ export default function DteSatPage() {
             </div>
             <Text type={s5 ? undefined : 'secondary'} style={{
               fontSize: 10,
-              color: s5 ? '#16a34a' : undefined,
+              color: s5 ? '#2ea172' : undefined,
             }}>
               {currentLabel}
             </Text>
@@ -758,7 +758,7 @@ export default function DteSatPage() {
                       href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${row.uuid}`}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ fontSize: 12, color: '#d97706' }}
+                      style={{ fontSize: 12, color: '#ff7f00' }}
                     >
                       SAT ↗
                     </a>
@@ -786,7 +786,7 @@ export default function DteSatPage() {
       render: (_, row) => (
         <Space size={4}>
           {row.status === 'posted' || row.status === 'duplicate'
-            ? <Tag color={row.status === 'posted' ? 'blue' : 'volcano'} style={{ fontSize: 10 }}>
+            ? <Tag color={row.status === 'posted' ? '#1faec2' : 'volcano'} style={{ fontSize: 10 }}>
                 {row.status === 'posted' ? 'Procesado' : 'Duplicado'}
               </Tag>
             : <Button
@@ -794,7 +794,7 @@ export default function DteSatPage() {
                 type="primary"
                 icon={<BookOutlined />}
                 onClick={() => openStepper(row)}
-                style={{ fontSize: 11, background: '#1B3A6B' }}
+                style={{ fontSize: 11, background: '#1faec2' }}
               >
                 Procesar
               </Button>
@@ -852,10 +852,10 @@ export default function DteSatPage() {
       render: (_, row) => (
         <Space size={2} wrap>
           <Tag style={{ fontSize: 10 }}>{(row as any).totalCount ?? '?'} total</Tag>
-          <Tag color="green" style={{ fontSize: 10 }}>{row.importedCount} nuevos</Tag>
-          <Tag color="orange" style={{ fontSize: 10 }}>{row.duplicateCount} dup.</Tag>
+          <Tag color="#2ea172" style={{ fontSize: 10 }}>{row.importedCount} nuevos</Tag>
+          <Tag color="#ff7f00" style={{ fontSize: 10 }}>{row.duplicateCount} dup.</Tag>
           {(row as any).errorCount > 0 && (
-            <Tag color="red" style={{ fontSize: 10 }}>{(row as any).errorCount} err.</Tag>
+            <Tag color="#e5484d" style={{ fontSize: 10 }}>{(row as any).errorCount} err.</Tag>
           )}
         </Space>
       ),
@@ -930,7 +930,7 @@ export default function DteSatPage() {
                       {(stepperDte as any).tipoDocumento ?? 'FACT'} · {stepperDte.serie ?? '—'}/{stepperDte.numeroDte ?? '—'}
                     </Text>
                   </div>
-                  <Text strong style={{ fontSize: 18, color: '#1B3A6B' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                  <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
                 </div>
                 <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
                   { title: 'DTE' },
@@ -961,14 +961,14 @@ export default function DteSatPage() {
                     <Descriptions.Item label="Subtotal">{money(stepperDte.subtotal, stepperDte.moneda)}</Descriptions.Item>
                     <Descriptions.Item label="IVA">{money(stepperDte.totalIva, stepperDte.moneda)}</Descriptions.Item>
                     <Descriptions.Item label="Total" span={2}>
-                      <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                      <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="Archivos" span={2}>
                       <Space size={16}>
                         {stepperDte.xmlUrl ? <a href={stepperDte.xmlUrl} target="_blank" rel="noreferrer">XML ↗</a> : <Text type="secondary">XML</Text>}
                         {stepperDte.pdfUrl
                           ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
-                          : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#d97706' }}>Ver en SAT ↗</a>}
+                          : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#ff7f00' }}>Ver en SAT ↗</a>}
                       </Space>
                     </Descriptions.Item>
                   </Descriptions>
@@ -979,7 +979,7 @@ export default function DteSatPage() {
                 {stepperStep === 1 && (
                   vendorLinked ? (
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                      <CheckCircleOutlined style={{ fontSize: 44, color: '#16a34a', display: 'block', marginBottom: 10 }} />
+                      <CheckCircleOutlined style={{ fontSize: 44, color: '#2ea172', display: 'block', marginBottom: 10 }} />
                       <Text strong style={{ fontSize: 15 }}>Proveedor vinculado</Text>
                       <br />
                       <Text type="secondary">{stepperDte.nombreEmisor} · NIT: {stepperDte.nitEmisor}</Text>
@@ -1032,7 +1032,7 @@ export default function DteSatPage() {
                               options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
                           </Form.Item>
                         </div>
-                        <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1B3A6B' }}>
+                        <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1faec2' }}>
                           Crear y vincular proveedor
                         </Button>
                       </Form>
@@ -1178,7 +1178,7 @@ export default function DteSatPage() {
                       </Form.Item>
                       {stepperOcId && (
                         <Form.Item label="OC vinculada">
-                          <Tag color="blue">{stepperPOs?.find(p => p.id === stepperOcId)?.orderNumber ?? 'OC seleccionada'}</Tag>
+                          <Tag color="#1faec2">{stepperPOs?.find(p => p.id === stepperOcId)?.orderNumber ?? 'OC seleccionada'}</Tag>
                         </Form.Item>
                       )}
                     </div>
@@ -1188,15 +1188,15 @@ export default function DteSatPage() {
                 {/* Paso 4 — Listo */}
                 {stepperStep === 4 && stepperResult && (
                   <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                    <CheckCircleOutlined style={{ fontSize: 52, color: '#16a34a', marginBottom: 14 }} />
+                    <CheckCircleOutlined style={{ fontSize: 52, color: '#2ea172', marginBottom: 14 }} />
                     <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>DTE Procesado Correctamente</Text>
-                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
+                    <div style={{ background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
                       <div>
                         <Text type="secondary">{isNC ? 'Nota de Crédito:' : 'Factura:'}</Text>{' '}
                         <Text strong>{stepperResult.invoice?.invoiceNumber}</Text>
                       </div>
                       {stepperResult.invoice?.journalEntryId && (
-                        <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#16a34a' }}>Generada automáticamente</Text></div>
+                        <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#2ea172' }}>Generada automáticamente</Text></div>
                       )}
                       <div><Text type="secondary">Total:</Text> <Text strong>{money(stepperDte.total, stepperDte.moneda)}</Text></div>
                     </div>
@@ -1205,7 +1205,7 @@ export default function DteSatPage() {
               </div>
 
               {/* Footer navegación */}
-              <div style={{ padding: '12px 24px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ padding: '12px 24px', borderTop: '1px solid rgba(10,10,10,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Button onClick={() => setStepperStep(s => s - 1)}
                   disabled={stepperStep === 0 || stepperStep === 4 || stepperLoading}>
                   ← Anterior
@@ -1215,7 +1215,7 @@ export default function DteSatPage() {
                     <Tooltip title={stepperStep === 1 && vendorLinked && stepperVendorPayableMissing
                       ? 'Configura la Cuenta CxP del proveedor antes de continuar'
                       : undefined}>
-                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                    <Button type="primary" style={{ background: '#1faec2' }}
                       disabled={!canNext || stepperLoading}
                       onClick={async () => {
                         if (stepperStep === 1) {
@@ -1235,7 +1235,7 @@ export default function DteSatPage() {
                   )}
                   {stepperStep === 3 && (
                     <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}
-                      style={{ background: '#1B3A6B' }} onClick={() => stepperForm.submit()}>
+                      style={{ background: '#1faec2' }} onClick={() => stepperForm.submit()}>
                       Registrar y Contabilizar
                     </Button>
                   )}
@@ -1247,7 +1247,7 @@ export default function DteSatPage() {
                       }}>
                         Procesar siguiente DTE
                       </Button>
-                      <Button type="primary" style={{ background: '#1B3A6B' }} onClick={() => setStepperDte(null)}>
+                      <Button type="primary" style={{ background: '#1faec2' }} onClick={() => setStepperDte(null)}>
                         Cerrar
                       </Button>
                     </Space>
@@ -1268,7 +1268,7 @@ export default function DteSatPage() {
         return (
         <Modal
           open={batchOpen}
-          title={<Space><ThunderboltOutlined style={{ color: '#16a34a' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
+          title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
           width={820}
           footer={null}
           onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
@@ -1293,7 +1293,7 @@ export default function DteSatPage() {
                 </thead>
                 <tbody>
                   {batchRows.map(row => (
-                    <tr key={row.id} style={{ borderBottom: '1px solid #f0f0f0', background: row.missing ? '#fff7ed' : undefined }}>
+                    <tr key={row.id} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)', background: row.missing ? 'rgba(255,127,0,0.10)' : undefined }}>
                       <td style={{ padding: '6px 10px' }}>
                         <Text style={{ fontSize: 12 }}>{row.label}</Text>
                       </td>
@@ -1319,7 +1319,7 @@ export default function DteSatPage() {
                           <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountLabel ?? '—'}</Text>
                         )}
                         {row.missing && row.status === 'pending' && (
-                          <div style={{ color: '#d97706', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                          <div style={{ color: '#ff7f00', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
                         )}
                       </td>
                       <td style={{ padding: '4px 6px' }}>
@@ -1345,7 +1345,7 @@ export default function DteSatPage() {
                           <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountingDate?.format('DD/MM/YYYY') ?? '—'}</Text>
                         )}
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
                       <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                         {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
                         {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
@@ -1367,9 +1367,9 @@ export default function DteSatPage() {
                     </Text>
                   )}
                   {allDone && (
-                    <Text style={{ fontSize: 12, color: '#16a34a' }}>
+                    <Text style={{ fontSize: 12, color: '#2ea172' }}>
                       ✓ {batchRows.filter(r => r.status === 'ok').length} registrado{batchRows.filter(r => r.status === 'ok').length !== 1 ? 's' : ''}
-                      {batchRows.some(r => r.status === 'error') && <span style={{ color: '#dc2626' }}> · {batchRows.filter(r => r.status === 'error').length} con error</span>}
+                      {batchRows.some(r => r.status === 'error') && <span style={{ color: '#e5484d' }}> · {batchRows.filter(r => r.status === 'error').length} con error</span>}
                     </Text>
                   )}
                 </div>
@@ -1378,12 +1378,12 @@ export default function DteSatPage() {
                   {!allDone ? (
                     <Button type="primary" icon={<ThunderboltOutlined />} loading={batchRunning}
                       disabled={!canProcess}
-                      style={{ background: canProcess ? '#16a34a' : undefined, borderColor: canProcess ? '#16a34a' : undefined }}
+                      style={{ background: canProcess ? '#2ea172' : undefined, borderColor: canProcess ? '#2ea172' : undefined }}
                       onClick={handleBatchPost}>
                       Registrar {batchRows.filter(r => !r.missing && r.accountId).length} DTE{batchRows.filter(r => !r.missing && r.accountId).length !== 1 ? 's' : ''}
                     </Button>
                   ) : (
-                    <Button type="primary" style={{ background: '#1B3A6B' }}
+                    <Button type="primary" style={{ background: '#1faec2' }}
                       onClick={() => { setBatchOpen(false); setBatchRows([]) }}>
                       Cerrar
                     </Button>
@@ -1399,7 +1399,7 @@ export default function DteSatPage() {
       {/* Modal — Crear proveedor desde DTE SAT */}
       <Modal
         open={!!vendorModalDte}
-        title={<Space><UserAddOutlined style={{ color: '#1B3A6B' }} /><span>Crear proveedor desde DTE SAT</span></Space>}
+        title={<Space><UserAddOutlined style={{ color: '#1faec2' }} /><span>Crear proveedor desde DTE SAT</span></Space>}
         okText="Crear proveedor"
         cancelText="Cancelar"
         confirmLoading={createVendorLoading}
@@ -1440,7 +1440,7 @@ export default function DteSatPage() {
       {/* Modal — Contabilizar DTE SAT */}
       <Modal
         open={!!postingDte}
-        title={<Space><BookOutlined style={{ color: '#1B3A6B' }} /><span>Contabilizar DTE SAT</span></Space>}
+        title={<Space><BookOutlined style={{ color: '#1faec2' }} /><span>Contabilizar DTE SAT</span></Space>}
         okText="Contabilizar"
         cancelText="Cancelar"
         confirmLoading={postLoading}
@@ -1469,7 +1469,7 @@ export default function DteSatPage() {
               <Descriptions.Item label="Subtotal">{money(postingDte.subtotal, postingDte.moneda)}</Descriptions.Item>
               <Descriptions.Item label="IVA">{money(postingDte.totalIva, postingDte.moneda)}</Descriptions.Item>
               <Descriptions.Item label="Total" span={2}>
-                <Text strong style={{ fontSize: 14, color: '#1B3A6B' }}>{money(postingDte.total, postingDte.moneda)}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(postingDte.total, postingDte.moneda)}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="Factura PDF" span={2}>
                 {postingDte.pdfUrl
@@ -1478,7 +1478,7 @@ export default function DteSatPage() {
                       href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${postingDte.uuid}`}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ color: '#d97706' }}
+                      style={{ color: '#ff7f00' }}
                     >
                       Ver en portal SAT (verificación FEL) ↗
                     </a>
@@ -1549,7 +1549,7 @@ export default function DteSatPage() {
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
-              <Title level={4} style={{ margin: 0, color: '#102a56' }}>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
                 DTE SAT{hasRunningJobs && <Spin size="small" style={{ marginLeft: 8 }} />}
               </Title>
               <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
@@ -1562,14 +1562,14 @@ export default function DteSatPage() {
                 ⚠ Configura credenciales SAT en <strong>Configuración → Configuración fiscal</strong>
               </div>
             ) : (
-              <div style={{ fontSize: 11, color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 11, color: '#2ea172', background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
                 ✓ NIT {satCredentials.satNit} configurado
               </div>
             )}
           </div>
         }
         extra={<Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading} size="small">Actualizar</Button>}
-        style={{ borderTop: '3px solid #1B3A6B' }}
+        style={{ borderTop: '3px solid #1faec2' }}
         styles={{ body: { paddingTop: 10, paddingBottom: 10 } }}
       >
         <Form form={form} layout="vertical" size="small" onFinish={handleImport}>
@@ -1596,7 +1596,7 @@ export default function DteSatPage() {
                 loading={importing}
                 disabled={!satCredentials.satNit}
                 block
-                style={{ background: '#1B3A6B' }}
+                style={{ background: '#1faec2' }}
               >
                 Iniciar importación SAT
               </Button>
@@ -1658,7 +1658,7 @@ export default function DteSatPage() {
                     <Button
                       type="primary"
                       icon={<ThunderboltOutlined />}
-                      style={{ background: '#16a34a', flexShrink: 0 }}
+                      style={{ background: '#2ea172', flexShrink: 0 }}
                       onClick={openBatchModal}
                     >
                       Registrar {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}

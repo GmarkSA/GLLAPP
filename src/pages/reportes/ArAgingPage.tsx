@@ -6,7 +6,7 @@ import {
 } from 'antd'
 import {
   HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
-  SwapOutlined, SearchOutlined,
+  SwapOutlined, SearchOutlined, AuditOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -41,7 +41,7 @@ function PaymentsSubTable({ payments, currency }: { payments: ArAgingPayment[]; 
             title: 'N° Pago',
             dataIndex: 'paymentNumber',
             width: 160,
-            render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B', fontWeight: 600 }}>{v || '—'}</Text>,
+            render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2', fontWeight: 600 }}>{v || '—'}</Text>,
           },
           {
             title: 'Fecha de abono',
@@ -57,7 +57,7 @@ function PaymentsSubTable({ payments, currency }: { payments: ArAgingPayment[]; 
             width: 140,
             align: 'right' as const,
             render: (v: number) => (
-              <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#16a34a', fontWeight: 700 }}>
+              <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172', fontWeight: 700 }}>
                 {currency !== 'GTQ' ? `${currency} ` : 'Q '}
                 {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               </Text>
@@ -99,11 +99,11 @@ const ANIOS = Array.from({ length: 6 }, (_, i) => ({ value: CUR_YEAR - i, label:
 const fmt = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const ageBucketColor: Record<string, string> = {
-  current: '#16a34a',
-  days_30: '#2563eb',
-  days_60: '#d97706',
-  days_90: '#dc2626',
-  over_90: '#7c3aed',
+  current: '#2ea172',
+  days_30: '#1faec2',
+  days_60: '#ff7f00',
+  days_90: '#e5484d',
+  over_90: '#e5484d',
 }
 
 const invoiceColumns = [
@@ -138,8 +138,8 @@ const invoiceColumns = [
     width: 110,
     align: 'right' as const,
     render: (v: number) => v <= 0
-      ? <Tag color="green">Vigente</Tag>
-      : <Tag color={v > 90 ? 'purple' : v > 60 ? 'red' : v > 30 ? 'orange' : 'blue'}>{v} días</Tag>,
+      ? <Tag color="#2ea172">Vigente</Tag>
+      : <Tag color={v > 90 ? '#6b7280' : v > 60 ? '#e5484d' : v > 30 ? '#ff7f00' : '#1faec2'}>{v} días</Tag>,
   },
   {
     title: 'Total factura',
@@ -150,7 +150,7 @@ const invoiceColumns = [
       <div style={{ textAlign: 'right' }}>
         {row.currency && row.currency !== 'GTQ' ? (
           <>
-            <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: 600 }}>
+            <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
               {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             </Text>
             <br />
@@ -170,7 +170,7 @@ const invoiceColumns = [
     width: 120,
     align: 'right' as const,
     render: (v: number, row: ArAgingRow) => v > 0 ? (
-      <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+      <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172', fontWeight: 600 }}>
         {row.currency !== 'GTQ' ? `${row.currency} ` : 'Q '}
         {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
       </Text>
@@ -185,16 +185,16 @@ const invoiceColumns = [
       <div style={{ textAlign: 'right' }}>
         {row.currency && row.currency !== 'GTQ' ? (
           <>
-            <Text style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>
+            <Text style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
               {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             </Text>
             <br />
-            <Text style={{ fontSize: 11, fontWeight: 600, color: '#1B3A6B' }}>
+            <Text style={{ fontSize: 11, fontWeight: 600, color: '#1faec2' }}>
               Q {(row.balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
             </Text>
           </>
         ) : (
-          <Text style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 13 }}>{fmt(v)}</Text>
+          <Text style={{ fontWeight: 700, color: '#1faec2', fontSize: 13 }}>{fmt(v)}</Text>
         )}
       </div>
     ),
@@ -207,7 +207,7 @@ const advanceColumns = [
     dataIndex: 'advanceNumber',
     width: 160,
     render: (v: string) => (
-      <span style={{ fontWeight: 600, fontSize: 13, color: '#16a34a' }}>{v}</span>
+      <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{v}</span>
     ),
   },
   {
@@ -230,7 +230,7 @@ const advanceColumns = [
     title: 'Estado',
     width: 110,
     align: 'right' as const,
-    render: () => <Tag color="green" style={{ fontWeight: 600 }}>Anticipo</Tag>,
+    render: () => <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>,
   },
   {
     title: 'Recibido',
@@ -238,7 +238,7 @@ const advanceColumns = [
     width: 140,
     align: 'right' as const,
     render: (v: number) => (
-      <Text style={{ fontSize: 13, color: '#16a34a' }}>({fmt(Number(v))})</Text>
+      <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number(v))})</Text>
     ),
   },
   {
@@ -247,7 +247,7 @@ const advanceColumns = [
     width: 150,
     align: 'right' as const,
     render: (v: number) => (
-      <Text style={{ fontWeight: 700, color: '#16a34a', fontSize: 13 }}>({fmt(Number(v))})</Text>
+      <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(Number(v))})</Text>
     ),
   },
 ]
@@ -269,20 +269,20 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
   return (
     <Card
       size="small"
-      style={{ marginBottom: 12, border: `1px solid ${color}22` }}
-      styles={{ header: { background: `${color}11`, borderBottom: `2px solid ${color}` } }}
+      style={{ marginBottom: 12, border: '1px solid rgba(10,10,10,0.08)', borderLeft: `3px solid ${color}`, borderRadius: 8 }}
+      styles={{ header: { background: 'transparent', borderBottom: '1px solid rgba(10,10,10,0.06)' } }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ color, fontWeight: 700 }}>{label}</span>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <Text style={{ fontSize: 12, color: '#6b7280' }}>{bucket.count} facturas</Text>
             {visibleAdvances.length > 0 && (
-              <Text style={{ fontSize: 12, color: '#16a34a' }}>
+              <Text style={{ fontSize: 12, color: '#2ea172' }}>
                 + {visibleAdvances.length} anticipo{visibleAdvances.length > 1 ? 's' : ''}
               </Text>
             )}
             <Text style={{ fontWeight: 700, color, fontSize: 14 }}>{fmt(bucket.total)}</Text>
-            <Button size="small" type="text" onClick={onToggle} style={{ color: '#9ca3af', fontSize: 12 }}>
+            <Button size="small" type="text" onClick={onToggle} style={{ color: '#9aa1ab', fontSize: 12 }}>
               {expanded ? 'Ocultar' : 'Ver detalle'}
             </Button>
           </div>
@@ -301,7 +301,7 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
             expandedRowRender: (row: ArAgingRow) =>
               row.payments && row.payments.length > 0
                 ? <PaymentsSubTable payments={row.payments} currency={row.currency} />
-                : <div style={{ padding: '8px 48px', color: '#9ca3af', fontSize: 12 }}>Sin abonos registrados al corte.</div>,
+                : <div style={{ padding: '8px 48px', color: '#9aa1ab', fontSize: 12 }}>Sin abonos registrados al corte.</div>,
             rowExpandable: (row: ArAgingRow) => (row.paidAmount ?? 0) > 0,
             expandRowByClick: false,
           }}
@@ -310,8 +310,8 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
 
       {expanded && visibleAdvances.length > 0 && (
         <>
-          <Divider style={{ margin: '8px 0', borderColor: '#16a34a44' }}>
-            <Text style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
+          <Divider style={{ margin: '8px 0', borderColor: '#2ea17244' }}>
+            <Text style={{ fontSize: 11, color: '#2ea172', fontWeight: 600 }}>
               Anticipos de clientes — crédito disponible ({fmt(totalAdv)})
             </Text>
           </Divider>
@@ -328,7 +328,7 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
       )}
 
       {expanded && bucket.items.length === 0 && visibleAdvances.length === 0 && (
-        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Sin facturas en este rango.</Text>
+        <Text style={{ color: '#9aa1ab', fontSize: 12 }}>Sin facturas en este rango.</Text>
       )}
     </Card>
   )
@@ -401,7 +401,7 @@ export default function ArAgingPage() {
   const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
 
   return (
-    <div>
+    <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
@@ -412,9 +412,12 @@ export default function ArAgingPage() {
       />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
-          AR Aging — Cuentas por Cobrar
-        </Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AuditOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
+            AR Aging — Cuentas por Cobrar
+          </Title>
+        </div>
         <Space>
           <Select value={selectedMonth} onChange={setSelectedMonth} options={MESES} style={{ width: 130 }} />
           <Select value={selectedYear}  onChange={setSelectedYear}  options={ANIOS}  style={{ width: 90 }} />
@@ -424,7 +427,7 @@ export default function ArAgingPage() {
           <Button
             icon={<SwapOutlined />}
             type={showAdvances ? 'primary' : 'default'}
-            style={showAdvances ? { background: '#16a34a', borderColor: '#16a34a' } : {}}
+            style={showAdvances ? { background: '#2ea172', borderColor: '#2ea172' } : {}}
             onClick={() => setShowAdvances(v => !v)}
           >
             {showAdvances ? 'Ocultar anticipos' : 'Incluir anticipos'}
@@ -447,10 +450,10 @@ export default function ArAgingPage() {
         <>
           {/* Etiqueta de período */}
           <div style={{
-            marginBottom: 12, padding: '6px 12px', background: '#eff6ff',
-            borderRadius: 6, border: '1px solid #bfdbfe', display: 'inline-flex', alignItems: 'center', gap: 8,
+            marginBottom: 12, padding: '6px 12px', background: '#e6fafd',
+            borderRadius: 6, border: '1px solid rgba(31,174,194,0.3)', display: 'inline-flex', alignItems: 'center', gap: 8,
           }}>
-            <Text style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 600 }}>
+            <Text style={{ fontSize: 12, color: '#1faec2', fontWeight: 600 }}>
               Saldo CxC al cierre de {periodLabel}
             </Text>
             <Text style={{ fontSize: 11, color: '#6b7280' }}>
@@ -460,11 +463,11 @@ export default function ArAgingPage() {
 
           <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
             {[
-              { label: 'Vigente',    value: data.buckets.current.total, color: '#16a34a' },
-              { label: '1-30 días',  value: data.buckets.days_30.total, color: '#2563eb' },
-              { label: '31-60 días', value: data.buckets.days_60.total, color: '#d97706' },
-              { label: '61-90 días', value: data.buckets.days_90.total, color: '#dc2626' },
-              { label: '+90 días',   value: data.buckets.over_90.total, color: '#7c3aed' },
+              { label: 'Vigente',    value: data.buckets.current.total, color: '#2ea172' },
+              { label: '1-30 días',  value: data.buckets.days_30.total, color: '#1faec2' },
+              { label: '31-60 días', value: data.buckets.days_60.total, color: '#ff7f00' },
+              { label: '61-90 días', value: data.buckets.days_90.total, color: '#e5484d' },
+              { label: '+90 días',   value: data.buckets.over_90.total, color: '#e5484d' },
             ].map(({ label, value, color }) => (
               <Col key={label} span={showAdvances ? 3 : 4}>
                 <Card size="small" style={{ textAlign: 'center', borderColor: `${color}22` }}>
@@ -479,7 +482,7 @@ export default function ArAgingPage() {
               </Col>
             ))}
             <Col span={showAdvances ? 3 : 4}>
-              <Card size="small" style={{ textAlign: 'center', background: '#1B3A6B', borderColor: '#1B3A6B' }}>
+              <Card size="small" style={{ textAlign: 'center', background: '#1faec2', borderColor: '#1faec2' }}>
                 <Statistic
                   title={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>TOTAL CxC</span>}
                   value={data.grandTotal}
@@ -492,21 +495,21 @@ export default function ArAgingPage() {
             {showAdvances && (
               <>
                 <Col span={3}>
-                  <Card size="small" style={{ textAlign: 'center', borderColor: '#16a34a44', background: '#f0fdf4' }}>
+                  <Card size="small" style={{ textAlign: 'center', borderColor: '#2ea17244', background: '#e8f5ef' }}>
                     <Statistic
-                      title={<span style={{ fontSize: 11, color: '#16a34a' }}>Anticipos</span>}
+                      title={<span style={{ fontSize: 11, color: '#2ea172' }}>Anticipos</span>}
                       value={data.totalAdvances ?? 0}
                       prefix="Q"
                       precision={2}
-                      valueStyle={{ fontSize: 14, color: '#16a34a', fontWeight: 700 }}
+                      valueStyle={{ fontSize: 14, color: '#2ea172', fontWeight: 700 }}
                     />
                   </Card>
                 </Col>
                 <Col span={3}>
                   <Card size="small" style={{
                     textAlign: 'center',
-                    background: (data.netTotal ?? data.grandTotal) <= 0 ? '#f0fdf4' : '#eff6ff',
-                    borderColor: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a44' : '#2563eb44',
+                    background: (data.netTotal ?? data.grandTotal) <= 0 ? '#e8f5ef' : '#e6fafd',
+                    borderColor: (data.netTotal ?? data.grandTotal) <= 0 ? '#2ea17244' : '#1faec244',
                   }}>
                     <Statistic
                       title={<span style={{ fontSize: 11, color: '#6b7280' }}>Neto CxC</span>}
@@ -515,7 +518,7 @@ export default function ArAgingPage() {
                       precision={2}
                       valueStyle={{
                         fontSize: 14, fontWeight: 700,
-                        color: (data.netTotal ?? data.grandTotal) <= 0 ? '#16a34a' : '#2563eb',
+                        color: (data.netTotal ?? data.grandTotal) <= 0 ? '#2ea172' : '#1faec2',
                       }}
                     />
                   </Card>
@@ -527,7 +530,7 @@ export default function ArAgingPage() {
           {showAdvances && (
             <>
               <Divider orientation={'left' as any} style={{ marginTop: 4, marginBottom: 10 }}>
-                <Text style={{ color: '#1B3A6B', fontWeight: 600, fontSize: 13 }}>
+                <Text style={{ color: '#1faec2', fontWeight: 600, fontSize: 13 }}>
                   Posición neta por cliente (CxC − Anticipos)
                 </Text>
               </Divider>
@@ -545,13 +548,13 @@ export default function ArAgingPage() {
                     <Table.Summary.Row style={{ background: '#f8fafc', fontWeight: 700 }}>
                       <Table.Summary.Cell index={0}><Text strong>TOTAL</Text></Table.Summary.Cell>
                       <Table.Summary.Cell index={1} align="right">
-                        <Text strong style={{ color: '#1B3A6B' }}>{fmt(totCxc)}</Text>
+                        <Text strong style={{ color: '#1faec2' }}>{fmt(totCxc)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
-                        <Text strong style={{ color: '#16a34a' }}>({fmt(totAdv)})</Text>
+                        <Text strong style={{ color: '#2ea172' }}>({fmt(totAdv)})</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ color: totNet <= 0 ? '#16a34a' : '#2563eb', fontSize: 14 }}>
+                        <Text strong style={{ color: totNet <= 0 ? '#2ea172' : '#1faec2', fontSize: 14 }}>
                           {totNet < 0 ? `(A fav) ${fmt(Math.abs(totNet))}` : fmt(totNet)}
                         </Text>
                       </Table.Summary.Cell>
@@ -566,7 +569,7 @@ export default function ArAgingPage() {
                     width: 160,
                     align: 'right' as const,
                     render: (v: number) => v > 0
-                      ? <Text style={{ color: '#1B3A6B', fontWeight: 600 }}>{fmt(v)}</Text>
+                      ? <Text style={{ color: '#1faec2', fontWeight: 600 }}>{fmt(v)}</Text>
                       : <Text type="secondary">—</Text>,
                   },
                   {
@@ -577,9 +580,9 @@ export default function ArAgingPage() {
                     render: (v: number, row: NettingRow) => v > 0 ? (
                       <div style={{ textAlign: 'right' }}>
                         {row.advanceNumbers.map(n => (
-                          <div key={n} style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, lineHeight: '16px' }}>{n}</div>
+                          <div key={n} style={{ fontSize: 11, color: '#2ea172', fontWeight: 600, lineHeight: '16px' }}>{n}</div>
                         ))}
-                        <Text style={{ color: '#16a34a', fontWeight: 700 }}>({fmt(v)})</Text>
+                        <Text style={{ color: '#2ea172', fontWeight: 700 }}>({fmt(v)})</Text>
                       </div>
                     ) : <Text type="secondary">—</Text>,
                   },
@@ -589,7 +592,7 @@ export default function ArAgingPage() {
                     width: 180,
                     align: 'right' as const,
                     render: (v: number) => (
-                      <Text style={{ fontWeight: 700, fontSize: 13, color: v < 0 ? '#16a34a' : v === 0 ? '#6b7280' : '#2563eb' }}>
+                      <Text style={{ fontWeight: 700, fontSize: 13, color: v < 0 ? '#2ea172' : v === 0 ? '#6b7280' : '#1faec2' }}>
                         {v < 0
                           ? <Tag color="success" style={{ fontWeight: 700 }}>A favor {fmt(Math.abs(v))}</Tag>
                           : v === 0 ? <Tag color="default">Saldado</Tag> : fmt(v)
@@ -608,8 +611,8 @@ export default function ArAgingPage() {
               border: '1px solid #fca5a5', marginBottom: 16,
               display: 'flex', alignItems: 'center', gap: 10,
             }}>
-              <WarningOutlined style={{ color: '#dc2626' }} />
-              <Text style={{ color: '#dc2626', fontWeight: 500, fontSize: 13 }}>
+              <WarningOutlined style={{ color: '#e5484d' }} />
+              <Text style={{ color: '#e5484d', fontWeight: 500, fontSize: 13 }}>
                 Tiene cuentas vencidas por más de 60 días: {fmt(data.buckets.days_90.total + data.buckets.over_90.total)}
               </Text>
             </div>
@@ -617,8 +620,8 @@ export default function ArAgingPage() {
 
           {(data.buckets.current.total + data.buckets.days_30.total + data.buckets.days_60.total + data.buckets.days_90.total + data.buckets.over_90.total) === 0 && (
             <div style={{ padding: '24px', textAlign: 'center' }}>
-              <CheckCircleOutlined style={{ fontSize: 40, color: '#16a34a', marginBottom: 12 }} />
-              <div><Text style={{ color: '#16a34a', fontSize: 15 }}>No hay saldos pendientes de cobro al cierre de {periodLabel}.</Text></div>
+              <CheckCircleOutlined style={{ fontSize: 40, color: '#2ea172', marginBottom: 12 }} />
+              <div><Text style={{ color: '#2ea172', fontSize: 15 }}>No hay saldos pendientes de cobro al cierre de {periodLabel}.</Text></div>
             </div>
           )}
 
@@ -635,7 +638,7 @@ export default function ArAgingPage() {
             />
           ))}
 
-          <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+          <Text style={{ fontSize: 11, color: '#9aa1ab' }}>
             Generado: {new Date(data.generatedAt).toLocaleString('es-GT')}
             {' · '}Corte: {data.asOf}
           </Text>
@@ -644,7 +647,7 @@ export default function ArAgingPage() {
 
       {!data && !loading && (
         <Card>
-          <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: '#9aa1ab' }}>
             Seleccione el mes de cierre y presione <strong>Generar</strong> para ver las Cuentas por Cobrar.
           </div>
         </Card>

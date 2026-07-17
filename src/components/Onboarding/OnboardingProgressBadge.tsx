@@ -30,8 +30,8 @@ export default function OnboardingProgressBadge() {
           >
             <Space>
               {step.done
-                ? <CheckCircleFilled style={{ color: '#52c41a' }} />
-                : <ClockCircleOutlined style={{ color: '#faad14' }} />}
+                ? <CheckCircleFilled style={{ color: '#2ea172' }} />
+                : <ClockCircleOutlined style={{ color: '#ff7f00' }} />}
               <Text delete={step.done} type={step.done ? 'secondary' : undefined} style={{ fontSize: 13 }}>
                 {step.label}
               </Text>
@@ -44,7 +44,7 @@ export default function OnboardingProgressBadge() {
         size="small"
         icon={<MessageOutlined />}
         block
-        style={{ background: '#1B3A6B' }}
+        style={{ background: '#1faec2' }}
         onClick={() => setChatOpen(true)}
       >
         Preguntar al asistente
@@ -59,7 +59,7 @@ export default function OnboardingProgressBadge() {
           type="circle"
           percent={completionPercent}
           size={22}
-          strokeColor="#1B3A6B"
+          strokeColor="#24cae2"
           format={() => ''}
         />
         <Text style={{ fontSize: 12, color: '#6b7280' }}>Configuración {completionPercent}%</Text>

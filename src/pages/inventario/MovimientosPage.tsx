@@ -30,8 +30,8 @@ function TipoCard({ tipo, selected, onClick }: { tipo: TipoMovimiento; selected:
       onClick={onClick}
       style={{
         padding: '10px 8px', borderRadius: 8, cursor: 'pointer', textAlign: 'center',
-        border: `2px solid ${selected ? cfg.color : '#e8e8e8'}`,
-        background: selected ? `${cfg.color}18` : '#fafafa',
+        border: `2px solid ${selected ? cfg.color : 'rgba(10,10,10,0.08)'}`,
+        background: selected ? `${cfg.color}18` : '#fafbfc',
         transition: 'all 0.15s',
         userSelect: 'none',
       }}
@@ -164,7 +164,7 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
       title: 'Artículo', render: (_, r) => (
         <div>
           <div style={{ fontWeight: 500 }}>{r.productName}</div>
-          {r.productSku && <div style={{ fontSize: 11, color: '#8c8c8c', fontFamily: 'monospace' }}>{r.productSku}</div>}
+          {r.productSku && <div style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{r.productSku}</div>}
         </div>
       ),
     },
@@ -172,7 +172,7 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
       title: 'Cantidad', dataIndex: 'quantity', width: 90, align: 'right',
       render: v => {
         const n = Number(v)
-        const color = n > 0 ? '#52c41a' : n < 0 ? '#ff4d4f' : '#8c8c8c'
+        const color = n > 0 ? '#2ea172' : n < 0 ? '#e5484d' : '#6b7280'
         return <span style={{ color, fontWeight: 600 }}>{n > 0 && isAjuste ? '+' : ''}{n}</span>
       },
     },
@@ -210,7 +210,7 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
             <Button type="primary" icon={<CheckCircleOutlined />}
               onClick={() => handleSave(true)} loading={saving}
               disabled={pendingLines.length === 0}
-              style={{ background: '#1B3A6B' }}>
+              style={{ background: '#1faec2' }}>
               Guardar y confirmar
             </Button>
           </Space>
@@ -219,7 +219,7 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
     >
       {/* ── Paso 1: Tipo ── */}
       <div style={{ marginBottom: 16 }}>
-        <Text strong style={{ color: '#1B3A6B', display: 'block', marginBottom: 10 }}>
+        <Text strong style={{ color: '#1faec2', display: 'block', marginBottom: 10 }}>
           1. Selecciona el tipo de movimiento
         </Text>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 6 }}>
@@ -248,7 +248,7 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
           <Divider style={{ margin: '10px 0' }} />
 
           {/* ── Paso 2: Header ── */}
-          <Text strong style={{ color: '#1B3A6B', display: 'block', marginBottom: 10 }}>
+          <Text strong style={{ color: '#1faec2', display: 'block', marginBottom: 10 }}>
             2. Datos del movimiento
           </Text>
           <Form form={form} layout="vertical" initialValues={{ date: dayjs() }}>
@@ -301,7 +301,7 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
           <Divider style={{ margin: '10px 0' }} />
 
           {/* ── Paso 3: Artículos ── */}
-          <Text strong style={{ color: '#1B3A6B', display: 'block', marginBottom: 10 }}>
+          <Text strong style={{ color: '#1faec2', display: 'block', marginBottom: 10 }}>
             3. Artículos
           </Text>
 
@@ -320,9 +320,9 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
                   value: p.id,
                   label: (
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                      <span>{p.sku ? <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#888', marginRight: 4 }}>[{p.sku}]</span> : null}{p.name}</span>
+                      <span>{p.sku ? <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280', marginRight: 4 }}>[{p.sku}]</span> : null}{p.name}</span>
                       {p.isInventoriable && (
-                        <span style={{ fontSize: 11, color: Number(p.stockOnHand) > 0 ? '#52c41a' : '#ff4d4f', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 11, color: Number(p.stockOnHand) > 0 ? '#2ea172' : '#e5484d', whiteSpace: 'nowrap' }}>
                           Stock: {Number(p.stockOnHand ?? 0).toFixed(0)}
                         </span>
                       )}
@@ -377,7 +377,7 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
               )}
             />
           ) : (
-            <div style={{ textAlign: 'center', padding: '16px 0', color: '#bbb', background: '#fafafa', borderRadius: 6 }}>
+            <div style={{ textAlign: 'center', padding: '16px 0', color: '#bbb', background: '#fafbfc', borderRadius: 6 }}>
               Sin artículos — completa el formulario arriba y haz clic en "Agregar"
             </div>
           )}
@@ -473,7 +473,7 @@ function MovimientoDetailModal({ movimientoId, open, ubicaciones, onClose, onCon
       title: 'Artículo', render: (_, r) => (
         <div>
           <div style={{ fontWeight: 500 }}>{r.productName}</div>
-          {r.productSku && <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#8c8c8c' }}>{r.productSku}</div>}
+          {r.productSku && <div style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: '#6b7280' }}>{r.productSku}</div>}
         </div>
       ),
     },
@@ -481,7 +481,7 @@ function MovimientoDetailModal({ movimientoId, open, ubicaciones, onClose, onCon
       title: 'Cantidad', dataIndex: 'quantity', width: 90, align: 'right',
       render: v => {
         const n = Number(v)
-        return <span style={{ fontWeight: 600, color: n > 0 ? '#52c41a' : n < 0 ? '#ff4d4f' : '#8c8c8c' }}>
+        return <span style={{ fontWeight: 600, color: n > 0 ? '#2ea172' : n < 0 ? '#e5484d' : '#6b7280' }}>
           {n > 0 ? '+' : ''}{n}
         </span>
       },
@@ -498,7 +498,7 @@ function MovimientoDetailModal({ movimientoId, open, ubicaciones, onClose, onCon
       destroyOnClose
       title={mov ? (
         <Space>
-          <span style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{mov.code}</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{mov.code}</span>
           <Tag color={cfg?.color}>{cfg?.icon} {cfg?.label}</Tag>
           {isDraft
             ? <Badge status="processing" text="Borrador" />
@@ -511,7 +511,7 @@ function MovimientoDetailModal({ movimientoId, open, ubicaciones, onClose, onCon
           <Button type="primary" icon={<CheckCircleOutlined />}
             loading={confirming} onClick={handleConfirmar}
             disabled={lineas.length === 0}
-            style={{ background: '#52c41a', borderColor: '#52c41a' }}>
+            style={{ background: '#2ea172', borderColor: '#2ea172' }}>
             Confirmar movimiento
           </Button>
         </Space>
@@ -528,8 +528,8 @@ function MovimientoDetailModal({ movimientoId, open, ubicaciones, onClose, onCon
               { label: 'Origen', value: mov.ubicacionOrigenId ? ubicMap[mov.ubicacionOrigenId] || '—' : '—' },
               { label: 'Destino', value: mov.ubicacionDestinoId ? ubicMap[mov.ubicacionDestinoId] || '—' : '—' },
             ].map(k => (
-              <div key={k.label} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 12px' }}>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>{k.label}</div>
+              <div key={k.label} style={{ background: '#fafbfc', borderRadius: 6, padding: '8px 12px' }}>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
                 <div style={{ fontWeight: 600 }}>{k.value}</div>
               </div>
             ))}
@@ -626,7 +626,7 @@ export default function MovimientosPage() {
   const columns: ColumnsType<Movimiento> = [
     {
       title: 'Código', dataIndex: 'code', width: 140,
-      render: v => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{v}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text>,
     },
     {
       title: 'Tipo', dataIndex: 'tipoMovimiento', width: 200,
@@ -646,13 +646,13 @@ export default function MovimientosPage() {
         if (!c) return '—'
         if (c.flow === 'traslado') return (
           <Space size={4}>
-            <Tag color="orange">{ubicMap[r.ubicacionOrigenId!] || '—'}</Tag>
+            <Tag color="#ff7f00">{ubicMap[r.ubicacionOrigenId!] || '—'}</Tag>
             →
-            <Tag color="green">{ubicMap[r.ubicacionDestinoId!] || '—'}</Tag>
+            <Tag color="#2ea172">{ubicMap[r.ubicacionDestinoId!] || '—'}</Tag>
           </Space>
         )
         if (c.needsOrigen && r.ubicacionOrigenId) return <Tag>{ubicMap[r.ubicacionOrigenId]}</Tag>
-        if (c.needsDestino && r.ubicacionDestinoId) return <Tag color="green">{ubicMap[r.ubicacionDestinoId]}</Tag>
+        if (c.needsDestino && r.ubicacionDestinoId) return <Tag color="#2ea172">{ubicMap[r.ubicacionDestinoId]}</Tag>
         return <Tag color="gold">—</Tag>
       },
     },
@@ -693,13 +693,13 @@ export default function MovimientosPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <SwapOutlined style={{ marginRight: 8 }} /> Movimientos de Inventario
           </Title>
           <Text type="secondary">Entradas, salidas, traslados y ajustes (estilo SAP MIGO)</Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />}
-          onClick={() => setCreateOpen(true)} style={{ background: '#1B3A6B' }}>
+          onClick={() => setCreateOpen(true)} style={{ background: '#1faec2' }}>
           Nuevo movimiento
         </Button>
       </div>
@@ -707,15 +707,15 @@ export default function MovimientosPage() {
       {/* KPI strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
         {[
-          { label: 'Entradas',  count: counts.entrada,  color: '#52c41a', icon: '📥' },
-          { label: 'Salidas',   count: counts.salida,   color: '#ff4d4f', icon: '📤' },
-          { label: 'Traslados', count: counts.traslado, color: '#722ed1', icon: '🔄' },
-          { label: 'Ajustes',   count: counts.ajuste,   color: '#faad14', icon: '⚖️' },
+          { label: 'Entradas',  count: counts.entrada,  color: '#2ea172', icon: '📥' },
+          { label: 'Salidas',   count: counts.salida,   color: '#e5484d', icon: '📤' },
+          { label: 'Traslados', count: counts.traslado, color: '#6b7280', icon: '🔄' },
+          { label: 'Ajustes',   count: counts.ajuste,   color: '#ff7f00', icon: '⚖️' },
         ].map(k => (
           <Card key={k.label} size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
             <div style={{ fontSize: 18 }}>{k.icon}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.count}</div>
-            <div style={{ fontSize: 11, color: '#8c8c8c' }}>{k.label}</div>
+            <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
           </Card>
         ))}
       </div>

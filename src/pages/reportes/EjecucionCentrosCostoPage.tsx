@@ -6,7 +6,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  ArrowLeftOutlined, PrinterOutlined, BulbOutlined,
+  ArrowLeftOutlined, PrinterOutlined, BulbOutlined, DashboardOutlined,
   WarningOutlined, CloseCircleOutlined, InfoCircleOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -20,17 +20,17 @@ import {
 
 const { Text } = Typography
 
-const NAVY = '#1B3A6B'
+const ACTION = '#1faec2'
 const fmtQ = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtCol = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 const MESES_CORTO = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 const INSIGHT_META: Record<InsightNivel, { color: string; icon: React.ReactNode }> = {
-  danger:  { color: '#cf1322', icon: <CloseCircleOutlined /> },
-  warning: { color: '#d46b08', icon: <WarningOutlined /> },
-  info:    { color: '#1677ff', icon: <InfoCircleOutlined /> },
-  success: { color: '#389e0d', icon: <CheckCircleOutlined /> },
+  danger:  { color: '#e5484d', icon: <CloseCircleOutlined /> },
+  warning: { color: '#ff7f00', icon: <WarningOutlined /> },
+  info:    { color: '#1faec2', icon: <InfoCircleOutlined /> },
+  success: { color: '#2ea172', icon: <CheckCircleOutlined /> },
 }
 
 function InsightsPanel({ insights }: { insights: Insight[] }) {
@@ -38,17 +38,17 @@ function InsightsPanel({ insights }: { insights: Insight[] }) {
   return (
     <Card
       size="small" style={{ borderRadius: 8, marginBottom: 16 }}
-      title={<Space size={6}><BulbOutlined style={{ color: '#d4a017' }} /><Text strong style={{ fontSize: 13 }}>Análisis automático</Text></Space>}
+      title={<Space size={6}><BulbOutlined style={{ color: '#ff7f00' }} /><Text strong style={{ fontSize: 13 }}>Análisis automático</Text></Space>}
       styles={{ body: { padding: '8px 16px' } }}
     >
       {insights.map((ins, i) => {
         const meta = INSIGHT_META[ins.nivel]
         return (
-          <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderTop: i > 0 ? '1px solid #f0f0f0' : undefined }}>
+          <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderTop: i > 0 ? '1px solid rgba(10,10,10,0.08)' : undefined }}>
             <span style={{ color: meta.color, fontSize: 15, marginTop: 1 }}>{meta.icon}</span>
             <div>
               <Text strong style={{ fontSize: 12, color: meta.color }}>{ins.titulo}</Text>
-              <div style={{ fontSize: 12, color: '#595959', lineHeight: 1.5 }}>{ins.detalle}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>{ins.detalle}</div>
             </div>
           </div>
         )
@@ -58,10 +58,10 @@ function InsightsPanel({ insights }: { insights: Insight[] }) {
 }
 
 const ESTADO_META: Record<EjecucionCentro['estado'], { color: string; label: string }> = {
-  ok:                { color: '#389e0d', label: 'En línea' },
-  warning:           { color: '#d46b08', label: 'Vigilar' },
-  danger:            { color: '#cf1322', label: 'Excedido' },
-  'sin-presupuesto': { color: '#8c8c8c', label: 'Sin presupuesto' },
+  ok:                { color: '#2ea172', label: 'En línea' },
+  warning:           { color: '#ff7f00', label: 'Vigilar' },
+  danger:            { color: '#e5484d', label: 'Excedido' },
+  'sin-presupuesto': { color: '#6b7280', label: 'Sin presupuesto' },
 }
 
 /** Composición del gasto de un centro por cuenta (fila expandida) */
@@ -89,12 +89,12 @@ function ComposicionCentro({ centro, data, onDrill }: {
     <Table
       size="small" rowKey="accountId" pagination={false} dataSource={porCuenta}
       columns={[
-        { title: 'Código', dataIndex: 'code', width: 100, render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>{v}</Text> },
+        { title: 'Código', dataIndex: 'code', width: 100, render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>{v}</Text> },
         { title: 'Cuenta', dataIndex: 'name', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
         {
           title: 'Gasto acumulado', dataIndex: 'total', width: 140, align: 'right',
           render: (v: number, row) => (
-            <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', fontFamily: 'monospace', fontSize: 12 }}
+            <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}
               onClick={() => onDrill(row.accountId, row.name)}>
               {fmtQ(v)}
             </span>
@@ -106,8 +106,8 @@ function ComposicionCentro({ centro, data, onDrill }: {
             const pct = total > 0 ? (row.total / total) * 100 : 0
             return (
               <Space size={8}>
-                <Progress percent={Math.round(pct)} size="small" showInfo={false} strokeColor={NAVY} style={{ width: 80 }} />
-                <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>{pct.toFixed(1)}%</Text>
+                <Progress percent={Math.round(pct)} size="small" showInfo={false} strokeColor={ACTION} style={{ width: 80 }} />
+                <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{pct.toFixed(1)}%</Text>
               </Space>
             )
           },
@@ -183,8 +183,8 @@ export default function EjecucionCentrosCostoPage() {
       xAxis: { type: 'category', data: mesesEje, axisLabel: { fontSize: 10 } },
       yAxis: { type: 'value', axisLabel: { formatter: (v: number) => fmtCol(v) } },
       series: [
-        { name: 'Gasto acumulado', type: 'line', smooth: true, symbolSize: 5, data: serieReal, lineStyle: { width: 3, color: NAVY }, itemStyle: { color: NAVY } },
-        ...(conPres.length > 0 ? [{ name: 'Presupuesto acumulado', type: 'line' as const, symbol: 'none', data: seriePres, lineStyle: { type: 'dashed' as const, color: '#8c8c8c' }, itemStyle: { color: '#8c8c8c' } }] : []),
+        { name: 'Gasto acumulado', type: 'line', smooth: true, symbolSize: 5, data: serieReal, lineStyle: { width: 3, color: ACTION }, itemStyle: { color: ACTION } },
+        ...(conPres.length > 0 ? [{ name: 'Presupuesto acumulado', type: 'line' as const, symbol: 'none', data: seriePres, lineStyle: { type: 'dashed' as const, color: '#6b7280' }, itemStyle: { color: '#6b7280' } }] : []),
       ],
     }
   }, [data, centrosConDatos])
@@ -194,8 +194,8 @@ export default function EjecucionCentrosCostoPage() {
       title: 'Centro de costo', key: 'nombre', fixed: 'left', width: 200,
       render: (_, c) => (
         <div>
-          <Text strong style={{ fontSize: 12, color: c.centroId ? NAVY : '#8c8c8c' }}>{c.nombre}</Text>
-          <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+          <Text strong style={{ fontSize: 12, color: c.centroId ? ACTION : '#6b7280' }}>{c.nombre}</Text>
+          <div style={{ fontSize: 11, color: '#6b7280' }}>
             {c.codigo}{c.responsable ? ` · ${c.responsable}` : ''}
           </div>
         </div>
@@ -204,17 +204,17 @@ export default function EjecucionCentrosCostoPage() {
     {
       title: 'Presupuesto anual', key: 'pres', width: 135, align: 'right',
       render: (_, c) => c.presupuestoAnual > 0
-        ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtCol(c.presupuestoAnual)}</span>
+        ? <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtCol(c.presupuestoAnual)}</span>
         : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
     },
     {
       title: 'Gasto acumulado', key: 'real', width: 130, align: 'right',
-      render: (_, c) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtCol(c.realYTD)}</span>,
+      render: (_, c) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtCol(c.realYTD)}</span>,
     },
     {
       title: 'Disponible', key: 'disp', width: 120, align: 'right',
       render: (_, c) => c.disponible != null
-        ? <span style={{ fontFamily: 'monospace', fontSize: 12, color: c.disponible < 0 ? '#cf1322' : '#389e0d' }}>{fmtCol(c.disponible)}</span>
+        ? <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: c.disponible < 0 ? '#e5484d' : '#2ea172' }}>{fmtCol(c.disponible)}</span>
         : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
     },
     {
@@ -247,7 +247,7 @@ export default function EjecucionCentrosCostoPage() {
           <Tooltip title={c.desviacionProyectada != null
             ? `${excede ? 'Excedería' : 'Quedaría bajo'} el presupuesto por ${fmtQ(Math.abs(c.desviacionProyectada))}`
             : 'Run-rate a 12 meses'}>
-            <span style={{ fontFamily: 'monospace', fontSize: 12, color: excede ? '#cf1322' : undefined }}>
+            <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: excede ? '#e5484d' : undefined }}>
               {fmtCol(c.proyeccionCierre)}
             </span>
           </Tooltip>
@@ -260,11 +260,11 @@ export default function EjecucionCentrosCostoPage() {
         const meta = ESTADO_META[c.estado]
         return (
           <div>
-            <Tag color={c.estado === 'ok' ? 'green' : c.estado === 'warning' ? 'orange' : c.estado === 'danger' ? 'red' : undefined} style={{ fontSize: 10 }}>
+            <Tag color={c.estado === 'ok' ? '#2ea172' : c.estado === 'warning' ? '#ff7f00' : c.estado === 'danger' ? '#e5484d' : undefined} style={{ fontSize: 10 }}>
               {meta.label}
             </Tag>
             {c.mesAgotamiento != null && c.mesAgotamiento <= 12 && (
-              <div style={{ fontSize: 10, color: '#cf1322', marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: '#e5484d', marginTop: 2 }}>
                 se agota en {MESES[c.mesAgotamiento - 1]}
               </div>
             )}
@@ -277,12 +277,13 @@ export default function EjecucionCentrosCostoPage() {
   const sinDatos = !loading && data && centrosConDatos.length === 0
 
   return (
-    <div>
+    <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <Space align="start">
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
+          <DashboardOutlined style={{ fontSize: 22, color: '#1faec2', marginTop: 4 }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: NAVY }}>Ejecución por Centro de Costo</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#0a0a0a' }}>Ejecución por Centro de Costo</div>
             <Text type="secondary" style={{ fontSize: 12 }}>Control presupuestario, proyección al cierre y alertas de desviación</Text>
           </div>
         </Space>
@@ -311,7 +312,7 @@ export default function EjecucionCentrosCostoPage() {
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} styles={{ body: { padding: '12px 8px' } }}>
                   <Statistic title={<span style={{ fontSize: 11 }}>Gasto acumulado {year}</span>}
                     value={kpis.gastoTotal} precision={2} prefix="Q"
-                    valueStyle={{ fontSize: 14, fontFamily: 'monospace', color: NAVY }}
+                    valueStyle={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', color: ACTION }}
                     formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })} />
                 </Card>
               </Col>
@@ -320,8 +321,8 @@ export default function EjecucionCentrosCostoPage() {
                   <Statistic title={<span style={{ fontSize: 11 }}>Ejecución del presupuesto</span>}
                     value={kpis.ejecucionPct ?? 0} precision={0} suffix="%"
                     valueStyle={{
-                      fontSize: 14, fontFamily: 'monospace',
-                      color: kpis.ejecucionPct != null && kpis.esperadoPct != null && kpis.ejecucionPct > kpis.esperadoPct ? '#d46b08' : '#389e0d',
+                      fontSize: 14, fontVariantNumeric: 'tabular-nums',
+                      color: kpis.ejecucionPct != null && kpis.esperadoPct != null && kpis.ejecucionPct > kpis.esperadoPct ? '#ff7f00' : '#2ea172',
                     }} />
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     {kpis.esperadoPct != null ? `esperado ${kpis.esperadoPct.toFixed(0)}% a la fecha` : 'sin presupuesto activo'}
@@ -333,8 +334,8 @@ export default function EjecucionCentrosCostoPage() {
                   <Statistic title={<span style={{ fontSize: 11 }}>Proyección al cierre</span>}
                     value={kpis.proyeccion} precision={2} prefix="Q"
                     valueStyle={{
-                      fontSize: 14, fontFamily: 'monospace',
-                      color: kpis.presTotal > 0 && kpis.proyeccion > kpis.presTotal ? '#cf1322' : NAVY,
+                      fontSize: 14, fontVariantNumeric: 'tabular-nums',
+                      color: kpis.presTotal > 0 && kpis.proyeccion > kpis.presTotal ? '#e5484d' : ACTION,
                     }}
                     formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })} />
                   {kpis.presTotal > 0 && (
@@ -350,7 +351,7 @@ export default function EjecucionCentrosCostoPage() {
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} styles={{ body: { padding: '12px 8px' } }}>
                   <Statistic title={<span style={{ fontSize: 11 }}>Centros excedidos</span>}
                     value={kpis.excedidos} suffix={kpis.totalConPres > 0 ? `de ${kpis.totalConPres}` : undefined}
-                    valueStyle={{ fontSize: 14, fontFamily: 'monospace', color: kpis.excedidos > 0 ? '#cf1322' : '#389e0d' }} />
+                    valueStyle={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', color: kpis.excedidos > 0 ? '#e5484d' : '#2ea172' }} />
                 </Card>
               </Col>
             </Row>

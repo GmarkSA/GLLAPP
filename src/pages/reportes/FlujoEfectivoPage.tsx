@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, Col, Row, Typography, Statistic, Tag, Space, Alert, Table, Spin } from 'antd'
-import { ArrowUpOutlined, ArrowDownOutlined, BankOutlined } from '@ant-design/icons'
+import { ArrowUpOutlined, ArrowDownOutlined, BankOutlined, FundOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
@@ -19,8 +19,8 @@ function FlowSection({ title, total, items, color, icon }: {
   return (
     <Card size="small" style={{ borderRadius: 8, marginBottom: 12, borderLeft: `3px solid ${color}` }}
       styles={{ body: { padding: 0 } }}
-      title={<Space>{icon}<Text strong style={{ fontSize: 13, color }}>{title}</Text></Space>}
-      extra={<Text strong style={{ fontFamily: 'monospace', color: total >= 0 ? '#389e0d' : '#cf1322' }}>{fmtQ(total)}</Text>}
+      title={<Space>{icon}<Text strong style={{ fontSize: 13, color: '#374151' }}>{title}</Text></Space>}
+      extra={<Text strong style={{ fontVariantNumeric: 'tabular-nums', color: total >= 0 ? '#2ea172' : '#e5484d' }}>{fmtQ(total)}</Text>}
     >
       <Table size="small" dataSource={items} rowKey="label" pagination={false} showHeader={false}
         columns={[
@@ -29,8 +29,8 @@ function FlowSection({ title, total, items, color, icon }: {
             dataIndex: 'amount', width: 160, align: 'right' as const,
             render: (v: number) => (
               <Space size={4}>
-                {v >= 0 ? <ArrowUpOutlined style={{ color: '#52c41a', fontSize: 10 }} /> : <ArrowDownOutlined style={{ color: '#ff4d4f', fontSize: 10 }} />}
-                <Text style={{ fontFamily: 'monospace', fontSize: 12, color: v >= 0 ? '#389e0d' : '#cf1322' }}>{fmtQ(Math.abs(v))}</Text>
+                {v >= 0 ? <ArrowUpOutlined style={{ color: '#2ea172', fontSize: 10 }} /> : <ArrowDownOutlined style={{ color: '#e5484d', fontSize: 10 }} />}
+                <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v >= 0 ? '#2ea172' : '#e5484d' }}>{fmtQ(Math.abs(v))}</Text>
               </Space>
             ),
           },
@@ -74,18 +74,18 @@ function buildFlujoRows(md: Array<{ month: MonthRange; data: FlujoEfectivoData |
   const rows: FRow[] = []
 
   // OPERACIÓN
-  rows.push(hdr('hdr-op', 'ACTIVIDADES DE OPERACIÓN', '#1677ff'))
+  rows.push(hdr('hdr-op', 'ACTIVIDADES DE OPERACIÓN', '#0a0a0a'))
   rows.push(acct('op-ni', 'Utilidad Neta del Período', sVals(d => d.operating.netIncome)))
   adjLabels.forEach(lbl => rows.push(acct(`op-adj-${lbl}`, lbl, labelVals('adj', lbl))))
   rows.push(sub('sub-op', 'Total Operación', sVals(d => d.operating.total)))
 
   // INVERSIÓN
-  rows.push(hdr('hdr-inv', 'ACTIVIDADES DE INVERSIÓN', '#722ed1'))
+  rows.push(hdr('hdr-inv', 'ACTIVIDADES DE INVERSIÓN', '#0a0a0a'))
   invLabels.forEach(lbl => rows.push(acct(`inv-${lbl}`, lbl, labelVals('inv', lbl))))
   rows.push(sub('sub-inv', 'Total Inversión', sVals(d => d.investing.total)))
 
   // FINANCIACIÓN
-  rows.push(hdr('hdr-fin', 'ACTIVIDADES DE FINANCIACIÓN', '#fa8c16'))
+  rows.push(hdr('hdr-fin', 'ACTIVIDADES DE FINANCIACIÓN', '#0a0a0a'))
   finLabels.forEach(lbl => rows.push(acct(`fin-${lbl}`, lbl, labelVals('fin', lbl))))
   rows.push(sub('sub-fin', 'Total Financiación', sVals(d => d.financing.total)))
 
@@ -104,17 +104,17 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
   const rows = buildFlujoRows(monthData)
 
   const rowBg: Record<FKind, string | undefined> = {
-    hdr:   '#f0f5ff',
+    hdr:   '#fafbfc',
     acct:  undefined,
-    sub:   '#fafafa',
+    sub:   undefined,
     grand: undefined,
   }
 
   const cell = (v: number | null, kind: FKind) => {
     if (v == null || kind === 'hdr') return null
     const bold = kind !== 'acct'
-    const c    = bold ? (v < 0 ? '#cf1322' : '#389e0d') : (v < 0 ? '#cf1322' : undefined)
-    return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
+    const c    = bold ? (v < 0 ? '#e5484d' : '#2ea172') : (v < 0 ? '#e5484d' : undefined)
+    return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
   const columns: ColumnsType<FRow> = [
@@ -138,8 +138,8 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
       render: (v: number, row) => {
         if (row._kind === 'hdr') return null
         const bold = row._kind !== 'acct'
-        const c    = bold ? (v < 0 ? '#cf1322' : '#389e0d') : (v < 0 ? '#cf1322' : undefined)
-        return <span style={{ fontFamily: 'monospace', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        const c    = bold ? (v < 0 ? '#e5484d' : '#2ea172') : (v < 0 ? '#e5484d' : undefined)
+        return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
       },
     },
   ]
@@ -156,10 +156,10 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
         scroll={{ x: 'max-content' }}
         onRow={row => ({
           style: {
-            background: row._kind === 'grand'
-              ? (row._total >= 0 ? '#f6ffed' : '#fff2f0')
+            background: row._kind === 'grand' && row._total < 0
+              ? '#fdecec'
               : rowBg[row._kind],
-            borderTop: row._kind === 'grand' ? '2px solid #d9d9d9' : undefined,
+            borderTop: row._kind === 'grand' ? '2px solid rgba(10,10,10,0.14)' : undefined,
           },
         })}
       />
@@ -203,6 +203,7 @@ export default function FlujoEfectivoPage() {
 
   return (
     <ReportLayout
+      icon={<FundOutlined />}
       title="Flujo de Caja"
       subtitle="Estado de Flujo de Efectivo · Método Indirecto · NIC 7"
       tipoExport="flujo-efectivo"
@@ -225,17 +226,17 @@ export default function FlujoEfectivoPage() {
 
             <Row gutter={12} style={{ marginBottom: 16 }}>
               {[
-                { label: 'Flujo Operativo',    value: single.operating.total,  color: '#1B3A6B' },
-                { label: 'Flujo Inversión',    value: single.investing.total,  color: '#722ed1' },
-                { label: 'Flujo Financiación', value: single.financing.total,  color: '#fa8c16' },
-                { label: 'Cambio Neto Caja',   value: single.netCashChange,    color: single.netCashChange >= 0 ? '#389e0d' : '#cf1322' },
+                { label: 'Flujo Operativo',    value: single.operating.total,  color: '#1faec2' },
+                { label: 'Flujo Inversión',    value: single.investing.total,  color: '#6b7280' },
+                { label: 'Flujo Financiación', value: single.financing.total,  color: '#ff7f00' },
+                { label: 'Cambio Neto Caja',   value: single.netCashChange,    color: single.netCashChange >= 0 ? '#2ea172' : '#e5484d' },
               ].map(k => (
                 <Col xs={12} sm={6} key={k.label}>
                   <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} styles={{ body: { padding: '12px 8px' } }}>
                     <Statistic
                       title={<span style={{ fontSize: 11 }}>{k.label}</span>}
                       value={k.value} precision={2} prefix="Q"
-                      valueStyle={{ fontSize: 13, fontFamily: 'monospace', color: k.color }}
+                      valueStyle={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: k.color }}
                       formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                     />
                   </Card>
@@ -243,19 +244,19 @@ export default function FlujoEfectivoPage() {
               ))}
             </Row>
 
-            <FlowSection title="Actividades de Operación" total={single.operating.total} color="#1677ff"
-              icon={<BankOutlined style={{ color: '#1677ff' }} />}
+            <FlowSection title="Actividades de Operación" total={single.operating.total} color="#1faec2"
+              icon={<BankOutlined style={{ color: '#1faec2' }} />}
               items={[{ label: 'Utilidad Neta del Período', amount: single.operating.netIncome }, ...single.operating.adjustments]}
             />
-            <FlowSection title="Actividades de Inversión" total={single.investing.total} color="#722ed1"
-              icon={<ArrowUpOutlined style={{ color: '#722ed1' }} />} items={single.investing.items}
+            <FlowSection title="Actividades de Inversión" total={single.investing.total} color="#6b7280"
+              icon={<ArrowUpOutlined style={{ color: '#6b7280' }} />} items={single.investing.items}
             />
-            <FlowSection title="Actividades de Financiación" total={single.financing.total} color="#fa8c16"
-              icon={<ArrowDownOutlined style={{ color: '#fa8c16' }} />} items={single.financing.items}
+            <FlowSection title="Actividades de Financiación" total={single.financing.total} color="#ff7f00"
+              icon={<ArrowDownOutlined style={{ color: '#ff7f00' }} />} items={single.financing.items}
             />
 
             <Card size="small"
-              style={{ borderRadius: 8, background: single.netCashChange >= 0 ? '#f6ffed' : '#fff2f0', border: `1px solid ${single.netCashChange >= 0 ? '#b7eb8f' : '#ffa39e'}` }}
+              style={{ borderRadius: 8, background: single.netCashChange >= 0 ? '#fafbfc' : '#fdecec', border: `1px solid ${single.netCashChange >= 0 ? 'rgba(10,10,10,0.08)' : '#f8c9cb'}` }}
               styles={{ body: { padding: '12px 16px' } }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -263,7 +264,7 @@ export default function FlujoEfectivoPage() {
                   <Text strong style={{ fontSize: 13 }}>Cambio Neto en Efectivo</Text>
                   <div><Text type="secondary" style={{ fontSize: 11 }}>Operación + Inversión + Financiación</Text></div>
                 </div>
-                <Text strong style={{ fontFamily: 'monospace', fontSize: 16, color: single.netCashChange >= 0 ? '#389e0d' : '#cf1322' }}>
+                <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 16, color: single.netCashChange >= 0 ? '#2ea172' : '#e5484d' }}>
                   {fmtQ(single.netCashChange)}
                 </Text>
               </div>
@@ -275,9 +276,9 @@ export default function FlujoEfectivoPage() {
               >
                 <Table size="small" dataSource={single.cashAccounts} rowKey="code" pagination={false}
                   columns={[
-                    { dataIndex: 'code', width: 110, render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>{v}</Text> },
+                    { dataIndex: 'code', width: 110, render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>{v}</Text> },
                     { dataIndex: 'name', render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-                    { dataIndex: 'change', width: 140, align: 'right' as const, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: v >= 0 ? '#389e0d' : '#cf1322' }}>{fmtQ(v)}</Text> },
+                    { dataIndex: 'change', width: 140, align: 'right' as const, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v >= 0 ? '#2ea172' : '#e5484d' }}>{fmtQ(v)}</Text> },
                   ]}
                 />
               </Card>

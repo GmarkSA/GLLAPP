@@ -94,15 +94,15 @@ export default function EmpresasPage() {
   const handleMigrate = (company: Company) => {
     Modal.confirm({
       title: 'Migrar datos históricos',
-      icon: <DatabaseOutlined style={{ color: '#1B3A6B' }} />,
+      icon: <DatabaseOutlined style={{ color: '#1faec2' }} />,
       content: (
         <div>
           <p>Esto asignará todos los registros sin empresa (cuentas contables, clientes, facturas, proveedores, etc.) a <b>{company.legalName}</b>.</p>
-          <p style={{ color: '#888', fontSize: 12 }}>Operación de una sola vez — segura de ejecutar.</p>
+          <p style={{ color: '#6b7280', fontSize: 12 }}>Operación de una sola vez — segura de ejecutar.</p>
         </div>
       ),
       okText: 'Migrar ahora',
-      okButtonProps: { style: { background: '#1B3A6B' } },
+      okButtonProps: { style: { background: '#1faec2' } },
       cancelText: 'Cancelar',
       onOk: async () => {
         setMigrating(company.id)
@@ -118,7 +118,7 @@ export default function EmpresasPage() {
             content: (
               <div>
                 <p><b>{total}</b> registros migrados a {company.legalName}.</p>
-                {details && <p style={{ fontSize: 12, color: '#888' }}>{details}</p>}
+                {details && <p style={{ fontSize: 12, color: '#6b7280' }}>{details}</p>}
                 <p style={{ marginTop: 8 }}>Recarga la página para ver los datos.</p>
               </div>
             ),
@@ -138,8 +138,8 @@ export default function EmpresasPage() {
       title: '',
       width: 32,
       render: (_: any, r: Company) => r.isDefault
-        ? <StarFilled style={{ color: '#faad14' }} />
-        : <StarOutlined style={{ color: '#d9d9d9' }} />,
+        ? <StarFilled style={{ color: '#ff7f00' }} />
+        : <StarOutlined style={{ color: '#9aa1ab' }} />,
     },
     {
       title: 'Empresa',
@@ -148,8 +148,8 @@ export default function EmpresasPage() {
         <Space>
           <BankOutlined />
           <span style={{ fontWeight: 500 }}>{v}</span>
-          {r.tradeName && <span style={{ color: '#888', fontSize: 12 }}>({r.tradeName})</span>}
-          {r.id === activeCompanyId && <Tag color="blue" style={{ marginLeft: 4 }}>Activa</Tag>}
+          {r.tradeName && <span style={{ color: '#6b7280', fontSize: 12 }}>({r.tradeName})</span>}
+          {r.id === activeCompanyId && <Tag color="#1faec2" style={{ marginLeft: 4 }}>Activa</Tag>}
         </Space>
       ),
     },
@@ -227,7 +227,7 @@ export default function EmpresasPage() {
         title: 'Diagnóstico de datos',
         width: 600,
         content: (
-          <pre style={{ fontSize: 11, maxHeight: 400, overflow: 'auto', background: '#f5f5f5', padding: 12, borderRadius: 4 }}>
+          <pre style={{ fontSize: 11, maxHeight: 400, overflow: 'auto', background: '#fafbfc', padding: 12, borderRadius: 4 }}>
             {JSON.stringify(data, null, 2)}
           </pre>
         ),
@@ -246,7 +246,7 @@ export default function EmpresasPage() {
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Empresas</Title>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
           onClick={() => navigate('/configuracion/empresas/nueva')}>
           Nueva Empresa
         </Button>

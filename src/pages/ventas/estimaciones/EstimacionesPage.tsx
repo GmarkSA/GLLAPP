@@ -64,7 +64,7 @@ function buildColDef(key: string): ColumnsType<Estimate>[number] | null {
   switch (key) {
     case 'estimateNumber':
       return { ...base, title: '# Cotización', dataIndex: 'estimateNumber', width: 140, fixed: 'left' as const,
-        render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
+        render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> }
     case 'customer':
       return { ...base, title: 'Cliente',
         render: (_: any, r: Estimate) => (
@@ -75,7 +75,7 @@ function buildColDef(key: string): ColumnsType<Estimate>[number] | null {
         ) }
     case 'customerTaxId':
       return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
-        render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v || '—'}</Text> }
+        render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'estimateDate':
       return { ...base, title: 'Fecha', dataIndex: 'estimateDate', width: 105,
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
@@ -84,7 +84,7 @@ function buildColDef(key: string): ColumnsType<Estimate>[number] | null {
         render: (v: string, r: Estimate) => {
           if (!v) return <Text type="secondary">—</Text>
           const isExpired = r.status === 'expired'
-          return <span style={{ fontSize: 12, color: isExpired ? '#ff4d4f' : undefined }}>
+          return <span style={{ fontSize: 12, color: isExpired ? '#e5484d' : undefined }}>
             {dayjs(v).format('DD/MM/YYYY')}
           </span>
         } }
@@ -95,7 +95,7 @@ function buildColDef(key: string): ColumnsType<Estimate>[number] | null {
       return { ...base, title: 'T/C', dataIndex: 'exchangeRate', width: 90, align: 'right' as const,
         render: (v: number, r: Estimate) =>
           r.currency && r.currency !== 'GTQ'
-            ? <span style={{ fontSize: 12, fontFamily: 'monospace' }}>{Number(v).toFixed(4)}</span>
+            ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{Number(v).toFixed(4)}</span>
             : <Text type="secondary">—</Text> }
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const,
@@ -244,7 +244,7 @@ export default function EstimacionesPage() {
             {canConvert && (
               <Tooltip title="Convertir a Factura">
                 <Button size="small" icon={<FileAddOutlined />}
-                  style={{ color: '#1B3A6B', borderColor: '#1B3A6B' }}
+                  style={{ color: '#1faec2', borderColor: '#1faec2' }}
                   onClick={() => openConvert(r)} />
               </Tooltip>
             )}
@@ -263,16 +263,16 @@ export default function EstimacionesPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <FileOutlined style={{ fontSize: 24, color: '#1B3A6B' }} />
+          <FileOutlined style={{ fontSize: 24, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Cotizaciones</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Cotizaciones</Title>
             <Text type="secondary">Propuestas y estimaciones enviadas a clientes</Text>
           </div>
         </div>
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={() => navigate('/ventas/estimaciones/nueva')}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nueva cotización
         </Button>
@@ -317,8 +317,8 @@ export default function EstimacionesPage() {
                     size="small"
                     icon={<SettingOutlined />}
                     style={{
-                      border: colPopover ? '1px solid #1B3A6B' : undefined,
-                      color:  colPopover ? '#1B3A6B' : undefined,
+                      border: colPopover ? '1px solid #1faec2' : undefined,
+                      color:  colPopover ? '#1faec2' : undefined,
                     }}
                   >
                     Columnas
@@ -359,11 +359,11 @@ export default function EstimacionesPage() {
         onCancel={() => { setConvertModal(false); setConvertTarget(null) }}
         onOk={handleConvert}
         okText="Convertir"
-        okButtonProps={{ loading: convertLoading, style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: convertLoading, style: { background: '#1faec2' } }}
         cancelText="Cancelar"
       >
         <p>¿Convertir la cotización <strong>{convertTarget?.estimateNumber}</strong> a factura de venta?</p>
-        <p style={{ color: '#8c8c8c', fontSize: 13 }}>
+        <p style={{ color: '#6b7280', fontSize: 13 }}>
           Se creará una nueva factura con los mismos ítems y montos. La cotización quedará marcada como <em>Facturada</em>.
         </p>
       </Modal>

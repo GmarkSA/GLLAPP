@@ -32,7 +32,7 @@ const fmtQ = (n: number) =>
   n === 0 ? '—' : `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const STATUS_COLOR: Record<string, string> = {
-  posted: 'green',
+  posted: '#2ea172',
   draft:  'orange',
   void:   'red',
 }
@@ -122,7 +122,7 @@ export default function LibroDiarioPage() {
       title: 'Cuenta', width: 300,
       render: (_, l) => (
         <span>
-          <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#888', marginRight: 6 }}>{l.accountCode}</Text>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280', marginRight: 6 }}>{l.accountCode}</Text>
           <Text style={{ fontSize: 12 }}>{l.accountName}</Text>
         </span>
       ),
@@ -134,13 +134,13 @@ export default function LibroDiarioPage() {
     {
       title: 'Debe', dataIndex: 'debit', width: 130, align: 'right',
       render: (v) => (
-        <Text style={{ fontFamily: 'monospace', color: v > 0 ? '#1B3A6B' : '#bbb' }}>{fmtQ(v)}</Text>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#1faec2' : '#bbb' }}>{fmtQ(v)}</Text>
       ),
     },
     {
       title: 'Haber', dataIndex: 'credit', width: 130, align: 'right',
       render: (v) => (
-        <Text style={{ fontFamily: 'monospace', color: v > 0 ? '#52c41a' : '#bbb' }}>{fmtQ(v)}</Text>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#2ea172' : '#bbb' }}>{fmtQ(v)}</Text>
       ),
     },
   ]
@@ -151,7 +151,7 @@ export default function LibroDiarioPage() {
       dataIndex: 'entryNumber',
       width: 145,
       render: (v) => (
-        <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>
       ),
     },
     {
@@ -180,13 +180,13 @@ export default function LibroDiarioPage() {
     {
       title: 'Debe', dataIndex: 'totalDebit', width: 130, align: 'right',
       render: (v) => (
-        <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(v)}</Text>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v)}</Text>
       ),
     },
     {
       title: 'Haber', dataIndex: 'totalCredit', width: 130, align: 'right',
       render: (v) => (
-        <Text strong style={{ fontFamily: 'monospace', color: '#52c41a' }}>{fmtQ(v)}</Text>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>{fmtQ(v)}</Text>
       ),
     },
     {
@@ -237,9 +237,9 @@ export default function LibroDiarioPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <FileTextOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <FileTextOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Libro Diario</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Libro Diario</Title>
             <Text type="secondary">Registro cronológico de asientos contables</Text>
           </div>
         </div>
@@ -263,7 +263,7 @@ export default function LibroDiarioPage() {
             icon={<FilePdfOutlined />}
             loading={exporting === 'pdf'}
             onClick={() => handleExport('pdf')}
-            style={{ color: '#cf1322', borderColor: '#cf1322' }}
+            style={{ color: '#e5484d', borderColor: '#e5484d' }}
           >
             Exportar PDF
           </Button>
@@ -318,7 +318,7 @@ export default function LibroDiarioPage() {
                 title={s.title}
                 value={s.value}
                 formatter={v => s.fmt(Number(v))}
-                valueStyle={{ fontSize: 16, color: '#1B3A6B' }}
+                valueStyle={{ fontSize: 16, color: '#1faec2' }}
               />
             </Card>
           </Col>
@@ -360,17 +360,17 @@ export default function LibroDiarioPage() {
                 size="small"
                 style={{ margin: '4px 0 8px 48px' }}
                 summary={() => (
-                  <Table.Summary.Row style={{ background: '#f5f5f5' }}>
+                  <Table.Summary.Row style={{ background: '#fafbfc' }}>
                     <Table.Summary.Cell index={0} colSpan={2}>
                       <Text strong style={{ fontSize: 11 }}>Totales</Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={2} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
                         {fmtQ(entry.totalDebit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={3} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', color: '#52c41a' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>
                         {fmtQ(entry.totalCredit)}
                       </Text>
                     </Table.Summary.Cell>

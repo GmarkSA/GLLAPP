@@ -191,7 +191,7 @@ export default function EmpresaFormPage() {
           {!isEdit && (
             <Card
               title={<span><CopyOutlined style={{ marginRight: 6 }} />Método de creación</span>}
-              style={{ marginBottom: 16, borderColor: '#1B3A6B' }}
+              style={{ marginBottom: 16, borderColor: '#1faec2' }}
             >
               <Radio.Group
                 value={createMode}
@@ -199,21 +199,21 @@ export default function EmpresaFormPage() {
                 style={{ marginBottom: createMode === 'clone' ? 16 : 0 }}
               >
                 <Radio value="empty">
-                  <span><PlusCircleOutlined style={{ marginRight: 6, color: '#52c41a' }} />Empresa vacía</span>
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 2, marginLeft: 22 }}>
+                  <span><PlusCircleOutlined style={{ marginRight: 6, color: '#2ea172' }} />Empresa vacía</span>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 22 }}>
                     Comienza desde cero — catálogo de cuentas, series y configuración vacíos
                   </div>
                 </Radio>
                 <Radio value="clone" style={{ marginTop: 10 }}>
-                  <span><CopyOutlined style={{ marginRight: 6, color: '#1677ff' }} />Copiar empresa existente</span>
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 2, marginLeft: 22 }}>
+                  <span><CopyOutlined style={{ marginRight: 6, color: '#1faec2' }} />Copiar empresa existente</span>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, marginLeft: 22 }}>
                     Hereda configuración de una empresa ya configurada (plan de cuentas, series, sucursales…)
                   </div>
                 </Radio>
               </Radio.Group>
 
               {createMode === 'clone' && (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(10,10,10,0.08)' }}>
                   <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 13 }}>Empresa origen</div>
                   <Select
                     style={{ width: '100%', marginBottom: 14 }}
@@ -329,8 +329,8 @@ export default function EmpresaFormPage() {
               style={{ marginBottom: 16 }}
               extra={
                 enabledMods.length === 0
-                  ? <Tag color="green">Todos activos</Tag>
-                  : <Tag color="orange">{enabledMods.length} de {ALL_MODULES.length} activos</Tag>
+                  ? <Tag color="#2ea172">Todos activos</Tag>
+                  : <Tag color="#ff7f00">{enabledMods.length} de {ALL_MODULES.length} activos</Tag>
               }
             >
               <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
@@ -362,8 +362,8 @@ export default function EmpresaFormPage() {
               style={{ marginBottom: 16 }}
               extra={
                 satConfig.entityId && satConfig.apiKey
-                  ? <Tag color="green">Configurado</Tag>
-                  : <Tag color="orange">Sin configurar</Tag>
+                  ? <Tag color="#2ea172">Configurado</Tag>
+                  : <Tag color="#ff7f00">Sin configurar</Tag>
               }
             >
               <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
@@ -420,7 +420,7 @@ export default function EmpresaFormPage() {
                   Probar conexión
                 </Button>
                 <Button size="small" type="primary" loading={savingSat} onClick={handleSaveSatConfig}
-                  style={{ background: '#1B3A6B' }} icon={<SaveOutlined />}>
+                  style={{ background: '#1faec2' }} icon={<SaveOutlined />}>
                   Guardar configuración SAT
                 </Button>
               </Space>
@@ -430,7 +430,7 @@ export default function EmpresaFormPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <Button onClick={() => navigate('/configuracion/empresas')}>Cancelar</Button>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}
-              style={{ background: '#1B3A6B' }}>
+              style={{ background: '#1faec2' }}>
               {isEdit ? 'Guardar Cambios' : 'Crear Empresa'}
             </Button>
           </div>

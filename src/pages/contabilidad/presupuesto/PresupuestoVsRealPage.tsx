@@ -28,15 +28,15 @@ function fmtQ(n: number) {
 }
 
 function pctColor(pct: number | null, isExpense: boolean): string {
-  if (pct === null) return '#8c8c8c'
+  if (pct === null) return '#6b7280'
   if (isExpense) {
-    if (pct > 110) return '#cf1322'
+    if (pct > 110) return '#e5484d'
     if (pct > 90)  return '#d4640a'
-    return '#389e0d'
+    return '#2ea172'
   }
-  if (pct >= 90) return '#389e0d'
+  if (pct >= 90) return '#2ea172'
   if (pct >= 50) return '#d4640a'
-  return '#cf1322'
+  return '#e5484d'
 }
 
 
@@ -51,7 +51,7 @@ function KpiCard({ title, value, suffix, color, icon, sub }: {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ fontSize: 22, color, marginTop: 2 }}>{icon}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, letterSpacing: 0.3 }}>{title}</div>
+          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, letterSpacing: 0.3 }}>{title}</div>
           {value !== null ? (
             <Statistic
               value={value}
@@ -60,9 +60,9 @@ function KpiCard({ title, value, suffix, color, icon, sub }: {
               valueStyle={{ fontSize: 20, color, lineHeight: '28px' }}
             />
           ) : (
-            <div style={{ fontSize: 18, color: '#d9d9d9', lineHeight: '28px' }}>—</div>
+            <div style={{ fontSize: 18, color: '#9aa1ab', lineHeight: '28px' }}>—</div>
           )}
-          {sub && <div style={{ fontSize: 10, color: '#8c8c8c', marginTop: 2 }}>{sub}</div>}
+          {sub && <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>{sub}</div>}
         </div>
       </div>
     </Card>
@@ -89,13 +89,13 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 10, fontSize: 11,
       }}>
-        <span style={{ color: '#cf1322', fontWeight: 600 }}>
+        <span style={{ color: '#e5484d', fontWeight: 600 }}>
           ← Desfavorable ({negItems})
         </span>
-        <span style={{ color: '#8c8c8c', fontSize: 10, letterSpacing: 0.5 }}>
+        <span style={{ color: '#6b7280', fontSize: 10, letterSpacing: 0.5 }}>
           VARIACIÓN TOTAL POR CUENTA (ordenado por magnitud absoluta)
         </span>
-        <span style={{ color: '#389e0d', fontWeight: 600 }}>
+        <span style={{ color: '#2ea172', fontWeight: 600 }}>
           Favorable ({posItems}) →
         </span>
       </div>
@@ -111,13 +111,13 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
             <div key={r.accountId} style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '5px 0',
-              borderBottom: i < items.length - 1 ? '1px solid #f5f5f5' : undefined,
+              borderBottom: i < items.length - 1 ? '1px solid #fafbfc' : undefined,
             }}>
               {/* Rank + cuenta */}
               <div style={{ width: 200, minWidth: 200, display: 'flex', gap: 6, alignItems: 'center' }}>
                 <span style={{
                   fontSize: 10, fontWeight: 700, color: '#fff',
-                  background: i === 0 ? '#d4af37' : i === 1 ? '#9e9e9e' : i === 2 ? '#cd7f32' : '#bfbfbf',
+                  background: i === 0 ? 'var(--rank-gold)' : i === 1 ? 'var(--rank-silver)' : i === 2 ? 'var(--rank-bronze)' : '#9aa1ab',
                   borderRadius: 10, minWidth: 22, height: 18,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
@@ -130,7 +130,7 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
                   }} title={r.accountName}>
                     {r.accountName}
                   </div>
-                  <div style={{ fontSize: 10, color: '#bfbfbf' }}>{r.accountCode}</div>
+                  <div style={{ fontSize: 10, color: '#9aa1ab' }}>{r.accountCode}</div>
                 </div>
               </div>
 
@@ -145,7 +145,7 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
                     <Tooltip title={`${fmtQ(r.varianza)}`}>
                       <div style={{
                         width: `${halfW * 2}%`, height: 14,
-                        background: 'linear-gradient(to left, #ff4d4f, #ff7875)',
+                        background: 'linear-gradient(to left, #e5484d, #e5484d)',
                         borderRadius: '4px 0 0 4px',
                         transition: 'width 0.5s ease',
                         cursor: 'default',
@@ -155,7 +155,7 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
                 </div>
 
                 {/* Línea central */}
-                <div style={{ width: 2, height: 24, background: '#d9d9d9', flexShrink: 0 }} />
+                <div style={{ width: 2, height: 24, background: 'rgba(10,10,10,0.08)', flexShrink: 0 }} />
 
                 {/* Mitad derecha (positivo) */}
                 <div style={{
@@ -166,7 +166,7 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
                     <Tooltip title={`+${fmtQ(r.varianza)}`}>
                       <div style={{
                         width: `${halfW * 2}%`, height: 14,
-                        background: 'linear-gradient(to right, #52c41a, #73d13d)',
+                        background: 'linear-gradient(to right, #2ea172, #2ea172)',
                         borderRadius: '0 4px 4px 0',
                         transition: 'width 0.5s ease',
                         cursor: 'default',
@@ -180,11 +180,11 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
               <div style={{ width: 140, minWidth: 140, textAlign: 'right' }}>
                 <div style={{
                   fontSize: 12, fontWeight: 700,
-                  color: isPos ? '#389e0d' : '#cf1322',
+                  color: isPos ? '#2ea172' : '#e5484d',
                 }}>
                   {r.varianza >= 0 ? '+' : ''}{fmtQ(r.varianza)}
                 </div>
-                <div style={{ fontSize: 10, color: '#8c8c8c' }}>
+                <div style={{ fontSize: 10, color: '#6b7280' }}>
                   {r.porcentaje !== null
                     ? `${r.porcentaje >= 0 ? '+' : ''}${r.porcentaje.toFixed(1)}% vs pres.`
                     : 'Sin pres. base'}
@@ -195,7 +195,7 @@ function TopVariacionesPanel({ items }: { items: BudgetVsReal['topVariaciones'] 
         })}
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: 8, fontSize: 10, color: '#bfbfbf' }}>
+      <div style={{ textAlign: 'center', marginTop: 8, fontSize: 10, color: '#9aa1ab' }}>
         {items.length} cuenta{items.length !== 1 ? 's' : ''} · La barra más larga = mayor desvío absoluto
       </div>
     </Card>
@@ -332,7 +332,7 @@ export default function PresupuestoVsRealPage() {
       icon: <CloudUploadOutlined style={{ color: '#cc6600' }} />,
       label: (
         <Tooltip title="Requiere configuración de API Zoho — próximamente">
-          <span style={{ color: '#bfbfbf' }}>Exportar a Zoho Sheet</span>
+          <span style={{ color: '#9aa1ab' }}>Exportar a Zoho Sheet</span>
         </Tooltip>
       ),
       disabled: true,
@@ -356,9 +356,9 @@ export default function PresupuestoVsRealPage() {
 
   // ── Estilos base ─────────────────────────────────────────────────────────────
   const thBase: React.CSSProperties = {
-    padding: '6px 4px', fontSize: 10, fontWeight: 700, color: '#8c8c8c',
-    textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '2px solid #e8e8e8',
-    background: '#fafafa',
+    padding: '6px 4px', fontSize: 10, fontWeight: 700, color: '#6b7280',
+    textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '2px solid rgba(10,10,10,0.08)',
+    background: '#fafbfc',
   }
   const tdNum: React.CSSProperties = { padding: '3px 5px', textAlign: 'right', fontSize: 11 }
   const stickyLeft0: React.CSSProperties   = { position: 'sticky', left: 0,         zIndex: 1, background: '#fff' }
@@ -389,7 +389,7 @@ export default function PresupuestoVsRealPage() {
       }
     })
 
-    const green = '#389e0d', red = '#cf1322', gray = '#8c8c8c'
+    const green = '#2ea172', red = '#e5484d', gray = '#6b7280'
     const minTableW = W.cuenta + W.sub + labels.length * W_MIN_PERIODO + W.ytd + W.forecast + W.total
 
     return (
@@ -411,7 +411,7 @@ export default function PresupuestoVsRealPage() {
           </span>
         </div>
 
-        <div style={{ overflowX: 'auto', border: '1px solid #e8e8e8', borderTop: 'none', borderRadius: '0 0 4px 4px' }}>
+        <div style={{ overflowX: 'auto', border: '1px solid rgba(10,10,10,0.08)', borderTop: 'none', borderRadius: '0 0 4px 4px' }}>
           <table style={{ borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed',
             width: '100%', minWidth: minTableW }}>
             <colgroup>
@@ -430,11 +430,11 @@ export default function PresupuestoVsRealPage() {
                   <th key={i} style={{ ...thBase }}>
                     {label}
                     {(i + 1) === currentPeriod && (
-                      <span style={{ display: 'block', fontSize: 8, color: '#1677ff', fontWeight: 800 }}>● HOY</span>
+                      <span style={{ display: 'block', fontSize: 8, color: '#1faec2', fontWeight: 800 }}>● HOY</span>
                     )}
                   </th>
                 ))}
-                <th style={{ ...thBase, background: '#f0f5ff', position: 'sticky', right: stickyR.ytd, zIndex: 3 }}>
+                <th style={{ ...thBase, background: '#fafbfc', position: 'sticky', right: stickyR.ytd, zIndex: 3 }}>
                   YTD<br /><span style={{ fontSize: 9, fontWeight: 400 }}>acumulado</span>
                 </th>
                 <th style={{ ...thBase, position: 'sticky', right: stickyR.forecast, zIndex: 3 }}>
@@ -449,17 +449,17 @@ export default function PresupuestoVsRealPage() {
               {sectionRows.map((row, ri) => {
                 const fav    = isExp ? row.totalVarianza <= 0 : row.totalVarianza >= 0
                 const ytdFav = isExp ? row.ytdVarianza  <= 0 : row.ytdVarianza  >= 0
-                const rowBg  = row.alertaGlobal === 'OVER_BUDGET' ? '#fff2f0' : row.alertaGlobal === 'WARNING' ? '#fffbe6' : '#fff'
+                const rowBg  = row.alertaGlobal === 'OVER_BUDGET' ? '#fdecec' : row.alertaGlobal === 'WARNING' ? '#fff2e5' : '#fff'
                 const colR   = (c: string) => ({ color: c })
 
                 return (
                   <>
                     {/* ── Fila Pres. ── */}
-                    <tr key={`${row.accountId}-p`} style={{ borderTop: ri > 0 ? '2px solid #f0f0f0' : undefined }}>
+                    <tr key={`${row.accountId}-p`} style={{ borderTop: ri > 0 ? '2px solid rgba(10,10,10,0.08)' : undefined }}>
                       <td rowSpan={3} style={{
                         ...stickyLeft0, padding: '8px 8px 8px 12px',
                         verticalAlign: 'middle', background: rowBg,
-                        borderRight: '1px solid #e8e8e8',
+                        borderRight: '1px solid rgba(10,10,10,0.08)',
                       }}>
                         <div style={{ fontWeight: 700, fontSize: 12, lineHeight: '15px',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
@@ -467,14 +467,14 @@ export default function PresupuestoVsRealPage() {
                         <div style={{ fontSize: 10, color: gray }}>{row.accountCode}</div>
                         {row.alertaGlobal && (
                           <Tag
-                            color={row.alertaGlobal === 'OVER_BUDGET' ? 'red' : 'orange'}
+                            color={row.alertaGlobal === 'OVER_BUDGET' ? '#e5484d' : '#ff7f00'}
                             style={{ fontSize: 9, padding: '0 4px', marginTop: 3, lineHeight: '16px' }}>
                             {row.alertaGlobal === 'OVER_BUDGET' ? 'EXCEDIDO' : 'ADVERTENCIA'}
                           </Tag>
                         )}
                       </td>
                       <td style={{ ...stickyLeftSub, textAlign: 'center', color: gray, fontWeight: 600,
-                        fontSize: 9, padding: '3px 2px', background: rowBg, borderRight: '1px solid #f0f0f0' }}>
+                        fontSize: 9, padding: '3px 2px', background: rowBg, borderRight: '1px solid rgba(10,10,10,0.08)' }}>
                         Pres.
                       </td>
                       {row.periodos.map(p => (
@@ -482,11 +482,11 @@ export default function PresupuestoVsRealPage() {
                           {p.presupuestado !== 0 ? fmtQ(p.presupuestado) : <span style={{ color: '#e0e0e0' }}>—</span>}
                         </td>
                       ))}
-                      <td style={{ ...tdNum, background: '#f0f5ff', position: 'sticky', right: stickyR.ytd, ...colR(gray) }}>
+                      <td style={{ ...tdNum, background: '#fafbfc', position: 'sticky', right: stickyR.ytd, ...colR(gray) }}>
                         {fmtQ(row.ytdPresupuestado)}
                       </td>
                       <td style={{ ...tdNum, position: 'sticky', right: stickyR.forecast, background: rowBg }} />
-                      <td style={{ ...tdNum, position: 'sticky', right: stickyR.total, background: rowBg, ...colR(gray), borderLeft: '1px solid #f0f0f0' }}>
+                      <td style={{ ...tdNum, position: 'sticky', right: stickyR.total, background: rowBg, ...colR(gray), borderLeft: '1px solid rgba(10,10,10,0.08)' }}>
                         {fmtQ(row.totalPresupuestado)}
                       </td>
                     </tr>
@@ -494,7 +494,7 @@ export default function PresupuestoVsRealPage() {
                     {/* ── Fila Real ── */}
                     <tr key={`${row.accountId}-r`}>
                       <td style={{ ...stickyLeftSub, textAlign: 'center', color: '#333', fontWeight: 700,
-                        fontSize: 9, padding: '3px 2px', background: rowBg, borderRight: '1px solid #f0f0f0' }}>
+                        fontSize: 9, padding: '3px 2px', background: rowBg, borderRight: '1px solid rgba(10,10,10,0.08)' }}>
                         Real
                       </td>
                       {row.periodos.map(p => (
@@ -503,15 +503,15 @@ export default function PresupuestoVsRealPage() {
                           {p.real !== 0 ? fmtQ(p.real) : <span style={{ color: '#e0e0e0' }}>—</span>}
                         </td>
                       ))}
-                      <td style={{ ...tdNum, fontWeight: 600, background: '#f0f5ff', position: 'sticky', right: stickyR.ytd }}>
+                      <td style={{ ...tdNum, fontWeight: 600, background: '#fafbfc', position: 'sticky', right: stickyR.ytd }}>
                         {fmtQ(row.ytdReal)}
                       </td>
                       <td style={{ ...tdNum, position: 'sticky', right: stickyR.forecast, background: rowBg }}>
                         {row.forecast !== null
                           ? <span style={{ color: '#6b7280', fontWeight: 700 }}>{fmtQ(row.forecast)}</span>
-                          : <span style={{ color: '#d9d9d9' }}>—</span>}
+                          : <span style={{ color: '#9aa1ab' }}>—</span>}
                       </td>
-                      <td style={{ ...tdNum, fontWeight: 700, position: 'sticky', right: stickyR.total, background: rowBg, borderLeft: '1px solid #f0f0f0' }}>
+                      <td style={{ ...tdNum, fontWeight: 700, position: 'sticky', right: stickyR.total, background: rowBg, borderLeft: '1px solid rgba(10,10,10,0.08)' }}>
                         {fmtQ(row.totalReal)}
                       </td>
                     </tr>
@@ -521,7 +521,7 @@ export default function PresupuestoVsRealPage() {
                       <td style={{ ...stickyLeftSub, textAlign: 'center', fontWeight: 700,
                         fontSize: 9, padding: '3px 2px',
                         color: fav ? green : red,
-                        background: rowBg, borderRight: '1px solid #f0f0f0' }}>
+                        background: rowBg, borderRight: '1px solid rgba(10,10,10,0.08)' }}>
                         Var.
                       </td>
                       {row.periodos.map(p => {
@@ -529,19 +529,19 @@ export default function PresupuestoVsRealPage() {
                         const hasAlert = p.alerta != null
                         return (
                           <td key={p.periodo} style={{ ...tdNum, fontWeight: 600,
-                            color: p.varianza === 0 ? '#d9d9d9' : pfav ? green : red,
+                            color: p.varianza === 0 ? 'rgba(10,10,10,0.08)' : pfav ? green : red,
                             background: hasAlert
                               ? (p.alerta === 'OVER_BUDGET' ? '#fff0f0' : '#fffbe0')
                               : (p.periodo === currentPeriod) ? '#fafcff' : rowBg }}>
                             {p.varianza !== 0
                               ? `${p.varianza > 0 ? '+' : ''}${fmtQ(p.varianza)}`
-                              : <span style={{ color: '#e8e8e8' }}>—</span>}
+                              : <span style={{ color: 'rgba(10,10,10,0.08)' }}>—</span>}
                           </td>
                         )
                       })}
                       <td style={{ ...tdNum, fontWeight: 700,
                         color: ytdFav ? green : red,
-                        background: '#f0f5ff', position: 'sticky', right: stickyR.ytd }}>
+                        background: '#fafbfc', position: 'sticky', right: stickyR.ytd }}>
                         {row.ytdVarianza !== 0 ? `${row.ytdVarianza > 0 ? '+' : ''}${fmtQ(row.ytdVarianza)}` : '—'}
                         {row.ytdPorcentaje !== null && row.ytdPresupuestado > 0 && (
                           <div style={{ fontSize: 9, opacity: 0.8 }}>{row.ytdPorcentaje.toFixed(0)}% ejec.</div>
@@ -558,7 +558,7 @@ export default function PresupuestoVsRealPage() {
                       </td>
                       <td style={{ ...tdNum, fontWeight: 700,
                         color: fav ? green : red,
-                        position: 'sticky', right: stickyR.total, background: rowBg, borderLeft: '1px solid #f0f0f0' }}>
+                        position: 'sticky', right: stickyR.total, background: rowBg, borderLeft: '1px solid rgba(10,10,10,0.08)' }}>
                         {row.totalVarianza !== 0 ? `${row.totalVarianza > 0 ? '+' : ''}${fmtQ(row.totalVarianza)}` : '—'}
                         {row.totalPresupuestado > 0 && row.totalVarianza !== 0 && (
                           <div style={{ fontSize: 9, opacity: 0.8 }}>
@@ -580,10 +580,10 @@ export default function PresupuestoVsRealPage() {
                 const bg     = '#f0f2f5'
                 const favTotal = isExp ? totVar <= 0 : totVar >= 0
                 return (
-                  <tr key={sub} style={{ borderTop: sub === 'pres' ? '2px solid #d9d9d9' : undefined }}>
+                  <tr key={sub} style={{ borderTop: sub === 'pres' ? '2px solid rgba(10,10,10,0.08)' : undefined }}>
                     {sub === 'pres' && (
                       <td rowSpan={3} style={{ ...stickyLeft0, padding: '6px 12px', fontWeight: 800,
-                        fontSize: 11, background: bg, color: '#1B3A6B', borderRight: '1px solid #e8e8e8',
+                        fontSize: 11, background: bg, color: '#1faec2', borderRight: '1px solid rgba(10,10,10,0.08)',
                         verticalAlign: 'middle' }}>
                         TOTAL {title.toUpperCase()}
                       </td>
@@ -616,7 +616,7 @@ export default function PresupuestoVsRealPage() {
                     <td style={{ ...tdNum, background: bg, position: 'sticky', right: stickyR.forecast }} />
                     <td style={{ ...tdNum, background: bg, fontWeight: isVar ? 700 : isReal ? 600 : 400,
                       color: isVar ? (favTotal ? green : red) : isReal ? '#222' : gray,
-                      position: 'sticky', right: stickyR.total, borderLeft: '1px solid #d9d9d9' }}>
+                      position: 'sticky', right: stickyR.total, borderLeft: '1px solid rgba(10,10,10,0.08)' }}>
                       {sub === 'pres' ? fmtQ(totPres)
                         : sub === 'real' ? fmtQ(totReal)
                         : `${totVar >= 0 ? '+' : ''}${fmtQ(totVar)}`}
@@ -632,8 +632,8 @@ export default function PresupuestoVsRealPage() {
   }
 
   const ejecGlobalColor = kpis.ejecucionGlobal !== null
-    ? kpis.ejecucionGlobal >= 90 ? '#389e0d' : kpis.ejecucionGlobal >= 50 ? '#d4640a' : '#cf1322'
-    : '#8c8c8c'
+    ? kpis.ejecucionGlobal >= 90 ? '#2ea172' : kpis.ejecucionGlobal >= 50 ? '#d4640a' : '#e5484d'
+    : '#6b7280'
 
   const ccObj = centrosCosto.find(c => c.id === budget.centroCostoId)
   const cbObj = centrosBeneficio.find(c => c.id === budget.centroBeneficioId)
@@ -643,10 +643,10 @@ export default function PresupuestoVsRealPage() {
   return (
     <div style={{ padding: 24 }}>
       <style>{`
-        .row-over-budget { background: #fff2f0 !important; }
+        .row-over-budget { background: #fdecec !important; }
         .row-over-budget:hover > td { background: #ffe7e4 !important; }
-        .row-warning { background: #fffbe6 !important; }
-        .row-warning:hover > td { background: #fff3c4 !important; }
+        .row-warning { background: #fff2e5 !important; }
+        .row-warning:hover > td { background: #ffe8cc !important; }
         @media print {
           .no-print { display: none !important; }
           body { font-size: 10px !important; }
@@ -663,7 +663,7 @@ export default function PresupuestoVsRealPage() {
         </Button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
               {budget.nombre} — Presupuesto vs Real
             </Title>
             <Tag color={STATUS_COLOR[budget.status]}>{STATUS_LABEL[budget.status]}</Tag>
@@ -672,15 +672,15 @@ export default function PresupuestoVsRealPage() {
             <Text type="secondary" style={{ fontSize: 12 }}>
               {dayjs(budget.fechaInicio).format('DD MMM YYYY')} – {dayjs(budget.fechaFin).format('DD MMM YYYY')}
             </Text>
-            {centroCosto     && <Tag color="blue"  style={{ fontSize: 11 }}>{centroCosto}</Tag>}
-            {centroBeneficio && <Tag color="green" style={{ fontSize: 11 }}>{centroBeneficio}</Tag>}
+            {centroCosto     && <Tag color="#1faec2"  style={{ fontSize: 11 }}>{centroCosto}</Tag>}
+            {centroBeneficio && <Tag color="#2ea172" style={{ fontSize: 11 }}>{centroBeneficio}</Tag>}
           </div>
         </div>
         <Space className="no-print">
           <Button size="small" icon={<ReloadOutlined />} onClick={load}>Actualizar</Button>
           <Button size="small" icon={<PrinterOutlined />} onClick={handlePrint}>Imprimir</Button>
           <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight" trigger={['click']}>
-            <Button type="primary" size="small" style={{ background: '#1B3A6B' }} icon={<DownloadOutlined />}>
+            <Button type="primary" size="small" style={{ background: '#1faec2' }} icon={<DownloadOutlined />}>
               Exportar ▾
             </Button>
           </Dropdown>
@@ -704,7 +704,7 @@ export default function PresupuestoVsRealPage() {
             title="EJECUCIÓN YTD"
             value={kpis.ytdEjecucion}
             suffix="%"
-            color={kpis.ytdEjecucion !== null ? (kpis.ytdEjecucion >= 90 ? '#389e0d' : '#d4640a') : '#8c8c8c'}
+            color={kpis.ytdEjecucion !== null ? (kpis.ytdEjecucion >= 90 ? '#2ea172' : '#d4640a') : '#6b7280'}
             icon={<RiseOutlined />}
             sub={`Hasta período ${currentPeriod} de ${periodoCount}`}
           />
@@ -714,7 +714,7 @@ export default function PresupuestoVsRealPage() {
             title="MARGEN BRUTO"
             value={kpis.margenBruto}
             suffix="%"
-            color={kpis.margenBruto !== null ? (kpis.margenBruto >= 0 ? '#1B3A6B' : '#cf1322') : '#8c8c8c'}
+            color={kpis.margenBruto !== null ? (kpis.margenBruto >= 0 ? '#1faec2' : '#e5484d') : '#6b7280'}
             icon={kpis.margenBruto !== null && kpis.margenBruto >= 0 ? <RiseOutlined /> : <FallOutlined />}
             sub="Ingresos - Gastos / Ingresos"
           />
@@ -723,7 +723,7 @@ export default function PresupuestoVsRealPage() {
           <KpiCard
             title="ALERTAS ACTIVAS"
             value={alertCount}
-            color={alertCount > 0 ? '#cf1322' : '#389e0d'}
+            color={alertCount > 0 ? '#e5484d' : '#2ea172'}
             icon={alertCount > 0 ? <ExclamationCircleOutlined /> : <CheckCircleOutlined />}
             sub={alertCount > 0 ? 'Cuentas fuera del presupuesto' : 'Todo dentro del presupuesto'}
           />
@@ -748,13 +748,13 @@ export default function PresupuestoVsRealPage() {
                 <BarChartOutlined />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: '#8c8c8c', fontWeight: 600, letterSpacing: 0.3 }}>
+                <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, letterSpacing: 0.3 }}>
                   TOP VARIACIONES
                 </div>
                 <div style={{ fontSize: 20, color: '#6b5b95', lineHeight: '28px', fontWeight: 700 }}>
                   {topVariaciones.length}
                 </div>
-                <div style={{ fontSize: 10, color: showTop5 ? '#6b5b95' : '#8c8c8c', marginTop: 2, fontWeight: showTop5 ? 600 : 400 }}>
+                <div style={{ fontSize: 10, color: showTop5 ? '#6b5b95' : '#6b7280', marginTop: 2, fontWeight: showTop5 ? 600 : 400 }}>
                   {showTop5 ? '▲ Ocultar detalle' : '▼ Ver cuentas más desviadas'}
                 </div>
               </div>
@@ -773,7 +773,7 @@ export default function PresupuestoVsRealPage() {
 
 
       {/* ── Tablas por sección ────────────────────────────────────────────────── */}
-      {renderSection('Ingresos',  incomeRows,  '#1B3A6B', false)}
+      {renderSection('Ingresos',  incomeRows,  '#1faec2', false)}
       {renderSection('Gastos',    expenseRows, '#5c5c8a', true)}
       {otherRows.length > 0 && renderSection('Activo, Pasivo y Capital', otherRows, '#6b7280', false)}
     </div>

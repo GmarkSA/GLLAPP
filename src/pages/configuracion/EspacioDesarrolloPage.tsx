@@ -38,16 +38,16 @@ function RegimeDocTable() {
         </thead>
         <tbody>
           {FEL_ALL_DOC_TYPES.map(doc => (
-            <tr key={doc.code} style={{ borderBottom: '1px solid #f0f0f0' }}>
+            <tr key={doc.code} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
               <td style={td}>
-                <Tag color="geekblue" style={{ marginRight: 6 }}>{doc.code}</Tag>
+                <Tag color="#1faec2" style={{ marginRight: 6 }}>{doc.code}</Tag>
                 <span style={{ color: '#555' }}>{doc.description}</span>
               </td>
               {rows.map(r => (
                 <td key={r.regime} style={{ ...td, textAlign: 'center' }}>
                   {r.docs.some(d => d.code === doc.code)
-                    ? <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                    : <span style={{ color: '#d9d9d9' }}>—</span>}
+                    ? <CheckCircleOutlined style={{ color: '#2ea172' }} />
+                    : <span style={{ color: '#9aa1ab' }}>—</span>}
                 </td>
               ))}
             </tr>
@@ -134,17 +134,17 @@ function CertificationTestPanel() {
 
       {invoiceData && (
         <>
-          <Card size="small" style={{ background: '#fafafa' }}>
+          <Card size="small" style={{ background: '#fafbfc' }}>
             <div style={{ fontSize: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
               <span><Text type="secondary">Número:</Text> <strong>{invoiceData.invoiceNumber}</strong></span>
               <span><Text type="secondary">Cliente:</Text> {invoiceData.customerName}</span>
               <span><Text type="secondary">NIT:</Text> {invoiceData.customerTaxId || 'CF'}</span>
               <span><Text type="secondary">Total:</Text> <strong>Q {Number(invoiceData.total).toFixed(2)}</strong></span>
-              <span><Text type="secondary">Tipo FEL:</Text> <Tag color="blue">{invoiceData.felTipoDocumento || 'del perfil'}</Tag></span>
+              <span><Text type="secondary">Tipo FEL:</Text> <Tag color="#1faec2">{invoiceData.felTipoDocumento || 'del perfil'}</Tag></span>
               <span><Text type="secondary">Estado FEL:</Text>
                 {invoiceData.felUuid
-                  ? <Tag color="green">Certificada — {invoiceData.felUuid?.slice(0, 8)}…</Tag>
-                  : <Tag color="orange">Sin certificar</Tag>}
+                  ? <Tag color="#2ea172">Certificada — {invoiceData.felUuid?.slice(0, 8)}…</Tag>
+                  : <Tag color="#ff7f00">Sin certificar</Tag>}
               </span>
             </div>
 
@@ -154,7 +154,7 @@ function CertificationTestPanel() {
               key: '1',
               label: <Text style={{ fontSize: 11 }}><CodeOutlined /> Preview del payload a enviar</Text>,
               children: (
-                <pre style={{ fontSize: 10, background: '#f5f5f5', padding: 8, borderRadius: 4, overflow: 'auto', maxHeight: 200 }}>
+                <pre style={{ fontSize: 10, background: '#fafbfc', padding: 8, borderRadius: 4, overflow: 'auto', maxHeight: 200 }}>
                   {JSON.stringify(buildPayloadPreview(invoiceData), null, 2)}
                 </pre>
               ),
@@ -234,7 +234,7 @@ function FelProfilesSection() {
         return <Badge status={r.status === 'active' ? 'success' : r.status === 'error' ? 'error' : 'default'} text={r.status} />
       },
     },
-    { title: 'Proveedor', dataIndex: 'provider', render: (v: string) => <Tag color="blue">{v}</Tag> },
+    { title: 'Proveedor', dataIndex: 'provider', render: (v: string) => <Tag color="#1faec2">{v}</Tag> },
     {
       title: 'Régimen / Tipo default',
       render: (_: any, r: ElectronicInvoicingProfile) => {
@@ -243,7 +243,7 @@ function FelProfilesSection() {
         return (
           <Space size={4}>
             {regime && <Text style={{ fontSize: 12 }}>{REGIME_LABELS[regime] ?? regime}</Text>}
-            {dt     && <Tag color="geekblue">{dt}</Tag>}
+            {dt     && <Tag color="#1faec2">{dt}</Tag>}
           </Space>
         )
       },
@@ -253,8 +253,8 @@ function FelProfilesSection() {
       dataIndex: 'environment',
       width: 100,
       render: (v: string) => v === 'production'
-        ? <Tag color="red"    icon={<CheckCircleOutlined />}>Producción</Tag>
-        : <Tag color="orange" icon={<ExclamationCircleOutlined />}>Sandbox</Tag>,
+        ? <Tag color="#e5484d"    icon={<CheckCircleOutlined />}>Producción</Tag>
+        : <Tag color="#ff7f00" icon={<ExclamationCircleOutlined />}>Sandbox</Tag>,
     },
     {
       title: 'Último test',
@@ -306,7 +306,7 @@ export default function EspacioDesarrolloPage() {
   return (
     <div style={{ padding: '0 0 32px' }}>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Espacio de Desarrollo</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Espacio de Desarrollo</Title>
         <Text type="secondary">
           Herramientas de prueba y referencia para Facturación Electrónica (FEL Guatemala)
           {activeCompany && <> — <strong>{activeCompany.legalName}</strong></>}
@@ -316,7 +316,7 @@ export default function EspacioDesarrolloPage() {
       {/* Perfiles FEL */}
       <Card
         size="small"
-        title={<Space><SafetyCertificateOutlined style={{ color: '#1B3A6B' }} /><strong>Perfiles FEL activos</strong></Space>}
+        title={<Space><SafetyCertificateOutlined style={{ color: '#1faec2' }} /><strong>Perfiles FEL activos</strong></Space>}
         style={{ marginBottom: 16 }}
         extra={<Text type="secondary" style={{ fontSize: 11 }}>Administra perfiles en Configuración → Empresas → Facturación Electrónica</Text>}
       >
@@ -335,7 +335,7 @@ export default function EspacioDesarrolloPage() {
       {/* Tabla de regímenes */}
       <Card
         size="small"
-        title={<Space><CodeOutlined style={{ color: '#1B3A6B' }} /><strong>Tipos de documento por régimen fiscal (Guatemala)</strong></Space>}
+        title={<Space><CodeOutlined style={{ color: '#1faec2' }} /><strong>Tipos de documento por régimen fiscal (Guatemala)</strong></Space>}
       >
         <Paragraph style={{ fontSize: 12, color: '#555', marginBottom: 12 }}>
           El tipo de documento FEL está determinado por el <strong>régimen fiscal del contribuyente</strong>,
@@ -354,8 +354,8 @@ const th: React.CSSProperties = {
   padding: '7px 10px',
   textAlign: 'left',
   fontWeight: 600,
-  color: '#1B3A6B',
-  borderBottom: '2px solid #d9d9d9',
+  color: '#1faec2',
+  borderBottom: '2px solid rgba(10,10,10,0.08)',
   whiteSpace: 'nowrap',
 }
 

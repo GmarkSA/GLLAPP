@@ -1,25 +1,56 @@
+/* GLL Design Tokens — fuente de verdad JS (espejo de los CSS custom props en index.css) */
+
 export const colors = {
-  primary:   '#1B3A6B',
-  primary2:  '#2d5fa6',
-  success:   '#12b76a',
-  warning:   '#f79009',
-  error:     '#f04438',
-  info:      '#2d5fa6',
-  textMuted: '#6b7280',
-  bgLayout:  '#f0f2f7',
-  bgCard:    '#ffffff',
-  border:    'rgba(0,0,0,0.08)',
+  /* Acción principal */
+  action:       '#1faec2',
+  actionHover:  '#1a97a8',
+  actionSoft:   '#e6fafd',
+
+  /* Acento — un CTA naranja por pantalla */
+  accent:       '#ff7f00',
+  accentHover:  '#e06f00',
+  accentSoft:   '#fff2e5',
+
+  /* Identidad / momentos de marca — solo loaders, spinners, barra de carga */
+  brandVibe:    '#24cae2',
+
+  /* Textos */
+  ink:          '#0a0a0a',
+  muted:        '#6b7280',
+  muted2:       '#9aa1ab',
+
+  /* Fondos */
+  bg:           '#fbfcfe',
+  surface:      '#ffffff',
+
+  /* Bordes */
+  border:       'rgba(10,10,10,0.08)',
+  borderStrong: 'rgba(10,10,10,0.14)',
+
+  /* Hover de fila — muy sutil */
+  rowHover:     'rgba(31,174,194,0.055)',
+
+  /* Semánticos financieros */
+  success:      '#2ea172',
+  successSoft:  '#e8f5ef',
+  danger:       '#e5484d',
+  dangerSoft:   '#fdecec',
 } as const
 
 export const radius = {
-  sm:  7,
-  md:  10,
-  lg:  14,
+  sm: 8,
+  md: 10,
+  lg: 12,
 } as const
 
 export const shadow = {
-  card:  '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
-  light: '0 1px 6px rgba(0,0,0,0.06)',
+  rest:  '0 1px 2px rgba(10,10,10,0.04), 0 1px 3px rgba(10,10,10,0.03)',
+  hover: '0 4px 12px rgba(10,10,10,0.08), 0 2px 4px rgba(10,10,10,0.04)',
+} as const
+
+export const transition = {
+  ease: 'cubic-bezier(0.22,0.61,0.36,1)',
+  dur:  '180ms',
 } as const
 
 export const fmt = (n: number) =>

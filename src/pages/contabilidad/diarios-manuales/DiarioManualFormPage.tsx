@@ -437,7 +437,7 @@ export default function DiarioManualFormPage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contabilidad/diarios-manuales')}>
           Volver
         </Button>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{pageTitle}</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{pageTitle}</Title>
         {asiento?.status && (
           <Tag color={STATUS_COLOR[asiento.status]}>{STATUS_LABEL[asiento.status]}</Tag>
         )}
@@ -506,7 +506,7 @@ export default function DiarioManualFormPage() {
                     addonAfter={
                       <Tooltip title="Recargar tasa desde configuración">
                         <ReloadOutlined spin={loadingRate} onClick={() => fetchRate(currency)}
-                          style={{ cursor: 'pointer', color: '#1B3A6B' }} />
+                          style={{ cursor: 'pointer', color: '#1faec2' }} />
                       </Tooltip>
                     } />
                 </Form.Item>
@@ -524,8 +524,8 @@ export default function DiarioManualFormPage() {
             showExpandColumn: false,
             expandedRowKeys: lines.map(l => l.key),
             expandedRowRender: (r: LineState) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 6px', background: '#fafafa' }}>
-                <span style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Dimensiones:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 6px', background: '#fafbfc' }}>
+                <span style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>Dimensiones:</span>
                 <SelectorDimensionesAnaliticas
                   layout="compact" size="small" disabled={isReadonly}
                   centrosCosto={centrosCosto} centrosBeneficio={centrosBeneficio}
@@ -553,15 +553,15 @@ export default function DiarioManualFormPage() {
                 <td style={{ padding: '4px 20px', textAlign: 'right' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr style={{ fontWeight: 700, fontSize: 14 }}>
-                <td style={{ padding: '4px 20px', borderTop: '1px solid #f0f0f0' }}>Total ({currency})</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalDebit)}</td>
-                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid #f0f0f0' }}>{fmtCur(totalCredit)}</td>
+                <td style={{ padding: '4px 20px', borderTop: '1px solid rgba(10,10,10,0.08)' }}>Total ({currency})</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid rgba(10,10,10,0.08)' }}>{fmtCur(totalDebit)}</td>
+                <td style={{ padding: '4px 20px', textAlign: 'right', borderTop: '1px solid rgba(10,10,10,0.08)' }}>{fmtCur(totalCredit)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#f5222d' : '#52c41a' }}>Diferencia</td>
+                <td style={{ padding: '4px 20px', color: diferencia !== 0 ? '#e5484d' : '#2ea172' }}>Diferencia</td>
                 <td colSpan={2} style={{
                   padding: '4px 20px', textAlign: 'right',
-                  color: diferencia !== 0 ? '#f5222d' : '#52c41a', fontWeight: 600,
+                  color: diferencia !== 0 ? '#e5484d' : '#2ea172', fontWeight: 600,
                 }}>{fmtCur(Math.abs(diferencia))}</td>
               </tr>
             </tbody>
@@ -574,7 +574,7 @@ export default function DiarioManualFormPage() {
           {!isReadonly && (
             <>
               <Button type="primary" icon={<CheckCircleOutlined />}
-                style={{ background: '#1B3A6B' }} loading={saving}
+                style={{ background: '#1faec2' }} loading={saving}
                 disabled={Math.abs(diferencia) > 0.01}
                 onClick={() => handleSave(true)}>
                 Guardar y publicar

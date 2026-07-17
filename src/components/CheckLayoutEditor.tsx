@@ -187,12 +187,12 @@ const BASE_BY_FORMAT: Record<string, CheckLayoutPositions> = {
 // ── Configuración de campos visuales ─────────────────────────────────────────
 
 const FIELD_CONFIG = [
-  { key: 'beneficiario', label: 'BENEFICIARIO',   color: '#1677ff', hasWidth: true              },
-  { key: 'fecha',        label: 'FECHA',           color: '#52c41a', hasWidth: false             },
-  { key: 'monto',        label: 'Q MONTO',         color: '#fa8c16', hasWidth: false             },
-  { key: 'letras',       label: 'MONTO EN LETRAS', color: '#722ed1', hasWidth: true              },
-  { key: 'firma',        label: 'FIRMA',           color: '#8c8c8c', hasWidth: true,  optional: true },
-  { key: 'noNegociable', label: 'NO NEGOCIABLE',   color: '#f5222d', hasWidth: false, optional: true },
+  { key: 'beneficiario', label: 'BENEFICIARIO',   color: '#1faec2', hasWidth: true              },
+  { key: 'fecha',        label: 'FECHA',           color: '#2ea172', hasWidth: false             },
+  { key: 'monto',        label: 'Q MONTO',         color: '#ff7f00', hasWidth: false             },
+  { key: 'letras',       label: 'MONTO EN LETRAS', color: '#6b7280', hasWidth: true              },
+  { key: 'firma',        label: 'FIRMA',           color: '#6b7280', hasWidth: true,  optional: true },
+  { key: 'noNegociable', label: 'NO NEGOCIABLE',   color: '#e5484d', hasWidth: false, optional: true },
 ] as const
 
 type FieldKey = typeof FIELD_CONFIG[number]['key']
@@ -355,7 +355,7 @@ export default function CheckLayoutEditor({ value, onChange, baseFormat = 'gener
           <Space>
             <span style={{ fontWeight: 600 }}>Personalizar layout del cheque</span>
             <Tooltip title="Configura la posición de cada campo sobre el cheque preimpreso físico. Medidas en centímetros desde la esquina superior izquierda.">
-              <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+              <InfoCircleOutlined style={{ color: '#6b7280' }} />
             </Tooltip>
           </Space>
         ),
@@ -376,7 +376,7 @@ export default function CheckLayoutEditor({ value, onChange, baseFormat = 'gener
                   <Option key={k} value={k}>
                     <div style={{ lineHeight: '16px' }}>
                       <div style={{ fontWeight: 600, fontSize: 12 }}>{p.label}</div>
-                      <div style={{ fontSize: 10, color: '#8c8c8c' }}>{p.desc}</div>
+                      <div style={{ fontSize: 10, color: '#6b7280' }}>{p.desc}</div>
                     </div>
                   </Option>
                 ))}
@@ -411,7 +411,7 @@ export default function CheckLayoutEditor({ value, onChange, baseFormat = 'gener
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
                 Preview — {checkW.toFixed(1)}cm × {checkH.toFixed(1)}cm
                 {' '}(escala ×{SCALE}px/cm)
-                <span style={{ color: '#fa8c16', marginLeft: 8 }}>
+                <span style={{ color: '#ff7f00', marginLeft: 8 }}>
                   La franja naranja inferior es la banda libre MICR — no colocar campos ahí.
                 </span>
               </Text>
@@ -427,11 +427,11 @@ export default function CheckLayoutEditor({ value, onChange, baseFormat = 'gener
                 {/* Banda libre MICR */}
                 <div style={{
                   position: 'absolute', bottom: 0, left: 0, right: 0,
-                  height: bandaPx, background: '#fa8c1618',
-                  borderTop: '1.5px dashed #fa8c16',
+                  height: bandaPx, background: '#ff7f0018',
+                  borderTop: '1.5px dashed #ff7f00',
                   display: 'flex', alignItems: 'center', paddingLeft: 4,
                 }}>
-                  <span style={{ fontSize: 7, color: '#fa8c16', fontWeight: 700 }}>
+                  <span style={{ fontSize: 7, color: '#ff7f00', fontWeight: 700 }}>
                     BANDA LIBRE MICR (5/8")
                   </span>
                 </div>

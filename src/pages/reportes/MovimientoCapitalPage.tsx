@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, Col, Row, Typography, Statistic, Tag, Table, Space, Divider } from 'antd'
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
+import { ArrowUpOutlined, ArrowDownOutlined, BarChartOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
@@ -11,7 +11,7 @@ const { Text, Title } = Typography
 const fmtQ = (n: number) =>
   `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-const accentColor = (n: number) => (n >= 0 ? '#389e0d' : '#cf1322')
+const accentColor = (n: number) => (n >= 0 ? '#2ea172' : '#e5484d')
 
 function CapitalRow({ label, value, indent = 0, highlight = false, border = false, onClick }: {
   label: string; value: number; indent?: number; highlight?: boolean; border?: boolean; onClick?: () => void
@@ -22,17 +22,17 @@ function CapitalRow({ label, value, indent = 0, highlight = false, border = fals
       style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: `${highlight ? 10 : 6}px ${16 + indent * 16}px`,
-        borderTop: border ? '2px solid #d9d9d9' : undefined,
-        background: highlight ? (value >= 0 ? '#f6ffed' : '#fff2f0') : undefined,
+        borderTop: border ? '2px solid rgba(10,10,10,0.08)' : undefined,
+        background: highlight && value < 0 ? '#fdecec' : undefined,
         borderRadius: highlight ? 6 : 0,
         margin: highlight ? '4px 0' : 0,
         cursor: onClick ? 'pointer' : undefined,
       }}>
-      <Text strong={highlight} style={{ fontSize: highlight ? 13 : 12, color: highlight ? accentColor(value) : '#262626' }}>
+      <Text strong={highlight} style={{ fontSize: highlight ? 13 : 12, color: highlight ? (value >= 0 ? '#0a0a0a' : '#e5484d') : '#0a0a0a' }}>
         {label}
       </Text>
       <Text strong={highlight} style={{
-        fontFamily: 'monospace', fontSize: highlight ? 14 : 12, color: accentColor(value),
+        fontVariantNumeric: 'tabular-nums', fontSize: highlight ? 14 : 12, color: value < 0 ? '#e5484d' : '#0a0a0a',
         textDecoration: onClick ? 'underline' : undefined,
         textDecorationStyle: onClick ? 'dotted' : undefined,
       }}>
@@ -66,6 +66,7 @@ export default function MovimientoCapitalPage() {
 
   return (
     <ReportLayout
+      icon={<BarChartOutlined />}
       title="Movimiento de Capital"
       subtitle="Estado de Cambios en el Patrimonio · NIC 1"
       tipoExport="movimiento-capital"
@@ -83,8 +84,8 @@ export default function MovimientoCapitalPage() {
           {/* KPI strip */}
           <Row gutter={12} style={{ marginBottom: 16 }}>
             {[
-              { label: 'Saldo Inicial Capital', value: data.openingBalance,    color: '#1B3A6B' },
-              { label: 'Movimientos del Período', value: data.accounts.reduce((s: number, a: any) => s + a.balance, 0), color: '#722ed1' },
+              { label: 'Saldo Inicial Capital', value: data.openingBalance,    color: '#1faec2' },
+              { label: 'Movimientos del Período', value: data.accounts.reduce((s: number, a: any) => s + a.balance, 0), color: '#6b7280' },
               { label: 'Utilidad del Período',  value: data.netIncomePeriod,  color: accentColor(data.netIncomePeriod) },
               { label: 'Saldo Final Capital',   value: data.closingBalance,   color: accentColor(data.closingBalance) },
             ].map(k => (
@@ -95,7 +96,7 @@ export default function MovimientoCapitalPage() {
                     value={k.value}
                     precision={2}
                     prefix="Q"
-                    valueStyle={{ fontSize: 13, fontFamily: 'monospace', color: k.color }}
+                    valueStyle={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: k.color }}
                     formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                   />
                 </Card>
@@ -114,7 +115,7 @@ export default function MovimientoCapitalPage() {
             <Divider style={{ margin: 0 }} />
             {data.capitalContribuciones.accounts.length > 0 && (
               <>
-                <div style={{ padding: '6px 16px', color: '#8c8c8c', fontSize: 11, fontWeight: 600, background: '#fafafa' }}>
+                <div style={{ padding: '6px 16px', color: '#6b7280', fontSize: 11, fontWeight: 600, background: '#fafbfc' }}>
                   CAPITAL APORTADO
                 </div>
                 {data.capitalContribuciones.accounts.map((a: any) => (
@@ -127,7 +128,7 @@ export default function MovimientoCapitalPage() {
             {data.utilidadesRetenidas.accounts.length > 0 && (
               <>
                 <Divider style={{ margin: 0 }} />
-                <div style={{ padding: '6px 16px', color: '#8c8c8c', fontSize: 11, fontWeight: 600, background: '#fafafa' }}>
+                <div style={{ padding: '6px 16px', color: '#6b7280', fontSize: 11, fontWeight: 600, background: '#fafbfc' }}>
                   UTILIDADES RETENIDAS
                 </div>
                 {data.utilidadesRetenidas.accounts.map((a: any) => (
@@ -160,13 +161,13 @@ export default function MovimientoCapitalPage() {
                     title: 'Fecha',
                     dataIndex: 'entry_date',
                     width: 100,
-                    render: (v: string) => <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>{v?.substring(0, 10)}</Text>,
+                    render: (v: string) => <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{v?.substring(0, 10)}</Text>,
                   },
                   {
                     title: 'Asiento',
                     dataIndex: 'entry_number',
                     width: 110,
-                    render: (v: string) => <Text style={{ fontSize: 11, fontFamily: 'monospace', color: '#1677ff' }}>{v}</Text>,
+                    render: (v: string) => <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>,
                   },
                   {
                     title: 'Cuenta',
@@ -187,14 +188,14 @@ export default function MovimientoCapitalPage() {
                     dataIndex: 'debit',
                     width: 110,
                     align: 'right' as const,
-                    render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text>,
+                    render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text>,
                   },
                   {
                     title: 'Crédito',
                     dataIndex: 'credit',
                     width: 110,
                     align: 'right' as const,
-                    render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text>,
+                    render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text>,
                   },
                   {
                     title: 'Movimiento',
@@ -204,9 +205,9 @@ export default function MovimientoCapitalPage() {
                     render: (v: number) => (
                       <Space size={4}>
                         {v >= 0
-                          ? <ArrowUpOutlined style={{ color: '#52c41a', fontSize: 10 }} />
-                          : <ArrowDownOutlined style={{ color: '#ff4d4f', fontSize: 10 }} />}
-                        <Text style={{ fontFamily: 'monospace', fontSize: 11, color: accentColor(v) }}>
+                          ? <ArrowUpOutlined style={{ color: '#2ea172', fontSize: 10 }} />
+                          : <ArrowDownOutlined style={{ color: '#e5484d', fontSize: 10 }} />}
+                        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: accentColor(v) }}>
                           {fmtQ(Math.abs(v))}
                         </Text>
                       </Space>

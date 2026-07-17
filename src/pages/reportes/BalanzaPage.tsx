@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { Card, Table, Typography, Tag, Statistic, Row, Col, Space, Input } from 'antd'
-import { SearchOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons'
+import { SearchOutlined, CheckCircleOutlined, WarningOutlined, AccountBookOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
@@ -53,6 +53,7 @@ export default function BalanzaPage() {
 
   return (
     <ReportLayout
+      icon={<AccountBookOutlined />}
       title="Balanza de Comprobación"
       subtitle="Verificación de Partida Doble · Libro Mayor"
       tipoExport="balanza"
@@ -82,10 +83,10 @@ export default function BalanzaPage() {
           {/* KPI */}
           <Row gutter={12} style={{ marginBottom: 16 }}>
             {[
-              { label: 'Total Débitos',  value: data.totalDebit,  color: '#1B3A6B' },
-              { label: 'Total Créditos', value: data.totalCredit, color: '#722ed1' },
-              { label: 'Cuentas activas', value: data.accounts.length, color: '#fa8c16', prefix: '#', precision: 0 },
-              { label: 'Con movimientos', value: data.accounts.filter(a => a.total_debit > 0 || a.total_credit > 0).length, color: '#389e0d', prefix: '#', precision: 0 },
+              { label: 'Total Débitos',  value: data.totalDebit,  color: '#1faec2' },
+              { label: 'Total Créditos', value: data.totalCredit, color: '#6b7280' },
+              { label: 'Cuentas activas', value: data.accounts.length, color: '#ff7f00', prefix: '#', precision: 0 },
+              { label: 'Con movimientos', value: data.accounts.filter(a => a.total_debit > 0 || a.total_credit > 0).length, color: '#2ea172', prefix: '#', precision: 0 },
             ].map(k => (
               <Col xs={12} sm={6} key={k.label}>
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} bodyStyle={{ padding: '12px 8px' }}>
@@ -94,7 +95,7 @@ export default function BalanzaPage() {
                     value={k.value}
                     precision={k.precision ?? 2}
                     prefix={k.prefix ?? 'Q'}
-                    valueStyle={{ fontSize: 13, fontFamily: 'monospace', color: k.color }}
+                    valueStyle={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: k.color }}
                     formatter={v => typeof v === 'number' && (k.precision ?? 2) > 0
                       ? v.toLocaleString('es-GT', { minimumFractionDigits: 2 })
                       : String(v)
@@ -131,22 +132,22 @@ export default function BalanzaPage() {
               pagination={{ pageSize: 50, showTotal: t => `${t} cuentas`, showSizeChanger: false }}
               summary={() => (
                 <Table.Summary fixed>
-                  <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 700 }}>
+                  <Table.Summary.Row style={{ background: '#fafbfc', fontWeight: 700 }}>
                     <Table.Summary.Cell index={0} />
                     <Table.Summary.Cell index={1}><Text strong>TOTALES</Text></Table.Summary.Cell>
                     <Table.Summary.Cell index={2} />
                     <Table.Summary.Cell index={3} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
                         {fmtQ(data.totalDebit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={4} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', color: '#722ed1' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#6b7280' }}>
                         {fmtQ(data.totalCredit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={5} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', color: data.balanced ? '#389e0d' : '#cf1322' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: data.balanced ? '#2ea172' : '#e5484d' }}>
                         {fmtQ(Math.abs(data.totalDebit - data.totalCredit))}
                       </Text>
                     </Table.Summary.Cell>
@@ -159,7 +160,7 @@ export default function BalanzaPage() {
                   dataIndex: 'code',
                   width: 90,
                   sorter: (a, b) => a.code.localeCompare(b.code),
-                  render: (v: string) => <Text style={{ fontFamily: 'monospace', fontSize: 11 }}>{v}</Text>,
+                  render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{v}</Text>,
                 },
                 {
                   title: 'Cuenta',
@@ -181,7 +182,7 @@ export default function BalanzaPage() {
                   align: 'right' as const,
                   sorter: (a, b) => a.total_debit - b.total_debit,
                   render: (v: number) => (
-                    <Text style={{ fontFamily: 'monospace', fontSize: 11, color: v > 0 ? '#1B3A6B' : '#d9d9d9' }}>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: v > 0 ? '#1faec2' : 'rgba(10,10,10,0.08)' }}>
                       {fmtQ(v)}
                     </Text>
                   ),
@@ -193,7 +194,7 @@ export default function BalanzaPage() {
                   align: 'right' as const,
                   sorter: (a, b) => a.total_credit - b.total_credit,
                   render: (v: number) => (
-                    <Text style={{ fontFamily: 'monospace', fontSize: 11, color: v > 0 ? '#722ed1' : '#d9d9d9' }}>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: v > 0 ? '#6b7280' : 'rgba(10,10,10,0.08)' }}>
                       {fmtQ(v)}
                     </Text>
                   ),
@@ -210,8 +211,8 @@ export default function BalanzaPage() {
                       onClick={() => setDrilldown({ accountId: row.id, accountName: row.name, fromDate: from, toDate: to })}
                     >
                       <Text strong style={{
-                        fontFamily: 'monospace', fontSize: 11,
-                        color: Math.abs(v) > 0.001 ? (v > 0 ? '#389e0d' : '#cf1322') : '#d9d9d9',
+                        fontVariantNumeric: 'tabular-nums', fontSize: 11,
+                        color: Math.abs(v) > 0.001 ? (v > 0 ? '#2ea172' : '#e5484d') : 'rgba(10,10,10,0.08)',
                       }}>
                         {v < 0 ? `(${fmtQ(Math.abs(v))})` : fmtQ(v)}
                       </Text>

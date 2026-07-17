@@ -90,7 +90,7 @@ export default function CuentaFormPage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/bancos')} />
           <div>
-            <Title level={4} style={{ margin: 0, color: NAVY }}>{isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria'}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria'}</Title>
             <Text type="secondary">Datos bancarios, moneda y vinculacion contable por empresa</Text>
           </div>
         </div>

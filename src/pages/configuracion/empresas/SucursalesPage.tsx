@@ -67,7 +67,7 @@ export default function SucursalesPage() {
       render: (v: string, r: Branch) => (
         <Space>
           {v}
-          {r.isDefault && <Tag color="blue">Principal</Tag>}
+          {r.isDefault && <Tag color="#1faec2">Principal</Tag>}
         </Space>
       ),
     },
@@ -97,9 +97,9 @@ export default function SucursalesPage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/configuracion/empresas')} />
         <div>
           <Title level={4} style={{ margin: 0 }}>Sucursales</Title>
-          {activeCompany && <div style={{ fontSize: 12, color: '#888' }}>{activeCompany.legalName}</div>}
+          {activeCompany && <div style={{ fontSize: 12, color: '#6b7280' }}>{activeCompany.legalName}</div>}
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto', background: '#1B3A6B' }}
+        <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto', background: '#1faec2' }}
           onClick={openCreate}>Nueva Sucursal</Button>
       </div>
 

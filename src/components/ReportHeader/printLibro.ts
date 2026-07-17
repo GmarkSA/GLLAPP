@@ -12,25 +12,25 @@ const PRINT_CSS = `
   @page { size: letter landscape; margin: 1cm 1.2cm; }
   body { font-family: Arial, sans-serif; font-size: 8pt; color: #000; background: #fff; }
 
-  .header { border-bottom: 2px solid #1B3A6B; padding-bottom: 8px; margin-bottom: 10px;
+  .header { border-bottom: 2px solid #1faec2; padding-bottom: 8px; margin-bottom: 10px;
             display: flex; justify-content: space-between; align-items: flex-start; }
-  .header-left .company   { font-size: 11pt; font-weight: 700; color: #1B3A6B; }
+  .header-left .company   { font-size: 11pt; font-weight: 700; color: #1faec2; }
   .header-left .legal     { font-size: 9pt; color: #374151; margin-top: 1px; }
   .header-left .nit       { font-size: 9pt; color: #4b5563; margin-top: 2px; }
   .header-left .rptname   { font-size: 9pt; font-weight: 600; color: #4b5563; margin-top: 4px; }
   .header-left .period    { font-size: 8pt; color: #6b7280; margin-top: 1px; }
   .header-right .moneda   { font-size: 9pt; color: #6b7280; text-align: right; }
-  .folio-box { border: 1.5px solid #1B3A6B; border-radius: 6px; padding: 3px 10px;
+  .folio-box { border: 1.5px solid #1faec2; border-radius: 6px; padding: 3px 10px;
                text-align: center; margin-top: 4px; }
-  .folio-box .label { font-size: 7pt; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; }
-  .folio-box .value { font-size: 14pt; font-weight: 800; color: #1B3A6B; font-family: monospace; }
+  .folio-box .label { font-size: 7pt; color: #9aa1ab; text-transform: uppercase; letter-spacing: 1px; }
+  .folio-box .value { font-size: 14pt; font-weight: 800; color: #1faec2; font-family: monospace; }
 
-  .base-header { background: #1B3A6B; color: #fff; font-size: 7pt; font-weight: 700;
+  .base-header { background: #1faec2; color: #fff; font-size: 7pt; font-weight: 700;
                  padding: 3px 6px; border-radius: 4px 4px 0 0; margin-top: 8px; }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  thead tr th { background: #1B3A6B; color: #fff; font-size: 7pt; font-weight: 600;
-                padding: 3px 4px; text-align: left; border: 1px solid #2563eb;
+  thead tr th { background: #1faec2; color: #fff; font-size: 7pt; font-weight: 600;
+                padding: 3px 4px; text-align: left; border: 1px solid #1faec2;
                 word-break: break-word; white-space: normal; }
   thead tr th.r { text-align: right; }
   tbody tr td { font-size: 7.5pt; padding: 2px 4px; border-bottom: 1px solid #e5e7eb;
@@ -38,15 +38,15 @@ const PRINT_CSS = `
   tbody tr td.r { text-align: right; }
   tbody tr:nth-child(even) td { background: #f9fafb; }
   tfoot tr td { font-size: 8pt; font-weight: 700; padding: 4px 4px; background: #e8ecf5;
-                border-top: 2px solid #1B3A6B; }
-  tfoot tr td.r { text-align: right; color: #1B3A6B; }
+                border-top: 2px solid #1faec2; }
+  tfoot tr td.r { text-align: right; color: #1faec2; }
 
   .resumen { margin-top: 14px; }
-  .resumen h3 { font-size: 9pt; font-weight: 700; color: #1B3A6B; margin-bottom: 6px; }
+  .resumen h3 { font-size: 9pt; font-weight: 700; color: #1faec2; margin-bottom: 6px; }
   .resumen table { table-layout: auto; }
   .resumen thead tr th { font-size: 8pt; padding: 4px 8px; }
   .resumen tbody tr td { font-size: 8pt; padding: 4px 8px; }
-  .resumen tfoot tr td { font-size: 8pt; padding: 5px 8px; background: #1B3A6B; color: #fff; }
+  .resumen tfoot tr td { font-size: 8pt; padding: 5px 8px; background: #1faec2; color: #fff; }
 `
 
 // ── Tipo genérico para filas de libro ────────────────────────────────────────
@@ -106,7 +106,7 @@ export function printLibro(opts: PrintLibroOptions) {
     hasIdp = false, hasCol5 = false, hasCol6 = false,
   } = opts
 
-  const company  = empresa?.company_name ?? 'ContaERP'
+  const company  = empresa?.company_name ?? 'Lucía'
   const legal    = empresa?.legal_name   ?? ''
   const nit      = empresa?.tax_id       ?? ''
   const currency = empresa?.currency     ?? 'GTQ'
@@ -166,7 +166,7 @@ export function printLibro(opts: PrintLibroOptions) {
       <td>${r.nitParty || '—'}</td>
       <td>${r.nombreParty}</td>
       ${baseCells}
-      ${hasIdp ? `<td class="r" style="color:#d97706">${fmt(r.idp ?? 0)}</td>` : ''}
+      ${hasIdp ? `<td class="r" style="color:#ff7f00">${fmt(r.idp ?? 0)}</td>` : ''}
       <td class="r">${fmt(r.iva)}</td>
       <td class="r"><strong>${fmt(r.total)}</strong></td>
     </tr>`
@@ -182,7 +182,7 @@ export function printLibro(opts: PrintLibroOptions) {
     <td>${r.label}</td>
     <td style="text-align:center">${r.cantidad > 0 ? r.cantidad : '—'}</td>
     <td style="text-align:right">${r.base > 0 ? `Q ${r.base.toFixed(2)}` : '—'}</td>
-    <td style="text-align:right;color:#2563eb">${r.iva > 0 ? `Q ${r.iva.toFixed(2)}` : '—'}</td>
+    <td style="text-align:right;color:#1faec2">${r.iva > 0 ? `Q ${r.iva.toFixed(2)}` : '—'}</td>
     <td style="text-align:right;font-weight:700">${r.total > 0 ? `Q ${r.total.toFixed(2)}` : '—'}</td>
   </tr>`).join('')
 

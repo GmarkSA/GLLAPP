@@ -62,7 +62,7 @@ function buildColDef(
   switch (key) {
     case 'orderNumber':
       return { ...base, title: '# OC', dataIndex: 'orderNumber', width: 140, fixed: 'left' as const,
-        render: (v: string) => <Text strong style={{ color: '#1B3A6B', fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> }
+        render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> }
     case 'vendorName':
       return { ...base, title: 'Proveedor', dataIndex: 'vendorName',
         render: (v: string) => <span style={{ fontWeight: 600, fontSize: 13 }}>{v}</span> }
@@ -74,7 +74,7 @@ function buildColDef(
         render: (v: string) => {
           if (!v) return <Text type="secondary">—</Text>
           const isPast = dayjs(v).isBefore(dayjs(), 'day')
-          return <span style={{ fontSize: 12, color: isPast ? '#fa8c16' : undefined, fontWeight: isPast ? 600 : undefined }}>
+          return <span style={{ fontSize: 12, color: isPast ? '#ff7f00' : undefined, fontWeight: isPast ? 600 : undefined }}>
             {dayjs(v).format('DD/MM/YYYY')}
           </span>
         } }
@@ -222,7 +222,7 @@ export default function OrdenesCompraPage() {
             {canApprove && (
               <Tooltip title="Aprobar">
                 <Button size="small" icon={<CheckCircleOutlined />}
-                  style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                  style={{ color: '#2ea172', borderColor: '#2ea172' }}
                   onClick={() => { setApproveTarget(r); setApproveModal(true) }} />
               </Tooltip>
             )}
@@ -243,16 +243,16 @@ export default function OrdenesCompraPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ShoppingOutlined style={{ fontSize: 24, color: '#1B3A6B' }} />
+          <ShoppingOutlined style={{ fontSize: 24, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Órdenes de compra</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Órdenes de compra</Title>
             <Text type="secondary">Solicitudes de compra enviadas a proveedores</Text>
           </div>
         </div>
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={() => navigate('/compras/ordenes/nueva')}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nueva orden
         </Button>
@@ -297,8 +297,8 @@ export default function OrdenesCompraPage() {
                     size="small"
                     icon={<SettingOutlined />}
                     style={{
-                      border: colPopover ? '1px solid #1B3A6B' : undefined,
-                      color:  colPopover ? '#1B3A6B' : undefined,
+                      border: colPopover ? '1px solid #1faec2' : undefined,
+                      color:  colPopover ? '#1faec2' : undefined,
                     }}
                   >
                     Columnas
@@ -339,14 +339,14 @@ export default function OrdenesCompraPage() {
         onCancel={() => { setApproveModal(false); setApproveTarget(null) }}
         onOk={handleApprove}
         okText="Aprobar"
-        okButtonProps={{ loading: approveLoading, style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: approveLoading, style: { background: '#1faec2' } }}
         cancelText="Cancelar"
       >
         <p>
           ¿Aprobar la orden <strong>{approveTarget?.orderNumber}</strong> por{' '}
           <strong>{approveTarget ? fmt(approveTarget.total) : ''}</strong>?
         </p>
-        <p style={{ color: '#8c8c8c', fontSize: 13 }}>
+        <p style={{ color: '#6b7280', fontSize: 13 }}>
           Al aprobar, la orden quedará marcada como <em>Enviada</em> y se notificará al proveedor{' '}
           <strong>{approveTarget?.vendorName}</strong>.
         </p>

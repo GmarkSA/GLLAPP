@@ -65,8 +65,8 @@ function BankCard({ account, onEdit, onRefresh }: {
     { key: 'balance',  label: 'Actualizar saldo', icon: <ReloadOutlined /> },
     { type: 'divider' as const },
     account.status === 'active'
-      ? { key: 'deactivate', label: <span style={{ color: '#fa8c16' }}>Desactivar</span>, icon: <StopOutlined style={{ color: '#fa8c16' }} /> }
-      : { key: 'activate',   label: <span style={{ color: '#52c41a' }}>Activar</span>,    icon: <CheckCircleOutlined style={{ color: '#52c41a' }} /> },
+      ? { key: 'deactivate', label: <span style={{ color: '#ff7f00' }}>Desactivar</span>, icon: <StopOutlined style={{ color: '#ff7f00' }} /> }
+      : { key: 'activate',   label: <span style={{ color: '#2ea172' }}>Activar</span>,    icon: <CheckCircleOutlined style={{ color: '#2ea172' }} /> },
     { type: 'divider' as const },
     {
       key: 'delete', label: (
@@ -76,10 +76,10 @@ function BankCard({ account, onEdit, onRefresh }: {
           onConfirm={handleDeactivate}
           okText="Sí" cancelText="No"
         >
-          <span style={{ color: '#ff4d4f' }}>Eliminar</span>
+          <span style={{ color: '#e5484d' }}>Eliminar</span>
         </Popconfirm>
       ),
-      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+      icon: <DeleteOutlined style={{ color: '#e5484d' }} />,
     },
   ]
 
@@ -87,7 +87,7 @@ function BankCard({ account, onEdit, onRefresh }: {
     <Card
       style={{
         borderRadius: 12,
-        border: account.isPrimary ? '2px solid #1677ff' : '1px solid #f0f0f0',
+        border: account.isPrimary ? '2px solid #1faec2' : '1px solid rgba(10,10,10,0.08)',
         opacity: account.status === 'inactive' ? 0.6 : 1,
         cursor: 'pointer',
         transition: 'box-shadow 0.2s',
@@ -108,16 +108,16 @@ function BankCard({ account, onEdit, onRefresh }: {
             {cfg.icon}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#1B3A6B', lineHeight: 1.3 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1faec2', lineHeight: 1.3 }}>
               {account.name}
               {account.isPrimary && (
-                <Tag color="blue" style={{ fontSize: 10, marginLeft: 6, verticalAlign: 'middle' }}>Principal</Tag>
+                <Tag color="#1faec2" style={{ fontSize: 10, marginLeft: 6, verticalAlign: 'middle' }}>Principal</Tag>
               )}
             </div>
-            <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
               {account.bankName && <span>{account.bankName}</span>}
               {account.accountNumber && (
-                <span style={{ marginLeft: 6, fontFamily: 'monospace' }}>
+                <span style={{ marginLeft: 6, fontVariantNumeric: 'tabular-nums' }}>
                   ···{account.accountNumber.slice(-4)}
                 </span>
               )}
@@ -151,7 +151,7 @@ function BankCard({ account, onEdit, onRefresh }: {
         {account.status === 'inactive' && <Tag color="default" style={{ fontSize: 11 }}>Inactiva</Tag>}
         {account.glAccountCode && (
           <Tooltip title={`Vinculada a: ${account.glAccountCode} ${account.glAccountName}`}>
-            <Tag icon={<LinkOutlined />} color="purple" style={{ fontSize: 11 }}>
+            <Tag icon={<LinkOutlined />} color="#6b7280" style={{ fontSize: 11 }}>
               {account.glAccountCode}
             </Tag>
           </Tooltip>
@@ -160,13 +160,13 @@ function BankCard({ account, onEdit, onRefresh }: {
 
       {/* Balance */}
       <div style={{
-        background: Number(account.currentBalance) < 0 ? '#fff2f0' : '#f6ffed',
+        background: Number(account.currentBalance) < 0 ? '#fdecec' : '#e8f5ef',
         borderRadius: 8, padding: '10px 14px',
       }}>
-        <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 2 }}>Saldo actual</div>
+        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>Saldo actual</div>
         <div style={{
-          fontSize: 20, fontWeight: 700, fontFamily: 'monospace',
-          color: Number(account.currentBalance) < 0 ? '#cf1322' : '#1B3A6B',
+          fontSize: 20, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+          color: Number(account.currentBalance) < 0 ? '#e5484d' : '#1faec2',
         }}>
           {fmtQ(account.currentBalance, account.currency)}
         </div>
@@ -174,9 +174,9 @@ function BankCard({ account, onEdit, onRefresh }: {
           <div style={{ marginTop: 4 }}>
             <Badge
               count={account.uncategorizedCount}
-              style={{ backgroundColor: '#faad14', fontSize: 10 }}
+              style={{ backgroundColor: '#ff7f00', fontSize: 10 }}
             />
-            <Text style={{ fontSize: 11, color: '#d46b08', marginLeft: 6 }}>
+            <Text style={{ fontSize: 11, color: '#ff7f00', marginLeft: 6 }}>
               transacciones sin categorizar
             </Text>
           </div>
@@ -185,7 +185,7 @@ function BankCard({ account, onEdit, onRefresh }: {
 
       {/* GL link info */}
       {account.glAccountName && (
-        <div style={{ marginTop: 10, fontSize: 11, color: '#8c8c8c' }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: '#6b7280' }}>
           <LinkOutlined style={{ marginRight: 4 }} />
           {account.glAccountCode} · {account.glAccountName}
         </div>
@@ -223,14 +223,17 @@ export default function BancosPage() {
     <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Bancos y Tesorería</Title>
-          <Text type="secondary">Gestión de cuentas bancarias vinculadas al plan contable</Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <BankOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Bancos y Tesorería</Title>
+            <Text type="secondary">Gestión de cuentas bancarias vinculadas al plan contable</Text>
+          </div>
         </div>
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={() => navigate('/bancos/nuevo')}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nueva cuenta
         </Button>
@@ -246,7 +249,7 @@ export default function BancosPage() {
                 value={totalBalance}
                 precision={2}
                 prefix="Q"
-                valueStyle={{ fontSize: 15, fontFamily: 'monospace', color: totalBalance >= 0 ? '#1B3A6B' : '#cf1322' }}
+                valueStyle={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', color: totalBalance >= 0 ? '#1faec2' : '#e5484d' }}
                 formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               />
             </Card>
@@ -256,7 +259,7 @@ export default function BancosPage() {
               <Statistic
                 title={<span style={{ fontSize: 11 }}>Cuentas activas</span>}
                 value={accounts.filter(a => a.status === 'active').length}
-                valueStyle={{ fontSize: 15, color: '#389e0d' }}
+                valueStyle={{ fontSize: 15, color: '#2ea172' }}
               />
             </Card>
           </Col>
@@ -265,7 +268,7 @@ export default function BancosPage() {
               <Statistic
                 title={<span style={{ fontSize: 11 }}>Sin vincular al catálogo</span>}
                 value={accounts.filter(a => !a.glAccountId).length}
-                valueStyle={{ fontSize: 15, color: accounts.filter(a => !a.glAccountId).length > 0 ? '#fa8c16' : '#389e0d' }}
+                valueStyle={{ fontSize: 15, color: accounts.filter(a => !a.glAccountId).length > 0 ? '#ff7f00' : '#2ea172' }}
               />
             </Card>
           </Col>
@@ -274,7 +277,7 @@ export default function BancosPage() {
               <Statistic
                 title={<span style={{ fontSize: 11 }}>Pendiente categorizar</span>}
                 value={accounts.reduce((s, a) => s + (a.uncategorizedCount || 0), 0)}
-                valueStyle={{ fontSize: 15, color: '#d46b08' }}
+                valueStyle={{ fontSize: 15, color: '#ff7f00' }}
               />
             </Card>
           </Col>
@@ -324,11 +327,11 @@ export default function BancosPage() {
       <Spin spinning={loading}>
         {accounts.length === 0 && !loading ? (
           <Empty
-            image={<BankOutlined style={{ fontSize: 56, color: '#d9d9d9' }} />}
+            image={<BankOutlined style={{ fontSize: 56, color: '#9aa1ab' }} />}
             description={
               <div>
-                <div style={{ fontWeight: 600, color: '#1B3A6B', marginBottom: 4 }}>Sin cuentas bancarias</div>
-                <div style={{ fontSize: 13, color: '#8c8c8c' }}>
+                <div style={{ fontWeight: 600, color: '#1faec2', marginBottom: 4 }}>Sin cuentas bancarias</div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>
                   Crea tu primera cuenta bancaria y vincúlala al catálogo contable
                 </div>
               </div>
@@ -336,7 +339,7 @@ export default function BancosPage() {
             style={{ marginTop: 60, marginBottom: 60 }}
           >
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/bancos/nuevo')}
-              style={{ background: '#1B3A6B' }}>
+              style={{ background: '#1faec2' }}>
               Nueva cuenta bancaria
             </Button>
           </Empty>

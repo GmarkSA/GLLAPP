@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons'
 import type { BankAccountType } from '../../api/bancos'
 
-export const NAVY = '#1B3A6B'
+export const NAVY = '#1faec2'
 
 export const formGrid = {
   display: 'grid',

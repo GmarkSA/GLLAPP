@@ -82,9 +82,9 @@ export default function TransferenciaPage() {
     { title: 'Fecha', dataIndex: 'transferDate', width: 110, render: v => v ? dayjs(v).format('DD/MM/YYYY') : '-' },
     { title: 'Origen', dataIndex: 'fromAccountId', width: 220, render: v => accounts.find(a => a.id === v)?.name || v },
     { title: 'Destino', dataIndex: 'toAccountId', width: 220, render: v => accounts.find(a => a.id === v)?.name || v },
-    { title: 'Monto', dataIndex: 'amount', width: 150, align: 'right', render: (v, row) => <Text strong style={{ fontFamily: 'monospace' }}>{money(Number(v), row.currency)}</Text> },
+    { title: 'Monto', dataIndex: 'amount', width: 150, align: 'right', render: (v, row) => <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{money(Number(v), row.currency)}</Text> },
     { title: 'Referencia', dataIndex: 'reference', width: 180 },
-    { title: 'Estado', dataIndex: 'status', width: 120, render: v => <Tag color={v === 'posted' ? 'green' : v === 'voided' ? 'red' : 'blue'}>{v || 'draft'}</Tag> },
+    { title: 'Estado', dataIndex: 'status', width: 120, render: v => <Tag color={v === 'posted' ? '#2ea172' : v === 'voided' ? '#e5484d' : '#1faec2'}>{v || 'draft'}</Tag> },
   ]
 
   return (
@@ -93,7 +93,7 @@ export default function TransferenciaPage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/bancos')} />
           <div>
-            <Title level={4} style={{ margin: 0, color: NAVY }}>Transferencia entre cuentas</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Transferencia entre cuentas</Title>
             <Text type="secondary">Movimiento interno entre bancos, tarjetas o caja chica</Text>
           </div>
         </div>

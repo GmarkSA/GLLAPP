@@ -200,11 +200,11 @@ export default function FacturaDetallePage() {
   const handleDelete = () => {
     Modal.confirm({
       title: `Eliminar factura ${invoice.invoiceNumber}`,
-      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      icon: <ExclamationCircleOutlined style={{ color: '#e5484d' }} />,
       content: (
         <div>
           <p>Esta acción eliminará <strong>permanentemente</strong> la factura y revertirá pagos, pólizas, movimientos bancarios e inventario.</p>
-          <p style={{ color: '#ff4d4f', fontWeight: 500 }}>Esta acción no se puede deshacer.</p>
+          <p style={{ color: '#e5484d', fontWeight: 500 }}>Esta acción no se puede deshacer.</p>
         </div>
       ),
       okText: 'Sí, eliminar todo', okButtonProps: { danger: true }, cancelText: 'Cancelar',
@@ -300,7 +300,7 @@ export default function FacturaDetallePage() {
     { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{fmt(v)}</Text> },
     {
       title: 'Total', dataIndex: 'lineTotal', width: 120, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ color: '#1B3A6B', fontSize: 13 }}>{fmt(v)}</Text>,
+      render: (v: number) => <Text strong style={{ color: '#1faec2', fontSize: 13 }}>{fmt(v)}</Text>,
     },
   ]
 
@@ -309,13 +309,13 @@ export default function FacturaDetallePage() {
     { title: 'Fecha', dataIndex: 'paymentDate', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
     { title: 'Forma', dataIndex: 'mode', width: 130, render: (v: string) => PAYMENT_MODES.find(m => m.value === v)?.label ?? v },
     { title: 'Referencia', dataIndex: 'reference' },
-    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#52c41a' }}>{fmt(v)}</Text> },
+    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2ea172' }}>{fmt(v)}</Text> },
     {
       title: 'Póliza', dataIndex: 'journalEntryId', width: 70, align: 'center' as const,
       render: (jeId: string | undefined, row: any) => jeId
-        ? <Tooltip title="Póliza contable generada"><CheckCircleOutlined style={{ color: '#52c41a' }} /></Tooltip>
+        ? <Tooltip title="Póliza contable generada"><CheckCircleOutlined style={{ color: '#2ea172' }} /></Tooltip>
         : <Tooltip title="Sin póliza — click para reprocesar">
-            <Button size="small" icon={<SyncOutlined />} style={{ borderColor: '#faad14', color: '#faad14', padding: '0 6px' }} onClick={() => handleReprocessPayment(row.id)} />
+            <Button size="small" icon={<SyncOutlined />} style={{ borderColor: '#ff7f00', color: '#ff7f00', padding: '0 6px' }} onClick={() => handleReprocessPayment(row.id)} />
           </Tooltip>,
     },
     {
@@ -339,17 +339,17 @@ export default function FacturaDetallePage() {
     },
     {
       title: 'DÉBITO', dataIndex: 'debe', width: 130, align: 'right' as const,
-      render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
+      render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
     },
     {
       title: 'CRÉDITO', dataIndex: 'haber', width: 130, align: 'right' as const,
-      render: (v: number) => <Text style={{ fontSize: 12, fontFamily: 'monospace', color: v > 0 ? '#389e0d' : undefined }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
+      render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#2ea172' : undefined }}>{v > 0 ? Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'}</Text>,
     },
   ]
 
   // ── Ribbon de estado ────────────────────────────────────────────────────────
-  const ribbonColors: Record<string, string> = { voided: '#ff4d4f', draft: '#8c8c8c', paid: '#52c41a', sent: '#1890ff', partial: '#1890ff', overdue: '#ff4d4f' }
-  const ribbonColor = ribbonColors[invoice.status] ?? '#1890ff'
+  const ribbonColors: Record<string, string> = { voided: '#e5484d', draft: '#6b7280', paid: '#2ea172', sent: '#1faec2', partial: '#1faec2', overdue: '#e5484d' }
+  const ribbonColor = ribbonColors[invoice.status] ?? '#1faec2'
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -358,14 +358,14 @@ export default function FacturaDetallePage() {
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
         marginBottom: 16, padding: '10px 0',
-        borderBottom: '1px solid #f0f0f0',
+        borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/facturas')}>
           Facturas
         </Button>
         <Divider type="vertical" />
         <Tag color={cfg.color} style={{ margin: 0, fontSize: 12 }}>{cfg.label}</Tag>
-        {isFelCertified && <Tag color="green" icon={<SafetyCertificateOutlined />} style={{ margin: 0 }}>FEL</Tag>}
+        {isFelCertified && <Tag color="#2ea172" icon={<SafetyCertificateOutlined />} style={{ margin: 0 }}>FEL</Tag>}
         {invoice.felTipoDocumento && <Tag style={{ margin: 0, fontSize: 11 }}>{invoice.felTipoDocumento}</Tag>}
         <Divider type="vertical" />
         {isEditable && (
@@ -383,7 +383,7 @@ export default function FacturaDetallePage() {
           <Button
             type="primary"
             icon={<DollarOutlined />}
-            style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            style={{ background: '#2ea172', borderColor: '#2ea172' }}
             onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}
           >
             Registrar pago
@@ -392,7 +392,7 @@ export default function FacturaDetallePage() {
         {canPay && (
           <Button
             icon={<ThunderboltOutlined />}
-            style={{ borderColor: '#722ed1', color: '#722ed1' }}
+            style={{ borderColor: '#6b7280', color: '#6b7280' }}
             onClick={openAnticipoModal}
           >
             Aplicar anticipo
@@ -401,7 +401,7 @@ export default function FacturaDetallePage() {
         {!isVoided && !isWritten && !isFelCertified && (
           <Button
             icon={<SafetyCertificateOutlined />}
-            style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+            style={{ borderColor: '#1faec2', color: '#1faec2' }}
             onClick={() => setEmitirFelModal(true)}
           >
             Emitir FEL
@@ -441,7 +441,7 @@ export default function FacturaDetallePage() {
         <Alert
           type="info" showIcon
           message={<span>¿CÓMO CONTINUAR? Se ha enviado la Factura. Registre su pago tan pronto como lo reciba.</span>}
-          action={<Button size="small" type="primary" style={{ background: '#1B3A6B' }} onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}>Registrar pago</Button>}
+          action={<Button size="small" type="primary" style={{ background: '#1faec2' }} onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}>Registrar pago</Button>}
           style={{ marginBottom: 12 }}
         />
       )}
@@ -467,7 +467,7 @@ export default function FacturaDetallePage() {
             {company.logoUrl && (
               <img src={company.logoUrl} alt="logo" style={{ maxHeight: 56, maxWidth: 160, objectFit: 'contain', marginBottom: 12 }} />
             )}
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>{company.name}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{company.name}</Title>
             {company.address && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{company.address}</Text>}
             {(company.city || company.country) && (
               <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
@@ -480,7 +480,7 @@ export default function FacturaDetallePage() {
 
           {/* Derecha: tipo documento + saldo adeudado */}
           <div style={{ textAlign: 'right', minWidth: 240 }}>
-            <Title level={3} style={{ margin: '0 0 4px', color: '#1B3A6B' }}>
+            <Title level={3} style={{ margin: '0 0 4px', color: '#0a0a0a' }}>
               {invoice.felTipoDocumento ?? 'Factura'}
             </Title>
             {invoice.facturaExenta && (
@@ -493,8 +493,8 @@ export default function FacturaDetallePage() {
                 {isPaid ? 'Pagado' : 'Saldo adeudado'}
               </Text>
               <Text style={{
-                fontSize: 22, fontWeight: 800, fontFamily: 'monospace',
-                color: isPaid ? '#52c41a' : Number(invoice.balance) > 0 ? '#1B3A6B' : '#52c41a',
+                fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
+                color: isPaid ? '#2ea172' : Number(invoice.balance) > 0 ? '#1faec2' : '#2ea172',
               }}>
                 {fmtGTQ(invoice.balance)}
               </Text>
@@ -510,7 +510,7 @@ export default function FacturaDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Facturar a
             </Text>
-            <Text strong style={{ fontSize: 15, color: '#1B3A6B', display: 'block' }}>{invoice.customerName}</Text>
+            <Text strong style={{ fontSize: 15, color: '#1faec2', display: 'block' }}>{invoice.customerName}</Text>
             {invoice.customerTaxId && (
               <Text type="secondary" style={{ fontSize: 12 }}>NIT: {invoice.customerTaxId}</Text>
             )}
@@ -519,14 +519,14 @@ export default function FacturaDetallePage() {
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <tbody>
                 <tr>
-                  <td style={{ color: '#888', paddingBottom: 6, width: '50%' }}>Fecha de la factura</td>
+                  <td style={{ color: '#6b7280', paddingBottom: 6, width: '50%' }}>Fecha de la factura</td>
                   <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong>{dayjs(invoice.invoiceDate).format('DD MMM YYYY')}</Text></td>
                 </tr>
                 {invoice.dueDate && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Fecha de vencimiento</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Fecha de vencimiento</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}>
-                      <Text strong style={{ color: !isPaid && dayjs(invoice.dueDate).isBefore(dayjs()) ? '#ff4d4f' : undefined }}>
+                      <Text strong style={{ color: !isPaid && dayjs(invoice.dueDate).isBefore(dayjs()) ? '#e5484d' : undefined }}>
                         {dayjs(invoice.dueDate).format('DD MMM YYYY')}
                       </Text>
                     </td>
@@ -534,27 +534,27 @@ export default function FacturaDetallePage() {
                 )}
                 {invoice.purchaseOrderRef && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>N.° de orden de compra</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>N.° de orden de compra</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong>OC: {invoice.purchaseOrderRef}</Text></td>
                   </tr>
                 )}
                 {invoice.felSerie && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Serie</td>
-                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontFamily: 'monospace' }}>{invoice.felSerie}</Text></td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Serie</td>
+                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{invoice.felSerie}</Text></td>
                   </tr>
                 )}
                 {invoice.felNumero && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Número</td>
-                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontFamily: 'monospace' }}>{invoice.felNumero}</Text></td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Número</td>
+                    <td style={{ textAlign: 'right', paddingBottom: 6 }}><Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{invoice.felNumero}</Text></td>
                   </tr>
                 )}
                 {invoice.felAutorizacion && (
                   <tr>
-                    <td style={{ color: '#888', paddingBottom: 6 }}>Autorización</td>
+                    <td style={{ color: '#6b7280', paddingBottom: 6 }}>Autorización</td>
                     <td style={{ textAlign: 'right', paddingBottom: 6 }}>
-                      <Text style={{ fontSize: 11, fontFamily: 'monospace', wordBreak: 'break-all' }}>{invoice.felAutorizacion}</Text>
+                      <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', wordBreak: 'break-all' }}>{invoice.felAutorizacion}</Text>
                     </td>
                   </tr>
                 )}
@@ -572,7 +572,7 @@ export default function FacturaDetallePage() {
             pagination={false}
             size="small"
             scroll={{ x: 600 }}
-            style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+            style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
           />
 
           {/* Totales */}
@@ -581,7 +581,7 @@ export default function FacturaDetallePage() {
               {Number(invoice.discountAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text type="secondary">Descuento</Text>
-                  <Text style={{ color: '#ff4d4f' }}>− {fmt(invoice.discountAmount)}</Text>
+                  <Text style={{ color: '#e5484d' }}>− {fmt(invoice.discountAmount)}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
@@ -591,11 +591,11 @@ export default function FacturaDetallePage() {
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
-                <Text strong style={{ fontSize: 14, color: '#1B3A6B', fontFamily: 'monospace' }}>{fmtGTQ(invoice.total)}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(invoice.total)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Saldo adeudado</Text>
-                <Text strong style={{ fontSize: 14, color: isPaid ? '#52c41a' : '#1B3A6B', fontFamily: 'monospace' }}>{fmtGTQ(invoice.balance)}</Text>
+                <Text strong style={{ fontSize: 14, color: isPaid ? '#2ea172' : '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(invoice.balance)}</Text>
               </div>
             </div>
           </div>
@@ -610,13 +610,13 @@ export default function FacturaDetallePage() {
 
         {/* ── Más información ──────────────────────────────────────────────── */}
         <Divider style={{ margin: 0 }} />
-        <div style={{ padding: '20px 40px', background: '#fafafa' }}>
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
+        <div style={{ padding: '20px 40px', background: '#fafbfc' }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>
             Más información
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '10px 0', fontSize: 13 }}>
             <Text type="secondary">Factura N°</Text>
-            <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{invoice.invoiceNumber}</Text>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{invoice.invoiceNumber}</Text>
             {company.name && <><Text type="secondary">Empresa</Text><Text>{company.name}</Text></>}
             {invoice.currency && <><Text type="secondary">Moneda</Text><Text>{invoice.currency}</Text></>}
             {invoice.lugarExpedicion && <><Text type="secondary">Lugar de expedición</Text><Text>{invoice.lugarExpedicion}</Text></>}
@@ -626,16 +626,16 @@ export default function FacturaDetallePage() {
           {isFelCertified && (
             <>
               <Divider style={{ margin: '16px 0 14px' }} />
-              <Text style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 12 }}>
+              <Text style={{ fontSize: 11, fontWeight: 700, color: '#1faec2', textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 12 }}>
                 Campos FEL / SAT
               </Text>
               <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '10px 0', fontSize: 13 }}>
                 {invoice.felTipoDocumento && <><Text type="secondary">Tipo de documento</Text><Text>{invoice.felTipoDocumento}</Text></>}
-                {invoice.felSerie && <><Text type="secondary">Serie</Text><Text style={{ fontFamily: 'monospace' }}>{invoice.felSerie}</Text></>}
-                {invoice.felNumero && <><Text type="secondary">Número</Text><Text style={{ fontFamily: 'monospace' }}>{invoice.felNumero}</Text></>}
-                {invoice.felAutorizacion && <><Text type="secondary">Autorización</Text><Text style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{invoice.felAutorizacion}</Text></>}
+                {invoice.felSerie && <><Text type="secondary">Serie</Text><Text style={{ fontVariantNumeric: 'tabular-nums' }}>{invoice.felSerie}</Text></>}
+                {invoice.felNumero && <><Text type="secondary">Número</Text><Text style={{ fontVariantNumeric: 'tabular-nums' }}>{invoice.felNumero}</Text></>}
+                {invoice.felAutorizacion && <><Text type="secondary">Autorización</Text><Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, wordBreak: 'break-all' }}>{invoice.felAutorizacion}</Text></>}
                 {(invoice as any).felMensaje && <><Text type="secondary">Mensaje</Text><Text>{(invoice as any).felMensaje}</Text></>}
-                {invoice.felUuid && <><Text type="secondary">UUID</Text><Text style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{invoice.felUuid}</Text></>}
+                {invoice.felUuid && <><Text type="secondary">UUID</Text><Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, wordBreak: 'break-all' }}>{invoice.felUuid}</Text></>}
                 {invoice.felUrl && (
                   <>
                     <Text type="secondary">URL</Text>
@@ -653,7 +653,7 @@ export default function FacturaDetallePage() {
                   <Text type="secondary" style={{ fontSize: 12 }}>Frases: </Text>
                   <Space wrap style={{ marginLeft: 8 }}>
                     {invoice.felFrases.map((f, i) => (
-                      <Tag key={i} color="purple" style={{ fontSize: 11 }}>Tipo {f.tipoFrase} Esc. {f.codigoEscenario}</Tag>
+                      <Tag key={i} color="#6b7280" style={{ fontSize: 11 }}>Tipo {f.tipoFrase} Esc. {f.codigoEscenario}</Tag>
                     ))}
                   </Space>
                 </div>
@@ -666,7 +666,7 @@ export default function FacturaDetallePage() {
         <Divider style={{ margin: 0 }} />
         <div style={{ padding: '20px 40px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Diario
             </Text>
             <Space>
@@ -674,7 +674,7 @@ export default function FacturaDetallePage() {
                 {invoice.currency ?? 'GTQ'}
               </Tag>
               {invoice.journalEntryId && (
-                <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+                <Text type="secondary" style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
                   {(invoice as any).journalEntryNumber ?? invoice.journalEntryId?.slice(0, 8)}
                 </Text>
               )}
@@ -692,20 +692,20 @@ export default function FacturaDetallePage() {
                 rowKey="key"
                 size="small"
                 pagination={false}
-                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+                style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
                 summary={() => (
                   <Table.Summary fixed>
-                    <Table.Summary.Row style={{ background: '#fafafa' }}>
+                    <Table.Summary.Row style={{ background: '#fafbfc' }}>
                       <Table.Summary.Cell index={0} colSpan={2}>
                         <Text strong style={{ fontSize: 12 }}>Total</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
-                        <Text strong style={{ fontSize: 12, fontFamily: 'monospace' }}>
+                        <Text strong style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
                           {Number(journalTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                         </Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ fontSize: 12, fontFamily: 'monospace', color: '#389e0d' }}>
+                        <Text strong style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>
                           {Number(journalTotal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                         </Text>
                       </Table.Summary.Cell>
@@ -725,11 +725,11 @@ export default function FacturaDetallePage() {
             <Divider style={{ margin: 0 }} />
             <div style={{ padding: '20px 40px 28px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Historial de pagos
                 </Text>
                 {canPay && (
-                  <Button size="small" type="primary" icon={<DollarOutlined />} style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                  <Button size="small" type="primary" icon={<DollarOutlined />} style={{ background: '#2ea172', borderColor: '#2ea172' }}
                     onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}>
                     + Pago
                   </Button>
@@ -741,7 +741,7 @@ export default function FacturaDetallePage() {
                 rowKey="id"
                 pagination={false}
                 size="small"
-                style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}
+                style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
               />
             </div>
           </>
@@ -755,7 +755,7 @@ export default function FacturaDetallePage() {
         title={<><DollarOutlined /> Registrar pago — {invoice.invoiceNumber}</>}
         open={payModal} onOk={handlePayment} onCancel={() => setPayModal(false)}
         okText="Registrar pago"
-        okButtonProps={{ loading: saving, style: { background: '#52c41a', borderColor: '#52c41a' } }}
+        okButtonProps={{ loading: saving, style: { background: '#2ea172', borderColor: '#2ea172' } }}
         width={520}
       >
         <Form form={payForm} layout="vertical" style={{ marginTop: 8 }}>
@@ -785,10 +785,10 @@ export default function FacturaDetallePage() {
       </Modal>
 
       <Modal
-        title={<><ThunderboltOutlined style={{ color: '#722ed1' }} /> Aplicar anticipo — {invoice.invoiceNumber}</>}
+        title={<><ThunderboltOutlined style={{ color: '#6b7280' }} /> Aplicar anticipo — {invoice.invoiceNumber}</>}
         open={anticipoModal} onCancel={() => setAnticipoModal(false)} onOk={handleApplyAnticipo}
         okText="Aplicar anticipo"
-        okButtonProps={{ loading: saving, style: { background: '#722ed1', borderColor: '#722ed1' }, disabled: !selectedAntId || anticipoAmount <= 0 }}
+        okButtonProps={{ loading: saving, style: { background: '#6b7280', borderColor: '#6b7280' }, disabled: !selectedAntId || anticipoAmount <= 0 }}
         cancelText="Cancelar" width={520}
       >
         {loadingAnt ? <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div> : anticipos.length === 0 ? (
@@ -839,12 +839,12 @@ export default function FacturaDetallePage() {
       </Modal>
 
       <Modal
-        title={<><SafetyCertificateOutlined style={{ color: '#1B3A6B' }} /> Emitir Factura Electrónica (FEL)</>}
+        title={<><SafetyCertificateOutlined style={{ color: '#1faec2' }} /> Emitir Factura Electrónica (FEL)</>}
         open={emitirFelModal} onCancel={() => setEmitirFelModal(false)}
         footer={[
           <Button key="cancel" onClick={() => setEmitirFelModal(false)}>Cancelar</Button>,
           <Button key="emit" type="primary" loading={emittingFel} icon={<SafetyCertificateOutlined />}
-            style={{ background: '#1B3A6B', borderColor: '#1B3A6B' }} onClick={handleEmitirFel}>
+            style={{ background: '#1faec2', borderColor: '#1faec2' }} onClick={handleEmitirFel}>
             Certificar ante SAT
           </Button>,
         ]}
@@ -853,13 +853,13 @@ export default function FacturaDetallePage() {
         <Alert type="info" showIcon style={{ marginBottom: 16 }}
           message="Esta acción enviará la factura a FelPlex para su validación ante el SAT de Guatemala."
           description="Una vez certificada no podrá modificarse. Se generarán UUID, Serie, Número, Autorización y URL." />
-        <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: 12 }}>
+        <div style={{ background: '#fafbfc', border: '1px solid rgba(10,10,10,0.08)', borderRadius: 6, padding: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
             <div><Text type="secondary">Factura:</Text> <Text strong>{invoice.invoiceNumber}</Text></div>
-            <div><Text type="secondary">Tipo doc.:</Text> <Tag color="blue">{invoice.felTipoDocumento || 'FACT'}</Tag></div>
+            <div><Text type="secondary">Tipo doc.:</Text> <Tag color="#1faec2">{invoice.felTipoDocumento || 'FACT'}</Tag></div>
             <div><Text type="secondary">Cliente:</Text> <Text>{invoice.customerName}</Text></div>
             <div><Text type="secondary">NIT:</Text> <Text>{invoice.customerTaxId || 'CF'}</Text></div>
-            <div><Text type="secondary">Total:</Text> <Text strong style={{ color: '#1B3A6B' }}>Q {Number(invoice.total).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text></div>
+            <div><Text type="secondary">Total:</Text> <Text strong style={{ color: '#1faec2' }}>Q {Number(invoice.total).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text></div>
             <div><Text type="secondary">Exenta:</Text> <Text>{invoice.facturaExenta ? 'Sí' : 'No'}</Text></div>
             {invoice.lugarExpedicion && <div style={{ gridColumn: '1 / -1' }}><Text type="secondary">Lugar:</Text> <Text>{invoice.lugarExpedicion}</Text></div>}
           </div>
@@ -869,7 +869,7 @@ export default function FacturaDetallePage() {
       <Modal
         title={<><SendOutlined /> Enviar factura por correo</>}
         open={sendModal} onOk={handleSend} onCancel={() => setSendModal(false)}
-        okText="Enviar" okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+        okText="Enviar" okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       >
         <Form form={sendForm} layout="vertical" style={{ marginTop: 8 }}>
           <Form.Item name="to" label="Correo del destinatario" rules={[{ required: true, type: 'email' }]}>

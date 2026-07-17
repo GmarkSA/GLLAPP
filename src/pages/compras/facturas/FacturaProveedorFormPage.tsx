@@ -568,7 +568,7 @@ export default function FacturaProveedorFormPage() {
   )
 
   return (
-    <div style={{ padding: 24, background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ padding: 24, background: '#fafbfc', minHeight: '100vh' }}>
       <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
@@ -596,7 +596,7 @@ export default function FacturaProveedorFormPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* ── Encabezado unificado: datos generales + FEL ─────────────────── */}
-          <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>
+          <Card title={<span style={{ color: '#1faec2', fontWeight: 600 }}>
             {id ? 'Editar Factura Proveedor' : 'Nueva Factura Proveedor'}
           </span>}>
             <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceType: 'goods', paymentTerms: 'immediate', accountingDate: dayjs() }}>
@@ -638,7 +638,7 @@ export default function FacturaProveedorFormPage() {
                   background: '#f0f9ff', borderRadius: 6,
                   border: '1px solid #bae6fd',
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#0369a1', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>
                     1 {vendorCurrency} =
                   </span>
                   {editingRate ? (
@@ -655,7 +655,7 @@ export default function FacturaProveedorFormPage() {
                       addonAfter="GTQ"
                     />
                   ) : (
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0369a1', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>
                       {loadingExchangeRate ? '...' : exchangeRate.toFixed(6)} GTQ
                     </span>
                   )}
@@ -663,10 +663,10 @@ export default function FacturaProveedorFormPage() {
                     size="small" type="text" icon={<EditOutlined />}
                     onClick={() => setEditingRate(!editingRate)}
                     title="Editar tipo de cambio manualmente"
-                    style={{ color: '#0369a1' }}
+                    style={{ color: '#374151' }}
                     disabled={loadingExchangeRate}
                   />
-                  <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 4 }}>
+                  <span style={{ fontSize: 11, color: '#9aa1ab', marginLeft: 4 }}>
                     {loadingExchangeRate
                       ? 'Consultando Banguat...'
                       : exchangeRateMeta
@@ -735,7 +735,7 @@ export default function FacturaProveedorFormPage() {
             <Form form={form} layout="vertical" size="small">
               <Form.Item name="isExpenseReimbursement" valuePropName="checked" style={{ marginBottom: 0 }}>
                 <Checkbox>
-                  <span style={{ fontWeight: 600, color: '#1B3A6B' }}>
+                  <span style={{ fontWeight: 600, color: '#1faec2' }}>
                     <TeamOutlined style={{ marginRight: 6 }} />
                     Reembolso de gastos
                   </span>
@@ -750,8 +750,8 @@ export default function FacturaProveedorFormPage() {
           {/* Sección de empleado — visible solo si el checkbox está activo */}
           {isReimbursement && (
             <Card
-              title={<span style={{ color: '#7c3aed', fontWeight: 600 }}><TeamOutlined style={{ marginRight: 6 }} />Datos del Empleado</span>}
-              style={{ border: '1px solid #d3adf7' }}
+              title={<span style={{ color: '#ff7f00', fontWeight: 600 }}><TeamOutlined style={{ marginRight: 6 }} />Datos del Empleado</span>}
+              style={{ border: '1px solid rgba(10,10,10,0.08)' }}
             >
               <Form form={form} layout="vertical" size="small">
                 <Form.Item name="employeePayableAccountId" hidden><Input /></Form.Item>
@@ -773,7 +773,7 @@ export default function FacturaProveedorFormPage() {
                     }}
                   />
                 </Form.Item>
-                <div style={{ padding: '8px 12px', background: '#f5f0ff', borderRadius: 8, fontSize: 12, color: '#6b21a8' }}>
+                <div style={{ padding: '8px 12px', background: '#fafbfc', borderRadius: 8, fontSize: 12, color: '#6b7280' }}>
                   Al aprobar se generan <strong>dos asientos</strong>: (1) Dr Gasto / Cr CxP Proveedor — para el Libro de Compras; (2) Dr CxP Proveedor / Cr Cuenta Transitoria Empleado — reclasificación interna.
                 </div>
               </Form>
@@ -785,7 +785,7 @@ export default function FacturaProveedorFormPage() {
             <LineItemsEditor items={items} taxes={taxes} onChange={setItems} docType="bill" vendorDefaultTaxId={vendorDefaultTaxId} currency={watchCurr} />
 
             {/* ── Retenciones & Neto a Pagar ─────────────────────────────── */}
-            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
+            <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', marginTop: 16, paddingTop: 16 }}>
               <div style={{ maxWidth: 560, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
                 {/* ISR — con info del proveedor si está configurado */}
@@ -793,21 +793,21 @@ export default function FacturaProveedorFormPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div>
                       <Space size={6} style={{ marginBottom: 2 }}>
-                        <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>{vendorIsrTax.code}</Tag>
-                        <Text style={{ fontSize: 12, color: '#531dab', fontWeight: 500 }}>{vendorIsrTax.name}</Text>
+                        <Tag color="#6b7280" style={{ margin: 0, fontSize: 11 }}>{vendorIsrTax.code}</Tag>
+                        <Text style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 500 }}>{vendorIsrTax.name}</Text>
                       </Space>
                       {vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length ? (
-                        <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
+                        <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginTop: 2 }}>
                           Progresivo — Base Q {fmt(totals.subtotal)}
                         </Text>
                       ) : (
-                        <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }}>
+                        <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginTop: 2 }}>
                           Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
                         </Text>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Text style={{ fontSize: 13, color: '#531dab', fontWeight: 600 }}>−</Text>
+                      <Text style={{ fontSize: 13, color: '#0a0a0a', fontWeight: 600 }}>−</Text>
                       {editingIsr ? (
                         <>
                           <InputNumber
@@ -817,14 +817,14 @@ export default function FacturaProveedorFormPage() {
                             formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
                             parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
                           />
-                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsr(false)} style={{ color: '#16a34a' }} />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsr(false)} style={{ color: '#2ea172' }} />
                         </>
                       ) : (
                         <>
-                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#531dab', fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }}>
+                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#0a0a0a', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
                             Q {fmt(isrAmount)}
                           </Text>
-                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9ca3af' }} />
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9aa1ab' }} />
                         </>
                       )}
                     </div>
@@ -843,14 +843,14 @@ export default function FacturaProveedorFormPage() {
                             formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
                             parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
                           />
-                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsr(false)} style={{ color: '#16a34a' }} />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsr(false)} style={{ color: '#2ea172' }} />
                         </>
                       ) : (
                         <>
-                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }}>
+                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
                             Q {fmt(isrAmount)}
                           </Text>
-                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9ca3af' }} />
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9aa1ab' }} />
                         </>
                       )}
                     </div>
@@ -861,10 +861,10 @@ export default function FacturaProveedorFormPage() {
                 {invoiceType === 'special' ? (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <Text style={{ fontSize: 12, color: '#dc2626', fontWeight: 500 }}>IVA Retenido — Factura Especial</Text>
-                      <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>El comprador retiene el 100% del IVA</Text>
+                      <Text style={{ fontSize: 12, color: '#e5484d', fontWeight: 500 }}>IVA Retenido — Factura Especial</Text>
+                      <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block' }}>El comprador retiene el 100% del IVA</Text>
                     </div>
-                    <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>− Q {fmt(totals.taxAmount)}</Text>
+                    <Text style={{ fontSize: 13, color: '#e5484d', fontWeight: 600 }}>− Q {fmt(totals.taxAmount)}</Text>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -880,14 +880,14 @@ export default function FacturaProveedorFormPage() {
                             formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
                             parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
                           />
-                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIvaRet(false)} style={{ color: '#16a34a' }} />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIvaRet(false)} style={{ color: '#2ea172' }} />
                         </>
                       ) : (
                         <>
-                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }}>
+                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
                             Q {fmt(ivaRetAmount)}
                           </Text>
-                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIvaRet(true)} style={{ color: '#9ca3af' }} />
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIvaRet(true)} style={{ color: '#9aa1ab' }} />
                         </>
                       )}
                     </div>
@@ -897,8 +897,8 @@ export default function FacturaProveedorFormPage() {
                 {/* IDP row (combustible) */}
                 {idpAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 12, color: '#d97706' }}>IDP Combustible</Text>
-                    <Text style={{ fontSize: 13, color: '#d97706', fontWeight: 600 }}>+ Q {fmt(idpAmount)}</Text>
+                    <Text style={{ fontSize: 12, color: '#ff7f00' }}>IDP Combustible</Text>
+                    <Text style={{ fontSize: 13, color: '#ff7f00', fontWeight: 600 }}>+ Q {fmt(idpAmount)}</Text>
                   </div>
                 )}
 
@@ -912,7 +912,7 @@ export default function FacturaProveedorFormPage() {
                     <Text style={{ fontSize: 11, color: '#6b7280' }}>
                       Equivalente en GTQ ({vendorCurrency} × {exchangeRate.toFixed(6)})
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>
+                    <Text style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
                       Q {fmt(Math.round(netPayable * exchangeRate * 100) / 100)}
                     </Text>
                   </div>
@@ -922,7 +922,7 @@ export default function FacturaProveedorFormPage() {
                 {(totalRetention > 0 || idpAmount > 0) && (
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    background: '#1B3A6B', borderRadius: 8, padding: '10px 16px', marginTop: 2,
+                    background: '#1faec2', borderRadius: 8, padding: '10px 16px', marginTop: 2,
                   }}>
                     <Text style={{ fontSize: 13, fontWeight: 600, color: '#adc6ff' }}>Neto a Pagar Proveedor</Text>
                     <Text style={{ fontSize: 16, fontWeight: 800, color: '#ffffff' }}>
@@ -939,7 +939,7 @@ export default function FacturaProveedorFormPage() {
           {journalEntry && (
             <Card
               title={
-                <span style={{ color: '#1B3A6B', fontWeight: 600 }}>
+                <span style={{ color: '#1faec2', fontWeight: 600 }}>
                   Póliza Contable — {journalEntry.entryNumber}
                 </span>
               }
@@ -949,7 +949,7 @@ export default function FacturaProveedorFormPage() {
                   <Text style={{ fontSize: 12, color: '#6b7280' }}>
                     {dayjs(journalEntry.entryDate).format('DD/MM/YYYY')}
                   </Text>
-                  <Tag color={journalEntry.status === 'posted' ? 'green' : 'default'} style={{ margin: 0 }}>
+                  <Tag color={journalEntry.status === 'posted' ? '#2ea172' : 'default'} style={{ margin: 0 }}>
                     {journalEntry.status === 'posted' ? 'Publicado' : journalEntry.status}
                   </Tag>
                 </Space>
@@ -967,7 +967,7 @@ export default function FacturaProveedorFormPage() {
                     title: 'Cuenta',
                     width: 220,
                     render: (_: any, line: JournalEntryLine) => (
-                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                         {line.accountCode} — {line.accountName}
                       </span>
                     ),
@@ -983,8 +983,8 @@ export default function FacturaProveedorFormPage() {
                     align: 'right' as const,
                     width: 120,
                     render: (v: number) => Number(v) > 0
-                      ? <span style={{ fontWeight: 600, color: '#1B3A6B', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
-                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                      ? <span style={{ fontWeight: 600, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#9aa1ab' }}>—</span>,
                   },
                   {
                     title: 'Crédito',
@@ -992,21 +992,21 @@ export default function FacturaProveedorFormPage() {
                     align: 'right' as const,
                     width: 120,
                     render: (v: number) => Number(v) > 0
-                      ? <span style={{ fontWeight: 600, color: '#dc2626', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
-                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                      ? <span style={{ fontWeight: 600, color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#9aa1ab' }}>—</span>,
                   },
                 ]}
                 summary={() => (
                   <Table.Summary fixed>
-                    <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+                    <Table.Summary.Row style={{ background: '#fafbfc' }}>
                       <Table.Summary.Cell index={0} colSpan={2}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', textTransform: 'uppercase' }}>Totales</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Totales</span>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
-                        <span style={{ fontWeight: 800, color: '#1B3A6B', fontFamily: 'monospace' }}>Q {fmt(Number(journalEntry.totalDebit))}</span>
+                        <span style={{ fontWeight: 800, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(Number(journalEntry.totalDebit))}</span>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} align="right">
-                        <span style={{ fontWeight: 800, color: '#dc2626', fontFamily: 'monospace' }}>Q {fmt(Number(journalEntry.totalCredit))}</span>
+                        <span style={{ fontWeight: 800, color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(Number(journalEntry.totalCredit))}</span>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>
                   </Table.Summary>
@@ -1019,7 +1019,7 @@ export default function FacturaProveedorFormPage() {
           {reclasEntry && (
             <Card
               title={
-                <span style={{ color: '#7c3aed', fontWeight: 600 }}>
+                <span style={{ color: '#ff7f00', fontWeight: 600 }}>
                   Reclasificación — {reclasEntry.entryNumber}
                 </span>
               }
@@ -1029,7 +1029,7 @@ export default function FacturaProveedorFormPage() {
                   <Text style={{ fontSize: 12, color: '#6b7280' }}>
                     {dayjs(reclasEntry.entryDate).format('DD/MM/YYYY')}
                   </Text>
-                  <Tag color="purple" style={{ margin: 0 }}>CxP Proveedor → CxP Empleado</Tag>
+                  <Tag color="#6b7280" style={{ margin: 0 }}>CxP Proveedor → CxP Empleado</Tag>
                 </Space>
               }
             >
@@ -1044,7 +1044,7 @@ export default function FacturaProveedorFormPage() {
                     title: 'Cuenta',
                     width: 220,
                     render: (_: any, line: JournalEntryLine) => (
-                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                         {line.accountCode} — {line.accountName}
                       </span>
                     ),
@@ -1053,14 +1053,14 @@ export default function FacturaProveedorFormPage() {
                   {
                     title: 'Débito', dataIndex: 'debit', align: 'right' as const, width: 120,
                     render: (v: number) => Number(v) > 0
-                      ? <span style={{ fontWeight: 600, color: '#7c3aed', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
-                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                      ? <span style={{ fontWeight: 600, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#9aa1ab' }}>—</span>,
                   },
                   {
                     title: 'Crédito', dataIndex: 'credit', align: 'right' as const, width: 120,
                     render: (v: number) => Number(v) > 0
-                      ? <span style={{ fontWeight: 600, color: '#7c3aed', fontFamily: 'monospace' }}>Q {fmt(Number(v))}</span>
-                      : <span style={{ color: '#d9d9d9' }}>—</span>,
+                      ? <span style={{ fontWeight: 600, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(Number(v))}</span>
+                      : <span style={{ color: '#9aa1ab' }}>—</span>,
                   },
                 ]}
               />
@@ -1082,7 +1082,7 @@ export default function FacturaProveedorFormPage() {
 
           {/* IDP — solo si fuel */}
           {invoiceType === 'fuel' && (
-            <Card title={<span style={{ color: '#d97706', fontWeight: 600 }}>IDP — Combustible</span>}>
+            <Card title={<span style={{ color: '#ff7f00', fontWeight: 600 }}>IDP — Combustible</span>}>
               <Form form={form} layout="vertical" size="small">
                 {/* Desglose por tipo — derivado de la columna Unidad en cada línea */}
                 <div style={{ marginBottom: 12 }}>
@@ -1099,7 +1099,7 @@ export default function FacturaProveedorFormPage() {
                           {label}
                           <span style={{ color: '#d1d5db', marginLeft: 4, fontSize: 11 }}>({fmt(qty)} gal × Q{rate})</span>
                         </Text>
-                        <Text style={{ fontSize: 13, fontWeight: 600, color: '#d97706', fontFamily: 'monospace' }}>
+                        <Text style={{ fontSize: 13, fontWeight: 600, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>
                           Q {fmt(amt)}
                         </Text>
                       </div>
@@ -1107,11 +1107,11 @@ export default function FacturaProveedorFormPage() {
                   })}
                   {idpAmount > 0 ? (
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #fde68a', paddingTop: 6, marginTop: 4 }}>
-                      <Text style={{ fontSize: 13, fontWeight: 700, color: '#d97706' }}>Total IDP</Text>
-                      <Text style={{ fontSize: 14, fontWeight: 800, color: '#d97706', fontFamily: 'monospace' }}>Q {fmt(idpAmount)}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: 700, color: '#ff7f00' }}>Total IDP</Text>
+                      <Text style={{ fontSize: 14, fontWeight: 800, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(idpAmount)}</Text>
                     </div>
                   ) : (
-                    <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginBottom: 4 }}>
                       Selecciona Super, Regular o Diesel en la columna Unidad de cada línea
                     </Text>
                   )}
@@ -1132,7 +1132,7 @@ export default function FacturaProveedorFormPage() {
                 <Button
                   block icon={<SaveOutlined />} loading={saving}
                   onClick={handleSaveDraft}
-                  style={{ borderColor: '#1B3A6B', color: '#1B3A6B' }}
+                  style={{ borderColor: '#1faec2', color: '#1faec2' }}
                 >
                   Guardar como borrador
                 </Button>
@@ -1143,13 +1143,13 @@ export default function FacturaProveedorFormPage() {
                 <Button
                   block type="primary" icon={<CheckOutlined />} loading={approving}
                   onClick={handleSaveAndOpen}
-                  style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                  style={{ background: '#2ea172', borderColor: '#2ea172' }}
                 >
                   Guardar como abierto
                 </Button>
               )}
               {(billStatus === 'draft' || billStatus === 'pending_approval' || !id) && (
-                <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#9aa1ab', textAlign: 'center' }}>
                   Genera póliza contable automáticamente
                 </div>
               )}
@@ -1160,11 +1160,11 @@ export default function FacturaProveedorFormPage() {
                   <Button
                     block icon={<SyncOutlined />} loading={regenerating}
                     onClick={handleRegenerate}
-                    style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+                    style={{ borderColor: '#ff7f00', color: '#ff7f00' }}
                   >
                     Regenerar póliza contable
                   </Button>
-                  <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#9aa1ab', textAlign: 'center' }}>
                     Recalcula cuentas con la configuración actual
                   </div>
                 </>
@@ -1175,7 +1175,7 @@ export default function FacturaProveedorFormPage() {
                   <Divider style={{ margin: '8px 0' }} />
                   <Button
                     block icon={<DollarOutlined />}
-                    style={{ borderColor: '#722ed1', color: '#722ed1' }}
+                    style={{ borderColor: '#6b7280', color: '#6b7280' }}
                     onClick={openAnticipoModal}
                   >
                     Aplicar anticipo
@@ -1185,10 +1185,10 @@ export default function FacturaProveedorFormPage() {
 
               {billStatus && (
                 <Tag color={
-                  billStatus === 'paid' ? 'green' :
+                  billStatus === 'paid' ? '#2ea172' :
                   billStatus === 'voided' ? 'volcano' :
-                  billStatus === 'pending_approval' ? 'purple' :
-                  billStatus === 'open' ? 'orange' : 'default'
+                  billStatus === 'pending_approval' ? '#6b7280' :
+                  billStatus === 'open' ? '#ff7f00' : 'default'
                 } style={{ width: '100%', textAlign: 'center', marginTop: 4 }}>
                   Estado: {billStatus === 'pending_approval' ? 'Pendiente aprobación' : billStatus}
                 </Tag>
@@ -1200,12 +1200,12 @@ export default function FacturaProveedorFormPage() {
 
       {/* ── Anticipo Modal ─────────────────────────────────────────────────── */}
       <Modal
-        title={<><DollarOutlined style={{ color: '#722ed1' }} /> Aplicar anticipo — {billInvoiceNumber}</>}
+        title={<><DollarOutlined style={{ color: '#6b7280' }} /> Aplicar anticipo — {billInvoiceNumber}</>}
         open={antModal}
         onCancel={() => setAntModal(false)}
         onOk={handleApplyAnticipo}
         okText="Aplicar anticipo"
-        okButtonProps={{ loading: applyingAdv, style: { background: '#722ed1', borderColor: '#722ed1' }, disabled: !selectedAdvId || antAmount <= 0 }}
+        okButtonProps={{ loading: applyingAdv, style: { background: '#6b7280', borderColor: '#6b7280' }, disabled: !selectedAdvId || antAmount <= 0 }}
         width={520}
       >
         {loadingAdv ? (

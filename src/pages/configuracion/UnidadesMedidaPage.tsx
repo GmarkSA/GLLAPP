@@ -4,7 +4,7 @@ import {
   Form, Modal, Typography, Popconfirm, message, Tooltip,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined,
+  NumberOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   LockOutlined, SaveOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -92,7 +92,7 @@ export default function UnidadesMedidaPage() {
       width: 100,
       render: (v: string, r) => (
         <Space size={4}>
-          <Tag color={r.isSystem ? 'blue' : 'default'} style={{ fontFamily: 'monospace', fontSize: 12 }}>
+          <Tag color={r.isSystem ? '#1faec2' : 'default'} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
             {v}
           </Tag>
           {r.isSystem && (
@@ -159,14 +159,17 @@ export default function UnidadesMedidaPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Unidades de Medida</Title>
-          <Text type="secondary">Configura las unidades disponibles en líneas de factura, cotización y órdenes de compra</Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <NumberOutlined style={{ fontSize: 22, color: '#1faec2' }} />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Unidades de Medida</Title>
+            <Text type="secondary">Configura las unidades disponibles en líneas de factura, cotización y órdenes de compra</Text>
+          </div>
         </div>
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={openCreate}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nueva unidad
         </Button>
@@ -192,7 +195,7 @@ export default function UnidadesMedidaPage() {
         onCancel={() => { setModal(false); form.resetFields() }}
         onOk={handleSave}
         okText={<><SaveOutlined /> Guardar</>}
-        okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+        okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
         cancelText="Cancelar"
         width={440}
       >
@@ -207,7 +210,7 @@ export default function UnidadesMedidaPage() {
               <Input
                 placeholder="UND"
                 maxLength={10}
-                style={{ textTransform: 'uppercase', fontFamily: 'monospace' }}
+                style={{ textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' }}
                 onChange={e => form.setFieldValue('code', e.target.value.toUpperCase())}
               />
             </Form.Item>

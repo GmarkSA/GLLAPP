@@ -131,7 +131,7 @@ export default function ConciliacionPage() {
   const cardStyle = (active: boolean) => ({
     ...panelStyle,
     cursor: 'pointer',
-    border: active ? `2px solid ${NAVY}` : '1px solid #f0f0f0',
+    border: active ? `2px solid ${NAVY}` : '1px solid rgba(10,10,10,0.08)',
     transition: 'border 0.15s',
   })
 
@@ -149,13 +149,13 @@ export default function ConciliacionPage() {
         </div>
       ),
     },
-    { title: 'Tipo', dataIndex: 'type', width: 100, render: v => <Tag color={v === 'credit' ? 'green' : 'red'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
-    { title: 'Monto', dataIndex: 'amount', width: 150, align: 'right', render: (v, row) => <Text style={{ fontFamily: 'monospace', color: row.type === 'credit' ? '#389e0d' : '#cf1322' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
+    { title: 'Tipo', dataIndex: 'type', width: 100, render: v => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
+    { title: 'Monto', dataIndex: 'amount', width: 150, align: 'right', render: (v, row) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: row.type === 'credit' ? '#2ea172' : '#e5484d' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
     { title: 'Estado', dataIndex: 'status', width: 150, render: v => {
       const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
       return <Tag color={cfg.color}>{cfg.label}</Tag>
     } },
-    { title: 'Sugerencia', key: 'match', width: 200, render: (_, row) => row.matchedPaymentId || row.matchedInvoiceId || row.matchedJournalEntryId ? <Tag color="purple">Coincidencia detectada</Tag> : <Text type="secondary">Sin coincidencia</Text> },
+    { title: 'Sugerencia', key: 'match', width: 200, render: (_, row) => row.matchedPaymentId || row.matchedInvoiceId || row.matchedJournalEntryId ? <Tag color="#6b7280">Coincidencia detectada</Tag> : <Text type="secondary">Sin coincidencia</Text> },
     {
       title: '',
       key: 'actions',
@@ -199,7 +199,7 @@ export default function ConciliacionPage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/bancos/${account.id}`)} />
           <div>
-            <Title level={4} style={{ margin: 0, color: NAVY }}>Conciliacion bancaria</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Conciliacion bancaria</Title>
             <Text type="secondary">{account.name} - {account.bankName}</Text>
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function ConciliacionPage() {
           <Statistic
             title={<span>Pendientes{statusFilter === undefined && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
             value={totals.nonReconciled}
-            valueStyle={{ color: '#d46b08', fontSize: 18 }}
+            valueStyle={{ color: '#ff7f00', fontSize: 18 }}
           />
         </Card>
         <Card
@@ -231,7 +231,7 @@ export default function ConciliacionPage() {
           <Statistic
             title={<span>Con coincidencia{statusFilter === 'matched' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
             value={totals.matched}
-            valueStyle={{ color: '#722ed1', fontSize: 18 }}
+            valueStyle={{ color: '#6b7280', fontSize: 18 }}
           />
         </Card>
         <Card
@@ -242,7 +242,7 @@ export default function ConciliacionPage() {
           <Statistic
             title={<span>Conciliadas{statusFilter === 'reconciled' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
             value={totals.reconciled}
-            valueStyle={{ color: '#389e0d', fontSize: 18 }}
+            valueStyle={{ color: '#2ea172', fontSize: 18 }}
           />
         </Card>
         <Card size="small" style={panelStyle}>
@@ -250,7 +250,7 @@ export default function ConciliacionPage() {
             title="Diferencia"
             value={totals.difference ?? 0}
             formatter={v => totals.difference == null ? 'Sin saldo banco' : moneyFmt(Number(v), account.currency)}
-            valueStyle={{ color: totals.difference != null && Math.abs(totals.difference) > 0.01 ? '#cf1322' : NAVY, fontSize: 18 }}
+            valueStyle={{ color: totals.difference != null && Math.abs(totals.difference) > 0.01 ? '#e5484d' : NAVY, fontSize: 18 }}
           />
         </Card>
       </div>

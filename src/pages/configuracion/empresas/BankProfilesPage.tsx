@@ -118,7 +118,7 @@ export default function BankProfilesPage() {
       title: 'Proveedor API',
       dataIndex: 'integrationProvider',
       render: (v?: string) => v
-        ? <Tag color="blue">{PROVIDERS.find(p => p.value === v)?.label ?? v}</Tag>
+        ? <Tag color="#1faec2">{PROVIDERS.find(p => p.value === v)?.label ?? v}</Tag>
         : <Tag>Manual</Tag>,
     },
     {
@@ -158,9 +158,9 @@ export default function BankProfilesPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>Perfiles Bancarios</Title>
-          <div style={{ color: '#888', fontSize: 12, marginTop: 2 }}>{activeCompany.legalName}</div>
+          <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{activeCompany.legalName}</div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }} onClick={openCreate}>
+        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }} onClick={openCreate}>
           Nuevo perfil
         </Button>
       </div>
@@ -174,7 +174,7 @@ export default function BankProfilesPage() {
         onOk={handleSave}
         confirmLoading={saving}
         okText={editing ? 'Guardar' : 'Crear'}
-        okButtonProps={{ style: { background: '#1B3A6B' } }}
+        okButtonProps={{ style: { background: '#1faec2' } }}
         width={500}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>

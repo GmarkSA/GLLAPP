@@ -134,21 +134,21 @@ export default function PagoRealizadoFormPage() {
     },
     {
       title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
-      render: (v) => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text>,
+      render: (v) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>,
     },
     {
       title: 'Vencimiento', dataIndex: 'dueDate', width: 110,
       render: (v) => {
         if (!v) return <Text type="secondary">—</Text>
         const days = dayjs(v).diff(dayjs(), 'day')
-        const color = days < 0 ? 'red' : days <= 7 ? 'orange' : 'green'
+        const color = days < 0 ? '#e5484d' : days <= 7 ? '#ff7f00' : '#2ea172'
         return <Tag color={color}>{dayjs(v).format('DD/MM/YYYY')}</Tag>
       },
     },
     { title: 'Total', dataIndex: 'total', width: 120, align: 'right' as const,
-      render: (v, r) => <Text style={{ fontFamily: 'monospace' }}>{fmtQ(v, r.currency)}</Text> },
+      render: (v, r) => <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v, r.currency)}</Text> },
     { title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
-      render: (v, r) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(v, r.currency)}</Text> },
+      render: (v, r) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v, r.currency)}</Text> },
     {
       title: 'Monto a pagar', key: 'toPay', width: 150, align: 'right' as const,
       render: (_, r) => selectedIds.includes(r.id) ? (
@@ -184,15 +184,15 @@ export default function PagoRealizadoFormPage() {
       ),
     },
     { title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
-      render: (v) => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{v}</Text> },
+      render: (v) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text> },
     { title: 'Vencimiento', dataIndex: 'dueDate', width: 110,
       render: (v) => {
         if (!v) return <Text type="secondary">—</Text>
         const days = dayjs(v).diff(dayjs(), 'day')
-        return <Tag color={days < 0 ? 'red' : days <= 7 ? 'orange' : 'green'}>{dayjs(v).format('DD/MM/YYYY')}</Tag>
+        return <Tag color={days < 0 ? '#e5484d' : days <= 7 ? '#ff7f00' : '#2ea172'}>{dayjs(v).format('DD/MM/YYYY')}</Tag>
       } },
     { title: 'Saldo factura', dataIndex: 'balance', width: 130, align: 'right' as const,
-      render: (v, r) => <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(v, r.currency)}</Text> },
+      render: (v, r) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v, r.currency)}</Text> },
     {
       title: 'Monto anticipo', key: 'advAmt', width: 150, align: 'right' as const,
       render: (_, r) => selectedIds.includes(r.id) ? (
@@ -356,7 +356,7 @@ export default function PagoRealizadoFormPage() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Nuevo Pago a Proveedor</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Nuevo Pago a Proveedor</Title>
       </div>
 
       {/* Selector de modo */}
@@ -373,7 +373,7 @@ export default function PagoRealizadoFormPage() {
             { label: <Space><BankOutlined />    Anticipo sin factura</Space>,   value: 'advance' },
           ]}
           size="middle"
-          style={{ background: '#f0f5ff' }}
+          style={{ background: '#fafbfc' }}
         />
       </div>
 
@@ -392,7 +392,7 @@ export default function PagoRealizadoFormPage() {
             title={
               <Space>
                 <span>Facturas pendientes de pago</span>
-                {selectedIds.length > 1 && <Tag color="blue">{selectedIds.length} seleccionadas</Tag>}
+                {selectedIds.length > 1 && <Tag color="#1faec2">{selectedIds.length} seleccionadas</Tag>}
               </Space>
             }
             bordered={false}
@@ -422,12 +422,12 @@ export default function PagoRealizadoFormPage() {
                 onRow={(r) => ({ onClick: () => toggleInvoice(r.id, r.balance), style: { cursor: 'pointer' } })}
                 locale={{ emptyText: 'Sin facturas pendientes de pago' }}
                 summary={() => selectedIds.length > 0 ? (
-                  <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+                  <Table.Summary.Row style={{ background: '#fafbfc' }}>
                     <Table.Summary.Cell index={0} colSpan={4}>
                       <Text strong>Total a pagar ({selectedIds.length} factura{selectedIds.length > 1 ? 's' : ''})</Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={4} align="right">
-                      <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B', fontSize: 14 }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 14 }}>
                         {fmtQ(totalSelected)}
                       </Text>
                     </Table.Summary.Cell>
@@ -465,7 +465,7 @@ export default function PagoRealizadoFormPage() {
             <Button
               type="primary" htmlType="submit" loading={submitting}
               disabled={selectedIds.length === 0}
-              style={{ background: '#1B3A6B' }}
+              style={{ background: '#1faec2' }}
             >
               Registrar pago {selectedIds.length > 1 ? 'masivo' : ''}{selectedIds.length > 0 ? ` — ${fmtQ(totalSelected)}` : ''}
             </Button>
@@ -520,7 +520,7 @@ export default function PagoRealizadoFormPage() {
                   rowKey="id"
                   columns={[
                     { title: 'No. Anticipo', dataIndex: 'advanceNumber', width: 150,
-                      render: (v) => <Text style={{ fontFamily: 'monospace' }}>{v}</Text> },
+                      render: (v) => <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</Text> },
                     { title: 'Fecha', dataIndex: 'advanceDate', width: 110,
                       render: (v) => dayjs(v).format('DD/MM/YYYY') },
                     { title: 'Referencia', dataIndex: 'reference' },
@@ -530,7 +530,7 @@ export default function PagoRealizadoFormPage() {
                       render: (v, r: VendorAdvance) => (
                         <Badge
                           count={fmtQ(Number(v))}
-                          style={{ backgroundColor: Number(v) > 0 ? '#52c41a' : '#d9d9d9', fontSize: 11 }}
+                          style={{ backgroundColor: Number(v) > 0 ? '#2ea172' : 'rgba(10,10,10,0.08)', fontSize: 11 }}
                         />
                       ) },
                   ]}
@@ -570,13 +570,13 @@ export default function PagoRealizadoFormPage() {
                       pagination={false}
                       locale={{ emptyText: 'Sin facturas pendientes' }}
                       summary={() => selectedIds.length > 0 ? (
-                        <Table.Summary.Row style={{ background: '#f6ffed' }}>
+                        <Table.Summary.Row style={{ background: '#e8f5ef' }}>
                           <Table.Summary.Cell index={0} colSpan={3}>
                             <Text strong>Total a aplicar ({selectedIds.length} factura{selectedIds.length > 1 ? 's' : ''})</Text>
                           </Table.Summary.Cell>
                           <Table.Summary.Cell index={3} />
                           <Table.Summary.Cell index={4} align="right">
-                            <Text strong style={{ fontFamily: 'monospace', color: '#52c41a', fontSize: 14 }}>
+                            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172', fontSize: 14 }}>
                               {fmtQ(totalAdvApplied)}
                             </Text>
                           </Table.Summary.Cell>
@@ -589,7 +589,7 @@ export default function PagoRealizadoFormPage() {
                         onClick={onApplyAdvance}
                         loading={submitting}
                         disabled={selectedIds.length === 0 || totalAdvApplied <= 0}
-                        style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                        style={{ background: '#2ea172', borderColor: '#2ea172' }}
                       >
                         Aplicar anticipo — {fmtQ(totalAdvApplied)}
                       </Button>
@@ -608,7 +608,7 @@ export default function PagoRealizadoFormPage() {
             <Button onClick={() => navigate('/bancos/pagos-realizados')}>Cancelar</Button>
             <Button
               type="primary" htmlType="submit" loading={submitting}
-              style={{ background: '#1B3A6B' }}
+              style={{ background: '#1faec2' }}
             >
               Registrar anticipo
             </Button>

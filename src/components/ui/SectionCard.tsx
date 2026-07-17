@@ -11,7 +11,7 @@ export function SectionCard({ children, style, ...rest }: SectionCardProps) {
   return (
     <Card
       bordered={false}
-      style={{ borderRadius: radius.lg, boxShadow: shadow.card, ...style }}
+      style={{ borderRadius: radius.lg, boxShadow: shadow.rest, ...style }}
       {...rest}
     >
       {children}

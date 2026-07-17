@@ -178,11 +178,11 @@ export default function OnboardingWizardPage() {
       <div style={{ maxWidth: 600, margin: '60px auto' }}>
         <Result
           status="success"
-          icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+          icon={<CheckCircleOutlined style={{ color: '#2ea172' }} />}
           title="¡Empresa configurada exitosamente!"
           subTitle={`Tu empresa está lista. Módulos activos: ${selectedModules.join(', ')}`}
           extra={[
-            <Button key="go" type="primary" style={{ background: '#1B3A6B' }}
+            <Button key="go" type="primary" style={{ background: '#1faec2' }}
               onClick={() => navigate('/dashboard')}>
               Ir al Dashboard
             </Button>,
@@ -198,7 +198,7 @@ export default function OnboardingWizardPage() {
   return (
     <div style={{ maxWidth: 780, margin: '0 auto', padding: 24 }}>
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0, color: '#1B3A6B' }}>
+        <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>
           🚀 Onboarding Enterprise
         </Title>
         <Text type="secondary">Configure su primera empresa en ConTaERP</Text>
@@ -262,18 +262,18 @@ export default function OnboardingWizardPage() {
                     onClick={() => setSelectedRegime(r.id)}
                     style={{
                       padding: '12px 16px',
-                      border: `2px solid ${selectedRegime === r.id ? '#1B3A6B' : '#f0f0f0'}`,
+                      border: `2px solid ${selectedRegime === r.id ? '#1faec2' : 'rgba(10,10,10,0.08)'}`,
                       borderRadius: 8,
                       cursor: 'pointer',
-                      background: selectedRegime === r.id ? '#f0f5ff' : '#fff',
+                      background: selectedRegime === r.id ? '#fafbfc' : '#fff',
                     }}
                   >
                     <div style={{ fontWeight: 600 }}>{r.name}</div>
-                    {r.description && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{r.description}</div>}
+                    {r.description && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{r.description}</div>}
                     <Space size={4} style={{ marginTop: 4 }}>
                       <Tag>{r.taxConfig?.mainTaxName} {r.taxConfig?.mainTaxRate}%</Tag>
                       <Tag>{r.taxConfig?.currencyCode}</Tag>
-                      {r.taxConfig?.hasFEL && <Tag color="blue">FEL</Tag>}
+                      {r.taxConfig?.hasFEL && <Tag color="#1faec2">FEL</Tag>}
                     </Space>
                   </div>
                 ))}
@@ -281,8 +281,8 @@ export default function OnboardingWizardPage() {
                 <div
                   onClick={() => setSelectedRegime('skip')}
                   style={{
-                    padding: '12px 16px', border: '2px solid #f0f0f0',
-                    borderRadius: 8, cursor: 'pointer', color: '#888',
+                    padding: '12px 16px', border: '2px solid rgba(10,10,10,0.08)',
+                    borderRadius: 8, cursor: 'pointer', color: '#6b7280',
                   }}
                 >
                   Configurar más adelante
@@ -306,13 +306,13 @@ export default function OnboardingWizardPage() {
                 onClick={() => setSelectedCOA(opt.value)}
                 style={{
                   padding: '14px 16px',
-                  border: `2px solid ${selectedCOA === opt.value ? '#1B3A6B' : '#f0f0f0'}`,
+                  border: `2px solid ${selectedCOA === opt.value ? '#1faec2' : 'rgba(10,10,10,0.08)'}`,
                   borderRadius: 8, cursor: 'pointer',
-                  background: selectedCOA === opt.value ? '#f0f5ff' : '#fff',
+                  background: selectedCOA === opt.value ? '#fafbfc' : '#fff',
                 }}
               >
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{opt.flag} {opt.label}</div>
-                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{opt.desc}</div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{opt.desc}</div>
               </div>
             ))}
           </div>
@@ -335,7 +335,7 @@ export default function OnboardingWizardPage() {
                 <Space>
                   <span style={{ fontWeight: 500 }}>{u.firstName} {u.lastName}</span>
                   <Text type="secondary" style={{ fontSize: 12 }}>{u.email}</Text>
-                  {u.isSuperAdmin && <Tag color="red" style={{ fontSize: 11 }}>SuperAdmin</Tag>}
+                  {u.isSuperAdmin && <Tag color="#e5484d" style={{ fontSize: 11 }}>SuperAdmin</Tag>}
                 </Space>
               </Checkbox>
             ))}
@@ -363,15 +363,15 @@ export default function OnboardingWizardPage() {
                   )}
                   style={{
                     padding: '12px 14px',
-                    border: `2px solid ${active ? '#1B3A6B' : '#f0f0f0'}`,
+                    border: `2px solid ${active ? '#1faec2' : 'rgba(10,10,10,0.08)'}`,
                     borderRadius: 8, cursor: 'pointer',
-                    background: active ? '#f0f5ff' : '#fff',
+                    background: active ? '#fafbfc' : '#fff',
                   }}
                 >
                   <div style={{ fontSize: 20 }}>{mod.icon}</div>
                   <div style={{ fontWeight: 600, fontSize: 13, marginTop: 4 }}>{mod.label}</div>
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{mod.desc}</div>
-                  {active && <Tag color="geekblue" style={{ marginTop: 6, fontSize: 10 }}>Activo</Tag>}
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{mod.desc}</div>
+                  {active && <Tag color="#1faec2" style={{ marginTop: 6, fontSize: 10 }}>Activo</Tag>}
                 </div>
               )
             })}
@@ -389,7 +389,7 @@ export default function OnboardingWizardPage() {
         </div>
         <div>
           {current < steps.length - 1 && (
-            <Button type="primary" style={{ background: '#1B3A6B' }} onClick={next}>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={next}>
               Siguiente
             </Button>
           )}
@@ -397,7 +397,7 @@ export default function OnboardingWizardPage() {
             <Button
               type="primary"
               icon={<CheckCircleOutlined />}
-              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              style={{ background: '#2ea172', borderColor: '#2ea172' }}
               loading={saving}
               onClick={finish}
             >

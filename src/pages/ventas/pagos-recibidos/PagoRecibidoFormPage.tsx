@@ -148,9 +148,9 @@ export default function PagoRecibidoFormPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <DollarOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <DollarOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Registrar Pago Recibido</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Registrar Pago Recibido</Title>
             <Text type="secondary">
               {isAdvance
                 ? 'Se registrará como anticipo de cliente (sin factura asociada)'
@@ -167,7 +167,7 @@ export default function PagoRecibidoFormPage() {
             icon={<SaveOutlined />}
             loading={saving}
             onClick={handleSave}
-            style={{ background: '#1B3A6B' }}
+            style={{ background: '#1faec2' }}
           >
             Registrar pago
           </Button>
@@ -265,11 +265,11 @@ export default function PagoRecibidoFormPage() {
                     {openInvoices.map(inv => (
                       <Option key={inv.id} value={inv.id}>
                         <Space>
-                          <Text style={{ fontFamily: 'monospace' }}>{inv.invoiceNumber}</Text>
+                          <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{inv.invoiceNumber}</Text>
                           <Text type="secondary" style={{ fontSize: 11 }}>
                             Total: {fmtQ(inv.total)} | Saldo: {fmtQ(inv.balance)}
                           </Text>
-                          <Tag color={inv.status === 'overdue' ? 'red' : 'geekblue'} style={{ fontSize: 10 }}>
+                          <Tag color={inv.status === 'overdue' ? '#e5484d' : '#1faec2'} style={{ fontSize: 10 }}>
                             {inv.status === 'overdue' ? 'Vencida' : 'Pendiente'}
                           </Tag>
                         </Space>
@@ -369,7 +369,7 @@ export default function PagoRecibidoFormPage() {
         <Col xs={24} lg={10}>
           {isAdvance ? (
             <Card
-              title={<Space><InfoCircleOutlined style={{ color: '#1B3A6B' }} /> Anticipo de cliente</Space>}
+              title={<Space><InfoCircleOutlined style={{ color: '#1faec2' }} /> Anticipo de cliente</Space>}
               bordered={false}
               style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
             >
@@ -382,29 +382,29 @@ export default function PagoRecibidoFormPage() {
                 />
                 <Divider style={{ margin: '8px 0' }}>Póliza contable generada</Divider>
                 {/* Tabla asiento estilo ERP */}
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden', fontSize: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', background: '#fafafa', padding: '6px 10px', fontWeight: 600, color: '#595959', borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 6, overflow: 'hidden', fontSize: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', background: '#fafbfc', padding: '6px 10px', fontWeight: 600, color: '#6b7280', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
                     <span>Cuenta</span><span style={{ marginRight: 16 }}>Debe</span><span>Haber</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '6px 10px', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
                     <Text style={{ fontSize: 12 }}>Banco / Caja</Text>
-                    <Text style={{ fontFamily: 'monospace', marginRight: 16, color: '#1677ff' }}>Q monto</Text>
-                    <Text style={{ color: '#bbb', fontFamily: 'monospace' }}>—</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', marginRight: 16, color: '#1faec2' }}>Q monto</Text>
+                    <Text style={{ color: '#bbb', fontVariantNumeric: 'tabular-nums' }}>—</Text>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '6px 10px' }}>
-                    <Text style={{ fontSize: 12 }}>Anticipos de Clientes <Tag style={{ fontSize: 10, fontFamily: 'monospace', marginLeft: 4 }}>2110</Tag></Text>
-                    <Text style={{ color: '#bbb', fontFamily: 'monospace', marginRight: 16 }}>—</Text>
-                    <Text style={{ fontFamily: 'monospace', color: '#52c41a' }}>Q monto</Text>
+                    <Text style={{ fontSize: 12 }}>Anticipos de Clientes <Tag style={{ fontSize: 10, fontVariantNumeric: 'tabular-nums', marginLeft: 4 }}>2110</Tag></Text>
+                    <Text style={{ color: '#bbb', fontVariantNumeric: 'tabular-nums', marginRight: 16 }}>—</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>Q monto</Text>
                   </div>
                 </div>
                 <Divider style={{ margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>N° anticipo asignado</Text>
-                  <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>ANT-{new Date().getFullYear()}-NNNNN</Text>
+                  <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>ANT-{new Date().getFullYear()}-NNNNN</Text>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>N° pago asignado</Text>
-                  <Text style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>PAG-{new Date().getFullYear()}-NNNNN</Text>
+                  <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>PAG-{new Date().getFullYear()}-NNNNN</Text>
                 </div>
               </Space>
             </Card>
@@ -418,7 +418,7 @@ export default function PagoRecibidoFormPage() {
                 <Space direction="vertical" style={{ width: '100%' }} size={8}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text type="secondary">N° Factura</Text>
-                    <Text strong style={{ fontFamily: 'monospace' }}>{selectedInv.invoiceNumber}</Text>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{selectedInv.invoiceNumber}</Text>
                   </div>
                   <Divider style={{ margin: '6px 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -432,14 +432,14 @@ export default function PagoRecibidoFormPage() {
                   <Divider style={{ margin: '6px 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text type="secondary">Saldo pendiente</Text>
-                    <Text strong style={{ fontSize: 16, color: Number(selectedInv.balance) > 0 ? '#fa541c' : '#52c41a' }}>
+                    <Text strong style={{ fontSize: 16, color: Number(selectedInv.balance) > 0 ? '#fa541c' : '#2ea172' }}>
                       {fmtQ(selectedInv.balance)}
                     </Text>
                   </div>
                   <Divider style={{ margin: '6px 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text type="secondary">Estado</Text>
-                    <Tag color={selectedInv.status === 'overdue' ? 'red' : 'geekblue'}>
+                    <Tag color={selectedInv.status === 'overdue' ? '#e5484d' : '#1faec2'}>
                       {selectedInv.status === 'overdue' ? 'Vencida' : 'Pendiente'}
                     </Tag>
                   </div>

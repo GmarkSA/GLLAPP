@@ -181,12 +181,12 @@ export default function ClienteDetallePage() {
       formatter: (params: any[]) => `${params[0].name}<br/>Q ${Number(params[0].value).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
     },
     grid: { left: 16, right: 16, top: 12, bottom: 28, containLabel: true },
-    xAxis: { type: 'category', data: chartData.months, axisLabel: { fontSize: 10, color: '#888' }, axisLine: { lineStyle: { color: '#e8e8e8' } } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#888', formatter: (v: number) => `Q${(v/1000).toFixed(0)}k` } },
+    xAxis: { type: 'category', data: chartData.months, axisLabel: { fontSize: 10, color: '#6b7280' }, axisLine: { lineStyle: { color: 'rgba(10,10,10,0.08)' } } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#6b7280', formatter: (v: number) => `Q${(v/1000).toFixed(0)}k` } },
     series: [{
       type: 'bar', data: chartData.data, barMaxWidth: 32,
-      itemStyle: { color: '#1B3A6B', borderRadius: [4, 4, 0, 0] },
-      emphasis: { itemStyle: { color: '#2d5fa6' } },
+      itemStyle: { color: '#1faec2', borderRadius: [4, 4, 0, 0] },
+      emphasis: { itemStyle: { color: '#1a97a8' } },
     }],
   }), [chartData])
 
@@ -236,7 +236,7 @@ export default function ClienteDetallePage() {
     { title: 'Fecha', dataIndex: 'invoiceDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'invoiceNumber', width: 130,
-      render: (v: string, r: Invoice) => <Link to={`/ventas/facturas/${r.id}`} style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Link>,
+      render: (v: string, r: Invoice) => <Link to={`/ventas/facturas/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
@@ -245,65 +245,65 @@ export default function ClienteDetallePage() {
     {
       title: 'Origen', dataIndex: 'type', width: 110,
       render: (v: string) => v === 'recurring'
-        ? <Tag color="purple" style={{ fontSize: 10 }}>Recurrente</Tag>
+        ? <Tag color="#6b7280" style={{ fontSize: 10 }}>Recurrente</Tag>
         : <Tag color="default" style={{ fontSize: 10 }}>Estándar</Tag>,
     },
-    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
-    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: Number(v) > 0 ? '#fa8c16' : '#8c8c8c' }}>{fmtQ(Number(v))}</Text> },
+    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
+    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) > 0 ? '#ff7f00' : '#6b7280' }}>{fmtQ(Number(v))}</Text> },
   ]
 
   const payCols = [
     { title: 'Fecha', dataIndex: 'paymentDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'paymentNumber', width: 130,
-      render: (v: string, r: PagoRecibido) => <Link to={`/ventas/pagos-recibidos/${r.id}`} style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Link>,
+      render: (v: string, r: PagoRecibido) => <Link to={`/ventas/pagos-recibidos/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
     },
     { title: 'Modo', dataIndex: 'mode', width: 150, render: (v: string) => <Text style={{ fontSize: 12 }}>{PAYMENT_MODE_LABELS[v as keyof typeof PAYMENT_MODE_LABELS] ?? v ?? '—'}</Text> },
     { title: 'Referencia', dataIndex: 'reference', width: 120, render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text> },
-    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{fmtQ(v)}</Text> },
+    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(v)}</Text> },
   ]
 
   const estCols = [
     { title: 'Fecha', dataIndex: 'estimateDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'estimateNumber', width: 140,
-      render: (v: string, r: Estimate) => <Link to={`/ventas/estimaciones/${r.id}`} style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Link>,
+      render: (v: string, r: Estimate) => <Link to={`/ventas/estimaciones/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
       render: (v: string) => { const c = ESTIMATE_STATUS_CONFIG[v as keyof typeof ESTIMATE_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
-    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</Text> },
+    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
   ]
 
   const ncCols = [
     { title: 'Fecha', dataIndex: 'invoiceDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'invoiceNumber', width: 140,
-      render: (v: string, r: NotaCredito) => <Link to={`/ventas/notas-credito/${r.id}`} style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{v}</Link>,
+      render: (v: string, r: NotaCredito) => <Link to={`/ventas/notas-credito/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>{v}</Link>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
       render: (v: string) => { const c = NC_STATUS_CONFIG[v as keyof typeof NC_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
-    { title: 'Total NC', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</Text> },
-    { title: 'Saldo NC', dataIndex: 'creditBalance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{fmtQ(Number(v ?? 0))}</Text> },
+    { title: 'Total NC', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>{fmtQ(v)}</Text> },
+    { title: 'Saldo NC', dataIndex: 'creditBalance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(Number(v ?? 0))}</Text> },
   ]
 
   const stmtCols = [
     { title: 'Fecha', dataIndex: 'date', width: 100, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
-    { title: 'Tipo', dataIndex: 'type', width: 90, render: (v: string) => <Tag color={v === 'Factura' ? 'blue' : 'green'} style={{ fontSize: 11 }}>{v}</Tag> },
+    { title: 'Tipo', dataIndex: 'type', width: 90, render: (v: string) => <Tag color={v === 'Factura' ? '#1faec2' : '#2ea172'} style={{ fontSize: 11 }}>{v}</Tag> },
     {
       title: 'Referencia', dataIndex: 'ref',
       render: (v: string, r: any) => r.route
-        ? <Link to={r.route} style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Link>
-        : <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>,
+        ? <Link to={r.route} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>
+        : <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>,
     },
-    { title: 'Cargo', dataIndex: 'debit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
-    { title: 'Abono', dataIndex: 'credit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+    { title: 'Cargo', dataIndex: 'debit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
+    { title: 'Abono', dataIndex: 'credit', align: 'right' as const, width: 120, render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> },
     {
       title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 130,
-      render: (v: number) => <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: v > 0 ? '#fa8c16' : '#52c41a' }}>{fmtQ(Math.abs(v))}{v < 0 ? ' CR' : ''}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#ff7f00' : '#2ea172' }}>{fmtQ(Math.abs(v))}{v < 0 ? ' CR' : ''}</Text>,
     },
   ]
 
@@ -327,16 +327,16 @@ export default function ClienteDetallePage() {
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-        marginBottom: 20, padding: '10px 0', borderBottom: '1px solid #f0f0f0',
+        marginBottom: 20, padding: '10px 0', borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/clientes')}>
           Clientes
         </Button>
         <Divider type="vertical" />
-        <Avatar size={40} style={{ background: isCompany ? '#1B3A6B' : '#7c3aed', flexShrink: 0 }}
+        <Avatar size={40} style={{ background: isCompany ? '#1faec2' : '#ff7f00', flexShrink: 0 }}
           icon={isCompany ? <BankOutlined /> : <UserOutlined />} />
         <div>
-          <Title level={5} style={{ margin: 0, color: '#1B3A6B' }}>{customer.name || customer.legalName}</Title>
+          <Title level={5} style={{ margin: 0, color: '#0a0a0a' }}>{customer.name || customer.legalName}</Title>
           {customer.taxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT: {customer.taxId}</Text>}
         </div>
         <Badge status={statusCfg.color} text={statusCfg.label} style={{ marginLeft: 4 }} />
@@ -347,7 +347,7 @@ export default function ClienteDetallePage() {
         <Button
           type="primary" icon={<PlusOutlined />}
           onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}
-          style={{ background: '#1B3A6B' }}
+          style={{ background: '#1faec2' }}
         >
           Nueva factura
         </Button>
@@ -366,14 +366,14 @@ export default function ClienteDetallePage() {
       {/* ── Stats row ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Cuentas por cobrar', value: fmtQ(saldoPendiente), color: saldoPendiente > 0 ? '#fa8c16' : '#52c41a', sub: 'Saldo pendiente de pago' },
-          { label: 'Total facturado', value: fmtQ(totalFacturado), color: '#1B3A6B', sub: `${invoices.filter(i => i.status !== 'voided').length} facturas` },
-          { label: 'Total cobrado', value: fmtQ(totalCobrado), color: '#52c41a', sub: `${payments.length} pagos recibidos` },
-          { label: 'Facturas vencidas', value: String(facturasVencidas), color: facturasVencidas > 0 ? '#ff4d4f' : '#52c41a', sub: facturasVencidas > 0 ? 'Requieren seguimiento' : 'Todo al día' },
+          { label: 'Cuentas por cobrar', value: fmtQ(saldoPendiente), color: saldoPendiente > 0 ? '#ff7f00' : '#2ea172', sub: 'Saldo pendiente de pago' },
+          { label: 'Total facturado', value: fmtQ(totalFacturado), color: '#1faec2', sub: `${invoices.filter(i => i.status !== 'voided').length} facturas` },
+          { label: 'Total cobrado', value: fmtQ(totalCobrado), color: '#2ea172', sub: `${payments.length} pagos recibidos` },
+          { label: 'Facturas vencidas', value: String(facturasVencidas), color: facturasVencidas > 0 ? '#e5484d' : '#2ea172', sub: facturasVencidas > 0 ? 'Requieren seguimiento' : 'Todo al día' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 10, padding: '14px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', borderLeft: `4px solid ${s.color}` }}>
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{s.label}</Text>
-            <div style={{ fontSize: 20, fontWeight: 800, color: s.color, fontFamily: 'monospace', lineHeight: 1.2 }}>{s.value}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: s.color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{s.value}</div>
             <Text type="secondary" style={{ fontSize: 11 }}>{s.sub}</Text>
           </div>
         ))}
@@ -394,7 +394,7 @@ export default function ClienteDetallePage() {
                 {/* Columna izquierda */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>Contacto</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>Contacto</Text>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {customer.legalName && customer.legalName !== customer.name && (
                         <div>
@@ -404,25 +404,25 @@ export default function ClienteDetallePage() {
                       )}
                       {customer.email && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <MailOutlined style={{ color: '#1B3A6B', fontSize: 14 }} />
+                          <MailOutlined style={{ color: '#1faec2', fontSize: 14 }} />
                           <a href={`mailto:${customer.email}`} style={{ fontSize: 13 }}>{customer.email}</a>
                         </div>
                       )}
                       {customer.phone && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <PhoneOutlined style={{ color: '#1B3A6B', fontSize: 14 }} />
+                          <PhoneOutlined style={{ color: '#1faec2', fontSize: 14 }} />
                           <Text style={{ fontSize: 13 }}>{customer.phone}</Text>
                         </div>
                       )}
                       {customer.mobile && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <MobileOutlined style={{ color: '#1B3A6B', fontSize: 14 }} />
+                          <MobileOutlined style={{ color: '#1faec2', fontSize: 14 }} />
                           <Text style={{ fontSize: 13 }}>{customer.mobile}</Text>
                         </div>
                       )}
                       {customer.website && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <GlobalOutlined style={{ color: '#1B3A6B', fontSize: 14 }} />
+                          <GlobalOutlined style={{ color: '#1faec2', fontSize: 14 }} />
                           <a href={customer.website} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>{customer.website}</a>
                         </div>
                       )}
@@ -434,9 +434,9 @@ export default function ClienteDetallePage() {
 
                   {billingAddr?.address && (
                     <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Dirección de facturación</Text>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Dirección de facturación</Text>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <EnvironmentOutlined style={{ color: '#1B3A6B', fontSize: 14, marginTop: 2 }} />
+                        <EnvironmentOutlined style={{ color: '#1faec2', fontSize: 14, marginTop: 2 }} />
                         <div style={{ fontSize: 13, lineHeight: 1.6 }}>
                           {billingAddr.address && <div>{billingAddr.address}</div>}
                           {billingAddr.street2 && <div>{billingAddr.street2}</div>}
@@ -448,35 +448,35 @@ export default function ClienteDetallePage() {
                   )}
 
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Otros detalles</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Otros detalles</Text>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 0', fontSize: 13 }}>
                       <Text type="secondary">N° Cliente</Text>
-                      <Text strong style={{ fontFamily: 'monospace' }}>{customer.customerNumber || '—'}</Text>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{customer.customerNumber || '—'}</Text>
                       <Text type="secondary">Moneda</Text>
                       <Text>{customer.currency || 'GTQ'}</Text>
                       <Text type="secondary">Términos de pago</Text>
                       <Text>{customer.paymentTerms || '—'}</Text>
                       <Text type="secondary">Tipo fiscal</Text>
                       <Text style={{ fontSize: 12 }}>{TAX_TREATMENT_LABELS[customer.taxTreatment ?? ''] ?? customer.taxTreatment ?? '—'}</Text>
-                      {customer.taxCode && <><Text type="secondary">IVA</Text><Tag color="blue" style={{ fontSize: 11 }}>{customer.taxCode}</Tag></>}
-                      {customer.tdsEnabled && customer.tdsTaxCode && <><Text type="secondary">ISR</Text><Tag color="purple" style={{ fontSize: 11 }}>{customer.tdsTaxCode}</Tag></>}
-                      {customer.ivaRetentionCode && <><Text type="secondary">Ret. IVA</Text><Tag color="orange" style={{ fontSize: 11 }}>{customer.ivaRetentionCode}</Tag></>}
+                      {customer.taxCode && <><Text type="secondary">IVA</Text><Tag color="#1faec2" style={{ fontSize: 11 }}>{customer.taxCode}</Tag></>}
+                      {customer.tdsEnabled && customer.tdsTaxCode && <><Text type="secondary">ISR</Text><Tag color="#6b7280" style={{ fontSize: 11 }}>{customer.tdsTaxCode}</Tag></>}
+                      {customer.ivaRetentionCode && <><Text type="secondary">Ret. IVA</Text><Tag color="#ff7f00" style={{ fontSize: 11 }}>{customer.ivaRetentionCode}</Tag></>}
                     </div>
                   </div>
 
                   {customer.contacts && customer.contacts.length > 0 && (
                     <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Personas de contacto</Text>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>Personas de contacto</Text>
                       {customer.contacts.slice(0, 3).map((c, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                          <Avatar size={32} style={{ background: '#1B3A6B', flexShrink: 0 }}>
+                          <Avatar size={32} style={{ background: '#1faec2', flexShrink: 0 }}>
                             {((c.firstName?.[0] ?? '') + (c.lastName?.[0] ?? '')).toUpperCase() || '?'}
                           </Avatar>
                           <div>
                             <Text strong style={{ fontSize: 13 }}>{[c.salutation, c.firstName, c.lastName].filter(Boolean).join(' ')}</Text>
                             {c.designation && <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{c.designation}</Text>}
-                            {c.email && <div style={{ fontSize: 12 }}><MailOutlined style={{ marginRight: 4, color: '#888' }} />{c.email}</div>}
-                            {c.phone && <div style={{ fontSize: 12 }}><PhoneOutlined style={{ marginRight: 4, color: '#888' }} />{c.phone}</div>}
+                            {c.email && <div style={{ fontSize: 12 }}><MailOutlined style={{ marginRight: 4, color: '#6b7280' }} />{c.email}</div>}
+                            {c.phone && <div style={{ fontSize: 12 }}><PhoneOutlined style={{ marginRight: 4, color: '#6b7280' }} />{c.phone}</div>}
                           </div>
                         </div>
                       ))}
@@ -484,8 +484,8 @@ export default function ClienteDetallePage() {
                   )}
 
                   {customer.notes && (
-                    <div style={{ background: '#fffbe6', borderRadius: 10, padding: '14px 16px', border: '1px solid #ffe58f' }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#ad6800', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Notas internas</Text>
+                    <div style={{ background: '#fff2e5', borderRadius: 10, padding: '14px 16px', border: '1px solid rgba(255,127,0,0.25)' }}>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#b35900', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Notas internas</Text>
                       <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{customer.notes}</Text>
                     </div>
                   )}
@@ -494,29 +494,29 @@ export default function ClienteDetallePage() {
                 {/* Columna derecha */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>Cuentas por cobrar</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 14 }}>Cuentas por cobrar</Text>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                       <Statistic
-                        title={<Text style={{ fontSize: 11, color: '#888' }}>Saldo pendiente</Text>}
+                        title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Saldo pendiente</Text>}
                         value={saldoPendiente} precision={2} prefix="Q"
-                        valueStyle={{ color: saldoPendiente > 0 ? '#fa8c16' : '#52c41a', fontSize: 20, fontFamily: 'monospace' }}
+                        valueStyle={{ color: saldoPendiente > 0 ? '#ff7f00' : '#2ea172', fontSize: 20, fontVariantNumeric: 'tabular-nums' }}
                         formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                       />
                       <Statistic
-                        title={<Text style={{ fontSize: 11, color: '#888' }}>Total facturado</Text>}
+                        title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Total facturado</Text>}
                         value={totalFacturado} precision={2} prefix="Q"
-                        valueStyle={{ color: '#1B3A6B', fontSize: 20, fontFamily: 'monospace' }}
+                        valueStyle={{ color: '#0a0a0a', fontSize: 20, fontVariantNumeric: 'tabular-nums' }}
                         formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                       />
                     </div>
                     {customer.creditLimit && Number(customer.creditLimit) > 0 && (
-                      <div style={{ padding: '10px 14px', background: '#f5f5f5', borderRadius: 8 }}>
+                      <div style={{ padding: '10px 14px', background: '#fafbfc', borderRadius: 8 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                           <Text style={{ fontSize: 12 }}>Límite de crédito</Text>
-                          <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{fmtQ(Number(customer.creditLimit))}</Text>
+                          <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(customer.creditLimit))}</Text>
                         </div>
-                        <div style={{ background: '#e8e8e8', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-                          <div style={{ width: `${creditPct}%`, height: '100%', background: creditPct > 80 ? '#ff4d4f' : creditPct > 50 ? '#fa8c16' : '#52c41a', borderRadius: 4, transition: 'width 0.3s' }} />
+                        <div style={{ background: 'rgba(10,10,10,0.08)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                          <div style={{ width: `${creditPct}%`, height: '100%', background: creditPct > 80 ? '#e5484d' : creditPct > 50 ? '#ff7f00' : '#2ea172', borderRadius: 4, transition: 'width 0.3s' }} />
                         </div>
                         <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
                           {creditPct}% utilizado — Disponible: {fmtQ(Math.max(0, Number(customer.creditLimit) - creditUsed))}
@@ -527,10 +527,10 @@ export default function ClienteDetallePage() {
 
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         Ingresos ({chartData.startLabel} – {chartData.endLabel})
                       </Text>
-                      <Text style={{ fontSize: 18, fontWeight: 800, color: '#1B3A6B', fontFamily: 'monospace' }}>
+                      <Text style={{ fontSize: 18, fontWeight: 800, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>
                         {fmtQ(chartData.periodTotal)}
                       </Text>
                     </div>
@@ -548,22 +548,22 @@ export default function ClienteDetallePage() {
 
                   <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Últimas facturas</Text>
+                      <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Últimas facturas</Text>
                       <Link to={`/ventas/facturas?customerId=${customer.id}`} style={{ fontSize: 12 }}>Ver todas</Link>
                     </div>
                     {invoices.slice(0, 5).map(inv => {
                       const sCfg = INVOICE_STATUS_CONFIG[inv.status as keyof typeof INVOICE_STATUS_CONFIG]
                       return (
-                        <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                        <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #fafbfc' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <Link to={`/ventas/facturas/${inv.id}`} style={{ fontSize: 13, fontFamily: 'monospace', color: '#1B3A6B' }}>{inv.invoiceNumber}</Link>
-                              {inv.type === 'recurring' && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>Recurrente</Tag>}
+                              <Link to={`/ventas/facturas/${inv.id}`} style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{inv.invoiceNumber}</Link>
+                              {inv.type === 'recurring' && <Tag color="#6b7280" style={{ fontSize: 10, margin: 0 }}>Recurrente</Tag>}
                             </div>
                             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{dayjs(inv.invoiceDate).format('DD/MM/YYYY')}</Text>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 600 }}>{fmtQ(Number(inv.total))}</div>
+                            <div style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtQ(Number(inv.total))}</div>
                             <Tag color={sCfg?.color} style={{ fontSize: 10, margin: 0 }}>{sCfg?.label ?? inv.status}</Tag>
                           </div>
                         </div>
@@ -589,7 +589,7 @@ export default function ClienteDetallePage() {
                     children: (
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                          <Button size="small" type="primary" icon={<PlusOutlined />} style={{ background: '#1B3A6B' }}
+                          <Button size="small" type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
                             onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
                             Nueva factura
                           </Button>
@@ -674,14 +674,14 @@ export default function ClienteDetallePage() {
                   </Tooltip>
                   <div style={{ marginLeft: 'auto' }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>Saldo del período: </Text>
-                    <Text strong style={{ fontFamily: 'monospace', color: stmtTotal > 0 ? '#fa8c16' : '#52c41a', fontSize: 14 }}>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: stmtTotal > 0 ? '#ff7f00' : '#2ea172', fontSize: 14 }}>
                       {fmtQ(Math.abs(stmtTotal))}{stmtTotal < 0 ? ' CR' : ''}
                     </Text>
                   </div>
                 </div>
 
                 {/* Header */}
-                <div style={{ background: '#1B3A6B', borderRadius: '10px 10px 0 0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ background: '#1faec2', borderRadius: '10px 10px 0 0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>Estado de cuenta</Text>
                     <Text style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>{customer.name || customer.legalName}</Text>
@@ -706,22 +706,22 @@ export default function ClienteDetallePage() {
                   style={{ background: '#fff', borderRadius: '0 0 10px 10px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
                   summary={() => (
                     <Table.Summary fixed>
-                      <Table.Summary.Row style={{ background: '#f0f5ff' }}>
+                      <Table.Summary.Row style={{ background: '#fafbfc' }}>
                         <Table.Summary.Cell index={0} colSpan={3}>
                           <Text strong style={{ fontSize: 12 }}>Total del período</Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={3} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>
+                          <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>
                             {fmtQ(statementRows.reduce((s, r) => s + r.debit, 0))}
                           </Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={4} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#52c41a' }}>
+                          <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>
                             {fmtQ(statementRows.reduce((s, r) => s + r.credit, 0))}
                           </Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={5} align="right">
-                          <Text strong style={{ fontFamily: 'monospace', fontSize: 13, color: stmtTotal > 0 ? '#fa8c16' : '#52c41a' }}>
+                          <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: stmtTotal > 0 ? '#ff7f00' : '#2ea172' }}>
                             {fmtQ(Math.abs(stmtTotal))}{stmtTotal < 0 ? ' CR' : ''}
                           </Text>
                         </Table.Summary.Cell>
@@ -754,7 +754,7 @@ export default function ClienteDetallePage() {
                     ? <Empty description="Sin comentarios aún" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                     : comments.map(c => (
                         <div key={c.id} style={{ display: 'flex', gap: 12, background: '#fff', borderRadius: 10, padding: '12px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                          <Avatar size={36} style={{ background: c.type === 'activity' ? '#52c41a' : '#1B3A6B', flexShrink: 0 }}>
+                          <Avatar size={36} style={{ background: c.type === 'activity' ? '#2ea172' : '#1faec2', flexShrink: 0 }}>
                             {c.type === 'activity' ? '⚙' : (c.userName?.[0]?.toUpperCase() ?? <MessageOutlined />)}
                           </Avatar>
                           <div style={{ flex: 1 }}>
@@ -763,7 +763,7 @@ export default function ClienteDetallePage() {
                               <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(c.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
                             </div>
                             {c.action && (
-                              <Tag color="geekblue" style={{ fontSize: 10, marginBottom: 4 }}>{c.action}</Tag>
+                              <Tag color="#1faec2" style={{ fontSize: 10, marginBottom: 4 }}>{c.action}</Tag>
                             )}
                             <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: '#333' }}>{c.text}</Text>
                           </div>
@@ -775,7 +775,7 @@ export default function ClienteDetallePage() {
 
                 {/* Agregar comentario */}
                 <div style={{ background: '#fff', borderRadius: 10, padding: '16px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
                     Agregar comentario
                   </Text>
                   <TextArea
@@ -793,7 +793,7 @@ export default function ClienteDetallePage() {
                       loading={addingComment}
                       disabled={!commentText.trim()}
                       onClick={handleAddComment}
-                      style={{ background: '#1B3A6B' }}
+                      style={{ background: '#1faec2' }}
                     >
                       Guardar comentario
                     </Button>
@@ -813,7 +813,7 @@ export default function ClienteDetallePage() {
         footer={[
           <Button key="cancel" onClick={() => setEmailModal(false)}>Cancelar</Button>,
           <Button key="send" type="primary" icon={<SendOutlined />} loading={sendingEmail}
-            onClick={handleSendEmail} style={{ background: '#1B3A6B' }}>
+            onClick={handleSendEmail} style={{ background: '#1faec2' }}>
             Enviar
           </Button>,
         ]}

@@ -40,7 +40,7 @@ function AlmacenModal({ open, record, onClose, onSaved }: {
     <Modal
       title={record ? 'Editar almacén' : 'Nuevo almacén'}
       open={open} onOk={handleOk} onCancel={onClose}
-      okText="Guardar" okButtonProps={{ loading: saving, style: { background: '#1B3A6B' } }}
+      okText="Guardar" okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
       destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}
@@ -98,18 +98,18 @@ export default function AlmacenesPage() {
 
   const columns: ColumnsType<Almacen> = [
     { title: 'Código', dataIndex: 'code', width: 100,
-      render: v => <Text style={{ fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{v}</Text> },
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text> },
     { title: 'Nombre', dataIndex: 'name',
       render: (v, r) => (
         <Space>
           {v}
-          {r.isPrimary && <Tag color="blue" style={{ fontSize: 10 }}>Principal</Tag>}
+          {r.isPrimary && <Tag color="#1faec2" style={{ fontSize: 10 }}>Principal</Tag>}
         </Space>
       ) },
     { title: 'Responsable', dataIndex: 'manager', render: v => v || '—' },
     { title: 'Dirección', dataIndex: 'address', ellipsis: true, render: v => v || '—' },
     { title: 'Estado', dataIndex: 'isActive', width: 90,
-      render: v => <Tag color={v ? 'green' : 'default'}>{v ? 'Activo' : 'Inactivo'}</Tag> },
+      render: v => <Tag color={v ? '#2ea172' : 'default'}>{v ? 'Activo' : 'Inactivo'}</Tag> },
     { title: 'Acciones', width: 90, render: (_, row) => (
       <Space size={4}>
         <Tooltip title="Editar">
@@ -127,13 +127,13 @@ export default function AlmacenesPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             <HomeOutlined style={{ marginRight: 8 }} /> Almacenes
           </Title>
           <Text type="secondary">Gestión de bodegas y ubicaciones de inventario</Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />}
-          onClick={() => { setEditing(null); setModal(true) }} style={{ background: '#1B3A6B' }}>
+          onClick={() => { setEditing(null); setModal(true) }} style={{ background: '#1faec2' }}>
           Nuevo almacén
         </Button>
       </div>

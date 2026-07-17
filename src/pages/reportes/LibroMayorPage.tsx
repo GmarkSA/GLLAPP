@@ -17,7 +17,7 @@ const { RangePicker } = DatePicker
 const fmtQ = (n: number) =>
   `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
-const balanceColor = (n: number) => n >= 0 ? '#1B3A6B' : '#cf1322'
+const balanceColor = (n: number) => n >= 0 ? '#374151' : '#e5484d'
 
 export default function LibroMayorPage() {
   const today = dayjs()
@@ -61,7 +61,7 @@ export default function LibroMayorPage() {
     },
     {
       title: 'Póliza', dataIndex: 'entryNumber', width: 140,
-      render: (v) => <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#1B3A6B' }}>{v}</Text>,
+      render: (v) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Text>,
     },
     {
       title: 'Descripción', dataIndex: 'description',
@@ -70,7 +70,7 @@ export default function LibroMayorPage() {
     {
       title: 'Debe', dataIndex: 'debit', width: 130, align: 'right',
       render: (v) => (
-        <Text style={{ fontFamily: 'monospace', color: v > 0 ? '#1B3A6B' : '#ccc' }}>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#1faec2' : '#ccc' }}>
           {v > 0 ? fmtQ(v) : '—'}
         </Text>
       ),
@@ -78,7 +78,7 @@ export default function LibroMayorPage() {
     {
       title: 'Haber', dataIndex: 'credit', width: 130, align: 'right',
       render: (v) => (
-        <Text style={{ fontFamily: 'monospace', color: v > 0 ? '#52c41a' : '#ccc' }}>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#2ea172' : '#ccc' }}>
           {v > 0 ? fmtQ(v) : '—'}
         </Text>
       ),
@@ -86,7 +86,7 @@ export default function LibroMayorPage() {
     {
       title: 'Saldo', dataIndex: 'balance', width: 140, align: 'right',
       render: (v) => (
-        <Text strong style={{ fontFamily: 'monospace', color: balanceColor(v) }}>{fmtQ(v)}</Text>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: balanceColor(v) }}>{fmtQ(v)}</Text>
       ),
     },
   ]
@@ -95,9 +95,9 @@ export default function LibroMayorPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <BookOutlined style={{ fontSize: 22, color: '#1B3A6B' }} />
+          <BookOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#1B3A6B' }}>Libro Mayor</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Libro Mayor</Title>
             <Text type="secondary">Movimientos por cuenta contable en el período</Text>
           </div>
         </div>
@@ -153,8 +153,8 @@ export default function LibroMayorPage() {
           <Row gutter={12} style={{ marginBottom: 12 }}>
             {[
               { title: 'Saldo Inicial',  value: data.openingBalance, color: balanceColor(data.openingBalance) },
-              { title: 'Total Debe',     value: data.totalDebit,     color: '#1B3A6B' },
-              { title: 'Total Haber',    value: data.totalCredit,    color: '#52c41a' },
+              { title: 'Total Debe',     value: data.totalDebit,     color: '#1faec2' },
+              { title: 'Total Haber',    value: data.totalCredit,    color: '#2ea172' },
               { title: 'Saldo Final',    value: data.closingBalance, color: balanceColor(data.closingBalance) },
             ].map(s => (
               <Col span={6} key={s.title}>
@@ -174,7 +174,7 @@ export default function LibroMayorPage() {
           {/* Cuenta info */}
           <Card bordered={false} size="small" style={{ borderRadius: 10, marginBottom: 8, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <Space>
-              <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{data.account.code}</Text>
+              <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{data.account.code}</Text>
               <Text strong>{data.account.name}</Text>
               <Text type="secondary">·</Text>
               <Text type="secondary">{data.account.balanceType}</Text>
@@ -193,18 +193,18 @@ export default function LibroMayorPage() {
               size="middle"
               pagination={false}
               summary={() => (
-                <Table.Summary.Row style={{ background: '#f0f5ff', fontWeight: 600 }}>
+                <Table.Summary.Row style={{ background: '#fafbfc', fontWeight: 600 }}>
                   <Table.Summary.Cell index={0} colSpan={3}>
                     <Text strong>Saldo Final del Período</Text>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={3} align="right">
-                    <Text strong style={{ fontFamily: 'monospace', color: '#1B3A6B' }}>{fmtQ(data.totalDebit)}</Text>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(data.totalDebit)}</Text>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={4} align="right">
-                    <Text strong style={{ fontFamily: 'monospace', color: '#52c41a' }}>{fmtQ(data.totalCredit)}</Text>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>{fmtQ(data.totalCredit)}</Text>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={5} align="right">
-                    <Text strong style={{ fontFamily: 'monospace', color: balanceColor(data.closingBalance) }}>
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: balanceColor(data.closingBalance) }}>
                       {fmtQ(data.closingBalance)}
                     </Text>
                   </Table.Summary.Cell>

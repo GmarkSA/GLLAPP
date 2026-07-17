@@ -197,7 +197,7 @@ export default function ChequePrintPage() {
   }, [payment, loading, isPreview])
 
   if (loading) return <div style={{ padding: 40 }}>Cargando...</div>
-  if (error || !payment) return <div style={{ padding: 40, color: 'red' }}>{error ?? 'Error'}</div>
+  if (error || !payment) return <div style={{ padding: 40, color: '#e5484d' }}>{error ?? 'Error'}</div>
 
   const formatKey  = detectFormat(payment.bankName)
   const baseFmt    = CHECK_FORMATS[formatKey]
@@ -278,7 +278,7 @@ export default function ChequePrintPage() {
         }
         .screen-controls {
           padding: 16px;
-          background: #1B3A6B;
+          background: #1faec2;
           color: white;
           display: flex;
           gap: 12px;
@@ -291,7 +291,7 @@ export default function ChequePrintPage() {
           border: none;
           border-radius: 4px;
           background: white;
-          color: #1B3A6B;
+          color: #1faec2;
           font-weight: 600;
         }
         .screen-controls .printer-badge {
