@@ -15,6 +15,7 @@ import {
   getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
   contabilizarPeriodoPlanilla, pagarPeriodoPlanilla, previsualizarAsientoPlanilla,
+  anularPagoPlanilla, anularPlanilla,
   descargarBoletaPago,
   type PeriodoPlanillaDetalle, type DetallePlanilla, type PreviewAsiento,
 } from '../../../api/planillas-corrida'
@@ -193,6 +194,32 @@ export default function CorridaPlanillaPage() {
     } catch (e: any) {
       if (e?.errorFields) return
       message.error(getApiError(e, 'Error al registrar el pago'))
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  const anularPago = async () => {
+    try {
+      setProcesando(true)
+      await anularPagoPlanilla(id!)
+      message.success('Pago anulado — se eliminó la póliza de pago y se restauró el saldo bancario')
+      cargar()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al anular el pago'))
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  const anular = async () => {
+    try {
+      setProcesando(true)
+      await anularPlanilla(id!)
+      message.success('Planilla anulada — se eliminó la póliza y el período volvió a BORRADOR')
+      cargar()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al anular la planilla'))
     } finally {
       setProcesando(false)
     }
@@ -379,6 +406,22 @@ export default function CorridaPlanillaPage() {
             <Button type="primary" icon={<BankOutlined />} loading={procesando} onClick={abrirModalPago} style={{ background: NAVY }}>
               Registrar pago
             </Button>
+          )}
+          {periodo.estado === 'PAGADA' && (
+            <Popconfirm
+              title="¿Anular el pago de la planilla?"
+              description="Se elimina la póliza de pago y la transacción bancaria, y se restaura el saldo de la cuenta. La planilla regresa a CONTABILIZADA."
+              okText="Anular pago" cancelText="Cancelar" okButtonProps={{ danger: true }} onConfirm={anularPago}>
+              <Button danger loading={procesando}>Anular pago</Button>
+            </Popconfirm>
+          )}
+          {(periodo.estado === 'CONTABILIZADA' || periodo.estado === 'APROBADA') && (
+            <Popconfirm
+              title="¿Anular la planilla?"
+              description="Se elimina la póliza de planilla y el período regresa a BORRADOR para poder correrlo de nuevo."
+              okText="Anular planilla" cancelText="Cancelar" okButtonProps={{ danger: true }} onConfirm={anular}>
+              <Button danger loading={procesando}>Anular planilla</Button>
+            </Popconfirm>
           )}
         </Space>
       </div>

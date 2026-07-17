@@ -41,6 +41,14 @@ export default function PeriodosPlanillaPage() {
 
   useEffect(cargar, [])
 
+  // Combinaciones año/mes/quincena que ya tienen corrida — se muestran en
+  // gris en el modal para que el usuario no las vuelva a correr. Solo
+  // anulando la planilla (pago → planilla → póliza) vuelven a habilitarse.
+  const anioSel = Form.useWatch('anio', form)
+  const mesSel = Form.useWatch('mes', form)
+  const yaCorrida = (anio: number, mes: number, quincena: number) =>
+    periodos.some(p => p.anio === anio && p.mes === mes && p.quincena === quincena)
+
   const crear = async () => {
     try {
       const vals = await form.validateFields()
@@ -191,13 +199,19 @@ export default function PeriodosPlanillaPage() {
               <Select options={[anioActual - 1, anioActual, anioActual + 1].map(y => ({ value: y, label: y }))} />
             </Form.Item>
             <Form.Item name="mes" label="Mes" rules={[{ required: true }]}>
-              <Select options={MESES.map((m, i) => ({ value: i + 1, label: m }))} />
+              <Select options={MESES.map((m, i) => {
+                const completo = !!anioSel && yaCorrida(anioSel, i + 1, 1) && yaCorrida(anioSel, i + 1, 2)
+                return { value: i + 1, label: completo ? `${m} — ya corrido` : m, disabled: completo }
+              })} />
             </Form.Item>
             <Form.Item name="quincena" label="Quincena" rules={[{ required: true }]}>
               <Select options={[
                 { value: 1, label: '1ra (días 1-15)' },
                 { value: 2, label: '2da (16-fin de mes)' },
-              ]} />
+              ].map(o => {
+                const corrida = !!anioSel && !!mesSel && yaCorrida(anioSel, mesSel, o.value)
+                return { ...o, label: corrida ? `${o.label} — ya corrida` : o.label, disabled: corrida }
+              })} />
             </Form.Item>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>

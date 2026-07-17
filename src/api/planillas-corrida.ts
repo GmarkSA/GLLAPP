@@ -189,6 +189,12 @@ export const contabilizarPeriodoPlanilla = (id: string) =>
 export const pagarPeriodoPlanilla = (id: string, dto: { bankAccountId: string; fecha: string }) =>
   api.post(`${BASE}/${id}/pagar`, dto).then(unwrap) as Promise<{ periodo: PeriodoPlanilla; asientoPagoId: string; entryNumber: string; totalPago: number }>
 
+export const anularPagoPlanilla = (id: string) =>
+  api.post(`${BASE}/${id}/anular-pago`).then(unwrap) as Promise<{ ok: boolean; estado: EstadoPeriodoPlanilla }>
+
+export const anularPlanilla = (id: string) =>
+  api.post(`${BASE}/${id}/anular`).then(unwrap) as Promise<{ ok: boolean; estado: EstadoPeriodoPlanilla }>
+
 export const getDistribucionDetalle = (detalleId: string) =>
   api.get(`${BASE}/detalles/${detalleId}/distribucion`).then(unwrap) as Promise<DistribucionFila[]>
 
