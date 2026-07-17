@@ -20,13 +20,19 @@ const { Option } = Select
 
 interface Props {
   vendorId?: string
+  // Modo pendiente: sin vendorId, las cuentas se almacenan localmente
+  // y el padre las recupera con onPendingChange para guardarlas tras crear el proveedor
+  pendingAccounts?: VendorBankAccount[]
+  onPendingChange?: (accounts: VendorBankAccount[]) => void
 }
 
-export default function VendorBankAccountsSection({ vendorId }: Props) {
+export default function VendorBankAccountsSection({ vendorId, pendingAccounts, onPendingChange }: Props) {
+  const isPending = !vendorId && !!onPendingChange
   const [accounts, setAccounts]   = useState<VendorBankAccount[]>([])
   const [loading, setLoading]     = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing]     = useState<VendorBankAccount | null>(null)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [saving, setSaving]       = useState(false)
   const [form]                    = Form.useForm()
 
@@ -41,6 +47,11 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
     }
   }
 
+  // En modo pendiente sincronizar cuentas desde el padre
+  useEffect(() => {
+    if (isPending && pendingAccounts) setAccounts(pendingAccounts)
+  }, [isPending, pendingAccounts])
+
   useEffect(() => { reload() }, [vendorId])
 
   const openNew = () => {
@@ -50,8 +61,9 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
     setModalOpen(true)
   }
 
-  const openEdit = (acc: VendorBankAccount) => {
+  const openEdit = (acc: VendorBankAccount, index?: number) => {
     setEditing(acc)
+    setEditingIndex(index ?? null)
     form.setFieldsValue(acc)
     setModalOpen(true)
   }
@@ -71,6 +83,20 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
   const handleSave = async () => {
     let values: any
     try { values = await form.validateFields() } catch { return }
+
+    // Modo pendiente: guardar en estado local sin llamar a la API
+    if (isPending) {
+      const updated = [...accounts]
+      if (editingIndex !== null) {
+        updated[editingIndex] = { ...editing, ...values }
+      } else {
+        updated.push(values)
+      }
+      setAccounts(updated)
+      onPendingChange!(updated)
+      setModalOpen(false)
+      return
+    }
 
     if (!vendorId) {
       message.warning('Guarda el proveedor primero antes de agregar cuentas bancarias.')
@@ -159,14 +185,22 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
       title: '',
       key: 'actions',
       width: 80,
-      render: (_: any, r: VendorBankAccount) => (
+      render: (_: any, r: VendorBankAccount, index: number) => (
         <Space>
           <Tooltip title="Editar">
-            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r, index)} />
           </Tooltip>
           <Popconfirm
             title="¿Eliminar esta cuenta bancaria?"
-            onConfirm={() => handleDelete(r)}
+            onConfirm={() => {
+              if (isPending) {
+                const updated = accounts.filter((_, i) => i !== index)
+                setAccounts(updated)
+                onPendingChange!(updated)
+              } else {
+                handleDelete(r)
+              }
+            }}
             okText="Sí" cancelText="No"
           >
             <Button size="small" danger icon={<DeleteOutlined />} />
@@ -185,15 +219,14 @@ export default function VendorBankAccountsSection({ vendorId }: Props) {
           type="primary"
           icon={<PlusOutlined />}
           onClick={openNew}
-          disabled={!vendorId}
         >
           Agregar cuenta
         </Button>
       </div>
 
-      {!vendorId && (
-        <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-          Guarda el proveedor primero para poder agregar cuentas bancarias.
+      {isPending && accounts.length === 0 && (
+        <Text type="secondary" style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>
+          Las cuentas se guardarán al crear el proveedor.
         </Text>
       )}
 

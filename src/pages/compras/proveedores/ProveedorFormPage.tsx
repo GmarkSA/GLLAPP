@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons'
 import {
   getVendor, createVendor, updateVendor,
+  createVendorBankAccount,
   type Vendor, type ContactPerson, type Address,
 } from '../../../api/contactos'
 import { getTaxes, type Tax } from '../../../api/impuestos'
@@ -184,6 +185,7 @@ export default function ProveedorFormPage() {
   const [taxTreatment, setTaxTreatment] = useState<string>('taxable')
   const [vendorType,   setVendorType]   = useState<string>('company')
   const [lookingUp,    setLookingUp]    = useState(false)
+  const [pendingBankAccounts, setPendingBankAccounts] = useState<any[]>([])
   const [lookupStatus, setLookupStatus] = useState<'found' | 'not_found' | null>(null)
   const [activeTab,     setActiveTab]     = useState('info')
   const [completedTabs, setCompletedTabs] = useState<Set<string>>(new Set())
@@ -266,7 +268,11 @@ export default function ProveedorFormPage() {
       if (!values.name) values.name = values.legalName
       setSaving(true)
       if (isNew) {
-        await createVendor(values)
+        const newVendor: any = await createVendor(values)
+        // Guardar cuentas bancarias pendientes si las hay
+        if (pendingBankAccounts.length > 0 && newVendor?.id) {
+          await Promise.all(pendingBankAccounts.map(acc => createVendorBankAccount(newVendor.id, acc)))
+        }
         message.success('Proveedor creado exitosamente')
       } else {
         await updateVendor(id!, values)
@@ -885,7 +891,11 @@ export default function ProveedorFormPage() {
                     </Row>
 
                     <Divider titlePlacement="left">Cuentas bancarias del proveedor (guateACH)</Divider>
-                    <VendorBankAccountsSection vendorId={id} />
+                    <VendorBankAccountsSection
+                      vendorId={isNew ? undefined : id}
+                      pendingAccounts={pendingBankAccounts}
+                      onPendingChange={isNew ? setPendingBankAccounts : undefined}
+                    />
                   </div>
                 ),
               },
