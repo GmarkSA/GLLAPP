@@ -6,7 +6,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   PlusOutlined, CalendarOutlined, BookOutlined, BankOutlined, FileTextOutlined, PrinterOutlined,
-  SafetyCertificateOutlined,
+  SafetyCertificateOutlined, GiftOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -179,14 +179,30 @@ export default function PeriodosPlanillaPage() {
             Quincenal (1-15 y 16-fin de mes) · BORRADOR editable → APROBADA congelada
           </Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }}
-          onClick={() => {
-            const dia = dayjs().date()
-            form.setFieldsValue({ tipo: 'ORDINARIA', anio: anioActual, mes: dayjs().month() + 1, quincena: dia <= 15 ? 1 : 2 })
-            setModalOpen(true)
-          }}>
-          Nueva corrida
-        </Button>
+        <Space wrap>
+          <Button icon={<GiftOutlined />}
+            onClick={() => {
+              form.setFieldsValue({ tipo: 'BONO14', anio: anioActual, mes: undefined, quincena: undefined })
+              setModalOpen(true)
+            }}>
+            Planilla Bono 14
+          </Button>
+          <Button icon={<GiftOutlined />}
+            onClick={() => {
+              form.setFieldsValue({ tipo: 'AGUINALDO', anio: anioActual, mes: undefined, quincena: undefined })
+              setModalOpen(true)
+            }}>
+            Planilla Aguinaldo
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }}
+            onClick={() => {
+              const dia = dayjs().date()
+              form.setFieldsValue({ tipo: 'ORDINARIA', anio: anioActual, mes: dayjs().month() + 1, quincena: dia <= 15 ? 1 : 2 })
+              setModalOpen(true)
+            }}>
+            Generar planilla
+          </Button>
+        </Space>
       </div>
 
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
@@ -203,25 +219,25 @@ export default function PeriodosPlanillaPage() {
       </Card>
 
       <Modal
-        title="Nueva corrida de planilla"
+        title={tipoSel === 'BONO14' ? 'Planilla de Bono 14'
+          : tipoSel === 'AGUINALDO' ? 'Planilla de Aguinaldo'
+          : 'Generar planilla quincenal'}
         open={modalOpen} onCancel={() => setModalOpen(false)}
         onOk={crear} okText="Crear corrida" cancelText="Cancelar"
         confirmLoading={creando}
       >
         <Form form={form} layout="vertical" size="small">
-          <Form.Item name="tipo" label="Tipo de corrida" rules={[{ required: true }]}>
+          <Form.Item name="tipo" hidden rules={[{ required: true }]}>
             <Select options={[
-              { value: 'ORDINARIA', label: 'Ordinaria (quincenal)' },
-              { value: 'BONO14', label: 'Bono 14 — anual (jul → jun, pago 15/jul)' },
-              { value: 'AGUINALDO', label: 'Aguinaldo — anual (dic → nov, pago 15/dic)' },
-            ].map(o => {
-              const corrida = o.value !== 'ORDINARIA' && !!anioSel && yaCorridaEspecial(anioSel, o.value)
-              return { ...o, label: corrida ? `${o.label} — ya corrida` : o.label, disabled: corrida }
-            })} />
+              { value: 'ORDINARIA' }, { value: 'BONO14' }, { value: 'AGUINALDO' },
+            ]} />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
             <Form.Item name="anio" label="Año" rules={[{ required: true }]}>
-              <Select options={[anioActual - 1, anioActual, anioActual + 1].map(y => ({ value: y, label: y }))} />
+              <Select options={[anioActual - 1, anioActual, anioActual + 1].map(y => {
+                const corrida = esEspecial && yaCorridaEspecial(y, tipoSel)
+                return { value: y, label: corrida ? `${y} — ya corrida` : y, disabled: corrida }
+              })} />
             </Form.Item>
             {!esEspecial && (
               <Form.Item name="mes" label="Mes" rules={[{ required: !esEspecial }]}>
