@@ -6,6 +6,9 @@ const BASE = '/planillas/periodos'
 
 export type EstadoPeriodoPlanilla = 'BORRADOR' | 'APROBADA' | 'CONTABILIZADA' | 'PAGADA'
 
+/** ORDINARIA = quincenal · BONO14/AGUINALDO = corridas anuales (quincena 0) liquidadas contra la provisión */
+export type TipoPeriodoPlanilla = 'ORDINARIA' | 'BONO14' | 'AGUINALDO'
+
 export interface DetallePlanilla {
   id: string
   periodoId: string
@@ -46,8 +49,9 @@ export interface PeriodoPlanilla {
   id: string
   anio: number
   mes: number
-  /** 1 = días 1-15 (sin deducciones) · 2 = día 16-fin de mes (IGSS/ISR/bonificación del mes completo) */
+  /** 1 = días 1-15 (sin deducciones) · 2 = día 16-fin de mes (IGSS/ISR/bonificación del mes completo) · 0 = corrida especial */
   quincena: number
+  tipo: TipoPeriodoPlanilla
   fechaInicio: string
   fechaFin: string
   estado: EstadoPeriodoPlanilla
@@ -87,6 +91,9 @@ export const getPeriodoPlanilla = (id: string) =>
 
 export const crearPeriodoPlanilla = (dto: { anio: number; mes: number; quincena: number }) =>
   api.post(BASE, dto).then(unwrap) as Promise<PeriodoPlanillaDetalle>
+
+export const crearCorridaEspecial = (dto: { anio: number; tipo: 'BONO14' | 'AGUINALDO' }) =>
+  api.post(`${BASE}/especial`, dto).then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
 export const recalcularPeriodoPlanilla = (id: string) =>
   api.post(`${BASE}/${id}/recalcular`).then(unwrap) as Promise<PeriodoPlanillaDetalle>
@@ -188,6 +195,12 @@ export const contabilizarPeriodoPlanilla = (id: string) =>
 
 export const pagarPeriodoPlanilla = (id: string, dto: { bankAccountId: string; fecha: string }) =>
   api.post(`${BASE}/${id}/pagar`, dto).then(unwrap) as Promise<{ periodo: PeriodoPlanilla; asientoPagoId: string; entryNumber: string; totalPago: number }>
+
+export const anularPagoPlanilla = (id: string) =>
+  api.post(`${BASE}/${id}/anular-pago`).then(unwrap) as Promise<{ ok: boolean; estado: EstadoPeriodoPlanilla }>
+
+export const anularPlanilla = (id: string) =>
+  api.post(`${BASE}/${id}/anular`).then(unwrap) as Promise<{ ok: boolean; estado: EstadoPeriodoPlanilla }>
 
 export const getDistribucionDetalle = (detalleId: string) =>
   api.get(`${BASE}/detalles/${detalleId}/distribucion`).then(unwrap) as Promise<DistribucionFila[]>

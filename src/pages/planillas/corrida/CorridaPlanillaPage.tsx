@@ -15,6 +15,7 @@ import {
   getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
   contabilizarPeriodoPlanilla, pagarPeriodoPlanilla, previsualizarAsientoPlanilla,
+  anularPagoPlanilla, anularPlanilla,
   descargarBoletaPago,
   type PeriodoPlanillaDetalle, type DetallePlanilla, type PreviewAsiento,
 } from '../../../api/planillas-corrida'
@@ -198,7 +199,35 @@ export default function CorridaPlanillaPage() {
     }
   }
 
+  const anularPago = async () => {
+    try {
+      setProcesando(true)
+      await anularPagoPlanilla(id!)
+      message.success('Pago anulado — se eliminó la póliza de pago y se restauró el saldo bancario')
+      cargar()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al anular el pago'))
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  const anular = async () => {
+    try {
+      setProcesando(true)
+      await anularPlanilla(id!)
+      message.success('Planilla anulada — se eliminó la póliza y el período volvió a BORRADOR')
+      cargar()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al anular la planilla'))
+    } finally {
+      setProcesando(false)
+    }
+  }
+
   const esQuincena1 = periodo?.quincena === 1
+  const esEspecial = periodo?.quincena === 0
+  const nombreEspecial = periodo?.tipo === 'BONO14' ? 'Bono 14' : 'Aguinaldo'
   const diasEnMesActual = periodo ? dayjs(`${periodo.anio}-${String(periodo.mes).padStart(2, '0')}-01`).daysInMonth() : 30
   const maxDias = esQuincena1 ? 15 : diasEnMesActual - 15
 
@@ -323,9 +352,36 @@ export default function CorridaPlanillaPage() {
     },
   ]
 
-  const columns: ColumnsType<DetallePlanilla> = esQuincena1
-    ? [...columnasComunes, ...columnasIntermedias, ...columnasFinales]
-    : [...columnasComunes, ...columnasSoloQuincena2, ...columnasIntermedias, ...columnasDeduccionesQuincena2, ...columnasFinales]
+  // Corrida especial: cálculo automático del historial salarial — sin celdas editables
+  const columnasEspecial: ColumnsType<DetallePlanilla> = [
+    columnasComunes[0],
+    columnasComunes[1],
+    {
+      title: <Tooltip title="Días computados de la ventana legal (salario × días ÷ 365)">Días</Tooltip>,
+      dataIndex: 'diasTrabajados', width: 80, align: 'right',
+      render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{Number(v).toFixed(0)}</span>,
+    },
+    {
+      title: 'Neto a pagar', dataIndex: 'netoAPagar', width: 130, align: 'right',
+      render: v => <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: '#389e0d' }}>{fmtQ(v)}</Text>,
+    },
+    {
+      title: 'Banco', key: 'banco', width: 130,
+      render: (_, d) => d.metodoPago === 'INSTITUCION_FINANCIERA' && d.bancoNombre
+        ? (
+          <Tooltip title={`${d.bancoNombre} · ${d.numeroCuentaBancaria ?? 'sin cuenta'}`}>
+            <Text style={{ fontSize: 11 }}>{d.bancoNombre.length > 16 ? `${d.bancoNombre.slice(0, 16)}…` : d.bancoNombre}</Text>
+          </Tooltip>
+        )
+        : <Tag style={{ fontSize: 10 }}>{d.metodoPago === 'CHEQUE' ? 'Cheque' : d.metodoPago === 'BILLETERA_ELECTRONICA' ? 'Billetera' : 'Otro'}</Tag>,
+    },
+  ]
+
+  const columns: ColumnsType<DetallePlanilla> = esEspecial
+    ? columnasEspecial
+    : esQuincena1
+      ? [...columnasComunes, ...columnasIntermedias, ...columnasFinales]
+      : [...columnasComunes, ...columnasSoloQuincena2, ...columnasIntermedias, ...columnasDeduccionesQuincena2, ...columnasFinales]
 
   if (!periodo) return <Spin spinning={loading}><div style={{ height: 200 }} /></Spin>
 
@@ -338,12 +394,16 @@ export default function CorridaPlanillaPage() {
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/planillas/corridas')} style={{ marginTop: 2 }} />
           <div>
             <Title level={4} style={{ margin: 0, color: NAVY }}>
-              Planilla {MESES[periodo.mes - 1]} {periodo.anio} — {periodo.quincena === 1 ? '1ra' : '2da'} quincena
+              {esEspecial
+                ? `${nombreEspecial} ${periodo.anio}`
+                : `Planilla ${MESES[periodo.mes - 1]} ${periodo.anio} — ${periodo.quincena === 1 ? '1ra' : '2da'} quincena`}
               <Tag color={ESTADO_COLOR[periodo.estado]} style={{ marginLeft: 10, fontSize: 11, verticalAlign: 'middle' }}>{periodo.estado}</Tag>
             </Title>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {dayjs(periodo.fechaInicio).format('DD/MM/YYYY')} — {dayjs(periodo.fechaFin).format('DD/MM/YYYY')} · {periodo.totalEmpleados} empleados
-              {esQuincena1 ? ' · solo salario, sin deducciones' : ' · incluye IGSS/ISR/bonificación del mes completo'}
+              {esEspecial
+                ? ' · exenta de IGSS e ISR — el asiento liquida la provisión acumulada y postea solo el ajuste'
+                : esQuincena1 ? ' · solo salario, sin deducciones' : ' · incluye IGSS/ISR/bonificación del mes completo'}
               {periodo.aprobadoAt && ` · aprobada ${dayjs(periodo.aprobadoAt).format('DD/MM/YYYY HH:mm')}${periodo.aprobadoPor ? ` por ${periodo.aprobadoPor}` : ''}`}
             </Text>
           </div>
@@ -379,6 +439,22 @@ export default function CorridaPlanillaPage() {
             <Button type="primary" icon={<BankOutlined />} loading={procesando} onClick={abrirModalPago} style={{ background: NAVY }}>
               Registrar pago
             </Button>
+          )}
+          {periodo.estado === 'PAGADA' && (
+            <Popconfirm
+              title="¿Anular el pago de la planilla?"
+              description="Se elimina la póliza de pago y la transacción bancaria, y se restaura el saldo de la cuenta. La planilla regresa a CONTABILIZADA."
+              okText="Anular pago" cancelText="Cancelar" okButtonProps={{ danger: true }} onConfirm={anularPago}>
+              <Button danger loading={procesando}>Anular pago</Button>
+            </Popconfirm>
+          )}
+          {(periodo.estado === 'CONTABILIZADA' || periodo.estado === 'APROBADA') && (
+            <Popconfirm
+              title="¿Anular la planilla?"
+              description="Se elimina la póliza de planilla y el período regresa a BORRADOR para poder correrlo de nuevo."
+              okText="Anular planilla" cancelText="Cancelar" okButtonProps={{ danger: true }} onConfirm={anular}>
+              <Button danger loading={procesando}>Anular planilla</Button>
+            </Popconfirm>
           )}
         </Space>
       </div>
