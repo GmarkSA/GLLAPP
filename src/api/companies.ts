@@ -32,9 +32,14 @@ export interface DocumentSeries {
   id: string
   companyId: string
   documentType: string
-  series: string
+  series: string | null
+  prefix: string | null
+  suffix: string | null
+  separator: string
   currentNumber: number
   padding: number
+  isActive: boolean
+  resetPeriod: string | null
 }
 
 export const companiesApi = {
