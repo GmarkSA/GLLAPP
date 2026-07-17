@@ -714,7 +714,8 @@ export default function ProveedorFormPage() {
                                   }
                                 </Select>
                               </Form.Item>
-                            </div>
+                            </Card>
+                          </Col>
 
                           {/* IVA Retenida — solo para contribuyente especial / gobierno */}
                           {showRetention && (
@@ -733,8 +734,9 @@ export default function ProveedorFormPage() {
                                     ))}
                                   </Select>
                                 </Form.Item>
-                              </div>
-                            )}
+                              </Card>
+                            </Col>
+                          )}
 
                           {/* ISR / TDS */}
                           <Col xs={24} md={12}>
@@ -763,9 +765,9 @@ export default function ProveedorFormPage() {
                                   }
                                 </Select>
                               </Form.Item>
-                            </div>
-                          </div>
-                        </Card>
+                            </Card>
+                          </Col>
+                        </Row>
 
                         <Divider titlePlacement="left">Cuentas contables e impuesto</Divider>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
