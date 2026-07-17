@@ -82,10 +82,13 @@ const menuItems = [
   ]},
   { key: '/pos',             icon: <TabletOutlined />,       label: 'Terminal POS' },
   { key: 'planillas',        icon: <TeamOutlined />,         label: 'Planillas', children: [
+    { key: '/planillas/corridas',                           label: 'Corridas de planilla' },
     { key: '/planillas/empleados',                          label: 'Empleados' },
+    { key: '/planillas/finiquitos',                         label: 'Finiquitos' },
     { key: '/planillas/configuracion/parametros-fiscales', label: 'Parámetros fiscales' },
     { key: '/planillas/configuracion/datos-patrono',       label: 'Datos del patrono' },
     { key: '/planillas/configuracion/cuentas-contables',   label: 'Cuentas contables' },
+    { key: '/planillas/configuracion/centros-trabajo',     label: 'Centros de trabajo' },
   ]},
   { key: '/proyectos',       icon: <ProjectOutlined />,      label: 'Proyectos' },
   { key: 'reportes',         icon: <BarChartOutlined />,     label: 'Reportes', children: [

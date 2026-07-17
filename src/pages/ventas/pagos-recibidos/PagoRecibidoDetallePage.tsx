@@ -9,6 +9,7 @@ import {
   BankOutlined, FileTextOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { getApiError } from '../../../api/axios'
 import type { ColumnsType } from 'antd/es/table'
 import {
   getPagoRecibido, deletePagoRecibido, reprocessPagoJournal,
@@ -57,7 +58,7 @@ export default function PagoRecibidoDetallePage() {
       message.success(res.message ?? 'Póliza contable reprocesada')
       await load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al reprocesar la póliza')
+      message.error(getApiError(e, 'Error al reprocesar la póliza'))
     } finally { setReprocessing(false) }
   }
 
@@ -69,7 +70,7 @@ export default function PagoRecibidoDetallePage() {
       message.success('Pago eliminado y saldo revertido en la factura')
       navigate('/ventas/pagos-recibidos')
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al eliminar')
+      message.error(getApiError(e, 'Error al eliminar'))
       setDeleting(false)
     }
   }

@@ -10,6 +10,7 @@ import {
   SwapOutlined, EditOutlined, SyncOutlined, TeamOutlined, DollarOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { getApiError } from '../../../api/axios'
 
 import {
   createBill, updateBill, getBill, approveBill, getVendors,
@@ -475,7 +476,7 @@ export default function FacturaProveedorFormPage() {
       message.success('Guardado como borrador')
       navigate(`/compras/facturas/${result.id}`)
     } catch (err: any) {
-      message.error(err?.response?.data?.message ?? 'Error al guardar')
+      message.error(getApiError(err, 'Error al guardar'))
     } finally {
       setSaving(false)
     }
@@ -495,7 +496,7 @@ export default function FacturaProveedorFormPage() {
       message.success('Factura abierta — póliza contable generada')
       navigate(`/compras/facturas/${invoiceId}`)
     } catch (err: any) {
-      message.error(err?.response?.data?.message ?? 'Error al abrir la factura')
+      message.error(getApiError(err, 'Error al abrir la factura'))
     } finally {
       setApproving(false)
     }
@@ -520,7 +521,7 @@ export default function FacturaProveedorFormPage() {
       }
       message.success('Póliza contable regenerada')
     } catch (err: any) {
-      message.error('Error al regenerar: ' + (err?.response?.data?.message ?? 'intente de nuevo'))
+      message.error('Error al regenerar: ' + getApiError(err, 'intente de nuevo'))
     } finally {
       setRegenerating(false)
     }
@@ -555,7 +556,7 @@ export default function FacturaProveedorFormPage() {
       setBillStatus(updated.status)
       setBillBalance(Number(updated.balance ?? 0))
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al aplicar el anticipo')
+      message.error(getApiError(e, 'Error al aplicar el anticipo'))
     } finally { setApplyingAdv(false) }
   }
 

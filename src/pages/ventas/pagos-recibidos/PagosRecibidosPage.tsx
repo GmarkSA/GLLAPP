@@ -15,6 +15,7 @@ import {
   type PagoRecibido, PAYMENT_MODE_LABELS,
 } from '../../../api/pagos-recibidos'
 import { getAsiento, type AsientoDetalle } from '../../../api/asientos'
+import { getApiError } from '../../../api/axios'
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
@@ -180,7 +181,7 @@ export default function PagosRecibidosPage() {
 
   const handleDelete = async (id: string) => {
     try { await deletePagoRecibido(id); message.success('Pago eliminado y saldo revertido'); load() }
-    catch (e: any) { message.error(e?.response?.data?.message || 'Error al eliminar') }
+    catch (e: any) { message.error(getApiError(e, 'Error al eliminar')) }
   }
 
   const handleVerPoliza = async (journalEntryId: string) => {

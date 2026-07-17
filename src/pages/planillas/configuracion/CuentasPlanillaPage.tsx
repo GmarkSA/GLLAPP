@@ -118,7 +118,7 @@ export default function CuentasPlanillaPage() {
         dataSource={conceptos.filter(c => c.naturaleza === naturaleza)}
         columns={[
           {
-            key: 'etiqueta', width: '46%',
+            key: 'etiqueta', width: 250,
             render: (_, c: ConceptoCuentaPlanilla) => (
               <Space size={6}>
                 <Text style={{ fontSize: 12 }}>{c.etiqueta.replace(/^(Gasto|Pasivo) — /, '')}</Text>
@@ -146,7 +146,7 @@ export default function CuentasPlanillaPage() {
   )
 
   return (
-    <div style={{ maxWidth: 1000 }}>
+    <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <AccountBookOutlined style={{ fontSize: 22, color: '#1faec2' }} />
@@ -182,7 +182,7 @@ export default function CuentasPlanillaPage() {
       )}
 
       <Spin spinning={loading}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(560px, 1fr))', gap: 16 }}>
           {renderGrupo('gasto', 'Cuentas de gasto (Debe — dimensionadas por centro)')}
           {renderGrupo('pasivo', 'Cuentas de pasivo (Haber — agrupadas por período)')}
         </div>

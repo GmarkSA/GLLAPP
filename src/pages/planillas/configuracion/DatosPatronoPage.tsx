@@ -75,6 +75,12 @@ export default function DatosPatronoPage() {
                 <Input />
               </Form.Item>
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0 12px' }}>
+              <Form.Item name="tipoPlanillaNombreIGSS" label="Nombre del tipo de planilla (archivo IGSS)"
+                tooltip="Descripción del tipo de planilla que exige el archivo de planilla electrónica v2.2.0, ej. 'Sueldos administración'">
+                <Input />
+              </Form.Item>
+            </div>
           </Card>
 
           <Card size="small" title={<Text strong>Dirección y contacto</Text>} style={{ borderRadius: 8, marginBottom: 16 }}>
