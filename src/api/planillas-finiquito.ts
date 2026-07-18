@@ -3,6 +3,13 @@ import api from './axios'
 const unwrap = (r: any) => r.data?.data ?? r.data
 const BASE = '/planillas/finiquitos'
 
+/** Fechas de último pago leídas de las corridas anuales ya contabilizadas/pagadas (null = nunca pagado) */
+export const getSugerenciasUltimoPago = (empleadoId: string) =>
+  api.get(`${BASE}/empleados/${empleadoId}/sugerencias`).then(unwrap) as Promise<{
+    fechaUltimoPagoBono14: string | null
+    fechaUltimoPagoAguinaldo: string | null
+  }>
+
 export type MotivoBajaFiniquito = 'RENUNCIA' | 'DESPIDO_JUSTIFICADO' | 'DESPIDO_INJUSTIFICADO' | 'MUTUO_ACUERDO' | 'OTRO'
 export type EstadoFiniquito = 'BORRADOR' | 'CONTABILIZADO' | 'PAGADO'
 

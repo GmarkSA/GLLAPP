@@ -9,6 +9,7 @@ import dayjs from 'dayjs'
 import { getEmpleado, nombreCompleto, type EmpleadoDetalle } from '../../../api/planillas-empleados'
 import {
   calcularFiniquito, guardarFiniquito, getFiniquito, contabilizarFiniquito, pagarFiniquito,
+  getSugerenciasUltimoPago,
   type CalculoFiniquito, type Finiquito, type MotivoBajaFiniquito, type DtoFiniquito,
 } from '../../../api/planillas-finiquito'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
@@ -68,17 +69,28 @@ export default function FiniquitoPage() {
   useEffect(() => {
     if (esNuevo && empleadoId) {
       setLoading(true)
-      getEmpleado(empleadoId).then(e => {
+      Promise.all([
+        getEmpleado(empleadoId),
+        // Si ya hubo corrida anual de Bono 14/Aguinaldo (contabilizada o
+        // pagada) donde participó el empleado, el "último pago" se toma en
+        // automático del fin de su ventana legal (30/jun o 30/nov). Si no,
+        // se asume que nunca se le ha pagado: desde su fecha de ingreso.
+        getSugerenciasUltimoPago(empleadoId).catch(() => ({ fechaUltimoPagoBono14: null, fechaUltimoPagoAguinaldo: null })),
+      ]).then(([e, sug]) => {
         setEmpleado(e)
         const fechaInicioLaboral = e.fechaAntiguedad || e.fechaAlta
-        // Por defecto asumimos que nunca se le ha pagado Bono 14/aguinaldo — el
-        // período de acumulación empieza desde su fecha de ingreso. El usuario
-        // ajusta esto solo si sabe que ya hubo un pago previo.
         form.setFieldsValue({
           fechaBaja: dayjs(), motivoBaja: 'RENUNCIA', aplicaIndemnizacion: false, otrasDeducciones: 0,
-          fechaUltimoPagoBono14: dayjs(fechaInicioLaboral).subtract(1, 'day'),
-          fechaUltimoPagoAguinaldo: dayjs(fechaInicioLaboral).subtract(1, 'day'),
+          fechaUltimoPagoBono14: sug.fechaUltimoPagoBono14
+            ? dayjs(sug.fechaUltimoPagoBono14)
+            : dayjs(fechaInicioLaboral).subtract(1, 'day'),
+          fechaUltimoPagoAguinaldo: sug.fechaUltimoPagoAguinaldo
+            ? dayjs(sug.fechaUltimoPagoAguinaldo)
+            : dayjs(fechaInicioLaboral).subtract(1, 'day'),
         })
+        if (sug.fechaUltimoPagoBono14 || sug.fechaUltimoPagoAguinaldo) {
+          message.info('Fechas de último pago tomadas de las corridas anuales ya registradas', 4)
+        }
       })
         .catch(() => message.error('Error cargando empleado'))
         .finally(() => setLoading(false))
