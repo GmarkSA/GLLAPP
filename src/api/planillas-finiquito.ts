@@ -3,6 +3,29 @@ import api from './axios'
 const unwrap = (r: any) => r.data?.data ?? r.data
 const BASE = '/planillas/finiquitos'
 
+export interface PreviewAsientoFiniquito {
+  lines: Array<{
+    accountId: string
+    accountCode: string
+    accountName: string
+    description: string
+    debit: number
+    credit: number
+    centroCostoId: string | null
+    centroBeneficioId: string | null
+  }>
+  totalDebit: number
+  totalCredit: number
+  cuadra: boolean
+  faltantes: string[]
+  sinConfiguracionCuentas: boolean
+  sinAjustes: boolean
+}
+
+/** Borrador de la póliza de ajuste (sin persistir) — para revisar antes de contabilizar */
+export const previsualizarAsientoFiniquito = (id: string) =>
+  api.get(`${BASE}/${id}/preview-asiento`).then(unwrap) as Promise<PreviewAsientoFiniquito>
+
 /** Fechas de último pago leídas de las corridas anuales ya contabilizadas/pagadas (null = nunca pagado) */
 export const getSugerenciasUltimoPago = (empleadoId: string) =>
   api.get(`${BASE}/empleados/${empleadoId}/sugerencias`).then(unwrap) as Promise<{

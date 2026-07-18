@@ -9,8 +9,9 @@ import dayjs from 'dayjs'
 import { getEmpleado, nombreCompleto, type EmpleadoDetalle } from '../../../api/planillas-empleados'
 import {
   calcularFiniquito, guardarFiniquito, getFiniquito, contabilizarFiniquito, pagarFiniquito,
-  getSugerenciasUltimoPago,
+  getSugerenciasUltimoPago, previsualizarAsientoFiniquito,
   type CalculoFiniquito, type Finiquito, type MotivoBajaFiniquito, type DtoFiniquito,
+  type PreviewAsientoFiniquito,
 } from '../../../api/planillas-finiquito'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getApiError } from '../../../api/axios'
@@ -56,6 +57,7 @@ export default function FiniquitoPage() {
 
   const [empleado, setEmpleado] = useState<EmpleadoDetalle | null>(null)
   const [finiquito, setFiniquito] = useState<Finiquito | null>(null)
+  const [previewAsiento, setPreviewAsiento] = useState<PreviewAsientoFiniquito | null>(null)
   const [calculo, setCalculo] = useState<CalculoFiniquito | null>(null)
   const [loading, setLoading] = useState(false)
   const [calculando, setCalculando] = useState(false)
@@ -103,7 +105,15 @@ export default function FiniquitoPage() {
     if (!id) return
     setLoading(true)
     getFiniquito(id)
-      .then(setFiniquito)
+      .then(f => {
+        setFiniquito(f)
+        // Borrador de la póliza de ajuste — solo tiene sentido antes de contabilizar
+        if (f.estado === 'BORRADOR') {
+          previsualizarAsientoFiniquito(id).then(setPreviewAsiento).catch(() => setPreviewAsiento(null))
+        } else {
+          setPreviewAsiento(null)
+        }
+      })
       .catch(() => message.error('Error cargando el finiquito'))
       .finally(() => setLoading(false))
   }
@@ -241,6 +251,49 @@ export default function FiniquitoPage() {
             <Text style={{ fontSize: 14 }}>Neto a pagar: <Text strong style={{ fontFamily: 'monospace', color: '#389e0d', fontSize: 16 }}>{fmtQ(finiquito.netoAPagar)}</Text></Text>
           </Space>
         </Card>
+
+        {finiquito.estado === 'BORRADOR' && previewAsiento && (
+          <Card
+            style={{ borderRadius: 8, marginBottom: 16 }}
+            title={<Text strong style={{ fontSize: 13 }}>Borrador de la póliza de ajuste</Text>}
+            extra={<Text type="secondary" style={{ fontSize: 11 }}>Revierte/completa la provisión contra el gasto — revísala y contabiliza para cerrar el ciclo</Text>}
+          >
+            {previewAsiento.sinAjustes ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                La provisión acumulada ya coincide con el cálculo legal — no hay ajustes que contabilizar.
+              </Text>
+            ) : previewAsiento.faltantes.length > 0 ? (
+              <Text type="warning" style={{ fontSize: 12 }}>
+                Faltan cuentas contables mapeadas para: {previewAsiento.faltantes.join(', ')}. Complétalas en Planillas → Cuentas contables.
+              </Text>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 2fr 0.8fr 0.8fr', gap: 8, paddingBottom: 8, borderBottom: '2px solid #1B3A6B' }}>
+                  <Text strong style={{ fontSize: 11, color: '#8c8c8c' }}>CUENTA</Text>
+                  <Text strong style={{ fontSize: 11, color: '#8c8c8c' }}>DESCRIPCIÓN</Text>
+                  <Text strong style={{ fontSize: 11, color: '#8c8c8c', textAlign: 'right' }}>DEBE</Text>
+                  <Text strong style={{ fontSize: 11, color: '#8c8c8c', textAlign: 'right' }}>HABER</Text>
+                </div>
+                {previewAsiento.lines.map((l, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.1fr 2fr 0.8fr 0.8fr', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <Text style={{ fontSize: 12 }}>{l.accountCode} · {l.accountName}</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>{l.description}</Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'monospace', textAlign: 'right' }}>{l.debit > 0 ? fmtQ(l.debit) : '—'}</Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'monospace', textAlign: 'right' }}>{l.credit > 0 ? fmtQ(l.credit) : '—'}</Text>
+                  </div>
+                ))}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 2fr 0.8fr 0.8fr', gap: 8, padding: '8px 0' }}>
+                  <Text strong style={{ fontSize: 12 }}>Totales</Text>
+                  <Text style={{ fontSize: 11, color: previewAsiento.cuadra ? '#389e0d' : '#cf1322' }}>
+                    {previewAsiento.cuadra ? '✓ La póliza cuadra' : '✗ La póliza NO cuadra — recalcula el finiquito'}
+                  </Text>
+                  <Text strong style={{ fontSize: 12, fontFamily: 'monospace', textAlign: 'right' }}>{fmtQ(previewAsiento.totalDebit)}</Text>
+                  <Text strong style={{ fontSize: 12, fontFamily: 'monospace', textAlign: 'right' }}>{fmtQ(previewAsiento.totalCredit)}</Text>
+                </div>
+              </>
+            )}
+          </Card>
+        )}
 
         {(finiquito.asientoContableId || finiquito.asientoPagoId) && (
           <Space direction="vertical" size={2}>
