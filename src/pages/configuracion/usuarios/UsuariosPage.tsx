@@ -36,53 +36,129 @@ const ACTION_LABELS: Record<string, string> = {
 const MODULE_LABELS: Record<string, string> = {
   ventas:        'Ventas',
   compras:       'Compras',
+  bancos:        'Bancos y Tesorería',
   contabilidad:  'Contabilidad',
-  bancos:        'Bancos',
   inventario:    'Inventario',
   planillas:     'Planillas',
+  proyectos:     'Proyectos',
   reportes:      'Reportes',
   configuracion: 'Configuración',
+  fel:           'FEL',
   platform:      'Plataforma',
 }
 
+// Etiquetas genéricas por submodulo (aplica en todos los módulos)
 const SUBMODULE_LABELS: Record<string, string> = {
-  clientes: 'Clientes', estimaciones: 'Estimaciones', facturas: 'Facturas',
-  'facturas-anticipo': 'Anticipos', 'notas-credito': 'Notas de crédito',
-  'pagos-recibidos': 'Pagos recibidos', proveedores: 'Proveedores',
-  'ordenes-compra': 'Órdenes de compra', 'facturas-proveedor': 'Facturas proveedor',
-  'pagos-realizados': 'Pagos realizados', gastos: 'Gastos',
-  catalogo: 'Catálogo', asientos: 'Asientos', 'libro-diario': 'Libro diario',
-  'libro-mayor': 'Libro mayor', 'estados-financieros': 'Estados financieros',
-  cuentas: 'Cuentas', conciliacion: 'Conciliación', transferencias: 'Transferencias',
-  articulos: 'Artículos', almacenes: 'Almacenes', ubicaciones: 'Ubicaciones',
-  movimientos: 'Movimientos', ajustes: 'Ajustes', importaciones: 'Importaciones',
+  '_': 'General',
+  // ventas
+  clientes:              'Clientes',
+  estimaciones:          'Cotizaciones',
+  facturas:              'Facturas',
+  'facturas-recurrentes': 'Facturas recurrentes',
+  'notas-credito':       'Notas de crédito',
+  pagos:                 'Pagos',
+  'dte-sat':             'DTE SAT',
+  // compras
+  proveedores:           'Proveedores',
+  oc:                    'Órdenes de compra',
+  anticipos:             'Anticipos a proveedores',
+  gastos:                'Gastos',
+  // bancos
+  cuentas:               'Cuentas bancarias',
+  'pagos-realizados':    'Pagos a proveedores',
+  'lote-cheques':        'Lote de cheques',
+  config:                'Config. cheques y ACH',
+  conciliacion:          'Conciliación',
+  transferencias:        'Transferencias',
+  // contabilidad
+  catalogo:              'Catálogo de cuentas',
+  asientos:              'Diarios manuales',
+  'diarios-recurrentes': 'Diarios recurrentes',
+  'activos-fijos':       'Activos fijos',
+  'clases-activo-fijo':  'Clases de activo fijo',
+  presupuesto:           'Presupuestos',
+  'ajuste-moneda':       'Ajustes de moneda',
+  'bloqueo-transacciones': 'Bloqueo de transacciones',
+  'centros-costo':       'Centros de costo',
+  'centros-beneficio':   'Centros de beneficio',
+  // inventario
+  articulos:             'Artículos',
+  grupos:                'Grupos de artículos',
+  almacenes:             'Almacenes',
+  entregas:              'Entregas',
+  expedientes:           'Expediente de importación',
+  produccion:            'Producción',
+  ubicaciones:           'Ubicación / POS',
+  movimientos:           'Movimientos MIGO',
   // planillas
-  corridas: 'Corridas de planilla', empleados: 'Empleados', finiquitos: 'Finiquitos',
-  'parametros-fiscales': 'Parámetros fiscales', 'datos-patrono': 'Datos del patrono',
-  'cuentas-contables': 'Cuentas contables', 'centros-trabajo': 'Centros de trabajo',
+  corridas:              'Corridas de planilla',
+  empleados:             'Empleados',
+  finiquitos:            'Finiquitos',
+  'parametros-fiscales': 'Parámetros fiscales',
+  'datos-patrono':       'Datos del patrono',
+  'cuentas-contables':   'Cuentas contables',
+  'centros-trabajo':     'Centros de trabajo',
+  // proyectos
+  tareas:                'Tareas',
+  // reportes
+  'balance-general':     'Balance General',
+  'estado-resultados':   'Estado de Resultados',
+  'flujo-efectivo':      'Flujo de Caja',
+  'tasas-rendimiento':   'Tasas de Rendimiento',
+  'movimiento-capital':  'Movimiento de Capital',
+  balanza:               'Balanza de Comprobación',
+  'libro-diario':        'Libro Diario',
+  'libro-compras':       'Libro de Compras',
+  'libro-ventas':        'Libro de Ventas',
+  'ap-aging':            'AP Aging (CxP)',
+  'ar-aging':            'AR Aging (CxC)',
+  'proyectado-pagos':    'Proyectado de Pagos',
   // configuracion
-  empresas: 'Empresas', usuarios: 'Usuarios', roles: 'Roles',
-  perfil: 'Perfil', fiscal: 'Fiscal', impuestos: 'Impuestos',
-  'libros-fiscales': 'Libros fiscales', monedas: 'Monedas',
-  'cuentas-defecto': 'Cuentas por defecto', integraciones: 'Integraciones',
-  seguridad: 'Seguridad', tenants: 'Tenants', planes: 'Planes',
-  suscripciones: 'Suscripciones',
+  general:               'General',
+  empresas:              'Empresas',
+  sucursales:            'Sucursales',
+  series:                'Series de documentos',
+  'facturacion-electronica': 'Facturación Electrónica',
+  'bancos-perfiles':     'Perfiles bancarios',
+  'unidades-medida':     'Unidades de medida',
+  monedas:               'Monedas',
+  integraciones:         'Integraciones',
+  apikeys:               'API Keys',
+  // platform
+  tenants:               'Tenants',
+  planes:                'Planes',
+  suscripciones:         'Suscripciones',
+}
+
+// Etiquetas módulo:submodulo para resolver ambigüedades (mismo submodulo en varios módulos)
+const MODULE_SUBMODULE_LABELS: Record<string, string> = {
+  'ventas:pagos':          'Pagos recibidos',
+  'ventas:dte-sat':        'DTE SAT Emitidos',
+  'ventas:notas-credito':  'Notas de crédito cliente',
+  'compras:pagos':         'Pagos a proveedores',
+  'compras:dte-sat':       'DTE SAT Recibidos',
+  'compras:notas-credito': 'Notas de crédito proveedor',
+  'reportes:activos-fijos':     'Reporte Activos fijos',
+  'reportes:centros-beneficio': 'Rentabilidad C. Beneficio',
+  'reportes:centros-costo':     'Ejecución C. Costo',
 }
 
 // Orden de acciones en columnas (las primeras 5 son fijas; el resto son "otros")
 const MAIN_ACTIONS  = ['read', 'create', 'update', 'delete', 'export']
-const EXTRA_ACTIONS = ['approve', 'send', 'import']
+const EXTRA_ACTIONS = ['approve', 'send', 'import', 'manage', 'certify', 'cancel', 'write', 'admin']
 
-// Orden explícito de módulos y submodulos (coincide con el sidebar)
+// Orden de módulos y submodulos — coincide con el sidebar
 const MODULE_ORDER: Record<string, string[]> = {
-  ventas:        ['clientes', 'estimaciones', 'facturas', 'facturas-anticipo', 'notas-credito', 'pagos-recibidos'],
-  compras:       ['proveedores', 'ordenes-compra', 'facturas-proveedor', 'pagos-realizados', 'gastos'],
-  contabilidad:  ['catalogo', 'asientos', 'cuentas', 'estados-financieros'],
-  bancos:        ['cuentas', 'conciliacion', 'transferencias'],
-  inventario:    ['articulos', 'almacenes', 'ubicaciones', 'movimientos', 'ajustes', 'importaciones'],
+  ventas:        ['clientes', 'estimaciones', 'facturas', 'facturas-recurrentes', 'notas-credito', 'pagos', 'dte-sat'],
+  compras:       ['proveedores', 'oc', 'facturas', 'notas-credito', 'dte-sat', 'anticipos', 'pagos', 'gastos'],
+  bancos:        ['cuentas', 'pagos-realizados', 'lote-cheques', 'config', 'conciliacion', 'transferencias'],
+  contabilidad:  ['catalogo', 'asientos', 'diarios-recurrentes', 'activos-fijos', 'clases-activo-fijo', 'presupuesto', 'ajuste-moneda', 'bloqueo-transacciones', 'centros-costo', 'centros-beneficio', '_'],
+  inventario:    ['articulos', 'grupos', 'almacenes', 'entregas', 'expedientes', 'produccion', 'ubicaciones', 'movimientos'],
   planillas:     ['corridas', 'empleados', 'finiquitos', 'parametros-fiscales', 'datos-patrono', 'cuentas-contables', 'centros-trabajo'],
-  reportes:      ['ventas', 'compras', 'contabilidad', 'bancos', 'inventario', 'fiscales', 'planillas'],
-  configuracion: ['empresas', 'usuarios', 'roles', 'perfil', 'fiscal', 'impuestos', 'libros-fiscales', 'monedas'],
+  proyectos:     ['_', 'tareas'],
+  reportes:      ['balance-general', 'estado-resultados', 'flujo-efectivo', 'tasas-rendimiento', 'movimiento-capital', 'balanza', 'libro-diario', 'libro-compras', 'libro-ventas', 'ap-aging', 'ar-aging', 'proyectado-pagos', 'activos-fijos', 'centros-beneficio', 'centros-costo'],
+  configuracion: ['general', 'empresas', 'sucursales', 'series', 'facturacion-electronica', 'bancos-perfiles', 'unidades-medida', 'monedas', 'integraciones', 'apikeys'],
+  fel:           ['_'],
 }
 
 // ── Tipos internos ──────────────────────────────────────────────────────────
@@ -598,7 +674,7 @@ export default function UsuariosPage() {
                                       const extras = EXTRA_ACTIONS.filter(a => row.perms[a])
                                       return (
                                         <tr key={row.submodule} style={{ background: idx % 2 === 0 ? '#fff' : '#fafbfc' }}>
-                                          <td style={tdStyle}>{SUBMODULE_LABELS[row.submodule] ?? row.submodule}</td>
+                                          <td style={tdStyle}>{MODULE_SUBMODULE_LABELS[`${group.module}:${row.submodule}`] ?? SUBMODULE_LABELS[row.submodule] ?? row.submodule}</td>
                                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                                             <Checkbox
                                               checked={isSubmoduleComplete(row)}
