@@ -57,9 +57,9 @@ const SUBMODULE_LABELS: Record<string, string> = {
   articulos: 'Artículos', almacenes: 'Almacenes', ubicaciones: 'Ubicaciones',
   movimientos: 'Movimientos', ajustes: 'Ajustes', importaciones: 'Importaciones',
   // planillas
-  'empleados': 'Empleados', 'periodos': 'Corridas / Períodos',
-  'contabilizacion': 'Contabilización', 'documentos': 'Documentos',
-  'igss': 'IGSS', 'finiquitos': 'Finiquitos',
+  corridas: 'Corridas de planilla', empleados: 'Empleados', finiquitos: 'Finiquitos',
+  'parametros-fiscales': 'Parámetros fiscales', 'datos-patrono': 'Datos del patrono',
+  'cuentas-contables': 'Cuentas contables', 'centros-trabajo': 'Centros de trabajo',
   // configuracion
   empresas: 'Empresas', usuarios: 'Usuarios', roles: 'Roles',
   perfil: 'Perfil', fiscal: 'Fiscal', impuestos: 'Impuestos',
