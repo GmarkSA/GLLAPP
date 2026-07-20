@@ -73,6 +73,18 @@ const SUBMODULE_LABELS: Record<string, string> = {
 const MAIN_ACTIONS  = ['read', 'create', 'update', 'delete', 'export']
 const EXTRA_ACTIONS = ['approve', 'send', 'import']
 
+// Orden explícito de módulos y submodulos (coincide con el sidebar)
+const MODULE_ORDER: Record<string, string[]> = {
+  ventas:        ['clientes', 'estimaciones', 'facturas', 'facturas-anticipo', 'notas-credito', 'pagos-recibidos'],
+  compras:       ['proveedores', 'ordenes-compra', 'facturas-proveedor', 'pagos-realizados', 'gastos'],
+  contabilidad:  ['catalogo', 'asientos', 'cuentas', 'estados-financieros'],
+  bancos:        ['cuentas', 'conciliacion', 'transferencias'],
+  inventario:    ['articulos', 'almacenes', 'ubicaciones', 'movimientos', 'ajustes', 'importaciones'],
+  planillas:     ['corridas', 'empleados', 'finiquitos', 'parametros-fiscales', 'datos-patrono', 'cuentas-contables', 'centros-trabajo'],
+  reportes:      ['ventas', 'compras', 'contabilidad', 'bancos', 'inventario', 'fiscales', 'planillas'],
+  configuracion: ['empresas', 'usuarios', 'roles', 'perfil', 'fiscal', 'impuestos', 'libros-fiscales', 'monedas'],
+}
+
 // ── Tipos internos ──────────────────────────────────────────────────────────
 
 interface ModuleGroup {
@@ -95,10 +107,26 @@ function buildMatrix(allPermissions: PermissionSummary[]): ModuleGroup[] {
     if (!map[p.module][p.submodule]) map[p.module][p.submodule] = {}
     map[p.module][p.submodule][p.action] = p.slug
   }
-  return Object.entries(map).map(([module, subs]) => ({
-    module,
-    submodules: Object.entries(subs).map(([submodule, perms]) => ({ submodule, perms })),
-  }))
+  const moduleOrder = Object.keys(MODULE_ORDER)
+  return Object.entries(map)
+    .sort(([a], [b]) => {
+      const ia = moduleOrder.indexOf(a), ib = moduleOrder.indexOf(b)
+      if (ia === -1 && ib === -1) return a.localeCompare(b)
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
+    .map(([module, subs]) => {
+      const subOrder = MODULE_ORDER[module] ?? []
+      const sorted = Object.entries(subs).sort(([a], [b]) => {
+        const ia = subOrder.indexOf(a), ib = subOrder.indexOf(b)
+        if (ia === -1 && ib === -1) return a.localeCompare(b)
+        if (ia === -1) return 1
+        if (ib === -1) return -1
+        return ia - ib
+      })
+      return { module, submodules: sorted.map(([submodule, perms]) => ({ submodule, perms })) }
+    })
 }
 
 // ── Componente principal ────────────────────────────────────────────────────
