@@ -16,6 +16,7 @@ import {
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
+import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
 import EspacioDesarrolloPage  from './EspacioDesarrolloPage'
@@ -328,11 +329,18 @@ function FiscalSection({
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [regimes, setRegimes] = useState<FiscalRegime[]>([])
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const companyCountryCode = countryCodeFromValue((activeCompany as any)?.countryCode ?? (activeCompany as any)?.country ?? profile?.country)
   const watchedCountry = Form.useWatch(['settings', 'fiscalCountryCode'], form)
   const fiscalCountryCode = countryCodeFromValue(watchedCountry ?? companyCountryCode)
   const fiscalMeta = COUNTRY_FISCAL_CONFIG[fiscalCountryCode] ?? COUNTRY_FISCAL_CONFIG.GT
+  const watchedRegimeId = Form.useWatch(['settings', 'fiscalRegimeId'], form)
+  const selectedRegime = regimes.find(r => r.id === watchedRegimeId)
+
+  useEffect(() => {
+    fiscalRegimesApi.getAll(fiscalCountryCode).then(setRegimes).catch(() => {})
+  }, [fiscalCountryCode])
 
   useEffect(() => {
     if (profile) {
@@ -399,6 +407,35 @@ function FiscalSection({
                     ))}
                   </Select>
                 </Form.Item>
+              </Col>
+
+              {/* ── Régimen fiscal ─────────────────────────────────────────── */}
+              <Col xs={24} style={{ marginTop: 8 }}>
+                <Form.Item name={['settings', 'fiscalRegimeId']} label="Régimen fiscal" style={{ marginBottom: 4 }}>
+                  <Select
+                    size="large"
+                    placeholder="Selecciona el régimen fiscal de la empresa"
+                    allowClear
+                    options={regimes.map(r => ({ value: r.id, label: r.name }))}
+                  />
+                </Form.Item>
+                {selectedRegime && (
+                  <div style={{
+                    background: '#f0fafe', borderRadius: 8, padding: '8px 12px',
+                    border: '1px solid #bae0ed', fontSize: 12, color: '#374151',
+                    display: 'flex', gap: 16, flexWrap: 'wrap',
+                  }}>
+                    {selectedRegime.description && (
+                      <span>{selectedRegime.description}</span>
+                    )}
+                    <span>
+                      <strong>IVA:</strong> {selectedRegime.taxConfig.mainTaxName} {selectedRegime.taxConfig.mainTaxRate}%
+                    </span>
+                    {selectedRegime.taxConfig.hasFEL && (
+                      <Tag color="#1faec2" style={{ fontSize: 11 }}>FEL</Tag>
+                    )}
+                  </div>
+                )}
               </Col>
             </Row>
           </SectionCard>
