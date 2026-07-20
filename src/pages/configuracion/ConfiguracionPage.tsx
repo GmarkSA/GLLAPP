@@ -14,6 +14,7 @@ import {
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
@@ -837,6 +838,26 @@ function AccountDefaultsSection() {
     }
   }
 
+  const sugerirCuentas = () => {
+    const GLL: Record<keyof AccountDefaults, string> = {
+      customerAdvanceAccountCode:  '214001',
+      vendorAdvanceAccountCode:    '150001',
+      employeeAdvanceAccountCode:  '122001',
+      fxGainAccountCode:           '700002',
+      fxLossAccountCode:           '710003',
+    }
+    const byCode = (code: string) => accounts.find(a => a.code === code)?.code
+    setDefaults(prev => ({
+      ...prev,
+      ...Object.fromEntries(
+        (Object.entries(GLL) as [keyof AccountDefaults, string][])
+          .filter(([, code]) => !!byCode(code))
+          .map(([key, code]) => [key, byCode(code)!]),
+      ),
+    }))
+    message.success('Cuentas GLL sugeridas aplicadas. Haga clic en Guardar para confirmar.')
+  }
+
   const accountOptions = accounts.map(a => ({
     value: a.code,
     label: `${a.code} — ${a.name}`,
@@ -845,6 +866,15 @@ function AccountDefaultsSection() {
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Button
+            icon={<ThunderboltOutlined />}
+            style={{ color: '#1faec2', borderColor: '#1faec2' }}
+            onClick={sugerirCuentas}
+          >
+            Usar catálogo sugerido
+          </Button>
+        </div>
         <SectionCard title="Anticipos" icon={<DollarOutlined />}>
           <Row gutter={20}>
             <Col xs={24} md={12}>

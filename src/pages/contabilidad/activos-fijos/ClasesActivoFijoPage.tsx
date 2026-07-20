@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ReloadOutlined, LockOutlined, UnlockOutlined, PlusOutlined,
   DeleteOutlined, SaveOutlined, BookOutlined, EditOutlined, CopyOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import {
   getClasesActivoFijo, crearClaseActivoFijo, actualizarClaseActivoFijo,
@@ -18,6 +19,22 @@ import { getAccounts, type Account } from '../../../api/catalogo'
 const { Title } = Typography
 
 type Pending = Partial<Omit<ClaseActivoFijo, 'id' | 'companyId'>>
+
+// Cuentas sugeridas por clase (ISR Guatemala — catálogo GLL estándar)
+const SUGERENCIAS_CLASES: Record<string, {
+  altaCode?: string; depAcumCode?: string; gastoDepCode?: string
+  gananciaCode?: string; perdidaCode?: string
+}> = {
+  '1000': { altaCode: '160001' },                                                                                                   // TERRENOS — sin depreciación
+  '2000': { altaCode: '160006', depAcumCode: '160011', gastoDepCode: '640005', gananciaCode: '460001', perdidaCode: '660001' },    // MOBILIARIO Y EQUIPO
+  '3000': { altaCode: '160005', depAcumCode: '160010', gastoDepCode: '640004', gananciaCode: '460001', perdidaCode: '660001' },    // EQUIPO DE COMPUTACIÓN
+  '4000': { altaCode: '170001', depAcumCode: '170003', gastoDepCode: '640006', gananciaCode: '460001', perdidaCode: '660001' },    // PROGRAMAS DE COMPUTACIÓN
+  '5000': { altaCode: '160004', depAcumCode: '160009', gastoDepCode: '640003', gananciaCode: '460001', perdidaCode: '660001' },    // VEHÍCULOS
+  '6000': { altaCode: '160003', depAcumCode: '160008', gastoDepCode: '640002', gananciaCode: '460001', perdidaCode: '660001' },    // HERRAMIENTAS
+  '7000': { altaCode: '160003', depAcumCode: '160008', gastoDepCode: '640002', gananciaCode: '460001', perdidaCode: '660001' },    // MAQUINARIA Y EQUIPO
+  '8000': { altaCode: '160002', depAcumCode: '160007', gastoDepCode: '640001', gananciaCode: '460001', perdidaCode: '660001' },    // EDIFICIOS Y CONSTRUCCIONES
+  '9000': { altaCode: '170001', depAcumCode: '170003', gastoDepCode: '640006', gananciaCode: '460001', perdidaCode: '660001' },    // TÍTULOS Y DERECHOS
+}
 
 type NuevaClaseForm = {
   codigo: string
@@ -79,12 +96,13 @@ const AccountCellSelect = memo(function AccountCellSelect({
 
 // ── Página ────────────────────────────────────────────────────────────────────
 export default function ClasesActivoFijoPage() {
-  const [data,       setData]       = useState<ClaseActivoFijo[]>([])
-  const [accounts,   setAccounts]   = useState<Account[]>([])
-  const [loading,    setLoading]    = useState(false)
-  const [seeding,    setSeeding]    = useState(false)
-  const [pending,    setPending]    = useState<Record<string, Pending>>({})
-  const [saving,     setSaving]     = useState<Record<string, boolean>>({})
+  const [data,        setData]       = useState<ClaseActivoFijo[]>([])
+  const [accounts,    setAccounts]   = useState<Account[]>([])
+  const [loading,     setLoading]    = useState(false)
+  const [seeding,     setSeeding]    = useState(false)
+  const [sugeriendo,  setSugeriendo] = useState(false)
+  const [pending,     setPending]    = useState<Record<string, Pending>>({})
+  const [saving,      setSaving]     = useState<Record<string, boolean>>({})
 
   // Modal editar nombre
   const [editTarget, setEditTarget] = useState<ClaseActivoFijo | null>(null)
@@ -215,6 +233,35 @@ export default function ClasesActivoFijoPage() {
     finally { setSeeding(false) }
   }
 
+  const handleSugerir = async () => {
+    setSugeriendo(true)
+    const byCode = (code: string) => accounts.find(a => a.code === code)?.id ?? null
+    let saved = 0
+    try {
+      for (const clase of data) {
+        if (!clase.id) continue
+        const sug = SUGERENCIAS_CLASES[clase.codigo]
+        if (!sug) continue
+        const update: Partial<Pending> = {}
+        if (sug.altaCode)     { const id = byCode(sug.altaCode);     if (id) update.cuentaAltasId = id }
+        if (sug.depAcumCode)  { const id = byCode(sug.depAcumCode);  if (id) update.cuentaDepreciacionAcumuladaId = id }
+        if (sug.gastoDepCode) { const id = byCode(sug.gastoDepCode); if (id) update.cuentaGastoDepreciacionId = id }
+        if (sug.gananciaCode) { const id = byCode(sug.gananciaCode); if (id) update.cuentaGananciaPorVentaId = id }
+        if (sug.perdidaCode)  { const id = byCode(sug.perdidaCode);  if (id) update.cuentaPerdidaPorVentaId = id }
+        if (Object.keys(update).length > 0) {
+          await actualizarClaseActivoFijo(clase.id, update)
+          saved++
+        }
+      }
+      message.success(`Catálogo sugerido aplicado en ${saved} clase${saved !== 1 ? 's' : ''}.`)
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al aplicar sugerencias')
+    } finally {
+      setSugeriendo(false)
+    }
+  }
+
   // ── Columnas ──────────────────────────────────────────────────────────────
   const acctCol = (field: keyof Pending, title: string): ColumnsType<ClaseActivoFijo>[number] => ({
     title: <span style={{ fontSize: 11 }}>{title}</span>,
@@ -329,6 +376,19 @@ export default function ClasesActivoFijoPage() {
             style={{ background: '#1faec2' }}>
             Agregar
           </Button>
+          <Popconfirm
+            title="Usar catálogo sugerido"
+            description="Se asignarán cuentas del catálogo GLL estándar a cada clase. ¿Continuar?"
+            onConfirm={handleSugerir}
+            okText="Aplicar"
+            cancelText="Cancelar"
+            okButtonProps={{ style: { background: '#1faec2' } }}
+          >
+            <Button icon={<ThunderboltOutlined />} loading={sugeriendo}
+              style={{ color: '#1faec2', borderColor: '#1faec2' }}>
+              Usar catálogo sugerido
+            </Button>
+          </Popconfirm>
           <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}>
             Generar clases Guatemala
           </Button>
