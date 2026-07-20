@@ -27,13 +27,14 @@ const COUNTRIES = [
   { code: 'CR', name: 'Costa Rica',  currency: 'CRC', flag: 'CR' },
   { code: 'MX', name: 'Mexico',      currency: 'MXN', flag: 'MX' },
 ]
-const MODULES = [
-  { value: 'ventas',        label: 'Ventas',        icon: '🛒', desc: 'Clientes, facturas, cotizaciones, pagos' },
-  { value: 'compras',       label: 'Compras',       icon: '🏪', desc: 'Proveedores, órdenes, facturas proveedor' },
-  { value: 'inventario',    label: 'Inventario',    icon: '📦', desc: 'Artículos, almacenes, movimientos' },
-  { value: 'contabilidad',  label: 'Contabilidad',  icon: '📊', desc: 'Catálogo de cuentas, asientos, reportes' },
-  { value: 'bancos',        label: 'Tesorería',     icon: '🏦', desc: 'Cuentas bancarias, conciliación' },
-  { value: 'activos',       label: 'Activos Fijos', icon: '🏗️', desc: 'Depreciación, baja, calendario' },
+const MODULES: Array<{ value: string; label: string; icon: string; desc: string; locked?: boolean }> = [
+  { value: 'contabilidad', label: 'Contabilidad',  icon: '📊', desc: 'Catálogo de cuentas, diarios, reportes financieros', locked: true },
+  { value: 'ventas',       label: 'Ventas',        icon: '🛒', desc: 'Clientes, facturas, cotizaciones, cobros' },
+  { value: 'compras',      label: 'Compras',       icon: '🏪', desc: 'Proveedores, órdenes de compra, facturas proveedor' },
+  { value: 'bancos',       label: 'Tesorería',     icon: '🏦', desc: 'Cuentas bancarias, pagos, conciliación bancaria' },
+  { value: 'inventario',   label: 'Inventario',    icon: '📦', desc: 'Artículos, almacenes, movimientos de stock' },
+  { value: 'planillas',    label: 'Planillas',     icon: '👥', desc: 'Empleados, corridas de planilla, IGSS, finiquitos' },
+  { value: 'fel',          label: 'FEL',           icon: '📄', desc: 'Factura Electrónica en Línea — SAT Guatemala' },
 ]
 
 export default function OnboardingWizardPage() {
@@ -65,9 +66,9 @@ export default function OnboardingWizardPage() {
   const [tenantUsers, setTenantUsers]       = useState<TenantUser[]>([])
   const [selectedUsers, setSelectedUsers]   = useState<string[]>([])
 
-  // Paso 6 — Módulos
+  // Paso 6 — Módulos (contabilidad siempre activo)
   const [selectedModules, setSelectedModules] = useState<string[]>([
-    'ventas', 'compras', 'contabilidad', 'bancos',
+    'contabilidad', 'ventas', 'compras', 'bancos',
   ])
 
   const loadStep = useCallback(async (step: number) => {
@@ -349,29 +350,39 @@ export default function OnboardingWizardPage() {
       {/* ── Paso 5: Módulos ──────────────────────────────────────────────────── */}
       {current === 5 && (
         <Card title="Módulos a Activar">
-          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-            Seleccione los módulos que utilizará esta empresa:
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            Seleccione los módulos que utilizará esta empresa. Puede activar más desde Configuración en cualquier momento.
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {MODULES.map(mod => {
-              const active = selectedModules.includes(mod.value)
+              const active = selectedModules.includes(mod.value) || !!mod.locked
               return (
                 <div
                   key={mod.value}
-                  onClick={() => setSelectedModules(prev =>
-                    active ? prev.filter(m => m !== mod.value) : [...prev, mod.value],
-                  )}
+                  onClick={() => {
+                    if (mod.locked) return
+                    setSelectedModules(prev =>
+                      active ? prev.filter(m => m !== mod.value) : [...prev, mod.value],
+                    )
+                  }}
                   style={{
                     padding: '12px 14px',
                     border: `2px solid ${active ? '#1faec2' : 'rgba(10,10,10,0.08)'}`,
-                    borderRadius: 8, cursor: 'pointer',
-                    background: active ? '#fafbfc' : '#fff',
+                    borderRadius: 8,
+                    cursor: mod.locked ? 'default' : 'pointer',
+                    background: active ? (mod.locked ? '#f0fafe' : '#fafbfc') : '#fff',
+                    opacity: 1,
                   }}
                 >
-                  <div style={{ fontSize: 20 }}>{mod.icon}</div>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginTop: 4 }}>{mod.label}</div>
-                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{mod.desc}</div>
-                  {active && <Tag color="#1faec2" style={{ marginTop: 6, fontSize: 10 }}>Activo</Tag>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 22 }}>{mod.icon}</span>
+                    {mod.locked
+                      ? <Tag style={{ fontSize: 10, margin: 0 }}>Requerido</Tag>
+                      : active && <Tag color="#1faec2" style={{ fontSize: 10, margin: 0 }}>Activo</Tag>
+                    }
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginTop: 6 }}>{mod.label}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, lineHeight: '1.4' }}>{mod.desc}</div>
                 </div>
               )
             })}
