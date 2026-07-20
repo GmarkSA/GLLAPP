@@ -10,14 +10,15 @@ import {
   BankOutlined, GlobalOutlined, DollarOutlined,
   MailOutlined, PhoneOutlined, EnvironmentOutlined,
   CameraOutlined, SaveOutlined, TeamOutlined,
-  SecurityScanOutlined, ApiOutlined, BellOutlined,
+  ApiOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
-  CreditCardOutlined, LockOutlined, SettingOutlined, AuditOutlined, SwapOutlined,
+  CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
 } from '@ant-design/icons'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
 import EspacioDesarrolloPage  from './EspacioDesarrolloPage'
+import IntegracionesPage      from './IntegracionesPage'
 import type { UploadChangeParam } from 'antd/es/upload'
 import {
   getOrganizationProfile,
@@ -41,18 +42,13 @@ const { TextArea } = Input
 // ── Sidebar sections (Zoho Books pattern) ──────────────────────────────────
 const sections = [
   { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organización' },
-  { key: 'fiscal',          icon: <FileTextOutlined />,     label: 'Configuración fiscal' },
   { key: 'taxes',           icon: <PercentageOutlined />,   label: 'Impuestos' },
   { key: 'librosSAT',       icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
   { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
-  { key: 'accountDefaults', icon: <ApiOutlined />,          label: 'Cuentas por defecto' },
-  { key: 'preferences',    icon: <SettingOutlined />,      label: 'Preferencias' },
   { key: 'contabilidad',   icon: <AuditOutlined />,         label: 'Contabilidad' },
   { key: 'users',          icon: <TeamOutlined />,          label: 'Usuarios y roles' },
   { key: 'subscription',    icon: <CreditCardOutlined />,   label: 'Suscripción y Facturación' },
-  { key: 'notifications',   icon: <BellOutlined />,         label: 'Notificaciones' },
   { key: 'integrations',    icon: <ApiOutlined />,          label: 'Integraciones' },
-  { key: 'security',        icon: <SecurityScanOutlined />, label: 'Seguridad' },
   { key: 'devspace',        icon: <CodeOutlined />,         label: 'Espacio de desarrollo' },
 ]
 
@@ -161,11 +157,6 @@ function OrganizationSection({
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
-        <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Perfil de organización</Title>
-          <Text type="secondary">Información general de tu empresa que aparece en documentos y reportes</Text>
-        </div>
-
         {/* Logo row */}
         <Card bordered={false} style={cardStyle} bodyStyle={{ padding: '24px 28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
@@ -223,22 +214,22 @@ function OrganizationSection({
           <SectionCard title="Información básica" icon={<BankOutlined />}>
             <Row gutter={20}>
               <Col xs={24} md={12}>
-                <Form.Item name="name" label="Nombre comercial" rules={[{ required: true, message: 'Requerido' }]}>
+                <Form.Item name="name" label="Nombre comercial" style={{ marginBottom: 16 }} rules={[{ required: true, message: 'Requerido' }]}>
                   <Input placeholder="Mi Empresa S.A." size="large" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="legalName" label="Razón social">
+                <Form.Item name="legalName" label="Razón social" style={{ marginBottom: 16 }}>
                   <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="taxId" label="NIT / RFC / RUC">
+                <Form.Item name="taxId" label="NIT / RFC / RUC" style={{ marginBottom: 8 }}>
                   <Input placeholder="1234567-8" size="large" prefix={<FileTextOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="industry" label="Industria">
+                <Form.Item name="industry" label="Industria" style={{ marginBottom: 16 }}>
                   <Select placeholder="Selecciona una industria" size="large">
                     {['Comercio', 'Manufactura', 'Servicios profesionales', 'Tecnología',
                       'Construcción', 'Salud', 'Educación', 'Agricultura', 'Otro'].map(i =>
@@ -247,61 +238,60 @@ function OrganizationSection({
                   </Select>
                 </Form.Item>
               </Col>
+              <Col xs={24}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  El NIT y la Razón social se usan como emisor en Facturación Electrónica FEL (SAT Guatemala)
+                </Text>
+              </Col>
             </Row>
           </SectionCard>
 
-          {/* Contact */}
-          <SectionCard title="Información de contacto" icon={<MailOutlined />}>
-            <Row gutter={20}>
-              <Col xs={24} md={12}>
-                <Form.Item name="email" label="Correo electrónico" rules={[{ type: 'email', message: 'Email inválido' }]}>
+          {/* Contact + Address */}
+          <SectionCard title="Contacto y dirección" icon={<MailOutlined />}>
+            <Row gutter={[16, 0]}>
+              <Col xs={24} md={14}>
+                <Form.Item name="email" label="Correo electrónico" style={{ marginBottom: 16 }} rules={[{ type: 'email', message: 'Email inválido' }]}>
                   <Input placeholder="info@miempresa.com" size="large" prefix={<MailOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={12}>
-                <Form.Item name="phone" label="Teléfono">
+              <Col xs={24} md={10}>
+                <Form.Item name="phone" label="Teléfono" style={{ marginBottom: 16 }}>
                   <Input placeholder="+502 2345-6789" size="large" prefix={<PhoneOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={12}>
-                <Form.Item name="website" label="Sitio web">
-                  <Input placeholder="https://miempresa.com" size="large" prefix={<GlobalOutlined style={{ color: '#bbb' }} />} />
-                </Form.Item>
-              </Col>
-            </Row>
-          </SectionCard>
-
-          {/* Address */}
-          <SectionCard title="Dirección" icon={<EnvironmentOutlined />}>
-            <Row gutter={20}>
-              <Col xs={24}>
-                <Form.Item name="address" label="Dirección">
+              <Col xs={24} md={16}>
+                <Form.Item name="address" label="Dirección" style={{ marginBottom: 16 }}>
                   <TextArea
                     placeholder="5a Avenida 4-50, Zona 1"
-                    rows={2}
+                    rows={1}
                     size="large"
                     style={{ resize: 'none' }}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
-                <Form.Item name="city" label="Ciudad">
-                  <Input placeholder="Ciudad de Guatemala" size="large" />
+                <Form.Item name="website" label="Sitio web" style={{ marginBottom: 16 }}>
+                  <Input placeholder="https://miempresa.com" size="large" prefix={<GlobalOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
-                <Form.Item name="state" label="Departamento / Estado">
+                <Form.Item name="city" label="Ciudad" style={{ marginBottom: 0 }}>
+                  <Input placeholder="Guat. Ciudad" size="large" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="state" label="Depto. / Estado" style={{ marginBottom: 0 }}>
                   <Input placeholder="Guatemala" size="large" />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={8}>
-                <Form.Item name="zipCode" label="Código postal">
+              <Col xs={24} md={4}>
+                <Form.Item name="zipCode" label="C. Postal" style={{ marginBottom: 0 }}>
                   <Input placeholder="01001" size="large" />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={12}>
-                <Form.Item name="country" label="País">
-                  <Select placeholder="Selecciona un país" size="large">
+              <Col xs={24} md={4}>
+                <Form.Item name="country" label="País" style={{ marginBottom: 0 }}>
+                  <Select placeholder="País" size="large">
                     {COUNTRIES.map(c => <Option key={c} value={c}>{c}</Option>)}
                   </Select>
                 </Form.Item>
@@ -371,17 +361,12 @@ function FiscalSection({
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
-        <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Configuración fiscal</Title>
-          <Text type="secondary">Parámetros para la generación de documentos fiscales y reportes</Text>
-        </div>
-
         <Form form={form} layout="vertical">
-          <SectionCard title="Pais fiscal" icon={<GlobalOutlined />}>
+          <SectionCard title="País fiscal y año fiscal" icon={<GlobalOutlined />}>
             <Row gutter={20}>
               <Col xs={24} md={12}>
-                <Form.Item name={['settings', 'fiscalCountryCode']} label="Pais / autoridad fiscal">
-                  <Select size="large" placeholder="Selecciona pais fiscal">
+                <Form.Item name={['settings', 'fiscalCountryCode']} label="País / autoridad fiscal" style={{ marginBottom: 16 }}>
+                  <Select size="large" placeholder="Selecciona país fiscal">
                     {Object.entries(COUNTRY_FISCAL_CONFIG).map(([code, meta]) => (
                       <Option key={code} value={code}>{code} - {meta.country}</Option>
                     ))}
@@ -389,29 +374,24 @@ function FiscalSection({
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="Moneda local / consolidacion">
+                <Form.Item label="Moneda local / consolidación" style={{ marginBottom: 16 }}>
                   <Input value={`${fiscalMeta.currency} / USD`} size="large" disabled />
                 </Form.Item>
               </Col>
-            </Row>
-          </SectionCard>
-
-          <SectionCard title="Año fiscal" icon={<ClockCircleOutlined />}>
-            <Row gutter={20}>
               <Col xs={24} md={12}>
-                <Form.Item name="fiscalYearStart" label="Inicio del año fiscal">
+                <Form.Item name="fiscalYearStart" label="Inicio del año fiscal" style={{ marginBottom: 4 }}>
                   <Select placeholder="Mes de inicio" size="large">
                     {FISCAL_MONTHS.map(m => (
                       <Option key={m.value} value={m.value}>{m.label}</Option>
                     ))}
                   </Select>
                 </Form.Item>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 16 }}>
-                  El anio fiscal de este pais inicia en el mes seleccionado
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 0 }}>
+                  El año fiscal de este país inicia en el mes seleccionado
                 </Text>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="timezone" label="Zona horaria">
+                <Form.Item name="timezone" label="Zona horaria" style={{ marginBottom: 0 }}>
                   <Select placeholder="Selecciona zona horaria" size="large">
                     {TIMEZONES.map(t => (
                       <Option key={t.value} value={t.value}>{t.label}</Option>
@@ -422,48 +402,22 @@ function FiscalSection({
             </Row>
           </SectionCard>
 
-          <SectionCard title={fiscalMeta.invoiceName} icon={<FileTextOutlined />}>
-            <div style={{
-              background: '#e6fafd', borderRadius: 8, padding: '16px 20px',
-              border: '1px solid rgba(31,174,194,0.2)', marginBottom: 16,
-            }}>
-              <Space>
-                <Tag color="#1faec2">{fiscalMeta.authority}</Tag>
-                <Text style={{ fontSize: 13 }}>
-                  La configuracion de facturacion electronica se realiza en la seccion <strong>Integraciones</strong>
-                </Text>
-              </Space>
-            </div>
-            <Row gutter={20}>
-              <Col xs={24} md={12}>
-                <Form.Item name="taxId" label={fiscalMeta.taxIdLabel}>
-                  <Input placeholder="1234567-8" size="large" />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={12}>
-                <Form.Item name="legalName" label={`Nombre del emisor (como en ${fiscalMeta.authority})`}>
-                  <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
-                </Form.Item>
-              </Col>
-            </Row>
-          </SectionCard>
-
           <SectionCard title="Acceso SAT — Agencia Virtual" icon={<LockOutlined />}>
             <div style={{
-              background: '#fffbeb', borderRadius: 8, padding: '12px 16px',
-              border: '1px solid #fde68a', marginBottom: 16, fontSize: 13,
+              background: '#fffbeb', borderRadius: 8, padding: '10px 14px',
+              border: '1px solid #fde68a', marginBottom: 14, fontSize: 12,
             }}>
               Estas credenciales se usan para importar DTE desde la Agencia Virtual del SAT.
               Se guardan cifradas y solo se envían a APIFY vía HTTPS para ejecutar la consulta.
             </div>
             <Row gutter={20}>
               <Col xs={24} md={12}>
-                <Form.Item name={['settings', 'satNit']} label="NIT — Agencia Virtual SAT">
+                <Form.Item name={['settings', 'satNit']} label="NIT — Agencia Virtual SAT" style={{ marginBottom: 0 }}>
                   <Input placeholder="108285685" size="large" autoComplete="off" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name={['settings', 'satAgenciaPassword']} label="Contraseña — Agencia Virtual SAT">
+                <Form.Item name={['settings', 'satAgenciaPassword']} label="Contraseña — Agencia Virtual SAT" style={{ marginBottom: 0 }}>
                   <Input.Password placeholder="••••••••" size="large" autoComplete="new-password" />
                 </Form.Item>
               </Col>
@@ -891,13 +845,6 @@ function AccountDefaultsSection() {
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
-        <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Cuentas por defecto</Title>
-          <Text type="secondary">
-            Define las cuentas contables que se usarán automáticamente al registrar anticipos y documentos sin cuenta específica
-          </Text>
-        </div>
-
         <SectionCard title="Anticipos" icon={<DollarOutlined />}>
           <Row gutter={20}>
             <Col xs={24} md={12}>
@@ -1076,11 +1023,6 @@ function PreferencesSection() {
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
-        <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Preferencias</Title>
-          <Text type="secondary">Opciones de comportamiento del sistema para esta empresa</Text>
-        </div>
-
         <SectionCard title="Documentos" icon={<FileTextOutlined />}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '8px 0' }}>
             <Switch checked={preventDuplicates} onChange={setPreventDuplicates} />
@@ -1151,13 +1093,6 @@ function ContabilidadSection() {
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
-        <div style={{ marginBottom: 28 }}>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Contabilidad</Title>
-          <Text type="secondary">
-            Configuración de dimensiones analíticas para centros de costo y centros de beneficio
-          </Text>
-        </div>
-
         <SectionCard title="Dimensiones analíticas" icon={<AuditOutlined />}>
           <Text type="secondary" style={{ display: 'block', marginBottom: 20, fontSize: 13 }}>
             Estas opciones determinan si el sistema exige dimensiones analíticas al contabilizar transacciones.
@@ -1233,14 +1168,14 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
   return (
     <Card
       bordered={false}
-      style={{ ...cardStyle, marginBottom: 16 }}
-      bodyStyle={{ padding: '20px 24px' }}
+      style={{ ...cardStyle, marginBottom: 12 }}
+      bodyStyle={{ padding: '14px 20px' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ color: '#1faec2', fontSize: 16 }}>{icon}</span>
         <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 14 }}>{title}</span>
       </div>
-      <Divider style={{ margin: '0 0 20px' }} />
+      <Divider style={{ margin: '0 0 14px' }} />
       {children}
     </Card>
   )
@@ -1292,33 +1227,50 @@ export default function ConfiguracionPage() {
   const renderContent = () => {
     switch (activeKey) {
       case 'organization':
-        return <OrganizationSection profile={profile} loading={loading} onSave={handleSave} />
-      case 'fiscal':
-        return <FiscalSection profile={profile} loading={loading} onSave={handleSave} />
+        return (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Perfil de organización</Title>
+              <Text type="secondary">Información general y configuración fiscal de tu empresa</Text>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+              <OrganizationSection profile={profile} loading={loading} onSave={handleSave} />
+              <FiscalSection profile={profile} loading={loading} onSave={handleSave} />
+            </div>
+          </div>
+        )
       case 'currency':
         return <CurrencySection />
       case 'taxes':
         return <ImpuestosPage />
       case 'librosSAT':
         return <LibroSATPage />
-      case 'accountDefaults':
-        return <AccountDefaultsSection />
-      case 'preferences':
-        return <PreferencesSection />
       case 'contabilidad':
-        return <ContabilidadSection />
+        return (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Contabilidad</Title>
+              <Text type="secondary">Dimensiones analíticas, cuentas por defecto y preferencias del sistema</Text>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+              <div>
+                <ContabilidadSection />
+                <div style={{ marginTop: 16 }}><PreferencesSection /></div>
+              </div>
+              <div>
+                <AccountDefaultsSection />
+              </div>
+            </div>
+          </div>
+        )
       case 'users':
         navigate('/configuracion/usuarios')
         return null
       case 'subscription':
         navigate('/configuracion/suscripcion')
         return null
-      case 'notifications':
-        return <ComingSoonSection title="Notificaciones" description="Configura alertas por correo y notificaciones del sistema" />
       case 'integrations':
-        return <ComingSoonSection title="Integraciones" description="Conecta Lucía con servicios externos: FEL, bancos, pagos" />
-      case 'security':
-        return <ComingSoonSection title="Seguridad" description="Autenticación, tokens de API y registro de actividad" />
+        return <IntegracionesPage />
       case 'devspace':
         return <EspacioDesarrolloPage />
       default:
@@ -1352,9 +1304,7 @@ export default function ConfiguracionPage() {
           onClick={({ key }) => setActiveKey(key)}
           style={{ border: 'none', fontSize: 13 }}
           items={sections.map(s => ({
-            key: s.key,
-            icon: s.icon,
-            label: s.label,
+            ...s,
             style: {
               borderRadius: 6,
               margin: '2px 8px',

@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Table, Button, Tag, Avatar, Space, Typography, Modal, Form,
   Input, Select, Tooltip, Badge, Popconfirm, message, Checkbox,
-  Tabs, Drawer, Divider, Empty, Spin, Collapse,
+  Tabs, Divider, Empty, Spin, Collapse,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, UserOutlined, CrownOutlined,
   TeamOutlined, BankOutlined, KeyOutlined, DeleteOutlined,
-  LockOutlined, CheckSquareOutlined, SettingOutlined,
+  LockOutlined, SettingOutlined, SaveOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -36,36 +36,130 @@ const ACTION_LABELS: Record<string, string> = {
 const MODULE_LABELS: Record<string, string> = {
   ventas:        'Ventas',
   compras:       'Compras',
+  bancos:        'Bancos y Tesorería',
   contabilidad:  'Contabilidad',
-  bancos:        'Bancos',
   inventario:    'Inventario',
+  planillas:     'Planillas',
+  proyectos:     'Proyectos',
   reportes:      'Reportes',
   configuracion: 'Configuración',
+  fel:           'FEL',
   platform:      'Plataforma',
 }
 
+// Etiquetas genéricas por submodulo (aplica en todos los módulos)
 const SUBMODULE_LABELS: Record<string, string> = {
-  clientes: 'Clientes', estimaciones: 'Estimaciones', facturas: 'Facturas',
-  'facturas-anticipo': 'Anticipos', 'notas-credito': 'Notas de crédito',
-  'pagos-recibidos': 'Pagos recibidos', proveedores: 'Proveedores',
-  'ordenes-compra': 'Órdenes de compra', 'facturas-proveedor': 'Facturas proveedor',
-  'pagos-realizados': 'Pagos realizados', gastos: 'Gastos',
-  catalogo: 'Catálogo', asientos: 'Asientos', 'libro-diario': 'Libro diario',
-  'libro-mayor': 'Libro mayor', 'estados-financieros': 'Estados financieros',
-  cuentas: 'Cuentas', conciliacion: 'Conciliación', transferencias: 'Transferencias',
-  articulos: 'Artículos', almacenes: 'Almacenes', ubicaciones: 'Ubicaciones',
-  movimientos: 'Movimientos', ajustes: 'Ajustes', importaciones: 'Importaciones',
-  empresas: 'Empresas', usuarios: 'Usuarios', roles: 'Roles',
-  perfil: 'Perfil', fiscal: 'Fiscal', impuestos: 'Impuestos',
-  'libros-fiscales': 'Libros fiscales', monedas: 'Monedas',
-  'cuentas-defecto': 'Cuentas por defecto', integraciones: 'Integraciones',
-  seguridad: 'Seguridad', tenants: 'Tenants', planes: 'Planes',
-  suscripciones: 'Suscripciones',
+  '_': 'General',
+  // ventas
+  clientes:              'Clientes',
+  estimaciones:          'Cotizaciones',
+  facturas:              'Facturas',
+  'facturas-recurrentes': 'Facturas recurrentes',
+  'notas-credito':       'Notas de crédito',
+  pagos:                 'Pagos',
+  'dte-sat':             'DTE SAT',
+  // compras
+  proveedores:           'Proveedores',
+  oc:                    'Órdenes de compra',
+  anticipos:             'Anticipos a proveedores',
+  gastos:                'Gastos',
+  // bancos
+  cuentas:               'Cuentas bancarias',
+  'pagos-realizados':    'Pagos a proveedores',
+  'lote-cheques':        'Lote de cheques',
+  config:                'Config. cheques y ACH',
+  conciliacion:          'Conciliación',
+  transferencias:        'Transferencias',
+  // contabilidad
+  catalogo:              'Catálogo de cuentas',
+  asientos:              'Diarios manuales',
+  'diarios-recurrentes': 'Diarios recurrentes',
+  'activos-fijos':       'Activos fijos',
+  'clases-activo-fijo':  'Clases de activo fijo',
+  presupuesto:           'Presupuestos',
+  'ajuste-moneda':       'Ajustes de moneda',
+  'bloqueo-transacciones': 'Bloqueo de transacciones',
+  'centros-costo':       'Centros de costo',
+  'centros-beneficio':   'Centros de beneficio',
+  // inventario
+  articulos:             'Artículos',
+  grupos:                'Grupos de artículos',
+  almacenes:             'Almacenes',
+  entregas:              'Entregas',
+  expedientes:           'Expediente de importación',
+  produccion:            'Producción',
+  ubicaciones:           'Ubicación / POS',
+  movimientos:           'Movimientos MIGO',
+  // planillas
+  corridas:              'Corridas de planilla',
+  empleados:             'Empleados',
+  finiquitos:            'Finiquitos',
+  'parametros-fiscales': 'Parámetros fiscales',
+  'datos-patrono':       'Datos del patrono',
+  'cuentas-contables':   'Cuentas contables',
+  'centros-trabajo':     'Centros de trabajo',
+  // proyectos
+  tareas:                'Tareas',
+  // reportes
+  'balance-general':     'Balance General',
+  'estado-resultados':   'Estado de Resultados',
+  'flujo-efectivo':      'Flujo de Caja',
+  'tasas-rendimiento':   'Tasas de Rendimiento',
+  'movimiento-capital':  'Movimiento de Capital',
+  balanza:               'Balanza de Comprobación',
+  'libro-diario':        'Libro Diario',
+  'libro-compras':       'Libro de Compras',
+  'libro-ventas':        'Libro de Ventas',
+  'ap-aging':            'AP Aging (CxP)',
+  'ar-aging':            'AR Aging (CxC)',
+  'proyectado-pagos':    'Proyectado de Pagos',
+  // configuracion
+  general:               'General',
+  empresas:              'Empresas',
+  sucursales:            'Sucursales',
+  series:                'Series de documentos',
+  'facturacion-electronica': 'Facturación Electrónica',
+  'bancos-perfiles':     'Perfiles bancarios',
+  'unidades-medida':     'Unidades de medida',
+  monedas:               'Monedas',
+  integraciones:         'Integraciones',
+  apikeys:               'API Keys',
+  // platform
+  tenants:               'Tenants',
+  planes:                'Planes',
+  suscripciones:         'Suscripciones',
+}
+
+// Etiquetas módulo:submodulo para resolver ambigüedades (mismo submodulo en varios módulos)
+const MODULE_SUBMODULE_LABELS: Record<string, string> = {
+  'ventas:pagos':          'Pagos recibidos',
+  'ventas:dte-sat':        'DTE SAT Emitidos',
+  'ventas:notas-credito':  'Notas de crédito cliente',
+  'compras:pagos':         'Pagos a proveedores',
+  'compras:dte-sat':       'DTE SAT Recibidos',
+  'compras:notas-credito': 'Notas de crédito proveedor',
+  'reportes:activos-fijos':     'Reporte Activos fijos',
+  'reportes:centros-beneficio': 'Rentabilidad C. Beneficio',
+  'reportes:centros-costo':     'Ejecución C. Costo',
 }
 
 // Orden de acciones en columnas (las primeras 5 son fijas; el resto son "otros")
 const MAIN_ACTIONS  = ['read', 'create', 'update', 'delete', 'export']
-const EXTRA_ACTIONS = ['approve', 'send', 'import']
+const EXTRA_ACTIONS = ['approve', 'send', 'import', 'manage', 'certify', 'cancel', 'write', 'admin']
+
+// Orden de módulos y submodulos — coincide con el sidebar
+const MODULE_ORDER: Record<string, string[]> = {
+  ventas:        ['clientes', 'estimaciones', 'facturas', 'facturas-recurrentes', 'notas-credito', 'pagos', 'dte-sat'],
+  compras:       ['proveedores', 'oc', 'facturas', 'notas-credito', 'dte-sat', 'anticipos', 'pagos', 'gastos'],
+  bancos:        ['cuentas', 'pagos-realizados', 'lote-cheques', 'config', 'conciliacion', 'transferencias'],
+  contabilidad:  ['catalogo', 'asientos', 'diarios-recurrentes', 'activos-fijos', 'clases-activo-fijo', 'presupuesto', 'ajuste-moneda', 'bloqueo-transacciones', 'centros-costo', 'centros-beneficio', '_'],
+  inventario:    ['articulos', 'grupos', 'almacenes', 'entregas', 'expedientes', 'produccion', 'ubicaciones', 'movimientos'],
+  planillas:     ['corridas', 'empleados', 'finiquitos', 'parametros-fiscales', 'datos-patrono', 'cuentas-contables', 'centros-trabajo'],
+  proyectos:     ['_', 'tareas'],
+  reportes:      ['balance-general', 'estado-resultados', 'flujo-efectivo', 'tasas-rendimiento', 'movimiento-capital', 'balanza', 'libro-diario', 'libro-compras', 'libro-ventas', 'ap-aging', 'ar-aging', 'proyectado-pagos', 'activos-fijos', 'centros-beneficio', 'centros-costo'],
+  configuracion: ['general', 'empresas', 'sucursales', 'series', 'facturacion-electronica', 'bancos-perfiles', 'unidades-medida', 'monedas', 'integraciones', 'apikeys'],
+  fel:           ['_'],
+}
 
 // ── Tipos internos ──────────────────────────────────────────────────────────
 
@@ -89,10 +183,26 @@ function buildMatrix(allPermissions: PermissionSummary[]): ModuleGroup[] {
     if (!map[p.module][p.submodule]) map[p.module][p.submodule] = {}
     map[p.module][p.submodule][p.action] = p.slug
   }
-  return Object.entries(map).map(([module, subs]) => ({
-    module,
-    submodules: Object.entries(subs).map(([submodule, perms]) => ({ submodule, perms })),
-  }))
+  const moduleOrder = Object.keys(MODULE_ORDER)
+  return Object.entries(map)
+    .sort(([a], [b]) => {
+      const ia = moduleOrder.indexOf(a), ib = moduleOrder.indexOf(b)
+      if (ia === -1 && ib === -1) return a.localeCompare(b)
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
+    .map(([module, subs]) => {
+      const subOrder = MODULE_ORDER[module] ?? []
+      const sorted = Object.entries(subs).sort(([a], [b]) => {
+        const ia = subOrder.indexOf(a), ib = subOrder.indexOf(b)
+        if (ia === -1 && ib === -1) return a.localeCompare(b)
+        if (ia === -1) return 1
+        if (ib === -1) return -1
+        return ia - ib
+      })
+      return { module, submodules: sorted.map(([submodule, perms]) => ({ submodule, perms })) }
+    })
 }
 
 // ── Componente principal ────────────────────────────────────────────────────
@@ -122,7 +232,6 @@ export default function UsuariosPage() {
   // Editor de permisos de rol
   const [editingRole, setEditingRole]     = useState<RoleSummary | null>(null)
   const [checkedSlugs, setCheckedSlugs]   = useState<Set<string>>(new Set())
-  const [drawerOpen, setDrawerOpen]       = useState(false)
   const [savingPerms, setSavingPerms]     = useState(false)
 
   const load = useCallback(async () => {
@@ -143,6 +252,14 @@ export default function UsuariosPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (roles.length > 0 && !editingRole) {
+      const first = roles[0]
+      setEditingRole(first)
+      setCheckedSlugs(new Set(first.permissions.map(p => p.slug)))
+    }
+  }, [roles, editingRole])
 
   const matrix = useMemo(() => buildMatrix(allPerms), [allPerms])
 
@@ -267,10 +384,9 @@ export default function UsuariosPage() {
 
   // ── Handlers de roles ─────────────────────────────────────────────────────
 
-  const openRoleEditor = (role: RoleSummary) => {
+  const selectRole = (role: RoleSummary) => {
     setEditingRole(role)
     setCheckedSlugs(new Set(role.permissions.map(p => p.slug)))
-    setDrawerOpen(true)
   }
 
   const handleSavePerms = async () => {
@@ -280,7 +396,7 @@ export default function UsuariosPage() {
       const updated = await updateRolePermissions(editingRole.id, Array.from(checkedSlugs))
       message.success('Permisos guardados')
       setRoles(prev => prev.map(r => r.id === updated.id ? updated : r))
-      setDrawerOpen(false)
+      setEditingRole(updated)
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar permisos')
     } finally { setSavingPerms(false) }
@@ -422,61 +538,6 @@ export default function UsuariosPage() {
     },
   ]
 
-  const roleColumns: ColumnsType<RoleSummary> = [
-    {
-      title: 'Rol',
-      render: (_, r) => (
-        <Space>
-          <KeyOutlined style={{ color: '#1faec2' }} />
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
-            {r.description && <Text type="secondary" style={{ fontSize: 12 }}>{r.description}</Text>}
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: 'Tipo',
-      width: 110,
-      render: (_, r) => r.isSystem
-        ? <Tag color="#1faec2">Sistema</Tag>
-        : <Tag color="#2ea172">Personalizado</Tag>,
-    },
-    {
-      title: 'Permisos',
-      width: 100,
-      render: (_, r) => <Text type="secondary">{r.permissions.length} permisos</Text>,
-    },
-    {
-      title: 'Usuarios',
-      width: 100,
-      render: (_, r) => {
-        const count = users.filter(u => u.roles?.some(ur => ur.id === r.id)).length
-        return <Text type="secondary">{count} usuario{count !== 1 ? 's' : ''}</Text>
-      },
-    },
-    {
-      title: 'Acciones',
-      width: 120,
-      render: (_, r) => (
-        <Space>
-          {r.name !== 'superadmin' && (
-            <Tooltip title="Editar permisos">
-              <Button size="small" icon={<CheckSquareOutlined />} onClick={() => openRoleEditor(r)} />
-            </Tooltip>
-          )}
-          {!r.isSystem && (
-            <Tooltip title="Eliminar rol">
-              <Popconfirm title="¿Eliminar este rol?" onConfirm={() => handleDeleteRole(r.id)}>
-                <Button size="small" danger icon={<DeleteOutlined />} />
-              </Popconfirm>
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-  ]
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -527,14 +588,139 @@ export default function UsuariosPage() {
                     Nuevo rol
                   </Button>
                 </div>
-                <Table
-                  columns={roleColumns}
-                  dataSource={roles}
-                  rowKey="id"
-                  loading={loading}
-                  pagination={false}
-                  size="small"
-                  locale={{ emptyText: 'Sin roles' }}
+                <Tabs
+                  type="card"
+                  activeKey={editingRole?.id}
+                  onChange={key => { const r = roles.find(x => x.id === key); if (r) selectRole(r) }}
+                  items={roles.map(role => {
+                    const userCount = users.filter(u => u.roles?.some(ur => ur.id === role.id)).length
+                    const isActive  = editingRole?.id === role.id
+                    return {
+                      key:   role.id,
+                      label: (
+                        <Space size={4}>
+                          <span style={{ textTransform: 'capitalize' }}>{role.name}</span>
+                          {role.isSystem
+                            ? <Tag color="#1faec2" style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>S</Tag>
+                            : <Tag color="#2ea172" style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>C</Tag>}
+                        </Space>
+                      ),
+                      children: (
+                        <div>
+                          {/* Cabecera del rol */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                            <div>
+                              <Text strong style={{ fontSize: 15, textTransform: 'capitalize' }}>{role.name}</Text>
+                              {role.description && (
+                                <Text type="secondary" style={{ display: 'block', fontSize: 13, marginTop: 2 }}>{role.description}</Text>
+                              )}
+                              <Space style={{ marginTop: 6 }}>
+                                <Tag color={role.isSystem ? '#1faec2' : '#2ea172'}>{role.isSystem ? 'Sistema' : 'Personalizado'}</Tag>
+                                <Text type="secondary" style={{ fontSize: 12 }}>{role.permissions.length} permisos</Text>
+                                <Text type="secondary" style={{ fontSize: 12 }}>{userCount} usuario{userCount !== 1 ? 's' : ''}</Text>
+                              </Space>
+                            </div>
+                            <Space>
+                              {!role.isSystem && (
+                                <Popconfirm title="¿Eliminar este rol?" onConfirm={() => handleDeleteRole(role.id)}>
+                                  <Button size="small" danger icon={<DeleteOutlined />}>Eliminar</Button>
+                                </Popconfirm>
+                              )}
+                              {role.name !== 'superadmin' && (
+                                <Button type="primary" size="small" loading={savingPerms} onClick={handleSavePerms}
+                                  icon={<SaveOutlined />} style={{ background: '#1faec2' }}>
+                                  Guardar permisos
+                                </Button>
+                              )}
+                            </Space>
+                          </div>
+
+                          {/* Matriz de permisos */}
+                          {role.name === 'superadmin' ? (
+                            <Empty description="El rol superadmin tiene acceso total y no puede modificarse." />
+                          ) : isActive ? (
+                            matrix.length === 0 ? <Spin /> : (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 28px' }}>
+                            {matrix.map(group => (
+                              <div key={group.module} style={{ marginBottom: 20 }}>
+                                <div style={{
+                                  display: 'flex', alignItems: 'center', gap: 10,
+                                  background: '#f0f4ff', padding: '8px 12px', borderRadius: 6, marginBottom: 4,
+                                }}>
+                                  <Checkbox
+                                    checked={isModuleComplete(group)}
+                                    indeterminate={!isModuleComplete(group) && isModulePartial(group)}
+                                    onChange={e => toggleModule(group, e.target.checked)}
+                                  />
+                                  <Text strong style={{ color: '#1faec2', fontSize: 13 }}>
+                                    {MODULE_LABELS[group.module] ?? group.module}
+                                  </Text>
+                                </div>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                  <thead>
+                                    <tr style={{ background: '#fafbfc' }}>
+                                      <th style={thStyle}>Módulo</th>
+                                      <th style={{ ...thStyle, width: 56, textAlign: 'center' }}>Todo</th>
+                                      {MAIN_ACTIONS.map(a => (
+                                        <th key={a} style={{ ...thStyle, width: 72, textAlign: 'center' }}>
+                                          {ACTION_LABELS[a]}
+                                        </th>
+                                      ))}
+                                      <th style={{ ...thStyle, minWidth: 120 }}>Otros</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {group.submodules.map((row, idx) => {
+                                      const extras = EXTRA_ACTIONS.filter(a => row.perms[a])
+                                      return (
+                                        <tr key={row.submodule} style={{ background: idx % 2 === 0 ? '#fff' : '#fafbfc' }}>
+                                          <td style={tdStyle}>{MODULE_SUBMODULE_LABELS[`${group.module}:${row.submodule}`] ?? SUBMODULE_LABELS[row.submodule] ?? row.submodule}</td>
+                                          <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                            <Checkbox
+                                              checked={isSubmoduleComplete(row)}
+                                              indeterminate={isSubmodulePartial(row)}
+                                              onChange={e => toggleSubmodule(row, e.target.checked)}
+                                            />
+                                          </td>
+                                          {MAIN_ACTIONS.map(action => (
+                                            <td key={action} style={{ ...tdStyle, textAlign: 'center' }}>
+                                              {row.perms[action] ? (
+                                                <Checkbox
+                                                  checked={checkedSlugs.has(row.perms[action])}
+                                                  onChange={e => toggleSlug(row.perms[action], e.target.checked)}
+                                                />
+                                              ) : <span style={{ color: '#9aa1ab' }}>—</span>}
+                                            </td>
+                                          ))}
+                                          <td style={tdStyle}>
+                                            {extras.length > 0
+                                              ? <Space size={4} wrap>
+                                                  {extras.map(a => (
+                                                    <label key={a} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                                                      <Checkbox
+                                                        checked={checkedSlugs.has(row.perms[a])}
+                                                        onChange={e => toggleSlug(row.perms[a], e.target.checked)}
+                                                      />
+                                                      <span style={{ fontSize: 11 }}>{ACTION_LABELS[a]}</span>
+                                                    </label>
+                                                  ))}
+                                                </Space>
+                                              : <span style={{ color: '#9aa1ab', fontSize: 11 }}>—</span>}
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                                <Divider style={{ margin: '10px 0' }} />
+                              </div>
+                            ))}
+                            </div>)
+                          ) : null}
+                        </div>
+                      ),
+                    }
+                  })}
                 />
               </>
             ),
@@ -715,117 +901,6 @@ export default function UsuariosPage() {
         </Form>
       </Modal>
 
-      {/* Drawer editor de permisos (estilo Zoho) */}
-      <Drawer
-        title={
-          <Space>
-            <LockOutlined />
-            <span>Permisos — <strong>{editingRole?.name}</strong></span>
-            {editingRole?.isSystem && <Tag color="#1faec2" style={{ marginLeft: 4 }}>Sistema</Tag>}
-          </Space>
-        }
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        width={820}
-        extra={
-          editingRole?.name !== 'superadmin' && (
-            <Button type="primary" loading={savingPerms} onClick={handleSavePerms}
-              style={{ background: '#1faec2' }}>
-              Guardar permisos
-            </Button>
-          )
-        }
-      >
-        {editingRole?.name === 'superadmin' ? (
-          <Empty description="El rol superadmin tiene acceso total y no puede modificarse." />
-        ) : (
-          <div>
-            {matrix.length === 0 && <Spin />}
-            {matrix.map(group => (
-              <div key={group.module} style={{ marginBottom: 24 }}>
-                {/* Cabecera de módulo */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  background: '#f0f4ff', padding: '8px 12px', borderRadius: 6,
-                  marginBottom: 4,
-                }}>
-                  <Checkbox
-                    checked={isModuleComplete(group)}
-                    indeterminate={!isModuleComplete(group) && isModulePartial(group)}
-                    onChange={e => toggleModule(group, e.target.checked)}
-                  />
-                  <Text strong style={{ color: '#1faec2', fontSize: 13 }}>
-                    {MODULE_LABELS[group.module] ?? group.module}
-                  </Text>
-                </div>
-
-                {/* Tabla de submodulos */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: '#fafbfc' }}>
-                      <th style={thStyle}>Módulo</th>
-                      <th style={{ ...thStyle, width: 56, textAlign: 'center' }}>Todo</th>
-                      {MAIN_ACTIONS.map(a => (
-                        <th key={a} style={{ ...thStyle, width: 72, textAlign: 'center' }}>
-                          {ACTION_LABELS[a]}
-                        </th>
-                      ))}
-                      <th style={{ ...thStyle, minWidth: 120 }}>Otros</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.submodules.map((row, idx) => {
-                      const extras = EXTRA_ACTIONS.filter(a => row.perms[a])
-                      return (
-                        <tr key={row.submodule}
-                          style={{ background: idx % 2 === 0 ? '#fff' : '#fafbfc' }}>
-                          <td style={tdStyle}>
-                            {SUBMODULE_LABELS[row.submodule] ?? row.submodule}
-                          </td>
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            <Checkbox
-                              checked={isSubmoduleComplete(row)}
-                              indeterminate={isSubmodulePartial(row)}
-                              onChange={e => toggleSubmodule(row, e.target.checked)}
-                            />
-                          </td>
-                          {MAIN_ACTIONS.map(action => (
-                            <td key={action} style={{ ...tdStyle, textAlign: 'center' }}>
-                              {row.perms[action] ? (
-                                <Checkbox
-                                  checked={checkedSlugs.has(row.perms[action])}
-                                  onChange={e => toggleSlug(row.perms[action], e.target.checked)}
-                                />
-                              ) : <span style={{ color: '#9aa1ab' }}>—</span>}
-                            </td>
-                          ))}
-                          <td style={tdStyle}>
-                            {extras.length > 0
-                              ? <Space size={4} wrap>
-                                {extras.map(a => (
-                                  <label key={a} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-                                    <Checkbox
-                                      checked={checkedSlugs.has(row.perms[a])}
-                                      onChange={e => toggleSlug(row.perms[a], e.target.checked)}
-                                    />
-                                    <span style={{ fontSize: 11 }}>{ACTION_LABELS[a]}</span>
-                                  </label>
-                                ))}
-                              </Space>
-                              : <span style={{ color: '#9aa1ab', fontSize: 11 }}>—</span>
-                            }
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                <Divider style={{ margin: '12px 0' }} />
-              </div>
-            ))}
-          </div>
-        )}
-      </Drawer>
     </div>
   )
 }
