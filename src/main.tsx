@@ -62,6 +62,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             Menu:   { itemBorderRadius: 10, subMenuItemBorderRadius: 8 },
             Tag:    { borderRadius: 20 },
             Badge:  { colorPrimary: '#e5484d' },
+            Checkbox: { colorBorder: '#374151' },
           },
         }}
       >
