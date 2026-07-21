@@ -140,6 +140,23 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Checkbox — borde más visible (negro) para mejor contraste en matrices */
+.ant-checkbox .ant-checkbox-inner {
+  border-color: #1a1a1a !important;
+  border-width: 1.5px !important;
+}
+.ant-checkbox:hover .ant-checkbox-inner,
+.ant-checkbox-wrapper:hover .ant-checkbox-inner {
+  border-color: var(--gll-cyan) !important;
+}
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: var(--gll-cyan) !important;
+  border-color: var(--gll-cyan) !important;
+}
+.ant-checkbox-indeterminate .ant-checkbox-inner::after {
+  background-color: var(--gll-cyan) !important;
+}
+
 /* Tags pill */
 .ant-tag { border-radius: 20px !important; font-weight: 500 !important; }
 
