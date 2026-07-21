@@ -140,6 +140,10 @@ export interface PurchaseInvoice {
   // Cuentas
   accountId?:              string
   idpAccountId?:           string
+  timbrePrensaAmount?:     number
+  timbrePrensaAccountId?:  string
+  turismoAmount?:          number
+  turismoAccountId?:       string
   journalEntryId?:         string
   reclassificationJournalEntryId?: string
 
@@ -436,10 +440,14 @@ export const PAYMENT_TERMS_CONFIG: Record<PaymentTerms, string> = {
 }
 
 export const IDP_RATES: Record<string, number> = {
-  super:   4.70,
-  regular: 4.60,
-  diesel:  1.30,
-  other:   0,
+  super:    4.70,
+  regular:  4.60,
+  aviacion: 4.70,
+  diesel:   1.30,
+  propano:  0.60,
+  bunker:   0.55,
+  kerosina: 0.50,
+  other:    0.50,
 }
 
 export const PO_STATUS_CONFIG: Record<POStatus, { label: string; color: string }> = {
@@ -539,6 +547,7 @@ export const resubirR2SatDte = (id: string) =>
 
 export const postSatDte = (id: string, dto: {
   taxId?: string
+  invoiceType?: string
   accountId?: string
   paymentTerms: string
   paymentTermsDays?: number
@@ -551,6 +560,10 @@ export const postSatDte = (id: string, dto: {
   defaultUnit?: string
   originalInvoiceId?: string
   creditNoteReason?: string
+  timbrePrensaAmount?: number
+  timbrePrensaAccountId?: string
+  turismoAmount?: number
+  turismoAccountId?: string
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: PurchaseInvoice
   dte: SatDte

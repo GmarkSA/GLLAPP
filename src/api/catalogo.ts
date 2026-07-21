@@ -22,6 +22,7 @@ export interface Account {
   isFixedAsset:      boolean
   requiresReconciliation: boolean
   isInventoryAccount: boolean
+  isPlanillasAccount: boolean
   requiresCostCenter:   boolean
   requiresProfitCenter: boolean
   openingBalance: number

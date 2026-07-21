@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Form, Input,
+  Alert, Badge, Button, Card, Checkbox, Col, DatePicker, Descriptions, Divider, Form, Input,
   message, Row, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -101,6 +101,9 @@ export default function DteSatPage() {
   const [unidades, setUnidades] = useState<UnidadMedida[]>([])
   const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
   const [originalBills, setOriginalBills] = useState<{ value: string; label: string }[]>([])
+  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
+  const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
+  const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
@@ -144,9 +147,17 @@ export default function DteSatPage() {
       .then((list) => setUnidades(list))
       .catch(() => {})
     getOrganizationProfile()
-      .then((p: any) => setSatCredentials({
-        satNit: p?.settings?.satNit,
-      }))
+      .then((p: any) => {
+        setSatCredentials({ satNit: p?.settings?.satNit })
+        const ie = p?.settings?.impuestosEspeciales
+        if (ie) setOrgImpEsp({
+          idpAccountCode:          ie.idp?.accountCode,
+          timbrePrensaAccountCode: ie.timbre_prensa?.accountCode,
+          turismoAccountCode:      ie.turismo?.accountCode,
+          timbrePrensaRate:        ie.timbre_prensa?.rate ?? 0.5,
+          turismoRate:             ie.turismo?.rate ?? 10,
+        })
+      })
       .catch(() => {})
   }, [])
 
@@ -402,6 +413,8 @@ export default function DteSatPage() {
     setStepperOcId(undefined)
     setStepperPOs(undefined)
     setStepperResult(null)
+    setStepperHasTimbre(false)
+    setStepperHasTurismo(false)
     // Pre-llenar desde datos maestros del proveedor (términos, cuenta de gasto, IVA)
     let vendorPaymentTerms = 'immediate'
     let vendorExpenseAccountId: string | undefined
@@ -490,16 +503,26 @@ export default function DteSatPage() {
   }
 
   const handleStepperPost = async (values: {
-    concepto: string; taxId?: string; accountId?: string; paymentTerms: string
+    concepto: string; taxId?: string; invoiceType?: string; accountId?: string; paymentTerms: string
     accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; defaultUnit?: string
     originalInvoiceId?: string; creditNoteReason?: string
+    timbrePrensaAccountId?: string; turismoAccountId?: string
   }) => {
     if (!stepperDte) return
     setStepperLoading(true)
     try {
       const isNC = ['NCRE', 'NABN'].includes(((stepperDte as any).tipoDocumento ?? '').toUpperCase())
       const isReimbursement = stepperOcChoice === 'reimbursement'
+      const invType = values.invoiceType ?? 'goods'
+      const dteSubtotal = Number(stepperDte.subtotal ?? 0)
+      const timbreRate  = orgImpEsp?.timbrePrensaRate ?? 0.5
+      const turismoRate = orgImpEsp?.turismoRate ?? 10
+      const timbrePrensaAmount = (invType === 'services' && stepperHasTimbre)
+        ? Math.round(dteSubtotal * (timbreRate / 100) * 100) / 100 : 0
+      const turismoAmount = (invType === 'services' && stepperHasTurismo)
+        ? Math.round(dteSubtotal * (turismoRate / 100) * 100) / 100 : 0
       const result = await postSatDte(stepperDte.id, {
+        invoiceType:         invType,
         taxId:               values.taxId,
         accountId:           values.accountId,
         paymentTerms:        values.paymentTerms,
@@ -508,10 +531,14 @@ export default function DteSatPage() {
         purchaseOrderId:     isReimbursement || isNC ? undefined : stepperOcId,
         isExpenseReimbursement: isReimbursement,
         employeeId:          isReimbursement ? values.employeeId : undefined,
-        idpAccountId:        values.idpAccountId,
+        idpAccountId:        invType === 'fuel' ? values.idpAccountId : undefined,
         defaultUnit:         values.defaultUnit,
         originalInvoiceId:   isNC ? values.originalInvoiceId : undefined,
         creditNoteReason:    isNC ? values.creditNoteReason : undefined,
+        timbrePrensaAmount:     timbrePrensaAmount || undefined,
+        timbrePrensaAccountId:  timbrePrensaAmount > 0 ? values.timbrePrensaAccountId : undefined,
+        turismoAmount:          turismoAmount || undefined,
+        turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
       setStepperResult(result)
@@ -878,13 +905,10 @@ export default function DteSatPage() {
   ]
 
   // ── Valores reactivos del formulario del stepper ──────────────────────────
-  const watchedTaxId = Form.useWatch('taxId', stepperForm) as string | undefined
-  const selectedTaxForFuel = taxes.find(t => t.id === watchedTaxId)
-  const isFuelStep3 = !!(selectedTaxForFuel && (
-    selectedTaxForFuel.name.toLowerCase().includes('combustible') ||
-    selectedTaxForFuel.code.toLowerCase().includes('idp') ||
-    selectedTaxForFuel.code.toLowerCase().includes('fuel')
-  ))
+  const watchedTaxId    = Form.useWatch('taxId',        stepperForm) as string | undefined
+  const watchedInvType  = Form.useWatch('invoiceType',  stepperForm) as string | undefined ?? 'goods'
+  const isFuelStep3     = watchedInvType === 'fuel'
+  const isServiceStep3  = watchedInvType === 'services'
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -1091,7 +1115,8 @@ export default function DteSatPage() {
 
                 {/* Paso 3 — Registrar */}
                 {stepperStep === 3 && (
-                  <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}>
+                  <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}
+                    initialValues={{ invoiceType: 'goods' }}>
                     {isNC && (
                       <>
                       <Form.Item name="originalInvoiceId" label="Factura original del proveedor (opcional)">
@@ -1110,25 +1135,55 @@ export default function DteSatPage() {
                       <Input.TextArea rows={2} placeholder="Ej: Alimentos para cafetería — Abril 2026" />
                     </Form.Item>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                      <div>
+                        <Form.Item name="invoiceType" label="Tipo de factura" style={{ marginBottom: 6 }}>
+                          <Select
+                            options={[
+                              { value: 'goods',    label: 'Compra de bienes' },
+                              { value: 'services', label: 'Prestación de servicios' },
+                              { value: 'fuel',     label: 'Combustible con IDP' },
+                              { value: 'special',  label: 'Factura especial' },
+                            ]}
+                            onChange={() => { setStepperHasTimbre(false); setStepperHasTurismo(false) }}
+                          />
+                        </Form.Item>
+                        {isServiceStep3 && (
+                          <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                            <Checkbox checked={stepperHasTimbre}
+                              onChange={e => {
+                                setStepperHasTimbre(e.target.checked)
+                                if (e.target.checked && orgImpEsp?.timbrePrensaAccountCode) {
+                                  const acc = accounts.find(a => a.code === orgImpEsp.timbrePrensaAccountCode)
+                                  if (acc) stepperForm.setFieldValue('timbrePrensaAccountId', acc.id)
+                                }
+                              }}>
+                              <span style={{ fontSize: 11 }}>Timbre de Prensa</span>
+                            </Checkbox>
+                            <Checkbox checked={stepperHasTurismo}
+                              onChange={e => {
+                                setStepperHasTurismo(e.target.checked)
+                                if (e.target.checked && orgImpEsp?.turismoAccountCode) {
+                                  const acc = accounts.find(a => a.code === orgImpEsp.turismoAccountCode)
+                                  if (acc) stepperForm.setFieldValue('turismoAccountId', acc.id)
+                                }
+                              }}>
+                              <span style={{ fontSize: 11 }}>Turismo INGUAT</span>
+                            </Checkbox>
+                          </div>
+                        )}
+                      </div>
                       <Form.Item name="taxId" label="Impuesto"
                         rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}>
                         <Select
                           placeholder="Selecciona el impuesto (IVA)"
                           options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))}
-                          onChange={() => stepperForm.setFieldValue('idpAccountId', undefined)}
                         />
-                      </Form.Item>
-                      <Form.Item name="paymentTerms" label="Términos de pago"
-                        rules={[{ required: true, message: 'Selecciona términos' }]}>
-                        <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
                       </Form.Item>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                      <Form.Item name="accountId" label="Cuenta de gasto"
-                        rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
-                        <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
-                          options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.type === 'expense'))
-                            .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                      <Form.Item name="paymentTerms" label="Términos de pago"
+                        rules={[{ required: true, message: 'Selecciona términos' }]}>
+                        <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
                       </Form.Item>
                       <Form.Item name="defaultUnit" label="Unidad de medida">
                         <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
@@ -1136,22 +1191,67 @@ export default function DteSatPage() {
                         />
                       </Form.Item>
                     </div>
+                    <Form.Item name="accountId" label="Cuenta de gasto"
+                      rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
+                      <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
+                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || (a as any).type === 'expense'))
+                          .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                    </Form.Item>
 
-                    {/* IDP — visible solo cuando se selecciona un impuesto de Combustible */}
+                    {/* IDP — visible cuando tipo = Combustible */}
                     {isFuelStep3 && (
                       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
                         <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 6 }}>
-                          IDP — Combustible
+                          IDP — Combustible (Dto. 38-92)
                         </Text>
                         <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar"
                           rules={[{ required: true, message: 'Ingresa la cuenta IDP' }]}
                           style={{ marginBottom: 0 }}>
                           <Select showSearch allowClear placeholder="Ej. 1106 — IDP por Acreditar"
-                            options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('1'))
+                            options={accounts.filter(a => !a.isHeader && a.isActive)
                               .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                         </Form.Item>
                       </div>
                     )}
+
+                    {/* Timbre de Prensa / Turismo — cuando tipo = Servicios y checkbox activo */}
+                    {isServiceStep3 && (stepperHasTimbre || stepperHasTurismo) && (() => {
+                      const sub = Number(stepperDte?.subtotal ?? 0)
+                      const timbreRate  = orgImpEsp?.timbrePrensaRate ?? 0.5
+                      const turismoRate = orgImpEsp?.turismoRate ?? 10
+                      const fmt2 = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2 })
+                      return (
+                        <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
+                          <Text strong style={{ fontSize: 12, color: '#6d28d9', display: 'block', marginBottom: 8 }}>
+                            Impuestos Especiales
+                          </Text>
+                          {stepperHasTimbre && (
+                            <div style={{ marginBottom: stepperHasTurismo ? 10 : 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <Text style={{ fontSize: 11, color: '#6b7280' }}>Timbre de Prensa ({timbreRate}%)</Text>
+                                <Text strong style={{ fontSize: 12, color: '#6d28d9' }}>Q {fmt2(Math.round(sub * timbreRate / 100 * 100) / 100)}</Text>
+                              </div>
+                              <Form.Item name="timbrePrensaAccountId" label="Cuenta Timbre de Prensa" style={{ marginBottom: 0 }}>
+                                <Select showSearch allowClear placeholder="Ej. 6108 — Timbre de Prensa"
+                                  options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                              </Form.Item>
+                            </div>
+                          )}
+                          {stepperHasTurismo && (
+                            <div style={{ marginTop: stepperHasTimbre ? 8 : 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <Text style={{ fontSize: 11, color: '#6b7280' }}>Turismo INGUAT ({turismoRate}%)</Text>
+                                <Text strong style={{ fontSize: 12, color: '#6d28d9' }}>Q {fmt2(Math.round(sub * turismoRate / 100 * 100) / 100)}</Text>
+                              </div>
+                              <Form.Item name="turismoAccountId" label="Cuenta Turismo INGUAT" style={{ marginBottom: 0 }}>
+                                <Select showSearch allowClear placeholder="Ej. 6109 — Turismo INGUAT"
+                                  options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                              </Form.Item>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     {/* Empleado — visible solo en modo Reembolso de Gastos */}
                     {stepperOcChoice === 'reimbursement' && (

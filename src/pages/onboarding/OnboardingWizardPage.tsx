@@ -27,13 +27,14 @@ const COUNTRIES = [
   { code: 'CR', name: 'Costa Rica',  currency: 'CRC', flag: 'CR' },
   { code: 'MX', name: 'Mexico',      currency: 'MXN', flag: 'MX' },
 ]
-const MODULES = [
-  { value: 'ventas',        label: 'Ventas',        icon: '🛒', desc: 'Clientes, facturas, cotizaciones, pagos' },
-  { value: 'compras',       label: 'Compras',       icon: '🏪', desc: 'Proveedores, órdenes, facturas proveedor' },
-  { value: 'inventario',    label: 'Inventario',    icon: '📦', desc: 'Artículos, almacenes, movimientos' },
-  { value: 'contabilidad',  label: 'Contabilidad',  icon: '📊', desc: 'Catálogo de cuentas, asientos, reportes' },
-  { value: 'bancos',        label: 'Tesorería',     icon: '🏦', desc: 'Cuentas bancarias, conciliación' },
-  { value: 'activos',       label: 'Activos Fijos', icon: '🏗️', desc: 'Depreciación, baja, calendario' },
+const MODULES: Array<{ value: string; label: string; icon: string; desc: string; locked?: boolean }> = [
+  { value: 'contabilidad', label: 'Contabilidad',  icon: '📊', desc: 'Catálogo de cuentas, diarios, reportes financieros', locked: true },
+  { value: 'ventas',       label: 'Ventas',        icon: '🛒', desc: 'Clientes, facturas, cotizaciones, cobros' },
+  { value: 'compras',      label: 'Compras',       icon: '🏪', desc: 'Proveedores, órdenes de compra, facturas proveedor' },
+  { value: 'bancos',       label: 'Tesorería',     icon: '🏦', desc: 'Cuentas bancarias, pagos, conciliación bancaria' },
+  { value: 'inventario',   label: 'Inventario',    icon: '📦', desc: 'Artículos, almacenes, movimientos de stock' },
+  { value: 'planillas',    label: 'Planillas',     icon: '👥', desc: 'Empleados, corridas de planilla, IGSS, finiquitos' },
+  { value: 'fel',          label: 'FEL',           icon: '📄', desc: 'Factura Electrónica en Línea — SAT Guatemala' },
 ]
 
 export default function OnboardingWizardPage() {
@@ -65,9 +66,9 @@ export default function OnboardingWizardPage() {
   const [tenantUsers, setTenantUsers]       = useState<TenantUser[]>([])
   const [selectedUsers, setSelectedUsers]   = useState<string[]>([])
 
-  // Paso 6 — Módulos
+  // Paso 6 — Módulos (contabilidad siempre activo)
   const [selectedModules, setSelectedModules] = useState<string[]>([
-    'ventas', 'compras', 'contabilidad', 'bancos',
+    'contabilidad', 'ventas', 'compras', 'bancos',
   ])
 
   const loadStep = useCallback(async (step: number) => {
@@ -174,23 +175,66 @@ export default function OnboardingWizardPage() {
   ]
 
   if (done) {
+    const FIRST_OPS = [
+      ...(selectedModules.includes('ventas') ? [
+        { icon: '👤', label: 'Crear tu primer cliente',  desc: 'Agrega un cliente para emitir facturas',    route: '/ventas/clientes/nuevo' },
+        { icon: '🧾', label: 'Crear tu primera factura', desc: 'Emite tu primera factura de venta',          route: '/ventas/facturas/nueva' },
+      ] : []),
+      ...(selectedModules.includes('compras') ? [
+        { icon: '🏪', label: 'Crear tu primer proveedor', desc: 'Registra un proveedor para gestionar compras', route: '/compras/proveedores/nuevo' },
+        { icon: '💸', label: 'Registrar tu primer gasto', desc: 'Ingresa una factura de compra o gasto',        route: '/compras/facturas/nueva' },
+      ] : []),
+    ]
+
     return (
-      <div style={{ maxWidth: 600, margin: '60px auto' }}>
-        <Result
-          status="success"
-          icon={<CheckCircleOutlined style={{ color: '#2ea172' }} />}
-          title="¡Empresa configurada exitosamente!"
-          subTitle={`Tu empresa está lista. Módulos activos: ${selectedModules.join(', ')}`}
-          extra={[
-            <Button key="go" type="primary" style={{ background: '#1faec2' }}
-              onClick={() => navigate('/dashboard')}>
-              Ir al Dashboard
-            </Button>,
-            <Button key="cfg" onClick={() => navigate('/configuracion/empresas')}>
-              Ver empresas
-            </Button>,
-          ]}
-        />
+      <div style={{ maxWidth: 640, margin: '48px auto', padding: '0 16px' }}>
+        {/* Cabecera */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+          <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>
+            ¡Listo para operar!
+          </Title>
+          <Text type="secondary" style={{ fontSize: 14 }}>
+            Tu empresa está configurada. ¿Por dónde empezamos?
+          </Text>
+        </div>
+
+        {/* Acciones de primera operación */}
+        {FIRST_OPS.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+            {FIRST_OPS.map(op => (
+              <div
+                key={op.route}
+                onClick={() => navigate(op.route)}
+                style={{
+                  padding: '16px 18px', borderRadius: 10, cursor: 'pointer',
+                  border: '2px solid rgba(10,10,10,0.08)',
+                  background: '#fff',
+                  transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#1faec2')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(10,10,10,0.08)')}
+              >
+                <div style={{ fontSize: 26, marginBottom: 6 }}>{op.icon}</div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#0a0a0a', marginBottom: 3 }}>{op.label}</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>{op.desc}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pie */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: 10,
+          paddingTop: 16, borderTop: '1px solid rgba(10,10,10,0.06)',
+        }}>
+          <Button type="primary" style={{ background: '#1faec2' }} onClick={() => navigate('/dashboard')}>
+            Ir al Dashboard
+          </Button>
+          <Button onClick={() => navigate('/configuracion/empresas')}>
+            Ver configuración
+          </Button>
+        </div>
       </div>
     )
   }
@@ -349,29 +393,39 @@ export default function OnboardingWizardPage() {
       {/* ── Paso 5: Módulos ──────────────────────────────────────────────────── */}
       {current === 5 && (
         <Card title="Módulos a Activar">
-          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-            Seleccione los módulos que utilizará esta empresa:
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            Seleccione los módulos que utilizará esta empresa. Puede activar más desde Configuración en cualquier momento.
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {MODULES.map(mod => {
-              const active = selectedModules.includes(mod.value)
+              const active = selectedModules.includes(mod.value) || !!mod.locked
               return (
                 <div
                   key={mod.value}
-                  onClick={() => setSelectedModules(prev =>
-                    active ? prev.filter(m => m !== mod.value) : [...prev, mod.value],
-                  )}
+                  onClick={() => {
+                    if (mod.locked) return
+                    setSelectedModules(prev =>
+                      active ? prev.filter(m => m !== mod.value) : [...prev, mod.value],
+                    )
+                  }}
                   style={{
                     padding: '12px 14px',
                     border: `2px solid ${active ? '#1faec2' : 'rgba(10,10,10,0.08)'}`,
-                    borderRadius: 8, cursor: 'pointer',
-                    background: active ? '#fafbfc' : '#fff',
+                    borderRadius: 8,
+                    cursor: mod.locked ? 'default' : 'pointer',
+                    background: active ? (mod.locked ? '#f0fafe' : '#fafbfc') : '#fff',
+                    opacity: 1,
                   }}
                 >
-                  <div style={{ fontSize: 20 }}>{mod.icon}</div>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginTop: 4 }}>{mod.label}</div>
-                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{mod.desc}</div>
-                  {active && <Tag color="#1faec2" style={{ marginTop: 6, fontSize: 10 }}>Activo</Tag>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 22 }}>{mod.icon}</span>
+                    {mod.locked
+                      ? <Tag style={{ fontSize: 10, margin: 0 }}>Requerido</Tag>
+                      : active && <Tag color="#1faec2" style={{ fontSize: 10, margin: 0 }}>Activo</Tag>
+                    }
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginTop: 6 }}>{mod.label}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, lineHeight: '1.4' }}>{mod.desc}</div>
                 </div>
               )
             })}

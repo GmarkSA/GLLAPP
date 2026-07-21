@@ -306,9 +306,14 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
           { value: 'GAL',     label: 'Galón'            },
           { value: 'EXP',     label: 'Exportación'      },
           { value: 'EXE',     label: 'Exento'           },
-          { value: 'super',   label: 'Super (gasolina)' },
-          { value: 'regular', label: 'Regular (gasolina)'},
-          { value: 'diesel',  label: 'Diesel'           },
+          { value: 'super',    label: 'Super (gasolina)'            },
+          { value: 'regular',  label: 'Regular (gasolina)'           },
+          { value: 'aviacion', label: 'Aviación (gasolina)'          },
+          { value: 'diesel',   label: 'Diésel / Gas oil'             },
+          { value: 'propano',  label: 'Gas propano (vehicular)'      },
+          { value: 'bunker',   label: 'Fuel oil / Bunker C'          },
+          { value: 'kerosina', label: 'Kerosina (DPK)'               },
+          { value: 'other',    label: 'Otros derivados'              },
         ])
       })
   }, [])
@@ -677,7 +682,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Unidad ═══════════════════════════════════════════════════════ */
     {
-      title: 'Unidad', dataIndex: 'unit', width: 110,
+      title: 'Unidad', dataIndex: 'unit', width: 125,
       render: (_: any, row: LineItem) => readOnly
         ? <span style={{ fontSize: 12 }}>{row.unit || '—'}</span>
         : (
@@ -694,7 +699,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Cantidad ══════════════════════════════════════════════════════ */
     {
-      title: 'Qty', dataIndex: 'quantity', width: 150, align: 'right' as const,
+      title: 'Qty', dataIndex: 'quantity', width: 80, align: 'right' as const,
       render: (_: any, row: LineItem) => readOnly
         ? <span style={{ fontSize: 13 }}>{Number(row.quantity).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
         : <CellInputNumber
@@ -707,7 +712,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Tarifa ════════════════════════════════════════════════════════ */
     {
-      title: 'Tarifa', dataIndex: 'unitPrice', width: 270, align: 'right' as const,
+      title: 'Tarifa', dataIndex: 'unitPrice', width: 145, align: 'right' as const,
       render: (_: any, row: LineItem) => readOnly
         ? <span style={{ fontSize: 13 }}>{Number(row.unitPrice).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
         : <CellInputNumber
@@ -742,7 +747,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
 
     /* ══ Impuesto ══════════════════════════════════════════════════════ */
     {
-      title: 'Impuesto', dataIndex: 'taxPercent', width: 160,
+      title: 'Impuesto', dataIndex: 'taxPercent', width: 210,
       render: (_: any, row: LineItem) => {
         if (readOnly) {
           return (

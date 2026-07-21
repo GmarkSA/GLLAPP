@@ -14,7 +14,9 @@ import {
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
+import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
 import EspacioDesarrolloPage  from './EspacioDesarrolloPage'
@@ -327,11 +329,18 @@ function FiscalSection({
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [regimes, setRegimes] = useState<FiscalRegime[]>([])
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const companyCountryCode = countryCodeFromValue((activeCompany as any)?.countryCode ?? (activeCompany as any)?.country ?? profile?.country)
   const watchedCountry = Form.useWatch(['settings', 'fiscalCountryCode'], form)
   const fiscalCountryCode = countryCodeFromValue(watchedCountry ?? companyCountryCode)
   const fiscalMeta = COUNTRY_FISCAL_CONFIG[fiscalCountryCode] ?? COUNTRY_FISCAL_CONFIG.GT
+  const watchedRegimeId = Form.useWatch(['settings', 'fiscalRegimeId'], form)
+  const selectedRegime = regimes.find(r => r.id === watchedRegimeId)
+
+  useEffect(() => {
+    fiscalRegimesApi.getAll(fiscalCountryCode).then(setRegimes).catch(() => {})
+  }, [fiscalCountryCode])
 
   useEffect(() => {
     if (profile) {
@@ -398,6 +407,35 @@ function FiscalSection({
                     ))}
                   </Select>
                 </Form.Item>
+              </Col>
+
+              {/* ── Régimen fiscal ─────────────────────────────────────────── */}
+              <Col xs={24} style={{ marginTop: 8 }}>
+                <Form.Item name={['settings', 'fiscalRegimeId']} label="Régimen fiscal" style={{ marginBottom: 4 }}>
+                  <Select
+                    size="large"
+                    placeholder="Selecciona el régimen fiscal de la empresa"
+                    allowClear
+                    options={regimes.map(r => ({ value: r.id, label: r.name }))}
+                  />
+                </Form.Item>
+                {selectedRegime && (
+                  <div style={{
+                    background: '#f0fafe', borderRadius: 8, padding: '8px 12px',
+                    border: '1px solid #bae0ed', fontSize: 12, color: '#374151',
+                    display: 'flex', gap: 16, flexWrap: 'wrap',
+                  }}>
+                    {selectedRegime.description && (
+                      <span>{selectedRegime.description}</span>
+                    )}
+                    <span>
+                      <strong>IVA:</strong> {selectedRegime.taxConfig.mainTaxName} {selectedRegime.taxConfig.mainTaxRate}%
+                    </span>
+                    {selectedRegime.taxConfig.hasFEL && (
+                      <Tag color="#1faec2" style={{ fontSize: 11 }}>FEL</Tag>
+                    )}
+                  </div>
+                )}
               </Col>
             </Row>
           </SectionCard>
@@ -837,6 +875,26 @@ function AccountDefaultsSection() {
     }
   }
 
+  const sugerirCuentas = () => {
+    const GLL: Record<keyof AccountDefaults, string> = {
+      customerAdvanceAccountCode:  '214001',
+      vendorAdvanceAccountCode:    '150001',
+      employeeAdvanceAccountCode:  '122001',
+      fxGainAccountCode:           '700002',
+      fxLossAccountCode:           '710003',
+    }
+    const byCode = (code: string) => accounts.find(a => a.code === code)?.code
+    setDefaults(prev => ({
+      ...prev,
+      ...Object.fromEntries(
+        (Object.entries(GLL) as [keyof AccountDefaults, string][])
+          .filter(([, code]) => !!byCode(code))
+          .map(([key, code]) => [key, byCode(code)!]),
+      ),
+    }))
+    message.success('Cuentas GLL sugeridas aplicadas. Haga clic en Guardar para confirmar.')
+  }
+
   const accountOptions = accounts.map(a => ({
     value: a.code,
     label: `${a.code} — ${a.name}`,
@@ -845,6 +903,15 @@ function AccountDefaultsSection() {
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 860 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Button
+            icon={<ThunderboltOutlined />}
+            style={{ color: '#1faec2', borderColor: '#1faec2' }}
+            onClick={sugerirCuentas}
+          >
+            Usar catálogo sugerido
+          </Button>
+        </div>
         <SectionCard title="Anticipos" icon={<DollarOutlined />}>
           <Row gutter={20}>
             <Col xs={24} md={12}>
@@ -1054,6 +1121,223 @@ function PreferencesSection() {
   )
 }
 
+// ── Impuestos Especiales ───────────────────────────────────────────────────────
+
+const IDP_FUEL_TYPES = [
+  { key: 'super',    label: 'Gasolina superior',          default: 4.70 },
+  { key: 'regular',  label: 'Gasolina regular',           default: 4.60 },
+  { key: 'aviacion', label: 'Gasolina de aviación',       default: 4.70 },
+  { key: 'diesel',   label: 'Diésel y gas oil',           default: 1.30 },
+  { key: 'propano',  label: 'Gas propano (vehicular)',    default: 0.60, note: 'doméstico exento' },
+  { key: 'bunker',   label: 'Fuel oil / Bunker C',        default: 0.55 },
+  { key: 'kerosina', label: 'Kerosina (DPK)',             default: 0.50 },
+  { key: 'other',    label: 'Otros derivados',            default: 0.50 },
+]
+
+const DEFAULT_IDP_RATES = Object.fromEntries(IDP_FUEL_TYPES.map(f => [f.key, f.default]))
+
+interface ImpuestosEspecialesConfig {
+  idp:              { rates: Record<string, number>; accountCode?: string }
+  turismo:          { rate: number; accountCode?: string }
+  timbre_prensa:    { rate: number; accountCode?: string }
+  timbres_fiscales: { rate: number; accountCode?: string }
+}
+
+const DEFAULT_IMPUESTOS_ESPECIALES: ImpuestosEspecialesConfig = {
+  idp:              { rates: { ...DEFAULT_IDP_RATES } },
+  turismo:          { rate: 10 },
+  timbre_prensa:    { rate: 0.5 },
+  timbres_fiscales: { rate: 3 },
+}
+
+function ImpuestosEspecialesSection() {
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [saving,   setSaving]   = useState(false)
+  const [cfg, setCfg] = useState<ImpuestosEspecialesConfig>(DEFAULT_IMPUESTOS_ESPECIALES)
+
+  useEffect(() => {
+    Promise.all([
+      getAccounts({ limit: 1000, isActive: true })
+        .then((data: any) => {
+          const list: Account[] = Array.isArray(data) ? data : (data?.data ?? [])
+          setAccounts(list.filter((a: Account) => !a.isHeader))
+        })
+        .catch(() => setAccounts([])),
+      getOrganizationProfile()
+        .then((profile: any) => {
+          const saved = profile?.settings?.impuestosEspeciales
+          if (saved) {
+            setCfg(prev => ({
+              ...prev,
+              ...saved,
+              idp: { ...prev.idp, ...saved.idp, rates: { ...DEFAULT_IDP_RATES, ...(saved.idp?.rates ?? {}) } },
+            }))
+          }
+        })
+        .catch(() => null),
+    ]).finally(() => setLoading(false))
+  }, [])
+
+  const setIdpRate = (key: string, value: number) =>
+    setCfg(prev => ({ ...prev, idp: { ...prev.idp, rates: { ...prev.idp.rates, [key]: value } } }))
+
+  const setIdpAccount = (code: string) =>
+    setCfg(prev => ({ ...prev, idp: { ...prev.idp, accountCode: code } }))
+
+  const setOtherTax = (tax: 'turismo' | 'timbre_prensa' | 'timbres_fiscales', field: 'rate' | 'accountCode', value: number | string) =>
+    setCfg(prev => ({ ...prev, [tax]: { ...prev[tax], [field]: value } }))
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const profile = await getOrganizationProfile().catch(() => ({} as any))
+      const existingSettings = (profile as any)?.settings ?? {}
+      await updateOrganizationProfile({
+        settings: { ...existingSettings, impuestosEspeciales: cfg },
+      } as any)
+      message.success('Impuestos especiales guardados')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo guardar')
+    } finally {
+      setSaving(false) }
+  }
+
+  const accountOptions = accounts.map(a => ({ value: a.code, label: `${a.code} — ${a.name}` }))
+
+  const OTHER_TAXES: { key: 'turismo' | 'timbre_prensa' | 'timbres_fiscales'; label: string; desc: string; decreto: string }[] = [
+    { key: 'turismo',          label: 'Impuesto de Turismo',       desc: 'Sobre la tarifa de alojamiento en hoteles y hospedajes inscritos ante INGUAT',    decreto: 'Ley Orgánica INGUAT' },
+    { key: 'timbre_prensa',    label: 'Timbre de Prensa (IPSP)',   desc: 'Sobre facturas de publicidad y propaganda (excluye IVA en régimen general)',       decreto: 'Dto. 56-90' },
+    { key: 'timbres_fiscales', label: 'Timbres Fiscales',          desc: 'Sobre actos y contratos no gravados con IVA (documentos notariales, civiles…)',    decreto: 'Dto. 37-92' },
+  ]
+
+  return (
+    <Spin spinning={loading}>
+      <div style={{ maxWidth: 1100 }}>
+
+        {/* ── Layout horizontal: IDP izquierda | otros impuestos derecha ── */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+
+          {/* IDP */}
+          <div style={{ flex: '0 0 52%' }}>
+            <SectionCard title="IDP — Impuesto de Distribución de Petróleo (Dto. 38-92)" icon={<ThunderboltOutlined />}>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
+                Tarifa específica por galón americano. Se aplica al registrar facturas de compra con tipo <Text code>Combustible con IDP</Text>.
+                Actualizar cuando exista reforma legislativa.
+              </Text>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f5f5f5' }}>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8' }}>Producto</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 140 }}>Tarifa Q/galón</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 130 }}>Nota</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {IDP_FUEL_TYPES.map((ft, i) => (
+                    <tr key={ft.key} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>{ft.label}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0', textAlign: 'right' }}>
+                        <InputNumber
+                          value={cfg.idp.rates[ft.key] ?? ft.default}
+                          min={0} step={0.01} precision={2}
+                          prefix="Q"
+                          size="small"
+                          style={{ width: 110 }}
+                          onChange={v => setIdpRate(ft.key, v ?? 0)}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>
+                        {ft.note
+                          ? <Text type="secondary" style={{ fontSize: 12 }}>{ft.note}</Text>
+                          : <Text type="secondary" style={{ fontSize: 12 }}>Dto. 38-92, Art. 2</Text>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 14 }}>
+                <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Cuenta contable — IDP</Text>
+                <Select
+                  showSearch
+                  style={{ width: '100%' }}
+                  placeholder="Ej: 1106 — IDP por Acreditar"
+                  value={cfg.idp.accountCode || undefined}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={accountOptions}
+                  onChange={setIdpAccount}
+                  allowClear
+                />
+              </div>
+            </SectionCard>
+          </div>
+
+          {/* Turismo, Timbre de Prensa, Timbres Fiscales — apilados verticalmente */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {OTHER_TAXES.map(tax => (
+              <Card
+                key={tax.key}
+                bordered={false}
+                style={{ ...cardStyle }}
+                bodyStyle={{ padding: '14px 16px' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
+                  <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>{tax.label}</span>
+                </div>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10 }}>
+                  {tax.desc}
+                </Text>
+                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '0 12px', alignItems: 'end' }}>
+                  <div>
+                    <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Tasa (%)</Text>
+                    <InputNumber
+                      value={cfg[tax.key].rate}
+                      min={0} max={100} step={0.1} precision={2}
+                      addonAfter="%"
+                      size="small"
+                      style={{ width: '100%' }}
+                      onChange={v => setOtherTax(tax.key, 'rate', v ?? 0)}
+                    />
+                  </div>
+                  <div>
+                    <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable</Text>
+                    <Select
+                      showSearch
+                      size="small"
+                      style={{ width: '100%' }}
+                      placeholder="Selecciona cuenta"
+                      value={cfg[tax.key].accountCode || undefined}
+                      filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                      options={accountOptions}
+                      onChange={v => setOtherTax(tax.key, 'accountCode', v)}
+                      allowClear
+                    />
+                  </div>
+                </div>
+                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8, color: '#9ca3af' }}>
+                  {tax.decreto}
+                </Text>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <Button
+            type="primary" size="large" icon={<SaveOutlined />}
+            loading={saving} onClick={handleSave}
+            style={{ background: '#1faec2', minWidth: 160 }}
+          >
+            Guardar cambios
+          </Button>
+        </div>
+      </div>
+    </Spin>
+  )
+}
+
 function ContabilidadSection() {
   const { activeCompany } = useCompanyStore()
   const [loading, setLoading]   = useState(true)
@@ -1250,7 +1534,7 @@ export default function ConfiguracionPage() {
           <div>
             <div style={{ marginBottom: 20 }}>
               <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Contabilidad</Title>
-              <Text type="secondary">Dimensiones analíticas, cuentas por defecto y preferencias del sistema</Text>
+              <Text type="secondary">Dimensiones analíticas, cuentas por defecto, impuestos especiales y preferencias del sistema</Text>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
               <div>
@@ -1260,6 +1544,15 @@ export default function ConfiguracionPage() {
               <div>
                 <AccountDefaultsSection />
               </div>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ fontSize: 15, color: '#0a0a0a' }}>Impuestos especiales</Text>
+                <Text type="secondary" style={{ display: 'block', fontSize: 13 }}>
+                  Tarifas y cuentas contables para IDP, Turismo (INGUAT), Timbre de Prensa y Timbres Fiscales
+                </Text>
+              </div>
+              <ImpuestosEspecialesSection />
             </div>
           </div>
         )
