@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Steps, Button, Form, Input, Select, Card, message,
@@ -71,6 +71,13 @@ export default function OnboardingWizardPage() {
   ])
 
   const getCountryMeta = (code: string) => COUNTRIES.find(c => c.code === code)
+
+  // Pre-llenar el nombre de empresa desde el tenant (creado en /register)
+  useEffect(() => {
+    tenantsApi.getProfile().then(profile => {
+      if (profile?.name) form.setFieldValue('legalName', profile.name)
+    }).catch(() => {})
+  }, [form])
 
   const loadRegimes = useCallback((country: string) => {
     setLoadingRegimes(true)
