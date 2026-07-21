@@ -21,6 +21,37 @@ import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
 
+// ── Acceso por módulo según rol ────────────────────────────────────────────
+// SuperAdmin e isSuperAdmin → acceso total
+// Admin (gerente del tenant) → acceso total
+// Otros roles → acceso específico por módulo
+
+const FULL_ACCESS_ROLES = new Set(['superadmin', 'admin'])
+
+const ROLE_MODULES: Record<string, Set<string>> = {
+  contador:   new Set(['contabilidad', 'bancos', 'compras', 'reportes', 'configuracion']),
+  ventas:     new Set(['ventas', 'inventario', 'reportes', 'configuracion']),
+  compras:    new Set(['compras', 'inventario', 'bancos', 'reportes', 'configuracion']),
+  planillas:  new Set(['planillas', 'reportes', 'configuracion']),
+  tesoreria:  new Set(['bancos', 'compras', 'reportes', 'configuracion']),
+  cajero:     new Set(['/pos']),
+  lector:     new Set(['reportes', 'configuracion']),
+  inventario: new Set(['inventario', 'ventas', 'reportes', 'configuracion']),
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: 'Super Admin',
+  admin:      'Admin',
+  contador:   'Contador',
+  ventas:     'Ventas',
+  compras:    'Compras',
+  planillas:  'Planillas',
+  tesoreria:  'Tesorería',
+  cajero:     'Cajero',
+  lector:     'Lector',
+  inventario: 'Inventario',
+}
+
 const getOpenKey = (pathname: string): string[] => {
   if (pathname.startsWith('/ventas'))        return ['ventas']
   if (pathname.startsWith('/compras'))       return ['compras']
@@ -136,8 +167,23 @@ export default function MainLayout() {
   const isModuleEnabled = useCompanyStore(s => s.isModuleEnabled)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
 
-  // Filtra el menú respetando enabledModules de la empresa activa.
-  // Dashboard, Configuración y Platform Admin nunca se ocultan.
+  // ── Lógica de acceso por rol ──────────────────────────────────────────────
+  const userRoles    = (user?.roles ?? []).map(r => r.toLowerCase())
+  const hasFullAccess = user?.isSuperAdmin || userRoles.some(r => FULL_ACCESS_ROLES.has(r))
+
+  const canSeeModule = (moduleKey: string): boolean => {
+    if (hasFullAccess) return true
+    return userRoles.some(r => ROLE_MODULES[r]?.has(moduleKey) ?? false)
+  }
+
+  const roleDisplayName = user?.isSuperAdmin
+    ? 'Super Admin'
+    : userRoles.length > 0
+      ? userRoles.map(r => ROLE_LABELS[r] ?? r.charAt(0).toUpperCase() + r.slice(1)).join(', ')
+      : 'Usuario'
+
+  // ── Filtrado del menú ─────────────────────────────────────────────────────
+  // Paso 1: filtrar por módulos habilitados en la empresa activa
   const filteredMenuItems = menuItems.filter(item => {
     const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform', '/proyectos', '/pos', 'planillas']
     if (alwaysVisible.includes(item.key)) return true
@@ -145,25 +191,29 @@ export default function MainLayout() {
   })
 
   const handleOpenChange = (keys: string[]) => {
-    // Acordeón: al abrir un módulo, colapsa el anterior
     const newKey = keys.find(k => !openKeys.includes(k))
     setOpenKeys(newKey ? [newKey] : keys)
   }
 
-  // Guard: cajero solo accede al POS — redirige si intenta entrar al ERP
+  // Guard: cajero solo accede al POS
   const isCajero = !!(user?.roles?.includes('cajero') && !user?.isSuperAdmin)
   useEffect(() => {
     if (isCajero) navigate('/pos', { replace: true })
   }, [isCajero])
 
-  // Al expandir el sidebar, abrir el submenú del módulo recién navegado
   useEffect(() => {
     if (!collapsed) setOpenKeys(getOpenKey(lastNavKey.current || location.pathname))
   }, [collapsed])
 
-  // 1. Filtrar por enabledModules de la empresa activa
-  // 2. Filtrar Platform Admin solo para superadmin
-  const visibleMenuItems = (user?.isSuperAdmin ? filteredMenuItems : filteredMenuItems.filter(item => item.key !== '/admin/platform'))
+  // Paso 2: filtrar por rol del usuario
+  const visibleMenuItems = filteredMenuItems.filter(item => {
+    if (item.key === '/dashboard')     return true
+    if (item.key === '/admin/platform') return !!user?.isSuperAdmin
+    if (item.key === '/pos')           return canSeeModule('/pos')
+    if (item.key === 'configuracion')  return true
+    if (item.key === '/proyectos')     return hasFullAccess
+    return canSeeModule(item.key)
+  })
 
   const userMenu = {
     items: [
@@ -323,7 +373,7 @@ export default function MainLayout() {
                       : 'Usuario'}
                   </div>
                   <div style={{ fontSize: 10, color: '#9aa1ab' }}>
-                    {user?.isSuperAdmin ? 'Super Admin' : 'Administrador'}
+                    {roleDisplayName}
                   </div>
                 </div>
               </div>

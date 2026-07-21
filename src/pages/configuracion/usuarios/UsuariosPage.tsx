@@ -18,6 +18,17 @@ import {
 import { companiesApi } from '../../../api/companies'
 import type { Company } from '../../../store/authStore'
 
+const ROLE_ORDER = ['superadmin', 'admin', 'contador', 'ventas', 'compras', 'planillas', 'tesoreria', 'cajero', 'lector', 'inventario']
+const sortRoles = (list: RoleSummary[]) =>
+  [...list].sort((a, b) => {
+    const ai = ROLE_ORDER.indexOf(a.name.toLowerCase())
+    const bi = ROLE_ORDER.indexOf(b.name.toLowerCase())
+    if (ai === -1 && bi === -1) return a.name.localeCompare(b.name)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+
 const { Title, Text } = Typography
 
 // ── Labels de acciones ──────────────────────────────────────────────────────
@@ -592,7 +603,7 @@ export default function UsuariosPage() {
                   type="card"
                   activeKey={editingRole?.id}
                   onChange={key => { const r = roles.find(x => x.id === key); if (r) selectRole(r) }}
-                  items={roles.map(role => {
+                  items={sortRoles(roles).map(role => {
                     const userCount = users.filter(u => u.roles?.some(ur => ur.id === role.id)).length
                     const isActive  = editingRole?.id === role.id
                     return {
