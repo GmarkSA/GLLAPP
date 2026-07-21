@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Table, Button, Tag, Modal, Form, Input, Select, Switch,
   InputNumber, Space, Tooltip, Popconfirm, Typography,
-  Card, Row, Col, Divider, Alert, Spin, Badge, message,
+  Card, Row, Col, Divider, Alert, Spin, Badge, message, AutoComplete,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -28,7 +28,7 @@ const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   iva:                       { label: 'IVA 12%',        color: '#1faec2'   },
   iva_exento:                { label: 'IVA Exento',     color: 'default'   },
   iva_retenida:              { label: 'IVA Retenida',   color: '#ff7f00'   },
-  iva_pequeno_contribuyente: { label: 'IVA PC 5%',      color: '#722ed1'   },
+  iva_pequeno_contribuyente: { label: 'IVA PC',          color: '#722ed1'   },
   isr:                       { label: 'ISR',            color: '#6b7280'   },
   other:                     { label: 'Otro',           color: 'cyan'      },
 }
@@ -66,7 +66,8 @@ const APPLICABILITY_LABELS: Record<string, string> = {
 }
 
 function rateDisplay(tax: Tax): string {
-  if (tax.subtype === 'exempt')          return '0% (Exento)'
+  if (tax.subtype === 'exempt')                    return '0% (Exento)'
+  if (tax.subtype === 'pequeno_contribuyente')     return '0% (Pequeño Contribuyente)'
   if (tax.subtype === 'progressive' && tax.tiers) {
     const rates = tax.tiers.map(t => `${t.rate}%`).join(' / ')
     return rates
@@ -113,6 +114,10 @@ function calcLocally(
 
   } else if (tax.subtype === 'exempt') {
     breakdown.push({ label: 'Exento', taxable: baseAmount, rate: 0, amount: 0 })
+    total = 0
+
+  } else if (tax.subtype === 'pequeno_contribuyente') {
+    breakdown.push({ label: 'Pequeño Contribuyente (col. específica)', taxable: baseAmount, rate: 0, amount: 0 })
     total = 0
 
   } else if (tax.subtype === 'progressive') {
@@ -468,13 +473,22 @@ function TaxModal({
   // Actualizar preview en tiempo real — usamos el valor de changed.subtype
   // directamente para no depender del state estale
   const handleValuesChange = (changed: any, all: any) => {
-    const newSubtype = changed.subtype ?? subtype
-    if (changed.subtype)  setSubtype(changed.subtype)
+    let newSubtype = changed.subtype ?? subtype
+    if (changed.category === 'iva_pequeno_contribuyente') {
+      newSubtype = 'pequeno_contribuyente'
+      form.setFieldsValue({ subtype: 'pequeno_contribuyente', rate: 0 })
+    }
+    if (changed.category) {
+      const ref = taxes.find(t => t.category === changed.category && (t.salesAccountId || t.purchaseAccountId))
+      if (ref) form.setFieldsValue({ salesAccountId: ref.salesAccountId ?? undefined, purchaseAccountId: ref.purchaseAccountId ?? undefined })
+    }
+    if (changed.subtype || changed.category === 'iva_pequeno_contribuyente') setSubtype(newSubtype)
     if (changed.category) setCategory(changed.category)
     setPreviewTax({
       id: tax?.id ?? 'preview',
       ...all,
       subtype:       newSubtype,
+      rate:          changed.category === 'iva_pequeno_contribuyente' ? 0 : (all.rate ?? 0),
       tiers:         newSubtype === 'progressive' ? tiers : null,
       isWithholding: ['isr', 'iva_retenida'].includes(all.category ?? 'iva'),
       isInclusive:   all.isInclusive ?? false,
@@ -496,7 +510,7 @@ function TaxModal({
       onOk={handleSave}
       okText={isEditing ? 'Guardar cambios' : 'Crear impuesto'}
       okButtonProps={{ loading, style: { background: '#1faec2' } }}
-      width={700}
+      width={1080}
       destroyOnClose
     >
       <Form
@@ -505,261 +519,206 @@ function TaxModal({
         onValuesChange={handleValuesChange}
         initialValues={{ applicability: 'both', subtype: 'simple', category: 'iva', rate: 12, isActive: true }}
       >
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item name="name" label="Nombre del impuesto" rules={[{ required: true }]}>
-              <Input placeholder="IVA 12%" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="code" label="Código SAT" rules={[{ required: true }]}
-              tooltip="Código corto único, ej: IVA12, ISR, IVARET65">
-              <Input placeholder="IVA12" style={{ textTransform: 'uppercase' }} />
-            </Form.Item>
-          </Col>
-        </Row>
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
 
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item name="category" label="Categoría" rules={[{ required: true }]}>
-              <Select>
-                <Option value="iva">IVA 12% — Impuesto al Valor Agregado</Option>
-                <Option value="iva_exento">IVA Exento (0%)</Option>
-                <Option value="iva_retenida">Retención de IVA (65% / 15%)</Option>
-                <Option value="iva_pequeno_contribuyente">IVA 5% — Pequeño Contribuyente</Option>
-                <Option value="isr">ISR — Retención en la Fuente</Option>
-                <Option value="other">Otro impuesto</Option>
+          {/* ── Panel izquierdo: campos principales ── */}
+          <div style={{ flex: '0 0 55%' }}>
+            <Row gutter={12}>
+              <Col span={14}>
+                <Form.Item name="name" label="Nombre del impuesto" rules={[{ required: true }]}>
+                  <AutoComplete
+                    placeholder="IVA 12%"
+                    options={taxes.map(t => ({ value: t.name, label: t.name }))}
+                    filterOption={(input, opt) => (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={10}>
+                <Form.Item name="code" label="Código" rules={[{ required: true }]}
+                  tooltip="Código corto único, ej: IVA12, ISR, IVARET65">
+                  <AutoComplete
+                    placeholder="IVA12"
+                    style={{ textTransform: 'uppercase' }}
+                    options={taxes.map(t => ({ value: t.code, label: `${t.code} — ${t.name}` }))}
+                    filterOption={(input, opt) => (opt?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={12}>
+              <Col span={14}>
+                <Form.Item name="category" label="Categoría" rules={[{ required: true }]}>
+                  <Select>
+                    <Option value="iva">IVA 12% — Impuesto al Valor Agregado</Option>
+                    <Option value="iva_exento">IVA Exento (0%)</Option>
+                    <Option value="iva_retenida">Retención de IVA (65% / 15%)</Option>
+                    <Option value="iva_pequeno_contribuyente">IVA Pequeño Contribuyente</Option>
+                    <Option value="isr">ISR — Retención en la Fuente</Option>
+                    <Option value="other">Otro impuesto</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={10}>
+                <Form.Item name="applicability" label="Aplica en">
+                  <Select>
+                    <Option value="both">Ventas y compras</Option>
+                    <Option value="sales">Solo ventas</Option>
+                    <Option value="purchases">Solo compras</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {category === 'iva_pequeno_contribuyente' && (
+              <Alert
+                type="warning" showIcon style={{ marginBottom: 12 }}
+                message="IVA Pequeño Contribuyente — consideraciones clave"
+                description={
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11 }}>
+                    <li><strong>Emisor PC:</strong> Facturás el total sin desglosar IVA. Al cierre de cada mes pagás el 5% sobre el total de ventas directamente al SAT (formulario SAT-2046).</li>
+                    <li><strong>Receptor (CG):</strong> Se registra al valor total en la columna "Pequeño Contribuyente" del libro de compras. No aplica crédito fiscal.</li>
+                    <li><strong>GCE (Art. 55, Dto. 27-92):</strong> Gran Contribuyente Especial retiene el 5% del total y lo entera al SAT. Crear impuesto <code>IVARET_PC</code> como <em>Retención de IVA</em> 5%.</li>
+                  </ul>
+                }
+              />
+            )}
+
+            <Form.Item name="subtype" label="Tipo de cálculo" rules={[{ required: true }]}>
+              <Select onChange={v => setSubtype(v)}>
+                <Option value="simple">📊 Tasa simple — porcentaje fijo sobre el monto base (IVA 12%)</Option>
+                <Option value="exempt">✅ Exento — 0%, operaciones no gravadas</Option>
+                <Option value="pequeno_contribuyente">🟣 Pequeño Contribuyente — 0%, columna específica libro de compras</Option>
+                <Option value="progressive">📈 Progresivo por tramos — tasa diferente por rangos (ISR)</Option>
+                <Option value="retention_tax">🔗 Retención sobre impuesto — % de otro impuesto (IVA Retenida)</Option>
               </Select>
             </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="applicability" label="Aplica en">
-              <Select>
-                <Option value="both">Ventas y compras</Option>
-                <Option value="sales">Solo ventas</Option>
-                <Option value="purchases">Solo compras</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
 
-        {category === 'iva_pequeno_contribuyente' && (
-          <Alert
-            type="warning" showIcon style={{ marginBottom: 16 }}
-            message="IVA Pequeño Contribuyente (5%) — consideraciones clave"
-            description={
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
-                <li><strong>Pago único:</strong> El PC paga 5% sobre el total de sus ventas directamente al SAT cada trimestre. No aplica el sistema débito−crédito fiscal.</li>
-                <li><strong>Sin crédito fiscal:</strong> El comprador <strong>no puede reclamar CF</strong> al adquirir de un Pequeño Contribuyente.</li>
-                <li><strong>Retención por GCE (Art. 55, Dto. 27-92):</strong> Cuando el comprador es un Gran Contribuyente Especial, está obligado a retener el 100% del IVA (5% del total facturado), emitir Constancia de Retención y enterarlo directamente al SAT. El PC <em>no paga</em> ese IVA por separado. Para ese caso, crea un impuesto adicional con código <code>IVARET_PC</code>, categoría <em>Retención de IVA</em>, tasa 5%, marcado como withholding.</li>
-              </ul>
-            }
-          />
-        )}
-
-        <Form.Item name="subtype" label="Tipo de cálculo" rules={[{ required: true }]}>
-          <Select onChange={v => setSubtype(v)}>
-            <Option value="simple">
-              📊 Tasa simple — porcentaje fijo sobre el monto base (IVA 12%)
-            </Option>
-            <Option value="exempt">
-              ✅ Exento — 0%, operaciones no gravadas
-            </Option>
-            <Option value="progressive">
-              📈 Progresivo por tramos — tasa diferente por rangos (ISR)
-            </Option>
-            <Option value="retention_tax">
-              🔗 Retención sobre impuesto — % de otro impuesto (IVA Retenida)
-            </Option>
-          </Select>
-        </Form.Item>
-
-        {/* Tasa simple */}
-        {subtype === 'simple' && (
-          <Form.Item name="rate" label="Tasa (%)" rules={[{ required: true }]}>
-            <InputNumber
-              min={0} max={100} precision={2}
-              style={{ width: '100%' }}
-              addonAfter="% sobre el monto base"
-            />
-          </Form.Item>
-        )}
-
-        {/* Tramos progresivos */}
-        {subtype === 'progressive' && (
-          <Form.Item label="Tramos del impuesto">
-            <Alert
-              message="Impuesto progresivo — ISR Guatemala"
-              description="Define tramos de monto con su tasa correspondiente. El impuesto se calcula acumulando cada tramo hasta agotar el monto total."
-              type="info" showIcon style={{ marginBottom: 12 }}
-            />
-            <TiersEditor
-              tiers={tiers}
-              onChange={(newTiers) => {
-                setTiers(newTiers)
-                // Refrescar previewTax con los nuevos tiers
-                const all = form.getFieldsValue()
-                setPreviewTax(prev => prev ? { ...prev, tiers: newTiers } : prev)
-              }}
-            />
-          </Form.Item>
-        )}
-
-        {/* Retención sobre otro impuesto */}
-        {subtype === 'retention_tax' && (
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="baseTaxCode" label="Impuesto base" rules={[{ required: true }]}
-                tooltip="El impuesto sobre el cual se calcula esta retención">
-                <Select placeholder="Selecciona el impuesto base">
-                  {taxes.filter(t => t.subtype === 'simple').map(t => (
-                    <Option key={t.code} value={t.code}>{t.name} ({t.code})</Option>
-                  ))}
-                </Select>
+            {subtype === 'simple' && (
+              <Form.Item name="rate" label="Tasa (%)" rules={[{ required: true }]}>
+                <InputNumber min={0} max={100} precision={2} style={{ width: '100%' }} addonAfter="% sobre el monto base" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="rate" label="Porcentaje de retención" rules={[{ required: true }]}>
-                <InputNumber
-                  min={0} max={100} precision={2}
-                  style={{ width: '100%' }}
-                  addonAfter="% del impuesto base"
+            )}
+
+            {subtype === 'progressive' && (
+              <Form.Item label="Tramos del impuesto">
+                <Alert
+                  message="Impuesto progresivo — ISR Guatemala"
+                  description="Define tramos de monto con su tasa correspondiente. El impuesto se calcula acumulando cada tramo hasta agotar el monto total."
+                  type="info" showIcon style={{ marginBottom: 12 }}
+                />
+                <TiersEditor
+                  tiers={tiers}
+                  onChange={(newTiers) => {
+                    setTiers(newTiers)
+                    setPreviewTax(prev => prev ? { ...prev, tiers: newTiers } : prev)
+                  }}
                 />
               </Form.Item>
-            </Col>
-          </Row>
-        )}
+            )}
 
-        {/* Cuentas contables */}
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '12px 0' }}>
-          Cuentas contables (para partidas automáticas)
-        </Divider>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item name="salesAccountId" label="Cuenta ventas (haber)"
-              tooltip="Cuenta que se acredita al registrar este impuesto en ventas (ej: IVA por Pagar 2210)">
-              <Select
-                allowClear
-                showSearch
-                placeholder="Buscar cuenta..."
-                optionFilterProp="label"
-                options={accounts.map(a => ({
-                  value: a.id,
-                  label: `${a.code}  ${a.name}`,
-                }))}
-              />
+            {subtype === 'retention_tax' && (
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item name="baseTaxCode" label="Impuesto base" rules={[{ required: true }]}
+                    tooltip="El impuesto sobre el cual se calcula esta retención">
+                    <Select placeholder="Selecciona el impuesto base">
+                      {taxes.filter(t => t.subtype === 'simple').map(t => (
+                        <Option key={t.code} value={t.code}>{t.name} ({t.code})</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="rate" label="Porcentaje de retención" rules={[{ required: true }]}>
+                    <InputNumber min={0} max={100} precision={2} style={{ width: '100%' }} addonAfter="% del impuesto base" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            )}
+
+            <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '10px 0' }}>
+              Cuentas contables (para partidas automáticas)
+            </Divider>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="salesAccountId" label="Cuenta ventas (haber)"
+                  tooltip="Cuenta que se acredita al registrar este impuesto en ventas (ej: IVA por Pagar 2210)">
+                  <Select allowClear showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
+                    options={accounts.map(a => ({ value: a.id, label: `${a.code}  ${a.name}` }))} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="purchaseAccountId" label="Cuenta compras (débito)"
+                  tooltip="Cuenta que se debita al registrar este impuesto en compras (ej: IVA Crédito Fiscal 1150)">
+                  <Select allowClear showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
+                    options={accounts.map(a => ({ value: a.id, label: `${a.code}  ${a.name}` }))} />
+                </Form.Item>
+              </Col>
+            </Row>
+            {subtype === 'retention_tax' && (
+              <Form.Item name="retentionAccountId" label="Cuenta retención"
+                tooltip="Cuenta de pasivo donde se registra el importe retenido (ej: Retención IVA por Enterar 2215)">
+                <Select allowClear showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
+                  options={accounts.map(a => ({ value: a.id, label: `${a.code}  ${a.name}` }))} />
+              </Form.Item>
+            )}
+
+            <Form.Item name="description" label="Descripción / Fundamento legal">
+              <TextArea rows={2} placeholder="Decreto 27-92, Art. 10 — Tasa general del IVA" />
             </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="purchaseAccountId" label="Cuenta compras (débito)"
-              tooltip="Cuenta que se debita al registrar este impuesto en compras (ej: IVA Crédito Fiscal 1150)">
-              <Select
-                allowClear
-                showSearch
-                placeholder="Buscar cuenta..."
-                optionFilterProp="label"
-                options={accounts.map(a => ({
-                  value: a.id,
-                  label: `${a.code}  ${a.name}`,
-                }))}
-              />
-            </Form.Item>
-          </Col>
-        </Row>
-        {subtype === 'retention_tax' && (
-          <Form.Item name="retentionAccountId" label="Cuenta retención"
-            tooltip="Cuenta de pasivo donde se registra el importe retenido (ej: Retención IVA por Enterar 2215)">
-            <Select
-              allowClear
-              showSearch
-              placeholder="Buscar cuenta..."
-              optionFilterProp="label"
-              options={accounts.map(a => ({
-                value: a.id,
-                label: `${a.code}  ${a.name}`,
-              }))}
-            />
-          </Form.Item>
-        )}
+          </div>
 
-        <Form.Item name="description" label="Descripción / Fundamento legal">
-          <TextArea rows={2} placeholder="Decreto 27-92, Art. 10 — Tasa general del IVA" />
-        </Form.Item>
-
-        {/* Vinculación a Libros SAT — opciones dinámicas desde Configuración → Columnas Libros SAT */}
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '12px 0' }}>
-          Vinculación a Libros SAT
-        </Divider>
-        <Row gutter={16}>
-          <Col span={12}>
+          {/* ── Panel derecho: libros SAT + opciones + calculadora ── */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '0 0 10px' }}>
+              Vinculación a Libros SAT
+            </Divider>
             <Form.Item
               name="libroComprasCol"
               label="Columna en Libro de Compras"
-              tooltip="Columna del Libro de Compras y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en Configuración → Columnas Libros SAT."
+              tooltip="Columna del Libro de Compras y Servicios (SAT) a la que contribuye este impuesto."
             >
-              <Select
-                allowClear
-                placeholder="Sin asignación"
-                options={libroConfig.compras
-                  .filter(c => c.isActive)
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-                  .map(c => ({ value: c.key, label: c.label }))
-                }
-              />
+              <Select allowClear placeholder="Sin asignación"
+                options={libroConfig.compras.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map(c => ({ value: c.key, label: c.label }))} />
             </Form.Item>
-          </Col>
-          <Col span={12}>
             <Form.Item
               name="libroVentasCol"
               label="Columna en Libro de Ventas"
-              tooltip="Columna del Libro de Ventas y Servicios (SAT) a la que contribuye este impuesto. Las columnas se configuran en Configuración → Columnas Libros SAT."
+              tooltip="Columna del Libro de Ventas y Servicios (SAT) a la que contribuye este impuesto."
             >
-              <Select
-                allowClear
-                placeholder="Sin asignación"
-                options={libroConfig.ventas
-                  .filter(c => c.isActive)
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-                  .map(c => ({ value: c.key, label: c.label }))
-                }
-              />
+              <Select allowClear placeholder="Sin asignación"
+                options={libroConfig.ventas.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map(c => ({ value: c.key, label: c.label }))} />
             </Form.Item>
-          </Col>
-        </Row>
 
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item
-              name="isInclusive"
-              label="Modo de precio"
-              valuePropName="checked"
-              tooltip="IVA incluido: el precio ya contiene el impuesto (Q 1,000 → Base Q 892.86 + IVA Q 107.14 = Q 1,000). IVA excluido: el impuesto se suma sobre el precio (Q 1,000 + IVA Q 120 = Q 1,120)."
-            >
-              <Switch
-                checkedChildren="IVA incluido"
-                unCheckedChildren="IVA excluido"
-              />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item name="isDefault" label="Aplicar por defecto" valuePropName="checked">
-              <Switch checkedChildren="Sí" unCheckedChildren="No" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item name="isActive" label="Activo" valuePropName="checked">
-              <Switch checkedChildren="Activo" unCheckedChildren="Inactivo" defaultChecked />
-            </Form.Item>
-          </Col>
-        </Row>
+            <Divider style={{ margin: '10px 0' }} />
+            <Row gutter={12}>
+              <Col span={8}>
+                <Form.Item name="isInclusive" label="Modo precio" valuePropName="checked"
+                  tooltip="IVA incluido: precio ya contiene el impuesto. IVA excluido: se suma sobre el precio.">
+                  <Switch checkedChildren="Incluido" unCheckedChildren="Excluido" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="isDefault" label="Por defecto" valuePropName="checked">
+                  <Switch checkedChildren="Sí" unCheckedChildren="No" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="isActive" label="Activo" valuePropName="checked">
+                  <Switch checkedChildren="Activo" unCheckedChildren="Inactivo" defaultChecked />
+                </Form.Item>
+              </Col>
+            </Row>
 
-        {/* Calculadora en tiempo real */}
-        {previewTax && previewTax.subtype !== 'exempt' && (
-          <TaxCalculator
-            tax={previewTax}
-            liveTiers={subtype === 'progressive' ? tiers : undefined}
-          />
-        )}
+            {previewTax && previewTax.subtype !== 'exempt' && previewTax.subtype !== 'pequeno_contribuyente' && (
+              <TaxCalculator
+                tax={previewTax}
+                liveTiers={subtype === 'progressive' ? tiers : undefined}
+              />
+            )}
+          </div>
+        </div>
       </Form>
     </Modal>
   )
@@ -771,10 +730,11 @@ export default function ImpuestosPage() {
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const defaultCountry = countryFromCompany(activeCompany)
   const [countryCode, setCountryCode] = useState(defaultCountry)
-  const [taxes,   setTaxes]   = useState<Tax[]>([])
-  const [loading, setLoading] = useState(true)
-  const [seeding, setSeeding] = useState(false)
-  const [modal,   setModal]   = useState<{ open: boolean; tax: Tax | null }>({ open: false, tax: null })
+  const [taxes,        setTaxes]        = useState<Tax[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [seeding,      setSeeding]      = useState(false)
+  const [modal,        setModal]        = useState<{ open: boolean; tax: Tax | null }>({ open: false, tax: null })
+  const [pageAccounts, setPageAccounts] = useState<Account[]>([])
 
   const fetchTaxes = useCallback(async () => {
     setLoading(true)
@@ -789,6 +749,12 @@ export default function ImpuestosPage() {
   }, [])
 
   useEffect(() => { fetchTaxes() }, [fetchTaxes])
+
+  useEffect(() => {
+    getAccounts({ isHeader: false, limit: 500 })
+      .then((res: any) => setPageAccounts(Array.isArray(res) ? res : (res?.data ?? [])))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => { setCountryCode(defaultCountry) }, [defaultCountry])
 
@@ -821,6 +787,7 @@ export default function ImpuestosPage() {
       title: 'Código',
       dataIndex: 'code',
       width: 110,
+      sorter: (a, b) => a.code.localeCompare(b.code),
       render: (v, r) => (
         <Space>
           <Text code style={{ fontSize: 12 }}>{v}</Text>
@@ -831,6 +798,7 @@ export default function ImpuestosPage() {
     {
       title: 'Nombre',
       dataIndex: 'name',
+      sorter: (a, b) => a.name.localeCompare(b.name),
       render: (v, r) => (
         <div>
           <div style={{ fontWeight: 500 }}>{v}</div>
@@ -846,6 +814,7 @@ export default function ImpuestosPage() {
       title: 'Categoría',
       dataIndex: 'category',
       width: 130,
+      sorter: (a, b) => (a.category ?? '').localeCompare(b.category ?? ''),
       render: (v: string) => {
         const c = CATEGORY_LABELS[v]
         return <Tag color={c?.color}>{c?.label ?? v}</Tag>
@@ -855,6 +824,7 @@ export default function ImpuestosPage() {
       title: 'Tipo de cálculo',
       dataIndex: 'subtype',
       width: 180,
+      sorter: (a, b) => (a.subtype ?? '').localeCompare(b.subtype ?? ''),
       render: (v: string, r) => (
         <div>
           <div style={{ fontSize: 12 }}>{SUBTYPE_LABELS[v] ?? v}</div>
@@ -868,11 +838,40 @@ export default function ImpuestosPage() {
       title: 'Aplica en',
       dataIndex: 'applicability',
       width: 100,
+      sorter: (a, b) => (a.applicability ?? '').localeCompare(b.applicability ?? ''),
       render: (v: string) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
           {APPLICABILITY_LABELS[v] ?? v}
         </Text>
       ),
+    },
+    {
+      title: 'Cuenta contable',
+      width: 200,
+      render: (_, r) => {
+        const salesAcc  = pageAccounts.find(a => a.id === r.salesAccountId)
+        const purchAcc  = pageAccounts.find(a => a.id === r.purchaseAccountId)
+        if (!salesAcc && !purchAcc) return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>
+        const same = salesAcc?.id === purchAcc?.id
+        return (
+          <div style={{ fontSize: 11, lineHeight: 1.5 }}>
+            {salesAcc && (
+              <div>
+                <Text type="secondary">Vta: </Text>
+                <Text code style={{ fontSize: 10 }}>{salesAcc.code}</Text>
+                {' '}<span style={{ color: '#374151' }}>{salesAcc.name}</span>
+              </div>
+            )}
+            {purchAcc && !same && (
+              <div>
+                <Text type="secondary">Cmp: </Text>
+                <Text code style={{ fontSize: 10 }}>{purchAcc.code}</Text>
+                {' '}<span style={{ color: '#374151' }}>{purchAcc.name}</span>
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
       title: '',
@@ -885,6 +884,7 @@ export default function ImpuestosPage() {
       title: 'Estado',
       dataIndex: 'isActive',
       width: 90,
+      sorter: (a, b) => Number(b.isActive) - Number(a.isActive),
       render: (v) => v
         ? <Tag color="success" icon={<CheckCircleOutlined />}>Activo</Tag>
         : <Tag color="default">Inactivo</Tag>,

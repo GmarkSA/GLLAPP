@@ -1213,111 +1213,118 @@ function ImpuestosEspecialesSection() {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ maxWidth: 860 }}>
+      <div style={{ maxWidth: 1100 }}>
 
-        {/* ── IDP ── */}
-        <SectionCard title="IDP — Impuesto de Distribución de Petróleo (Dto. 38-92)" icon={<ThunderboltOutlined />}>
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
-            Tarifa específica por galón americano. Se aplica al registrar facturas de compra con tipo <Text code>Combustible con IDP</Text>.
-            Actualizar cuando exista reforma legislativa.
-          </Text>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8' }}>Producto</th>
-                <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 160 }}>Tarifa Q/galón</th>
-                <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 200 }}>Nota</th>
-              </tr>
-            </thead>
-            <tbody>
-              {IDP_FUEL_TYPES.map((ft, i) => (
-                <tr key={ft.key} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                  <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>{ft.label}</td>
-                  <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0', textAlign: 'right' }}>
-                    <InputNumber
-                      value={cfg.idp.rates[ft.key] ?? ft.default}
-                      min={0} step={0.01} precision={2}
-                      prefix="Q"
-                      size="small"
-                      style={{ width: 130 }}
-                      onChange={v => setIdpRate(ft.key, v ?? 0)}
-                    />
-                  </td>
-                  <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>
-                    {ft.note
-                      ? <Text type="secondary" style={{ fontSize: 12 }}>{ft.note}</Text>
-                      : <Text type="secondary" style={{ fontSize: 12 }}>Dto. 38-92, Art. 2</Text>
-                    }
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: 14 }}>
-            <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Cuenta contable — IDP</Text>
-            <Select
-              showSearch
-              style={{ width: '100%', maxWidth: 400 }}
-              placeholder="Ej: 1106 — IDP por Acreditar"
-              value={cfg.idp.accountCode || undefined}
-              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              options={accountOptions}
-              onChange={setIdpAccount}
-              allowClear
-            />
-          </div>
-        </SectionCard>
+        {/* ── Layout horizontal: IDP izquierda | otros impuestos derecha ── */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
 
-        {/* ── Otros impuestos ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 0 }}>
-          {OTHER_TAXES.map(tax => (
-            <Card
-              key={tax.key}
-              bordered={false}
-              style={{ ...cardStyle, marginBottom: 12 }}
-              bodyStyle={{ padding: '14px 16px' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
-                <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>{tax.label}</span>
-              </div>
-              <Divider style={{ margin: '0 0 12px' }} />
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-                {tax.desc}
+          {/* IDP */}
+          <div style={{ flex: '0 0 52%' }}>
+            <SectionCard title="IDP — Impuesto de Distribución de Petróleo (Dto. 38-92)" icon={<ThunderboltOutlined />}>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
+                Tarifa específica por galón americano. Se aplica al registrar facturas de compra con tipo <Text code>Combustible con IDP</Text>.
+                Actualizar cuando exista reforma legislativa.
               </Text>
-              <div style={{ marginBottom: 10 }}>
-                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Tasa (%)</Text>
-                <InputNumber
-                  value={cfg[tax.key].rate}
-                  min={0} max={100} step={0.1} precision={2}
-                  addonAfter="%"
-                  size="small"
-                  style={{ width: '100%' }}
-                  onChange={v => setOtherTax(tax.key, 'rate', v ?? 0)}
-                />
-              </div>
-              <div>
-                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable</Text>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f5f5f5' }}>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8' }}>Producto</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 140 }}>Tarifa Q/galón</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 130 }}>Nota</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {IDP_FUEL_TYPES.map((ft, i) => (
+                    <tr key={ft.key} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>{ft.label}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0', textAlign: 'right' }}>
+                        <InputNumber
+                          value={cfg.idp.rates[ft.key] ?? ft.default}
+                          min={0} step={0.01} precision={2}
+                          prefix="Q"
+                          size="small"
+                          style={{ width: 110 }}
+                          onChange={v => setIdpRate(ft.key, v ?? 0)}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>
+                        {ft.note
+                          ? <Text type="secondary" style={{ fontSize: 12 }}>{ft.note}</Text>
+                          : <Text type="secondary" style={{ fontSize: 12 }}>Dto. 38-92, Art. 2</Text>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 14 }}>
+                <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Cuenta contable — IDP</Text>
                 <Select
                   showSearch
-                  size="small"
                   style={{ width: '100%' }}
-                  placeholder="Selecciona cuenta"
-                  value={cfg[tax.key].accountCode || undefined}
+                  placeholder="Ej: 1106 — IDP por Acreditar"
+                  value={cfg.idp.accountCode || undefined}
                   filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                   options={accountOptions}
-                  onChange={v => setOtherTax(tax.key, 'accountCode', v)}
+                  onChange={setIdpAccount}
                   allowClear
                 />
               </div>
-              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8, color: '#9ca3af' }}>
-                {tax.decreto}
-              </Text>
-            </Card>
-          ))}
+            </SectionCard>
+          </div>
+
+          {/* Turismo, Timbre de Prensa, Timbres Fiscales — apilados verticalmente */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {OTHER_TAXES.map(tax => (
+              <Card
+                key={tax.key}
+                bordered={false}
+                style={{ ...cardStyle }}
+                bodyStyle={{ padding: '14px 16px' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
+                  <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>{tax.label}</span>
+                </div>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10 }}>
+                  {tax.desc}
+                </Text>
+                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '0 12px', alignItems: 'end' }}>
+                  <div>
+                    <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Tasa (%)</Text>
+                    <InputNumber
+                      value={cfg[tax.key].rate}
+                      min={0} max={100} step={0.1} precision={2}
+                      addonAfter="%"
+                      size="small"
+                      style={{ width: '100%' }}
+                      onChange={v => setOtherTax(tax.key, 'rate', v ?? 0)}
+                    />
+                  </div>
+                  <div>
+                    <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable</Text>
+                    <Select
+                      showSearch
+                      size="small"
+                      style={{ width: '100%' }}
+                      placeholder="Selecciona cuenta"
+                      value={cfg[tax.key].accountCode || undefined}
+                      filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                      options={accountOptions}
+                      onChange={v => setOtherTax(tax.key, 'accountCode', v)}
+                      allowClear
+                    />
+                  </div>
+                </div>
+                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8, color: '#9ca3af' }}>
+                  {tax.decreto}
+                </Text>
+              </Card>
+            ))}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
           <Button
             type="primary" size="large" icon={<SaveOutlined />}
             loading={saving} onClick={handleSave}
