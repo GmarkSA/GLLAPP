@@ -19,6 +19,7 @@ import {
   type BillType, type PaymentTerms, type JournalEntry, type JournalEntryLine, type VendorAdvance,
   BILL_TYPE_CONFIG, IDP_RATES,
 } from '../../../api/compras'
+import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getExchangeRateForDate } from '../../../api/monedas'
@@ -58,7 +59,7 @@ const BILL_TYPES: { value: BillType; label: string }[] = [
 ]
 
 
-const FUEL_UNITS = new Set(['super', 'regular', 'diesel'])
+const FUEL_UNITS = new Set(Object.keys(IDP_RATES))
 
 export default function FacturaProveedorFormPage() {
   const { id } = useParams<{ id?: string }>()
@@ -107,6 +108,11 @@ export default function FacturaProveedorFormPage() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  // Impuestos especiales
+  const [hasTimbrePrens, setHasTimbrePrens] = useState(false)
+  const [hasTurismo,     setHasTurismo]     = useState(false)
+  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
+
   // Watched form values
   const invoiceType      = Form.useWatch('invoiceType',              form) as BillType   ?? 'goods'
   const paymentTerms     = Form.useWatch('paymentTerms',             form) as PaymentTerms ?? 'immediate'
@@ -115,6 +121,28 @@ export default function FacturaProveedorFormPage() {
   const watchCurr        = Form.useWatch('currency',                 form) ?? 'GTQ'
   const watchVendorId    = Form.useWatch('vendorId',                 form) as string | undefined
   const isReimbursement  = Form.useWatch('isExpenseReimbursement',   form) as boolean ?? false
+
+  // Auto-fill accounts from org settings when fuel type selected or service checkboxes checked
+  useEffect(() => {
+    if (invoiceType === 'fuel' && orgImpEsp?.idpAccountCode && !form.getFieldValue('idpAccountId')) {
+      const acc = accounts.find(a => a.code === orgImpEsp.idpAccountCode)
+      if (acc) form.setFieldValue('idpAccountId', acc.id)
+    }
+  }, [invoiceType, orgImpEsp, accounts, form])
+
+  useEffect(() => {
+    if (hasTimbrePrens && orgImpEsp?.timbrePrensaAccountCode && !form.getFieldValue('timbrePrensaAccountId')) {
+      const acc = accounts.find(a => a.code === orgImpEsp.timbrePrensaAccountCode)
+      if (acc) form.setFieldValue('timbrePrensaAccountId', acc.id)
+    }
+  }, [hasTimbrePrens, orgImpEsp, accounts, form])
+
+  useEffect(() => {
+    if (hasTurismo && orgImpEsp?.turismoAccountCode && !form.getFieldValue('turismoAccountId')) {
+      const acc = accounts.find(a => a.code === orgImpEsp.turismoAccountCode)
+      if (acc) form.setFieldValue('turismoAccountId', acc.id)
+    }
+  }, [hasTurismo, orgImpEsp, accounts, form])
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
@@ -134,6 +162,21 @@ export default function FacturaProveedorFormPage() {
   }, [])
 
   useEffect(() => { fetchVendors('') }, [])
+
+  useEffect(() => {
+    getOrganizationProfile()
+      .then((p: any) => {
+        const ie = p?.settings?.impuestosEspeciales
+        if (ie) setOrgImpEsp({
+          idpAccountCode:          ie.idp?.accountCode,
+          timbrePrensaAccountCode: ie.timbre_prensa?.accountCode,
+          turismoAccountCode:      ie.turismo?.accountCode,
+          timbrePrensaRate:        ie.timbre_prensa?.rate ?? 0.5,
+          turismoRate:             ie.turismo?.rate ?? 10,
+        })
+      })
+      .catch(() => null)
+  }, [])
 
   // Pre-fill from Purchase Order when converting OC → Factura Proveedor
   useEffect(() => {
@@ -398,8 +441,17 @@ export default function FacturaProveedorFormPage() {
   // For special invoices, IVA retention = taxAmount (buyer retains it)
   const ivaRetForSpecial = invoiceType === 'special' ? totals.taxAmount : ivaRetAmount
   const totalRetention   = isrAmount + (invoiceType === 'special' ? ivaRetForSpecial : ivaRetAmount)
+
+  // Impuestos especiales de servicios
+  const timbrePrensaRate = orgImpEsp?.timbrePrensaRate ?? 0.5
+  const turismoRate      = orgImpEsp?.turismoRate ?? 10
+  const timbrePrensaAmount = (invoiceType === 'services' && hasTimbrePrens)
+    ? Math.round(totals.subtotal * (timbrePrensaRate / 100) * 100) / 100 : 0
+  const turismoAmount = (invoiceType === 'services' && hasTurismo)
+    ? Math.round(totals.subtotal * (turismoRate / 100) * 100) / 100 : 0
+
   // IDP se suma al gross porque el precio SAT ("P. Unitario con IVA") no lo incluye
-  const netPayable       = Math.round((totals.total + idpAmount - totalRetention) * 100) / 100
+  const netPayable = Math.round((totals.total + idpAmount + timbrePrensaAmount + turismoAmount - totalRetention) * 100) / 100
 
   // ── Account options ────────────────────────────────────────────────────────
 
@@ -457,6 +509,11 @@ export default function FacturaProveedorFormPage() {
       // IDP
       idpAmount:           idpAmount,
       idpAccountId:        vals.invoiceType === 'fuel' ? vals.idpAccountId : undefined,
+      // Impuestos especiales servicios
+      timbrePrensaAmount:     timbrePrensaAmount || undefined,
+      timbrePrensaAccountId:  (invoiceType === 'services' && hasTimbrePrens) ? vals.timbrePrensaAccountId : undefined,
+      turismoAmount:          turismoAmount || undefined,
+      turismoAccountId:       (invoiceType === 'services' && hasTurismo) ? vals.turismoAccountId : undefined,
       status,
       notes: vals.notes,
       items: lineItems,
@@ -602,8 +659,8 @@ export default function FacturaProveedorFormPage() {
           </span>}>
             <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceType: 'goods', paymentTerms: 'immediate', accountingDate: dayjs() }}>
 
-              {/* Fila 1: Proveedor | Tipo de factura */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 16px' }}>
+              {/* Fila 1: Proveedor | Tipo de factura + checkboxes servicios */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr minmax(180px, auto)', gap: '0 16px' }}>
                 <Form.Item name="vendorId" label="Proveedor / Empleado" rules={[{ required: true, message: 'Seleccione un proveedor' }]}>
                   <Select
                     showSearch
@@ -626,9 +683,27 @@ export default function FacturaProveedorFormPage() {
                     options={vendors.map(v => ({ value: v.value, label: v.label }))}
                   />
                 </Form.Item>
-                <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]}>
-                  <Select options={BILL_TYPES} />
-                </Form.Item>
+                <div>
+                  <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]}>
+                    <Select options={BILL_TYPES} />
+                  </Form.Item>
+                  {invoiceType === 'services' && (
+                    <div style={{ display: 'flex', gap: 16, marginTop: -8, marginBottom: 12, flexWrap: 'wrap' }}>
+                      <Checkbox
+                        checked={hasTimbrePrens}
+                        onChange={e => setHasTimbrePrens(e.target.checked)}
+                      >
+                        <span style={{ fontSize: 12 }}>Timbre de Prensa</span>
+                      </Checkbox>
+                      <Checkbox
+                        checked={hasTurismo}
+                        onChange={e => setHasTurismo(e.target.checked)}
+                      >
+                        <span style={{ fontSize: 12 }}>Turismo INGUAT</span>
+                      </Checkbox>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Tipo de cambio — visible solo cuando la moneda del proveedor no es GTQ */}
@@ -697,7 +772,7 @@ export default function FacturaProveedorFormPage() {
               </div>
 
               {/* Fila 3: Autorización SAT | Términos de pago | Fecha de vencimiento | Fecha de contabilización */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0 12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="felAuthNumber" label="Autorización SAT">
                   <Input placeholder="Número de autorización SAT" />
                 </Form.Item>
@@ -1085,19 +1160,21 @@ export default function FacturaProveedorFormPage() {
           {invoiceType === 'fuel' && (
             <Card title={<span style={{ color: '#ff7f00', fontWeight: 600 }}>IDP — Combustible</span>}>
               <Form form={form} layout="vertical" size="small">
-                {/* Desglose por tipo — derivado de la columna Unidad en cada línea */}
                 <div style={{ marginBottom: 12 }}>
-                  {(['super', 'regular', 'diesel'] as const).map(ft => {
+                  {Object.entries(IDP_RATES).map(([ft, rate]) => {
                     const fuelLines = items.filter(it => it.unit === ft)
                     if (!fuelLines.length) return null
                     const qty = fuelLines.reduce((s, it) => s + Number(it.quantity || 0), 0)
-                    const rate = IDP_RATES[ft]
-                    const amt  = Math.round(qty * rate * 100) / 100
-                    const label = ft === 'super' ? 'Gasolina Super' : ft === 'regular' ? 'Gasolina Regular' : 'Diesel'
+                    const amt = Math.round(qty * rate * 100) / 100
+                    const labels: Record<string, string> = {
+                      super: 'Gasolina Super', regular: 'Gasolina Regular', aviacion: 'Aviación',
+                      diesel: 'Diésel', propano: 'Gas Propano', bunker: 'Bunker C',
+                      kerosina: 'Kerosina', other: 'Otros',
+                    }
                     return (
                       <div key={ft} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <Text style={{ fontSize: 12, color: '#6b7280' }}>
-                          {label}
+                          {labels[ft] ?? ft}
                           <span style={{ color: '#d1d5db', marginLeft: 4, fontSize: 11 }}>({fmt(qty)} gal × Q{rate})</span>
                         </Text>
                         <Text style={{ fontSize: 13, fontWeight: 600, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>
@@ -1113,13 +1190,61 @@ export default function FacturaProveedorFormPage() {
                     </div>
                   ) : (
                     <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginBottom: 4 }}>
-                      Selecciona Super, Regular o Diesel en la columna Unidad de cada línea
+                      Selecciona el tipo de combustible en la columna Unidad de cada línea
                     </Text>
                   )}
                 </div>
                 <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar">
                   <Select showSearch placeholder="Ej. 1106 — IDP por Acreditar" filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())} options={allAccounts} allowClear />
                 </Form.Item>
+              </Form>
+            </Card>
+          )}
+
+          {/* Impuestos especiales servicios — Timbre de Prensa / Turismo */}
+          {invoiceType === 'services' && (hasTimbrePrens || hasTurismo) && (
+            <Card title={<span style={{ color: '#7c3aed', fontWeight: 600 }}>Impuestos Especiales</span>}>
+              <Form form={form} layout="vertical" size="small">
+                {hasTimbrePrens && (
+                  <div style={{ marginBottom: hasTurismo ? 12 : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                        Timbre de Prensa ({timbrePrensaRate}%)
+                        <span style={{ color: '#d1d5db', marginLeft: 4, fontSize: 11 }}>
+                          (Q{fmt(totals.subtotal)} × {timbrePrensaRate}%)
+                        </span>
+                      </Text>
+                      <Text style={{ fontSize: 13, fontWeight: 600, color: '#7c3aed', fontVariantNumeric: 'tabular-nums' }}>
+                        Q {fmt(timbrePrensaAmount)}
+                      </Text>
+                    </div>
+                    <Form.Item name="timbrePrensaAccountId" label="Cuenta Timbre de Prensa" style={{ marginBottom: 0 }}>
+                      <Select showSearch placeholder="Ej. 6108 — Timbre de Prensa"
+                        filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
+                        options={allAccounts} allowClear />
+                    </Form.Item>
+                  </div>
+                )}
+                {hasTurismo && (
+                  <div style={{ marginTop: hasTimbrePrens ? 12 : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                        Turismo INGUAT ({turismoRate}%)
+                        <span style={{ color: '#d1d5db', marginLeft: 4, fontSize: 11 }}>
+                          (Q{fmt(totals.subtotal)} × {turismoRate}%)
+                        </span>
+                      </Text>
+                      <Text style={{ fontSize: 13, fontWeight: 600, color: '#7c3aed', fontVariantNumeric: 'tabular-nums' }}>
+                        Q {fmt(turismoAmount)}
+                      </Text>
+                    </div>
+                    <Form.Item name="turismoAccountId" label="Cuenta Turismo INGUAT" style={{ marginBottom: 0 }}>
+                      <Select showSearch placeholder="Ej. 6109 — Turismo INGUAT"
+                        filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
+                        options={allAccounts} allowClear />
+                    </Form.Item>
+                  </div>
+                )}
               </Form>
             </Card>
           )}

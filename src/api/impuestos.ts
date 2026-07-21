@@ -1,6 +1,6 @@
 import api from './axios'
 
-export type TaxCategory = 'iva' | 'iva_exento' | 'iva_retenida' | 'isr' | 'other'
+export type TaxCategory = 'iva' | 'iva_exento' | 'iva_retenida' | 'iva_pequeno_contribuyente' | 'isr' | 'other'
 export type TaxSubtype  = 'simple' | 'exempt' | 'progressive' | 'retention_tax'
 export type TaxApplicability = 'sales' | 'purchases' | 'both'
 

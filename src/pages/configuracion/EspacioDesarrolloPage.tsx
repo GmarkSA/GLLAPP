@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Card, Button, Table, Tag, Badge, Space, Typography, Input,
-  Alert, Divider, Spin, Tooltip, message, Collapse,
+  Alert, Divider, Spin, Tabs, Tooltip, message, Collapse,
 } from 'antd'
 import {
   ThunderboltOutlined, SafetyCertificateOutlined, SearchOutlined,
@@ -50,6 +50,197 @@ function RegimeDocTable() {
                     : <span style={{ color: '#9aa1ab' }}>—</span>}
                 </td>
               ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Matriz de características fiscales ───────────────────────────────────────
+
+const FISCAL_MATRIX: Array<{ aspecto: string } & Record<string, string | boolean>> = [
+  {
+    aspecto: 'Tasa IVA',
+    gt_pequeno_contribuyente: '5% (pago único trimestral)',
+    gt_regimen_general:       '12%',
+    gt_regimen_primario:      '0% — exento en acto propio',
+    gt_regimen_pecuario:      '0% — exento en acto propio',
+  },
+  {
+    aspecto: 'Mecanismo IVA',
+    gt_pequeno_contribuyente: 'Cuota fija sobre ventas totales',
+    gt_regimen_general:       'Débito − Crédito Fiscal (declaración mensual)',
+    gt_regimen_primario:      'Exento (actividad agropecuaria)',
+    gt_regimen_pecuario:      'Exento (actividad pecuaria)',
+  },
+  {
+    aspecto: 'Genera CF al comprador',
+    gt_pequeno_contribuyente: false,
+    gt_regimen_general:       true,
+    gt_regimen_primario:      false,
+    gt_regimen_pecuario:      false,
+  },
+  {
+    aspecto: 'Retención IVA que puede recibir',
+    gt_pequeno_contribuyente: 'GCE retiene 100% del IVA (5% del total facturado) — Art. 55, Dto. 27-92',
+    gt_regimen_general:       'GCE retiene 65% bienes / 15% servicios y honorarios',
+    gt_regimen_primario:      '—',
+    gt_regimen_pecuario:      '—',
+  },
+  {
+    aspecto: 'ISR aplicable',
+    gt_pequeno_contribuyente: 'Sin ISR propio (actividades no exentas usan IOSIAL)',
+    gt_regimen_general:       'IOSIAL: 5% ≤ Q30K / 7% excedente  ó  RUAL: 25% utilidad fiscal',
+    gt_regimen_primario:      'Exento en actividad agropecuaria',
+    gt_regimen_pecuario:      'Exento en actividad pecuaria',
+  },
+  {
+    aspecto: 'Doc. FEL principal (ventas)',
+    gt_pequeno_contribuyente: 'FPEQ',
+    gt_regimen_general:       'FACT',
+    gt_regimen_primario:      'FPRI',
+    gt_regimen_pecuario:      'FPEC',
+  },
+  {
+    aspecto: 'Categoría en sistema',
+    gt_pequeno_contribuyente: 'iva_pequeno_contribuyente',
+    gt_regimen_general:       'iva',
+    gt_regimen_primario:      'iva_exento',
+    gt_regimen_pecuario:      'iva_exento',
+  },
+  {
+    aspecto: 'Base legal',
+    gt_pequeno_contribuyente: 'Art. 50-55, Dto. 27-92',
+    gt_regimen_general:       'Art. 10, Dto. 27-92',
+    gt_regimen_primario:      'Dto. 01-87 (Ley de Fomento Agropecuario)',
+    gt_regimen_pecuario:      'Dto. 01-87',
+  },
+]
+
+function FiscalMatrixTable() {
+  const regimes = Object.keys(FEL_DOC_TYPES_BY_REGIME)
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr style={{ background: '#f0f4ff' }}>
+            <th style={{ ...th, width: 170 }}>Aspecto</th>
+            {regimes.map(r => (
+              <th key={r} style={{ ...th, minWidth: 150 }}>{REGIME_LABELS[r] ?? r}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {FISCAL_MATRIX.map(row => (
+            <tr key={row.aspecto} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
+              <td style={{ ...td, fontWeight: 600, color: '#444', whiteSpace: 'nowrap' }}>
+                {row.aspecto}
+              </td>
+              {regimes.map(r => {
+                const val = row[r]
+                if (typeof val === 'boolean') {
+                  return (
+                    <td key={r} style={{ ...td, textAlign: 'center' }}>
+                      {val
+                        ? <CheckCircleOutlined style={{ color: '#2ea172' }} />
+                        : <strong style={{ color: '#e5484d', fontSize: 12 }}>NO</strong>}
+                    </td>
+                  )
+                }
+                const strVal = String(val ?? '—')
+                if (strVal.startsWith('iva')) {
+                  return (
+                    <td key={r} style={td}>
+                      <Tag style={{ fontSize: 10, margin: 0 }}>{strVal}</Tag>
+                    </td>
+                  )
+                }
+                return <td key={r} style={td}>{strVal}</td>
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Tabla: al comprar de cada tipo de contribuyente ──────────────────────────
+
+const PURCHASE_RULES = [
+  {
+    proveedor:      'Régimen General / Opcional Simplificado',
+    ivaFactura:     '12%',
+    tagColor:       '#1faec2',
+    generaCF:       true,
+    retencionGCE:   '65% en bienes — 15% en servicios y honorarios profesionales',
+    codigoSistema:  'IVA12',
+    nota:           'Crédito fiscal acreditable. Registrar en Libro de Compras, columna IVA.',
+  },
+  {
+    proveedor:      'Pequeño Contribuyente',
+    ivaFactura:     '5%',
+    tagColor:       '#722ed1',
+    generaCF:       false,
+    retencionGCE:   '100% del IVA (5% del total facturado) → emite Constancia de Retención y entera al SAT',
+    codigoSistema:  'COMPRAS_PC / IVARET_PC',
+    nota:           'No genera CF. Si eres GCE: usa código IVARET_PC (isWithholding), emite constancia y entera al SAT. El PC no paga ese IVA.',
+  },
+  {
+    proveedor:      'Régimen Primario / Pecuario (acto propio)',
+    ivaFactura:     '0%',
+    tagColor:       '#6b7280',
+    generaCF:       false,
+    retencionGCE:   '—',
+    codigoSistema:  'IVAEX',
+    nota:           'Exento en actividad agropecuaria o pecuaria propia.',
+  },
+  {
+    proveedor:      'No contribuyente — Factura Especial (FESP)',
+    ivaFactura:     '12%',
+    tagColor:       '#1faec2',
+    generaCF:       true,
+    retencionGCE:   '100% del IVA — el comprador emite FESP, declara y paga',
+    codigoSistema:  'IVA12 (FESP)',
+    nota:           'El comprador emite la Factura Especial. Aplica cuando el proveedor no es contribuyente inscrito.',
+  },
+]
+
+function PurchaseRulesTable() {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <Alert
+        type="info" showIcon style={{ marginBottom: 12, fontSize: 12 }}
+        message="Usa el impuesto correcto según el tipo de proveedor al registrar una compra"
+      />
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr style={{ background: '#f0f4ff' }}>
+            <th style={th}>Tipo de proveedor</th>
+            <th style={{ ...th, textAlign: 'center', width: 90  }}>IVA facturado</th>
+            <th style={{ ...th, textAlign: 'center', width: 80  }}>Genera CF</th>
+            <th style={th}>Retención obligada (GCE)</th>
+            <th style={{ ...th, width: 140 }}>Código sistema</th>
+            <th style={th}>Nota</th>
+          </tr>
+        </thead>
+        <tbody>
+          {PURCHASE_RULES.map((r, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
+              <td style={{ ...td, fontWeight: 500 }}>{r.proveedor}</td>
+              <td style={{ ...td, textAlign: 'center' }}>
+                <Tag color={r.tagColor} style={{ margin: 0 }}>{r.ivaFactura}</Tag>
+              </td>
+              <td style={{ ...td, textAlign: 'center' }}>
+                {r.generaCF
+                  ? <CheckCircleOutlined style={{ color: '#2ea172' }} />
+                  : <strong style={{ color: '#e5484d', fontSize: 12 }}>NO</strong>}
+              </td>
+              <td style={td}>{r.retencionGCE}</td>
+              <td style={td}><Text code style={{ fontSize: 11 }}>{r.codigoSistema}</Text></td>
+              <td style={{ ...td, color: '#6b7280', fontSize: 11 }}>{r.nota}</td>
             </tr>
           ))}
         </tbody>
@@ -332,17 +523,35 @@ export default function EspacioDesarrolloPage() {
         <CertificationTestPanel />
       </Card>
 
-      {/* Tabla de regímenes */}
+      {/* Referencia fiscal completa */}
       <Card
         size="small"
-        title={<Space><CodeOutlined style={{ color: '#1faec2' }} /><strong>Tipos de documento por régimen fiscal (Guatemala)</strong></Space>}
+        title={<Space><CodeOutlined style={{ color: '#1faec2' }} /><strong>Referencia fiscal — Guatemala</strong></Space>}
       >
         <Paragraph style={{ fontSize: 12, color: '#555', marginBottom: 12 }}>
-          El tipo de documento FEL está determinado por el <strong>régimen fiscal del contribuyente</strong>,
-          no por el usuario al momento de emitir. Configura el régimen en el perfil FEL y el sistema
-          lo asignará automáticamente.
+          Referencia rápida de IVA, retenciones, ISR y documentos FEL por régimen fiscal.
+          El tipo de documento FEL está determinado por el <strong>régimen del contribuyente</strong> — configúralo en el perfil FEL.
         </Paragraph>
-        <RegimeDocTable />
+        <Tabs
+          size="small"
+          items={[
+            {
+              key:      'fel',
+              label:    'Tipos de documento FEL',
+              children: <RegimeDocTable />,
+            },
+            {
+              key:      'iva',
+              label:    'Características fiscales',
+              children: <FiscalMatrixTable />,
+            },
+            {
+              key:      'compras',
+              label:    'Al comprar de...',
+              children: <PurchaseRulesTable />,
+            },
+          ]}
+        />
       </Card>
     </div>
   )

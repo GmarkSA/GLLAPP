@@ -25,11 +25,12 @@ const { TextArea } = Input
 // ── Helpers de presentación ────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  iva:          { label: 'IVA',            color: '#1faec2'   },
-  iva_exento:   { label: 'IVA Exento',     color: 'default'},
-  iva_retenida: { label: 'IVA Retenida',   color: '#ff7f00' },
-  isr:          { label: 'ISR',            color: '#6b7280' },
-  other:        { label: 'Otro',           color: 'cyan'   },
+  iva:                       { label: 'IVA 12%',        color: '#1faec2'   },
+  iva_exento:                { label: 'IVA Exento',     color: 'default'   },
+  iva_retenida:              { label: 'IVA Retenida',   color: '#ff7f00'   },
+  iva_pequeno_contribuyente: { label: 'IVA PC 5%',      color: '#722ed1'   },
+  isr:                       { label: 'ISR',            color: '#6b7280'   },
+  other:                     { label: 'Otro',           color: 'cyan'      },
 }
 
 const SUBTYPE_LABELS: Record<string, string> = {
@@ -398,6 +399,7 @@ function TaxModal({
   const [form]    = Form.useForm()
   const [loading,     setLoading]     = useState(false)
   const [subtype,     setSubtype]     = useState<string>('simple')
+  const [category,    setCategory]    = useState<string>('iva')
   const [tiers,       setTiers]       = useState<TaxTier[]>([
     { upTo: 30000, rate: 5, label: 'Hasta Q 30,000.00' },
     { upTo: null,  rate: 7, label: 'Más de Q 30,000.00' },
@@ -422,11 +424,13 @@ function TaxModal({
       if (tax) {
         form.setFieldsValue({ ...tax })
         setSubtype(tax.subtype)
+        setCategory(tax.category)
         if (tax.tiers) setTiers(tax.tiers)
         setPreviewTax(tax)
       } else {
         form.resetFields()
         setSubtype('simple')
+        setCategory('iva')
         setTiers([
           { upTo: 30000, rate: 5, label: 'Hasta Q 30,000.00' },
           { upTo: null,  rate: 7, label: 'Más de Q 30,000.00' },
@@ -465,7 +469,8 @@ function TaxModal({
   // directamente para no depender del state estale
   const handleValuesChange = (changed: any, all: any) => {
     const newSubtype = changed.subtype ?? subtype
-    if (changed.subtype) setSubtype(changed.subtype)
+    if (changed.subtype)  setSubtype(changed.subtype)
+    if (changed.category) setCategory(changed.category)
     setPreviewTax({
       id: tax?.id ?? 'preview',
       ...all,
@@ -518,9 +523,10 @@ function TaxModal({
           <Col span={12}>
             <Form.Item name="category" label="Categoría" rules={[{ required: true }]}>
               <Select>
-                <Option value="iva">IVA — Impuesto al Valor Agregado</Option>
-                <Option value="iva_exento">IVA Exento</Option>
-                <Option value="iva_retenida">Retención de IVA</Option>
+                <Option value="iva">IVA 12% — Impuesto al Valor Agregado</Option>
+                <Option value="iva_exento">IVA Exento (0%)</Option>
+                <Option value="iva_retenida">Retención de IVA (65% / 15%)</Option>
+                <Option value="iva_pequeno_contribuyente">IVA 5% — Pequeño Contribuyente</Option>
                 <Option value="isr">ISR — Retención en la Fuente</Option>
                 <Option value="other">Otro impuesto</Option>
               </Select>
@@ -536,6 +542,20 @@ function TaxModal({
             </Form.Item>
           </Col>
         </Row>
+
+        {category === 'iva_pequeno_contribuyente' && (
+          <Alert
+            type="warning" showIcon style={{ marginBottom: 16 }}
+            message="IVA Pequeño Contribuyente (5%) — consideraciones clave"
+            description={
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
+                <li><strong>Pago único:</strong> El PC paga 5% sobre el total de sus ventas directamente al SAT cada trimestre. No aplica el sistema débito−crédito fiscal.</li>
+                <li><strong>Sin crédito fiscal:</strong> El comprador <strong>no puede reclamar CF</strong> al adquirir de un Pequeño Contribuyente.</li>
+                <li><strong>Retención por GCE (Art. 55, Dto. 27-92):</strong> Cuando el comprador es un Gran Contribuyente Especial, está obligado a retener el 100% del IVA (5% del total facturado), emitir Constancia de Retención y enterarlo directamente al SAT. El PC <em>no paga</em> ese IVA por separado. Para ese caso, crea un impuesto adicional con código <code>IVARET_PC</code>, categoría <em>Retención de IVA</em>, tasa 5%, marcado como withholding.</li>
+              </ul>
+            }
+          />
+        )}
 
         <Form.Item name="subtype" label="Tipo de cálculo" rules={[{ required: true }]}>
           <Select onChange={v => setSubtype(v)}>
