@@ -168,7 +168,11 @@ export default function MainLayout() {
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
 
   // ── Lógica de acceso por rol ──────────────────────────────────────────────
-  const userRoles    = (user?.roles ?? []).map(r => r.toLowerCase())
+  // roles puede llegar como string[] o como objeto[] {id, name} según el endpoint
+  const getRoleName = (r: any): string =>
+    (typeof r === 'string' ? r : (r?.name ?? '')).toLowerCase()
+
+  const userRoles     = (user?.roles ?? []).map(getRoleName).filter(Boolean)
   const hasFullAccess = user?.isSuperAdmin || userRoles.some(r => FULL_ACCESS_ROLES.has(r))
 
   const canSeeModule = (moduleKey: string): boolean => {
@@ -196,7 +200,7 @@ export default function MainLayout() {
   }
 
   // Guard: cajero solo accede al POS
-  const isCajero = !!(user?.roles?.includes('cajero') && !user?.isSuperAdmin)
+  const isCajero = !!(userRoles.includes('cajero') && !user?.isSuperAdmin)
   useEffect(() => {
     if (isCajero) navigate('/pos', { replace: true })
   }, [isCajero])
