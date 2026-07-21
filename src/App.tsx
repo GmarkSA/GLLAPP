@@ -360,7 +360,7 @@ export default function App() {
           <Route path="configuracion/empresas/:id/sucursales"                 element={<SucursalesPage />} />
           <Route path="admin"                                                  element={<Navigate to="/admin/platform" replace />} />
           <Route path="admin/platform"                                         element={<AdminRoute><PlatformAdminPage /></AdminRoute>} />
-          <Route path="onboarding"                                             element={<AdminRoute><OnboardingWizardPage /></AdminRoute>} />
+          <Route path="onboarding"                                             element={<OnboardingWizardPage />} />
           <Route path="configuracion/suscripcion"                              element={<SubscriptionPage />} />
         </Route>
 
