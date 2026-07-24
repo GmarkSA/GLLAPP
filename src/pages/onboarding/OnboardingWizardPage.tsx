@@ -156,54 +156,18 @@ export default function OnboardingWizardPage() {
 
   // ── Pantalla final ──────────────────────────────────────────────────────────
   if (done) {
-    const FIRST_OPS = [
-      ...(selectedModules.includes('ventas') ? [
-        { icon: '👤', label: 'Crear tu primer cliente',  desc: 'Agrega un cliente para emitir facturas',    route: '/ventas/clientes/nuevo' },
-        { icon: '🧾', label: 'Crear tu primera factura', desc: 'Emite tu primera factura de venta',          route: '/ventas/facturas/nueva' },
-      ] : []),
-      ...(selectedModules.includes('compras') ? [
-        { icon: '🏪', label: 'Crear tu primer proveedor', desc: 'Registra un proveedor para gestionar compras', route: '/compras/proveedores/nuevo' },
-        { icon: '💸', label: 'Registrar tu primer gasto', desc: 'Ingresa una factura de compra o gasto',        route: '/compras/facturas/nueva' },
-      ] : []),
-    ]
-
     return (
-      <div style={{ maxWidth: 600, margin: '48px auto', padding: '0 16px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-          <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>¡Listo para operar!</Title>
-          <Text type="secondary" style={{ fontSize: 14 }}>
-            Tu empresa está configurada. ¿Por dónde empezamos?
-          </Text>
-        </div>
-
-        {FIRST_OPS.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
-            {FIRST_OPS.map(op => (
-              <div
-                key={op.route}
-                onClick={() => navigate(op.route)}
-                style={{
-                  padding: '16px 18px', borderRadius: 10, cursor: 'pointer',
-                  border: '2px solid rgba(10,10,10,0.08)', background: '#fff',
-                  transition: 'border-color 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = '#1faec2')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(10,10,10,0.08)')}
-              >
-                <div style={{ fontSize: 26, marginBottom: 6 }}>{op.icon}</div>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#0a0a0a', marginBottom: 3 }}>{op.label}</div>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>{op.desc}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, paddingTop: 16, borderTop: '1px solid rgba(10,10,10,0.06)' }}>
-          <Button type="primary" style={{ background: '#1faec2' }} onClick={() => navigate('/dashboard')}>
+      <div style={{ maxWidth: 480, margin: '64px auto', padding: '0 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
+        <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>¡Tu empresa está lista!</Title>
+        <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 32 }}>
+          Explora el sistema desde el menú lateral y configura los detalles de tu empresa cuando estés listo.
+        </Text>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+          <Button type="primary" size="large" style={{ background: '#1faec2' }} onClick={() => navigate('/dashboard')}>
             Ir al Dashboard
           </Button>
-          <Button onClick={() => navigate('/configuracion/empresas')}>
+          <Button size="large" onClick={() => navigate('/configuracion/empresas')}>
             Ver configuración
           </Button>
         </div>
