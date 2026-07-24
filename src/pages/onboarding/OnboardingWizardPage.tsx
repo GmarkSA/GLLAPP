@@ -156,23 +156,9 @@ export default function OnboardingWizardPage() {
 
   // ── Pantalla final ──────────────────────────────────────────────────────────
   if (done) {
-    return (
-      <div style={{ maxWidth: 480, margin: '64px auto', padding: '0 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
-        <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>¡Tu empresa está lista!</Title>
-        <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 32 }}>
-          Explora el sistema desde el menú lateral y configura los detalles de tu empresa cuando estés listo.
-        </Text>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-          <Button type="primary" size="large" style={{ background: '#1faec2' }} onClick={() => navigate('/dashboard')}>
-            Ir al Dashboard
-          </Button>
-          <Button size="large" onClick={() => navigate('/configuracion/empresas')}>
-            Ver configuración
-          </Button>
-        </div>
-      </div>
-    )
+    // Redirigir inmediatamente a la guía de configuración
+    navigate('/onboarding/setup', { replace: true })
+    return null
   }
 
   // ── Wizard ──────────────────────────────────────────────────────────────────

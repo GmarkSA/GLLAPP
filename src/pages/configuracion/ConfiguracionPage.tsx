@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
   Layout, Menu, Form, Input, Button, Select, Upload, Avatar,
@@ -1475,7 +1475,8 @@ const cardStyle: React.CSSProperties = {
 
 export default function ConfiguracionPage() {
   const navigate   = useNavigate()
-  const [activeKey, setActiveKey] = useState('organization')
+  const [searchParams] = useSearchParams()
+  const [activeKey, setActiveKey] = useState(searchParams.get('tab') ?? 'organization')
   const [profile, setProfile] = useState<OrganizationProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
