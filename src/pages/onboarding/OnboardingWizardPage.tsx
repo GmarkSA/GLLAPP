@@ -72,13 +72,6 @@ export default function OnboardingWizardPage() {
 
   const getCountryMeta = (code: string) => COUNTRIES.find(c => c.code === code)
 
-  // Pre-llenar el nombre de empresa desde el tenant (creado en /register)
-  useEffect(() => {
-    tenantsApi.getProfile().then(profile => {
-      if (profile?.name) form.setFieldValue('legalName', profile.name)
-    }).catch(() => {})
-  }, [form])
-
   const loadRegimes = useCallback((country: string) => {
     setLoadingRegimes(true)
     setSelectedRegime(null)
@@ -139,7 +132,9 @@ export default function OnboardingWizardPage() {
 
       setDone(true)
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error durante el onboarding')
+      const raw = e?.response?.data?.message
+      const text = Array.isArray(raw) ? raw.join(' · ') : (raw ?? e?.message ?? 'Error durante el onboarding')
+      message.error(text, 8)
     } finally {
       setSaving(false)
     }
@@ -371,7 +366,7 @@ export default function OnboardingWizardPage() {
               loading={saving}
               onClick={finish}
             >
-              Comenzar a operar
+              Continuar
             </Button>
           )}
         </div>

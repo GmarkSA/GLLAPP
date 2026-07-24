@@ -65,7 +65,7 @@ export default function RegisterPage() {
               },
             ]}
           >
-            <Input.Password placeholder="Ej: MiClave123!" />
+            <Input.Password placeholder="Ej: MiClave123!" autoComplete="new-password" />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 8 }}>
