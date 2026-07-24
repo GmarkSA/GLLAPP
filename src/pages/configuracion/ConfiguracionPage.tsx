@@ -34,6 +34,7 @@ import {
 } from '../../api/monedas'
 import { getAccounts, type Account } from '../../api/catalogo'
 import { useCompanyStore } from '../../store/companyStore'
+import { useAuthStore } from '../../store/authStore'
 import { companiesApi } from '../../api/companies'
 
 const { Sider, Content } = Layout
@@ -123,6 +124,7 @@ function OrganizationSection({
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const activeCompany = useCompanyStore(s => s.activeCompany)
+  const authUser      = useAuthStore(s => s.user)
 
   const [logoUrl, setLogoUrl] = useState<string | undefined>(profile?.logoUrl)
   const [uploading, setUploading] = useState(false)
@@ -132,15 +134,17 @@ function OrganizationSection({
       const co = activeCompany as any
       form.setFieldsValue({
         ...profile,
-        // Fallback a datos de la empresa si el perfil aún no los tiene
-        name:      profile.name      || co?.tradeName || co?.legalName,
-        legalName: profile.legalName || co?.legalName,
-        taxId:     profile.taxId     || co?.taxId,
-        country:   profile.country   || COUNTRY_CODE_TO_NAME[co?.countryCode ?? co?.country] || '',
+        // Empresa siempre es fuente de verdad para nombre, razón social y NIT
+        name:      co?.tradeName || co?.legalName || profile.name,
+        legalName: co?.legalName || profile.legalName,
+        taxId:     co?.taxId     || profile.taxId,
+        country:   profile.country || COUNTRY_CODE_TO_NAME[co?.countryCode ?? co?.country] || '',
+        // Email: del perfil, o del usuario autenticado como fallback
+        email:     profile.email || (authUser as any)?.email || '',
       })
       setLogoUrl(profile.logoUrl)
     }
-  }, [profile, form, activeCompany])
+  }, [profile, form, activeCompany, authUser])
 
   const handleLogoUpload = async (info: UploadChangeParam) => {
     const file = info.file.originFileObj
@@ -237,7 +241,11 @@ function OrganizationSection({
               </Col>
               <Col xs={24} md={12}>
                 <Form.Item name="legalName" label="Razón social" style={{ marginBottom: 16 }}>
-                  <Input placeholder="MI EMPRESA SOCIEDAD ANÓNIMA" size="large" />
+                  <TextArea
+                    placeholder="MI EMPRESA SOCIEDAD ANÓNIMA"
+                    autoSize={{ minRows: 1, maxRows: 3 }}
+                    style={{ fontSize: 16, paddingTop: 7, paddingBottom: 7, resize: 'none' }}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
