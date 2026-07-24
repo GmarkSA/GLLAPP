@@ -132,7 +132,9 @@ export default function OnboardingWizardPage() {
 
       setDone(true)
     } catch (e: any) {
-      const raw = e?.response?.data?.message
+      console.error('[Onboarding error]', e?.response?.status, e?.response?.data)
+      const d = e?.response?.data
+      const raw = d?.error?.message ?? d?.message
       const text = Array.isArray(raw) ? raw.join(' · ') : (raw ?? e?.message ?? 'Error durante el onboarding')
       message.error(text, 8)
     } finally {
