@@ -56,6 +56,7 @@ export default function OnboardingWizardPage() {
   const [current, setCurrent] = useState(0)
   const [saving, setSaving]   = useState(false)
   const [done, setDone]       = useState(false)
+  const [step0, setStep0]     = useState<Record<string, any>>({})
 
   // Paso 0 — Tu empresa (fusión de grupo + empresa)
   const [form] = Form.useForm()
@@ -84,6 +85,7 @@ export default function OnboardingWizardPage() {
   const next = async () => {
     if (current === 0) {
       await form.validateFields()
+      setStep0(form.getFieldsValue())  // guardar antes de que el Form se desmonte
       const country = form.getFieldValue('country') ?? 'GT'
       loadRegimes(country)
     }
@@ -95,7 +97,7 @@ export default function OnboardingWizardPage() {
   const finish = async () => {
     setSaving(true)
     try {
-      const vals = form.getFieldsValue()
+      const vals = step0
       const country = vals.country ?? 'GT'
 
       // 1. Crear empresa
