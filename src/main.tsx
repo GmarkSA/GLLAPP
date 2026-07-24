@@ -11,6 +11,12 @@ import './index.css'
 
 dayjs.locale('es')
 
+// Cuando Vercel despliega una nueva versión, los chunks con hash viejo ya no existen.
+// Vite emite este evento al fallar un import dinámico → recargamos para obtener el HTML nuevo.
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload()
+})
+
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
