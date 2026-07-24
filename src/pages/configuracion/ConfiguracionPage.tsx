@@ -108,6 +108,11 @@ const countryCodeFromValue = (value?: string | null): string => {
 }
 // ── Sub-pages ──────────────────────────────────────────────────────────────
 
+const COUNTRY_CODE_TO_NAME: Record<string, string> = {
+  GT: 'Guatemala', HN: 'Honduras', NI: 'Nicaragua',
+  SV: 'El Salvador', PA: 'Panama', CR: 'Costa Rica', MX: 'México',
+}
+
 function OrganizationSection({
   profile, loading, onSave,
 }: {
@@ -117,16 +122,25 @@ function OrganizationSection({
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const activeCompany = useCompanyStore(s => s.activeCompany)
 
   const [logoUrl, setLogoUrl] = useState<string | undefined>(profile?.logoUrl)
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     if (profile) {
-      form.setFieldsValue(profile)
+      const co = activeCompany as any
+      form.setFieldsValue({
+        ...profile,
+        // Fallback a datos de la empresa si el perfil aún no los tiene
+        name:      profile.name      || co?.tradeName || co?.legalName,
+        legalName: profile.legalName || co?.legalName,
+        taxId:     profile.taxId     || co?.taxId,
+        country:   profile.country   || COUNTRY_CODE_TO_NAME[co?.countryCode ?? co?.country] || '',
+      })
       setLogoUrl(profile.logoUrl)
     }
-  }, [profile, form])
+  }, [profile, form, activeCompany])
 
   const handleLogoUpload = async (info: UploadChangeParam) => {
     const file = info.file.originFileObj
