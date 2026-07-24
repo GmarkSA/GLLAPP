@@ -84,10 +84,9 @@ export default function OnboardingWizardPage() {
 
   const next = async () => {
     if (current === 0) {
-      await form.validateFields()
-      step0Ref.current = form.getFieldsValue()  // guardar antes de que el Form se desmonte
-      const country = form.getFieldValue('country') ?? 'GT'
-      loadRegimes(country)
+      const values = await form.validateFields()  // retorna los valores validados
+      step0Ref.current = values
+      loadRegimes(values.country ?? 'GT')
     }
     setCurrent(c => c + 1)
   }
@@ -95,7 +94,7 @@ export default function OnboardingWizardPage() {
   const prev = () => setCurrent(c => c - 1)
 
   const finish = async () => {
-    const vals = form.getFieldsValue()
+    const vals = step0Ref.current
     if (!vals.legalName) {
       message.error('Falta el nombre de la empresa. Regresa al paso 1.')
       setCurrent(0)
