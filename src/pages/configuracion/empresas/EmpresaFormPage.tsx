@@ -52,6 +52,11 @@ export default function EmpresaFormPage() {
   const [satConfig, setSatConfig]       = useState<SatProviderConfig>({ provider: 'felplex', apiUrl: 'https://app.felplex.com/api', entityId: '', apiKey: '', empresaId: '' })
   const [savingSat, setSavingSat]       = useState(false)
   const [testingSat, setTestingSat]     = useState(false)
+
+  // Mostrar bloque SAT solo si el régimen fiscal tiene FEL o ya está configurado
+  const watchedRegimeId  = Form.useWatch('fiscalRegimeId', form)
+  const selectedRegimeObj = regimes.find(r => r.id === watchedRegimeId)
+  const showSatBlock = (selectedRegimeObj?.taxConfig?.hasFEL ?? false) || !!(satConfig.entityId && satConfig.apiKey)
   const [satTestResult, setSatTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   // Template Engine state (solo en modo crear)
@@ -355,8 +360,8 @@ export default function EmpresaFormPage() {
             </Card>
           )}
 
-          {/* ── Proveedor SAT / RTU (solo en edición) ──────────────────────── */}
-          {isEdit && (
+          {/* ── Proveedor SAT / RTU (solo si el régimen tiene FEL o ya está configurado) */}
+          {isEdit && showSatBlock && (
             <Card
               title={<Space><ApiOutlined />Proveedor SAT / RTU — Lookup de NIT y CUI</Space>}
               style={{ marginBottom: 16 }}
