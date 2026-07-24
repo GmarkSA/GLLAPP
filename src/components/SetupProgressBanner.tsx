@@ -30,10 +30,15 @@ export default function SetupProgressBanner() {
       getTaxes().catch(() => []),
     ]).then(([company, accounts, profile, taxes]) => {
       let done = 1  // paso 1 (empresa) siempre completo
-      if (company?.legalName && company?.taxId) done++
-      if (Array.isArray(accounts) ? accounts.length > 0 : !!(accounts as any)) done++
+      // Perfil: requiere nombre legal + NIT + régimen fiscal
+      if (company?.legalName && company?.taxId && (company as any)?.fiscalRegimeId) done++
+      // Catálogo: requiere visita explícita del usuario + que existan cuentas
+      if (localStorage.getItem('setup_visited_catalogo') === '1' &&
+          Array.isArray(accounts) && accounts.length > 0) done++
+      // Cuentas por defecto
       if (profile?.settings?.accountDefaults &&
           Object.values(profile.settings.accountDefaults).some(Boolean)) done++
+      // Impuestos
       if (Array.isArray(taxes) && taxes.length > 0) done++
       setCompleted(done)
     })
