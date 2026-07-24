@@ -215,10 +215,11 @@ export default function OnboardingWizardPage() {
 
       <Steps current={current} items={steps} style={{ marginBottom: 32 }} size="small" />
 
-      {/* ── Paso 0: Tu empresa ─────────────────────────────────────────────── */}
-      {current === 0 && (
-        <Card>
-          <Form form={form} layout="vertical" size="small">
+      {/* Form siempre montado para que Ant Design preserve los valores entre pasos */}
+      <Form form={form} layout="vertical" size="small">
+        {/* ── Paso 0: Tu empresa ───────────────────────────────────────────── */}
+        {current === 0 && (
+          <Card>
             <Form.Item
               label="Nombre de la empresa"
               name="legalName"
@@ -257,9 +258,9 @@ export default function OnboardingWizardPage() {
                 <Input placeholder="Ej: Grupo García, GLL Consulting" />
               </Form.Item>
             </div>
-          </Form>
-        </Card>
-      )}
+          </Card>
+        )}
+      </Form>
 
       {/* ── Paso 1: Régimen fiscal ─────────────────────────────────────────── */}
       {current === 1 && (
