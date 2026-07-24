@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
+import SetupProgressBanner from '../components/SetupProgressBanner'
 import {
   Alert, Badge, Button, Card, Col, DatePicker, Empty, Progress, Row,
   Select, Skeleton, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
@@ -920,6 +921,8 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <SetupProgressBanner />
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
