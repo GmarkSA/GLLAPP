@@ -116,15 +116,20 @@ export default function OnboardingWizardPage() {
       }
       const company: any = await companiesApi.create(companyPayload)
 
-      // 2. Activar empresa antes de sembrar catálogo
+      // 2. Guardar módulos que eligió el usuario (contabilidad siempre activa)
+      const allKeys = MODULES.map(m => m.value)
+      const enabledModules = selectedModules.length >= allKeys.length ? [] : selectedModules
+      await companiesApi.updateSettings(company.id, { enabledModules } as any).catch(() => {})
+
+      // 3. Activar empresa antes de sembrar catálogo
       await setActiveCompany(company)
 
-      // 3. Plan de cuentas: GLL para GT, blanco para otros
+      // 4. Plan de cuentas: GLL para GT, blanco para otros
       if (country === 'GT') {
         await seedGLL().catch(() => {})
       }
 
-      // 4. Guardar nombre del grupo (opcional) en el perfil del tenant
+      // 5. Guardar nombre del grupo (opcional) en el perfil del tenant
       if (vals.groupName) {
         const profile = await tenantsApi.getProfile().catch(() => null)
         await tenantsApi.updateProfile({
@@ -133,7 +138,7 @@ export default function OnboardingWizardPage() {
         setTenantGroupName(vals.groupName)
       }
 
-      // 5. Recargar empresas
+      // 6. Recargar empresas
       await loadCompanies()
 
       setDone(true)
