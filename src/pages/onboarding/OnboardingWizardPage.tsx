@@ -13,6 +13,7 @@ import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import { useCompanyStore } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
 import { tenantsApi } from '../../api/tenants'
+import { updateOrganizationProfile } from '../../api/configuracion'
 import { seedGLL } from '../../api/catalogo'
 
 const { Title, Text } = Typography
@@ -121,15 +122,25 @@ export default function OnboardingWizardPage() {
       const enabledModules = selectedModules.length >= allKeys.length ? [] : selectedModules
       await companiesApi.updateSettings(company.id, { enabledModules } as any).catch(() => {})
 
-      // 3. Activar empresa antes de sembrar catálogo
+      // 3. Pre-llenar perfil de organización con datos del wizard (evita duplicar entrada)
+      await updateOrganizationProfile({
+        name:     vals.tradeName || vals.legalName,
+        legalName: vals.legalName,
+        taxId:    vals.taxId,
+        country,
+        currency: getCountryMeta(country)?.currency ?? 'GTQ',
+        timezone: TIMEZONES[country] ?? 'America/Guatemala',
+      }).catch(() => {})
+
+      // 4. Activar empresa antes de sembrar catálogo
       await setActiveCompany(company)
 
-      // 4. Plan de cuentas: GLL para GT, blanco para otros
+      // 5. Plan de cuentas: GLL para GT, blanco para otros
       if (country === 'GT') {
         await seedGLL().catch(() => {})
       }
 
-      // 5. Guardar nombre del grupo (opcional) en el perfil del tenant
+      // 6. Guardar nombre del grupo (opcional) en el perfil del tenant
       if (vals.groupName) {
         const profile = await tenantsApi.getProfile().catch(() => null)
         await tenantsApi.updateProfile({
@@ -138,7 +149,7 @@ export default function OnboardingWizardPage() {
         setTenantGroupName(vals.groupName)
       }
 
-      // 6. Recargar empresas
+      // 7. Recargar empresas
       await loadCompanies()
 
       setDone(true)

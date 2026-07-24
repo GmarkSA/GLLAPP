@@ -1503,6 +1503,9 @@ export default function ConfiguracionPage() {
       const updated = await updateOrganizationProfile(values)
       setProfile(prev => ({ ...prev, ...updated }))
       message.success('✓ Cambios guardados correctamente')
+      if (searchParams.get('from') === 'setup') {
+        navigate('/onboarding/setup')
+      }
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message
       const detail = Array.isArray(msg) ? msg.join(', ') : msg
