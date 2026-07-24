@@ -9,7 +9,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/refresh', '/auth/logout', '/public/']
+const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout', '/public/']
 
 api.interceptors.request.use((config) => {
   const token           = localStorage.getItem('accessToken')

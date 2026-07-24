@@ -14,7 +14,9 @@ export default function RegisterPage() {
       await register(values)
       navigate('/onboarding')
     } catch (err: any) {
-      message.error(err?.response?.data?.message || 'Error al crear la cuenta')
+      const raw = err?.response?.data?.message
+      const text = Array.isArray(raw) ? raw.join(' · ') : (raw || 'Error al crear la cuenta')
+      message.error(text, 6)
     }
   }
 
