@@ -75,7 +75,7 @@ export default function SetupGuidePage() {
           icon:  <BankOutlined style={{ fontSize: 22 }} />,
           title: 'Empresa creada',
           desc:  'Tu empresa fue registrada exitosamente en el sistema.',
-          route: `/configuracion/empresas/${activeCompany.id}?from=setup`,
+          route: '',
           done:  true,
         },
         {
@@ -83,8 +83,8 @@ export default function SetupGuidePage() {
           num:   2,
           icon:  <FileTextOutlined style={{ fontSize: 22 }} />,
           title: 'Perfil de organización',
-          desc:  'Ingresa el nombre legal, NIT y selecciona el régimen fiscal (obligatorio para FEL).',
-          route: `/configuracion/empresas/${activeCompany.id}?from=setup`,
+          desc:  'Completa el nombre legal, NIT y régimen fiscal desde Configuración → Perfil de organización.',
+          route: '/configuracion?from=setup',
           done:  perfilOk,
         },
         {
