@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Steps, Button, Form, Input, Select, Card, message,
@@ -56,7 +56,7 @@ export default function OnboardingWizardPage() {
   const [current, setCurrent] = useState(0)
   const [saving, setSaving]   = useState(false)
   const [done, setDone]       = useState(false)
-  const [step0, setStep0]     = useState<Record<string, any>>({})
+  const step0Ref              = useRef<Record<string, any>>({})
 
   // Paso 0 — Tu empresa (fusión de grupo + empresa)
   const [form] = Form.useForm()
@@ -85,7 +85,7 @@ export default function OnboardingWizardPage() {
   const next = async () => {
     if (current === 0) {
       await form.validateFields()
-      setStep0(form.getFieldsValue())  // guardar antes de que el Form se desmonte
+      step0Ref.current = form.getFieldsValue()  // guardar antes de que el Form se desmonte
       const country = form.getFieldValue('country') ?? 'GT'
       loadRegimes(country)
     }
@@ -95,10 +95,15 @@ export default function OnboardingWizardPage() {
   const prev = () => setCurrent(c => c - 1)
 
   const finish = async () => {
+    const vals = step0Ref.current
+    if (!vals.legalName) {
+      message.error('Falta el nombre de la empresa. Regresa al paso 1.')
+      setCurrent(0)
+      return
+    }
     setSaving(true)
     try {
-      const vals = step0
-      const country = vals.country ?? 'GT'
+      const country = (vals.country ?? form.getFieldValue('country')) ?? 'GT'
 
       // 1. Crear empresa
       const companyPayload: any = {
