@@ -95,7 +95,7 @@ export default function OnboardingWizardPage() {
   const prev = () => setCurrent(c => c - 1)
 
   const finish = async () => {
-    const vals = step0Ref.current
+    const vals = form.getFieldsValue()
     if (!vals.legalName) {
       message.error('Falta el nombre de la empresa. Regresa al paso 1.')
       setCurrent(0)
@@ -103,7 +103,7 @@ export default function OnboardingWizardPage() {
     }
     setSaving(true)
     try {
-      const country = (vals.country ?? form.getFieldValue('country')) ?? 'GT'
+      const country = vals.country ?? 'GT'
 
       // 1. Crear empresa
       const companyPayload: any = {
@@ -222,10 +222,9 @@ export default function OnboardingWizardPage() {
 
       <Steps current={current} items={steps} style={{ marginBottom: 32 }} size="small" />
 
-      {/* Form siempre montado para que Ant Design preserve los valores entre pasos */}
+      {/* Form siempre montado — display:none mantiene los Form.Items montados entre pasos */}
       <Form form={form} layout="vertical" size="small">
-        {/* ── Paso 0: Tu empresa ───────────────────────────────────────────── */}
-        {current === 0 && (
+        <div style={{ display: current === 0 ? 'block' : 'none' }}>
           <Card>
             <Form.Item
               label="Nombre de la empresa"
@@ -266,7 +265,7 @@ export default function OnboardingWizardPage() {
               </Form.Item>
             </div>
           </Card>
-        )}
+        </div>
       </Form>
 
       {/* ── Paso 1: Régimen fiscal ─────────────────────────────────────────── */}
