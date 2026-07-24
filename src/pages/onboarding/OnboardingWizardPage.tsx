@@ -123,13 +123,14 @@ export default function OnboardingWizardPage() {
       await companiesApi.updateSettings(company.id, { enabledModules } as any).catch(() => {})
 
       // 3. Pre-llenar perfil de organización con datos del wizard (evita duplicar entrada)
-      await updateOrganizationProfile({
+      await (updateOrganizationProfile as any)({
         name:     vals.tradeName || vals.legalName,
         legalName: vals.legalName,
-        taxId:    vals.taxId,
-        country,
+        taxId:    vals.taxId || undefined,
+        country:  getCountryMeta(country)?.name ?? country,   // nombre completo ("Guatemala"), no código ("GT")
         currency: getCountryMeta(country)?.currency ?? 'GTQ',
         timezone: TIMEZONES[country] ?? 'America/Guatemala',
+        settings: { fiscalCountryCode: country },             // FiscalSection: pre-llena país fiscal
       }).catch(() => {})
 
       // 4. Activar empresa antes de sembrar catálogo
