@@ -53,10 +53,8 @@ export default function EmpresaFormPage() {
   const [savingSat, setSavingSat]       = useState(false)
   const [testingSat, setTestingSat]     = useState(false)
 
-  // Mostrar bloque SAT solo si el régimen fiscal tiene FEL o ya está configurado
-  const watchedRegimeId  = Form.useWatch('fiscalRegimeId', form)
-  const selectedRegimeObj = regimes.find(r => r.id === watchedRegimeId)
-  const showSatBlock = (selectedRegimeObj?.taxConfig?.hasFEL ?? false) || !!(satConfig.entityId && satConfig.apiKey)
+  // Mostrar bloque SAT solo si ya tiene credenciales guardadas (integración opcional)
+  const showSatBlock = !!(satConfig.entityId && satConfig.apiKey)
   const [satTestResult, setSatTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   // Template Engine state (solo en modo crear)
@@ -360,7 +358,7 @@ export default function EmpresaFormPage() {
             </Card>
           )}
 
-          {/* ── Proveedor SAT / RTU (solo si el régimen tiene FEL o ya está configurado) */}
+          {/* ── Proveedor SAT / RTU (solo si ya está configurado o usuario lo expande) */}
           {isEdit && showSatBlock && (
             <Card
               title={<Space><ApiOutlined />Proveedor SAT / RTU — Lookup de NIT y CUI</Space>}
@@ -430,6 +428,20 @@ export default function EmpresaFormPage() {
                 </Button>
               </Space>
             </Card>
+          )}
+
+          {/* Acceso a SAT lookup para quien lo necesite, sin mostrarlo por defecto */}
+          {isEdit && !showSatBlock && (
+            <div style={{ marginBottom: 16 }}>
+              <Button
+                type="link"
+                icon={<ApiOutlined />}
+                style={{ color: '#9aa1ab', padding: 0, fontSize: 12 }}
+                onClick={() => setSatConfig(p => ({ ...p, entityId: ' ' }))}
+              >
+                Configurar lookup automático de NIT/CUI (opcional)
+              </Button>
+            </div>
           )}
 
           <div style={{ display: 'flex', gap: 8 }}>
