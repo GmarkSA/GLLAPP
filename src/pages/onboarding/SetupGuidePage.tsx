@@ -75,7 +75,7 @@ export default function SetupGuidePage() {
           icon:  <BankOutlined style={{ fontSize: 22 }} />,
           title: 'Empresa creada',
           desc:  'Tu empresa fue registrada exitosamente en el sistema.',
-          route: '',
+          route: `/configuracion/empresas/${activeCompany.id}?from=setup`,
           done:  true,
         },
         {

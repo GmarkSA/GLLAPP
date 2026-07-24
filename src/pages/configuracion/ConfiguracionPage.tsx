@@ -134,8 +134,8 @@ function OrganizationSection({
       const co = activeCompany as any
       form.setFieldsValue({
         ...profile,
-        // Empresa siempre es fuente de verdad para nombre, razón social y NIT
-        name:      co?.tradeName || co?.legalName || profile.name,
+        // legalName es la fuente de verdad para nombre Y razón social (tradeName puede tener datos erróneos)
+        name:      co?.legalName || profile.name,
         legalName: co?.legalName || profile.legalName,
         taxId:     co?.taxId     || profile.taxId,
         country:   profile.country || COUNTRY_CODE_TO_NAME[co?.countryCode ?? co?.country] || '',
