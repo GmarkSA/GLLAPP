@@ -14,6 +14,10 @@ export default function RegisterPage() {
       await register(values)
       navigate('/onboarding')
     } catch (err: any) {
+      if (err?.response?.status === 409) {
+        message.error('Este correo ya está registrado. Ve a Iniciar sesión.', 8)
+        return
+      }
       const raw = err?.response?.data?.message
       const text = Array.isArray(raw) ? raw.join(' · ') : (raw || 'Error al crear la cuenta')
       message.error(text, 6)
