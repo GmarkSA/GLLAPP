@@ -14,7 +14,7 @@ import {
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
-  ThunderboltOutlined,
+  ThunderboltOutlined, RocketOutlined,
 } from '@ant-design/icons'
 import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
@@ -43,6 +43,7 @@ const { TextArea } = Input
 
 // ── Sidebar sections (Zoho Books pattern) ──────────────────────────────────
 const sections = [
+  { key: 'setup-guide',     icon: <RocketOutlined />,       label: 'Guía de inicio' },
   { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organización' },
   { key: 'taxes',           icon: <PercentageOutlined />,   label: 'Impuestos' },
   { key: 'librosSAT',       icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
@@ -1511,6 +1512,9 @@ export default function ConfiguracionPage() {
 
   const renderContent = () => {
     switch (activeKey) {
+      case 'setup-guide':
+        navigate('/onboarding/setup')
+        return null
       case 'organization':
         return (
           <div>
