@@ -66,7 +66,7 @@ export default function LoginPage() {
   const onFinish = async (values: { email: string; password: string }) => {
     try {
       await login(values.email, values.password)
-      message.success('Bienvenido a Lucía')
+      message.success('Bienvenido')
       const u = useAuthStore.getState().user
       const isCajero = u?.roles?.includes('cajero') && !u?.isSuperAdmin
       navigate(isCajero ? '/pos' : '/dashboard')
@@ -174,7 +174,7 @@ export default function LoginPage() {
           <div style={{ fontSize: 13, color: '#6b7280', marginTop: 18, textAlign: 'center' }}>
             ¿No tienes cuenta?{' '}
             <Link to="/register" style={{ color: '#0a6d7f', fontWeight: 600 }}>
-              Solicita acceso
+              Crear cuenta
             </Link>
           </div>
         </div>
