@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Form, Input, Select, Button, Card, message, Spin, Typography,
   Radio, Checkbox, Alert, Switch, Tag, Space,
@@ -38,8 +38,10 @@ const TIMEZONES = [
 ]
 
 export default function EmpresaFormPage() {
-  const navigate      = useNavigate()
-  const { id }        = useParams<{ id: string }>()
+  const navigate         = useNavigate()
+  const [searchParams]   = useSearchParams()
+  const backTo           = searchParams.get('from') === 'setup' ? '/onboarding/setup' : '/configuracion/empresas'
+  const { id }           = useParams<{ id: string }>()
   const isEdit        = !!id && id !== 'nueva'
   const [form]        = Form.useForm()
   const [loading, setLoading]   = useState(false)
@@ -151,7 +153,7 @@ export default function EmpresaFormPage() {
         )
         const result: any = await companiesApi.clone(sourceCompanyId, { targetCompany: values, options: opts })
         message.success(`Empresa clonada correctamente — ${result.copied?.accounts ?? 0} cuentas, ${result.copied?.documentSeries ?? 0} series`)
-        navigate('/configuracion/empresas')
+        navigate(backTo)
       } catch {
         message.error('Error al clonar empresa')
       } finally {
@@ -169,7 +171,7 @@ export default function EmpresaFormPage() {
         await companiesApi.create(values)
         message.success('Empresa creada')
       }
-      navigate('/configuracion/empresas')
+      navigate(backTo)
     } catch {
       message.error('Error al guardar empresa')
     } finally {
@@ -182,7 +184,7 @@ export default function EmpresaFormPage() {
   return (
     <div style={{ padding: '24px', maxWidth: 800 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/configuracion/empresas')} />
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(backTo)} />
         <Title level={4} style={{ margin: 0 }}>{isEdit ? 'Editar Empresa' : 'Nueva Empresa'}</Title>
       </div>
 
@@ -445,7 +447,7 @@ export default function EmpresaFormPage() {
           )}
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={() => navigate('/configuracion/empresas')}>Cancelar</Button>
+            <Button onClick={() => navigate(backTo)}>Cancelar</Button>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}
               style={{ background: '#1faec2' }}>
               {isEdit ? 'Guardar Cambios' : 'Crear Empresa'}
