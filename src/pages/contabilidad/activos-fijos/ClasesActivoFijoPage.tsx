@@ -377,7 +377,7 @@ export default function ClasesActivoFijoPage() {
             Agregar
           </Button>
           <Popconfirm
-            title="Usar catálogo sugerido"
+            title="Cargar catálogo sugerido"
             description="Se asignarán cuentas del catálogo GLL estándar a cada clase. ¿Continuar?"
             onConfirm={handleSugerir}
             okText="Aplicar"
@@ -386,11 +386,11 @@ export default function ClasesActivoFijoPage() {
           >
             <Button icon={<ThunderboltOutlined />} loading={sugeriendo}
               style={{ color: '#1faec2', borderColor: '#1faec2' }}>
-              Usar catálogo sugerido
+              Cargar catálogo sugerido
             </Button>
           </Popconfirm>
           <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}>
-            Generar clases Guatemala
+            Cargar clases de AF
           </Button>
         </Space>
       </div>
@@ -398,7 +398,7 @@ export default function ClasesActivoFijoPage() {
       {data.length === 0 && !loading && (
         <Alert type="info" showIcon style={{ marginBottom: 16 }}
           message="Sin clases configuradas"
-          description='Haz clic en "Generar clases Guatemala" para crear las clases del ISR Art. 19 bis automáticamente.' />
+          description='Haz clic en "Cargar clases de AF" para crear las clases del ISR Art. 19 bis automáticamente.' />
       )}
 
       <Table
