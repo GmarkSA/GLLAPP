@@ -159,13 +159,23 @@ function OrganizationSection({
   const handleLogoUpload = async (info: UploadChangeParam) => {
     const file = info.file.originFileObj
     if (!file) return
+
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp']
+    if (!ALLOWED.includes(file.type)) {
+      message.error('Formato no admitido. Usa JPG, PNG, GIF o BMP.')
+      return
+    }
+    if (file.size > 1024 * 1024) {
+      message.error('El archivo supera 1 MB. Reduce el tamaño de la imagen.')
+      return
+    }
+
     setUploading(true)
     try {
       const url = await uploadLogo(file)
       setLogoUrl(url)
       message.success('Logo actualizado')
     } catch {
-      // If backend logo endpoint isn't ready, show preview from local file
       const reader = new FileReader()
       reader.onload = e => setLogoUrl(e.target?.result as string)
       reader.readAsDataURL(file)
@@ -204,7 +214,7 @@ function OrganizationSection({
                 {!logoUrl && ((fullCompany as any)?.legalName?.[0] || (activeCompany as any)?.legalName?.[0] || profile?.name?.[0] || 'E')}
               </Avatar>
               <Upload
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.gif,.bmp"
                 showUploadList={false}
                 beforeUpload={() => false}
                 onChange={handleLogoUpload}
@@ -232,7 +242,7 @@ function OrganizationSection({
               </Text>
               <br />
               <Text type="secondary" style={{ fontSize: 12 }}>
-                PNG, JPG o SVG — máximo 2 MB, recomendado 200×200 px
+                JPG, PNG, GIF, BMP — máximo 1 MB, recomendado 240×240 px @ 72 ppp
               </Text>
             </div>
           </div>
