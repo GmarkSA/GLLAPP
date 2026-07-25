@@ -640,6 +640,17 @@ function TaxModal({
             <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '10px 0' }}>
               Cuentas contables (para partidas automáticas)
             </Divider>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 10, fontSize: 11 }}
+              message={
+                <span style={{ fontSize: 11 }}>
+                  Si no encuentras la cuenta en la lista, créala primero en <strong>Contabilidad → Catálogo</strong>.
+                  Ejemplos: <code>2210 IVA por Pagar</code>, <code>1150 Crédito Fiscal IVA</code>, <code>2215 Retención IVA por Enterar</code>.
+                </span>
+              }
+            />
             <Row gutter={12}>
               <Col span={12}>
                 <Form.Item name="salesAccountId" label="Cuenta ventas (haber)"
