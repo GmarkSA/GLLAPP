@@ -1,21 +1,18 @@
-import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Popover, Progress, Typography, Space, Button, List } from 'antd'
-import { CheckCircleFilled, ClockCircleOutlined, MessageOutlined } from '@ant-design/icons'
-import { useOnboardingStore } from '../../store/onboardingStore'
+import { CheckCircleFilled, ClockCircleOutlined } from '@ant-design/icons'
+import { useSetupSteps } from '../../hooks/useSetupSteps'
 
 const { Text } = Typography
 
 export default function OnboardingProgressBadge() {
   const navigate = useNavigate()
-  const { steps, completionPercent, refresh, setChatOpen } = useOnboardingStore()
-
-  useEffect(() => { refresh() }, [])
+  const { steps, completionPercent } = useSetupSteps()
 
   if (steps.length === 0 || completionPercent >= 100) return null
 
   const content = (
-    <div style={{ width: 280 }}>
+    <div style={{ width: 300 }}>
       <Text type="secondary" style={{ fontSize: 12 }}>
         Completa estos pasos para dejar tu empresa lista para operar:
       </Text>
@@ -25,14 +22,18 @@ export default function OnboardingProgressBadge() {
         style={{ margin: '8px 0' }}
         renderItem={step => (
           <List.Item
-            style={{ padding: '6px 0', cursor: 'pointer' }}
+            style={{ padding: '5px 0', cursor: 'pointer' }}
             onClick={() => navigate(step.route)}
           >
             <Space>
               {step.done
                 ? <CheckCircleFilled style={{ color: '#2ea172' }} />
                 : <ClockCircleOutlined style={{ color: '#ff7f00' }} />}
-              <Text delete={step.done} type={step.done ? 'secondary' : undefined} style={{ fontSize: 13 }}>
+              <Text
+                delete={step.done}
+                type={step.done ? 'secondary' : undefined}
+                style={{ fontSize: 13 }}
+              >
                 {step.label}
               </Text>
             </Space>
@@ -42,12 +43,11 @@ export default function OnboardingProgressBadge() {
       <Button
         type="primary"
         size="small"
-        icon={<MessageOutlined />}
         block
         style={{ background: '#1faec2' }}
-        onClick={() => setChatOpen(true)}
+        onClick={() => navigate('/onboarding/setup')}
       >
-        Preguntar al asistente
+        Ver guía completa →
       </Button>
     </div>
   )
