@@ -62,7 +62,7 @@ export default function OnboardingProgressBadge() {
           strokeColor="#24cae2"
           format={() => ''}
         />
-        <Text style={{ fontSize: 12, color: '#6b7280' }}>Configuración {completionPercent}%</Text>
+        <Text style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 500 }}>Configuración {completionPercent}%</Text>
       </Button>
     </Popover>
   )
