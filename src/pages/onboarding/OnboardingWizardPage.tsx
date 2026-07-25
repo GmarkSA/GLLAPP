@@ -45,6 +45,8 @@ const MODULES: Array<{ value: string; label: string; icon: string; desc: string;
   { value: 'bancos',       label: 'Tesorería',     icon: '🏦', desc: 'Cuentas bancarias, pagos, conciliación bancaria' },
   { value: 'inventario',   label: 'Inventario',    icon: '📦', desc: 'Artículos, almacenes, movimientos de stock' },
   { value: 'planillas',    label: 'Planillas',     icon: '👥', desc: 'Empleados, corridas de planilla, IGSS, finiquitos' },
+  { value: 'pos',          label: 'Terminal POS',  icon: '🖥️', desc: 'Punto de venta, caja rápida para ventas al mostrador' },
+  { value: 'proyectos',    label: 'Proyectos',     icon: '📋', desc: 'Gestión de proyectos, presupuestos y avance de obra' },
   { value: 'fel',          label: 'FEL',           icon: '📄', desc: 'Factura Electrónica en Línea — SAT Guatemala' },
 ]
 

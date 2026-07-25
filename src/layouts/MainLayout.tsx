@@ -189,9 +189,11 @@ export default function MainLayout() {
   // ── Filtrado del menú ─────────────────────────────────────────────────────
   // Paso 1: filtrar por módulos habilitados en la empresa activa
   const filteredMenuItems = menuItems.filter(item => {
-    const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform', '/proyectos', '/pos', 'planillas']
+    const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform']
     if (alwaysVisible.includes(item.key)) return true
-    return isModuleEnabled(item.key)
+    // Normaliza /pos → pos, /proyectos → proyectos para comparar con enabledModules
+    const moduleKey = item.key.startsWith('/') ? item.key.slice(1) : item.key
+    return isModuleEnabled(moduleKey)
   })
 
   const handleOpenChange = (keys: string[]) => {
@@ -211,11 +213,9 @@ export default function MainLayout() {
 
   // Paso 2: filtrar por rol del usuario
   const visibleMenuItems = filteredMenuItems.filter(item => {
-    if (item.key === '/dashboard')     return true
+    if (item.key === '/dashboard')      return true
     if (item.key === '/admin/platform') return !!user?.isSuperAdmin
-    if (item.key === '/pos')           return canSeeModule('/pos')
-    if (item.key === 'configuracion')  return true
-    if (item.key === '/proyectos')     return hasFullAccess
+    if (item.key === 'configuracion')   return true
     return canSeeModule(item.key)
   })
 
