@@ -11,6 +11,7 @@ import {
   ShopOutlined,
   CreditCardOutlined,
   ArrowRightOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons'
 import { useSetupSteps } from '../../hooks/useSetupSteps'
 
@@ -20,7 +21,8 @@ const STEP_ICONS: Record<string, React.ReactNode> = {
   empresa:      <BankOutlined      style={{ fontSize: 22 }} />,
   perfil:       <FileTextOutlined  style={{ fontSize: 22 }} />,
   catalogo:     <BookOutlined      style={{ fontSize: 22 }} />,
-  contabilidad: <SettingOutlined   style={{ fontSize: 22 }} />,
+  contabilidad: <SettingOutlined    style={{ fontSize: 22 }} />,
+  clases_af:    <ApartmentOutlined  style={{ fontSize: 22 }} />,
   impuestos:    <PercentageOutlined style={{ fontSize: 22 }} />,
   clientes:     <UserOutlined      style={{ fontSize: 22 }} />,
   proveedores:  <ShopOutlined      style={{ fontSize: 22 }} />,

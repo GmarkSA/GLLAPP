@@ -6,6 +6,7 @@ import { getTaxes } from '../api/impuestos'
 import { tenantsApi } from '../api/tenants'
 import { getCustomers, getVendors } from '../api/contactos'
 import { getBankAccounts } from '../api/bancos'
+import { getClasesActivoFijo } from '../api/clases-activo-fijo'
 
 export interface SetupStep {
   id:    string
@@ -35,16 +36,18 @@ export function useSetupSteps() {
       getAccounts({ limit: 1 }).catch(() => []),
       tenantsApi.getProfile().catch(() => null),
       getTaxes().catch(() => []),
+      getClasesActivoFijo().catch(() => []),
       getCustomers({ limit: 1 }).catch(() => []),
       getVendors({ limit: 1 }).catch(() => []),
       getBankAccounts({ status: 'active' }).catch(() => []),
-    ]).then(([company, accounts, profile, taxes, customers, vendors, banks]) => {
+    ]).then(([company, accounts, profile, taxes, clases, customers, vendors, banks]) => {
       const co = company as any
 
       const perfilOk      = !!(co?.legalName && co?.taxId && co?.fiscalRegimeId)
       const catalogoOk    = countOf(accounts) > 0
       const defaultsOk    = !!(profile?.settings?.accountDefaults &&
                               Object.values(profile.settings.accountDefaults).some(Boolean))
+      const clasesOk      = countOf(clases) > 0
       const impuestosOk   = countOf(taxes) > 0
       const clientesOk    = countOf(customers) > 0
       const proveedoresOk = countOf(vendors) > 0
@@ -80,28 +83,35 @@ export function useSetupSteps() {
           done:  defaultsOk,
         },
         {
-          id: 'impuestos', num: 5,
+          id: 'clases_af', num: 5,
+          label: 'Clases de activo fijo',
+          desc:  'Clases ISR Guatemala generadas y cuentas vinculadas.',
+          route: '/contabilidad/clases-activo-fijo',
+          done:  clasesOk,
+        },
+        {
+          id: 'impuestos', num: 6,
           label: 'Plantilla de impuestos',
           desc:  'Impuestos fiscales (IVA, ISR, retenciones) cargados.',
           route: '/configuracion?tab=taxes',
           done:  impuestosOk,
         },
         {
-          id: 'clientes', num: 6,
+          id: 'clientes', num: 7,
           label: 'Primer cliente',
           desc:  'Al menos un cliente registrado en el sistema.',
           route: '/ventas/clientes',
           done:  clientesOk,
         },
         {
-          id: 'proveedores', num: 7,
+          id: 'proveedores', num: 8,
           label: 'Primer proveedor',
           desc:  'Al menos un proveedor registrado en el sistema.',
           route: '/compras/proveedores',
           done:  proveedoresOk,
         },
         {
-          id: 'bancos', num: 8,
+          id: 'bancos', num: 9,
           label: 'Cuenta bancaria',
           desc:  'Cuenta bancaria configurada para tesorería.',
           route: '/bancos',
