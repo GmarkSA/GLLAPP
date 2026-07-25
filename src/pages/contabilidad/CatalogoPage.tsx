@@ -240,6 +240,26 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
                 <Switch checkedChildren="Activa" unCheckedChildren="Inactiva" />
               </Form.Item>
             </div>
+
+            {/* ── Guía de comportamiento ── */}
+            <div style={{
+              marginTop: 16,
+              padding: '10px 12px',
+              background: '#f8fafc',
+              borderRadius: 8,
+              border: '1px solid rgba(10,10,10,0.07)',
+              fontSize: 11,
+              color: '#6b7280',
+              lineHeight: 1.6,
+            }}>
+              <Text strong style={{ fontSize: 11, color: '#374151', display: 'block', marginBottom: 4 }}>
+                ¿Cuándo activar cada opción?
+              </Text>
+              Activa <strong>Vinculación con bancos</strong> solo en la cuenta que representa una cuenta bancaria real.
+              Usa <strong>CxC</strong> en cuentas de Clientes Locales y del Exterior, y <strong>CxP</strong> en cuentas de Proveedores — habilita auxiliares por cliente/proveedor.
+              Marca <strong>Activos fijos</strong> en cuentas de Propiedad, Planta y Equipo para vincularlas al módulo de activos.
+              Activa <strong>Exige Centro de Costo</strong> en cuentas de Gastos y Costos, y <strong>Exige Centro de Beneficio</strong> en cuentas de Ingresos, para que el sistema solicite esa dimensión al contabilizar.
+            </div>
           </div>
 
           {/* ── Bloque 2: Comportamiento ── */}
