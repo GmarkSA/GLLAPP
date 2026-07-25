@@ -1,199 +1,162 @@
 import { useNavigate, Outlet, useLocation } from 'react-router-dom'
-import { Card, Col, Row, Typography, Space, Tag } from 'antd'
+import { Typography } from 'antd'
 import {
   BarChartOutlined, LineChartOutlined, FundOutlined,
   AuditOutlined, RiseOutlined, AccountBookOutlined,
   FileTextOutlined, BookOutlined, ShopOutlined,
-  PieChartOutlined, DashboardOutlined,
+  PieChartOutlined, DashboardOutlined, TeamOutlined,
+  WalletOutlined, BankOutlined,
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
-const REPORTS = [
+interface ReportCard {
+  key:   string
+  icon:  React.ReactNode
+  title: string
+  desc:  string
+  path:  string
+  color: string
+}
+
+interface ReportGroup {
+  id:      string
+  label:   string
+  reports: ReportCard[]
+}
+
+const GROUPS: ReportGroup[] = [
   {
-    key: 'balance-general',
-    icon: <AuditOutlined style={{ fontSize: 28, color: '#1faec2' }} />,
-    title: 'Balance General',
-    subtitle: 'Estado de Situación Financiera',
-    description: 'Activos, pasivos y capital al cierre de un período. Cumple con NIC 1.',
-    tags: ['SAT', 'Obligatorio'],
-    path: '/reportes/balance-general',
-    color: '#e6fafd',
+    id: 'financieros',
+    label: 'Financieros',
+    reports: [
+      { key: 'balance-general',    icon: <AuditOutlined />,       title: 'Balance General',        desc: 'Activos, pasivos y patrimonio al cierre del período.',          path: '/reportes/balance-general',    color: '#1faec2' },
+      { key: 'estado-resultados',  icon: <LineChartOutlined />,   title: 'Estado de Resultados',   desc: 'Ingresos, costos, gastos y utilidad neta del período.',          path: '/reportes/estado-resultados',  color: '#2ea172' },
+      { key: 'flujo-efectivo',     icon: <FundOutlined />,        title: 'Flujo de Caja',          desc: 'Entradas y salidas de efectivo: operación, inversión y fin.',    path: '/reportes/flujo-efectivo',     color: '#1faec2' },
+      { key: 'tasas-rendimiento',  icon: <RiseOutlined />,        title: 'Tasas de Rendimiento',   desc: 'Ratios de liquidez, endeudamiento y rentabilidad ROA/ROE.',      path: '/reportes/tasas-rendimiento',  color: '#f59e0b' },
+      { key: 'movimiento-capital', icon: <BarChartOutlined />,    title: 'Movimiento de Capital',  desc: 'Cambios en patrimonio, utilidades retenidas y distribuciones.',  path: '/reportes/movimiento-capital', color: '#e5484d' },
+    ],
   },
   {
-    key: 'estado-resultados',
-    icon: <LineChartOutlined style={{ fontSize: 28, color: '#2ea172' }} />,
-    title: 'Estado de Resultados',
-    subtitle: 'Estado de Pérdidas y Ganancias',
-    description: 'Ingresos, costos, gastos y utilidad neta. Incluye márgenes de rentabilidad.',
-    tags: ['SAT', 'Mensual'],
-    path: '/reportes/estado-resultados',
-    color: '#e8f5ef',
+    id: 'libros-sat',
+    label: 'Libros SAT',
+    reports: [
+      { key: 'balanza',       icon: <AccountBookOutlined />, title: 'Balanza de Comprobación', desc: 'Débitos y créditos por cuenta. Base para estados financieros.',       path: '/reportes/balanza',       color: '#1faec2' },
+      { key: 'libro-diario',  icon: <FileTextOutlined />,   title: 'Libro Diario',            desc: 'Pólizas contables en orden cronológico. Requerido por SAT.',          path: '/reportes/libro-diario',  color: '#1faec2' },
+      { key: 'libro-mayor',   icon: <BookOutlined />,       title: 'Libro Mayor',             desc: 'Saldo y movimientos por cuenta contable del catálogo.',                path: '/reportes/libro-mayor',   color: '#2ea172' },
+      { key: 'libro-compras', icon: <ShopOutlined />,       title: 'Libro de Compras',        desc: 'Facturas de proveedor con IVA y totales del período. Obligatorio.',    path: '/reportes/libro-compras', color: '#f59e0b' },
+      { key: 'libro-ventas',  icon: <LineChartOutlined />,  title: 'Libro de Ventas',         desc: 'Facturas emitidas con IVA y totales del período. Obligatorio.',        path: '/reportes/libro-ventas',  color: '#e5484d' },
+    ],
   },
   {
-    key: 'flujo-efectivo',
-    icon: <FundOutlined style={{ fontSize: 28, color: '#1faec2' }} />,
-    title: 'Flujo de Caja',
-    subtitle: 'Estado de Flujo de Efectivo',
-    description: 'Movimientos de efectivo: operación, inversión y financiamiento.',
-    tags: ['NIC 7'],
-    path: '/reportes/flujo-efectivo',
-    color: '#e6fafd',
+    id: 'cartera',
+    label: 'Cartera',
+    reports: [
+      { key: 'ap-aging',          icon: <WalletOutlined />,  title: 'AP Aging — CxP',      desc: 'Cuentas por pagar clasificadas por antigüedad de saldo.',             path: '/reportes/ap-aging',          color: '#f59e0b' },
+      { key: 'ar-aging',          icon: <BankOutlined />,    title: 'AR Aging — CxC',      desc: 'Cuentas por cobrar clasificadas por antigüedad de saldo.',             path: '/reportes/ar-aging',          color: '#1faec2' },
+      { key: 'proyectado-pagos',  icon: <TeamOutlined />,    title: 'Proyectado de Pagos', desc: 'Flujo proyectado de pagos y cobros por vencer.',                       path: '/reportes/proyectado-pagos',  color: '#2ea172' },
+    ],
   },
   {
-    key: 'tasas-rendimiento',
-    icon: <RiseOutlined style={{ fontSize: 28, color: '#ff7f00' }} />,
-    title: 'Tasas de Rendimiento',
-    subtitle: 'Ratios e Indicadores Financieros',
-    description: 'Liquidez, endeudamiento, rentabilidad ROA/ROE y eficiencia operacional.',
-    tags: ['Análisis'],
-    path: '/reportes/tasas-rendimiento',
-    color: '#fff2e5',
-  },
-  {
-    key: 'movimiento-capital',
-    icon: <BarChartOutlined style={{ fontSize: 28, color: '#e5484d' }} />,
-    title: 'Movimiento de Capital',
-    subtitle: 'Estado de Cambios en el Patrimonio',
-    description: 'Variaciones en capital, utilidades retenidas y distribuciones del período.',
-    tags: ['NIC 1'],
-    path: '/reportes/movimiento-capital',
-    color: '#fdecec',
-  },
-  {
-    key: 'balanza',
-    icon: <AccountBookOutlined style={{ fontSize: 28, color: '#1faec2' }} />,
-    title: 'Balanza de Comprobación',
-    subtitle: 'Verificación de partida doble',
-    description: 'Resumen de débitos y créditos por cuenta. Base para los estados financieros.',
-    tags: ['SAT', 'Libro Mayor'],
-    path: '/reportes/balanza',
-    color: '#e6fafd',
-  },
-  {
-    key: 'libro-diario',
-    icon: <FileTextOutlined style={{ fontSize: 28, color: '#1faec2' }} />,
-    title: 'Libro Diario',
-    subtitle: 'Registro cronológico de asientos',
-    description: 'Todas las pólizas contables en orden cronológico con detalle de líneas. Requerido por el SAT.',
-    tags: ['SAT', 'Obligatorio'],
-    path: '/reportes/libro-diario',
-    color: '#e6fafd',
-  },
-  {
-    key: 'libro-mayor',
-    icon: <BookOutlined style={{ fontSize: 28, color: '#2ea172' }} />,
-    title: 'Libro Mayor',
-    subtitle: 'Movimientos por cuenta contable',
-    description: 'Saldo inicial, movimientos del período y saldo final por cada cuenta del catálogo.',
-    tags: ['SAT', 'Obligatorio'],
-    path: '/reportes/libro-mayor',
-    color: '#e8f5ef',
-  },
-  {
-    key: 'libro-compras',
-    icon: <ShopOutlined style={{ fontSize: 28, color: '#ff7f00' }} />,
-    title: 'Libro de Compras',
-    subtitle: 'Registro de facturas de proveedor',
-    description: 'Detalle de compras del período con IVA, impuestos y totales. Requerido por el SAT.',
-    tags: ['SAT', 'Obligatorio'],
-    path: '/reportes/libro-compras',
-    color: '#fff2e5',
-  },
-  {
-    key: 'libro-ventas',
-    icon: <LineChartOutlined style={{ fontSize: 28, color: '#e5484d' }} />,
-    title: 'Libro de Ventas',
-    subtitle: 'Registro de facturas emitidas',
-    description: 'Detalle de ventas del período con IVA, impuestos y totales. Requerido por el SAT.',
-    tags: ['SAT', 'Obligatorio'],
-    path: '/reportes/libro-ventas',
-    color: '#fdecec',
-  },
-  {
-    key: 'ap-aging',
-    icon: <AuditOutlined style={{ fontSize: 28, color: '#ff7f00' }} />,
-    title: 'AP Aging — CxP',
-    subtitle: 'Antigüedad de Saldos por Pagar',
-    description: 'Cuentas por pagar clasificadas por antigüedad: vigentes, 1-30, 31-60, 61-90 y +90 días.',
-    tags: ['CxP', 'Análisis'],
-    path: '/reportes/ap-aging',
-    color: '#fff2e5',
-  },
-  {
-    key: 'centros-beneficio',
-    icon: <PieChartOutlined style={{ fontSize: 28, color: '#1faec2' }} />,
-    title: 'Rentabilidad por Centro de Beneficio',
-    subtitle: 'P&L analítico por línea de negocio',
-    description: 'Ingresos, costos y margen por centro de beneficio, con análisis automático de concentración, pérdidas y tendencia.',
-    tags: ['Analítico', 'Decisión'],
-    path: '/reportes/centros-beneficio',
-    color: '#e6fafd',
-  },
-  {
-    key: 'centros-costo',
-    icon: <DashboardOutlined style={{ fontSize: 28, color: '#ff7f00' }} />,
-    title: 'Ejecución por Centro de Costo',
-    subtitle: 'Control presupuestario y proyección',
-    description: 'Gasto real vs presupuesto por centro de costo, proyección al cierre, mes de agotamiento y alertas de gasto atípico.',
-    tags: ['Analítico', 'Presupuesto'],
-    path: '/reportes/centros-costo',
-    color: '#fff2e5',
+    id: 'analiticos',
+    label: 'Analíticos',
+    reports: [
+      { key: 'activos-fijos',      icon: <DashboardOutlined />, title: 'Activos Fijos',              desc: 'Depreciación acumulada, valor en libros y vida útil restante.',        path: '/reportes/activos-fijos',      color: '#6b7280' },
+      { key: 'centros-beneficio',  icon: <PieChartOutlined />,  title: 'Rentabilidad C. Beneficio',  desc: 'P&L por línea de negocio con análisis de concentración y tendencia.',   path: '/reportes/centros-beneficio',  color: '#1faec2' },
+      { key: 'centros-costo',      icon: <DashboardOutlined />, title: 'Ejecución C. Costo',         desc: 'Gasto real vs presupuesto por centro de costo y proyección al cierre.',  path: '/reportes/centros-costo',      color: '#f59e0b' },
+    ],
   },
 ]
 
+function ReportCard({ report, onClick }: { report: ReportCard; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 14px',
+        borderRadius: 8,
+        border: '1px solid rgba(10,10,10,0.07)',
+        background: '#fff',
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+        minWidth: 0,
+      }}
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = report.color
+        el.style.boxShadow = `0 2px 8px rgba(0,0,0,0.08)`
+        el.style.background = '#fafeff'
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = 'rgba(10,10,10,0.07)'
+        el.style.boxShadow = 'none'
+        el.style.background = '#fff'
+      }}
+    >
+      <div style={{
+        width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+        background: `${report.color}18`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 16, color: report.color,
+      }}>
+        {report.icon}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: '#0a0a0a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {report.title}
+        </div>
+        <div style={{ fontSize: 11, color: '#9aa1ab', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          {report.desc}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ReportesPage() {
-  const navigate  = useNavigate()
-  const location  = useLocation()
-  const isHub     = location.pathname === '/reportes' || location.pathname === '/reportes/'
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isHub    = location.pathname === '/reportes' || location.pathname === '/reportes/'
 
   if (!isHub) return <Outlet />
 
   return (
     <div>
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BarChartOutlined style={{ fontSize: 22, color: '#1faec2' }} />
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Reportes Financieros</Title>
-          <Text type="secondary">
-            Estados financieros dinámicos · Exportación a Excel y PDF · Cumplimiento SAT Guatemala
-          </Text>
-        </div>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Reportes</Title>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Estados financieros, libros SAT y reportes analíticos
+        </Text>
       </div>
 
-      <Row gutter={[16, 16]}>
-        {REPORTS.map(r => (
-          <Col xs={24} sm={12} xl={8} key={r.key}>
-            <Card
-              hoverable
-              style={{ borderRadius: 12, cursor: 'pointer', height: '100%', border: '1px solid rgba(10,10,10,0.08)' }}
-              bodyStyle={{ padding: 20 }}
-              onClick={() => navigate(r.path)}
-            >
-              <Space direction="vertical" style={{ width: '100%' }} size={10}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: 12,
-                  background: r.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {r.icon}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#1faec2', lineHeight: 1.3 }}>
-                    {r.title}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{r.subtitle}</div>
-                </div>
-                <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.5 }}>{r.description}</Text>
-                <Space size={4} wrap>
-                  {r.tags.map(t => (
-                    <Tag key={t} style={{ fontSize: 10, borderRadius: 4, margin: 0 }}>{t}</Tag>
-                  ))}
-                </Space>
-              </Space>
-            </Card>
-          </Col>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        {GROUPS.map(group => (
+          <div key={group.id}>
+            <div style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+              textTransform: 'uppercase', color: '#9aa1ab',
+              marginBottom: 10,
+              paddingBottom: 6,
+              borderBottom: '1px solid rgba(10,10,10,0.06)',
+            }}>
+              {group.label}
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+              gap: 8,
+            }}>
+              {group.reports.map(r => (
+                <ReportCard key={r.key} report={r} onClick={() => navigate(r.path)} />
+              ))}
+            </div>
+          </div>
         ))}
-      </Row>
+      </div>
     </div>
   )
 }
