@@ -174,11 +174,10 @@ export default function CuentaFormPage() {
           <Form.Item
             name="glAccountId"
             label="Cuenta contable vinculada"
-            extra="Solo deben usarse cuentas marcadas para vinculacion bancaria en Contabilidad."
+            extra="Selecciona la cuenta del catálogo que representa esta cuenta bancaria (ej: 110xxx Cajas y Bancos)."
           >
             <AccountSelect
               size="small"
-              filter={{ bankLinking: true }}
               placeholder="Buscar cuenta contable"
               value={glAccountId}
               onChange={(value) => {
