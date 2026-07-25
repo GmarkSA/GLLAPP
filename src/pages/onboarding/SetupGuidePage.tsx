@@ -86,7 +86,7 @@ export default function SetupGuidePage() {
         </Text>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
-        {steps.slice(0, 5).map(step => renderCard(step, nextPending, goTo))}
+        {steps.slice(0, 6).map(step => renderCard(step, nextPending, goTo))}
       </div>
 
       {/* Sección: Datos maestros */}
@@ -96,7 +96,7 @@ export default function SetupGuidePage() {
         </Text>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
-        {steps.slice(5).map(step => renderCard(step, nextPending, goTo))}
+        {steps.slice(6).map(step => renderCard(step, nextPending, goTo))}
       </div>
 
       {/* Footer */}
