@@ -234,10 +234,9 @@ export default function BancoFormPage() {
               <Form.Item
                 name="glAccountId"
                 label="Cuenta del catálogo (Balance)"
-                extra="Solo se muestran cuentas marcadas como 'Vinculación bancaria' en el catálogo. Si no aparece la cuenta, edítala en Contabilidad → Catálogo y activa esa opción."
+                extra="Selecciona la cuenta del catálogo que representa esta cuenta bancaria (ej: 110xxx Cajas y Bancos)."
               >
                 <AccountSelect
-                  filter={{ bankLinking: true }}
                   placeholder="Buscar y seleccionar cuenta de balance..."
                   value={glAccountId}
                   onChange={(val) => {

@@ -15,7 +15,7 @@ export interface AccountFilter {
 }
 
 interface AccountSelectProps {
-  filter:             AccountFilter
+  filter?:            AccountFilter
   placeholder?:       string
   value?:             string
   onChange?:          (value: string | undefined) => void
@@ -47,14 +47,14 @@ export default function AccountSelect({
     setLoading(true)
     // Build query params — only include defined boolean flags
     const params: Record<string, string> = {}
-    if (filter.groupCode)                              params.groupCode = filter.groupCode
-    if (filter.balanceType)                            params.balanceType = filter.balanceType
-    if (filter.isCustomerAccount     !== undefined)    params.isCustomerAccount = String(filter.isCustomerAccount)
-    if (filter.isVendorAccount       !== undefined)    params.isVendorAccount = String(filter.isVendorAccount)
-    if (filter.bankLinking           !== undefined)    params.bankLinking = String(filter.bankLinking)
-    if (filter.isFixedAsset          !== undefined)    params.isFixedAsset = String(filter.isFixedAsset)
-    if (filter.requiresReconciliation !== undefined)   params.requiresReconciliation = String(filter.requiresReconciliation)
-    if (filter.isInventoryAccount     !== undefined)   params.isInventoryAccount = String(filter.isInventoryAccount)
+    if (filter?.groupCode)                              params.groupCode = filter.groupCode
+    if (filter?.balanceType)                            params.balanceType = filter.balanceType
+    if (filter?.isCustomerAccount     !== undefined)    params.isCustomerAccount = String(filter.isCustomerAccount)
+    if (filter?.isVendorAccount       !== undefined)    params.isVendorAccount = String(filter.isVendorAccount)
+    if (filter?.bankLinking           !== undefined)    params.bankLinking = String(filter.bankLinking)
+    if (filter?.isFixedAsset          !== undefined)    params.isFixedAsset = String(filter.isFixedAsset)
+    if (filter?.requiresReconciliation !== undefined)   params.requiresReconciliation = String(filter.requiresReconciliation)
+    if (filter?.isInventoryAccount     !== undefined)   params.isInventoryAccount = String(filter.isInventoryAccount)
 
     getAccounts(params)
       .then(data => setAccounts(Array.isArray(data) ? data : []))
