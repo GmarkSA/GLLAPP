@@ -123,28 +123,38 @@ function OrganizationSection({
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
-  const activeCompany = useCompanyStore(s => s.activeCompany)
-  const authUser      = useAuthStore(s => s.user)
+  const activeCompany  = useCompanyStore(s => s.activeCompany)
+  const authUser       = useAuthStore(s => s.user)
+  const [fullCompany, setFullCompany] = useState<any>(null)
 
   const [logoUrl, setLogoUrl] = useState<string | undefined>(profile?.logoUrl)
   const [uploading, setUploading] = useState(false)
 
+  // Cargar datos completos de la empresa (phone, email, legalRepresentative no están en el store)
   useEffect(() => {
-    if (profile) {
-      const co = activeCompany as any
+    if (activeCompany?.id) {
+      companiesApi.getOne(activeCompany.id).then(setFullCompany).catch(() => {})
+    }
+  }, [activeCompany?.id])
+
+  useEffect(() => {
+    if (profile && fullCompany !== null) {
+      const co  = fullCompany as any
+      const bas = activeCompany as any
       form.setFieldsValue({
         ...profile,
-        // legalName es la fuente de verdad para nombre Y razón social (tradeName puede tener datos erróneos)
-        name:      co?.legalName || profile.name,
-        legalName: co?.legalName || profile.legalName,
-        taxId:     co?.taxId     || profile.taxId,
-        country:   profile.country || COUNTRY_CODE_TO_NAME[co?.countryCode ?? co?.country] || '',
-        // Email: del perfil, o del usuario autenticado como fallback
-        email:     profile.email || (authUser as any)?.email || '',
+        // tradeName para Nombre comercial, legalName para Razón social
+        name:      co?.tradeName  || bas?.tradeName  || co?.legalName  || bas?.legalName  || profile.name,
+        legalName: co?.legalName  || bas?.legalName  || profile.legalName,
+        taxId:     co?.taxId      || bas?.taxId       || profile.taxId,
+        country:   profile.country || COUNTRY_CODE_TO_NAME[co?.countryCode ?? bas?.countryCode] || '',
+        // Contacto: email del perfil → email empresa → email auth; teléfono de la empresa
+        email:     profile.email || co?.email || (authUser as any)?.email || '',
+        phone:     profile.phone || co?.phone || '',
       })
       setLogoUrl(profile.logoUrl)
     }
-  }, [profile, form, activeCompany, authUser])
+  }, [profile, form, activeCompany, authUser, fullCompany])
 
   const handleLogoUpload = async (info: UploadChangeParam) => {
     const file = info.file.originFileObj
@@ -191,7 +201,7 @@ function OrganizationSection({
                   border: '3px solid #e8edf5',
                 }}
               >
-                {!logoUrl && (profile?.name?.[0] || 'E')}
+                {!logoUrl && ((fullCompany as any)?.legalName?.[0] || (activeCompany as any)?.legalName?.[0] || profile?.name?.[0] || 'E')}
               </Avatar>
               <Upload
                 accept="image/*"
@@ -215,7 +225,7 @@ function OrganizationSection({
             </div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16, color: '#0a0a0a' }}>
-                {profile?.name || 'Tu empresa'}
+                {(fullCompany as any)?.legalName || (activeCompany as any)?.legalName || profile?.name || 'Tu empresa'}
               </div>
               <Text type="secondary" style={{ fontSize: 13 }}>
                 Haz clic en el ícono de cámara para cambiar el logo
