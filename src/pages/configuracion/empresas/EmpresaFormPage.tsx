@@ -16,7 +16,11 @@ const ALL_MODULES = [
   { key: 'contabilidad',  label: 'Contabilidad' },
   { key: 'bancos',        label: 'Bancos y Tesorería' },
   { key: 'inventario',    label: 'Inventario' },
+  { key: 'planillas',     label: 'Planillas' },
+  { key: 'pos',           label: 'Terminal POS' },
+  { key: 'proyectos',     label: 'Proyectos' },
   { key: 'reportes',      label: 'Reportes' },
+  { key: 'fel',           label: 'FEL' },
 ]
 
 const { Title } = Typography
