@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 import {
   Layout, Menu, Form, Input, Button, Select, Upload, Avatar,
   Typography, Card, Row, Col, Divider, message, Spin, Space, Tag,
-  Modal, Table, Popconfirm, InputNumber, Switch, Collapse,
+  Modal, Table, Popconfirm, InputNumber, Switch, Collapse, Alert,
 } from 'antd'
 import {
   BankOutlined, GlobalOutlined, DollarOutlined,
@@ -1250,6 +1250,18 @@ function ImpuestosEspecialesSection() {
   return (
     <Spin spinning={loading}>
       <div style={{ maxWidth: 1100 }}>
+
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={
+            <span style={{ fontSize: 12 }}>
+              Si no encuentras las cuentas en la lista, créalas primero en <strong>Contabilidad → Catálogo</strong>.
+              Ejemplos: <code>1106 IDP por Acreditar</code>, <code>2310 Impuesto Turismo por Pagar</code>, <code>2315 Timbres por Enterar</code>.
+            </span>
+          }
+        />
 
         {/* ── Layout horizontal: IDP izquierda | otros impuestos derecha ── */}
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
