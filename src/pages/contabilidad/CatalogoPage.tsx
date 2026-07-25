@@ -61,19 +61,17 @@ interface AccountModalProps {
 function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalProps) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
-  const isEdit = !!record?.id
+  const isEdit    = !!record?.id
+  const isSystem  = !!(record as any)?.isSystem
   const typeValue = Form.useWatch('type', form)
-  const isContra = typeValue === 'contra'
+  const isContra  = typeValue === 'contra'
 
   useEffect(() => {
     if (!open) return
     form.resetFields()
     if (record) {
       form.setFieldsValue({ isActive: true, normalBalance: 'debit', ...record })
-      // If creating a new account with a pre-selected group, auto-populate group fields
-      if (record.groupCode && !record.id) {
-        handleGroupChange(record.groupCode)
-      }
+      if (record.groupCode && !record.id) handleGroupChange(record.groupCode)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, record])
@@ -82,13 +80,9 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
     const g = groups.find(g => g.groupCode === code)
     if (!g) return
     form.setFieldsValue({
-      rangeStart:    g.rangeStart,
-      rangeEnd:      g.rangeEnd,
-      balanceType:   g.balanceType,
-      type:          g.type,
-      normalBalance: g.normalBalance,
+      rangeStart: g.rangeStart, rangeEnd: g.rangeEnd,
+      balanceType: g.balanceType, type: g.type, normalBalance: g.normalBalance,
     })
-    // Auto-generate next available code in this group's range
     try {
       const existing: Account[] = await getAccounts({ groupCode: code })
       const arr = Array.isArray(existing) ? existing : []
@@ -107,7 +101,13 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
       const values = await form.validateFields()
       setSaving(true)
       if (isEdit) {
-        await updateAccount(record!.id!, values)
+        // Cuentas del sistema: el backend no permite cambiar código ni tipo
+        if (isSystem) {
+          const { code: _c, groupCode: _g, type: _t, rangeStart: _rs, rangeEnd: _re, balanceType: _bt, normalBalance: _nb, ...rest } = values
+          await updateAccount(record!.id!, rest)
+        } else {
+          await updateAccount(record!.id!, values)
+        }
         message.success('Cuenta actualizada')
       } else {
         await createAccount(values)
@@ -116,7 +116,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
       onSaved()
       onClose()
     } catch (e: any) {
-      if (e?.errorFields) return // validation error, do not close
+      if (e?.errorFields) return
       const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message
       message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al guardar'))
     } finally {
@@ -124,214 +124,167 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
     }
   }
 
+  const switchRow = (name: string, label: string, tooltip?: string) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(10,10,10,0.05)' }}>
+      <Space size={4}>
+        <Text style={{ fontSize: 13 }}>{label}</Text>
+        {tooltip && <Tooltip title={tooltip}><InfoCircleOutlined style={{ color: '#9aa1ab', fontSize: 12 }} /></Tooltip>}
+      </Space>
+      <Form.Item name={name} valuePropName="checked" style={{ margin: 0 }}>
+        <Switch size="small" />
+      </Form.Item>
+    </div>
+  )
+
   return (
     <Modal
-      title={isEdit ? 'Editar cuenta contable' : 'Nueva cuenta contable'}
+      title={
+        <Space>
+          {isEdit ? 'Editar cuenta contable' : 'Nueva cuenta contable'}
+          {isSystem && <Badge color="#ff7f00" text={<Text style={{ fontSize: 12, color: '#ff7f00' }}>Cuenta del sistema</Text>} />}
+        </Space>
+      }
       open={open}
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={saving}
-      width={600}
+      width={780}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={{ isActive: true, normalBalance: 'debit', bankLinking: false, isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false, requiresCostCenter: false, requiresProfitCenter: false }}>
-        {/* Hidden fields needed for backend — populated by handleGroupChange */}
+      <Form
+        form={form}
+        layout="vertical"
+        size="small"
+        initialValues={{ isActive: true, normalBalance: 'debit', bankLinking: false, isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false, requiresCostCenter: false, requiresProfitCenter: false }}
+      >
         <Form.Item name="type" hidden><Input /></Form.Item>
 
-        <Form.Item name="groupCode" label="Grupo contable" rules={[{ required: true, message: 'Seleccione un grupo' }]}>
-          <Select
-            placeholder="Seleccione grupo"
-            showSearch
-            optionFilterProp="label"
-            onChange={handleGroupChange}
-            options={groups.map(g => ({
-              value: g.groupCode,
-              label: `${g.groupCode} — ${g.name}`,
-            }))}
-          />
-        </Form.Item>
+        {isSystem && (
+          <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '6px 12px', marginBottom: 12, fontSize: 12, color: '#92400e' }}>
+            Cuenta del sistema: código, grupo y tipo no se pueden modificar. El resto de campos sí son editables.
+          </div>
+        )}
 
-        <Form.Item
-          name="code"
-          label="Código"
-          rules={[
-            { required: true, message: 'Ingrese el código' },
-            ({ getFieldValue }) => ({
-              validator(_, value) {
-                const gc = getFieldValue('groupCode')
-                const grp = groups.find(g => g.groupCode === gc)
-                if (!grp || !value) return Promise.resolve()
-                const num = parseInt(value, 10)
-                if (isNaN(num) || num < (grp.rangeStart ?? 0) || num > (grp.rangeEnd ?? 999999)) {
-                  return Promise.reject(new Error(`Código debe estar entre ${grp.rangeStart} y ${grp.rangeEnd}`))
-                }
-                return Promise.resolve()
-              },
-            }),
-          ]}
-        >
-          <Input placeholder="Ej: 110001" />
-        </Form.Item>
+        {/* ── 2 columnas ───────────────────────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', alignItems: 'start' }}>
 
-        <Form.Item name="name" label="Nombre" rules={[{ required: true, message: 'Ingrese el nombre' }]}>
-          <Input placeholder="Nombre de la cuenta" />
-        </Form.Item>
+          {/* ── Bloque 1: Identificación ── */}
+          <div>
+            <Text strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', display: 'block', marginBottom: 8 }}>
+              Identificación
+            </Text>
 
-        <Form.Item name="description" label="Descripción">
-          <Input.TextArea rows={2} placeholder="Descripción opcional" />
-        </Form.Item>
+            <Form.Item name="groupCode" label="Grupo contable" rules={[{ required: !isSystem, message: 'Seleccione un grupo' }]}>
+              <Select
+                placeholder="Seleccione grupo"
+                showSearch
+                optionFilterProp="label"
+                onChange={handleGroupChange}
+                disabled={isSystem}
+                options={groups.map(g => ({ value: g.groupCode, label: `${g.groupCode} — ${g.name}` }))}
+              />
+            </Form.Item>
 
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280' }}>Configuración automática del grupo</Divider>
+            <Form.Item
+              name="code"
+              label="Código"
+              rules={isSystem ? [] : [
+                { required: true, message: 'Ingrese el código' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const grp = groups.find(g => g.groupCode === getFieldValue('groupCode'))
+                    if (!grp || !value) return Promise.resolve()
+                    const num = parseInt(value, 10)
+                    if (isNaN(num) || num < (grp.rangeStart ?? 0) || num > (grp.rangeEnd ?? 999999))
+                      return Promise.reject(new Error(`Código debe estar entre ${grp.rangeStart} y ${grp.rangeEnd}`))
+                    return Promise.resolve()
+                  },
+                }),
+              ]}
+            >
+              <Input placeholder="Ej: 110001" disabled={isSystem} />
+            </Form.Item>
 
-        <Space style={{ width: '100%' }} wrap>
-          <Form.Item name="balanceType" label="Tipo de balance" style={{ marginBottom: 0 }}>
-            <Input disabled style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item name="normalBalance" label="Saldo normal" style={{ marginBottom: 0 }}>
-            <Input disabled style={{ width: 100 }} />
-          </Form.Item>
-          <Form.Item name="rangeStart" label="Rango inicio" style={{ marginBottom: 0 }}>
-            <InputNumber disabled style={{ width: 110 }} />
-          </Form.Item>
-          <Form.Item name="rangeEnd" label="Rango fin" style={{ marginBottom: 0 }}>
-            <InputNumber disabled style={{ width: 110 }} />
-          </Form.Item>
-        </Space>
+            <Form.Item name="name" label="Nombre" rules={[{ required: true, message: 'Ingrese el nombre' }]}>
+              <Input placeholder="Nombre de la cuenta" />
+            </Form.Item>
 
-        <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', marginTop: 16 }}>Flags / Comportamiento</Divider>
+            <Form.Item name="description" label="Descripción">
+              <Input.TextArea rows={2} placeholder="Descripción opcional" style={{ resize: 'none' }} />
+            </Form.Item>
 
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Form.Item name="bankLinking" label="Vinculación con bancos" valuePropName="checked" style={{ marginBottom: 4 }}>
-            <Switch />
-          </Form.Item>
-          <Form.Item name="isCustomerAccount" label="Cuenta de clientes (CxC)" valuePropName="checked" style={{ marginBottom: 4 }}>
-            <Switch />
-          </Form.Item>
-          <Form.Item name="isVendorAccount" label="Cuenta de proveedores (CxP)" valuePropName="checked" style={{ marginBottom: 4 }}>
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="isFixedAsset"
-            valuePropName="checked"
-            style={{ marginBottom: 4 }}
-            label={
+            <Divider style={{ margin: '8px 0', fontSize: 11, color: '#9aa1ab' }}>Del grupo</Divider>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 8px' }}>
+              <Form.Item name="balanceType" label="Tipo balance" style={{ marginBottom: 6 }}>
+                <Input disabled />
+              </Form.Item>
+              <Form.Item name="normalBalance" label="Saldo normal" style={{ marginBottom: 6 }}>
+                <Input disabled />
+              </Form.Item>
+              <Form.Item name="rangeStart" label="Rango inicio" style={{ marginBottom: 6 }}>
+                <InputNumber disabled style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item name="rangeEnd" label="Rango fin" style={{ marginBottom: 6 }}>
+                <InputNumber disabled style={{ width: '100%' }} />
+              </Form.Item>
+            </div>
+
+            <Divider style={{ margin: '8px 0' }} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 8px' }}>
+              <Form.Item name="openingBalance" label="Saldo inicial" style={{ marginBottom: 0 }}>
+                <InputNumber style={{ width: '100%' }} precision={2} prefix="Q" placeholder="0.00" />
+              </Form.Item>
+              <Form.Item name="isActive" label="Estado" valuePropName="checked" style={{ marginBottom: 0 }}>
+                <Switch checkedChildren="Activa" unCheckedChildren="Inactiva" />
+              </Form.Item>
+            </div>
+          </div>
+
+          {/* ── Bloque 2: Comportamiento ── */}
+          <div>
+            <Text strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', display: 'block', marginBottom: 8 }}>
+              Comportamiento
+            </Text>
+
+            {switchRow('bankLinking',       'Vinculación con bancos')}
+            {switchRow('isCustomerAccount', 'Cuenta de clientes (CxC)')}
+            {switchRow('isVendorAccount',   'Cuenta de proveedores (CxP)')}
+            {switchRow('isFixedAsset',      'Activos fijos', 'Habilita depreciación/amortización (grupos 160, 170)')}
+            {switchRow('requiresReconciliation', 'Requiere conciliación', 'Conciliar periódicamente con estado externo (banco, tarjeta, etc.)')}
+            {switchRow('isInventoryAccount', 'Cuenta de inventario', 'Vincula con artículos del módulo de Inventario (grupo 130)')}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(10,10,10,0.05)' }}>
               <Space size={4}>
-                Activos fijos
-                <Tooltip title="Habilita el control de depreciación y amortización para cuentas de Propiedad, Planta y Equipo (160) y Activo Diferido (170)">
-                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
+                <MinusCircleOutlined style={{ color: isContra ? '#e5484d' : '#9aa1ab' }} />
+                <Text style={{ fontSize: 13 }}>Cuenta contra-activo</Text>
+                <Tooltip title="Saldo se resta al activo relacionado en el Balance General (Depreciación Acumulada, etc.)">
+                  <InfoCircleOutlined style={{ color: '#9aa1ab', fontSize: 12 }} />
                 </Tooltip>
               </Space>
-            }
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            style={{ marginBottom: 4 }}
-            label={
-              <Space size={4}>
-                <MinusCircleOutlined style={{ color: isContra ? '#e5484d' : '#6b7280' }} />
-                Cuenta contra-activo
-                <Tooltip title="Marca esta cuenta como contra-activo: su saldo se resta al activo relacionado en el Balance General. Usar en cuentas de Depreciación Acumulada, Amortización Acumulada u otras deducciones de activos.">
-                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
-                </Tooltip>
-              </Space>
-            }
-          >
-            <Switch
-              checked={isContra}
-              onChange={v => {
-                if (v) {
-                  form.setFieldValue('type', 'contra')
-                  form.setFieldValue('normalBalance', 'credit')
-                } else {
-                  const gc = form.getFieldValue('groupCode')
-                  const grp = groups.find(g => g.groupCode === gc)
-                  form.setFieldValue('type', grp?.type ?? 'asset')
-                  form.setFieldValue('normalBalance', grp?.normalBalance ?? 'debit')
-                }
-              }}
-            />
-          </Form.Item>
-          <Form.Item
-            name="requiresReconciliation"
-            valuePropName="checked"
-            style={{ marginBottom: 4 }}
-            label={
-              <Space size={4}>
-                Requiere conciliación
-                <Tooltip title="La cuenta debe conciliarse periódicamente con un estado externo: banco, tarjeta de crédito o estado de cuenta de proveedor/cliente">
-                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
-                </Tooltip>
-              </Space>
-            }
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="isInventoryAccount"
-            valuePropName="checked"
-            style={{ marginBottom: 4 }}
-            label={
-              <Space size={4}>
-                Cuenta de inventario
-                <Tooltip title="Permite vincular esta cuenta con artículos del módulo de Inventario (típicamente grupo 130 — Inventarios)">
-                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
-                </Tooltip>
-              </Space>
-            }
-          >
-            <Switch />
-          </Form.Item>
+              <Switch
+                size="small"
+                checked={isContra}
+                onChange={v => {
+                  if (v) {
+                    form.setFieldValue('type', 'contra')
+                    form.setFieldValue('normalBalance', 'credit')
+                  } else {
+                    const grp = groups.find(g => g.groupCode === form.getFieldValue('groupCode'))
+                    form.setFieldValue('type', grp?.type ?? 'asset')
+                    form.setFieldValue('normalBalance', grp?.normalBalance ?? 'debit')
+                  }
+                }}
+              />
+            </div>
 
-          <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '8px 0' }}>Dimensiones analíticas</Divider>
+            <Divider style={{ margin: '12px 0 6px', fontSize: 11, color: '#9aa1ab' }}>Dimensiones analíticas</Divider>
 
-          <Form.Item
-            name="requiresCostCenter"
-            valuePropName="checked"
-            style={{ marginBottom: 4 }}
-            label={
-              <Space size={4}>
-                Exige Centro de Costo
-                <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Costo asignado. Aplica típicamente a cuentas de Costos (5xxx) y Gastos (6xxx).">
-                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
-                </Tooltip>
-              </Space>
-            }
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="requiresProfitCenter"
-            valuePropName="checked"
-            style={{ marginBottom: 4 }}
-            label={
-              <Space size={4}>
-                Exige Centro de Beneficio
-                <Tooltip title="Cuando el toggle global esté activo, toda línea de póliza que use esta cuenta debe tener Centro de Beneficio asignado. Puede aplicar a cualquier tipo de cuenta para segmentación por línea de negocio.">
-                  <InfoCircleOutlined style={{ color: '#6b7280' }} />
-                </Tooltip>
-              </Space>
-            }
-          >
-            <Switch />
-          </Form.Item>
-        </Space>
-
-        <Divider style={{ marginTop: 8 }} />
-
-        <Space>
-          <Form.Item name="openingBalance" label="Saldo inicial" style={{ marginBottom: 0 }}>
-            <InputNumber
-              style={{ width: 160 }}
-              precision={2}
-              prefix="Q"
-              placeholder="0.00"
-            />
-          </Form.Item>
-          <Form.Item name="isActive" label="Activa" valuePropName="checked" style={{ marginBottom: 0 }}>
-            <Switch />
-          </Form.Item>
-        </Space>
+            {switchRow('requiresCostCenter',   'Exige Centro de Costo',     'Líneas de póliza deben tener Centro de Costo (típico en Costos 5xxx y Gastos 6xxx)')}
+            {switchRow('requiresProfitCenter', 'Exige Centro de Beneficio', 'Líneas de póliza deben tener Centro de Beneficio asignado')}
+          </div>
+        </div>
       </Form>
     </Modal>
   )
@@ -480,17 +433,6 @@ export default function CatalogoPage() {
           <FlagIcon active={r.isFixedAsset}        icon={<ToolOutlined />}         title="Activos fijos" />
           <FlagIcon active={r.type === 'contra'}   icon={<MinusCircleOutlined />}  title="Cuenta contra-activo (resta al activo)" />
         </Space>
-      ),
-    },
-    {
-      title: 'Balance Q',
-      dataIndex: 'currentBalance',
-      width: 120,
-      align: 'right',
-      render: (v: number) => (
-        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v < 0 ? '#e5484d' : undefined }}>
-          {Number(v || 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-        </Text>
       ),
     },
     {
