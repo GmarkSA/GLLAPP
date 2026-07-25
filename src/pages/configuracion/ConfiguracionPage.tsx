@@ -483,14 +483,7 @@ function FiscalSection({
             </Row>
           </SectionCard>
 
-          <SectionCard title="Acceso SAT — Agencia Virtual" icon={<LockOutlined />}>
-            <div style={{
-              background: '#fffbeb', borderRadius: 8, padding: '10px 14px',
-              border: '1px solid #fde68a', marginBottom: 14, fontSize: 12,
-            }}>
-              Estas credenciales se usan para importar DTE desde la Agencia Virtual del SAT.
-              Se guardan cifradas y solo se envían a APIFY vía HTTPS para ejecutar la consulta.
-            </div>
+          <SectionCard title="Acceso SAT" icon={<LockOutlined />}>
             <Row gutter={20}>
               <Col xs={24} md={12}>
                 <Form.Item name={['settings', 'satNit']} label="NIT — Agencia Virtual SAT" style={{ marginBottom: 0 }}>
