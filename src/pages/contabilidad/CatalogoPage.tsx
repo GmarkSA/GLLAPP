@@ -7,7 +7,7 @@ import {
 import type { InputRef } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
-  BankOutlined, UserOutlined, ShopOutlined, ToolOutlined,
+  UserOutlined, ShopOutlined, ToolOutlined,
   AuditOutlined, ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined,
   MinusCircleOutlined,
 } from '@ant-design/icons'
@@ -155,7 +155,7 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
         form={form}
         layout="vertical"
         size="small"
-        initialValues={{ isActive: true, normalBalance: 'debit', bankLinking: false, isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false, requiresCostCenter: false, requiresProfitCenter: false }}
+        initialValues={{ isActive: true, normalBalance: 'debit', isCustomerAccount: false, isVendorAccount: false, isFixedAsset: false, requiresReconciliation: false, isInventoryAccount: false, requiresCostCenter: false, requiresProfitCenter: false }}
       >
         <Form.Item name="type" hidden><Input /></Form.Item>
 
@@ -255,7 +255,6 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               <Text strong style={{ fontSize: 11, color: '#374151', display: 'block', marginBottom: 4 }}>
                 ¿Cuándo activar cada opción?
               </Text>
-              Activa <strong>Vinculación con bancos</strong> solo en la cuenta que representa una cuenta bancaria real.
               Usa <strong>CxC</strong> en cuentas de Clientes Locales y del Exterior, y <strong>CxP</strong> en cuentas de Proveedores — habilita auxiliares por cliente/proveedor.
               Marca <strong>Activos fijos</strong> en cuentas de Propiedad, Planta y Equipo para vincularlas al módulo de activos.
               Activa <strong>Exige Centro de Costo</strong> en cuentas de Gastos y Costos, y <strong>Exige Centro de Beneficio</strong> en cuentas de Ingresos, para que el sistema solicite esa dimensión al contabilizar.
@@ -268,7 +267,6 @@ function AccountModal({ open, record, groups, onClose, onSaved }: AccountModalPr
               Comportamiento
             </Text>
 
-            {switchRow('bankLinking',       'Vinculación con bancos')}
             {switchRow('isCustomerAccount', 'Cuenta de clientes (CxC)')}
             {switchRow('isVendorAccount',   'Cuenta de proveedores (CxP)')}
             {switchRow('isFixedAsset',      'Activos fijos', 'Habilita depreciación/amortización (grupos 160, 170)')}
@@ -447,7 +445,6 @@ export default function CatalogoPage() {
       width: 120,
       render: (_: any, r: Account) => (
         <Space size={6}>
-          <FlagIcon active={r.bankLinking}         icon={<BankOutlined />}         title="Vinculación bancaria" />
           <FlagIcon active={r.isCustomerAccount}   icon={<UserOutlined />}         title="Cuenta clientes (CxC)" />
           <FlagIcon active={r.isVendorAccount}     icon={<ShopOutlined />}         title="Cuenta proveedores (CxP)" />
           <FlagIcon active={r.isFixedAsset}        icon={<ToolOutlined />}         title="Activos fijos" />
