@@ -186,7 +186,7 @@ export default function EmpresaFormPage() {
   const filteredRegimes = regimes.filter(r => r.countryCode === country)
 
   return (
-    <div style={{ padding: '24px', maxWidth: 800 }}>
+    <div style={{ padding: '24px', maxWidth: 1200 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(backTo)} />
         <Title level={4} style={{ margin: 0 }}>{isEdit ? 'Editar Empresa' : 'Nueva Empresa'}</Title>
@@ -259,198 +259,205 @@ export default function EmpresaFormPage() {
             </Card>
           )}
 
-          <Card title="Identificación" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Form.Item label="Nombre Legal" name="legalName" rules={[{ required: true, message: 'Requerido' }]}>
-                <Input placeholder="Castillo Guatemala S.A." />
-              </Form.Item>
-              <Form.Item label="Nombre Comercial" name="tradeName">
-                <Input placeholder="Nombre que aparece en documentos" />
-              </Form.Item>
-              <Form.Item label="País" name="countryCode" rules={[{ required: true }]}>
-                <Select onChange={onCountryChange}>
-                  {COUNTRIES.map(c => <Option key={c.code} value={c.code}>{c.name} ({c.code})</Option>)}
-                </Select>
-              </Form.Item>
-              <Form.Item label="Moneda" name="currencyCode" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-            </div>
-          </Card>
+          {/* ── Layout 2 columnas ──────────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
 
-          <Card title="Datos Fiscales" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Form.Item label="Número de Identificación Fiscal" name="taxId">
-                <Input placeholder="NIT / RFC / RTN..." />
-              </Form.Item>
-              <Form.Item label="Tipo de ID" name="taxIdLabel">
-                <Input placeholder="NIT" />
-              </Form.Item>
-              <Form.Item label="Régimen Fiscal" name="fiscalRegimeId">
-                <Select placeholder="Seleccionar régimen" allowClear>
-                  {filteredRegimes.map(r => <Option key={r.id} value={r.id}>{r.name}</Option>)}
-                </Select>
-              </Form.Item>
-              <Form.Item label="Inicio de Año Fiscal" name="fiscalYearStart">
-                <Select>
-                  {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m =>
-                    <Option key={m} value={m}>Mes {m}</Option>
-                  )}
-                </Select>
-              </Form.Item>
-            </div>
-          </Card>
+            {/* ── Columna izquierda ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Card title="Identificación">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                  <Form.Item label="Nombre Legal" name="legalName" rules={[{ required: true, message: 'Requerido' }]}>
+                    <Input placeholder="Castillo Guatemala S.A." />
+                  </Form.Item>
+                  <Form.Item label="Nombre Comercial" name="tradeName">
+                    <Input placeholder="Nombre que aparece en documentos" />
+                  </Form.Item>
+                  <Form.Item label="País" name="countryCode" rules={[{ required: true }]}>
+                    <Select onChange={onCountryChange}>
+                      {COUNTRIES.map(c => <Option key={c.code} value={c.code}>{c.name} ({c.code})</Option>)}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item label="Moneda" name="currencyCode" rules={[{ required: true }]}>
+                    <Input />
+                  </Form.Item>
+                </div>
+              </Card>
 
-          <Card title="Regional" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Form.Item label="Zona Horaria" name="timezone">
-                <Select>
-                  {TIMEZONES.map(tz => <Option key={tz} value={tz}>{tz}</Option>)}
-                </Select>
-              </Form.Item>
-              <Form.Item label="Idioma" name="language">
-                <Select>
-                  <Option value="es">Español</Option>
-                  <Option value="en">English</Option>
-                </Select>
-              </Form.Item>
-            </div>
-          </Card>
+              <Card title="Datos Fiscales">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                  <Form.Item label="Número de Identificación Fiscal" name="taxId">
+                    <Input placeholder="NIT / RFC / RTN..." />
+                  </Form.Item>
+                  <Form.Item label="Tipo de ID" name="taxIdLabel">
+                    <Input placeholder="NIT" />
+                  </Form.Item>
+                  <Form.Item label="Régimen Fiscal" name="fiscalRegimeId">
+                    <Select placeholder="Seleccionar régimen" allowClear>
+                      {filteredRegimes.map(r => <Option key={r.id} value={r.id}>{r.name}</Option>)}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item label="Inicio de Año Fiscal" name="fiscalYearStart">
+                    <Select>
+                      {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m =>
+                        <Option key={m} value={m}>Mes {m}</Option>
+                      )}
+                    </Select>
+                  </Form.Item>
+                </div>
+              </Card>
 
-          <Card title="Contacto" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Form.Item label="Representante Legal" name="legalRepresentative">
-                <Input />
-              </Form.Item>
-              <Form.Item label="Teléfono" name="phone">
-                <Input />
-              </Form.Item>
-              <Form.Item label="Email" name="email">
-                <Input />
-              </Form.Item>
+              <Card title="Regional">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                  <Form.Item label="Zona Horaria" name="timezone">
+                    <Select>
+                      {TIMEZONES.map(tz => <Option key={tz} value={tz}>{tz}</Option>)}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item label="Idioma" name="language">
+                    <Select>
+                      <Option value="es">Español</Option>
+                      <Option value="en">English</Option>
+                    </Select>
+                  </Form.Item>
+                </div>
+              </Card>
             </div>
-          </Card>
 
-          {/* ── Módulos habilitados (solo en edición) ───────────────────────── */}
-          {isEdit && (
-            <Card
-              title={<Space><AppstoreOutlined />Módulos habilitados</Space>}
-              style={{ marginBottom: 16 }}
-              extra={
-                enabledMods.length === 0
-                  ? <Tag color="#2ea172">Todos activos</Tag>
-                  : <Tag color="#ff7f00">{enabledMods.length} de {ALL_MODULES.length} activos</Tag>
-              }
-            >
-              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
-                Desactiva módulos que esta empresa no utiliza. Se ocultarán del menú lateral para todos sus usuarios.
-              </Typography.Text>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px 24px' }}>
-                {ALL_MODULES.map(mod => {
-                  const active = enabledMods.length === 0 || enabledMods.includes(mod.key)
-                  return (
-                    <div key={mod.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography.Text style={{ fontSize: 13 }}>{mod.label}</Typography.Text>
-                      <Switch
-                        size="small"
-                        checked={active}
-                        loading={savingMods}
-                        onChange={checked => handleToggleModule(mod.key, checked)}
+            {/* ── Columna derecha ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Card title="Contacto">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                  <Form.Item label="Representante Legal" name="legalRepresentative">
+                    <Input />
+                  </Form.Item>
+                  <Form.Item label="Teléfono" name="phone">
+                    <Input />
+                  </Form.Item>
+                  <Form.Item label="Email" name="email" style={{ gridColumn: '1 / -1' }}>
+                    <Input />
+                  </Form.Item>
+                </div>
+              </Card>
+
+              {/* Módulos habilitados (solo en edición) */}
+              {isEdit && (
+                <Card
+                  title={<Space><AppstoreOutlined />Módulos habilitados</Space>}
+                  extra={
+                    enabledMods.length === 0
+                      ? <Tag color="#2ea172">Todos activos</Tag>
+                      : <Tag color="#ff7f00">{enabledMods.length} de {ALL_MODULES.length} activos</Tag>
+                  }
+                >
+                  <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                    Desactiva módulos que esta empresa no utiliza. Se ocultarán del menú lateral para todos sus usuarios.
+                  </Typography.Text>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
+                    {ALL_MODULES.map(mod => {
+                      const active = enabledMods.length === 0 || enabledMods.includes(mod.key)
+                      return (
+                        <div key={mod.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Typography.Text style={{ fontSize: 13 }}>{mod.label}</Typography.Text>
+                          <Switch
+                            size="small"
+                            checked={active}
+                            loading={savingMods}
+                            onChange={checked => handleToggleModule(mod.key, checked)}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </Card>
+              )}
+
+              {/* Proveedor SAT */}
+              {isEdit && showSatBlock && (
+                <Card
+                  title={<Space><ApiOutlined />Proveedor SAT / RTU — Lookup de NIT y CUI</Space>}
+                  extra={
+                    satConfig.entityId && satConfig.apiKey
+                      ? <Tag color="#2ea172">Configurado</Tag>
+                      : <Tag color="#ff7f00">Sin configurar</Tag>
+                  }
+                >
+                  <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                    Al ingresar un NIT o CUI en Clientes, Proveedores o POS, el sistema buscará automáticamente los datos en este proveedor y los llenará en el formulario.
+                  </Typography.Text>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                    <div>
+                      <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>Proveedor</div>
+                      <Select
+                        size="small" style={{ width: '100%', marginBottom: 12 }}
+                        value={satConfig.provider}
+                        onChange={v => setSatConfig(p => ({ ...p, provider: v }))}
+                        options={[
+                          { value: 'felplex', label: 'FelPlex (Guatemala)' },
+                          { value: 'infile',  label: 'INFILE (Guatemala)' },
+                          { value: 'otro',    label: 'Otro proveedor' },
+                        ]}
                       />
                     </div>
-                  )
-                })}
-              </div>
-            </Card>
-          )}
-
-          {/* ── Proveedor SAT / RTU (solo si ya está configurado o usuario lo expande) */}
-          {isEdit && showSatBlock && (
-            <Card
-              title={<Space><ApiOutlined />Proveedor SAT / RTU — Lookup de NIT y CUI</Space>}
-              style={{ marginBottom: 16 }}
-              extra={
-                satConfig.entityId && satConfig.apiKey
-                  ? <Tag color="#2ea172">Configurado</Tag>
-                  : <Tag color="#ff7f00">Sin configurar</Tag>
-              }
-            >
-              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
-                Al ingresar un NIT o CUI en Clientes, Proveedores o POS, el sistema buscará automáticamente los datos en este proveedor y los llenará en el formulario.
-              </Typography.Text>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                <div>
-                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>Proveedor</div>
-                  <Select
-                    size="small" style={{ width: '100%', marginBottom: 12 }}
-                    value={satConfig.provider}
-                    onChange={v => setSatConfig(p => ({ ...p, provider: v }))}
-                    options={[
-                      { value: 'felplex', label: 'FelPlex (Guatemala)' },
-                      { value: 'infile',  label: 'INFILE (Guatemala)' },
-                      { value: 'otro',    label: 'Otro proveedor' },
-                    ]}
-                  />
-                </div>
-                <div>
-                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>URL Base de la API</div>
-                  <Input size="small" style={{ marginBottom: 12 }} value={satConfig.apiUrl}
-                    placeholder="https://app.felplex.com/api"
-                    onChange={e => setSatConfig(p => ({ ...p, apiUrl: e.target.value }))} />
-                </div>
-                <div>
-                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>Entity ID / Organización</div>
-                  <Input size="small" style={{ marginBottom: 12 }} value={satConfig.entityId}
-                    placeholder="3754"
-                    onChange={e => setSatConfig(p => ({ ...p, entityId: e.target.value }))} />
-                </div>
-                <div>
-                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>ID Empresa (header)</div>
-                  <Input size="small" style={{ marginBottom: 12 }} value={satConfig.empresaId ?? ''}
-                    placeholder="ID interno en Felplex (opcional)"
-                    onChange={e => setSatConfig(p => ({ ...p, empresaId: e.target.value }))} />
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>API Key (X-Authorization)</div>
-                  <Input.Password size="small" style={{ marginBottom: 12 }} value={satConfig.apiKey}
-                    placeholder="Token de autorización"
-                    onChange={e => setSatConfig(p => ({ ...p, apiKey: e.target.value }))} />
-                </div>
-              </div>
-              {satTestResult && (
-                <Alert
-                  type={satTestResult.ok ? 'success' : 'error'}
-                  icon={satTestResult.ok ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                  showIcon message={satTestResult.message} style={{ marginBottom: 12 }}
-                />
+                    <div>
+                      <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>URL Base de la API</div>
+                      <Input size="small" style={{ marginBottom: 12 }} value={satConfig.apiUrl}
+                        placeholder="https://app.felplex.com/api"
+                        onChange={e => setSatConfig(p => ({ ...p, apiUrl: e.target.value }))} />
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>Entity ID / Organización</div>
+                      <Input size="small" style={{ marginBottom: 12 }} value={satConfig.entityId}
+                        placeholder="3754"
+                        onChange={e => setSatConfig(p => ({ ...p, entityId: e.target.value }))} />
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>ID Empresa (header)</div>
+                      <Input size="small" style={{ marginBottom: 12 }} value={satConfig.empresaId ?? ''}
+                        placeholder="ID interno en Felplex (opcional)"
+                        onChange={e => setSatConfig(p => ({ ...p, empresaId: e.target.value }))} />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>API Key (X-Authorization)</div>
+                      <Input.Password size="small" style={{ marginBottom: 12 }} value={satConfig.apiKey}
+                        placeholder="Token de autorización"
+                        onChange={e => setSatConfig(p => ({ ...p, apiKey: e.target.value }))} />
+                    </div>
+                  </div>
+                  {satTestResult && (
+                    <Alert
+                      type={satTestResult.ok ? 'success' : 'error'}
+                      icon={satTestResult.ok ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                      showIcon message={satTestResult.message} style={{ marginBottom: 12 }}
+                    />
+                  )}
+                  <Space>
+                    <Button size="small" loading={testingSat} onClick={handleTestSat}>
+                      Probar conexión
+                    </Button>
+                    <Button size="small" type="primary" loading={savingSat} onClick={handleSaveSatConfig}
+                      style={{ background: '#1faec2' }} icon={<SaveOutlined />}>
+                      Guardar configuración SAT
+                    </Button>
+                  </Space>
+                </Card>
               )}
-              <Space>
-                <Button size="small" loading={testingSat} onClick={handleTestSat}>
-                  Probar conexión
-                </Button>
-                <Button size="small" type="primary" loading={savingSat} onClick={handleSaveSatConfig}
-                  style={{ background: '#1faec2' }} icon={<SaveOutlined />}>
-                  Guardar configuración SAT
-                </Button>
-              </Space>
-            </Card>
-          )}
 
-          {/* Acceso a SAT lookup para quien lo necesite, sin mostrarlo por defecto */}
-          {isEdit && !showSatBlock && (
-            <div style={{ marginBottom: 16 }}>
-              <Button
-                type="link"
-                icon={<ApiOutlined />}
-                style={{ color: '#9aa1ab', padding: 0, fontSize: 12 }}
-                onClick={() => setSatConfig(p => ({ ...p, entityId: ' ' }))}
-              >
-                Configurar lookup automático de NIT/CUI (opcional)
-              </Button>
+              {isEdit && !showSatBlock && (
+                <div>
+                  <Button
+                    type="link"
+                    icon={<ApiOutlined />}
+                    style={{ color: '#9aa1ab', padding: 0, fontSize: 12 }}
+                    onClick={() => setSatConfig(p => ({ ...p, entityId: ' ' }))}
+                  >
+                    Configurar lookup automático de NIT/CUI (opcional)
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
             <Button onClick={() => navigate(backTo)}>Cancelar</Button>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}
               style={{ background: '#1faec2' }}>
