@@ -275,7 +275,10 @@ export default function ClienteFormPage() {
     }
   }
 
-  const ivaTaxes = taxes.filter(t => t.category === 'iva' || t.category === 'iva_exento')
+  const ivaTaxes = taxes.filter(t =>
+    (t.category === 'iva' || t.category === 'iva_exento' || t.category === 'iva_pequeno_contribuyente') &&
+    (t.applicability === 'sales' || t.applicability === 'both')
+  )
   const isrTaxes = taxes.filter(t => t.category === 'isr')
   const showRetention = ['contribuyente_especial', 'gobierno'].includes(taxTreatment)
 
