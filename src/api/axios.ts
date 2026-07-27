@@ -14,7 +14,7 @@ const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/l
 api.interceptors.request.use((config) => {
   const token           = localStorage.getItem('accessToken')
   const tenantId        = localStorage.getItem('tenantId')
-  const activeCompanyId = localStorage.getItem('activeCompanyId')
+  const activeCompanyId = sessionStorage.getItem('activeCompanyId')
 
   if (token)           config.headers.Authorization   = `Bearer ${token}`
   if (activeCompanyId) config.headers['X-Company-ID'] = activeCompanyId

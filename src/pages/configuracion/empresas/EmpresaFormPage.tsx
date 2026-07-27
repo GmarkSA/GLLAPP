@@ -4,11 +4,12 @@ import {
   Form, Input, Select, Button, Card, message, Spin, Typography,
   Radio, Checkbox, Alert, Switch, Tag, Space,
 } from 'antd'
-import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { companiesApi, type CompanySettings } from '../../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
 import { satLookupApi, type SatProviderConfig } from '../../../api/satLookup'
 import type { Company } from '../../../store/authStore'
+import { GT_TEMPLATES } from '../../../data/guatemalaTaxTemplates'
 
 const ALL_MODULES = [
   { key: 'ventas',        label: 'Ventas' },
@@ -284,6 +285,23 @@ export default function EmpresaFormPage() {
               </Card>
 
               <Card title="Datos Fiscales">
+                {/* ID interno de la empresa — útil para integraciones externas */}
+                {isEdit && id && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    background: '#f8fafc', border: '1px solid rgba(10,10,10,0.08)',
+                    borderRadius: 6, padding: '6px 10px', marginBottom: 16, fontSize: 12,
+                  }}>
+                    <InfoCircleOutlined style={{ color: '#6b7280', flexShrink: 0 }} />
+                    <span style={{ color: '#6b7280' }}>ID empresa (para integraciones):</span>
+                    <code style={{ fontFamily: 'monospace', fontSize: 11, color: '#374151', flex: 1, wordBreak: 'break-all' }}>{id}</code>
+                    <Button
+                      size="small" type="text" icon={<CopyOutlined />}
+                      onClick={() => { navigator.clipboard.writeText(id); message.success('ID copiado') }}
+                      style={{ flexShrink: 0 }}
+                    />
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                   <Form.Item label="Número de Identificación Fiscal" name="taxId">
                     <Input placeholder="NIT / RFC / RTN..." />
@@ -291,9 +309,46 @@ export default function EmpresaFormPage() {
                   <Form.Item label="Tipo de ID" name="taxIdLabel">
                     <Input placeholder="NIT" />
                   </Form.Item>
-                  <Form.Item label="Régimen Fiscal" name="fiscalRegimeId">
-                    <Select placeholder="Seleccionar régimen" allowClear>
-                      {filteredRegimes.map(r => <Option key={r.id} value={r.id}>{r.name}</Option>)}
+                  <Form.Item
+                    label="Régimen Fiscal"
+                    name="fiscalRegimeId"
+                    tooltip="El régimen determina el tipo de IVA, formularios SAT y plantilla de impuestos a usar"
+                  >
+                    <Select
+                      placeholder="Seleccionar régimen"
+                      allowClear
+                      optionLabelProp="label"
+                    >
+                      {filteredRegimes.map(r => {
+                        // Buscar template GT relacionado por código de régimen
+                        const tpl = GT_TEMPLATES.find(t =>
+                          r.code?.toUpperCase().includes(t.regimeCode) ||
+                          t.regimeCode === r.code?.toUpperCase()
+                        )
+                        return (
+                          <Option key={r.id} value={r.id} label={r.name}>
+                            <div style={{ lineHeight: 1.4, padding: '2px 0' }}>
+                              <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
+                              <div style={{ display: 'flex', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                                {tpl && (
+                                  <Tag color="#1faec2" style={{ margin: 0, fontSize: 10 }}>{tpl.satForm}</Tag>
+                                )}
+                                <Tag style={{ margin: 0, fontSize: 10 }}>
+                                  {r.taxConfig?.mainTaxName} {r.taxConfig?.mainTaxRate}%
+                                </Tag>
+                                {r.taxConfig?.hasFEL && (
+                                  <Tag color="green" style={{ margin: 0, fontSize: 10 }}>FEL</Tag>
+                                )}
+                              </div>
+                              {tpl && (
+                                <div style={{ fontSize: 10, color: '#9aa1ab', marginTop: 2 }}>
+                                  {tpl.description.length > 80 ? tpl.description.slice(0, 80) + '…' : tpl.description}
+                                </div>
+                              )}
+                            </div>
+                          </Option>
+                        )
+                      })}
                     </Select>
                   </Form.Item>
                   <Form.Item label="Inicio de Año Fiscal" name="fiscalYearStart">
