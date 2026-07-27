@@ -873,8 +873,17 @@ export default function ImpuestosPage() {
   const [modal,          setModal]          = useState<{ open: boolean; tax: Tax | null }>({ open: false, tax: null })
   const [pageAccounts,   setPageAccounts]   = useState<Account[]>([])
   const [activeTemplate, setActiveTemplate] = useState<TaxRegimeTemplate>(GT_TEMPLATES[0])
-  // IDs de impuestos que fallaron al eliminar (tienen historial de transacciones)
   const [hasHistoryIds,  setHasHistoryIds]  = useState<Set<string>>(new Set())
+
+  // Busca las cuentas IVA por nombre — funciona con cualquier plan de cuentas
+  const ivaVentasAccount  = pageAccounts.find(a => {
+    const n = (a.name ?? '').toLowerCase()
+    return n.includes('iva') && (n.includes('pagar') || n.includes('débito') || n.includes('debito'))
+  })
+  const ivaComprasAccount = pageAccounts.find(a => {
+    const n = (a.name ?? '').toLowerCase()
+    return (n.includes('crédito') || n.includes('credito')) && n.includes('fiscal')
+  })
 
   const fetchTaxes = useCallback(async () => {
     setLoading(true)
@@ -913,12 +922,6 @@ export default function ImpuestosPage() {
       const allItems = [...template.ventas, ...template.compras]
       let created = 0
 
-      // Resolver cuentas por código exacto en el catálogo
-      const resolveAccount = (code?: string): string | undefined => {
-        if (!code) return undefined
-        return pageAccounts.find(a => a.code === code)?.id
-      }
-
       for (const item of allItems) {
         if (taxes.find(t => t.code === item.code)) continue  // ya existe
 
@@ -938,9 +941,9 @@ export default function ImpuestosPage() {
           libroComprasCol: item.libroComprasCol,
         }
 
-        // Vinculación automática de cuentas contables
-        if (item.salesAccountCode)    dto.salesAccountId    = resolveAccount(item.salesAccountCode)
-        if (item.purchaseAccountCode) dto.purchaseAccountId = resolveAccount(item.purchaseAccountCode)
+        // Vinculación automática — busca por nombre, no por código exacto
+        if (item.salesAccountCode    && ivaVentasAccount)  dto.salesAccountId    = ivaVentasAccount.id
+        if (item.purchaseAccountCode && ivaComprasAccount) dto.purchaseAccountId = ivaComprasAccount.id
 
         try {
           await createTax(dto)
@@ -992,13 +995,11 @@ export default function ImpuestosPage() {
   }
 
   // Vincula automáticamente la cuenta IVA a todos los impuestos del bloque que aún no la tienen
-  const handleAutoFillAccounts = async (
-    applicability: 'sales' | 'purchases',
-    accountCode: string,
-  ) => {
-    const account = pageAccounts.find(a => a.code === accountCode)
+  const handleAutoFillAccounts = async (applicability: 'sales' | 'purchases') => {
+    const account = applicability === 'sales' ? ivaVentasAccount : ivaComprasAccount
     if (!account) {
-      message.warning(`Cuenta ${accountCode} no encontrada en el catálogo de cuentas`)
+      const label = applicability === 'sales' ? 'IVA por Pagar' : 'Crédito Fiscal IVA'
+      message.warning(`No se encontró la cuenta "${label}" en el catálogo. Verifica que exista una cuenta con ese nombre.`)
       return
     }
     const taxList = applicability === 'sales' ? taxesVentas : taxesCompras
@@ -1013,7 +1014,7 @@ export default function ImpuestosPage() {
       for (const tax of pending) {
         await updateTax(tax.id, { [field]: account.id } as any)
       }
-      message.success(`${pending.length} código(s) vinculados a ${account.code} — ${account.name}`)
+      message.success(`${pending.length} código(s) vinculados → ${account.code} ${account.name}`)
       fetchTaxes()
     } catch {
       message.error('Error al vincular cuentas')
@@ -1299,13 +1300,17 @@ export default function ImpuestosPage() {
             <Space size={8}>
               {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
               {hasTaxes && (
-                <Tooltip title="Vincula cuenta IVA por Pagar (2210) a todos los códigos de ventas sin cuenta asignada">
+                <Tooltip title={ivaVentasAccount
+                  ? `Vincula ${ivaVentasAccount.code} — ${ivaVentasAccount.name} a los códigos sin cuenta`
+                  : 'No se encontró cuenta IVA por Pagar en el catálogo'
+                }>
                   <Button
                     size="small" type="link" icon={<LinkOutlined />}
                     style={{ padding: '0 4px', fontSize: 12 }}
-                    onClick={() => handleAutoFillAccounts('sales', '2210')}
+                    disabled={!ivaVentasAccount}
+                    onClick={() => handleAutoFillAccounts('sales')}
                   >
-                    Cuenta IVA
+                    Cargar cuenta IVA
                   </Button>
                 </Tooltip>
               )}
@@ -1340,13 +1345,17 @@ export default function ImpuestosPage() {
             <Space size={8}>
               {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
               {hasTaxes && (
-                <Tooltip title="Vincula Crédito Fiscal IVA (1150) a todos los códigos de compras sin cuenta asignada">
+                <Tooltip title={ivaComprasAccount
+                  ? `Vincula ${ivaComprasAccount.code} — ${ivaComprasAccount.name} a los códigos sin cuenta`
+                  : 'No se encontró cuenta Crédito Fiscal IVA en el catálogo'
+                }>
                   <Button
                     size="small" type="link" icon={<LinkOutlined />}
                     style={{ padding: '0 4px', fontSize: 12 }}
-                    onClick={() => handleAutoFillAccounts('purchases', '1150')}
+                    disabled={!ivaComprasAccount}
+                    onClick={() => handleAutoFillAccounts('purchases')}
                   >
-                    Cuenta IVA
+                    Cargar cuenta IVA
                   </Button>
                 </Tooltip>
               )}
