@@ -8,7 +8,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   ThunderboltOutlined, InfoCircleOutlined,
   CalculatorOutlined, CheckCircleOutlined,
-  FileTextOutlined,
+  FileTextOutlined, StopOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -873,6 +873,8 @@ export default function ImpuestosPage() {
   const [modal,          setModal]          = useState<{ open: boolean; tax: Tax | null }>({ open: false, tax: null })
   const [pageAccounts,   setPageAccounts]   = useState<Account[]>([])
   const [activeTemplate, setActiveTemplate] = useState<TaxRegimeTemplate>(GT_TEMPLATES[0])
+  // IDs de impuestos que fallaron al eliminar (tienen historial de transacciones)
+  const [hasHistoryIds,  setHasHistoryIds]  = useState<Set<string>>(new Set())
 
   const fetchTaxes = useCallback(async () => {
     setLoading(true)
@@ -961,13 +963,26 @@ export default function ImpuestosPage() {
     }
   }
 
+  const handleBlock = async (id: string) => {
+    try {
+      await updateTax(id, { isActive: false } as any)
+      message.success('Impuesto bloqueado — ya no aparece en documentos nuevos')
+      fetchTaxes()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo bloquear')
+    }
+  }
+
   const handleDelete = async (id: string) => {
     try {
       await deleteTax(id)
-      message.success('Impuesto desactivado')
+      message.success('Impuesto eliminado')
       fetchTaxes()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo eliminar')
+      // Si el backend rechaza la eliminación (tiene historial), pasar a modo "solo bloquear"
+      setHasHistoryIds(prev => new Set(prev).add(id))
+      const msg = e?.response?.data?.message || ''
+      message.error(msg || 'No se puede eliminar — el impuesto tiene transacciones registradas. Usa Bloquear.')
     }
   }
 
@@ -1080,31 +1095,59 @@ export default function ImpuestosPage() {
     },
     {
       title: 'Acciones',
-      width: 100,
-      render: (_, r) => (
-        <Space>
-          <Tooltip title="Editar">
-            <Button
-              type="text" size="small"
-              icon={<EditOutlined />}
-              onClick={() => setModal({ open: true, tax: r })}
-            />
-          </Tooltip>
-          {!r.isSystem && (
-            <Popconfirm
-              title="¿Desactivar impuesto?"
-              description="El impuesto no se elimina, solo se desactiva."
-              onConfirm={() => handleDelete(r.id)}
-              okText="Sí, desactivar"
-              okButtonProps={{ danger: true }}
-            >
-              <Tooltip title="Desactivar">
-                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+      width: 120,
+      render: (_, r) => {
+        const hasHistory = r.isSystem || hasHistoryIds.has(r.id)
+        return (
+          <Space size={2}>
+            {/* Editar — solo si no tiene historial */}
+            {!hasHistory && (
+              <Tooltip title="Editar">
+                <Button
+                  type="text" size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => setModal({ open: true, tax: r })}
+                />
               </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+            )}
+
+            {/* Bloquear — siempre disponible si está activo */}
+            {r.isActive && (
+              <Popconfirm
+                title="¿Bloquear impuesto?"
+                description="El impuesto queda inactivo y no aparece en documentos nuevos. El historial se conserva."
+                onConfirm={() => handleBlock(r.id)}
+                okText="Sí, bloquear"
+                okButtonProps={{ style: { background: '#f59e0b', borderColor: '#f59e0b' } }}
+              >
+                <Tooltip title="Bloquear">
+                  <Button type="text" size="small" icon={<StopOutlined style={{ color: '#f59e0b' }} />} />
+                </Tooltip>
+              </Popconfirm>
+            )}
+
+            {/* Eliminar — solo si no tiene historial */}
+            {!hasHistory && (
+              <Popconfirm
+                title="¿Eliminar impuesto?"
+                description="Se elimina permanentemente si no tiene transacciones registradas."
+                onConfirm={() => handleDelete(r.id)}
+                okText="Sí, eliminar"
+                okButtonProps={{ danger: true }}
+              >
+                <Tooltip title="Eliminar">
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                </Tooltip>
+              </Popconfirm>
+            )}
+
+            {/* Si está bloqueado — solo indicador */}
+            {!r.isActive && (
+              <Tag style={{ margin: 0, fontSize: 10 }} color="default">Bloqueado</Tag>
+            )}
+          </Space>
+        )
+      },
     },
   ]
 
@@ -1169,18 +1212,6 @@ export default function ImpuestosPage() {
           locale={{ emptyText: 'Sin impuestos - carga una plantilla fiscal o crea un impuesto manualmente' }}
         />
       </Card>
-
-      {/* Leyenda */}
-      <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-          <Space key={k} size={4}>
-            <Tag color={v.color} style={{ margin: 0 }}>{v.label}</Tag>
-          </Space>
-        ))}
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Naranja = retencion (el comprador retiene al fisco)
-        </Text>
-      </div>
 
       {/* Modal */}
       <TaxModal
