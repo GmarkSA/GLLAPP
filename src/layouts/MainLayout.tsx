@@ -325,13 +325,14 @@ export default function MainLayout() {
             <CompanySelector placement="header" />
             <OnboardingProgressBadge />
             {activeCompany && (
-              <Tooltip title="ID de organización — clic para copiar">
+              <Tooltip title="ID de tu organización — clic para copiar">
                 <Tag
                   color="cyan"
-                  style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 11, cursor: 'pointer', margin: 0 }}
+                  style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', margin: 0 }}
                   onClick={() => { navigator.clipboard.writeText(formatOrgId(activeCompany)) }}
                 >
-                  {formatOrgId(activeCompany)}
+                  <span style={{ fontWeight: 400, opacity: 0.8 }}>ID org: </span>
+                  <span style={{ fontWeight: 700 }}>{formatOrgId(activeCompany)}</span>
                 </Tag>
               </Tooltip>
             )}
