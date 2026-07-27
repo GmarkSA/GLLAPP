@@ -34,11 +34,6 @@ const TAX_TREATMENTS = [
   { value: 'exportador',             label: 'Exportador — IVA 0%',                    desc: 'Operaciones de exportación, tasa cero.' },
 ]
 
-const IVA_RETENTION_OPTIONS = [
-  { value: 'IVARET15', label: 'IVARET15 — Retención 15% del IVA' },
-  { value: 'IVARET30', label: 'IVARET30 — Retención 30% del IVA' },
-  { value: 'IVARET65', label: 'IVARET65 — Retención 65% del IVA (Gobierno)' },
-]
 
 const SALUTATIONS = ['Sr.', 'Sra.', 'Lic.', 'Ing.', 'Dr.', 'Dra.', 'Arq.']
 const CURRENCIES  = ['GTQ', 'USD', 'EUR', 'MXN']
@@ -287,7 +282,8 @@ export default function ProveedorFormPage() {
     (t.category === 'iva' || t.category === 'iva_exento' || t.category === 'iva_pequeno_contribuyente') &&
     (t.applicability === 'purchases' || t.applicability === 'both')
   )
-  const isrTaxes = taxes.filter(t => t.category === 'isr')
+  const isrTaxes          = taxes.filter(t => t.category === 'isr')
+  const ivaRetentionTaxes = taxes.filter(t => t.isWithholding && (t.category === 'iva' || t.category === 'iva_retenida'))
   const showRetention = ['contribuyente_especial', 'gobierno'].includes(taxTreatment)
 
   const tabIndex  = TAB_ORDER.indexOf(activeTab)
@@ -732,9 +728,17 @@ export default function ProveedorFormPage() {
                                 </div>
                                 <Form.Item name="ivaRetentionCode" label="Porcentaje de retención IVA" style={{ marginBottom: 0 }}>
                                   <Select placeholder="Retención aplicable" allowClear>
-                                    {IVA_RETENTION_OPTIONS.map(o => (
-                                      <Option key={o.value} value={o.value}>{o.label}</Option>
-                                    ))}
+                                    {ivaRetentionTaxes.length > 0
+                                      ? ivaRetentionTaxes.map(t => (
+                                        <Option key={t.code} value={t.code}>
+                                          <Space>
+                                            <Tag color="#e84817" style={{ fontSize: 10 }}>{t.code}</Tag>
+                                            {t.name}
+                                          </Space>
+                                        </Option>
+                                      ))
+                                      : <Option disabled value="">Sin retenciones IVA configuradas — ve a Configuración → Impuestos</Option>
+                                    }
                                   </Select>
                                 </Form.Item>
                               </Card>
