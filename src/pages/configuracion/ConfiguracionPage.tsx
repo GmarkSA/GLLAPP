@@ -10,7 +10,7 @@ import {
   BankOutlined, GlobalOutlined, DollarOutlined,
   MailOutlined, PhoneOutlined, EnvironmentOutlined,
   CameraOutlined, SaveOutlined, TeamOutlined,
-  ApiOutlined, AppstoreOutlined,
+  ApiOutlined, AppstoreOutlined, CopyOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
@@ -270,9 +270,26 @@ function OrganizationSection({
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item name="taxId" label="NIT / RFC / RUC" style={{ marginBottom: 8 }}>
+                <Form.Item name="taxId" label="NIT / RFC / RUC" style={{ marginBottom: 6 }}>
                   <Input placeholder="1234567-8" size="large" prefix={<FileTextOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
+                {activeCompany?.id && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: '#f8fafc', border: '1px solid rgba(10,10,10,0.08)',
+                    borderRadius: 6, padding: '5px 10px', marginBottom: 8, fontSize: 11,
+                  }}>
+                    <span style={{ color: '#9aa1ab', whiteSpace: 'nowrap' }}>ID empresa:</span>
+                    <code style={{ fontFamily: 'monospace', fontSize: 10, color: '#374151', flex: 1, wordBreak: 'break-all' }}>
+                      {activeCompany.id}
+                    </code>
+                    <Button
+                      size="small" type="text" icon={<CopyOutlined />}
+                      onClick={() => { navigator.clipboard.writeText(activeCompany.id); message.success('ID copiado') }}
+                      style={{ flexShrink: 0, padding: '0 4px' }}
+                    />
+                  </div>
+                )}
               </Col>
               <Col xs={24} md={12}>
                 <Form.Item name="industry" label="Industria" style={{ marginBottom: 16 }}>
