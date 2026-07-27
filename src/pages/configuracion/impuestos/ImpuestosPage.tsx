@@ -1150,7 +1150,12 @@ export default function ImpuestosPage() {
     },
   ]
 
-  const hasTaxes = taxes.length > 0
+  const hasTaxes     = taxes.length > 0
+  const taxesVentas  = taxes.filter(t => t.applicability === 'sales')
+  const taxesCompras = taxes.filter(t => t.applicability === 'purchases')
+  const taxesBoth    = taxes.filter(t => !t.applicability || t.applicability === 'both')
+  // Sin la columna "Aplica en" — el encabezado del bloque ya lo indica
+  const columnsMain  = columns.filter(c => (c as any).dataIndex !== 'applicability')
 
   return (
     <div>
@@ -1194,23 +1199,81 @@ export default function ImpuestosPage() {
         />
       )}
 
-      {/* Tabla */}
+      {/* Bloque Ventas */}
       <Card
         bordered={false}
-        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}
         bodyStyle={{ padding: 0 }}
+        title={
+          <Space>
+            <Tag color="green" style={{ margin: 0 }}>Ventas</Tag>
+            <Text style={{ fontSize: 13, color: '#374151' }}>IVA en emisión de facturas y notas de crédito</Text>
+          </Space>
+        }
+        extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
       >
         <Table
-          columns={columns}
-          dataSource={taxes}
+          columns={columnsMain}
+          dataSource={taxesVentas}
           rowKey="id"
           loading={loading}
           pagination={false}
           size="middle"
           rowClassName={(r) => r.isSystem ? 'system-row' : ''}
-          locale={{ emptyText: 'Sin impuestos - carga una plantilla fiscal o crea un impuesto manualmente' }}
+          locale={{ emptyText: 'Sin códigos de ventas — carga una plantilla o crea un impuesto' }}
         />
       </Card>
+
+      {/* Bloque Compras */}
+      <Card
+        bordered={false}
+        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: taxesBoth.length > 0 ? 16 : 0 }}
+        bodyStyle={{ padding: 0 }}
+        title={
+          <Space>
+            <Tag color="blue" style={{ margin: 0 }}>Compras</Tag>
+            <Text style={{ fontSize: 13, color: '#374151' }}>IVA en registro de facturas de proveedores</Text>
+          </Space>
+        }
+        extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
+      >
+        <Table
+          columns={columnsMain}
+          dataSource={taxesCompras}
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+          size="middle"
+          rowClassName={(r) => r.isSystem ? 'system-row' : ''}
+          locale={{ emptyText: 'Sin códigos de compras — carga una plantilla o crea un impuesto' }}
+        />
+      </Card>
+
+      {/* Bloque General — solo si hay impuestos con applicability = both (ej. creados manualmente) */}
+      {taxesBoth.length > 0 && (
+        <Card
+          bordered={false}
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: 0 }}
+          title={
+            <Space>
+              <Tag style={{ margin: 0 }}>General</Tag>
+              <Text style={{ fontSize: 13, color: '#374151' }}>Aplica en ventas y compras</Text>
+            </Space>
+          }
+          extra={<Text type="secondary" style={{ fontSize: 11 }}>{taxesBoth.length} códigos</Text>}
+        >
+          <Table
+            columns={columns}
+            dataSource={taxesBoth}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            size="middle"
+            rowClassName={(r) => r.isSystem ? 'system-row' : ''}
+          />
+        </Card>
+      )}
 
       {/* Modal */}
       <TaxModal
