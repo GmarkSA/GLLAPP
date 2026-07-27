@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Card, Button, Input, Switch, Space, Typography, message,
-  Popconfirm, Tag, Divider, Tooltip,
+  Popconfirm, Tag, Divider, Tooltip, Badge,
 } from 'antd'
 import {
   ArrowUpOutlined, ArrowDownOutlined, BookOutlined, DeleteOutlined,
@@ -12,18 +12,20 @@ import {
   DEFAULT_COMPRAS, DEFAULT_VENTAS,
   type LibroColumn, type LibroSATConfig,
 } from '../../../api/libros-sat'
+import { getTaxes, type Tax } from '../../../api/impuestos'
 
 const { Title, Text } = Typography
 
 // ── Editor de columnas para un libro ──────────────────────────────────────────
 
 function ColumnsEditor({
-  title, subtitle, columns, onChange,
+  title, subtitle, columns, onChange, taxCounts,
 }: {
-  title:    string
-  subtitle: string
-  columns:  LibroColumn[]
-  onChange: (cols: LibroColumn[]) => void
+  title:     string
+  subtitle:  string
+  columns:   LibroColumn[]
+  onChange:  (cols: LibroColumn[]) => void
+  taxCounts: Record<string, number>
 }) {
   const [addingKey,   setAddingKey]   = useState('')
   const [addingLabel, setAddingLabel] = useState('')
@@ -122,10 +124,19 @@ function ColumnsEditor({
             </Tooltip>
           </Space>
 
-          {/* Clave (readonly) */}
-          <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, maxWidth: 116, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {col.key}
-          </Tag>
+          {/* Clave (readonly) + badge de impuestos vinculados */}
+          <Tooltip title={taxCounts[col.key] ? `${taxCounts[col.key]} impuesto(s) vinculado(s) a esta columna` : 'Sin impuestos vinculados aún'}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                {col.key}
+              </Tag>
+              <Badge
+                count={taxCounts[col.key] ?? 0}
+                style={{ backgroundColor: taxCounts[col.key] ? '#2ea172' : '#d9d9d9', fontSize: 10 }}
+                size="small"
+              />
+            </span>
+          </Tooltip>
 
           {/* Etiqueta editable */}
           <Input
@@ -204,12 +215,25 @@ function ColumnsEditor({
 
 export default function LibroSATPage() {
   const [config,  setConfig]  = useState<LibroSATConfig>({ compras: [], ventas: [] })
+  const [taxes,   setTaxes]   = useState<Tax[]>([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
 
   useEffect(() => {
-    getLibroSATConfig().then(setConfig).finally(() => setLoading(false))
+    Promise.all([getLibroSATConfig(), getTaxes()])
+      .then(([cfg, txs]) => { setConfig(cfg); setTaxes(txs) })
+      .finally(() => setLoading(false))
   }, [])
+
+  // Cuenta cuántos impuestos activos apuntan a cada clave de columna
+  const comprasCounts = taxes.reduce<Record<string, number>>((acc, t) => {
+    if (t.libroComprasCol) acc[t.libroComprasCol] = (acc[t.libroComprasCol] ?? 0) + 1
+    return acc
+  }, {})
+  const ventasCounts = taxes.reduce<Record<string, number>>((acc, t) => {
+    if (t.libroVentasCol) acc[t.libroVentasCol] = (acc[t.libroVentasCol] ?? 0) + 1
+    return acc
+  }, {})
 
   const handleSave = async () => {
     setSaving(true)
@@ -278,12 +302,14 @@ export default function LibroSATPage() {
             subtitle="Columnas para facturas de proveedor"
             columns={config.compras.sort((a, b) => a.sortOrder - b.sortOrder)}
             onChange={compras => setConfig(prev => ({ ...prev, compras }))}
+            taxCounts={comprasCounts}
           />
           <ColumnsEditor
             title="Libro de Ventas y Servicios"
             subtitle="Columnas para facturas de venta"
             columns={config.ventas.sort((a, b) => a.sortOrder - b.sortOrder)}
             onChange={ventas => setConfig(prev => ({ ...prev, ventas }))}
+            taxCounts={ventasCounts}
           />
         </div>
       )}
