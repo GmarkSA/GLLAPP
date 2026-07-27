@@ -1097,40 +1097,44 @@ export default function ImpuestosPage() {
       title: 'Acciones',
       width: 120,
       render: (_, r) => {
-        const hasHistory = r.isSystem || hasHistoryIds.has(r.id)
+        // hasHistory: solo se activa cuando el backend rechaza un delete real
+        // isSystem no implica historial — un código nuevo puede ser "system"
+        const hasHistory = hasHistoryIds.has(r.id)
+        const isActive   = r.isActive !== false   // null/undefined → activo
+
+        if (!isActive) {
+          return <Tag style={{ margin: 0, fontSize: 10 }} color="default">Bloqueado</Tag>
+        }
+
         return (
           <Space size={2}>
-            {/* Editar — solo si no tiene historial */}
-            {!hasHistory && (
-              <Tooltip title="Editar">
-                <Button
-                  type="text" size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => setModal({ open: true, tax: r })}
-                />
+            {/* Editar — siempre disponible mientras esté activo */}
+            <Tooltip title="Editar">
+              <Button
+                type="text" size="small"
+                icon={<EditOutlined />}
+                onClick={() => setModal({ open: true, tax: r })}
+              />
+            </Tooltip>
+
+            {/* Bloquear — siempre disponible */}
+            <Popconfirm
+              title="¿Bloquear impuesto?"
+              description="Queda inactivo y no aparece en documentos nuevos. El historial contable se conserva."
+              onConfirm={() => handleBlock(r.id)}
+              okText="Sí, bloquear"
+              okButtonProps={{ style: { background: '#f59e0b', borderColor: '#f59e0b' } }}
+            >
+              <Tooltip title="Bloquear">
+                <Button type="text" size="small" icon={<StopOutlined style={{ color: '#f59e0b' }} />} />
               </Tooltip>
-            )}
+            </Popconfirm>
 
-            {/* Bloquear — siempre disponible si está activo */}
-            {r.isActive && (
-              <Popconfirm
-                title="¿Bloquear impuesto?"
-                description="El impuesto queda inactivo y no aparece en documentos nuevos. El historial se conserva."
-                onConfirm={() => handleBlock(r.id)}
-                okText="Sí, bloquear"
-                okButtonProps={{ style: { background: '#f59e0b', borderColor: '#f59e0b' } }}
-              >
-                <Tooltip title="Bloquear">
-                  <Button type="text" size="small" icon={<StopOutlined style={{ color: '#f59e0b' }} />} />
-                </Tooltip>
-              </Popconfirm>
-            )}
-
-            {/* Eliminar — solo si no tiene historial */}
+            {/* Eliminar — solo si no tiene historial registrado */}
             {!hasHistory && (
               <Popconfirm
                 title="¿Eliminar impuesto?"
-                description="Se elimina permanentemente si no tiene transacciones registradas."
+                description="Se elimina si no tiene transacciones. Si falla, usa Bloquear."
                 onConfirm={() => handleDelete(r.id)}
                 okText="Sí, eliminar"
                 okButtonProps={{ danger: true }}
@@ -1139,11 +1143,6 @@ export default function ImpuestosPage() {
                   <Button type="text" size="small" danger icon={<DeleteOutlined />} />
                 </Tooltip>
               </Popconfirm>
-            )}
-
-            {/* Si está bloqueado — solo indicador */}
-            {!r.isActive && (
-              <Tag style={{ margin: 0, fontSize: 10 }} color="default">Bloqueado</Tag>
             )}
           </Space>
         )
