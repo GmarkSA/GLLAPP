@@ -261,7 +261,8 @@ const LIBRO_PC: LibroSATConfig = {
 
 const LIBRO_AC: LibroSATConfig = {
   ventas: [
-    { key: 'exento', label: 'Ventas / Transferencias Exentas', sortOrder: 1, isActive: true },
+    { key: 'exento', label: 'Ventas / Transferencias Exentas',      sortOrder: 1, isActive: true },
+    { key: 'bienes', label: 'Ventas gravadas (actividad mercantil)', sortOrder: 2, isActive: true },
   ],
   compras: [
     { key: 'exento', label: 'Adquisiciones Exentas', sortOrder: 1, isActive: true },
