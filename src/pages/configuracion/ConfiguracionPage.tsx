@@ -10,7 +10,7 @@ import {
   BankOutlined, GlobalOutlined, DollarOutlined,
   MailOutlined, PhoneOutlined, EnvironmentOutlined,
   CameraOutlined, SaveOutlined, TeamOutlined,
-  ApiOutlined,
+  ApiOutlined, AppstoreOutlined,
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
@@ -46,6 +46,7 @@ const { TextArea } = Input
 const sections = [
   { key: 'setup-guide',     icon: <RocketOutlined />,       label: 'Guía de inicio' },
   { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organización' },
+  { key: 'modules',         icon: <AppstoreOutlined />,     label: 'Módulos del sistema' },
   { key: 'taxes',           icon: <PercentageOutlined />,   label: 'Impuestos' },
   { key: 'librosSAT',       icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
   { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
@@ -1494,6 +1495,96 @@ function ComingSoonSection({ title, description }: { title: string; description:
   )
 }
 
+// ── Módulos del sistema ────────────────────────────────────────────────────
+
+const ALL_MODULES_CFG = [
+  { key: 'ventas',        label: 'Ventas' },
+  { key: 'compras',       label: 'Compras' },
+  { key: 'contabilidad',  label: 'Contabilidad' },
+  { key: 'bancos',        label: 'Bancos y Tesorería' },
+  { key: 'inventario',    label: 'Inventario' },
+  { key: 'planillas',     label: 'Planillas' },
+  { key: 'pos',           label: 'Terminal POS' },
+  { key: 'proyectos',     label: 'Proyectos' },
+  { key: 'reportes',      label: 'Reportes' },
+  { key: 'fel',           label: 'FEL' },
+]
+
+function ModulesSection() {
+  const activeCompany = useCompanyStore(s => s.activeCompany)
+  const [enabledMods, setEnabledMods] = useState<string[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [saving,      setSaving]      = useState(false)
+
+  useEffect(() => {
+    if (!activeCompany?.id) { setLoading(false); return }
+    companiesApi.getSettings(activeCompany.id)
+      .then(s => {
+        const mods = s?.enabledModules
+        setEnabledMods(Array.isArray(mods) && mods.length > 0 ? mods : [])
+      })
+      .catch(() => null)
+      .finally(() => setLoading(false))
+  }, [activeCompany?.id])
+
+  const handleToggle = async (modKey: string, checked: boolean) => {
+    if (!activeCompany?.id) return
+    setSaving(true)
+    try {
+      const base = enabledMods.length === 0 ? ALL_MODULES_CFG.map(m => m.key) : enabledMods
+      const next = checked
+        ? (base.includes(modKey) ? base : [...base, modKey])
+        : base.filter(k => k !== modKey)
+      const updated = next.length === ALL_MODULES_CFG.length ? [] : next
+      setEnabledMods(updated)
+      await companiesApi.updateSettings(activeCompany.id, { enabledModules: updated } as any)
+      message.success('Módulo actualizado')
+    } catch {
+      message.error('No se pudo actualizar')
+    } finally { setSaving(false) }
+  }
+
+  const activeCount = enabledMods.length === 0 ? ALL_MODULES_CFG.length : enabledMods.length
+
+  return (
+    <Spin spinning={loading}>
+      <div style={{ maxWidth: 860 }}>
+        <div style={{ marginBottom: 20 }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Módulos del sistema</Title>
+          <Text type="secondary">Activa o desactiva módulos según los servicios que usa esta empresa</Text>
+        </div>
+
+        <Card bordered={false} style={cardStyle} bodyStyle={{ padding: '20px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              Los módulos desactivados se ocultan del menú lateral para todos los usuarios de esta empresa.
+            </Text>
+            <Tag color={activeCount === ALL_MODULES_CFG.length ? '#2ea172' : '#ff7f00'}>
+              {activeCount} de {ALL_MODULES_CFG.length} activos
+            </Tag>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 32px' }}>
+            {ALL_MODULES_CFG.map(mod => {
+              const active = enabledMods.length === 0 || enabledMods.includes(mod.key)
+              return (
+                <div key={mod.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <Text style={{ fontSize: 14 }}>{mod.label}</Text>
+                  <Switch
+                    size="small"
+                    checked={active}
+                    loading={saving}
+                    onChange={checked => handleToggle(mod.key, checked)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      </div>
+    </Spin>
+  )
+}
+
 // ── Helper components ──────────────────────────────────────────────────────
 
 function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
@@ -1578,6 +1669,8 @@ export default function ConfiguracionPage() {
             </div>
           </div>
         )
+      case 'modules':
+        return <ModulesSection />
       case 'currency':
         return <CurrencySection />
       case 'taxes':

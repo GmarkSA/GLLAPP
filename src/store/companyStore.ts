@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { companiesApi } from '../api/companies'
 import { branchesApi } from '../api/branches'
 import type { Company } from './authStore'
@@ -54,12 +54,11 @@ export const useCompanyStore = create<CompanyStore>()(
           if (!current && companies.length > 0) {
             const def = companies.find(c => c.isDefault) ?? companies[0]
             await get().setActiveCompany(def)
-          } else if (current && !localStorage.getItem('activeCompanyId')) {
-            // Zustand persist restauró activeCompany pero localStorage.activeCompanyId
-            // puede faltar (clave separada). El interceptor de axios la necesita para
-            // enviar X-Company-ID. Re-sincronizar sin llamar setActiveCompany completo.
-            localStorage.setItem('activeCompanyId', current.id)
-            localStorage.setItem('activeCompany', JSON.stringify(current))
+          } else if (current && !sessionStorage.getItem('activeCompanyId')) {
+            // Zustand persist restauró activeCompany desde sessionStorage pero
+            // activeCompanyId puede faltar. Re-sincronizar para el interceptor axios.
+            sessionStorage.setItem('activeCompanyId', current.id)
+            sessionStorage.setItem('activeCompany', JSON.stringify(current))
           }
         } catch {
           // silent — no interrumpir la UI
@@ -69,9 +68,9 @@ export const useCompanyStore = create<CompanyStore>()(
       },
 
       setActiveCompany: async (company) => {
-        // Sync con localStorage para que el interceptor de axios lo lea
-        localStorage.setItem('activeCompanyId', company.id)
-        localStorage.setItem('activeCompany', JSON.stringify(company))
+        // sessionStorage → aislado por pestaña (multi-empresa simultáneo)
+        sessionStorage.setItem('activeCompanyId', company.id)
+        sessionStorage.setItem('activeCompany', JSON.stringify(company))
         set({ activeCompany: company, activeBranch: null, branches: [], enabledModules: null })
 
         // Cargar sucursales y settings de la empresa seleccionada en paralelo
@@ -105,6 +104,7 @@ export const useCompanyStore = create<CompanyStore>()(
     }),
     {
       name: 'contaerp-company',
+      storage: createJSONStorage(() => sessionStorage),
       // Solo persiste empresa, sucursal y módulos activos — las listas se recargan
       partialize: (state) => ({
         activeCompany:  state.activeCompany,
