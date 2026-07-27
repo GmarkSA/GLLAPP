@@ -1154,8 +1154,13 @@ export default function ImpuestosPage() {
   const taxesVentas  = taxes.filter(t => t.applicability === 'sales')
   const taxesCompras = taxes.filter(t => t.applicability === 'purchases')
   const taxesBoth    = taxes.filter(t => !t.applicability || t.applicability === 'both')
-  // Sin la columna "Aplica en" — el encabezado del bloque ya lo indica
-  const columnsMain  = columns.filter(c => (c as any).dataIndex !== 'applicability')
+  // Columnas compactas para bloques lado a lado: sin Categoría, sin badge retención, sin Aplica en
+  const columnsCompact = columns.filter(c => {
+    const col = c as any
+    return col.dataIndex !== 'applicability'
+      && col.dataIndex !== 'category'
+      && !(col.title === '' && col.width === 40)
+  })
 
   return (
     <div>
@@ -1199,55 +1204,61 @@ export default function ImpuestosPage() {
         />
       )}
 
-      {/* Bloque Ventas */}
-      <Card
-        bordered={false}
-        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}
-        bodyStyle={{ padding: 0 }}
-        title={
-          <Space>
-            <Tag color="green" style={{ margin: 0 }}>Ventas</Tag>
-            <Text style={{ fontSize: 13, color: '#374151' }}>IVA en emisión de facturas y notas de crédito</Text>
-          </Space>
-        }
-        extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
-      >
-        <Table
-          columns={columnsMain}
-          dataSource={taxesVentas}
-          rowKey="id"
-          loading={loading}
-          pagination={false}
-          size="middle"
-          rowClassName={(r) => r.isSystem ? 'system-row' : ''}
-          locale={{ emptyText: 'Sin códigos de ventas — carga una plantilla o crea un impuesto' }}
-        />
-      </Card>
+      {/* Bloques Ventas + Compras en horizontal */}
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: taxesBoth.length > 0 ? 16 : 0 }}>
 
-      {/* Bloque Compras */}
-      <Card
-        bordered={false}
-        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: taxesBoth.length > 0 ? 16 : 0 }}
-        bodyStyle={{ padding: 0 }}
-        title={
-          <Space>
-            <Tag color="blue" style={{ margin: 0 }}>Compras</Tag>
-            <Text style={{ fontSize: 13, color: '#374151' }}>IVA en registro de facturas de proveedores</Text>
-          </Space>
-        }
-        extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
-      >
-        <Table
-          columns={columnsMain}
-          dataSource={taxesCompras}
-          rowKey="id"
-          loading={loading}
-          pagination={false}
-          size="middle"
-          rowClassName={(r) => r.isSystem ? 'system-row' : ''}
-          locale={{ emptyText: 'Sin códigos de compras — carga una plantilla o crea un impuesto' }}
-        />
-      </Card>
+        {/* Bloque Ventas */}
+        <Card
+          bordered={false}
+          style={{ flex: 1, minWidth: 0, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: 0 }}
+          title={
+            <Space>
+              <Tag color="green" style={{ margin: 0 }}>Ventas</Tag>
+              <Text style={{ fontSize: 13, color: '#374151' }}>Emisión de facturas</Text>
+            </Space>
+          }
+          extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
+        >
+          <Table
+            columns={columnsCompact}
+            dataSource={taxesVentas}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 'max-content' }}
+            rowClassName={(r) => r.isSystem ? 'system-row' : ''}
+            locale={{ emptyText: 'Sin códigos de ventas' }}
+          />
+        </Card>
+
+        {/* Bloque Compras */}
+        <Card
+          bordered={false}
+          style={{ flex: 1, minWidth: 0, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: 0 }}
+          title={
+            <Space>
+              <Tag color="blue" style={{ margin: 0 }}>Compras</Tag>
+              <Text style={{ fontSize: 13, color: '#374151' }}>Facturas de proveedores</Text>
+            </Space>
+          }
+          extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
+        >
+          <Table
+            columns={columnsCompact}
+            dataSource={taxesCompras}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 'max-content' }}
+            rowClassName={(r) => r.isSystem ? 'system-row' : ''}
+            locale={{ emptyText: 'Sin códigos de compras' }}
+          />
+        </Card>
+      </div>
 
       {/* Bloque General — solo si hay impuestos con applicability = both (ej. creados manualmente) */}
       {taxesBoth.length > 0 && (
@@ -1269,7 +1280,8 @@ export default function ImpuestosPage() {
             rowKey="id"
             loading={loading}
             pagination={false}
-            size="middle"
+            size="small"
+            scroll={{ x: 'max-content' }}
             rowClassName={(r) => r.isSystem ? 'system-row' : ''}
           />
         </Card>
