@@ -1154,13 +1154,54 @@ export default function ImpuestosPage() {
   const taxesVentas  = taxes.filter(t => t.applicability === 'sales')
   const taxesCompras = taxes.filter(t => t.applicability === 'purchases')
   const taxesBoth    = taxes.filter(t => !t.applicability || t.applicability === 'both')
-  // Columnas compactas para bloques lado a lado: sin Categoría, sin badge retención, sin Aplica en
-  const columnsCompact = columns.filter(c => {
-    const col = c as any
-    return col.dataIndex !== 'applicability'
-      && col.dataIndex !== 'category'
-      && !(col.title === '' && col.width === 40)
-  })
+  // Columnas compactas para bloques lado a lado
+  const columnsCompact = columns
+    .filter(c => {
+      const col = c as any
+      return col.dataIndex !== 'applicability'
+        && col.dataIndex !== 'category'
+        && !(col.title === '' && col.width === 40)   // quita badge retención
+    })
+    .map(c => {
+      const col = { ...c } as any
+      const key = col.dataIndex ?? col.title
+      switch (key) {
+        case 'code':
+          return { ...col, width: 68 }
+        case 'name':
+          return { ...col, render: (v: string, r: any) => (
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 12 }}>{v}</div>
+              {r.description && (
+                <span style={{ fontSize: 10, color: '#9aa1ab' }}>
+                  {r.description.length > 38 ? r.description.slice(0, 38) + '…' : r.description}
+                </span>
+              )}
+            </div>
+          )}
+        case 'subtype':
+          return { ...col, title: 'Tasa', width: 60, render: (_: any, r: any) => {
+            if (r.subtype === 'exempt')      return <span style={{ fontSize: 12, color: '#9aa1ab' }}>Exento</span>
+            if (r.subtype === 'progressive') return <span style={{ fontSize: 12, color: '#9aa1ab' }}>Prog.</span>
+            const rate = Number(r.rate)
+            return <span style={{ fontSize: 13, fontWeight: 600 }}>{rate % 1 === 0 ? rate : rate.toFixed(2)}%</span>
+          }}
+        case 'Cuenta contable':
+          return { ...col, width: 74, render: (_: any, r: any) => {
+            const acc = pageAccounts.find((a: any) => a.id === r.salesAccountId)
+              ?? pageAccounts.find((a: any) => a.id === r.purchaseAccountId)
+            return acc
+              ? <Text code style={{ fontSize: 11 }}>{acc.code}</Text>
+              : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>
+          }}
+        case 'isActive':
+          return { ...col, width: 80 }
+        case 'Acciones':
+          return { ...col, width: 100 }
+        default:
+          return col
+      }
+    })
 
   return (
     <div>
