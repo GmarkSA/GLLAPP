@@ -13,6 +13,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import { useCompanyStore } from '../store/companyStore'
+import type { Company } from '../store/authStore'
 import CompanySelector from '../components/CompanySelector'
 import NoCompanyGuard from '../components/NoCompanyGuard'
 import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
@@ -20,6 +21,17 @@ import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
+
+// "C-GT-001" + createdAt → "GT20250001"
+function formatOrgId(company: Company): string {
+  const parts = (company.companyNumber ?? '').split('-')
+  const country = parts[1] ?? company.countryCode ?? 'ORG'
+  const seq     = (parts[2] ?? '1').padStart(4, '0')
+  const year    = company.createdAt
+    ? new Date(company.createdAt).getFullYear()
+    : new Date().getFullYear()
+  return `${country}${year}${seq}`
+}
 
 // ── Acceso por módulo según rol ────────────────────────────────────────────
 // SuperAdmin e isSuperAdmin → acceso total
@@ -148,7 +160,8 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
-  const isModuleEnabled = useCompanyStore(s => s.isModuleEnabled)
+  const isModuleEnabled  = useCompanyStore(s => s.isModuleEnabled)
+  const activeCompany    = useCompanyStore(s => s.activeCompany)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
 
   // ── Lógica de acceso por rol ──────────────────────────────────────────────
@@ -311,6 +324,25 @@ export default function MainLayout() {
             </Tooltip>
             <CompanySelector placement="header" />
             <OnboardingProgressBadge />
+            {activeCompany && (
+              <Tooltip title="ID de organización — compártelo con soporte o proveedores">
+                <div
+                  style={{
+                    background: '#f0f9ff', border: '1px solid #bae0ed',
+                    borderRadius: 6, padding: '3px 10px',
+                    fontFamily: 'monospace', fontWeight: 700,
+                    fontSize: 12, color: '#1faec2', cursor: 'default',
+                    letterSpacing: 0.5,
+                  }}
+                  onClick={() => {
+                    const code = formatOrgId(activeCompany)
+                    navigator.clipboard.writeText(code)
+                  }}
+                >
+                  {formatOrgId(activeCompany)}
+                </div>
+              </Tooltip>
+            )}
           </Space>
 
           {/* Right */}

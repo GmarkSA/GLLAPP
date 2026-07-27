@@ -25,6 +25,7 @@ export interface Company {
   timezone: string
   isDefault: boolean
   status: string
+  createdAt?: string
 }
 
 interface AuthState {
