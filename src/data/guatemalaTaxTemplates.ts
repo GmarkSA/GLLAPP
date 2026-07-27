@@ -123,7 +123,7 @@ const RG_COMPRAS: TaxTemplateItem[] = [
   {
     code: 'RG-C06', name: 'Compra a Pequeño Contribuyente',
     description: 'Decreto 27-92 Art. 47 — Sin crédito fiscal; columna "Pequeño Contribuyente" del libro de compras.',
-    category: 'iva_pequeno_contribuyente', subtype: 'pequeno_contribuyente', applicability: 'purchases',
+    category: 'iva_pequeno_contribuyente', subtype: 'simple', applicability: 'purchases',
     rate: 0, isInclusive: false, isWithholding: false, isActive: true,
     libroComprasCol: 'pequenoContribuyente',
   },
@@ -142,14 +142,14 @@ const PC_VENTAS: TaxTemplateItem[] = [
   {
     code: 'PC-V01', name: 'Venta de bienes — registro PC 0%',
     description: 'Decreto 27-92 Art. 45-50 — PC cobra el precio total sin desglosar IVA. SAT-2046 col. Bienes.',
-    category: 'iva_pequeno_contribuyente', subtype: 'pequeno_contribuyente', applicability: 'sales',
+    category: 'iva_pequeno_contribuyente', subtype: 'simple', applicability: 'sales',
     rate: 0, isInclusive: false, isWithholding: false, isActive: true, isDefault: true,
     libroVentasCol: 'totalBienes',
   },
   {
     code: 'PC-V02', name: 'Venta de servicios — registro PC 0%',
     description: 'Decreto 27-92 Art. 45-50 — PC cobra el precio total sin desglosar IVA. SAT-2046 col. Servicios.',
-    category: 'iva_pequeno_contribuyente', subtype: 'pequeno_contribuyente', applicability: 'sales',
+    category: 'iva_pequeno_contribuyente', subtype: 'simple', applicability: 'sales',
     rate: 0, isInclusive: false, isWithholding: false, isActive: true,
     libroVentasCol: 'totalServicios',
   },
@@ -159,14 +159,14 @@ const PC_COMPRAS: TaxTemplateItem[] = [
   {
     code: 'PC-C01', name: 'Compra de bienes (IVA no acreditable)',
     description: 'Decreto 27-92 Art. 50 — PC paga IVA 12% al proveedor pero no puede acreditarlo; se registra como costo.',
-    category: 'iva_pequeno_contribuyente', subtype: 'pequeno_contribuyente', applicability: 'purchases',
+    category: 'iva_pequeno_contribuyente', subtype: 'simple', applicability: 'purchases',
     rate: 0, isInclusive: false, isWithholding: false, isActive: true, isDefault: true,
     libroComprasCol: 'bienes',
   },
   {
     code: 'PC-C02', name: 'Adquisición de servicios (IVA no acreditable)',
     description: 'Decreto 27-92 Art. 50 — Igual tratamiento que PC-C01, aplicado a servicios recibidos.',
-    category: 'iva_pequeno_contribuyente', subtype: 'pequeno_contribuyente', applicability: 'purchases',
+    category: 'iva_pequeno_contribuyente', subtype: 'simple', applicability: 'purchases',
     rate: 0, isInclusive: false, isWithholding: false, isActive: true,
     libroComprasCol: 'servicios',
   },
