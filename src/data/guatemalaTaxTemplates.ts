@@ -134,6 +134,13 @@ const RG_COMPRAS: TaxTemplateItem[] = [
     rate: 12, isInclusive: true, isWithholding: false, isActive: true,
     libroComprasCol: 'bienes', purchaseAccountCode: '1150',
   },
+  {
+    code: 'RG-C08', name: 'Compra de combustible gravada 12%',
+    description: 'Decreto 27-92 Art. 16-17 — Crédito fiscal acreditable. Columna específica "Combustibles" del Libro de Compras SAT-2237.',
+    category: 'iva', subtype: 'simple', applicability: 'purchases',
+    rate: 12, isInclusive: true, isWithholding: false, isActive: true,
+    libroComprasCol: 'combustibles', purchaseAccountCode: '1150',
+  },
 ]
 
 // ── Pequeño Contribuyente (PC) — SAT-2046 ─────────────────────────────────
