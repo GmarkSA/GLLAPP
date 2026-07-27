@@ -8,14 +8,17 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   ThunderboltOutlined, InfoCircleOutlined,
   CalculatorOutlined, CheckCircleOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  getTaxes, createTax, updateTax, deleteTax, seedCountryTaxes, calculateTax,
+  getTaxes, createTax, updateTax, deleteTax, calculateTax,
   type Tax, type TaxTier,
 } from '../../../api/impuestos'
 import { getAccounts, type Account } from '../../../api/catalogo'
-import { getLibroSATConfig, DEFAULT_CONFIG, type LibroSATConfig } from '../../../api/libros-sat'
+import { getLibroSATConfig, saveLibroSATConfig, DEFAULT_CONFIG, type LibroSATConfig } from '../../../api/libros-sat'
+import { getOrganizationProfile } from '../../../api/configuracion'
+import { GT_TEMPLATES, detectTemplate, type TaxRegimeTemplate } from '../../../data/guatemalaTaxTemplates'
 import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title, Text } = Typography
@@ -735,17 +738,141 @@ function TaxModal({
   )
 }
 
+// ── Panel de plantilla (empty state) ──────────────────────────────────────
+
+function TemplatePanel({
+  template, onLoad, loading,
+}: {
+  template: TaxRegimeTemplate
+  onLoad:   () => void
+  loading:  boolean
+}) {
+  const SAT_COLOR: Record<string, string> = {
+    'SAT-2237': '#1faec2', 'SAT-2046': '#f59e0b', 'No obligatorio': '#9aa1ab',
+  }
+  const satColor = SAT_COLOR[template.satForm] ?? '#1faec2'
+
+  const CodeRow = ({ item }: { item: (typeof template.ventas)[number] }) => (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '90px 1fr 56px 100px',
+      gap: 6, fontSize: 12, padding: '5px 10px',
+      borderBottom: '1px solid rgba(10,10,10,0.04)',
+      alignItems: 'center',
+    }}>
+      <Text code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{item.code}</Text>
+      <span style={{ color: '#374151', lineHeight: 1.35 }}>{item.name}</span>
+      <Tag style={{ margin: 0, textAlign: 'center', fontSize: 11 }}
+        color={item.rate > 0 ? '#1faec2' : 'default'}>
+        {item.rate > 0 ? `${item.rate}%` : 'Exento'}
+      </Tag>
+      <Text type="secondary" style={{ fontSize: 10 }}>
+        {item.libroVentasCol ?? item.libroComprasCol ?? '—'}
+      </Text>
+    </div>
+  )
+
+  return (
+    <div style={{
+      border: '1px solid rgba(10,10,10,0.08)', borderRadius: 10,
+      background: '#fff', overflow: 'hidden', marginBottom: 20,
+    }}>
+      {/* Header */}
+      <div style={{
+        background: '#f8fafc', padding: '16px 20px',
+        borderBottom: '1px solid rgba(10,10,10,0.07)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <FileTextOutlined style={{ color: satColor, fontSize: 16 }} />
+            <Text strong style={{ fontSize: 14, color: '#0a0a0a' }}>
+              Plantilla: {template.regimeName}
+            </Text>
+            <Tag color={satColor} style={{ margin: 0, fontSize: 11 }}>{template.satForm}</Tag>
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>{template.description}</Text>
+        </div>
+        <Button
+          type="primary"
+          icon={<ThunderboltOutlined />}
+          loading={loading}
+          onClick={onLoad}
+          style={{ background: satColor, minWidth: 200 }}
+        >
+          Cargar plantilla {template.regimeName}
+        </Button>
+      </div>
+
+      {/* Codes grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+        {/* Ventas */}
+        <div style={{ borderRight: '1px solid rgba(10,10,10,0.06)' }}>
+          <div style={{
+            padding: '8px 10px', background: '#f0fafe',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+            textTransform: 'uppercase', color: '#1faec2',
+            borderBottom: '1px solid rgba(31,174,194,0.15)',
+          }}>
+            Ventas — {template.ventas.length} códigos
+          </div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '90px 1fr 56px 100px',
+            gap: 6, fontSize: 10, padding: '4px 10px',
+            color: '#9aa1ab', fontWeight: 600,
+            borderBottom: '1px solid rgba(10,10,10,0.05)',
+          }}>
+            <span>Código</span><span>Nombre</span><span>Tasa</span><span>Casilla SAT</span>
+          </div>
+          {template.ventas.map(item => <CodeRow key={item.code} item={item} />)}
+        </div>
+
+        {/* Compras */}
+        <div>
+          <div style={{
+            padding: '8px 10px', background: '#fff7ed',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+            textTransform: 'uppercase', color: '#f59e0b',
+            borderBottom: '1px solid rgba(245,158,11,0.15)',
+          }}>
+            Compras — {template.compras.length} códigos
+          </div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '90px 1fr 56px 100px',
+            gap: 6, fontSize: 10, padding: '4px 10px',
+            color: '#9aa1ab', fontWeight: 600,
+            borderBottom: '1px solid rgba(10,10,10,0.05)',
+          }}>
+            <span>Código</span><span>Nombre</span><span>Tasa</span><span>Casilla SAT</span>
+          </div>
+          {template.compras.map(item => <CodeRow key={item.code} item={item} />)}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        padding: '10px 20px', background: '#fafbfc',
+        borderTop: '1px solid rgba(10,10,10,0.06)',
+        fontSize: 11, color: '#9aa1ab',
+      }}>
+        Al cargar: se crean los códigos, se vinculan las cuentas contables (IVA por Pagar 2210 / Crédito Fiscal 1150) y se configura el Libro SAT según el régimen.
+        Los códigos que ya existen se omiten automáticamente.
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ───────────────────────────────────────────────────────
 
 export default function ImpuestosPage() {
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const defaultCountry = countryFromCompany(activeCompany)
-  const [countryCode, setCountryCode] = useState(defaultCountry)
-  const [taxes,        setTaxes]        = useState<Tax[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [seeding,      setSeeding]      = useState(false)
-  const [modal,        setModal]        = useState<{ open: boolean; tax: Tax | null }>({ open: false, tax: null })
-  const [pageAccounts, setPageAccounts] = useState<Account[]>([])
+  const [countryCode,    setCountryCode]    = useState(defaultCountry)
+  const [taxes,          setTaxes]          = useState<Tax[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [seeding,        setSeeding]        = useState(false)
+  const [modal,          setModal]          = useState<{ open: boolean; tax: Tax | null }>({ open: false, tax: null })
+  const [pageAccounts,   setPageAccounts]   = useState<Account[]>([])
+  const [activeTemplate, setActiveTemplate] = useState<TaxRegimeTemplate>(GT_TEMPLATES[0])
 
   const fetchTaxes = useCallback(async () => {
     setLoading(true)
@@ -769,15 +896,66 @@ export default function ImpuestosPage() {
 
   useEffect(() => { setCountryCode(defaultCountry) }, [defaultCountry])
 
-  const handleSeed = async () => {
+  // Detectar régimen fiscal guardado en el onboarding
+  useEffect(() => {
+    getOrganizationProfile().then((profile: any) => {
+      const code = profile?.settings?.fiscalRegimeCode
+      setActiveTemplate(detectTemplate(code))
+    }).catch(() => {})
+  }, [])
+
+  // Carga inteligente de plantilla por régimen: crea códigos + vincula cuentas + configura Libro SAT
+  const handleLoadTemplate = async (template: TaxRegimeTemplate) => {
     setSeeding(true)
     try {
-      const r = await seedCountryTaxes(countryCode)
-      const meta = COUNTRY_TAX_LABELS[countryCode] ?? COUNTRY_TAX_LABELS.GT
-      message.success(`${meta.country}: ${r.created} impuestos creados, ${r.skipped} ya existian`)
+      const allItems = [...template.ventas, ...template.compras]
+      let created = 0
+
+      // Resolver cuentas por código exacto en el catálogo
+      const resolveAccount = (code?: string): string | undefined => {
+        if (!code) return undefined
+        return pageAccounts.find(a => a.code === code)?.id
+      }
+
+      for (const item of allItems) {
+        if (taxes.find(t => t.code === item.code)) continue  // ya existe
+
+        const dto: any = {
+          code:           item.code,
+          name:           item.name,
+          description:    item.description,
+          category:       item.category,
+          subtype:        item.subtype,
+          applicability:  item.applicability,
+          rate:           item.rate,
+          isInclusive:    item.isInclusive,
+          isWithholding:  item.isWithholding,
+          isDefault:      item.isDefault ?? false,
+          isActive:       true,
+          libroVentasCol:  item.libroVentasCol,
+          libroComprasCol: item.libroComprasCol,
+        }
+
+        // Vinculación automática de cuentas contables
+        if (item.salesAccountCode)    dto.salesAccountId    = resolveAccount(item.salesAccountCode)
+        if (item.purchaseAccountCode) dto.purchaseAccountId = resolveAccount(item.purchaseAccountCode)
+
+        await createTax(dto)
+        created++
+      }
+
+      // Auto-configurar columnas del Libro SAT para este régimen
+      await saveLibroSATConfig(template.libroConfig)
+
+      const skipped = allItems.length - created
+      message.success(
+        `${template.regimeName}: ${created} códigos creados` +
+        (skipped > 0 ? `, ${skipped} ya existían` : '') +
+        '. Libro SAT configurado.'
+      )
       fetchTaxes()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al inicializar catalogo fiscal')
+      message.error(e?.response?.data?.message || 'Error al cargar plantilla')
     } finally {
       setSeeding(false)
     }
@@ -938,24 +1116,21 @@ export default function ImpuestosPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Impuestos</Title>
-          <Text type="secondary">
-            Configura impuestos por pais para la empresa activa y vincula cada impuesto al libro fiscal
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Plantilla IVA por régimen · Vinculación a cuentas contables · Columnas Libro SAT
           </Text>
         </div>
         <Space>
-          <Select
-            value={countryCode}
-            onChange={setCountryCode}
-            style={{ width: 180 }}
-            options={Object.entries(COUNTRY_TAX_LABELS).map(([value, meta]) => ({ value, label: `${value} - ${meta.country}` }))}
-          />
+          <Tag style={{ margin: 0, fontSize: 12, padding: '4px 10px' }}>
+            {activeTemplate.regimeName}
+          </Tag>
           <Button
             icon={<ThunderboltOutlined />}
             loading={seeding}
-            onClick={handleSeed}
+            onClick={() => handleLoadTemplate(activeTemplate)}
             style={{ borderColor: '#1faec2', color: '#1faec2' }}
           >
-            Cargar plantilla fiscal
+            {hasTaxes ? 'Recargar plantilla' : 'Cargar plantilla fiscal'}
           </Button>
           <Button
             type="primary"
@@ -968,27 +1143,12 @@ export default function ImpuestosPage() {
         </Space>
       </div>
 
-      {/* Banner cuando no hay impuestos */}
+      {/* Panel de plantilla cuando no hay impuestos */}
       {!loading && !hasTaxes && (
-        <Alert
-          message="Sin impuestos configurados"
-          description={
-            <div>
-              Selecciona el pais fiscal y carga la plantilla base de impuestos para la empresa activa.
-              <br />
-              <Button
-                type="link" style={{ padding: 0, marginTop: 4 }}
-                icon={<ThunderboltOutlined />}
-                loading={seeding}
-                onClick={handleSeed}
-              >
-                Cargar plantilla ahora
-              </Button>
-            </div>
-          }
-          type="info"
-          showIcon
-          style={{ marginBottom: 20 }}
+        <TemplatePanel
+          template={activeTemplate}
+          onLoad={() => handleLoadTemplate(activeTemplate)}
+          loading={seeding}
         />
       )}
 
