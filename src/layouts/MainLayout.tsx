@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
   BankOutlined, BarChartOutlined, SettingOutlined,
@@ -22,14 +22,14 @@ import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
 
-// "C-GT-001" + createdAt → "GT20250001"
+// Genera "GT20260001" — usa countryCode del store + año + dígitos finales de companyNumber
 function formatOrgId(company: Company): string {
-  const parts = (company.companyNumber ?? '').split('-')
-  const country = parts[1] ?? company.countryCode ?? 'ORG'
-  const seq     = (parts[2] ?? '1').padStart(4, '0')
-  const year    = company.createdAt
+  const country  = (company.countryCode ?? 'ORG').toUpperCase()
+  const year     = company.createdAt
     ? new Date(company.createdAt).getFullYear()
     : new Date().getFullYear()
+  const numMatch = (company.companyNumber ?? '').match(/(\d+)$/)
+  const seq      = numMatch ? numMatch[1].padStart(4, '0') : '0001'
   return `${country}${year}${seq}`
 }
 
@@ -325,22 +325,14 @@ export default function MainLayout() {
             <CompanySelector placement="header" />
             <OnboardingProgressBadge />
             {activeCompany && (
-              <Tooltip title="ID de organización — compártelo con soporte o proveedores">
-                <div
-                  style={{
-                    background: '#f0f9ff', border: '1px solid #bae0ed',
-                    borderRadius: 6, padding: '3px 10px',
-                    fontFamily: 'monospace', fontWeight: 700,
-                    fontSize: 12, color: '#1faec2', cursor: 'default',
-                    letterSpacing: 0.5,
-                  }}
-                  onClick={() => {
-                    const code = formatOrgId(activeCompany)
-                    navigator.clipboard.writeText(code)
-                  }}
+              <Tooltip title="ID de organización — clic para copiar">
+                <Tag
+                  color="cyan"
+                  style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 11, cursor: 'pointer', margin: 0 }}
+                  onClick={() => { navigator.clipboard.writeText(formatOrgId(activeCompany)) }}
                 >
                   {formatOrgId(activeCompany)}
-                </div>
+                </Tag>
               </Tooltip>
             )}
           </Space>
