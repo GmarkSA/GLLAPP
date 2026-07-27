@@ -60,8 +60,9 @@ export default function EmpresaFormPage() {
   const [savingSat, setSavingSat]       = useState(false)
   const [testingSat, setTestingSat]     = useState(false)
 
-  // Mostrar bloque SAT solo si ya tiene credenciales guardadas (integración opcional)
-  const showSatBlock = !!(satConfig.entityId && satConfig.apiKey)
+  const [showSatForm, setShowSatForm] = useState(false)
+  // Mostrar bloque SAT si ya tiene credenciales o el usuario lo abrió manualmente
+  const showSatBlock = !!(satConfig.entityId && satConfig.apiKey) || showSatForm
   const [satTestResult, setSatTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   // Template Engine state (solo en modo crear)
@@ -503,7 +504,7 @@ export default function EmpresaFormPage() {
                     type="link"
                     icon={<ApiOutlined />}
                     style={{ color: '#9aa1ab', padding: 0, fontSize: 12 }}
-                    onClick={() => setSatConfig(p => ({ ...p, entityId: ' ' }))}
+                    onClick={() => setShowSatForm(true)}
                   >
                     Configurar lookup automático de NIT/CUI (opcional)
                   </Button>
