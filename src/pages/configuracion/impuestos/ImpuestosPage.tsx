@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Table, Button, Tag, Modal, Form, Input, Select, Switch,
   InputNumber, Space, Tooltip, Popconfirm, Typography,
-  Card, Row, Col, Divider, Alert, Spin, Badge, message, AutoComplete,
+  Card, Row, Col, Divider, Alert, Spin, Badge, message, AutoComplete, Tabs,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -18,7 +18,7 @@ import {
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getLibroSATConfig, saveLibroSATConfig, DEFAULT_CONFIG, type LibroSATConfig } from '../../../api/libros-sat'
 import { getOrganizationProfile } from '../../../api/configuracion'
-import { GT_TEMPLATES, detectTemplate, type TaxRegimeTemplate } from '../../../data/guatemalaTaxTemplates'
+import { GT_TEMPLATES, detectTemplate, type TaxRegimeTemplate, type TaxTemplateItem } from '../../../data/guatemalaTaxTemplates'
 import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title, Text } = Typography
@@ -454,7 +454,9 @@ function TaxModal({
     try {
       const dto = {
         ...values,
-        tiers:       subtype === 'progressive' ? tiers : null,
+        // 'pequeno_contribuyente' no existe en el enum PostgreSQL del backend → mapear a 'simple'
+        subtype:       values.subtype === 'pequeno_contribuyente' ? 'simple' : values.subtype,
+        tiers:         subtype === 'progressive' ? tiers : null,
         isWithholding: ['isr', 'iva_retenida'].includes(values.category),
       }
       if (tax?.id) {
@@ -593,7 +595,7 @@ function TaxModal({
                 <Option value="exempt">✅ Exento — 0%, operaciones no gravadas</Option>
                 <Option value="pequeno_contribuyente">🟣 Pequeño Contribuyente — 0%, columna específica libro de compras</Option>
                 <Option value="progressive">📈 Progresivo por tramos — tasa diferente por rangos (ISR)</Option>
-                <Option value="retention_tax">🔗 Retención sobre impuesto — % de otro impuesto (IVA Retenida)</Option>
+                <Option value="retention_tax">🔗 Retención de IVA — % del IVA incluido en la factura (RIVA)</Option>
               </Select>
             </Form.Item>
 
@@ -874,6 +876,9 @@ export default function ImpuestosPage() {
   const [pageAccounts,   setPageAccounts]   = useState<Account[]>([])
   const [activeTemplate, setActiveTemplate] = useState<TaxRegimeTemplate>(GT_TEMPLATES[0])
   const [hasHistoryIds,  setHasHistoryIds]  = useState<Set<string>>(new Set())
+  const [activeTab,      setActiveTab]      = useState<string>('iva')
+  const [seedingIsr,     setSeedingIsr]     = useState(false)
+  const [seedingRiva,    setSeedingRiva]    = useState(false)
 
   // Busca las cuentas IVA por nombre — funciona con cualquier plan de cuentas
   const ivaVentasAccount  = pageAccounts.find(a => {
@@ -969,6 +974,63 @@ export default function ImpuestosPage() {
     } finally {
       setSeeding(false)
     }
+  }
+
+  // Helper: convierte un TaxTemplateItem en un DTO mínimo sin cuentas
+  const itemToBaseDto = (item: TaxTemplateItem) => ({
+    code:           item.code,
+    name:           item.name,
+    description:    item.description,
+    category:       item.category,
+    subtype:        item.subtype,
+    applicability:  item.applicability,
+    rate:           item.rate,
+    isInclusive:    item.isInclusive,
+    isWithholding:  item.isWithholding,
+    isDefault:      item.isDefault ?? false,
+    isActive:       true,
+    libroVentasCol:  item.libroVentasCol,
+    libroComprasCol: item.libroComprasCol,
+  })
+
+  const handleLoadISR = async () => {
+    const items = activeTemplate.isr
+    if (!items?.length) { message.info('La plantilla del régimen actual no incluye códigos ISR'); return }
+    setSeedingIsr(true)
+    let created = 0
+    try {
+      for (const item of items) {
+        if (taxes.find(t => t.code === item.code)) continue
+        try { await createTax(itemToBaseDto(item) as any); created++ }
+        catch (e: any) { console.warn(`[ISR template] falló ${item.code}:`, e?.response?.data?.message) }
+      }
+      message.success(
+        created > 0
+          ? `${created} código(s) ISR creados` + (items.length - created > 0 ? ` (${items.length - created} ya existían)` : '')
+          : 'Todos los códigos ISR ya estaban creados'
+      )
+      fetchTaxes()
+    } finally { setSeedingIsr(false) }
+  }
+
+  const handleLoadRIVA = async () => {
+    const items = activeTemplate.riva
+    if (!items?.length) { message.info('La plantilla del régimen actual no incluye códigos de Retención de IVA'); return }
+    setSeedingRiva(true)
+    let created = 0
+    try {
+      for (const item of items) {
+        if (taxes.find(t => t.code === item.code)) continue
+        try { await createTax(itemToBaseDto(item) as any); created++ }
+        catch (e: any) { console.warn(`[RIVA template] falló ${item.code}:`, e?.response?.data?.message) }
+      }
+      message.success(
+        created > 0
+          ? `${created} código(s) de Retención IVA creados` + (items.length - created > 0 ? ` (${items.length - created} ya existían)` : '')
+          : 'Todos los códigos RIVA ya estaban creados'
+      )
+      fetchTaxes()
+    } finally { setSeedingRiva(false) }
   }
 
   const handleBlock = async (id: string) => {
@@ -1188,9 +1250,13 @@ export default function ImpuestosPage() {
   ]
 
   const hasTaxes     = taxes.length > 0
-  const taxesVentas  = taxes.filter(t => t.applicability === 'sales')
-  const taxesCompras = taxes.filter(t => t.applicability === 'purchases')
-  const taxesBoth    = taxes.filter(t => !t.applicability || t.applicability === 'both')
+  // IVA tab — excluye ISR y RIVA (con retención)
+  const taxesVentas  = taxes.filter(t => t.applicability === 'sales'     && t.category !== 'isr' && !t.isWithholding)
+  const taxesCompras = taxes.filter(t => t.applicability === 'purchases' && t.category !== 'isr' && !t.isWithholding)
+  const taxesBoth    = taxes.filter(t => (!t.applicability || t.applicability === 'both') && t.category !== 'isr' && !t.isWithholding)
+  // Tabs separadas
+  const taxesISR   = taxes.filter(t => t.category === 'isr')
+  const taxesRIVA  = taxes.filter(t => t.isWithholding && t.category === 'iva')
   // Columnas compactas para bloques lado a lado
   const columnsCompact = columns
     .filter(c => {
@@ -1240,28 +1306,178 @@ export default function ImpuestosPage() {
       }
     })
 
+  // ── Contenido tab IVA ────────────────────────────────────────────────────
+  const ivaTabContent = (
+    <>
+      {!loading && !hasTaxes && (
+        <TemplatePanel
+          template={activeTemplate}
+          onLoad={() => handleLoadTemplate(activeTemplate)}
+          loading={seeding}
+        />
+      )}
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: taxesBoth.length > 0 ? 16 : 0 }}>
+        <Card
+          bordered={false}
+          style={{ flex: 1, minWidth: 0, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: 0 }}
+          title={<Space><Tag color="green" style={{ margin: 0 }}>Ventas</Tag><Text style={{ fontSize: 13, color: '#374151' }}>Emisión de facturas</Text></Space>}
+          extra={
+            <Space size={8}>
+              {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
+              {hasTaxes && (
+                <Tooltip title={ivaVentasAccount ? `Vincula ${ivaVentasAccount.code} — ${ivaVentasAccount.name} a los códigos sin cuenta` : 'No se encontró cuenta IVA por Pagar en el catálogo'}>
+                  <Button size="small" type="link" icon={<LinkOutlined />} style={{ padding: '0 4px', fontSize: 12 }} disabled={!ivaVentasAccount} onClick={() => handleAutoFillAccounts('sales')}>
+                    Cargar cuenta IVA
+                  </Button>
+                </Tooltip>
+              )}
+            </Space>
+          }
+        >
+          <Table columns={columnsCompact} dataSource={taxesVentas} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} locale={{ emptyText: 'Sin códigos de ventas' }} />
+        </Card>
+
+        <Card
+          bordered={false}
+          style={{ flex: 1, minWidth: 0, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: 0 }}
+          title={<Space><Tag color="blue" style={{ margin: 0 }}>Compras</Tag><Text style={{ fontSize: 13, color: '#374151' }}>Facturas de proveedores</Text></Space>}
+          extra={
+            <Space size={8}>
+              {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
+              {hasTaxes && (
+                <Tooltip title={ivaComprasAccount ? `Vincula ${ivaComprasAccount.code} — ${ivaComprasAccount.name} a los códigos sin cuenta` : 'No se encontró cuenta Crédito Fiscal IVA en el catálogo'}>
+                  <Button size="small" type="link" icon={<LinkOutlined />} style={{ padding: '0 4px', fontSize: 12 }} disabled={!ivaComprasAccount} onClick={() => handleAutoFillAccounts('purchases')}>
+                    Cargar cuenta IVA
+                  </Button>
+                </Tooltip>
+              )}
+            </Space>
+          }
+        >
+          <Table columns={columnsCompact} dataSource={taxesCompras} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} locale={{ emptyText: 'Sin códigos de compras' }} />
+        </Card>
+      </div>
+
+      {taxesBoth.length > 0 && (
+        <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}
+          title={<Space><Tag style={{ margin: 0 }}>General</Tag><Text style={{ fontSize: 13, color: '#374151' }}>Aplica en ventas y compras</Text></Space>}
+          extra={<Text type="secondary" style={{ fontSize: 11 }}>{taxesBoth.length} códigos</Text>}
+        >
+          <Table columns={columns} dataSource={taxesBoth} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} />
+        </Card>
+      )}
+    </>
+  )
+
+  // ── Contenido tab ISR en la Fuente ───────────────────────────────────────
+  const isrTabContent = (
+    <Card
+      bordered={false}
+      style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+      bodyStyle={{ padding: 0 }}
+      title={<Space><Tag color="orange" style={{ margin: 0 }}>ISR en la Fuente</Tag><Text style={{ fontSize: 13, color: '#374151' }}>Retenciones sobre pagos a proveedores y terceros</Text></Space>}
+      extra={
+        <Space size={8}>
+          <Text type="secondary" style={{ fontSize: 11 }}>{taxesISR.length} códigos</Text>
+          {activeTemplate.isr?.length && (
+            <Button size="small" icon={<ThunderboltOutlined />} loading={seedingIsr} onClick={handleLoadISR} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>
+              Cargar plantilla ISR ({activeTemplate.isr.length} códigos)
+            </Button>
+          )}
+        </Space>
+      }
+    >
+      {taxesISR.length === 0 && !loading && (
+        <div style={{ padding: '24px 20px', background: '#fffbf0', borderBottom: '1px solid rgba(245,158,11,0.15)' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <InfoCircleOutlined style={{ color: '#f59e0b', fontSize: 18, marginTop: 2 }} />
+            <div>
+              <Text strong style={{ color: '#92400e' }}>Sin códigos ISR — carga la plantilla para empezar</Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                La plantilla incluye ISR-01/02 (honorarios), ISR-EXT-01..05 (no residentes), ISR-FE-01/02 (factura especial) e ISR-CAP-01/02 (dividendos y capital).
+                Luego el usuario asigna la cuenta contable desde Editar.
+              </Text>
+            </div>
+          </div>
+        </div>
+      )}
+      <Table
+        columns={columnsCompact}
+        dataSource={taxesISR}
+        rowKey="id"
+        loading={loading}
+        pagination={false}
+        size="small"
+        scroll={{ x: 'max-content' }}
+        rowClassName={(r) => r.isSystem ? 'system-row' : ''}
+        locale={{ emptyText: ' ' }}
+      />
+    </Card>
+  )
+
+  // ── Contenido tab Retenciones de IVA ─────────────────────────────────────
+  const rivaTabContent = (
+    <Card
+      bordered={false}
+      style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+      bodyStyle={{ padding: 0 }}
+      title={<Space><Tag color="volcano" style={{ margin: 0 }}>Retenciones IVA</Tag><Text style={{ fontSize: 13, color: '#374151' }}>Agentes retenedores de IVA — Decreto 20-2006 / SAT-2340</Text></Space>}
+      extra={
+        <Space size={8}>
+          <Text type="secondary" style={{ fontSize: 11 }}>{taxesRIVA.length} códigos</Text>
+          {activeTemplate.riva?.length && (
+            <Button size="small" icon={<ThunderboltOutlined />} loading={seedingRiva} onClick={handleLoadRIVA} style={{ borderColor: '#e84817', color: '#e84817' }}>
+              Cargar plantilla RIVA ({activeTemplate.riva.length} códigos)
+            </Button>
+          )}
+        </Space>
+      }
+    >
+      {taxesRIVA.length === 0 && !loading && (
+        <div style={{ padding: '24px 20px', background: '#fff5f0', borderBottom: '1px solid rgba(232,72,23,0.15)' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <InfoCircleOutlined style={{ color: '#e84817', fontSize: 18, marginTop: 2 }} />
+            <div>
+              <Text strong style={{ color: '#7f1d1d' }}>Sin códigos RIVA — carga la plantilla para empezar</Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Incluye RIVA-01..05 (agropecuario, exportador, maquila, PC) e IVA-FE-01 (factura especial).
+                IMPORTANTE: la retención de IVA SOLO la practican agentes designados por SAT — ser Contribuyente Especial no convierte automáticamente en agente retenedor.
+                Luego asigna la cuenta desde Editar.
+              </Text>
+            </div>
+          </div>
+        </div>
+      )}
+      <Table
+        columns={columnsCompact}
+        dataSource={taxesRIVA}
+        rowKey="id"
+        loading={loading}
+        pagination={false}
+        size="small"
+        scroll={{ x: 'max-content' }}
+        rowClassName={(r) => r.isSystem ? 'system-row' : ''}
+        locale={{ emptyText: ' ' }}
+      />
+    </Card>
+  )
+
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
         <div>
           <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Impuestos</Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Plantilla IVA por régimen · Vinculación a cuentas contables · Columnas Libro SAT
+            Plantilla por régimen · IVA · ISR en la fuente · Retenciones de IVA · Vinculación contable
           </Text>
         </div>
         <Space>
-          <Tag style={{ margin: 0, fontSize: 12, padding: '4px 10px' }}>
-            {activeTemplate.regimeName}
-          </Tag>
-          <Button
-            icon={<ThunderboltOutlined />}
-            loading={seeding}
-            onClick={() => handleLoadTemplate(activeTemplate)}
-            style={{ borderColor: '#1faec2', color: '#1faec2' }}
-          >
-            {hasTaxes ? 'Recargar plantilla' : 'Cargar plantilla fiscal'}
-          </Button>
+          <Tag style={{ margin: 0, fontSize: 12, padding: '4px 10px' }}>{activeTemplate.regimeName}</Tag>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -1273,135 +1489,57 @@ export default function ImpuestosPage() {
         </Space>
       </div>
 
-      {/* Panel de plantilla cuando no hay impuestos */}
-      {!loading && !hasTaxes && (
-        <TemplatePanel
-          template={activeTemplate}
-          onLoad={() => handleLoadTemplate(activeTemplate)}
-          loading={seeding}
-        />
-      )}
-
-      {/* Bloques Ventas + Compras en horizontal */}
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: taxesBoth.length > 0 ? 16 : 0 }}>
-
-        {/* Bloque Ventas */}
-        <Card
-          bordered={false}
-          style={{ flex: 1, minWidth: 0, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-          bodyStyle={{ padding: 0 }}
-          title={
-            <Space>
-              <Tag color="green" style={{ margin: 0 }}>Ventas</Tag>
-              <Text style={{ fontSize: 13, color: '#374151' }}>Emisión de facturas</Text>
-            </Space>
-          }
-          extra={
-            <Space size={8}>
-              {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
-              {hasTaxes && (
-                <Tooltip title={ivaVentasAccount
-                  ? `Vincula ${ivaVentasAccount.code} — ${ivaVentasAccount.name} a los códigos sin cuenta`
-                  : 'No se encontró cuenta IVA por Pagar en el catálogo'
-                }>
-                  <Button
-                    size="small" type="link" icon={<LinkOutlined />}
-                    style={{ padding: '0 4px', fontSize: 12 }}
-                    disabled={!ivaVentasAccount}
-                    onClick={() => handleAutoFillAccounts('sales')}
-                  >
-                    Cargar cuenta IVA
-                  </Button>
-                </Tooltip>
-              )}
-            </Space>
-          }
-        >
-          <Table
-            columns={columnsCompact}
-            dataSource={taxesVentas}
-            rowKey="id"
-            loading={loading}
-            pagination={false}
-            size="small"
-            scroll={{ x: 'max-content' }}
-            rowClassName={(r) => r.isSystem ? 'system-row' : ''}
-            locale={{ emptyText: 'Sin códigos de ventas' }}
-          />
-        </Card>
-
-        {/* Bloque Compras */}
-        <Card
-          bordered={false}
-          style={{ flex: 1, minWidth: 0, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-          bodyStyle={{ padding: 0 }}
-          title={
-            <Space>
-              <Tag color="blue" style={{ margin: 0 }}>Compras</Tag>
-              <Text style={{ fontSize: 13, color: '#374151' }}>Facturas de proveedores</Text>
-            </Space>
-          }
-          extra={
-            <Space size={8}>
-              {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
-              {hasTaxes && (
-                <Tooltip title={ivaComprasAccount
-                  ? `Vincula ${ivaComprasAccount.code} — ${ivaComprasAccount.name} a los códigos sin cuenta`
-                  : 'No se encontró cuenta Crédito Fiscal IVA en el catálogo'
-                }>
-                  <Button
-                    size="small" type="link" icon={<LinkOutlined />}
-                    style={{ padding: '0 4px', fontSize: 12 }}
-                    disabled={!ivaComprasAccount}
-                    onClick={() => handleAutoFillAccounts('purchases')}
-                  >
-                    Cargar cuenta IVA
-                  </Button>
-                </Tooltip>
-              )}
-            </Space>
-          }
-        >
-          <Table
-            columns={columnsCompact}
-            dataSource={taxesCompras}
-            rowKey="id"
-            loading={loading}
-            pagination={false}
-            size="small"
-            scroll={{ x: 'max-content' }}
-            rowClassName={(r) => r.isSystem ? 'system-row' : ''}
-            locale={{ emptyText: 'Sin códigos de compras' }}
-          />
-        </Card>
-      </div>
-
-      {/* Bloque General — solo si hay impuestos con applicability = both (ej. creados manualmente) */}
-      {taxesBoth.length > 0 && (
-        <Card
-          bordered={false}
-          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-          bodyStyle={{ padding: 0 }}
-          title={
-            <Space>
-              <Tag style={{ margin: 0 }}>General</Tag>
-              <Text style={{ fontSize: 13, color: '#374151' }}>Aplica en ventas y compras</Text>
-            </Space>
-          }
-          extra={<Text type="secondary" style={{ fontSize: 11 }}>{taxesBoth.length} códigos</Text>}
-        >
-          <Table
-            columns={columns}
-            dataSource={taxesBoth}
-            rowKey="id"
-            loading={loading}
-            pagination={false}
-            size="small"
-            scroll={{ x: 'max-content' }}
-            rowClassName={(r) => r.isSystem ? 'system-row' : ''}
-          />
-        </Card>
-      )}
+      {/* Tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        size="small"
+        style={{ marginBottom: 0 }}
+        items={[
+          {
+            key: 'iva',
+            label: (
+              <span>
+                IVA
+                {taxes.filter(t => t.category !== 'isr' && !t.isWithholding).length > 0 && (
+                  <Tag style={{ marginLeft: 6, fontSize: 10, padding: '0 5px' }}>
+                    {taxes.filter(t => t.category !== 'isr' && !t.isWithholding).length}
+                  </Tag>
+                )}
+              </span>
+            ),
+            children: ivaTabContent,
+          },
+          {
+            key: 'isr',
+            label: (
+              <span>
+                ISR en la Fuente
+                {taxesISR.length > 0 && (
+                  <Tag color="orange" style={{ marginLeft: 6, fontSize: 10, padding: '0 5px' }}>
+                    {taxesISR.length}
+                  </Tag>
+                )}
+              </span>
+            ),
+            children: isrTabContent,
+          },
+          {
+            key: 'riva',
+            label: (
+              <span>
+                Retenciones de IVA
+                {taxesRIVA.length > 0 && (
+                  <Tag color="volcano" style={{ marginLeft: 6, fontSize: 10, padding: '0 5px' }}>
+                    {taxesRIVA.length}
+                  </Tag>
+                )}
+              </span>
+            ),
+            children: rivaTabContent,
+          },
+        ]}
+      />
 
       {/* Modal */}
       <TaxModal
