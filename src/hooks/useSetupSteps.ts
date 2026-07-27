@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useCompanyStore } from '../store/companyStore'
-import { companiesApi } from '../api/companies'
 import { getAccounts } from '../api/catalogo'
 import { getTaxes } from '../api/impuestos'
 import { tenantsApi } from '../api/tenants'
@@ -32,7 +31,6 @@ export function useSetupSteps() {
     setLoading(true)
 
     Promise.all([
-      companiesApi.getOne(activeCompany.id).catch(() => null),
       getAccounts({ limit: 1 }).catch(() => []),
       tenantsApi.getProfile().catch(() => null),
       getTaxes().catch(() => []),
@@ -40,10 +38,10 @@ export function useSetupSteps() {
       getCustomers({ limit: 1 }).catch(() => []),
       getVendors({ limit: 1 }).catch(() => []),
       getBankAccounts({ status: 'active' }).catch(() => []),
-    ]).then(([company, accounts, profile, taxes, clases, customers, vendors, banks]) => {
-      const co = company as any
-
-      const perfilOk      = !!(co?.legalName && co?.taxId && co?.fiscalRegimeId)
+    ]).then(([accounts, profile, taxes, clases, customers, vendors, banks]) => {
+      // Datos de empresa tomados del store — sin llamada extra al backend
+      const co            = activeCompany as any
+      const perfilOk      = !!(co.legalName && co.taxId && co.fiscalRegimeId)
       const catalogoOk    = countOf(accounts) > 0
       const defaultsOk    = !!(profile?.settings?.accountDefaults &&
                               Object.values(profile.settings.accountDefaults).some(Boolean))
