@@ -942,17 +942,22 @@ export default function ImpuestosPage() {
         if (item.salesAccountCode)    dto.salesAccountId    = resolveAccount(item.salesAccountCode)
         if (item.purchaseAccountCode) dto.purchaseAccountId = resolveAccount(item.purchaseAccountCode)
 
-        await createTax(dto)
-        created++
+        try {
+          await createTax(dto)
+          created++
+        } catch (itemErr: any) {
+          const msg = itemErr?.response?.data?.message || itemErr?.message
+          console.warn(`[template] falló ${item.code}: ${msg}`)
+        }
       }
 
       // Auto-configurar columnas del Libro SAT para este régimen
       await saveLibroSATConfig(template.libroConfig)
 
-      const skipped = allItems.length - created
+      const existing = allItems.length - created
       message.success(
         `${template.regimeName}: ${created} códigos creados` +
-        (skipped > 0 ? `, ${skipped} ya existían` : '') +
+        (existing > 0 ? `, ${existing} ya existían` : '') +
         '. Libro SAT configurado.'
       )
       fetchTaxes()
