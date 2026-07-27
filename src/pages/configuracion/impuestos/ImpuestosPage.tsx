@@ -8,7 +8,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   ThunderboltOutlined, InfoCircleOutlined,
   CalculatorOutlined, CheckCircleOutlined,
-  FileTextOutlined, StopOutlined,
+  FileTextOutlined, StopOutlined, LinkOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -991,6 +991,37 @@ export default function ImpuestosPage() {
     }
   }
 
+  // Vincula automáticamente la cuenta IVA a todos los impuestos del bloque que aún no la tienen
+  const handleAutoFillAccounts = async (
+    applicability: 'sales' | 'purchases',
+    accountCode: string,
+  ) => {
+    const account = pageAccounts.find(a => a.code === accountCode)
+    if (!account) {
+      message.warning(`Cuenta ${accountCode} no encontrada en el catálogo de cuentas`)
+      return
+    }
+    const taxList = applicability === 'sales' ? taxesVentas : taxesCompras
+    const field   = applicability === 'sales' ? 'salesAccountId' : 'purchaseAccountId'
+    const pending = taxList.filter(t => !(t as any)[field])
+    if (pending.length === 0) {
+      message.info('Todos los impuestos de este bloque ya tienen cuenta vinculada')
+      return
+    }
+    setSeeding(true)
+    try {
+      for (const tax of pending) {
+        await updateTax(tax.id, { [field]: account.id } as any)
+      }
+      message.success(`${pending.length} código(s) vinculados a ${account.code} — ${account.name}`)
+      fetchTaxes()
+    } catch {
+      message.error('Error al vincular cuentas')
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   const columns: ColumnsType<Tax> = [
     {
       title: 'Código',
@@ -1264,7 +1295,22 @@ export default function ImpuestosPage() {
               <Text style={{ fontSize: 13, color: '#374151' }}>Emisión de facturas</Text>
             </Space>
           }
-          extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
+          extra={
+            <Space size={8}>
+              {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesVentas.length} códigos</Text>}
+              {hasTaxes && (
+                <Tooltip title="Vincula cuenta IVA por Pagar (2210) a todos los códigos de ventas sin cuenta asignada">
+                  <Button
+                    size="small" type="link" icon={<LinkOutlined />}
+                    style={{ padding: '0 4px', fontSize: 12 }}
+                    onClick={() => handleAutoFillAccounts('sales', '2210')}
+                  >
+                    Cuenta IVA
+                  </Button>
+                </Tooltip>
+              )}
+            </Space>
+          }
         >
           <Table
             columns={columnsCompact}
@@ -1290,7 +1336,22 @@ export default function ImpuestosPage() {
               <Text style={{ fontSize: 13, color: '#374151' }}>Facturas de proveedores</Text>
             </Space>
           }
-          extra={hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
+          extra={
+            <Space size={8}>
+              {hasTaxes && <Text type="secondary" style={{ fontSize: 11 }}>{taxesCompras.length} códigos</Text>}
+              {hasTaxes && (
+                <Tooltip title="Vincula Crédito Fiscal IVA (1150) a todos los códigos de compras sin cuenta asignada">
+                  <Button
+                    size="small" type="link" icon={<LinkOutlined />}
+                    style={{ padding: '0 4px', fontSize: 12 }}
+                    onClick={() => handleAutoFillAccounts('purchases', '1150')}
+                  >
+                    Cuenta IVA
+                  </Button>
+                </Tooltip>
+              )}
+            </Space>
+          }
         >
           <Table
             columns={columnsCompact}
