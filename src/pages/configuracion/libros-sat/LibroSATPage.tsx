@@ -78,7 +78,7 @@ function ColumnsEditor({
 
       {/* Cabecera de columnas */}
       <div style={{
-        display: 'grid', gridTemplateColumns: '44px 120px 1fr 56px 36px',
+        display: 'grid', gridTemplateColumns: '44px 150px 1fr 56px 36px',
         alignItems: 'center', gap: '0 8px',
         padding: '6px 16px', background: '#fafbfc', borderBottom: '1px solid rgba(10,10,10,0.08)',
       }}>
@@ -94,7 +94,7 @@ function ColumnsEditor({
         <div
           key={col.key}
           style={{
-            display: 'grid', gridTemplateColumns: '44px 120px 1fr 56px 36px',
+            display: 'grid', gridTemplateColumns: '44px 150px 1fr 56px 36px',
             alignItems: 'center', gap: '0 8px',
             padding: '9px 16px', borderBottom: '1px solid #f8f8f8',
             background: col.isActive ? '#fff' : '#fafbfc',
@@ -125,14 +125,19 @@ function ColumnsEditor({
           </Space>
 
           {/* Clave (readonly) + badge de impuestos vinculados */}
-          <Tooltip title={taxCounts[col.key] ? `${taxCounts[col.key]} impuesto(s) vinculado(s) a esta columna` : 'Sin impuestos vinculados aún'}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+          <Tooltip title={
+            taxCounts[col.key]
+              ? `${taxCounts[col.key]} impuesto(s) vinculado(s) a esta columna`
+              : 'Sin impuestos vinculados — revisa que algún impuesto tenga esta clave asignada'
+          }>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, maxWidth: 104, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                 {col.key}
               </Tag>
               <Badge
                 count={taxCounts[col.key] ?? 0}
-                style={{ backgroundColor: taxCounts[col.key] ? '#2ea172' : '#d9d9d9', fontSize: 10 }}
+                showZero
+                style={{ backgroundColor: taxCounts[col.key] ? '#2ea172' : '#d9d9d9', fontSize: 10, boxShadow: 'none' }}
                 size="small"
               />
             </span>
