@@ -273,23 +273,26 @@ function OrganizationSection({
                 <Form.Item name="taxId" label="NIT / RFC / RUC" style={{ marginBottom: 6 }}>
                   <Input placeholder="1234567-8" size="large" prefix={<FileTextOutlined style={{ color: '#bbb' }} />} />
                 </Form.Item>
-                {activeCompany?.id && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    background: '#f8fafc', border: '1px solid rgba(10,10,10,0.08)',
-                    borderRadius: 6, padding: '5px 10px', marginBottom: 8, fontSize: 11,
-                  }}>
-                    <span style={{ color: '#9aa1ab', whiteSpace: 'nowrap' }}>ID empresa:</span>
-                    <code style={{ fontFamily: 'monospace', fontSize: 10, color: '#374151', flex: 1, wordBreak: 'break-all' }}>
-                      {activeCompany.id}
-                    </code>
-                    <Button
-                      size="small" type="text" icon={<CopyOutlined />}
-                      onClick={() => { navigator.clipboard.writeText(activeCompany.id); message.success('ID copiado') }}
-                      style={{ flexShrink: 0, padding: '0 4px' }}
-                    />
-                  </div>
-                )}
+                {activeCompany?.id && (() => {
+                  const shortCode = String(parseInt(activeCompany.id.replace(/-/g, '').slice(0, 8), 16))
+                  return (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      background: '#f0f9ff', border: '1px solid #bae0ed',
+                      borderRadius: 6, padding: '6px 12px', marginBottom: 8,
+                    }}>
+                      <span style={{ color: '#6b7280', fontSize: 12, whiteSpace: 'nowrap' }}>ID organización:</span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14, color: '#1faec2', flex: 1 }}>
+                        {shortCode}
+                      </span>
+                      <Button
+                        size="small" type="text" icon={<CopyOutlined />}
+                        onClick={() => { navigator.clipboard.writeText(shortCode); message.success('ID copiado') }}
+                        style={{ color: '#1faec2', padding: '0 4px' }}
+                      />
+                    </div>
+                  )
+                })()}
               </Col>
               <Col xs={24} md={12}>
                 <Form.Item name="industry" label="Industria" style={{ marginBottom: 16 }}>
