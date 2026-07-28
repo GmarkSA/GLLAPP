@@ -9,7 +9,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   UserOutlined, ShopOutlined, ToolOutlined,
   AuditOutlined, ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined,
-  MinusCircleOutlined, DownOutlined, SyncOutlined, ExclamationCircleOutlined,
+  MinusCircleOutlined, DownOutlined, ExclamationCircleOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -756,49 +756,21 @@ export default function CatalogoPage() {
             {(() => {
               const complete = groups.length >= 68
               const btn = (
-                <Dropdown
-                  disabled={complete || seeding}
-                  menu={{
-                    items: [
-                      {
-                        key: 'complement',
-                        icon: <ReloadOutlined />,
-                        label: (
-                          <Tooltip title="Agrega las cuentas del template GLL que aún no existen. No toca las cuentas existentes.">
-                            {groups.length === 0 ? 'Inicializar catálogo GLL' : `Completar catálogo GLL (${groups.length}/68 grupos)`}
-                          </Tooltip>
-                        ),
-                        onClick: () => handleSeed('complement'),
-                      },
-                      {
-                        key: 'sync',
-                        icon: <SyncOutlined />,
-                        label: (
-                          <Tooltip title="Actualiza propiedades del sistema (tipo, balance, clasificación) en cuentas existentes, sin cambiar nombres ni saldos. Agrega las faltantes.">
-                            Sincronizar propiedades con template GLL
-                          </Tooltip>
-                        ),
-                        onClick: () => handleSeed('sync_properties'),
-                      },
-                    ],
-                  }}
-                  trigger={['click']}
+                <Button
+                  type="default"
+                  icon={complete ? <CheckCircleOutlined /> : <ReloadOutlined />}
+                  loading={seeding}
+                  disabled={complete}
+                  onClick={() => handleSeed('complement')}
+                  style={complete
+                    ? { borderColor: '#d9d9d9', color: '#9ca3af', cursor: 'not-allowed' }
+                    : { borderColor: '#1faec2', color: '#0a0a0a' }}
                 >
-                  <Button
-                    type="default"
-                    icon={complete ? <CheckCircleOutlined /> : <ReloadOutlined />}
-                    loading={seeding}
-                    disabled={complete}
-                    style={complete
-                      ? { borderColor: '#d9d9d9', color: '#9ca3af', cursor: 'not-allowed' }
-                      : { borderColor: '#1faec2', color: '#0a0a0a' }}
-                  >
-                    {complete ? `Catálogo GLL completo (${groups.length}/68)` : 'Catálogo GLL'} {!complete && <DownOutlined />}
-                  </Button>
-                </Dropdown>
+                  {complete ? `Catálogo GLL completo (${groups.length}/68)` : 'Catálogo GLL'}
+                </Button>
               )
               return complete ? (
-                <Tooltip title="El catálogo GLL ya está completo. Volver a cargarlo duplicaría cuentas existentes. Si necesitas sincronizar propiedades, habilita el botón borrando algún grupo primero.">
+                <Tooltip title="El catálogo GLL ya está completo.">
                   {btn}
                 </Tooltip>
               ) : btn
