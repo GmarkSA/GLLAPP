@@ -2,14 +2,16 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Layout, Typography, List, Tag, Button, Table, Space, Tooltip,
   Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm,
-  Divider, Badge,
+  Divider, Badge, Dropdown, Alert,
 } from 'antd'
 import type { InputRef } from 'antd'
+import type { TableRowSelection } from 'antd/es/table/interface'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   UserOutlined, ShopOutlined, ToolOutlined,
   AuditOutlined, ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined,
-  MinusCircleOutlined,
+  MinusCircleOutlined, DownOutlined, SyncOutlined, ExclamationCircleOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -323,6 +325,8 @@ export default function CatalogoPage() {
   const [seeding, setSeeding] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<Partial<Account> | null>(null)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const loadGroups = useCallback(async () => {
     setLoadingGroups(true)
@@ -352,15 +356,20 @@ export default function CatalogoPage() {
   useEffect(() => { loadGroups() }, [loadGroups])
   useEffect(() => { loadAccounts() }, [loadAccounts])
 
-  const handleSeed = async () => {
+  const handleSeed = async (mode: 'complement' | 'sync_properties' = 'complement') => {
     setSeeding(true)
     try {
-      const result = await seedGLL()
-      message.success(`Catálogo inicializado: ${result.created} grupos creados, ${result.skipped} ya existían`)
+      const result = await seedGLL(mode)
+      if (mode === 'sync_properties') {
+        message.success(`Sincronizado: ${result.created} cuentas nuevas, ${result.updated} propiedades actualizadas, ${result.skipped} sin cambios`)
+      } else {
+        message.success(`Catálogo completado: ${result.created} cuentas nuevas, ${result.skipped} ya existían`)
+      }
       loadGroups()
+      loadAccounts()
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message
-      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al inicializar catálogo'))
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al procesar catálogo'))
     } finally {
       setSeeding(false)
     }
@@ -394,6 +403,73 @@ export default function CatalogoPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al eliminar')
     }
+  }
+
+  const handleBulkDelete = () => {
+    const selected = accounts.filter(a => selectedRowKeys.includes(a.id))
+    const canDelete = selected.filter(a => (a.currentBalance ?? 0) === 0)
+    const blocked   = selected.filter(a => (a.currentBalance ?? 0) !== 0)
+
+    Modal.confirm({
+      title: `Eliminar ${selected.length} cuenta(s) seleccionada(s)`,
+      icon: <ExclamationCircleOutlined style={{ color: '#e5484d' }} />,
+      width: 520,
+      content: (
+        <div style={{ marginTop: 8 }}>
+          {canDelete.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, marginBottom: 4, color: '#2ea172', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CheckCircleOutlined /> {canDelete.length} cuenta(s) se eliminarán (saldo cero):
+              </div>
+              <div style={{ maxHeight: 120, overflowY: 'auto', paddingLeft: 20 }}>
+                {canDelete.map(a => (
+                  <div key={a.id} style={{ fontSize: 12, color: '#374151' }}>
+                    <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{a.code}</Tag> {a.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {blocked.length > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              message={`${blocked.length} cuenta(s) NO se eliminarán por tener saldo:`}
+              description={
+                <div style={{ maxHeight: 100, overflowY: 'auto', marginTop: 4 }}>
+                  {blocked.map(a => (
+                    <div key={a.id} style={{ fontSize: 12 }}>
+                      <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{a.code}</Tag>
+                      {a.name} — saldo: <strong>Q {Number(a.currentBalance).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                  ))}
+                </div>
+              }
+              style={{ marginTop: 4 }}
+            />
+          )}
+          {canDelete.length === 0 && (
+            <Alert type="error" showIcon message="Todas las cuentas seleccionadas tienen saldo y no pueden eliminarse." />
+          )}
+        </div>
+      ),
+      okText: canDelete.length > 0 ? `Eliminar ${canDelete.length} cuenta(s)` : 'Sin cuentas eliminables',
+      okButtonProps: { danger: true, disabled: canDelete.length === 0 },
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        setBulkDeleting(true)
+        const errors: string[] = []
+        let deleted = 0
+        for (const acc of canDelete) {
+          try { await deleteAccount(acc.id); deleted++ }
+          catch { errors.push(acc.code) }
+        }
+        setBulkDeleting(false)
+        setSelectedRowKeys([])
+        if (deleted > 0) { message.success(`${deleted} cuenta(s) eliminada(s)`); loadAccounts(); loadGroups() }
+        if (errors.length > 0) message.error(`Error eliminando: ${errors.join(', ')}`)
+      },
+    })
   }
 
   const openNew = () => {
@@ -640,17 +716,66 @@ export default function CatalogoPage() {
           </div>
 
           <Space>
-            {groups.length < 68 && (
+            {selectedRowKeys.length > 0 && (
               <Button
-                type="default"
-                icon={<ReloadOutlined />}
-                loading={seeding}
-                onClick={handleSeed}
-                style={{ borderColor: '#1faec2', color: '#0a0a0a' }}
+                danger
+                icon={<DeleteOutlined />}
+                loading={bulkDeleting}
+                onClick={handleBulkDelete}
               >
-                {groups.length === 0 ? 'Inicializar catálogo GLL' : `Completar catálogo GLL (${groups.length}/68)`}
+                Eliminar seleccionadas ({selectedRowKeys.length})
               </Button>
             )}
+            {(() => {
+              const complete = groups.length >= 68
+              const btn = (
+                <Dropdown
+                  disabled={complete || seeding}
+                  menu={{
+                    items: [
+                      {
+                        key: 'complement',
+                        icon: <ReloadOutlined />,
+                        label: (
+                          <Tooltip title="Agrega las cuentas del template GLL que aún no existen. No toca las cuentas existentes.">
+                            {groups.length === 0 ? 'Inicializar catálogo GLL' : `Completar catálogo GLL (${groups.length}/68 grupos)`}
+                          </Tooltip>
+                        ),
+                        onClick: () => handleSeed('complement'),
+                      },
+                      {
+                        key: 'sync',
+                        icon: <SyncOutlined />,
+                        label: (
+                          <Tooltip title="Actualiza propiedades del sistema (tipo, balance, clasificación) en cuentas existentes, sin cambiar nombres ni saldos. Agrega las faltantes.">
+                            Sincronizar propiedades con template GLL
+                          </Tooltip>
+                        ),
+                        onClick: () => handleSeed('sync_properties'),
+                      },
+                    ],
+                  }}
+                  trigger={['click']}
+                >
+                  <Button
+                    type="default"
+                    icon={complete ? <CheckCircleOutlined /> : <ReloadOutlined />}
+                    loading={seeding}
+                    disabled={complete}
+                    style={complete
+                      ? { borderColor: '#d9d9d9', color: '#9ca3af', cursor: 'not-allowed' }
+                      : { borderColor: '#1faec2', color: '#0a0a0a' }}
+                  >
+                    {complete ? `Catálogo GLL completo (${groups.length}/68)` : 'Catálogo GLL'} {!complete && <DownOutlined />}
+                  </Button>
+                </Dropdown>
+              )
+              return complete ? (
+                <Tooltip title="El catálogo GLL ya está completo. Volver a cargarlo duplicaría cuentas existentes. Si necesitas sincronizar propiedades, habilita el botón borrando algún grupo primero.">
+                  {btn}
+                </Tooltip>
+              ) : btn
+            })()}
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -668,6 +793,14 @@ export default function CatalogoPage() {
           loading={loadingAccounts}
           rowKey="id"
           size="small"
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (keys) => setSelectedRowKeys(keys),
+            getCheckboxProps: (record: Account) => ({
+              // Deshabilitado visualmente si tiene saldo — pero aún seleccionable
+              // para que el modal de confirmación explique el motivo
+            }),
+          } as TableRowSelection<Account>}
           pagination={{ pageSize: 50, showSizeChanger: true, showTotal: t => `${t} cuentas` }}
           scroll={{ x: 800 }}
           locale={{ emptyText: selectedGroupInfo ? `Sin cuentas en grupo ${selectedGroupInfo.groupCode}` : 'Sin cuentas registradas' }}
