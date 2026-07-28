@@ -12,6 +12,8 @@ interface CompanyStore {
   branches:        Branch[]
   // null = todos los módulos habilitados; array = solo esos módulos visibles
   enabledModules:  string[] | null
+  // true = ya tenemos valor confirmado (persisted o cargado desde backend)
+  settingsReady:   boolean
   isLoading:       boolean
   lastLoaded:      number | null
 
@@ -30,11 +32,14 @@ export const useCompanyStore = create<CompanyStore>()(
       companies:      [],
       branches:       [],
       enabledModules: null,
+      settingsReady:  false,
       isLoading:      false,
       lastLoaded:     null,
 
       isModuleEnabled: (module: string) => {
-        const { enabledModules } = get()
+        const { enabledModules, settingsReady } = get()
+        // Ocultar mientras no se confirme desde backend para evitar flash de todos los módulos
+        if (!settingsReady) return false
         if (!enabledModules || enabledModules.length === 0) return true
         return enabledModules.includes(module)
       },
@@ -50,11 +55,9 @@ export const useCompanyStore = create<CompanyStore>()(
           set({ companies, lastLoaded: now })
 
           // Validar que la empresa activa pertenece a este usuario.
-          // Si no está en la lista (sesión de otro usuario en esta pestaña),
-          // limpiarla para que se seleccione la correcta.
           const current = get().activeCompany
           if (current && !companies.find(c => c.id === current.id)) {
-            set({ activeCompany: null, activeBranch: null, branches: [] })
+            set({ activeCompany: null, activeBranch: null, branches: [], settingsReady: false })
             sessionStorage.removeItem('activeCompanyId')
             sessionStorage.removeItem('activeCompany')
           }
@@ -71,27 +74,26 @@ export const useCompanyStore = create<CompanyStore>()(
             }
             // Recargar settings para reflejar módulos configurados desde el último login
             const s = await companiesApi.getSettings(active.id).catch(() => null)
-            if (s) {
-              const mods = s.enabledModules
-              set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null })
-            }
+            const mods = s?.enabledModules
+            set({
+              enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null,
+              settingsReady:  true,
+            })
           }
         } catch {
           // silent — no interrumpir la UI
+          set({ settingsReady: true })
         } finally {
           set({ isLoading: false })
         }
       },
 
       setActiveCompany: async (company) => {
-        // sessionStorage → aislado por pestaña (multi-empresa simultáneo)
         sessionStorage.setItem('activeCompanyId', company.id)
         sessionStorage.setItem('activeCompany', JSON.stringify(company))
-        // No se resetea enabledModules a null — se mantiene el valor previo para
-        // evitar flash de todos los módulos durante la carga de settings
-        set({ activeCompany: company, activeBranch: null, branches: [] })
+        // settingsReady = false mientras se cargan los módulos de la nueva empresa
+        set({ activeCompany: company, activeBranch: null, branches: [], settingsReady: false })
 
-        // Cargar sucursales y settings de la empresa seleccionada en paralelo
         const [branchResult, settingsResult] = await Promise.allSettled([
           branchesApi.getAll(company.id),
           companiesApi.getSettings(company.id),
@@ -107,7 +109,9 @@ export const useCompanyStore = create<CompanyStore>()(
 
         if (settingsResult.status === 'fulfilled') {
           const mods = settingsResult.value?.enabledModules
-          set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null })
+          set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null, settingsReady: true })
+        } else {
+          set({ settingsReady: true })
         }
       },
 
@@ -116,18 +120,24 @@ export const useCompanyStore = create<CompanyStore>()(
       },
 
       clearCompany: () => {
-        set({ activeCompany: null, activeBranch: null, companies: [], branches: [], lastLoaded: null })
+        set({ activeCompany: null, activeBranch: null, companies: [], branches: [], lastLoaded: null, settingsReady: false })
       },
     }),
     {
       name: 'contaerp-company',
       storage: createJSONStorage(() => sessionStorage),
-      // Persiste empresa, sucursal y módulos — módulos se confirman en background desde el backend
       partialize: (state) => ({
         activeCompany:  state.activeCompany,
         activeBranch:   state.activeBranch,
         enabledModules: state.enabledModules,
       }),
+      // Al restaurar desde sessionStorage: si ya hay módulos guardados, marcarlos como listos
+      // para que el sidebar los muestre inmediatamente sin esperar al backend
+      onRehydrateStorage: () => (state) => {
+        if (state && state.enabledModules !== null) {
+          state.settingsReady = true
+        }
+      },
     },
   ),
 )
