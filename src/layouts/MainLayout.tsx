@@ -22,15 +22,10 @@ import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
 
-// Devuelve el ID formateado o null si companyNumber no está asignado
-function formatOrgId(company: Company): string | null {
-  const numMatch = (company.companyNumber ?? '').match(/(\d+)$/)
-  if (!numMatch) return null                            // sin companyNumber → sin ID
-  const country = (company.countryCode ?? 'ORG').toUpperCase()
-  const year    = company.createdAt
-    ? new Date(company.createdAt).getFullYear()
-    : new Date().getFullYear()
-  return `${country}${year}${numMatch[1].padStart(4, '0')}`
+// ID único global derivado del UUID de la empresa (como Zoho: 893773585)
+// Convierte los primeros 8 caracteres hex del UUID a decimal → 9-10 dígitos únicos
+function formatOrgId(company: Company): string {
+  return parseInt(company.id.replace(/-/g, '').slice(0, 8), 16).toString()
 }
 
 // ── Acceso por módulo según rol ────────────────────────────────────────────
@@ -325,27 +320,18 @@ export default function MainLayout() {
             <CompanySelector placement="header" />
             {/* key fuerza remonte del badge al cambiar empresa → re-fetch del porcentaje */}
             <OnboardingProgressBadge key={activeCompany?.id} />
-            {activeCompany && (() => {
-              const orgId = formatOrgId(activeCompany)
-              return orgId ? (
-                <Tooltip title="ID de tu organización — clic para copiar">
-                  <Tag
-                    color="cyan"
-                    style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', margin: 0 }}
-                    onClick={() => { navigator.clipboard.writeText(orgId) }}
-                  >
-                    <span style={{ fontWeight: 400, opacity: 0.8 }}>ID org: </span>
-                    <span style={{ fontWeight: 700 }}>{orgId}</span>
-                  </Tag>
-                </Tooltip>
-              ) : (
-                <Tooltip title="Esta empresa aún no tiene ID asignado. Ve a Configuración → Empresas para configurarlo.">
-                  <Tag color="warning" style={{ fontSize: 11, cursor: 'default', margin: 0 }}>
-                    ID org: pendiente
-                  </Tag>
-                </Tooltip>
-              )
-            })()}
+            {activeCompany && (
+              <Tooltip title="ID de tu organización — clic para copiar">
+                <Tag
+                  color="cyan"
+                  style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', margin: 0 }}
+                  onClick={() => { navigator.clipboard.writeText(formatOrgId(activeCompany)) }}
+                >
+                  <span style={{ fontWeight: 400, opacity: 0.8 }}>ID org: </span>
+                  <span style={{ fontWeight: 700 }}>{formatOrgId(activeCompany)}</span>
+                </Tag>
+              </Tooltip>
+            )}
           </Space>
 
           {/* Right */}

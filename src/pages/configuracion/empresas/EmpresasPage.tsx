@@ -13,11 +13,7 @@ import type { Company } from '../../../store/authStore'
 import { useCompanyStore } from '../../../store/companyStore'
 
 function formatOrgId(c: Company): string {
-  const country  = (c.countryCode ?? 'ORG').toUpperCase()
-  const year     = c.createdAt ? new Date(c.createdAt).getFullYear() : new Date().getFullYear()
-  const numMatch = (c.companyNumber ?? '').match(/(\d+)$/)
-  const seq      = numMatch ? numMatch[1].padStart(4, '0') : '0001'
-  return `${country}${year}${seq}`
+  return parseInt(c.id.replace(/-/g, '').slice(0, 8), 16).toString()
 }
 
 const { Title } = Typography
