@@ -11,9 +11,10 @@ const api = axios.create({
 
 const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout', '/public/']
 
+// sessionStorage → cada pestaña tiene sus propios tokens (usuario y empresa aislados por tab)
 api.interceptors.request.use((config) => {
-  const token           = localStorage.getItem('accessToken')
-  const tenantId        = localStorage.getItem('tenantId')
+  const token           = sessionStorage.getItem('accessToken')
+  const tenantId        = sessionStorage.getItem('tenantId')
   const activeCompanyId = sessionStorage.getItem('activeCompanyId')
 
   if (token)           config.headers.Authorization   = `Bearer ${token}`
@@ -47,16 +48,14 @@ api.interceptors.response.use(
       original._retry = true
 
       try {
-        // Todos los requests que fallan con 401 al mismo tiempo
-        // comparten UNA sola petición de refresh.
         if (!refreshingPromise) {
-          const refreshToken = localStorage.getItem('refreshToken')
+          const refreshToken = sessionStorage.getItem('refreshToken')
           refreshingPromise = axios
             .post<any>(`${BASE_URL}/auth/refresh`, { refreshToken })
             .then((r) => {
               const payload = r.data?.data ?? r.data
-              localStorage.setItem('accessToken',  payload.accessToken)
-              localStorage.setItem('refreshToken', payload.refreshToken)
+              sessionStorage.setItem('accessToken',  payload.accessToken)
+              sessionStorage.setItem('refreshToken', payload.refreshToken)
               return payload.accessToken
             })
             .finally(() => { refreshingPromise = null })
@@ -68,7 +67,7 @@ api.interceptors.response.use(
       } catch {
         // Refresh falló → cerrar sesión de forma limpia
         refreshingPromise = null
-        localStorage.clear()
+        sessionStorage.clear()
         getAuthStore().then(store => store.getState().logout())
         return Promise.reject(error)
       }
