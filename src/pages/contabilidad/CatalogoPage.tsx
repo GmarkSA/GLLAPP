@@ -5,7 +5,6 @@ import {
   Divider, Badge, Dropdown, Alert,
 } from 'antd'
 import type { InputRef } from 'antd'
-import type { TableRowSelection } from 'antd/es/table/interface'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   UserOutlined, ShopOutlined, ToolOutlined,
@@ -794,13 +793,10 @@ export default function CatalogoPage() {
           rowKey="id"
           size="small"
           rowSelection={{
+            type: 'checkbox',
             selectedRowKeys,
-            onChange: (keys) => setSelectedRowKeys(keys),
-            getCheckboxProps: (record: Account) => ({
-              // Deshabilitado visualmente si tiene saldo — pero aún seleccionable
-              // para que el modal de confirmación explique el motivo
-            }),
-          } as TableRowSelection<Account>}
+            onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
+          }}
           pagination={{ pageSize: 50, showSizeChanger: true, showTotal: t => `${t} cuentas` }}
           scroll={{ x: 800 }}
           locale={{ emptyText: selectedGroupInfo ? `Sin cuentas en grupo ${selectedGroupInfo.groupCode}` : 'Sin cuentas registradas' }}
