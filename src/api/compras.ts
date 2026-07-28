@@ -545,6 +545,9 @@ export const reactivateSatDte = (id: string) =>
 export const resubirR2SatDte = (id: string) =>
   api.post(`${DTE_SAT}/documentos/${id}/re-subir-r2`).then(unwrap)
 
+export const repararNombresDteSat = () =>
+  api.post(`${DTE_SAT}/reparar-nombres`).then(unwrap) as Promise<{ fixed: number; skipped: number }>
+
 export const postSatDte = (id: string, dto: {
   taxId?: string
   invoiceType?: string
