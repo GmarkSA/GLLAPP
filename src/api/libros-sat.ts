@@ -1,4 +1,4 @@
-import { getOrganizationProfile, updateOrganizationProfile } from './configuracion'
+import { companiesApi } from './companies'
 
 export interface LibroColumn {
   key:       string   // identificador interno estable (ej: 'bienes')
@@ -35,8 +35,10 @@ export const DEFAULT_CONFIG: LibroSATConfig = {
 
 export async function getLibroSATConfig(): Promise<LibroSATConfig> {
   try {
-    const profile = await getOrganizationProfile()
-    const stored  = (profile as any)?.settings?.libroSATConfig as LibroSATConfig | undefined
+    const companyId = sessionStorage.getItem('activeCompanyId')
+    if (!companyId) return { compras: [...DEFAULT_COMPRAS], ventas: [...DEFAULT_VENTAS] }
+    const settings = await companiesApi.getSettings(companyId)
+    const stored = settings?.settingsJson?.libroSATConfig as LibroSATConfig | undefined
     if (!stored) return { compras: [...DEFAULT_COMPRAS], ventas: [...DEFAULT_VENTAS] }
     return {
       compras: stored.compras?.length ? stored.compras : [...DEFAULT_COMPRAS],
@@ -48,7 +50,9 @@ export async function getLibroSATConfig(): Promise<LibroSATConfig> {
 }
 
 export async function saveLibroSATConfig(config: LibroSATConfig): Promise<void> {
-  const profile  = await getOrganizationProfile().catch(() => ({} as any))
-  const settings = (profile as any)?.settings ?? {}
-  await updateOrganizationProfile({ settings: { ...settings, libroSATConfig: config } } as any)
+  const companyId = sessionStorage.getItem('activeCompanyId')
+  if (!companyId) return
+  const current = await companiesApi.getSettings(companyId).catch(() => null)
+  const existingJson = current?.settingsJson ?? {}
+  await companiesApi.updateSettings(companyId, { settingsJson: { ...existingJson, libroSATConfig: config } } as any)
 }
