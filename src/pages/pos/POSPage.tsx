@@ -199,7 +199,7 @@ function QuickCreateCustomerModal({ open, onClose, onCreated }: {
         El cliente quedará registrado en el <strong>maestro de clientes del ERP</strong> y disponible para futuras ventas.
       </div>
       <Form form={form} layout="vertical" size="small">
-        <Form.Item label="NIT / CUI" tooltip="Ingresa el NIT o CUI y presiona el botón para buscar en SAT">
+        <Form.Item label="NIT / CUI" tooltip="Ingresa el NIT o CUI y presiona el botón para buscar">
           <Input.Group compact style={{ display: 'flex' }}>
             <Form.Item name="taxId" noStyle>
               <Input style={{ flex: 1 }} placeholder="1234567-8 o CUI"
@@ -216,7 +216,7 @@ function QuickCreateCustomerModal({ open, onClose, onCreated }: {
           )}
           {lookupStatus === 'not_found' && (
             <div style={{ marginTop: 4, fontSize: 11, color: '#ff7f00' }}>
-              <span>⚠️</span> No encontrado en SAT — completa el nombre manualmente
+              <span>⚠️</span> No encontrado — completa el nombre manualmente
             </div>
           )}
         </Form.Item>
