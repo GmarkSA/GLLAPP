@@ -17,7 +17,8 @@ import {
 } from '../../../api/impuestos'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getLibroSATConfig, saveLibroSATConfig, DEFAULT_CONFIG, type LibroSATConfig } from '../../../api/libros-sat'
-import { getOrganizationProfile } from '../../../api/configuracion'
+import { companiesApi } from '../../../api/companies'
+import { fiscalRegimesApi } from '../../../api/fiscalRegimes'
 import { GT_TEMPLATES, detectTemplate, type TaxRegimeTemplate, type TaxTemplateItem } from '../../../data/guatemalaTaxTemplates'
 import { useCompanyStore } from '../../../store/companyStore'
 
@@ -912,11 +913,23 @@ export default function ImpuestosPage() {
 
   useEffect(() => { setCountryCode(defaultCountry) }, [defaultCountry])
 
-  // Detectar régimen fiscal guardado en el onboarding
+  // Detectar régimen fiscal desde la empresa activa e inicializar columnas Libro SAT
   useEffect(() => {
-    getOrganizationProfile().then((profile: any) => {
-      const code = profile?.settings?.fiscalRegimeCode
-      setActiveTemplate(detectTemplate(code))
+    const companyId = sessionStorage.getItem('activeCompanyId')
+    if (!companyId) return
+    Promise.all([
+      companiesApi.getOne(companyId).catch(() => null),
+      fiscalRegimesApi.getAll().catch(() => [] as any[]),
+      companiesApi.getSettings(companyId).catch(() => null),
+    ]).then(([company, allRegimes, settings]) => {
+      const regimeId   = (company as any)?.fiscalRegimeId
+      const regime     = Array.isArray(allRegimes) ? allRegimes.find((r: any) => r.id === regimeId) : null
+      const template   = detectTemplate(regime?.code)
+      setActiveTemplate(template)
+      // Auto-inicializar columnas del Libro SAT según el régimen si no están guardadas aún
+      if (!settings?.settingsJson?.libroSATConfig) {
+        saveLibroSATConfig(template.libroConfig).catch(() => {})
+      }
     }).catch(() => {})
   }, [])
 
