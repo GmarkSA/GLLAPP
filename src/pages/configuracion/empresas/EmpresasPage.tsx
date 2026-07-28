@@ -12,6 +12,14 @@ import { companiesApi } from '../../../api/companies'
 import type { Company } from '../../../store/authStore'
 import { useCompanyStore } from '../../../store/companyStore'
 
+function formatOrgId(c: Company): string {
+  const country  = (c.countryCode ?? 'ORG').toUpperCase()
+  const year     = c.createdAt ? new Date(c.createdAt).getFullYear() : new Date().getFullYear()
+  const numMatch = (c.companyNumber ?? '').match(/(\d+)$/)
+  const seq      = numMatch ? numMatch[1].padStart(4, '0') : '0001'
+  return `${country}${year}${seq}`
+}
+
 const { Title } = Typography
 
 const STATUS_COLOR: Record<string, string> = {
@@ -145,25 +153,47 @@ export default function EmpresasPage() {
       title: 'Empresa',
       dataIndex: 'legalName',
       render: (v: string, r: Company) => (
-        <Space>
-          <BankOutlined />
-          <span style={{ fontWeight: 500 }}>{v}</span>
-          {r.tradeName && <span style={{ color: '#6b7280', fontSize: 12 }}>({r.tradeName})</span>}
-          {r.id === activeCompanyId && <Tag color="#1faec2" style={{ marginLeft: 4 }}>Activa</Tag>}
-        </Space>
+        <div>
+          <Space>
+            <BankOutlined style={{ color: '#1faec2' }} />
+            <span style={{ fontWeight: 600 }}>{v}</span>
+            {r.id === activeCompanyId && <Tag color="#1faec2" style={{ marginLeft: 4 }}>Activa</Tag>}
+          </Space>
+          {r.tradeName && r.tradeName !== v && (
+            <div style={{ color: '#6b7280', fontSize: 11, marginLeft: 20 }}>{r.tradeName}</div>
+          )}
+        </div>
       ),
     },
-    { title: 'No.', dataIndex: 'companyNumber', width: 100 },
+    {
+      title: 'ID Organización',
+      width: 140,
+      render: (_: any, r: Company) => (
+        <Tag
+          color="cyan"
+          style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
+          onClick={() => { navigator.clipboard.writeText(formatOrgId(r)); message.success('ID copiado') }}
+        >
+          {formatOrgId(r)}
+        </Tag>
+      ),
+    },
     {
       title: 'NIT / Tax ID',
+      width: 130,
       render: (_: any, r: Company) => r.taxId
-        ? <span><b>{r.taxIdLabel || 'ID'}:</b> {r.taxId}</span>
+        ? <span><b style={{ color: '#6b7280' }}>{r.taxIdLabel || 'ID'}:</b> {r.taxId}</span>
         : <span style={{ color: '#bbb' }}>—</span>,
     },
     {
-      title: 'País / Moneda',
-      render: (_: any, r: Company) => `${r.countryCode} · ${r.currencyCode}`,
-      width: 110,
+      title: 'País',
+      width: 70,
+      render: (_: any, r: Company) => (
+        <Space size={4}>
+          <Tag style={{ margin: 0, fontSize: 11 }}>{r.countryCode}</Tag>
+          <span style={{ color: '#9aa1ab', fontSize: 11 }}>{r.currencyCode}</span>
+        </Space>
+      ),
     },
     {
       title: 'Estado',
