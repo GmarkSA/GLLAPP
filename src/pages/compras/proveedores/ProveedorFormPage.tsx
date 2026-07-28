@@ -8,14 +8,13 @@ import {
 import {
   SaveOutlined, ArrowLeftOutlined, UserOutlined, BankOutlined,
   BookOutlined, PlusOutlined, DeleteOutlined, IdcardOutlined,
-  SearchOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CheckOutlined,
+  CheckOutlined,
 } from '@ant-design/icons'
 import {
   getVendor, createVendor, updateVendor,
   type Vendor, type ContactPerson, type Address,
 } from '../../../api/contactos'
 import { getTaxes, type Tax } from '../../../api/impuestos'
-import { satLookupApi } from '../../../api/satLookup'
 import AccountSelect from '../../../components/AccountSelect'
 import PaymentTermsSelect from '../../../components/PaymentTermsSelect'
 import VendorBankAccountsSection from '../../../components/VendorBankAccountsSection'
@@ -178,36 +177,8 @@ export default function ProveedorFormPage() {
   const [contactCount, setContactCount] = useState(1)
   const [taxTreatment, setTaxTreatment] = useState<string>('taxable')
   const [vendorType,   setVendorType]   = useState<string>('company')
-  const [lookingUp,    setLookingUp]    = useState(false)
-  const [lookupStatus, setLookupStatus] = useState<'found' | 'not_found' | null>(null)
   const [activeTab,     setActiveTab]     = useState('info')
   const [completedTabs, setCompletedTabs] = useState<Set<string>>(new Set())
-
-  const handleSatLookup = async (tipo: 'NIT' | 'CUI') => {
-    const valor = form.getFieldValue('taxId')?.trim()
-    if (!valor) return
-    setLookingUp(true)
-    setLookupStatus(null)
-    try {
-      const res = await satLookupApi.lookup(tipo, valor)
-      if (res.found) {
-        form.setFieldsValue({
-          legalName: res.legalName,
-          name:      res.tradeName || res.legalName,
-          type:      res.type ?? form.getFieldValue('type'),
-          ...(res.address && { billingAddress: { ...form.getFieldValue('billingAddress'), address: res.address, city: res.city } }),
-          ...(res.phone   && { phone: res.phone }),
-        })
-        if (res.type) setVendorType(res.type === 'individual' ? 'individual' : 'company')
-        setLookupStatus('found')
-        message.success(`Datos cargados: ${res.legalName}`)
-      } else {
-        setLookupStatus('not_found')
-      }
-    } catch {
-      setLookupStatus('not_found')
-    } finally { setLookingUp(false) }
-  }
 
   // Cargar impuestos y datos del proveedor
   useEffect(() => {
@@ -508,25 +479,8 @@ export default function ProveedorFormPage() {
 
                     <Row gutter={16}>
                       <Col xs={24} md={8}>
-                        <Form.Item label={vendorType === 'employee' ? 'NIT / CUI (CF si no tiene)' : 'NIT / CUI'}>
-                          <Space.Compact style={{ width: '100%' }}>
-                            <Form.Item name="taxId" noStyle>
-                              <Input placeholder="1234567-8 o CUI" onPressEnter={() => handleSatLookup('NIT')}
-                                onChange={() => setLookupStatus(null)} />
-                            </Form.Item>
-                            <Button loading={lookingUp} icon={<SearchOutlined />} onClick={() => handleSatLookup('NIT')} title="Buscar NIT" />
-                            <Button loading={lookingUp} onClick={() => handleSatLookup('CUI')} style={{ fontSize: 11 }} title="Buscar CUI">CUI</Button>
-                          </Space.Compact>
-                          {lookupStatus === 'found' && (
-                            <div style={{ marginTop: 4, fontSize: 11, color: '#2ea172' }}>
-                              <CheckCircleOutlined /> Datos cargados del registro
-                            </div>
-                          )}
-                          {lookupStatus === 'not_found' && (
-                            <div style={{ marginTop: 4, fontSize: 11, color: '#ff7f00' }}>
-                              <ExclamationCircleOutlined /> NIT/CUI no encontrado — completa manualmente
-                            </div>
-                          )}
+                        <Form.Item label={vendorType === 'employee' ? 'NIT / CUI (CF si no tiene)' : 'NIT / CUI'} name="taxId">
+                          <Input placeholder="1234567-8 o CUI" />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>
