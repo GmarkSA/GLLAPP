@@ -434,14 +434,13 @@ export const GT_TEMPLATES: TaxRegimeTemplate[] = [
   },
 ]
 
-// Detecta el template más cercano según el código de régimen guardado en onboarding
+// Detecta el template más cercano según el código de régimen guardado en fiscal_regimes
 export function detectTemplate(regimeCode: string | undefined): TaxRegimeTemplate {
   if (!regimeCode) return GT_TEMPLATES[0]
   const code = regimeCode.toUpperCase()
-  return (
-    GT_TEMPLATES.find(t => t.regimeCode === code) ??
-    (code.includes('PC') || code.includes('PEQUENO') ? GT_TEMPLATES[1] :
-     code.includes('AC') || code.includes('ONG') ? GT_TEMPLATES[2] :
-     GT_TEMPLATES[0])  // RG por defecto
-  )
+  const byExact = GT_TEMPLATES.find(t => t.regimeCode === code)
+  if (byExact) return byExact
+  if (code.includes('PEQUENO') || code.includes('_PC'))   return GT_TEMPLATES[1]  // PC
+  if (code.includes('ASOCIACION') || code.includes('ONG')) return GT_TEMPLATES[2]  // AC
+  return GT_TEMPLATES[0]  // RG por defecto (gt_regimen_general, gt_exportador, gt_contribuyente_especial)
 }
