@@ -406,8 +406,8 @@ export default function CatalogoPage() {
 
   const handleBulkDelete = (force = false) => {
     const selected  = accounts.filter(a => selectedRowKeys.includes(a.id))
-    const canDelete = selected.filter(a => (a.currentBalance ?? 0) === 0)
-    const blocked   = selected.filter(a => (a.currentBalance ?? 0) !== 0)
+    const canDelete = selected.filter(a => Number(a.currentBalance ?? 0) === 0)
+    const blocked   = selected.filter(a => Number(a.currentBalance ?? 0) !== 0)
 
     Modal.confirm({
       title: `Eliminar ${selected.length} cuenta(s) seleccionada(s)`,
