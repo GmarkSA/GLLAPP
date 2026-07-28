@@ -49,16 +49,24 @@ export const useCompanyStore = create<CompanyStore>()(
           const companies = await companiesApi.getAll()
           set({ companies, lastLoaded: now })
 
-          // Auto-seleccionar empresa si no hay activa
+          // Validar que la empresa activa pertenece a este usuario.
+          // Si no está en la lista (sesión de otro usuario en esta pestaña),
+          // limpiarla para que se seleccione la correcta.
           const current = get().activeCompany
-          if (!current && companies.length > 0) {
+          if (current && !companies.find(c => c.id === current.id)) {
+            set({ activeCompany: null, activeBranch: null, branches: [] })
+            sessionStorage.removeItem('activeCompanyId')
+            sessionStorage.removeItem('activeCompany')
+          }
+
+          // Auto-seleccionar empresa si no hay activa
+          const active = get().activeCompany
+          if (!active && companies.length > 0) {
             const def = companies.find(c => c.isDefault) ?? companies[0]
             await get().setActiveCompany(def)
-          } else if (current && !sessionStorage.getItem('activeCompanyId')) {
-            // Zustand persist restauró activeCompany desde sessionStorage pero
-            // activeCompanyId puede faltar. Re-sincronizar para el interceptor axios.
-            sessionStorage.setItem('activeCompanyId', current.id)
-            sessionStorage.setItem('activeCompany', JSON.stringify(current))
+          } else if (active && !sessionStorage.getItem('activeCompanyId')) {
+            sessionStorage.setItem('activeCompanyId', active.id)
+            sessionStorage.setItem('activeCompany', JSON.stringify(active))
           }
         } catch {
           // silent — no interrumpir la UI

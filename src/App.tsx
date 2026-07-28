@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useAuthStore } from './store/authStore'
+import { useCompanyStore } from './store/companyStore'
 import MainLayout from './layouts/MainLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
@@ -187,10 +188,18 @@ function ComingSoon({ title }: { title: string }) {
 
 export default function App() {
   const { isAuthenticated, user, bootstrapAuth } = useAuthStore()
+  const clearCompany = useCompanyStore(s => s.clearCompany)
 
   useEffect(() => {
     if (isAuthenticated && !user) bootstrapAuth()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Resetear estado de empresa en memoria cuando se cierra sesión —
+  // evita que la caché de companies/lastLoaded de un usuario
+  // contamine la sesión del siguiente usuario en la misma pestaña.
+  useEffect(() => {
+    if (!isAuthenticated) clearCompany()
+  }, [isAuthenticated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Suspense fallback={<PageLoader />}>
