@@ -446,12 +446,12 @@ export default function ClienteFormPage() {
                               <Input placeholder="1234567-8 o CUI" onPressEnter={() => handleSatLookup('NIT')}
                                 onChange={() => setLookupStatus(null)} />
                             </Form.Item>
-                            <Button loading={lookingUp} icon={<SearchOutlined />} onClick={() => handleSatLookup('NIT')} title="Buscar NIT en SAT" />
-                            <Button loading={lookingUp} onClick={() => handleSatLookup('CUI')} style={{ fontSize: 11 }} title="Buscar CUI en SAT">CUI</Button>
+                            <Button loading={lookingUp} icon={<SearchOutlined />} onClick={() => handleSatLookup('NIT')} title="Buscar NIT" />
+                            <Button loading={lookingUp} onClick={() => handleSatLookup('CUI')} style={{ fontSize: 11 }} title="Buscar CUI">CUI</Button>
                           </Space.Compact>
                           {lookupStatus === 'found' && (
                             <div style={{ marginTop: 4, fontSize: 11, color: '#2ea172' }}>
-                              <CheckCircleOutlined /> Datos cargados desde SAT
+                              <CheckCircleOutlined /> Datos cargados del registro
                             </div>
                           )}
                           {lookupStatus === 'not_found' && (

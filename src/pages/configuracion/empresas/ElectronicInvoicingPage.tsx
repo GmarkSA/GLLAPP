@@ -22,11 +22,15 @@ const PROVIDERS = [
   { value: 'felplex',      label: 'FelPlex (GT)',              country: 'GT' },
   { value: 'infile',       label: 'INFILE (GT)',               country: 'GT' },
   { value: 'digifact',     label: 'Digifact (GT)',             country: 'GT' },
+  { value: 'cari',         label: 'CARI (GT)',                 country: 'GT' },
   { value: 'hacienda_cr',  label: 'Ministerio Hacienda (CR)', country: 'CR' },
   { value: 'sat_mx',       label: 'SAT / PAC (MX)',            country: 'MX' },
   { value: 'dgi_pa',       label: 'DGI (PA)',                  country: 'PA' },
   { value: 'sar_hn',       label: 'SAR (HN)',                  country: 'HN' },
 ]
+
+// Proveedores con URL de NIT lookup ya conocida — los demás requieren nitLookupUrl manual
+const KNOWN_LOOKUP_PROVIDERS = new Set(['felplex', 'infile', 'digifact'])
 
 const GT_REGIMES = Object.entries(REGIME_LABELS).map(([value, label]) => ({ value, label }))
 
@@ -85,6 +89,7 @@ export default function ElectronicInvoicingPage() {
       // configuración
       regimeCode:          p.apiConfigurationJson?.regimeCode,
       defaultDocumentType: p.apiConfigurationJson?.defaultDocumentType,
+      nitLookupUrl:        p.apiConfigurationJson?.nitLookupUrl,
     })
     setModal(true)
   }
@@ -92,10 +97,10 @@ export default function ElectronicInvoicingPage() {
   const handleSave = async () => {
     if (!activeCompany) return
     const vals = await form.validateFields()
-    const { entityId, apiKey, regimeCode, defaultDocumentType, ...rest } = vals
+    const { entityId, apiKey, regimeCode, defaultDocumentType, nitLookupUrl, ...rest } = vals
 
-    // Credenciales → credentialsEncrypted (donde el backend las lee para FELPlex)
-    // Configuración de régimen/doc → apiConfigurationJson
+    // Credenciales → credentialsEncrypted (donde el backend las lee para FEL)
+    // Configuración de régimen/doc/lookup → apiConfigurationJson
     const dto = {
       ...rest,
       credentialsEncrypted: { entityId, apiKey },
@@ -103,6 +108,7 @@ export default function ElectronicInvoicingPage() {
         ...(editing?.apiConfigurationJson ?? {}),
         regimeCode,
         defaultDocumentType,
+        ...(nitLookupUrl ? { nitLookupUrl } : {}),
       },
       status: 'active',
     }
@@ -294,7 +300,7 @@ export default function ElectronicInvoicingPage() {
           </div>
 
           {/* Régimen fiscal → auto-filtra tipos de documento */}
-          {watchProvider === 'felplex' || watchProvider === 'infile' || watchProvider === 'digifact' ? (
+          {(watchProvider === 'felplex' || watchProvider === 'infile' || watchProvider === 'digifact' || watchProvider === 'cari') ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Form.Item name="regimeCode" label="Régimen del contribuyente"
                 tooltip="Define qué tipos de documento puede emitir esta empresa">
@@ -323,9 +329,17 @@ export default function ElectronicInvoicingPage() {
             <Input placeholder="Código provisto por el certificador" />
           </Form.Item>
           <Form.Item name="apiKey" label="API Key / Token" rules={[{ required: true, message: 'Requerido' }]}
-            tooltip="Token de autenticación (X-Authorization para FELPlex)">
+            tooltip="Token de autenticación (X-Authorization)">
             <Input.Password placeholder="Clave secreta de la API" />
           </Form.Item>
+
+          {/* URL de consulta NIT — requerida para certifadores no estándar (CARI, etc.) */}
+          {watchProvider && !KNOWN_LOOKUP_PROVIDERS.has(watchProvider) && (
+            <Form.Item name="nitLookupUrl" label="URL base para consulta NIT/CUI"
+              tooltip="Base URL del API del certifador para buscar NITs. Ejemplo: https://api.micertifador.com/v1">
+              <Input placeholder="https://api.certifador.com/api" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>
