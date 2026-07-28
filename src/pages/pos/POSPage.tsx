@@ -12,7 +12,6 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getProducts, type Product } from '../../api/inventario'
 import { getCustomers, createCustomer, type Customer } from '../../api/contactos'
-import { satLookupApi } from '../../api/satLookup'
 import { createPOSVenta, getUbicacion, type Ubicacion } from '../../api/expedientes'
 import { getBankAccounts, type BankAccount } from '../../api/bancos'
 
@@ -143,30 +142,7 @@ function QuickCreateCustomerModal({ open, onClose, onCreated }: {
 }) {
   const [form]         = Form.useForm()
   const [saving,       setSaving]       = useState(false)
-  const [lookingUp,    setLookingUp]    = useState(false)
-  const [lookupStatus, setLookupStatus] = useState<'found' | 'not_found' | null>(null)
-
-  useEffect(() => { if (open) { form.resetFields(); setLookupStatus(null) } }, [open, form])
-
-  const handleLookup = async (tipo: 'NIT' | 'CUI') => {
-    const valor = form.getFieldValue('taxId')?.trim()
-    if (!valor) { message.warning('Ingresa un NIT o CUI primero'); return }
-    setLookingUp(true)
-    setLookupStatus(null)
-    try {
-      const res = await satLookupApi.lookup(tipo, valor)
-      if (res.found) {
-        form.setFieldsValue({
-          name:  res.legalName,
-          phone: res.phone ?? form.getFieldValue('phone'),
-        })
-        setLookupStatus('found')
-      } else {
-        setLookupStatus('not_found')
-      }
-    } catch { setLookupStatus('not_found') }
-    finally { setLookingUp(false) }
-  }
+  useEffect(() => { if (open) { form.resetFields() } }, [open, form])
 
   const handleSave = async () => {
     try {
@@ -199,26 +175,8 @@ function QuickCreateCustomerModal({ open, onClose, onCreated }: {
         El cliente quedará registrado en el <strong>maestro de clientes del ERP</strong> y disponible para futuras ventas.
       </div>
       <Form form={form} layout="vertical" size="small">
-        <Form.Item label="NIT / CUI" tooltip="Ingresa el NIT o CUI y presiona el botón para buscar">
-          <Input.Group compact style={{ display: 'flex' }}>
-            <Form.Item name="taxId" noStyle>
-              <Input style={{ flex: 1 }} placeholder="1234567-8 o CUI"
-                onChange={() => setLookupStatus(null)}
-                onPressEnter={() => handleLookup('NIT')} autoFocus />
-            </Form.Item>
-            <Button loading={lookingUp} icon={<SearchOutlined />} onClick={() => handleLookup('NIT')} title="Buscar NIT" />
-            <Button loading={lookingUp} onClick={() => handleLookup('CUI')} style={{ fontSize: 11 }}>CUI</Button>
-          </Input.Group>
-          {lookupStatus === 'found' && (
-            <div style={{ marginTop: 4, fontSize: 11, color: '#2ea172' }}>
-              <CheckCircleOutlined /> Datos encontrados y cargados
-            </div>
-          )}
-          {lookupStatus === 'not_found' && (
-            <div style={{ marginTop: 4, fontSize: 11, color: '#ff7f00' }}>
-              <span>⚠️</span> No encontrado — completa el nombre manualmente
-            </div>
-          )}
+        <Form.Item label="NIT / CUI" name="taxId">
+          <Input placeholder="1234567-8 o CUI" autoFocus />
         </Form.Item>
         <Form.Item name="name" label="Nombre completo / Empresa" rules={[{ required: true, message: 'Requerido' }]}>
           <Input placeholder="Ej: Juan García / Ferretería Los Pinos" />
