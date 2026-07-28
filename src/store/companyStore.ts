@@ -64,9 +64,17 @@ export const useCompanyStore = create<CompanyStore>()(
           if (!active && companies.length > 0) {
             const def = companies.find(c => c.isDefault) ?? companies[0]
             await get().setActiveCompany(def)
-          } else if (active && !sessionStorage.getItem('activeCompanyId')) {
-            sessionStorage.setItem('activeCompanyId', active.id)
-            sessionStorage.setItem('activeCompany', JSON.stringify(active))
+          } else if (active) {
+            if (!sessionStorage.getItem('activeCompanyId')) {
+              sessionStorage.setItem('activeCompanyId', active.id)
+              sessionStorage.setItem('activeCompany', JSON.stringify(active))
+            }
+            // Recargar settings para reflejar módulos configurados desde el último login
+            const s = await companiesApi.getSettings(active.id).catch(() => null)
+            if (s) {
+              const mods = s.enabledModules
+              set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null })
+            }
           }
         } catch {
           // silent — no interrumpir la UI
