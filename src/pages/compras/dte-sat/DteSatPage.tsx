@@ -7,7 +7,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
-  SearchOutlined, SyncOutlined, ThunderboltOutlined, ToolOutlined, UserAddOutlined, WarningOutlined,
+  SearchOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
@@ -15,7 +15,7 @@ import {
   createSatDteVendor, deleteSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   getPurchaseOrders, getBills, postSatDte,
-  resolveSatDteVendor, resubirR2SatDte, repararNombresDteSat,
+  resolveSatDteVendor, resubirR2SatDte,
   startSatDteImport, syncSatDteJob,
   type PurchaseOrder, type SatDte, type SatDteStatus, type SatImportJob,
   PAYMENT_TERMS_CONFIG,
@@ -121,7 +121,6 @@ export default function DteSatPage() {
   const [batchRunning, setBatchRunning] = useState(false)
   const [batchLoading, setBatchLoading] = useState(false)
   const [selectedIds,  setSelectedIds]  = useState<string[]>([])
-  const [repairLoading, setRepairLoading] = useState(false)
 
   const isBatchable = (dte: SatDte) =>
     dte.status === 'ready' &&
@@ -380,23 +379,6 @@ export default function DteSatPage() {
       message.error(getErrorMessage(err, 'No se pudieron re-subir los documentos. Las URLs APIFY pueden haber expirado — reimporta el período.'))
     } finally {
       setResubirId(null)
-    }
-  }
-
-  const handleRepairNames = async () => {
-    setRepairLoading(true)
-    try {
-      const result = await repararNombresDteSat()
-      if (result.fixed > 0) {
-        message.success(`${result.fixed} nombre${result.fixed !== 1 ? 's' : ''} reparado${result.fixed !== 1 ? 's' : ''} correctamente`)
-        await load()
-      } else {
-        message.info('No se encontraron nombres con errores de codificación para reparar')
-      }
-    } catch (err: unknown) {
-      message.error(getErrorMessage(err, 'No se pudieron reparar los nombres'))
-    } finally {
-      setRepairLoading(false)
     }
   }
 
@@ -1686,12 +1668,7 @@ export default function DteSatPage() {
             )}
           </div>
         }
-        extra={
-          <Space size={8}>
-            <Button icon={<ToolOutlined />} onClick={handleRepairNames} loading={repairLoading} size="small" title="Repara nombres con tildes corruptas leyendo los XML almacenados">Reparar nombres</Button>
-            <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading} size="small">Actualizar</Button>
-          </Space>
-        }
+        extra={<Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading} size="small">Actualizar</Button>}
         style={{ borderTop: '3px solid #1faec2' }}
         styles={{ body: { paddingTop: 10, paddingBottom: 10 } }}
       >
