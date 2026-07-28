@@ -38,4 +38,5 @@ export const getAccount = (id: string) => api.get(`/contabilidad/catalogo/${id}`
 export const createAccount = (dto: Partial<Account>) => api.post('/contabilidad/catalogo', dto).then(unwrap)
 export const updateAccount = (id: string, dto: Partial<Account>) => api.patch(`/contabilidad/catalogo/${id}`, dto).then(unwrap)
 export const deleteAccount = (id: string) => api.delete(`/contabilidad/catalogo/${id}`)
-export const seedGLL = () => api.get('/contabilidad/catalogo/seed/gll').then(unwrap)
+export const seedGLL = (mode: 'complement' | 'sync_properties' = 'complement') =>
+  api.get('/contabilidad/catalogo/seed/gll', { params: { mode } }).then(unwrap)

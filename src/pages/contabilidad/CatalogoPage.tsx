@@ -2,14 +2,14 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Layout, Typography, List, Tag, Button, Table, Space, Tooltip,
   Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm,
-  Divider, Badge,
+  Divider, Badge, Dropdown,
 } from 'antd'
 import type { InputRef } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   UserOutlined, ShopOutlined, ToolOutlined,
   AuditOutlined, ReloadOutlined, CheckOutlined, CloseOutlined, InfoCircleOutlined,
-  MinusCircleOutlined,
+  MinusCircleOutlined, DownOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -352,15 +352,20 @@ export default function CatalogoPage() {
   useEffect(() => { loadGroups() }, [loadGroups])
   useEffect(() => { loadAccounts() }, [loadAccounts])
 
-  const handleSeed = async () => {
+  const handleSeed = async (mode: 'complement' | 'sync_properties' = 'complement') => {
     setSeeding(true)
     try {
-      const result = await seedGLL()
-      message.success(`Catálogo inicializado: ${result.created} grupos creados, ${result.skipped} ya existían`)
+      const result = await seedGLL(mode)
+      if (mode === 'sync_properties') {
+        message.success(`Sincronizado: ${result.created} cuentas nuevas, ${result.updated} propiedades actualizadas, ${result.skipped} sin cambios`)
+      } else {
+        message.success(`Catálogo completado: ${result.created} cuentas nuevas, ${result.skipped} ya existían`)
+      }
       loadGroups()
+      loadAccounts()
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message
-      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al inicializar catálogo'))
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al procesar catálogo'))
     } finally {
       setSeeding(false)
     }
@@ -640,17 +645,42 @@ export default function CatalogoPage() {
           </div>
 
           <Space>
-            {groups.length < 68 && (
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'complement',
+                    icon: <ReloadOutlined />,
+                    label: (
+                      <Tooltip title="Agrega las cuentas del template GLL que aún no existen. No toca las cuentas existentes.">
+                        {groups.length === 0 ? 'Inicializar catálogo GLL' : `Completar catálogo GLL (${groups.length}/68 grupos)`}
+                      </Tooltip>
+                    ),
+                    onClick: () => handleSeed('complement'),
+                  },
+                  {
+                    key: 'sync',
+                    icon: <SyncOutlined />,
+                    label: (
+                      <Tooltip title="Actualiza propiedades del sistema (tipo, balance, clasificación) en cuentas existentes, sin cambiar nombres ni saldos. Agrega las faltantes.">
+                        Sincronizar propiedades con template GLL
+                      </Tooltip>
+                    ),
+                    onClick: () => handleSeed('sync_properties'),
+                  },
+                ],
+              }}
+              trigger={['click']}
+            >
               <Button
                 type="default"
                 icon={<ReloadOutlined />}
                 loading={seeding}
-                onClick={handleSeed}
                 style={{ borderColor: '#1faec2', color: '#0a0a0a' }}
               >
-                {groups.length === 0 ? 'Inicializar catálogo GLL' : `Completar catálogo GLL (${groups.length}/68)`}
+                Catálogo GLL <DownOutlined />
               </Button>
-            )}
+            </Dropdown>
             <Button
               type="primary"
               icon={<PlusOutlined />}
