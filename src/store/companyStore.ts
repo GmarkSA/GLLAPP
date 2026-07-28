@@ -12,7 +12,6 @@ interface CompanyStore {
   branches:        Branch[]
   // null = todos los módulos habilitados; array = solo esos módulos visibles
   enabledModules:  string[] | null
-  settingsLoaded:  boolean   // false hasta que el backend confirme los módulos
   isLoading:       boolean
   lastLoaded:      number | null
 
@@ -31,13 +30,11 @@ export const useCompanyStore = create<CompanyStore>()(
       companies:      [],
       branches:       [],
       enabledModules: null,
-      settingsLoaded: false,
       isLoading:      false,
       lastLoaded:     null,
 
       isModuleEnabled: (module: string) => {
-        const { enabledModules, settingsLoaded } = get()
-        if (!settingsLoaded) return false
+        const { enabledModules } = get()
         if (!enabledModules || enabledModules.length === 0) return true
         return enabledModules.includes(module)
       },
@@ -74,11 +71,10 @@ export const useCompanyStore = create<CompanyStore>()(
             }
             // Recargar settings para reflejar módulos configurados desde el último login
             const s = await companiesApi.getSettings(active.id).catch(() => null)
-            const mods = s?.enabledModules
-            set({
-              enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null,
-              settingsLoaded: true,
-            })
+            if (s) {
+              const mods = s.enabledModules
+              set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null })
+            }
           }
         } catch {
           // silent — no interrumpir la UI
@@ -91,7 +87,9 @@ export const useCompanyStore = create<CompanyStore>()(
         // sessionStorage → aislado por pestaña (multi-empresa simultáneo)
         sessionStorage.setItem('activeCompanyId', company.id)
         sessionStorage.setItem('activeCompany', JSON.stringify(company))
-        set({ activeCompany: company, activeBranch: null, branches: [], enabledModules: null, settingsLoaded: false })
+        // No se resetea enabledModules a null — se mantiene el valor previo para
+        // evitar flash de todos los módulos durante la carga de settings
+        set({ activeCompany: company, activeBranch: null, branches: [] })
 
         // Cargar sucursales y settings de la empresa seleccionada en paralelo
         const [branchResult, settingsResult] = await Promise.allSettled([
@@ -109,9 +107,7 @@ export const useCompanyStore = create<CompanyStore>()(
 
         if (settingsResult.status === 'fulfilled') {
           const mods = settingsResult.value?.enabledModules
-          set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null, settingsLoaded: true })
-        } else {
-          set({ settingsLoaded: true })
+          set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null })
         }
       },
 
@@ -126,10 +122,11 @@ export const useCompanyStore = create<CompanyStore>()(
     {
       name: 'contaerp-company',
       storage: createJSONStorage(() => sessionStorage),
-      // Solo persiste empresa y sucursal — módulos siempre se recargan desde el backend
+      // Persiste empresa, sucursal y módulos — módulos se confirman en background desde el backend
       partialize: (state) => ({
-        activeCompany: state.activeCompany,
-        activeBranch:  state.activeBranch,
+        activeCompany:  state.activeCompany,
+        activeBranch:   state.activeBranch,
+        enabledModules: state.enabledModules,
       }),
     },
   ),
