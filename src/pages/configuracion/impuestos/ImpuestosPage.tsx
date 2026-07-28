@@ -1491,6 +1491,16 @@ export default function ImpuestosPage() {
         </div>
         <Space>
           <Tag style={{ margin: 0, fontSize: 12, padding: '4px 10px' }}>{activeTemplate.regimeName}</Tag>
+          {hasTaxes && (
+            <Button
+              icon={<ThunderboltOutlined />}
+              loading={seeding}
+              onClick={() => handleLoadTemplate(activeTemplate)}
+              title={`Carga los códigos de la plantilla ${activeTemplate.regimeName} que aún no existan`}
+            >
+              Cargar plantilla {activeTemplate.regimeName}
+            </Button>
+          )}
           <Button
             type="primary"
             icon={<PlusOutlined />}
