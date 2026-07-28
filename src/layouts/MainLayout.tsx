@@ -22,15 +22,15 @@ import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 
 const { Header, Sider, Content } = Layout
 
-// Genera "GT20260001" — usa countryCode del store + año + dígitos finales de companyNumber
-function formatOrgId(company: Company): string {
-  const country  = (company.countryCode ?? 'ORG').toUpperCase()
-  const year     = company.createdAt
+// Devuelve el ID formateado o null si companyNumber no está asignado
+function formatOrgId(company: Company): string | null {
+  const numMatch = (company.companyNumber ?? '').match(/(\d+)$/)
+  if (!numMatch) return null                            // sin companyNumber → sin ID
+  const country = (company.countryCode ?? 'ORG').toUpperCase()
+  const year    = company.createdAt
     ? new Date(company.createdAt).getFullYear()
     : new Date().getFullYear()
-  const numMatch = (company.companyNumber ?? '').match(/(\d+)$/)
-  const seq      = numMatch ? numMatch[1].padStart(4, '0') : '0001'
-  return `${country}${year}${seq}`
+  return `${country}${year}${numMatch[1].padStart(4, '0')}`
 }
 
 // ── Acceso por módulo según rol ────────────────────────────────────────────
@@ -323,19 +323,29 @@ export default function MainLayout() {
               />
             </Tooltip>
             <CompanySelector placement="header" />
-            <OnboardingProgressBadge />
-            {activeCompany && (
-              <Tooltip title="ID de tu organización — clic para copiar">
-                <Tag
-                  color="cyan"
-                  style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', margin: 0 }}
-                  onClick={() => { navigator.clipboard.writeText(formatOrgId(activeCompany)) }}
-                >
-                  <span style={{ fontWeight: 400, opacity: 0.8 }}>ID org: </span>
-                  <span style={{ fontWeight: 700 }}>{formatOrgId(activeCompany)}</span>
-                </Tag>
-              </Tooltip>
-            )}
+            {/* key fuerza remonte del badge al cambiar empresa → re-fetch del porcentaje */}
+            <OnboardingProgressBadge key={activeCompany?.id} />
+            {activeCompany && (() => {
+              const orgId = formatOrgId(activeCompany)
+              return orgId ? (
+                <Tooltip title="ID de tu organización — clic para copiar">
+                  <Tag
+                    color="cyan"
+                    style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', margin: 0 }}
+                    onClick={() => { navigator.clipboard.writeText(orgId) }}
+                  >
+                    <span style={{ fontWeight: 400, opacity: 0.8 }}>ID org: </span>
+                    <span style={{ fontWeight: 700 }}>{orgId}</span>
+                  </Tag>
+                </Tooltip>
+              ) : (
+                <Tooltip title="Esta empresa aún no tiene ID asignado. Ve a Configuración → Empresas para configurarlo.">
+                  <Tag color="warning" style={{ fontSize: 11, cursor: 'default', margin: 0 }}>
+                    ID org: pendiente
+                  </Tag>
+                </Tooltip>
+              )
+            })()}
           </Space>
 
           {/* Right */}
