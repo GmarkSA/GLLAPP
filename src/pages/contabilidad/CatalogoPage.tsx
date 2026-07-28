@@ -404,23 +404,32 @@ export default function CatalogoPage() {
     }
   }
 
-  const handleBulkDelete = () => {
-    const selected = accounts.filter(a => selectedRowKeys.includes(a.id))
+  const handleBulkDelete = (force = false) => {
+    const selected  = accounts.filter(a => selectedRowKeys.includes(a.id))
     const canDelete = selected.filter(a => (a.currentBalance ?? 0) === 0)
     const blocked   = selected.filter(a => (a.currentBalance ?? 0) !== 0)
 
     Modal.confirm({
       title: `Eliminar ${selected.length} cuenta(s) seleccionada(s)`,
       icon: <ExclamationCircleOutlined style={{ color: '#e5484d' }} />,
-      width: 520,
+      width: 540,
       content: (
         <div style={{ marginTop: 8 }}>
+          {force && (
+            <Alert
+              type="warning"
+              showIcon
+              message="Modo limpieza activo"
+              description="Se eliminarán cuentas del sistema con saldo cero aunque tengan historial de movimientos. Úsalo solo para resetear datos de prueba."
+              style={{ marginBottom: 12 }}
+            />
+          )}
           {canDelete.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontWeight: 600, marginBottom: 4, color: '#2ea172', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckCircleOutlined /> {canDelete.length} cuenta(s) se eliminarán (saldo cero):
               </div>
-              <div style={{ maxHeight: 120, overflowY: 'auto', paddingLeft: 20 }}>
+              <div style={{ maxHeight: 120, overflowY: 'auto', paddingLeft: 4 }}>
                 {canDelete.map(a => (
                   <div key={a.id} style={{ fontSize: 12, color: '#374151' }}>
                     <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{a.code}</Tag> {a.name}
@@ -431,24 +440,23 @@ export default function CatalogoPage() {
           )}
           {blocked.length > 0 && (
             <Alert
-              type="warning"
+              type="error"
               showIcon
-              message={`${blocked.length} cuenta(s) NO se eliminarán por tener saldo:`}
+              message={`${blocked.length} cuenta(s) tienen saldo y NO se eliminarán:`}
               description={
                 <div style={{ maxHeight: 100, overflowY: 'auto', marginTop: 4 }}>
                   {blocked.map(a => (
                     <div key={a.id} style={{ fontSize: 12 }}>
                       <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{a.code}</Tag>
-                      {a.name} — saldo: <strong>Q {Number(a.currentBalance).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
+                      {a.name} — <strong>Q {Number(a.currentBalance).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
                     </div>
                   ))}
                 </div>
               }
-              style={{ marginTop: 4 }}
             />
           )}
-          {canDelete.length === 0 && (
-            <Alert type="error" showIcon message="Todas las cuentas seleccionadas tienen saldo y no pueden eliminarse." />
+          {canDelete.length === 0 && blocked.length === 0 && (
+            <Alert type="error" showIcon message="No hay cuentas válidas para eliminar." />
           )}
         </div>
       ),
@@ -460,13 +468,13 @@ export default function CatalogoPage() {
         const errors: string[] = []
         let deleted = 0
         for (const acc of canDelete) {
-          try { await deleteAccount(acc.id); deleted++ }
+          try { await deleteAccount(acc.id, force); deleted++ }
           catch { errors.push(acc.code) }
         }
         setBulkDeleting(false)
         setSelectedRowKeys([])
         if (deleted > 0) { message.success(`${deleted} cuenta(s) eliminada(s)`); loadAccounts(); loadGroups() }
-        if (errors.length > 0) message.error(`Error eliminando: ${errors.join(', ')}`)
+        if (errors.length > 0) message.error(`No se pudieron eliminar: ${errors.join(', ')}`)
       },
     })
   }
@@ -716,14 +724,34 @@ export default function CatalogoPage() {
 
           <Space>
             {selectedRowKeys.length > 0 && (
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                loading={bulkDeleting}
-                onClick={handleBulkDelete}
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'normal',
+                      icon: <DeleteOutlined />,
+                      label: `Eliminar seleccionadas (${selectedRowKeys.length})`,
+                      onClick: () => handleBulkDelete(false),
+                    },
+                    { type: 'divider' },
+                    {
+                      key: 'force',
+                      icon: <ExclamationCircleOutlined style={{ color: '#e5484d' }} />,
+                      label: (
+                        <Tooltip title="Elimina cuentas del sistema con saldo cero aunque tengan historial. Solo para resetear datos de prueba.">
+                          <span style={{ color: '#e5484d' }}>Forzar eliminación (limpieza)</span>
+                        </Tooltip>
+                      ),
+                      onClick: () => handleBulkDelete(true),
+                    },
+                  ],
+                }}
+                trigger={['click']}
               >
-                Eliminar seleccionadas ({selectedRowKeys.length})
-              </Button>
+                <Button danger icon={<DeleteOutlined />} loading={bulkDeleting}>
+                  Eliminar ({selectedRowKeys.length}) <DownOutlined />
+                </Button>
+              </Dropdown>
             )}
             {(() => {
               const complete = groups.length >= 68
