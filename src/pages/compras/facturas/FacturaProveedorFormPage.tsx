@@ -1317,17 +1317,21 @@ export default function FacturaProveedorFormPage() {
                   >
                     Actualizar factura
                   </Button>
-                  <Button
-                    block icon={<SyncOutlined />} loading={regenerating}
-                    onClick={handleRegenerate}
-                    style={{ borderColor: '#ff7f00', color: '#ff7f00' }}
-                  >
-                    Solo regenerar póliza
-                  </Button>
                   <div style={{ fontSize: 11, color: '#9aa1ab', textAlign: 'center' }}>
-                    "Actualizar" guarda todos los cambios y regenera la póliza
+                    Guarda todos los cambios y regenera la póliza
                   </div>
                 </>
+              )}
+
+              {/* Regenerar póliza — disponible en cualquier estado activo (incluyendo paid) */}
+              {!!id && !['draft', 'pending_approval', 'voided'].includes(billStatus) && (
+                <Button
+                  block icon={<SyncOutlined />} loading={regenerating}
+                  onClick={handleRegenerate}
+                  style={{ borderColor: '#ff7f00', color: '#ff7f00' }}
+                >
+                  Regenerar póliza contable
+                </Button>
               )}
               {/* Aplicar Anticipo — facturas abiertas/parciales con saldo */}
               {canPayBill && (
