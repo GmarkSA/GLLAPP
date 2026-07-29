@@ -235,8 +235,8 @@ export default function FacturaProveedorDetallePage() {
 
   const statusCfg  = BILL_STATUS_CONFIG[bill.status] ?? { label: bill.status, color: 'default' }
   const typeCfg    = BILL_TYPE_CONFIG[bill.invoiceType] ?? { label: bill.invoiceType }
-  const canEdit       = ['draft', 'pending_approval'].includes(bill.status)
-  const canEditOpen   = !['voided', 'paid'].includes(bill.status)   // edición limitada post-aprobación
+  const canEditOpen   = !['voided', 'paid'].includes(bill.status)
+  const canEdit       = canEditOpen   // inline edit disponible para cualquier factura no pagada/anulada
   const canApprove    = ['draft', 'pending_approval'].includes(bill.status)
   const canPay     = ['open', 'partial', 'overdue'].includes(bill.status) && Number(bill.balance) > 0
   const canVoid    = ['open', 'partial', 'overdue'].includes(bill.status)
