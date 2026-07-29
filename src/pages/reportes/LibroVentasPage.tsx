@@ -41,17 +41,21 @@ const fmtD = (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—'
 
 // Mapa estable: clave SAT → campo del backend
 const FIELD_MAP: Record<string, string> = {
-  bienes:      'ventaBienes',
-  servicios:   'ventaServicios',
-  exportacion: 'exportacion',
-  exento:      'exento',
+  bienes:          'ventaBienes',
+  servicios:       'ventaServicios',
+  totalBienes:     'ventaBienes',      // alias SAT-2046 (PC regime)
+  totalServicios:  'ventaServicios',   // alias SAT-2046 (PC regime)
+  exportacion:     'exportacion',
+  exento:          'exento',
 }
 
 const CATEGORIA_COLOR: Record<string, string> = {
-  bienes:      '#1faec2',
-  servicios:   '#1faec2',
-  exportacion: '#059669',
-  exento:      '#6b7280',
+  bienes:          '#1faec2',
+  servicios:       '#1faec2',
+  totalBienes:     '#1faec2',
+  totalServicios:  '#1faec2',
+  exportacion:     '#059669',
+  exento:          '#6b7280',
 }
 
 const ROWS_PER_PAGE = 20
