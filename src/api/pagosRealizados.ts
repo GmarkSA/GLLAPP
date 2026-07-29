@@ -55,15 +55,17 @@ export interface PendingInvoicesByVendor {
 }
 
 export interface PendingInvoice {
-  id:            string
-  invoiceNumber: string
-  invoiceDate:   string
-  dueDate?:      string
-  total:         number
-  paidAmount:    number
-  balance:       number
-  currency:      string
-  status:        string
+  id:                     string
+  invoiceNumber:          string
+  invoiceDate:            string
+  dueDate?:               string
+  total:                  number
+  paidAmount:             number
+  balance:                number
+  currency:               string
+  status:                 string
+  isExpenseReimbursement?: boolean
+  vendorName?:            string
 }
 
 export interface CreateVendorPaymentDto {

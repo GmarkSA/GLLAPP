@@ -133,8 +133,18 @@ export default function PagoRealizadoFormPage() {
       ),
     },
     {
-      title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
-      render: (v) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>,
+      title: 'Factura', dataIndex: 'invoiceNumber', width: 200,
+      render: (v, r) => (
+        <span>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>
+          {r.isExpenseReimbursement && (
+            <Tag color="#6b7280" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px' }}>Reembolso</Tag>
+          )}
+          {r.vendorName && (
+            <Text type="secondary" style={{ display: 'block', fontSize: 11 }}>{r.vendorName}</Text>
+          )}
+        </span>
+      ),
     },
     {
       title: 'Vencimiento', dataIndex: 'dueDate', width: 110,
