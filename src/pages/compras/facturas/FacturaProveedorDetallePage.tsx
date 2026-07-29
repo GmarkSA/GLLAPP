@@ -280,14 +280,18 @@ export default function FacturaProveedorDetallePage() {
           )
         }
         const pct = _row.taxPercent ?? 0
-        return <Tag>{pct}%</Tag>
+        const tax = taxOptions.find(t => t.id === taxId)
+        return <Tag color={tax ? 'blue' : 'default'}>{tax ? `${tax.code} (${pct}%)` : `${pct}%`}</Tag>
       },
     },
     {
-      title: 'Total línea', dataIndex: 'lineTotal', width: 140, align: 'right' as const,
-      render: (v: number) => {
-        const n = Number(v)
-        return <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(isNaN(n) ? 0 : n)}</Text>
+      title: 'Total línea', width: 140, align: 'right' as const,
+      render: (_v: any, row: any) => {
+        const qty      = Number(row.quantity ?? 1)
+        const price    = Number(row.unitPrice ?? 0)
+        const discount = Number(row.discountPercent ?? 0)
+        const total    = qty * price * (1 - discount / 100)
+        return <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(total)}</Text>
       },
     },
   ]
