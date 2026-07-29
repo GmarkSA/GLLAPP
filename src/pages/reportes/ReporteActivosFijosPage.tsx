@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Button, Select, Table, Tag, Typography, Statistic, Card,
   Divider, Row, Col, Modal, Form, Input, message, Space,
 } from 'antd'
 import {
-  AppstoreOutlined, PrinterOutlined, FileExcelOutlined, FilePdfOutlined, MailOutlined, FilterOutlined,
+  AppstoreOutlined, PrinterOutlined, FileExcelOutlined, FilePdfOutlined, MailOutlined, FilterOutlined, ArrowLeftOutlined,
 } from '@ant-design/icons'
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
@@ -51,6 +52,7 @@ interface TableRow {
 }
 
 export default function ReporteActivosFijosPage() {
+  const navigate = useNavigate()
   const [activos,  setActivos]  = useState<ActivoFijo[]>([])
   const [clases,   setClases]   = useState<ClaseActivoFijo[]>([])
   const [loading,  setLoading]  = useState(false)
@@ -346,6 +348,7 @@ export default function ReporteActivosFijosPage() {
       {/* ── Encabezado ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
           <AppstoreOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
             <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Reporte de Activos Fijos</Title>

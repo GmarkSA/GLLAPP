@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   ReloadOutlined, CalendarOutlined, WarningOutlined,
-  DollarOutlined, ArrowRightOutlined,
+  DollarOutlined, ArrowRightOutlined, ArrowLeftOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -119,6 +119,7 @@ export default function ReporteProyectadoPagosPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
           <CalendarOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
             <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Reporte Proyectado de Pagos</Title>
