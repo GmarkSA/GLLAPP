@@ -374,7 +374,7 @@ export default function FacturaProveedorDetallePage() {
             Aplicar anticipo
           </Button>
         )}
-        {!canEdit && bill.status !== 'voided' && (
+        {!['draft', 'pending_approval', 'voided'].includes(bill.status) && (
           <Button icon={<SyncOutlined />} loading={regenerating} onClick={handleRegenerate}
             style={{ color: '#6b7280', borderColor: '#6b7280' }}>
             Regenerar póliza
