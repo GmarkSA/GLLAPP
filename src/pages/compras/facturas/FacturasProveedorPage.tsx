@@ -299,7 +299,8 @@ export default function FacturasProveedorPage() {
   }
 
   const openPay = (bill: PurchaseInvoice) => {
-    navigate(`/bancos/pagos-realizados/nuevo?vendorId=${bill.vendorId}&invoiceId=${bill.id}`)
+    const payeeId = bill.isExpenseReimbursement && bill.employeeId ? bill.employeeId : bill.vendorId
+    navigate(`/bancos/pagos-realizados/nuevo?vendorId=${payeeId}&invoiceId=${bill.id}`)
   }
 
   // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
