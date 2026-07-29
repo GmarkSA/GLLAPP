@@ -7,7 +7,7 @@ import {
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, CheckOutlined, DollarOutlined,
-  SyncOutlined, StopOutlined, DeleteOutlined, GlobalOutlined, ThunderboltOutlined,
+  SyncOutlined, StopOutlined, DeleteOutlined, GlobalOutlined, ThunderboltOutlined, SaveOutlined, CloseOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -15,10 +15,11 @@ import {
   getJournalEntry, recordBillPayment, getVendorAdvances, applyVendorAdvanceToBill,
   updateBill,
   BILL_STATUS_CONFIG, BILL_TYPE_CONFIG,
-  type PurchaseInvoice, type JournalEntry, type JournalEntryLine, type VendorAdvance,
+  type PurchaseInvoice, type JournalEntry, type JournalEntryLine, type VendorAdvance, type BillItem,
 } from '../../../api/compras'
 import { getBankAccounts } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getTaxes, type Tax } from '../../../api/impuestos'
 import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title, Text } = Typography
@@ -57,6 +58,10 @@ export default function FacturaProveedorDetallePage() {
   const [showEdit,   setShowEdit]   = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [editForm]  = Form.useForm()
+  const [inlineEdit,  setInlineEdit]  = useState(false)
+  const [inlineSaving, setInlineSaving] = useState(false)
+  const [editedItems,  setEditedItems]  = useState<BillItem[]>([])
+  const [taxOptions,   setTaxOptions]   = useState<Tax[]>([])
   const [centrosCosto, centrosBeneficio] = useCentrosOptions()
 
   const loadBill = useCallback(async () => {
@@ -185,6 +190,39 @@ export default function FacturaProveedorDetallePage() {
     } finally { setEditSaving(false) }
   }
 
+  const enterInlineEdit = () => {
+    if (taxOptions.length === 0) {
+      getTaxes().then((res: any) => setTaxOptions(Array.isArray(res) ? res : (res?.data ?? []))).catch(() => {})
+    }
+    setEditedItems((bill?.items ?? []).map(it => ({ ...it })))
+    setInlineEdit(true)
+  }
+
+  const cancelInlineEdit = () => { setInlineEdit(false); setEditedItems([]) }
+
+  const saveInlineEdit = async () => {
+    setInlineSaving(true)
+    try {
+      await updateBill(bill!.id, { items: editedItems } as any)
+      await regenerateBillJournalEntry(bill!.id)
+      message.success('Factura actualizada y póliza recalculada')
+      setInlineEdit(false)
+      setEditedItems([])
+      await loadBill()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al guardar'))
+    } finally { setInlineSaving(false) }
+  }
+
+  const updateItemTax = (idx: number, taxId: string) => {
+    const tax = taxOptions.find(t => t.id === taxId)
+    setEditedItems(prev => prev.map((it, i) => i !== idx ? it : {
+      ...it,
+      taxId,
+      taxPercent: tax?.rate ?? it.taxPercent,
+    }))
+  }
+
   const openPayModal = () => {
     getBankAccounts({ status: 'active' }).then(r => setBankAccounts(Array.isArray(r) ? r : (r as any)?.data ?? [])).catch(() => {})
     payForm.resetFields()
@@ -224,10 +262,33 @@ export default function FacturaProveedorDetallePage() {
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
     { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
-    { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v ?? 12}%</Tag> },
+    {
+      title: 'IVA', dataIndex: 'taxId', width: inlineEdit ? 200 : 80, align: 'center' as const,
+      render: (taxId: string, _row: any, idx: number) => {
+        if (inlineEdit) {
+          return (
+            <Select
+              size="small"
+              value={editedItems[idx]?.taxId ?? taxId}
+              style={{ width: '100%' }}
+              placeholder="Selecciona código"
+              onChange={val => updateItemTax(idx, val)}
+              options={taxOptions
+                .filter(t => ['purchases', 'both'].includes(t.applicability))
+                .map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))}
+            />
+          )
+        }
+        const pct = _row.taxPercent ?? 0
+        return <Tag>{pct}%</Tag>
+      },
+    },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 140, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => {
+        const n = Number(v)
+        return <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(isNaN(n) ? 0 : n)}</Text>
+      },
     },
   ]
 
@@ -279,15 +340,21 @@ export default function FacturaProveedorDetallePage() {
         <Divider type="vertical" />
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
         <Divider type="vertical" />
-        {canEdit && (
-          <Button icon={<EditOutlined />} onClick={() => navigate(`/compras/facturas/${bill.id}/editar`)}>
+        {(canEdit || canEditOpen) && !inlineEdit && (
+          <Button icon={<EditOutlined />} onClick={canEdit ? enterInlineEdit : openEditModal}>
             Editar
           </Button>
         )}
-        {!canEdit && canEditOpen && (
-          <Button icon={<EditOutlined />} onClick={openEditModal}>
-            Editar
-          </Button>
+        {inlineEdit && (
+          <>
+            <Button type="primary" icon={<SaveOutlined />} loading={inlineSaving} onClick={saveInlineEdit}
+              style={{ background: '#2ea172' }}>
+              Guardar cambios
+            </Button>
+            <Button icon={<CloseOutlined />} onClick={cancelInlineEdit} disabled={inlineSaving}>
+              Cancelar
+            </Button>
+          </>
         )}
         {canApprove && (
           <Button type="primary" icon={<CheckOutlined />} loading={approving} onClick={handleApprove}
@@ -448,7 +515,7 @@ export default function FacturaProveedorDetallePage() {
 
         {/* Ítems */}
         <div style={{ padding: '0 40px 24px' }}>
-          <Table columns={itemColumns} dataSource={bill.items ?? []} rowKey={(_, i) => String(i)}
+          <Table columns={itemColumns} dataSource={inlineEdit ? editedItems : (bill.items ?? [])} rowKey={(_, i) => String(i)}
             pagination={false} size="small" scroll={{ x: 620 }}
             style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }} />
 

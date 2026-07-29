@@ -27,6 +27,7 @@ const { TextArea } = Input
 
 const TAX_TREATMENTS = [
   { value: 'taxable',                label: 'Contribuyente — IVA 12%',                desc: 'Aplica IVA estándar. El proveedor cobra el IVA completo.' },
+  { value: 'pequeno_contribuyente',  label: 'Pequeño Contribuyente — PC',             desc: 'No desglosa IVA. El precio es el total; no genera crédito fiscal.' },
   { value: 'exempt',                 label: 'Exento de IVA',                          desc: 'No aplica IVA (exportaciones, medicamentos, etc.).' },
   { value: 'contribuyente_especial', label: 'Contribuyente especial — Retención IVA', desc: 'SAT designó a este proveedor como retenedor de IVA (15% o 30%).' },
   { value: 'gobierno',               label: 'Entidad de gobierno — Retención 65%',    desc: 'Entidades del Estado retienen el 65% del IVA.' },

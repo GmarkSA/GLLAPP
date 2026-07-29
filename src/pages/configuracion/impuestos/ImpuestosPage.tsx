@@ -431,8 +431,10 @@ function TaxModal({
   useEffect(() => {
     if (open) {
       if (tax) {
-        form.setFieldsValue({ ...tax })
-        setSubtype(tax.subtype)
+        // Si el código es PC, el backend almacena subtype='simple' pero en UI debe mostrarse como 'pequeno_contribuyente'
+        const effectiveSubtype = tax.category === 'iva_pequeno_contribuyente' ? 'pequeno_contribuyente' : tax.subtype
+        form.setFieldsValue({ ...tax, subtype: effectiveSubtype })
+        setSubtype(effectiveSubtype)
         setCategory(tax.category)
         if (tax.tiers) setTiers(tax.tiers)
         setPreviewTax(tax)
@@ -643,36 +645,40 @@ function TaxModal({
               </Row>
             )}
 
-            <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '10px 0' }}>
-              Cuentas contables (para partidas automáticas)
-            </Divider>
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 10, fontSize: 11 }}
-              message={
-                <span style={{ fontSize: 11 }}>
-                  Si no encuentras la cuenta en la lista, créala primero en <strong>Contabilidad → Catálogo</strong>.
-                  Ejemplos: <code>2210 IVA por Pagar</code>, <code>1150 Crédito Fiscal IVA</code>, <code>2215 Retención IVA por Enterar</code>.
-                </span>
-              }
-            />
-            <Row gutter={12}>
-              <Col span={12}>
-                <Form.Item name="salesAccountId" label="Cuenta ventas (haber)"
-                  tooltip="Cuenta que se acredita al registrar este impuesto en ventas (ej: IVA por Pagar 2210)">
-                  <Select allowClear showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
-                    options={accounts.map(a => ({ value: a.id, label: `${a.code}  ${a.name}` }))} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="purchaseAccountId" label="Cuenta compras (débito)"
-                  tooltip="Cuenta que se debita al registrar este impuesto en compras (ej: IVA Crédito Fiscal 1150)">
-                  <Select allowClear showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
-                    options={accounts.map(a => ({ value: a.id, label: `${a.code}  ${a.name}` }))} />
-                </Form.Item>
-              </Col>
-            </Row>
+            {category !== 'iva_pequeno_contribuyente' && (
+              <>
+                <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '10px 0' }}>
+                  Cuentas contables (para partidas automáticas)
+                </Divider>
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 10, fontSize: 11 }}
+                  message={
+                    <span style={{ fontSize: 11 }}>
+                      Si no encuentras la cuenta en la lista, créala primero en <strong>Contabilidad → Catálogo</strong>.
+                      Ejemplos: <code>2210 IVA por Pagar</code>, <code>1150 Crédito Fiscal IVA</code>, <code>2215 Retención IVA por Enterar</code>.
+                    </span>
+                  }
+                />
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Form.Item name="salesAccountId" label="Cuenta ventas (haber)"
+                      tooltip="Cuenta que se acredita al registrar este impuesto en ventas (ej: IVA por Pagar 2210)">
+                      <Select allowClear showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
+                        options={accounts.map(a => ({ value: a.id, label: `${a.code}  ${a.name}` }))} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item name="purchaseAccountId" label="Cuenta compras (débito)"
+                      tooltip="Cuenta que se debita al registrar este impuesto en compras (ej: IVA Crédito Fiscal 1150)">
+                      <Select allowClear showSearch placeholder="Buscar cuenta..." optionFilterProp="label"
+                        options={accounts.map(a => ({ value: a.id, label: `${a.code}  ${a.name}` }))} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </>
+            )}
             {subtype === 'retention_tax' && (
               <Form.Item name="retentionAccountId" label="Cuenta retención"
                 tooltip="Cuenta de pasivo donde se registra el importe retenido (ej: Retención IVA por Enterar 2215)">

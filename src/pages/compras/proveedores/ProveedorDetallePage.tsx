@@ -33,6 +33,7 @@ const MONTHS = [
 
 const TAX_TREATMENT_LABELS: Record<string, string> = {
   taxable:                'Contribuyente IVA 12%',
+  pequeno_contribuyente:  'Pequeño Contribuyente',
   exempt:                 'Exento de IVA',
   contribuyente_especial: 'Contribuyente especial',
   gobierno:               'Entidad de gobierno',
