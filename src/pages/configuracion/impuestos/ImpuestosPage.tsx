@@ -417,6 +417,13 @@ function TaxModal({
   const [accounts,    setAccounts]    = useState<Account[]>([])
   const [libroConfig, setLibroConfig] = useState<LibroSATConfig>(DEFAULT_CONFIG)
 
+  // Normaliza keys custom de LIBRO_PC al key estándar que el backend usa para categorizar
+  const LIBRO_KEY_ALIASES: Record<string, string> = {
+    totalBienes:    'bienes',
+    totalServicios: 'servicios',
+  }
+  const toStdKey = (key: string): string => LIBRO_KEY_ALIASES[key] ?? key
+
   // Carga accounts y configuración de columnas SAT cuando el modal abre
   useEffect(() => {
     if (!open) return
@@ -703,7 +710,7 @@ function TaxModal({
               tooltip="Columna del Libro de Compras y Servicios (SAT) a la que contribuye este impuesto."
             >
               <Select allowClear placeholder="Sin asignación"
-                options={libroConfig.compras.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map(c => ({ value: c.key, label: c.label }))} />
+                options={libroConfig.compras.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map(c => ({ value: toStdKey(c.key), label: c.label }))} />
             </Form.Item>
             <Form.Item
               name="libroVentasCol"
@@ -711,7 +718,7 @@ function TaxModal({
               tooltip="Columna del Libro de Ventas y Servicios (SAT) a la que contribuye este impuesto."
             >
               <Select allowClear placeholder="Sin asignación"
-                options={libroConfig.ventas.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map(c => ({ value: c.key, label: c.label }))} />
+                options={libroConfig.ventas.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map(c => ({ value: toStdKey(c.key), label: c.label }))} />
             </Form.Item>
 
             <Divider style={{ margin: '10px 0' }} />
