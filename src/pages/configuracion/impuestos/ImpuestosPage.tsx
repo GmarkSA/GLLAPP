@@ -1092,7 +1092,11 @@ export default function ImpuestosPage() {
     }
     const taxList = applicability === 'sales' ? taxesVentas : taxesCompras
     const field   = applicability === 'sales' ? 'salesAccountId' : 'purchaseAccountId'
-    const pending = taxList.filter(t => !(t as any)[field])
+    const pending = taxList.filter(t =>
+      !(t as any)[field] &&
+      t.category !== 'iva_pequeno_contribuyente' &&
+      t.category !== 'iva_exento'
+    )
     if (pending.length === 0) {
       message.info('Todos los impuestos de este bloque ya tienen cuenta vinculada')
       return
