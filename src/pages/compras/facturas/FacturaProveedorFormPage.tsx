@@ -584,6 +584,33 @@ export default function FacturaProveedorFormPage() {
     }
   }
 
+  /** Guarda todos los cambios de una factura ya abierta y regenera su póliza */
+  const handleSaveAndRegenerate = async () => {
+    if (!id) return
+    try { await form.validateFields(['vendorId', 'invoiceDate']) } catch { return }
+    setSaving(true)
+    try {
+      const dto = buildDto(billStatus)
+      await updateBill(id, dto as any)
+      const updated = await regenerateBillJournalEntry(id)
+      if (updated.journalEntryId) {
+        const je = await getJournalEntry(updated.journalEntryId)
+        setJournalEntry(je)
+      }
+      if (updated.reclassificationJournalEntryId) {
+        const rje = await getJournalEntry(updated.reclassificationJournalEntryId)
+        setReclasEntry(rje)
+      } else {
+        setReclasEntry(null)
+      }
+      message.success('Factura actualizada y póliza regenerada')
+    } catch (err: any) {
+      message.error(getApiError(err, 'Error al actualizar'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const canApprove  = !!id && ['draft', 'pending_approval'].includes(billStatus)
   const canPayBill  = !!id && ['open', 'partial', 'overdue'].includes(billStatus) && billBalance > 0
 
@@ -1280,18 +1307,25 @@ export default function FacturaProveedorFormPage() {
                 </div>
               )}
 
-              {/* Regenerar póliza — solo para facturas ya abiertas */}
-              {!!id && billStatus === 'open' && (
+              {/* Actualizar factura abierta — guarda cambios y regenera póliza */}
+              {!!id && ['open', 'partial', 'overdue'].includes(billStatus) && (
                 <>
+                  <Button
+                    block type="primary" icon={<SaveOutlined />} loading={saving}
+                    onClick={handleSaveAndRegenerate}
+                    style={{ background: '#1B3A6B', borderColor: '#1B3A6B' }}
+                  >
+                    Actualizar factura
+                  </Button>
                   <Button
                     block icon={<SyncOutlined />} loading={regenerating}
                     onClick={handleRegenerate}
                     style={{ borderColor: '#ff7f00', color: '#ff7f00' }}
                   >
-                    Regenerar póliza contable
+                    Solo regenerar póliza
                   </Button>
                   <div style={{ fontSize: 11, color: '#9aa1ab', textAlign: 'center' }}>
-                    Recalcula cuentas con la configuración actual
+                    "Actualizar" guarda todos los cambios y regenera la póliza
                   </div>
                 </>
               )}
