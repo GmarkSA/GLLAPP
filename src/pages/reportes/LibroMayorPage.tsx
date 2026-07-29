@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, DatePicker, Space, Typography, Select,
   Button, Row, Col, Statistic, Alert,
 } from 'antd'
-import { BookOutlined, DownloadOutlined } from '@ant-design/icons'
+import { BookOutlined, DownloadOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -20,6 +21,7 @@ const fmtQ = (n: number) =>
 const balanceColor = (n: number) => n >= 0 ? '#374151' : '#e5484d'
 
 export default function LibroMayorPage() {
+  const navigate = useNavigate()
   const today = dayjs()
   const [fromDate,   setFromDate]   = useState(today.startOf('month').format('YYYY-MM-DD'))
   const [toDate,     setToDate]     = useState(today.format('YYYY-MM-DD'))
@@ -95,6 +97,7 @@ export default function LibroMayorPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
           <BookOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
             <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Libro Mayor</Title>

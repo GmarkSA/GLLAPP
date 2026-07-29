@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
   Row, Col, Divider, Select, Space,
 } from 'antd'
 import {
   HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
-  SwapOutlined, SearchOutlined, AuditOutlined,
+  SwapOutlined, SearchOutlined, AuditOutlined, ArrowLeftOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -377,6 +377,7 @@ function buildCustomerNetting(data: any): NettingRow[] {
 }
 
 export default function ArAgingPage() {
+  const navigate = useNavigate()
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1)
   const [selectedYear,  setSelectedYear]  = useState(dayjs().year())
   const [data,          setData]          = useState<any>(null)
@@ -413,6 +414,7 @@ export default function ArAgingPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
           <AuditOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             AR Aging — Cuentas por Cobrar

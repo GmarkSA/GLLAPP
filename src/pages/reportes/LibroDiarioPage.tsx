@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Select, Space, Typography, Tag, Input,
   Button, Row, Col, Statistic, InputNumber, message, Popconfirm,
 } from 'antd'
 import {
-  SearchOutlined, FileTextOutlined, DownloadOutlined,
+  SearchOutlined, FileTextOutlined, DownloadOutlined, ArrowLeftOutlined,
   FilePdfOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -46,6 +47,7 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 export default function LibroDiarioPage() {
+  const navigate = useNavigate()
   const today = dayjs()
   const [selectedMonth, setSelectedMonth] = useState(today.month() + 1)
   const [selectedYear,  setSelectedYear]  = useState(today.year())
@@ -237,6 +239,7 @@ export default function LibroDiarioPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
           <FileTextOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
             <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Libro Diario</Title>

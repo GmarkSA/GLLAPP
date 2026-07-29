@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, Select, Space,
   Tag, InputNumber, message,
 } from 'antd'
-import { HomeOutlined, SearchOutlined, PrinterOutlined, FileExcelOutlined, LineChartOutlined } from '@ant-design/icons'
+import { HomeOutlined, SearchOutlined, PrinterOutlined, FileExcelOutlined, LineChartOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 import {
@@ -233,6 +233,7 @@ function ResumenIVA({
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function LibroVentasPage() {
+  const navigate = useNavigate()
   const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1)
   const [selectedYear,  setSelectedYear]  = useState(dayjs().year())
   const [data,        setData]        = useState<LibroVentasReport | null>(null)
@@ -380,6 +381,7 @@ export default function LibroVentasPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
           <LineChartOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
             Libro de Ventas y Servicios — SAT Guatemala
