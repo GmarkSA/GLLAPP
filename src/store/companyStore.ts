@@ -90,8 +90,9 @@ export const useCompanyStore = create<CompanyStore>()(
       setActiveCompany: async (company) => {
         sessionStorage.setItem('activeCompanyId', company.id)
         sessionStorage.setItem('activeCompany', JSON.stringify(company))
-        // settingsReady = false mientras se cargan los módulos de la nueva empresa
-        set({ activeCompany: company, activeBranch: null, branches: [], settingsReady: false })
+        // Resetear enabledModules al cambiar empresa para no mostrar el plan de la empresa anterior
+        // mientras carga el plan de la nueva. null = "todos" (optimista) hasta que el API responda.
+        set({ activeCompany: company, activeBranch: null, branches: [], enabledModules: null, settingsReady: false })
 
         const [branchResult, settingsResult] = await Promise.allSettled([
           branchesApi.getAll(company.id),
