@@ -37,9 +37,8 @@ export const useCompanyStore = create<CompanyStore>()(
       lastLoaded:     null,
 
       isModuleEnabled: (module: string) => {
-        const { enabledModules, settingsReady } = get()
-        // Ocultar mientras no se confirme desde backend para evitar flash de todos los módulos
-        if (!settingsReady) return false
+        const { enabledModules, activeCompany } = get()
+        if (!activeCompany) return false
         if (!enabledModules || enabledModules.length === 0) return true
         return enabledModules.includes(module)
       },
@@ -131,10 +130,8 @@ export const useCompanyStore = create<CompanyStore>()(
         activeBranch:   state.activeBranch,
         enabledModules: state.enabledModules,
       }),
-      // Al restaurar desde sessionStorage: si ya hay módulos guardados, marcarlos como listos
-      // para que el sidebar los muestre inmediatamente sin esperar al backend
       onRehydrateStorage: () => (state) => {
-        if (state && state.enabledModules !== null) {
+        if (state && state.activeCompany) {
           state.settingsReady = true
         }
       },
