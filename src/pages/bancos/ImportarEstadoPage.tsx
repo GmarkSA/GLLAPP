@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, Form, Select, Space, Table, Tag, Typography, Upload, message } from 'antd'
+import { Button, Card, Form, Select, Space, Table, Tag, Typography, Upload, message, Alert } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, FileExcelOutlined, UploadOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileExcelOutlined, FilePdfOutlined, UploadOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
 import {
   getBankAccounts,
   getImportHistory,
@@ -29,6 +30,59 @@ type ParsedRow = {
 
 const cleanNumber = (value: unknown) => Number(String(value ?? '').replace(/[^0-9.-]/g, '')) || 0
 
+// ── PDF: extrae texto de cada página agrupando por coordenada Y ───────────────
+async function parsePdfToMatrix(buffer: ArrayBuffer): Promise<string[][]> {
+  const pdfjsLib = await import('pdfjs-dist')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
+
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+  const allRows: string[][] = []
+  const Y_TOL        = 5   // tolerancia en pts para agrupar ítems en la misma fila
+  const MERGE_GAP    = 5   // pts — si la brecha entre ítems es menor se fusionan como una celda
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page   = await pdf.getPage(p)
+    const content = await page.getTextContent()
+
+    // Agrupar ítems de texto por Y redondeado
+    const byY = new Map<number, Array<{ x: number; xEnd: number; text: string }>>()
+    for (const raw of content.items) {
+      if (!('str' in raw)) continue
+      const { str, transform, width } = raw as { str: string; transform: number[]; width: number }
+      if (!str.trim()) continue
+      const y = Math.round(transform[5] / Y_TOL) * Y_TOL
+      const x = transform[4]
+      if (!byY.has(y)) byY.set(y, [])
+      byY.get(y)!.push({ x, xEnd: x + Math.abs(width || 0), text: str.trim() })
+    }
+
+    // Ordenar filas top-to-bottom (Y en PDF crece hacia arriba → orden descendente)
+    const sortedYs = [...byY.keys()].sort((a, b) => b - a)
+    for (const y of sortedYs) {
+      const items = byY.get(y)!.sort((a, b) => a.x - b.x)
+      const cells: string[] = []
+      let cur    = items[0].text
+      let curEnd = items[0].xEnd
+
+      for (let i = 1; i < items.length; i++) {
+        const gap = items[i].x - curEnd
+        if (gap <= MERGE_GAP) {
+          // Mismo "token" — fusionar (agregar espacio si hay brecha visible)
+          cur += (gap > 0 ? ' ' : '') + items[i].text
+        } else {
+          cells.push(cur)
+          cur = items[i].text
+        }
+        curEnd = Math.max(curEnd, items[i].xEnd)
+      }
+      cells.push(cur)
+      if (cells.length > 0) allRows.push(cells)
+    }
+  }
+
+  return allRows
+}
+
 export default function ImportarEstadoPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -39,6 +93,7 @@ export default function ImportarEstadoPage() {
   const [rawRows, setRawRows] = useState<any[][]>([])
   const [rows, setRows] = useState<ParsedRow[]>([])
   const [fileName, setFileName] = useState<string>()
+  const [isPdf, setIsPdf] = useState(false)
   const [history, setHistory] = useState<BankImportBatch[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -94,16 +149,33 @@ export default function ImportarEstadoPage() {
   }
 
   const beforeUpload = async (file: File) => {
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const pdfFile = ext === 'pdf'
+    setIsPdf(pdfFile)
+    setFileName(file.name)
+    setRows([])
+
+    let matrix: any[][] = []
+
+    try {
+      const buffer = await file.arrayBuffer()
+      if (pdfFile) {
+        matrix = await parsePdfToMatrix(buffer)
+      } else {
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        matrix = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+      }
+    } catch {
+      message.error(`No se pudo leer el archivo ${pdfFile ? 'PDF' : 'Excel/CSV'}`)
+      return false
+    }
+
     const allRows = matrix.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''))
 
-    // Buscar la fila de encabezados real: primera fila cuya col[0] sea exactamente "Fecha"
-    // (maneja el formato BI que tiene varias filas de metadatos antes del header real)
+    // Detectar fila de encabezados real (primera fila donde col[0] es "fecha")
     let headerIdx = 0
-    for (let i = 0; i < Math.min(allRows.length, 20); i++) {
+    for (let i = 0; i < Math.min(allRows.length, 25); i++) {
       if (String(allRows[i][0] || '').trim().toLowerCase() === 'fecha') {
         headerIdx = i
         break
@@ -112,28 +184,30 @@ export default function ImportarEstadoPage() {
 
     const head: any[] = allRows[headerIdx] ?? []
     const body = allRows.slice(headerIdx + 1)
-
     const labels = head.map((h, i) => String(h || `Columna ${i + 1}`))
+
     setHeaders(labels)
     setRawRows(body)
-    setFileName(file.name)
-    setRows([])
+    form.resetFields(['dateField', 'descriptionField', 'debitField', 'creditField',
+      'amountField', 'referenceField', 'balanceField'])
 
-    // Auto-mapeo para formato Banco Industrial
-    const idx = (needle: string) =>
-      labels.findIndex(l => l.trim().toLowerCase().startsWith(needle.toLowerCase()))
-    const biMap = {
-      dateField:        idx('Fecha'),
-      descriptionField: idx('Descripci'),
-      referenceField:   idx('No. Doc'),
-      debitField:       idx('Debe'),
-      creditField:      idx('Haber'),
-      balanceField:     idx('Saldo'),
+    // Auto-mapeo multi-banco (BI, BAC, Banrural, G&T, Citi…)
+    const tryFind = (...needles: string[]) =>
+      labels.findIndex(l => needles.some(n => l.trim().toLowerCase().includes(n.toLowerCase())))
+
+    const autoMap = {
+      dateField:        tryFind('fecha'),
+      descriptionField: tryFind('descripci', 'concepto', 'detalle', 'transacci'),
+      referenceField:   tryFind('no. doc', 'ref', 'cheque', 'documento'),
+      debitField:       tryFind('debe', 'débito', 'debito', 'cargo', 'retiro', 'egreso'),
+      creditField:      tryFind('haber', 'crédito', 'credito', 'abono', 'depósito', 'deposito', 'ingreso'),
+      balanceField:     tryFind('saldo'),
     }
-    const detected = Object.values(biMap).filter(v => v >= 0).length >= 4
+
+    const detected = Object.values(autoMap).filter(v => v >= 0).length >= 4
     if (detected) {
-      form.setFieldsValue(biMap)
-      message.success('Formato Banco Industrial detectado — columnas auto-asignadas')
+      form.setFieldsValue(autoMap)
+      message.success(`Formato detectado${pdfFile ? ' en PDF' : ''} — columnas auto-asignadas`)
     }
 
     return false
@@ -157,6 +231,7 @@ export default function ImportarEstadoPage() {
       setRows([])
       setRawRows([])
       setHeaders([])
+      setIsPdf(false)
       form.resetFields()
       const updated = await getImportHistory(selectedAccountId, { limit: 20 })
       setHistory(updated.data || [])
@@ -185,7 +260,7 @@ export default function ImportarEstadoPage() {
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/bancos')} />
             <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Importar estado de cuenta</Title>
           </Space>
-          <div><Text type="secondary">Carga Excel o CSV, asigna columnas y revisa la vista previa antes de importar.</Text></div>
+          <div><Text type="secondary">Carga Excel, CSV o PDF del banco — asigna columnas y revisa la vista previa antes de importar.</Text></div>
         </div>
       </div>
 
@@ -201,11 +276,31 @@ export default function ImportarEstadoPage() {
               />
             </Form.Item>
 
-            <Upload.Dragger beforeUpload={beforeUpload} showUploadList={false} accept=".xlsx,.xls,.csv" disabled={!selectedAccountId}>
-              <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ color: NAVY }} /></p>
+            <Upload.Dragger
+              beforeUpload={beforeUpload}
+              showUploadList={false}
+              accept=".xlsx,.xls,.csv,.pdf"
+              disabled={!selectedAccountId}
+            >
+              <p className="ant-upload-drag-icon">
+                {isPdf
+                  ? <FilePdfOutlined style={{ color: '#e5484d' }} />
+                  : <FileExcelOutlined style={{ color: NAVY }} />
+                }
+              </p>
               <p className="ant-upload-text">Arrastra o selecciona archivo</p>
-              <p className="ant-upload-hint">Excel o CSV con fecha, descripcion, debito/credito, referencia y saldo.</p>
+              <p className="ant-upload-hint">Excel, CSV o PDF con estado de cuenta bancario</p>
             </Upload.Dragger>
+
+            {isPdf && headers.length > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginTop: 10, fontSize: 11 }}
+                message="PDF cargado — verifica el mapeo de columnas"
+                description="El texto se extrae automáticamente. Los montos con símbolo de moneda pueden aparecer como una sola celda. Revisa la vista previa antes de importar."
+              />
+            )}
 
             {headers.length > 0 && (
               <>
