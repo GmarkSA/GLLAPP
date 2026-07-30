@@ -1176,7 +1176,7 @@ export default function DteSatPage() {
                         rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}>
                         <Select
                           placeholder="Selecciona el impuesto (IVA)"
-                          options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))}
+                          options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${t.rate}%)` : `${t.code} — ${t.name}` }))}
                         />
                       </Form.Item>
                     </div>
@@ -1604,7 +1604,7 @@ export default function DteSatPage() {
                   rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}
                 >
                   <Select
-                    options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))}
+                    options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${t.rate}%)` : `${t.code} — ${t.name}` }))}
                     placeholder="Selecciona el impuesto (IVA)"
                   />
                 </Form.Item>
