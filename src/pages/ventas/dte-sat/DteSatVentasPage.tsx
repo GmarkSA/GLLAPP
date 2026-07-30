@@ -7,13 +7,13 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
-  DeleteOutlined, FileTextOutlined, ReloadOutlined,
+  DeleteOutlined, FileTextOutlined, ReloadOutlined, RollbackOutlined,
   SearchOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
 import {
-  createSatEmitidosCustomer, deleteSatEmitidos,
+  createSatEmitidosCustomer, deleteSatEmitidos, reactivateSatEmitidos,
   getSatEmitidosDocuments, getSatEmitidosJobs, getSatEmitidosStats,
   postSatEmitidos, resolveSatEmitidosCustomer,
   startSatEmitidosImport, syncSatEmitidosJob, clearAllSatEmitidos,
@@ -229,6 +229,39 @@ export default function DteSatVentasPage() {
           await loadAll()
         } catch (err) {
           message.error(getErrorMessage(err, 'No se pudo eliminar el DTE'))
+        }
+      },
+    })
+  }
+
+  const handleReactivate = (row: SatDteEmitidos) => {
+    Modal.confirm({
+      title: 'Reactivar DTE para re-procesarlo',
+      content: (
+        <div>
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 10, fontSize: 12 }}
+            message="Usa esta opción si eliminaste la factura vinculada y necesitas volver a contabilizarla."
+          />
+          <Text>¿Reactivar <Text strong>{row.nombreReceptor ?? row.nitReceptor}</Text> ({row.serie}/{row.numeroDte})?</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            El DTE volverá al estado "Listo para procesar" y podrás generar una nueva factura.
+          </Text>
+        </div>
+      ),
+      okText: 'Reactivar',
+      okButtonProps: { style: { background: '#7c3aed', borderColor: '#7c3aed' } },
+      cancelText: 'Cancelar',
+      async onOk() {
+        try {
+          await reactivateSatEmitidos(row.id)
+          message.success('DTE reactivado — ya puedes procesarlo nuevamente')
+          await loadAll()
+        } catch (err) {
+          message.error(getErrorMessage(err, 'No se pudo reactivar el DTE'))
         }
       },
     })
@@ -646,7 +679,7 @@ export default function DteSatVentasPage() {
     {
       title: 'Acción',
       key: 'actions',
-      width: 115,
+      width: 145,
       fixed: 'right' as const,
       render: (_: unknown, r: SatDteEmitidos) => (
         <Space size={4}>
@@ -673,6 +706,16 @@ export default function DteSatVentasPage() {
                   Procesar
                 </Button>
           }
+          {r.status === 'posted' && (
+            <Tooltip title="Re-procesar — usar si la factura vinculada fue eliminada">
+              <Button
+                size="small"
+                icon={<RollbackOutlined />}
+                onClick={() => handleReactivate(r)}
+                style={{ fontSize: 11, color: '#7c3aed', borderColor: '#c4b5fd' }}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="Eliminar de la bandeja">
             <Button size="small" danger icon={<DeleteOutlined />}
               onClick={() => handleDeleteDte(r)} style={{ fontSize: 11 }} />
