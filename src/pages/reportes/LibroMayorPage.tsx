@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Space, Typography, Select,
-  Button, Segmented,
+  Button, Segmented, InputNumber,
 } from 'antd'
 import {
   BookOutlined, DownloadOutlined, ArrowLeftOutlined, ReloadOutlined,
@@ -48,6 +48,7 @@ export default function LibroMayorPage() {
   const [mayorData,     setMayorData]     = useState<LibroMayorData[]>([])
   const [loading,       setLoading]       = useState(false)
   const [exporting,     setExporting]     = useState(false)
+  const [folio,         setFolio]         = useState<number>(1)
 
   const fromDate = dayjs().year(selectedYear).month(selectedMonth - 1).startOf('month').format('YYYY-MM-DD')
   const toDate   = dayjs().year(selectedYear).month(selectedMonth - 1).endOf('month').format('YYYY-MM-DD')
@@ -285,7 +286,7 @@ export default function LibroMayorPage() {
   const handleExport = async () => {
     setExporting(true)
     try {
-      const params: Record<string, string> = { fromDate, toDate, mode: viewMode }
+      const params: Record<string, string> = { fromDate, toDate, mode: viewMode, folio: String(folio) }
       if (accountFilter) params.accountId = accountFilter
       await exportReporte('libro-mayor', 'excel', params)
     } finally { setExporting(false) }
@@ -303,14 +304,24 @@ export default function LibroMayorPage() {
             <Text type="secondary">Movimientos por cuenta contable en el período</Text>
           </div>
         </div>
-        <Button
-          icon={<DownloadOutlined />}
-          loading={exporting}
-          onClick={handleExport}
-          disabled={filteredData.length === 0}
-        >
-          Exportar Excel
-        </Button>
+        <Space>
+          <Text style={{ fontSize: 12, color: '#555' }}>Folio:</Text>
+          <InputNumber
+            min={1}
+            value={folio}
+            onChange={v => setFolio(v ?? 1)}
+            style={{ width: 70 }}
+            size="small"
+          />
+          <Button
+            icon={<DownloadOutlined />}
+            loading={exporting}
+            onClick={handleExport}
+            disabled={filteredData.length === 0}
+          >
+            Exportar Excel
+          </Button>
+        </Space>
       </div>
 
       {/* Filtros */}
