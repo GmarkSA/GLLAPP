@@ -6,9 +6,10 @@ import {
 } from 'antd'
 import {
   HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
-  SwapOutlined, SearchOutlined, AuditOutlined, ArrowLeftOutlined,
+  SwapOutlined, SearchOutlined, AuditOutlined, ArrowLeftOutlined, FileExcelOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 
 import { getApAging, type ApAgingRow, type ApAgingBucket } from '../../api/compras'
 
@@ -291,6 +292,73 @@ export default function ApAgingPage() {
 
   const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
 
+  const BUCKET_LABELS: Record<string, string> = {
+    current: 'Vigente', days_30: '1-30 días', days_60: '31-60 días',
+    days_90: '61-90 días', over_90: '+90 días',
+  }
+
+  const handleExcel = () => {
+    if (!data) return
+    const vendorMap = new Map<string, { name: string; invoices: any[]; advances: any[] }>()
+    const ensure = (id: string, name: string) => {
+      if (!vendorMap.has(id)) vendorMap.set(id, { name, invoices: [], advances: [] })
+      return vendorMap.get(id)!
+    }
+    for (const [key, bucket] of Object.entries(data.buckets) as [string, ApAgingBucket][]) {
+      for (const item of bucket.items) {
+        ensure(item.vendorId || '__sin__', item.vendorName || '—')
+          .invoices.push({ ...item, bucketLabel: BUCKET_LABELS[key] })
+      }
+    }
+    for (const adv of data.advances ?? []) {
+      ensure(adv.vendorId || '__sin__', adv.vendorName || '—').advances.push(adv)
+    }
+
+    const rows: any[][] = [
+      ['AP Aging — Cuentas por Pagar'],
+      [`Corte: ${data.asOf}`, '', '', '', '', '', `Generado: ${new Date(data.generatedAt).toLocaleString('es-GT')}`],
+      [],
+      ['Documento', 'Acreedor', 'Fecha', 'Vencimiento', 'Bucket', 'Estado', 'Total (GTQ)', 'Saldo (GTQ)'],
+    ]
+
+    let grandCxP = 0; let grandAdv = 0
+    for (const [, v] of vendorMap) {
+      let vCxP = 0; let vAdv = 0
+      for (const inv of v.invoices) {
+        const bal = Number(inv.balanceGTQ ?? inv.balance ?? 0)
+        vCxP += bal
+        rows.push([
+          inv.invoiceNumber, inv.vendorName,
+          inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString('es-GT') : '',
+          inv.dueDate     ? new Date(inv.dueDate).toLocaleDateString('es-GT')     : '',
+          inv.bucketLabel,
+          inv.daysOverdue <= 0 ? 'Vigente' : `${inv.daysOverdue} días`,
+          Number(inv.totalGTQ ?? inv.total ?? 0), bal,
+        ])
+      }
+      for (const adv of v.advances) {
+        const bal = Number(adv.balance ?? 0)
+        vAdv += bal
+        rows.push([
+          adv.advanceNumber, adv.vendorName,
+          adv.advanceDate ? new Date(adv.advanceDate).toLocaleDateString('es-GT') : '',
+          '—', 'Anticipo', 'Anticipo',
+          -Number(adv.amount), -bal,
+        ])
+      }
+      rows.push(['', `SUBTOTAL — ${v.name}`, '', '', '', '', vCxP, vCxP - vAdv])
+      rows.push([])
+      grandCxP += vCxP; grandAdv += vAdv
+    }
+    rows.push(['', 'TOTAL GENERAL', '', '', '', '', grandCxP, grandCxP - grandAdv])
+
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    ws['!cols'] = [{ wch: 18 }, { wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'AP Aging')
+    XLSX.writeFile(wb, `ap-aging-${data.asOf}.xlsx`)
+  }
+
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <Breadcrumb
@@ -324,6 +392,11 @@ export default function ApAgingPage() {
           >
             {showAdvances ? 'Ocultar anticipos' : 'Incluir anticipos'}
           </Button>
+          {data && (
+            <Button icon={<FileExcelOutlined />} onClick={handleExcel} style={{ color: '#2ea172', borderColor: '#2ea172' }}>
+              Excel
+            </Button>
+          )}
           {data && (
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
               Actualizar
