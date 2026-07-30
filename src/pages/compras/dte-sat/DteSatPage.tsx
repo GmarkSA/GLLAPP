@@ -777,32 +777,34 @@ export default function DteSatPage() {
           <DocumentLink documentKey={row.xmlKey} docType="fel-xml-proveedor" label="XML" />
           {row.pdfKey
             ? <DocumentLink documentKey={row.pdfKey} docType="fel-pdf-proveedor" label="PDF" />
-            : (
-              <Space size={4}>
-                {row.uuid && (
-                  <Tooltip title="Ver en portal SAT (verificación FEL)">
-                    <a
-                      href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${row.uuid}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontSize: 12, color: '#ff7f00' }}
-                    >
-                      SAT ↗
-                    </a>
+            : row.pdfUrl
+              ? <a href={row.pdfUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600 }}>PDF ↗</a>
+              : (
+                <Space size={4}>
+                  {row.uuid && (
+                    <Tooltip title="Ver en portal SAT (verificación FEL)">
+                      <a
+                        href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${row.uuid}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: 12, color: '#ff7f00' }}
+                      >
+                        SAT ↗
+                      </a>
+                    </Tooltip>
+                  )}
+                  <Tooltip title="Re-subir PDF a R2 (requiere URL APIFY vigente)">
+                    <Button
+                      size="small"
+                      type="link"
+                      icon={<SyncOutlined spin={resubirId === row.id} />}
+                      loading={resubirId === row.id}
+                      onClick={() => handleResubirR2(row)}
+                      style={{ padding: 0, fontSize: 11, color: '#6b7280' }}
+                    />
                   </Tooltip>
-                )}
-                <Tooltip title="Re-subir PDF a R2 (requiere URL APIFY vigente)">
-                  <Button
-                    size="small"
-                    type="link"
-                    icon={<SyncOutlined spin={resubirId === row.id} />}
-                    loading={resubirId === row.id}
-                    onClick={() => handleResubirR2(row)}
-                    style={{ padding: 0, fontSize: 11, color: '#6b7280' }}
-                  />
-                </Tooltip>
-              </Space>
-            )}
+                </Space>
+              )}
         </div>
       ),
     },
