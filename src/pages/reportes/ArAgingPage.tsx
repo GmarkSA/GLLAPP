@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
-  Row, Col, Divider, Select, Space,
+  Row, Col, Select, Space,
 } from 'antd'
 import {
   HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
   SwapOutlined, SearchOutlined, AuditOutlined, ArrowLeftOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 
 import { getArAging, type ArAgingRow, type ArAgingBucket, type ArAgingPayment } from '../../api/facturas'
 
@@ -106,109 +108,15 @@ const ageBucketColor: Record<string, string> = {
   over_90: '#e5484d',
 }
 
-const invoiceColumns = [
-  {
-    title: 'Factura',
-    dataIndex: 'invoiceNumber',
-    width: 160,
-    render: (v: string, row: ArAgingRow) => (
-      <Link to={`/ventas/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{v}</Link>
-    ),
-  },
-  {
-    title: 'Cliente',
-    dataIndex: 'customerName',
-    ellipsis: true,
-  },
-  {
-    title: 'Fecha',
-    dataIndex: 'invoiceDate',
-    width: 100,
-    render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—',
-  },
-  {
-    title: 'Vencimiento',
-    dataIndex: 'dueDate',
-    width: 110,
-    render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—',
-  },
-  {
-    title: 'Días vencido',
-    dataIndex: 'daysOverdue',
-    width: 110,
-    align: 'right' as const,
-    render: (v: number) => v <= 0
-      ? <Tag color="#2ea172">Vigente</Tag>
-      : <Tag color={v > 90 ? '#6b7280' : v > 60 ? '#e5484d' : v > 30 ? '#ff7f00' : '#1faec2'}>{v} días</Tag>,
-  },
-  {
-    title: 'Total factura',
-    dataIndex: 'total',
-    width: 130,
-    align: 'right' as const,
-    render: (v: number, row: ArAgingRow) => (
-      <div style={{ textAlign: 'right' }}>
-        {row.currency && row.currency !== 'GTQ' ? (
-          <>
-            <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
-              {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-            <br />
-            <Text style={{ fontSize: 11, color: '#6b7280' }}>
-              Q {(row.totalGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-          </>
-        ) : (
-          <Text style={{ fontSize: 13 }}>{fmt(v)}</Text>
-        )}
-      </div>
-    ),
-  },
-  {
-    title: 'Abonado',
-    dataIndex: 'paidAmount',
-    width: 120,
-    align: 'right' as const,
-    render: (v: number, row: ArAgingRow) => v > 0 ? (
-      <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172', fontWeight: 600 }}>
-        {row.currency !== 'GTQ' ? `${row.currency} ` : 'Q '}
-        {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-      </Text>
-    ) : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>,
-  },
-  {
-    title: 'Saldo pendiente',
-    dataIndex: 'balance',
-    width: 150,
-    align: 'right' as const,
-    render: (v: number, row: ArAgingRow) => (
-      <div style={{ textAlign: 'right' }}>
-        {row.currency && row.currency !== 'GTQ' ? (
-          <>
-            <Text style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
-              {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-            <br />
-            <Text style={{ fontSize: 11, fontWeight: 600, color: '#1faec2' }}>
-              Q {(row.balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-          </>
-        ) : (
-          <Text style={{ fontWeight: 700, color: '#1faec2', fontSize: 13 }}>{fmt(v)}</Text>
-        )}
-      </div>
-    ),
-  },
-]
+type UnifiedArRow = (ArAgingRow & { _isAdvance?: false }) | (any & { _isAdvance: true; _rowKey: string })
 
-const advanceColumns = [
+const unifiedColumns = [
   {
-    title: 'Anticipo',
-    dataIndex: 'advanceNumber',
+    title: 'Documento',
     width: 160,
-    render: (v: string) => (
-      <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{v}</span>
-    ),
+    render: (_: any, row: UnifiedArRow) => row._isAdvance
+      ? <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{row.advanceNumber}</span>
+      : <Link to={`/ventas/facturas/${(row as ArAgingRow).id}`} style={{ fontWeight: 600, fontSize: 13 }}>{(row as ArAgingRow).invoiceNumber}</Link>,
   },
   {
     title: 'Cliente',
@@ -217,38 +125,87 @@ const advanceColumns = [
   },
   {
     title: 'Fecha',
-    dataIndex: 'advanceDate',
     width: 100,
-    render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—',
+    render: (_: any, row: UnifiedArRow) => {
+      const v = row._isAdvance ? row.advanceDate : (row as ArAgingRow).invoiceDate
+      return v ? new Date(v).toLocaleDateString('es-GT') : '—'
+    },
   },
   {
     title: 'Vencimiento',
     width: 110,
-    render: () => '—',
+    render: (_: any, row: UnifiedArRow) => {
+      if (row._isAdvance) return '—'
+      const v = (row as ArAgingRow).dueDate
+      return v ? new Date(v).toLocaleDateString('es-GT') : '—'
+    },
   },
   {
     title: 'Estado',
-    width: 110,
+    width: 120,
     align: 'right' as const,
-    render: () => <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>,
+    render: (_: any, row: UnifiedArRow) => {
+      if (row._isAdvance) return <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>
+      const r = row as ArAgingRow
+      return r.daysOverdue <= 0
+        ? <Tag color="#2ea172">Vigente</Tag>
+        : <Tag color={r.daysOverdue > 90 ? '#6b7280' : r.daysOverdue > 60 ? '#e5484d' : r.daysOverdue > 30 ? '#ff7f00' : '#1faec2'}>{r.daysOverdue} días</Tag>
+    },
   },
   {
-    title: 'Recibido',
-    dataIndex: 'amount',
-    width: 140,
+    title: 'Total factura',
+    width: 130,
     align: 'right' as const,
-    render: (v: number) => (
-      <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number(v))})</Text>
-    ),
+    render: (_: any, row: UnifiedArRow) => {
+      if (row._isAdvance) return <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number(row.amount))})</Text>
+      const r = row as ArAgingRow
+      return r.currency && r.currency !== 'GTQ' ? (
+        <div style={{ textAlign: 'right' }}>
+          <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
+            {r.currency} {r.total.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </Text>
+          <br />
+          <Text style={{ fontSize: 11, color: '#6b7280' }}>
+            Q {(r.totalGTQ ?? r.total).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </Text>
+        </div>
+      ) : <Text style={{ fontSize: 13 }}>{fmt(r.total)}</Text>
+    },
   },
   {
-    title: 'Disponible',
-    dataIndex: 'balance',
+    title: 'Abonado',
+    width: 120,
+    align: 'right' as const,
+    render: (_: any, row: UnifiedArRow) => {
+      if (row._isAdvance) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+      const r = row as ArAgingRow
+      return (r.paidAmount ?? 0) > 0 ? (
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172', fontWeight: 600 }}>
+          {r.currency !== 'GTQ' ? `${r.currency} ` : 'Q '}
+          {r.paidAmount!.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+        </Text>
+      ) : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+    },
+  },
+  {
+    title: 'Saldo pendiente',
     width: 150,
     align: 'right' as const,
-    render: (v: number) => (
-      <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(Number(v))})</Text>
-    ),
+    render: (_: any, row: UnifiedArRow) => {
+      if (row._isAdvance) return <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(Number(row.balance))})</Text>
+      const r = row as ArAgingRow
+      return r.currency && r.currency !== 'GTQ' ? (
+        <div style={{ textAlign: 'right' }}>
+          <Text style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+            {r.currency} {r.balance.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </Text>
+          <br />
+          <Text style={{ fontSize: 11, fontWeight: 600, color: '#1faec2' }}>
+            Q {(r.balanceGTQ ?? r.balance).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </Text>
+        </div>
+      ) : <Text style={{ fontWeight: 700, color: '#1faec2', fontSize: 13 }}>{fmt(r.balance)}</Text>
+    },
   },
 ]
 
@@ -264,7 +221,11 @@ interface BucketCardProps {
 
 function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAdvances }: BucketCardProps) {
   const visibleAdvances = showAdvances && advances && advances.length > 0 ? advances : []
-  const totalAdv = visibleAdvances.reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0)
+
+  const rows: UnifiedArRow[] = [
+    ...bucket.items,
+    ...visibleAdvances.map((a: any) => ({ ...a, _isAdvance: true as const, _rowKey: `adv-${a.id}` })),
+  ]
 
   return (
     <Card
@@ -289,91 +250,33 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
         </div>
       }
     >
-      {expanded && bucket.items.length > 0 && (
-        <Table
-          dataSource={bucket.items}
-          columns={invoiceColumns}
-          rowKey="id"
+      {expanded && rows.length > 0 && (
+        <Table<UnifiedArRow>
+          dataSource={rows}
+          columns={unifiedColumns}
+          rowKey={(row) => (row as any)._isAdvance ? (row as any)._rowKey : (row as ArAgingRow).id}
           pagination={false}
           size="small"
           style={{ marginTop: 4 }}
           expandable={{
-            expandedRowRender: (row: ArAgingRow) =>
-              row.payments && row.payments.length > 0
-                ? <PaymentsSubTable payments={row.payments} currency={row.currency} />
-                : <div style={{ padding: '8px 48px', color: '#9aa1ab', fontSize: 12 }}>Sin abonos registrados al corte.</div>,
-            rowExpandable: (row: ArAgingRow) => (row.paidAmount ?? 0) > 0,
+            expandedRowRender: (row: UnifiedArRow) => {
+              if (row._isAdvance) return null
+              const r = row as ArAgingRow
+              return r.payments && r.payments.length > 0
+                ? <PaymentsSubTable payments={r.payments} currency={r.currency} />
+                : <div style={{ padding: '8px 48px', color: '#9aa1ab', fontSize: 12 }}>Sin abonos registrados al corte.</div>
+            },
+            rowExpandable: (row: UnifiedArRow) => !row._isAdvance && ((row as ArAgingRow).paidAmount ?? 0) > 0,
             expandRowByClick: false,
           }}
         />
       )}
 
-      {expanded && visibleAdvances.length > 0 && (
-        <>
-          <Divider style={{ margin: '8px 0', borderColor: '#2ea17244' }}>
-            <Text style={{ fontSize: 11, color: '#2ea172', fontWeight: 600 }}>
-              Anticipos de clientes — crédito disponible ({fmt(totalAdv)})
-            </Text>
-          </Divider>
-          <Table
-            dataSource={visibleAdvances}
-            columns={advanceColumns}
-            rowKey="id"
-            pagination={false}
-            size="small"
-            style={{ marginBottom: 4 }}
-            rowClassName={() => 'ant-table-row-advance'}
-          />
-        </>
-      )}
-
-      {expanded && bucket.items.length === 0 && visibleAdvances.length === 0 && (
+      {expanded && rows.length === 0 && (
         <Text style={{ color: '#9aa1ab', fontSize: 12 }}>Sin facturas en este rango.</Text>
       )}
     </Card>
   )
-}
-
-interface NettingRow {
-  key:            string
-  customerName:   string
-  cxc:            number
-  anticipo:       number
-  neto:           number
-  advanceNumbers: string[]
-}
-
-function buildCustomerNetting(data: any): NettingRow[] {
-  const byCustomer = new Map<string, { name: string; cxc: number; anticipo: number; advanceNumbers: string[] }>()
-
-  const ensure = (key: string, name: string) => {
-    if (!byCustomer.has(key)) byCustomer.set(key, { name, cxc: 0, anticipo: 0, advanceNumbers: [] })
-    return byCustomer.get(key)!
-  }
-
-  for (const bucket of Object.values(data.buckets) as any[]) {
-    for (const item of bucket.items ?? []) {
-      const key = item.customerId || '__sin__'
-      ensure(key, item.customerName || '—').cxc += Number(item.balanceGTQ ?? item.balance ?? 0)
-    }
-  }
-  for (const adv of data.advances ?? []) {
-    const key = adv.customerId || '__sin__'
-    const entry = ensure(key, adv.customerName || '—')
-    entry.anticipo += Number(adv.balance ?? 0)
-    if (adv.advanceNumber) entry.advanceNumbers.push(adv.advanceNumber)
-  }
-
-  return [...byCustomer.entries()]
-    .map(([key, v]) => ({
-      key,
-      customerName:   v.name,
-      cxc:            Math.round(v.cxc * 100) / 100,
-      anticipo:       Math.round(v.anticipo * 100) / 100,
-      neto:           Math.round((v.cxc - v.anticipo) * 100) / 100,
-      advanceNumbers: v.advanceNumbers,
-    }))
-    .sort((a, b) => a.customerName.localeCompare(b.customerName, 'es'))
 }
 
 export default function ArAgingPage() {
@@ -387,7 +290,6 @@ export default function ArAgingPage() {
     current: false, days_30: false, days_60: false, days_90: false, over_90: false,
   })
 
-  // Último día del mes seleccionado → snapshot de cierre
   const asOf = dayjs().year(selectedYear).month(selectedMonth - 1).endOf('month').format('YYYY-MM-DD')
   const periodLabel = MESES.find(m => m.value === selectedMonth)?.label + ' ' + selectedYear
 
@@ -400,6 +302,85 @@ export default function ArAgingPage() {
   }
 
   const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
+
+  const handleExcel = () => {
+    if (!data) return
+    const customerMap = new Map<string, { name: string; invoices: any[]; advances: any[] }>()
+
+    for (const [bucketKey, bucket] of Object.entries(data.buckets) as [string, ArAgingBucket][]) {
+      for (const item of (bucket as ArAgingBucket).items) {
+        const key = item.customerId || '__sin__'
+        if (!customerMap.has(key)) customerMap.set(key, { name: item.customerName || '—', invoices: [], advances: [] })
+        customerMap.get(key)!.invoices.push({ ...item, _bucketLabel: bucket.label })
+      }
+    }
+    for (const adv of data.advances ?? []) {
+      const key = adv.customerId || '__sin__'
+      if (!customerMap.has(key)) customerMap.set(key, { name: adv.customerName || '—', invoices: [], advances: [] })
+      customerMap.get(key)!.advances.push(adv)
+    }
+
+    const fmtXls = (n: number) => Math.round(n * 100) / 100
+    const xlsRows: any[][] = []
+    xlsRows.push([`AR Aging — Cuentas por Cobrar — Corte: ${data.asOf}`])
+    xlsRows.push([])
+    xlsRows.push(['Documento', 'Cliente', 'Fecha', 'Vencimiento', 'Bucket', 'Estado', 'Total (GTQ)', 'Saldo (GTQ)'])
+
+    let grandTotal = 0
+    let grandBalance = 0
+
+    for (const [, customer] of customerMap) {
+      let subtotalTotal = 0
+      let subtotalBalance = 0
+
+      for (const inv of customer.invoices) {
+        const total   = Number(inv.totalGTQ   ?? inv.total   ?? 0)
+        const balance = Number(inv.balanceGTQ ?? inv.balance ?? 0)
+        subtotalTotal   += total
+        subtotalBalance += balance
+        xlsRows.push([
+          inv.invoiceNumber,
+          inv.customerName,
+          inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString('es-GT') : '',
+          inv.dueDate     ? new Date(inv.dueDate).toLocaleDateString('es-GT')     : '',
+          inv._bucketLabel,
+          inv.daysOverdue <= 0 ? 'Vigente' : `${inv.daysOverdue} días`,
+          fmtXls(total),
+          fmtXls(balance),
+        ])
+      }
+
+      for (const adv of customer.advances) {
+        const amount  = -Number(adv.amount  ?? 0)
+        const balance = -Number(adv.balance ?? 0)
+        subtotalTotal   += amount
+        subtotalBalance += balance
+        xlsRows.push([
+          adv.advanceNumber,
+          adv.customerName,
+          adv.advanceDate ? new Date(adv.advanceDate).toLocaleDateString('es-GT') : '',
+          '',
+          'Vigente',
+          'Anticipo',
+          fmtXls(amount),
+          fmtXls(balance),
+        ])
+      }
+
+      grandTotal   += subtotalTotal
+      grandBalance += subtotalBalance
+      xlsRows.push(['', `SUBTOTAL — ${customer.name}`, '', '', '', '', fmtXls(subtotalTotal), fmtXls(subtotalBalance)])
+      xlsRows.push([])
+    }
+
+    xlsRows.push(['', 'TOTAL GENERAL', '', '', '', '', fmtXls(grandTotal), fmtXls(grandBalance)])
+
+    const ws = XLSX.utils.aoa_to_sheet(xlsRows)
+    ws['!cols'] = [{ wch: 18 }, { wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 16 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'AR Aging')
+    XLSX.writeFile(wb, `ar-aging-${data.asOf}.xlsx`)
+  }
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -435,9 +416,18 @@ export default function ArAgingPage() {
             {showAdvances ? 'Ocultar anticipos' : 'Incluir anticipos'}
           </Button>
           {data && (
-            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-              Actualizar
-            </Button>
+            <>
+              <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
+                Actualizar
+              </Button>
+              <Button
+                icon={<FileExcelOutlined />}
+                style={{ background: '#217346', borderColor: '#217346', color: '#fff' }}
+                onClick={handleExcel}
+              >
+                Excel
+              </Button>
+            </>
           )}
         </Space>
       </div>
@@ -450,7 +440,6 @@ export default function ArAgingPage() {
 
       {data && (
         <>
-          {/* Etiqueta de período */}
           <div style={{
             marginBottom: 12, padding: '6px 12px', background: '#e6fafd',
             borderRadius: 6, border: '1px solid rgba(31,174,194,0.3)', display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -528,84 +517,6 @@ export default function ArAgingPage() {
               </>
             )}
           </Row>
-
-          {showAdvances && (
-            <>
-              <Divider orientation={'left' as any} style={{ marginTop: 4, marginBottom: 10 }}>
-                <Text style={{ color: '#1faec2', fontWeight: 600, fontSize: 13 }}>
-                  Posición neta por cliente (CxC − Anticipos)
-                </Text>
-              </Divider>
-              <Table
-                size="small"
-                pagination={false}
-                dataSource={buildCustomerNetting(data)}
-                rowKey="key"
-                style={{ marginBottom: 20 }}
-                summary={rows => {
-                  const totCxc = rows.reduce((s, r) => s + r.cxc, 0)
-                  const totAdv = rows.reduce((s, r) => s + r.anticipo, 0)
-                  const totNet = rows.reduce((s, r) => s + r.neto, 0)
-                  return (
-                    <Table.Summary.Row style={{ background: '#f8fafc', fontWeight: 700 }}>
-                      <Table.Summary.Cell index={0}><Text strong>TOTAL</Text></Table.Summary.Cell>
-                      <Table.Summary.Cell index={1} align="right">
-                        <Text strong style={{ color: '#1faec2' }}>{fmt(totCxc)}</Text>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={2} align="right">
-                        <Text strong style={{ color: '#2ea172' }}>({fmt(totAdv)})</Text>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ color: totNet <= 0 ? '#2ea172' : '#1faec2', fontSize: 14 }}>
-                          {totNet < 0 ? `(A fav) ${fmt(Math.abs(totNet))}` : fmt(totNet)}
-                        </Text>
-                      </Table.Summary.Cell>
-                    </Table.Summary.Row>
-                  )
-                }}
-                columns={[
-                  { title: 'Cliente', dataIndex: 'customerName', ellipsis: true },
-                  {
-                    title: 'Facturas CxC',
-                    dataIndex: 'cxc',
-                    width: 160,
-                    align: 'right' as const,
-                    render: (v: number) => v > 0
-                      ? <Text style={{ color: '#1faec2', fontWeight: 600 }}>{fmt(v)}</Text>
-                      : <Text type="secondary">—</Text>,
-                  },
-                  {
-                    title: 'Anticipos (crédito)',
-                    dataIndex: 'anticipo',
-                    width: 220,
-                    align: 'right' as const,
-                    render: (v: number, row: NettingRow) => v > 0 ? (
-                      <div style={{ textAlign: 'right' }}>
-                        {row.advanceNumbers.map(n => (
-                          <div key={n} style={{ fontSize: 11, color: '#2ea172', fontWeight: 600, lineHeight: '16px' }}>{n}</div>
-                        ))}
-                        <Text style={{ color: '#2ea172', fontWeight: 700 }}>({fmt(v)})</Text>
-                      </div>
-                    ) : <Text type="secondary">—</Text>,
-                  },
-                  {
-                    title: 'Saldo neto',
-                    dataIndex: 'neto',
-                    width: 180,
-                    align: 'right' as const,
-                    render: (v: number) => (
-                      <Text style={{ fontWeight: 700, fontSize: 13, color: v < 0 ? '#2ea172' : v === 0 ? '#6b7280' : '#1faec2' }}>
-                        {v < 0
-                          ? <Tag color="success" style={{ fontWeight: 700 }}>A favor {fmt(Math.abs(v))}</Tag>
-                          : v === 0 ? <Tag color="default">Saldado</Tag> : fmt(v)
-                        }
-                      </Text>
-                    ),
-                  },
-                ]}
-              />
-            </>
-          )}
 
           {(data.buckets.days_90.total + data.buckets.over_90.total) > 0 && (
             <div style={{
