@@ -174,6 +174,9 @@ export interface CreateInvoiceDto {
   felCertificadaAt?: string
   centroCostoId?:    string
   centroBeneficioId?: string
+  // ISR Retención en origen
+  isrRetentionAmount?:    number
+  isrRetentionAccountId?: string
 }
 
 export interface CreateEstimateDto {
@@ -577,6 +580,8 @@ export const postSatEmitidos = (id: string, dto: {
   defaultUnit?: string
   creditNoteReason?: string
   originalInvoiceId?: string
+  isrRetentionAmount?: number
+  isrRetentionAccountId?: string
 }) => api.post(`${DTE_EMIT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: Invoice
   dte: SatDteEmitidos

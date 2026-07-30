@@ -8,6 +8,7 @@ import {
   SaveOutlined, SendOutlined, HomeOutlined,
   GlobalOutlined, SafetyCertificateOutlined, FileTextOutlined,
   CheckCircleFilled, CloseCircleFilled, LoadingOutlined, LinkOutlined,
+  EditOutlined, CheckOutlined,
 } from '@ant-design/icons'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import dayjs from 'dayjs'
@@ -25,13 +26,23 @@ import { getExchangeRateForDate } from '../../../api/monedas'
 import LineItemsEditor, {
   type LineItem,
   newLineItem,
+  calcTotals,
 } from '../../../components/DocumentForm/LineItemsEditor'
 import PaymentTermsSelect, { getPaymentTermDays } from '../../../components/PaymentTermsSelect'
 import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Text } = Typography
 
-interface CustomerOption { value: string; label: string; commercialName?: string }
+const fmt = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2 })
+
+interface CustomerOption {
+  value: string
+  label: string
+  commercialName?: string
+  taxCode?: string
+  tdsEnabled?: boolean
+  tdsTaxCode?: string
+}
 
 export default function FacturaFormPage() {
   const { id } = useParams<{ id?: string }>()
@@ -53,6 +64,12 @@ export default function FacturaFormPage() {
   const [certifying, setCertifying] = useState(false)
   const [felCertResult, setFelCertResult] = useState<{ success: boolean; uuid?: string; serie?: string; numero?: string; url?: string; mensaje: string } | null>(null)
   const activeCompany = useCompanyStore(s => s.activeCompany)
+  // Mejora 1 — impuesto preferido del cliente
+  const [customerDefaultTaxId, setCustomerDefaultTaxId] = useState<string | undefined>()
+  // Mejora 2 — ISR retención en origen
+  const [customerIsrTax, setCustomerIsrTax] = useState<Tax | undefined>()
+  const [isrAmount, setIsrAmount] = useState(0)
+  const [editingIsr, setEditingIsr] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -148,9 +165,12 @@ export default function FacturaFormPage() {
       .then((res: any) => {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
         setCustomers(list.map((c) => ({
-          value: c.id,
-          label: c.legalName ?? c.name,
+          value:      c.id,
+          label:      c.legalName ?? c.name,
           commercialName: c.name,
+          taxCode:    c.taxCode    ?? undefined,
+          tdsEnabled: c.tdsEnabled ?? false,
+          tdsTaxCode: c.tdsTaxCode ?? undefined,
         })))
       })
       .catch(() => {})
@@ -172,7 +192,7 @@ export default function FacturaFormPage() {
   const handleCustomerSelect = async (customerId: string) => {
     try {
       const cust: any = await getCustomer(customerId)
-      // getPaymentTermDays resuelve cualquier net_N (7, 10, 25, 45...)
+      // Términos de pago
       const termValue = cust?.paymentTerms as string | undefined
       const stdDays   = termValue ? getPaymentTermDays(termValue) : null
       const days: number | null = cust?.paymentTermsDays
@@ -184,11 +204,54 @@ export default function FacturaFormPage() {
       setCustomerTermsDays(days)
       setCustomerTermsLabel(label)
       if (days != null && days > 0) applyDueDate(days)
+
+      // Mejora 1 — impuesto IVA preferido del cliente
+      if (cust?.taxCode && taxes.length) {
+        const matched = taxes.find(t => t.code === cust.taxCode && t.isActive)
+        setCustomerDefaultTaxId(matched?.id)
+      } else {
+        setCustomerDefaultTaxId(undefined)
+      }
+
+      // Mejora 2 — ISR retención en origen
+      if (cust?.tdsEnabled && cust?.tdsTaxCode && taxes.length) {
+        const isrTax = taxes.find(t => t.code === cust.tdsTaxCode && t.isActive)
+        setCustomerIsrTax(isrTax)
+      } else {
+        setCustomerIsrTax(undefined)
+        setIsrAmount(0)
+      }
     } catch {
       setCustomerTermsDays(null)
       setCustomerTermsLabel(null)
+      setCustomerDefaultTaxId(undefined)
+      setCustomerIsrTax(undefined)
+      setIsrAmount(0)
     }
   }
+
+  // Auto-cálculo ISR cuando cambian los ítems (solo facturas nuevas)
+  useEffect(() => {
+    if (id || !customerIsrTax) return
+    const { subtotal } = calcTotals(items)
+    let amount: number
+    if (customerIsrTax.subtype === 'progressive' && customerIsrTax.tiers?.length) {
+      const sorted = [...customerIsrTax.tiers].sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
+      let total = 0; let prev = 0
+      for (const tier of sorted) {
+        if (subtotal <= prev) break
+        const limit   = tier.upTo ?? Infinity
+        const taxable = Math.min(subtotal, limit) - prev
+        total += taxable * tier.rate / 100
+        prev   = limit
+      }
+      amount = Math.round(total * 100) / 100
+    } else {
+      amount = Math.round(subtotal * Number(customerIsrTax.rate) / 100 * 100) / 100
+    }
+    setIsrAmount(amount)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, customerIsrTax])
 
   const handleInvoiceDateChange = (date: dayjs.Dayjs | null) => {
     if (date && customerTermsDays != null && customerTermsDays > 0) {
@@ -243,6 +306,8 @@ export default function FacturaFormPage() {
       felCertificadaAt: v.felCertificadaAt ? v.felCertificadaAt.toISOString() : undefined,
       centroCostoId:    dim?.centroCostoId    || undefined,
       centroBeneficioId: dim?.centroBeneficioId || undefined,
+      isrRetentionAmount:    isrAmount > 0 ? isrAmount : undefined,
+      isrRetentionAccountId: isrAmount > 0 ? (customerIsrTax?.salesAccountId ?? undefined) : undefined,
     }
   }
 
@@ -547,7 +612,61 @@ export default function FacturaFormPage() {
               taxes={taxes}
               onChange={setItems}
               docType="invoice"
+              vendorDefaultTaxId={customerDefaultTaxId}
             />
+
+            {/* ── ISR Retención en origen ──────────────────────────────────── */}
+            {(customerIsrTax || isrAmount > 0) && (
+              <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', marginTop: 12, paddingTop: 12 }}>
+                <div style={{ maxWidth: 480, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div>
+                      {customerIsrTax ? (
+                        <>
+                          <Space size={6} style={{ marginBottom: 2 }}>
+                            <Tag color="#6b7280" style={{ margin: 0, fontSize: 11 }}>{customerIsrTax.code}</Tag>
+                            <Text style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 500 }}>{customerIsrTax.name}</Text>
+                          </Space>
+                          <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginTop: 2 }}>
+                            Base Q {fmt(calcTotals(items).subtotal)} × {customerIsrTax.rate}%
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención ISR</Text>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ fontSize: 13, color: '#0a0a0a', fontWeight: 600 }}>−</Text>
+                      {editingIsr ? (
+                        <>
+                          <InputNumber
+                            size="small" min={0} step={0.01} prefix="Q" precision={2}
+                            value={isrAmount} onChange={v => setIsrAmount(v ?? 0)}
+                            style={{ width: 120 }}
+                            formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
+                            parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
+                          />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsr(false)} style={{ color: '#2ea172' }} />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={{ fontSize: 14, fontWeight: 700, color: '#0a0a0a', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
+                            Q {fmt(isrAmount)}
+                          </Text>
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9aa1ab' }} />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
+                    <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>Neto a Cobrar</Text>
+                    <Text style={{ fontSize: 15, fontWeight: 700, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>
+                      Q {fmt(Math.max(0, calcTotals(items).total - isrAmount))}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
