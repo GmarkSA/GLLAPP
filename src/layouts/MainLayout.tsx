@@ -12,6 +12,7 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
+import { useVersionCheck } from '../hooks/useVersionCheck'
 import { useCompanyStore } from '../store/companyStore'
 import type { Company } from '../store/authStore'
 import CompanySelector from '../components/CompanySelector'
@@ -158,6 +159,7 @@ export default function MainLayout() {
   const isModuleEnabled  = useCompanyStore(s => s.isModuleEnabled)
   const activeCompany    = useCompanyStore(s => s.activeCompany)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
+  const hasUpdate = useVersionCheck()
 
   // ── Lógica de acceso por rol ──────────────────────────────────────────────
   // roles puede llegar como string[] o como objeto[] {id, name} según el endpoint
@@ -329,6 +331,17 @@ export default function MainLayout() {
                 >
                   <span style={{ fontWeight: 400, opacity: 0.8 }}>ID org: </span>
                   <span style={{ fontWeight: 700 }}>{formatOrgId(activeCompany)}</span>
+                </Tag>
+              </Tooltip>
+            )}
+            {hasUpdate && (
+              <Tooltip title="Hay cambios recientes — actualiza para ver la versión más reciente">
+                <Tag
+                  color="#1B3A6B"
+                  style={{ cursor: 'pointer', fontSize: 11, fontWeight: 600, margin: 0 }}
+                  onClick={() => window.location.reload()}
+                >
+                  ↻ Actualizar ahora
                 </Tag>
               </Tooltip>
             )}

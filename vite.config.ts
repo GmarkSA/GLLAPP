@@ -1,8 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { writeFileSync } from 'fs'
+
+const versionPlugin = () => ({
+  name: 'version-file',
+  buildStart() {
+    writeFileSync('./public/version.json', JSON.stringify({ v: Date.now() }))
+  },
+})
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), versionPlugin()],
   server: {
     port: 5173,
     strictPort: true,   // falla con error claro si 5173 está ocupado — no se mueve a 5174
