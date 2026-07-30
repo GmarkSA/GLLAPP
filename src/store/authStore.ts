@@ -109,7 +109,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     sessionStorage.clear()
-    set({ user: null, isAuthenticated: false, tenantId: null, tenantGroupName: null })
+    window.location.href = '/login'
   },
 
   setTenant: (tenantId) => {
