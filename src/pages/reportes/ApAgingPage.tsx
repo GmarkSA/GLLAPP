@@ -35,23 +35,24 @@ const ageBucketColor: Record<string, string> = {
   over_90:  '#e5484d',
 }
 
-const invoiceColumns = [
+type UnifiedRow = (ApAgingRow & { _isAdvance?: false }) | (any & { _isAdvance: true; _rowKey: string })
+
+const unifiedColumns = [
   {
-    title: 'Factura',
-    dataIndex: 'invoiceNumber',
+    title: 'Documento',
     width: 160,
-    render: (v: string, row: ApAgingRow) => (
-      <Link to={`/compras/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{v}</Link>
-    ),
+    render: (_: any, row: UnifiedRow) => row._isAdvance
+      ? <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{(row as any).advanceNumber}</span>
+      : <Link to={`/compras/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{(row as any).invoiceNumber}</Link>,
   },
   {
     title: 'Acreedor',
     dataIndex: 'vendorName',
     ellipsis: true,
-    render: (v: string, row: ApAgingRow) => (
+    render: (v: string, row: UnifiedRow) => (
       <span>
         {v}
-        {row.isExpenseReimbursement && (
+        {!row._isAdvance && (row as any).isExpenseReimbursement && (
           <Tag color="#6b7280" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
             Reembolso
           </Tag>
@@ -61,121 +62,90 @@ const invoiceColumns = [
   },
   {
     title: 'Fecha',
-    dataIndex: 'invoiceDate',
     width: 100,
-    render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—',
-  },
-  {
-    title: 'Vencimiento',
-    dataIndex: 'dueDate',
-    width: 110,
-    render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—',
-  },
-  {
-    title: 'Días vencido',
-    dataIndex: 'daysOverdue',
-    width: 110,
-    align: 'right' as const,
-    render: (v: number) => v <= 0
-      ? <Tag color="#2ea172">Vigente</Tag>
-      : <Tag color={v > 90 ? '#6b7280' : v > 60 ? '#e5484d' : v > 30 ? '#ff7f00' : '#1faec2'}>{v} días</Tag>,
-  },
-  {
-    title: 'Total',
-    dataIndex: 'total',
-    width: 140,
-    align: 'right' as const,
-    render: (v: number, row: ApAgingRow) => (
-      <div style={{ textAlign: 'right' }}>
-        {row.currency && row.currency !== 'GTQ' ? (
-          <>
-            <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
-              {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-            <br />
-            <Text style={{ fontSize: 11, color: '#6b7280' }}>
-              Q {(row.totalGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-          </>
-        ) : (
-          <Text style={{ fontSize: 13 }}>{fmt(v)}</Text>
-        )}
-      </div>
-    ),
-  },
-  {
-    title: 'Saldo',
-    dataIndex: 'balance',
-    width: 150,
-    align: 'right' as const,
-    render: (v: number, row: ApAgingRow) => (
-      <div style={{ textAlign: 'right' }}>
-        {row.currency && row.currency !== 'GTQ' ? (
-          <>
-            <Text style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
-              {row.currency} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-            <br />
-            <Text style={{ fontSize: 11, fontWeight: 600, color: '#1faec2' }}>
-              Q {(row.balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-            </Text>
-          </>
-        ) : (
-          <Text style={{ fontWeight: 700, color: '#1faec2', fontSize: 13 }}>{fmt(v)}</Text>
-        )}
-      </div>
-    ),
-  },
-]
-
-const advanceColumns = [
-  {
-    title: 'Anticipo',
-    dataIndex: 'advanceNumber',
-    width: 160,
-    render: (v: string) => (
-      <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{v}</span>
-    ),
-  },
-  {
-    title: 'Proveedor',
-    dataIndex: 'vendorName',
-    ellipsis: true,
-  },
-  {
-    title: 'Fecha',
-    dataIndex: 'advanceDate',
-    width: 100,
-    render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—',
+    render: (_: any, row: UnifiedRow) => {
+      const d = row._isAdvance ? (row as any).advanceDate : (row as any).invoiceDate
+      return d ? new Date(d).toLocaleDateString('es-GT') : '—'
+    },
   },
   {
     title: 'Vencimiento',
     width: 110,
-    render: () => '—',
+    render: (_: any, row: UnifiedRow) => {
+      if (row._isAdvance) return '—'
+      const d = (row as any).dueDate
+      return d ? new Date(d).toLocaleDateString('es-GT') : '—'
+    },
   },
   {
     title: 'Estado',
     width: 110,
     align: 'right' as const,
-    render: () => <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>,
+    render: (_: any, row: UnifiedRow) => {
+      if (row._isAdvance) return <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>
+      const v = (row as any).daysOverdue as number
+      return v <= 0
+        ? <Tag color="#2ea172">Vigente</Tag>
+        : <Tag color={v > 90 ? '#6b7280' : v > 60 ? '#e5484d' : v > 30 ? '#ff7f00' : '#1faec2'}>{v} días</Tag>
+    },
   },
   {
-    title: 'Pagado',
-    dataIndex: 'amount',
+    title: 'Total',
     width: 140,
     align: 'right' as const,
-    render: (v: number) => (
-      <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number(v))})</Text>
-    ),
+    render: (_: any, row: UnifiedRow) => {
+      if (row._isAdvance) {
+        return <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number((row as any).amount))})</Text>
+      }
+      const v = (row as any).total as number
+      const cur = (row as any).currency
+      return (
+        <div style={{ textAlign: 'right' }}>
+          {cur && cur !== 'GTQ' ? (
+            <>
+              <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
+                {cur} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+              <br />
+              <Text style={{ fontSize: 11, color: '#6b7280' }}>
+                Q {((row as any).totalGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            </>
+          ) : (
+            <Text style={{ fontSize: 13 }}>{fmt(v)}</Text>
+          )}
+        </div>
+      )
+    },
   },
   {
-    title: 'Disponible',
-    dataIndex: 'balance',
+    title: 'Saldo',
     width: 150,
     align: 'right' as const,
-    render: (v: number) => (
-      <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(Number(v))})</Text>
-    ),
+    render: (_: any, row: UnifiedRow) => {
+      const v = Number((row as any).balance)
+      if (row._isAdvance) {
+        return <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(v)})</Text>
+      }
+      const cur = (row as any).currency
+      return (
+        <div style={{ textAlign: 'right' }}>
+          {cur && cur !== 'GTQ' ? (
+            <>
+              <Text style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                {cur} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+              <br />
+              <Text style={{ fontSize: 11, fontWeight: 600, color: '#1faec2' }}>
+                Q {((row as any).balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            </>
+          ) : (
+            <Text style={{ fontWeight: 700, color: '#1faec2', fontSize: 13 }}>{fmt(v)}</Text>
+          )}
+        </div>
+      )
+    },
   },
 ]
 
@@ -190,8 +160,14 @@ interface BucketCardProps {
 }
 
 function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAdvances }: BucketCardProps) {
-  const visibleAdvances = showAdvances && advances && advances.length > 0 ? advances : []
-  const totalAdv = visibleAdvances.reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0)
+  const visibleAdvances = showAdvances && advances && advances.length > 0
+    ? advances.map((a: any) => ({ ...a, _isAdvance: true as const, _rowKey: `adv-${a.id}` }))
+    : []
+
+  const rows: UnifiedRow[] = [
+    ...bucket.items,
+    ...visibleAdvances,
+  ]
 
   return (
     <Card
@@ -216,37 +192,19 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
         </div>
       }
     >
-      {expanded && bucket.items.length > 0 && (
+      {expanded && rows.length > 0 && (
         <Table
-          dataSource={bucket.items}
-          columns={invoiceColumns}
-          rowKey="id"
+          dataSource={rows}
+          columns={unifiedColumns}
+          rowKey={(r: any) => r._isAdvance ? r._rowKey : r.id}
           pagination={false}
           size="small"
           style={{ marginTop: 4 }}
+          rowClassName={(r: any) => r._isAdvance ? 'aging-row-advance' : ''}
         />
       )}
 
-      {expanded && visibleAdvances.length > 0 && (
-        <>
-          <Divider style={{ margin: '8px 0', borderColor: '#2ea17244' }}>
-            <Text style={{ fontSize: 11, color: '#2ea172', fontWeight: 600 }}>
-              Anticipos a proveedor — crédito disponible ({fmt(totalAdv)})
-            </Text>
-          </Divider>
-          <Table
-            dataSource={visibleAdvances}
-            columns={advanceColumns}
-            rowKey="id"
-            pagination={false}
-            size="small"
-            style={{ marginBottom: 4 }}
-            rowClassName={() => 'ant-table-row-advance'}
-          />
-        </>
-      )}
-
-      {expanded && bucket.items.length === 0 && visibleAdvances.length === 0 && (
+      {expanded && rows.length === 0 && (
         <Text style={{ color: '#9aa1ab', fontSize: 12 }}>Sin facturas en este rango.</Text>
       )}
     </Card>
@@ -459,83 +417,6 @@ export default function ApAgingPage() {
             )}
           </Row>
 
-          {showAdvances && (
-            <>
-              <Divider orientation={'left' as any} style={{ marginTop: 4, marginBottom: 10 }}>
-                <Text style={{ color: '#1faec2', fontWeight: 600, fontSize: 13 }}>
-                  Posición neta por proveedor (CxP − Anticipos)
-                </Text>
-              </Divider>
-              <Table
-                size="small"
-                pagination={false}
-                dataSource={buildVendorNetting(data)}
-                rowKey="key"
-                style={{ marginBottom: 20 }}
-                summary={rows => {
-                  const totCxp = rows.reduce((s, r) => s + r.cxp, 0)
-                  const totAdv = rows.reduce((s, r) => s + r.anticipo, 0)
-                  const totNet = rows.reduce((s, r) => s + r.neto, 0)
-                  return (
-                    <Table.Summary.Row style={{ background: '#f8fafc', fontWeight: 700 }}>
-                      <Table.Summary.Cell index={0}><Text strong>TOTAL</Text></Table.Summary.Cell>
-                      <Table.Summary.Cell index={1} align="right">
-                        <Text strong style={{ color: '#1faec2' }}>{fmt(totCxp)}</Text>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={2} align="right">
-                        <Text strong style={{ color: '#2ea172' }}>({fmt(totAdv)})</Text>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={3} align="right">
-                        <Text strong style={{ color: totNet <= 0 ? '#2ea172' : '#e5484d', fontSize: 14 }}>
-                          {totNet < 0 ? `(A favor) ${fmt(Math.abs(totNet))}` : fmt(totNet)}
-                        </Text>
-                      </Table.Summary.Cell>
-                    </Table.Summary.Row>
-                  )
-                }}
-                columns={[
-                  { title: 'Proveedor', dataIndex: 'vendorName', ellipsis: true },
-                  {
-                    title: 'Facturas CxP',
-                    dataIndex: 'cxp',
-                    width: 160,
-                    align: 'right' as const,
-                    render: (v: number) => v > 0
-                      ? <Text style={{ color: '#1faec2', fontWeight: 600 }}>{fmt(v)}</Text>
-                      : <Text type="secondary">—</Text>,
-                  },
-                  {
-                    title: 'Anticipos (crédito)',
-                    dataIndex: 'anticipo',
-                    width: 220,
-                    align: 'right' as const,
-                    render: (v: number, row: NettingRow) => v > 0 ? (
-                      <div style={{ textAlign: 'right' }}>
-                        {row.advanceNumbers.map(n => (
-                          <div key={n} style={{ fontSize: 11, color: '#2ea172', fontWeight: 600, lineHeight: '16px' }}>{n}</div>
-                        ))}
-                        <Text style={{ color: '#2ea172', fontWeight: 700 }}>({fmt(v)})</Text>
-                      </div>
-                    ) : <Text type="secondary">—</Text>,
-                  },
-                  {
-                    title: 'Saldo neto',
-                    dataIndex: 'neto',
-                    width: 180,
-                    align: 'right' as const,
-                    render: (v: number) => (
-                      <Text style={{ fontWeight: 700, fontSize: 13, color: v < 0 ? '#2ea172' : v === 0 ? '#6b7280' : '#e5484d' }}>
-                        {v < 0
-                          ? <Tag color="success" style={{ fontWeight: 700 }}>A favor {fmt(Math.abs(v))}</Tag>
-                          : v === 0 ? <Tag color="default">Saldado</Tag> : fmt(v)
-                        }
-                      </Text>
-                    ),
-                  },
-                ]}
-              />
-            </>
-          )}
 
           {(data.buckets.days_90.total + data.buckets.over_90.total) > 0 && (
             <div style={{
