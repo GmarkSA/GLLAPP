@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Select, Space, Typography, Tag, Input,
-  Button, Row, Col, Statistic, InputNumber, message, Popconfirm, Pagination,
+  Button, InputNumber, message, Popconfirm, Pagination,
 } from 'antd'
 import {
   SearchOutlined, FileTextOutlined, DownloadOutlined, ArrowLeftOutlined,
@@ -278,54 +278,54 @@ export default function LibroDiarioPage() {
         style={{ borderRadius: 10, marginBottom: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: '12px 16px' }}
       >
-        <Space wrap>
-          <Select
-            value={selectedMonth}
-            onChange={v => { setSelectedMonth(v); setPage(1) }}
-            options={MESES}
-            style={{ width: 130 }}
-            size="middle"
-          />
-          <Select
-            value={selectedYear}
-            onChange={v => { setSelectedYear(v); setPage(1) }}
-            options={ANIOS}
-            style={{ width: 90 }}
-            size="middle"
-          />
-          <Input
-            prefix={<SearchOutlined />}
-            placeholder="Buscar póliza, descripción..."
-            style={{ width: 260 }}
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1) }}
-            allowClear
-          />
-          <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
-            Actualizar
-          </Button>
-        </Space>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <Space wrap>
+            <Select
+              value={selectedMonth}
+              onChange={v => { setSelectedMonth(v); setPage(1) }}
+              options={MESES}
+              style={{ width: 130 }}
+              size="middle"
+            />
+            <Select
+              value={selectedYear}
+              onChange={v => { setSelectedYear(v); setPage(1) }}
+              options={ANIOS}
+              style={{ width: 90 }}
+              size="middle"
+            />
+            <Input
+              prefix={<SearchOutlined />}
+              placeholder="Buscar póliza, descripción..."
+              style={{ width: 260 }}
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1) }}
+              allowClear
+            />
+            <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
+              Actualizar
+            </Button>
+          </Space>
+          <Space split={<span style={{ color: '#e2e8f0' }}>|</span>} size={16}>
+            <span>
+              <Text type="secondary" style={{ fontSize: 11 }}>Asientos </Text>
+              <Text strong style={{ fontSize: 13, color: '#374151' }}>{total}</Text>
+            </span>
+            <span>
+              <Text type="secondary" style={{ fontSize: 11 }}>Debe </Text>
+              <Text strong style={{ fontSize: 13, color: '#1faec2' }}>
+                Q {totalDebit.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            </span>
+            <span>
+              <Text type="secondary" style={{ fontSize: 11 }}>Haber </Text>
+              <Text strong style={{ fontSize: 13, color: '#2ea172' }}>
+                Q {totalCredit.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </Text>
+            </span>
+          </Space>
+        </div>
       </Card>
-
-      {/* KPIs */}
-      <Row gutter={12} style={{ marginBottom: 12 }}>
-        {[
-          { title: 'Total asientos', value: total,       fmt: (v: number) => String(v) },
-          { title: 'Total Debe',     value: totalDebit,  fmt: (v: number) => `Q ${v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}` },
-          { title: 'Total Haber',    value: totalCredit, fmt: (v: number) => `Q ${v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}` },
-        ].map(s => (
-          <Col span={8} key={s.title}>
-            <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-              <Statistic
-                title={s.title}
-                value={s.value}
-                formatter={v => s.fmt(Number(v))}
-                valueStyle={{ fontSize: 16, color: '#1faec2' }}
-              />
-            </Card>
-          </Col>
-        ))}
-      </Row>
 
       {/* Tabla */}
       <Card
