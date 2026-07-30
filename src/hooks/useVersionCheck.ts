@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 
-export function useVersionCheck(intervalMs = 5 * 60 * 1000) {
+export function useVersionCheck(intervalMs = 2 * 60 * 1000) {
   const [hasUpdate, setHasUpdate] = useState(false)
 
   useEffect(() => {
     let baseline: string | null = null
+    let notified = false
 
     const check = async () => {
+      if (notified) return
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' })
         if (!res.ok) return
@@ -16,6 +18,7 @@ export function useVersionCheck(intervalMs = 5 * 60 * 1000) {
         if (baseline === null) {
           baseline = v
         } else if (v !== baseline) {
+          notified = true
           setHasUpdate(true)
         }
       } catch {
@@ -23,9 +26,16 @@ export function useVersionCheck(intervalMs = 5 * 60 * 1000) {
       }
     }
 
+    // Check on visibility change — cuando el usuario vuelve a la pestaña
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onVisible)
+
     check()
     const id = setInterval(check, intervalMs)
-    return () => clearInterval(id)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [intervalMs])
 
   return hasUpdate
