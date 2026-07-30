@@ -355,7 +355,7 @@ export default function FacturaImprimirPage() {
 
         {/* ── PIE ────────────────────────────────────────────────────────── */}
         <div className="footer">
-          <span>ConTaERP — Sistema de Contabilidad</span>
+          <span>Lucía — Sistema de Contabilidad</span>
           <span>Impreso: {new Date().toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>

@@ -169,7 +169,7 @@ export default function InvoicePrint({ invoice, company, formatId }: Props) {
           ¡Gracias por su compra!
         </div>
         <div style={{ textAlign: 'center', fontSize: fs - 2, color: '#aaa', marginTop: 2 }}>
-          ConTaERP — Sistema de Contabilidad
+          Lucía — Sistema de Contabilidad
         </div>
       </div>
     )
@@ -383,7 +383,7 @@ export default function InvoicePrint({ invoice, company, formatId }: Props) {
       {/* ── PIE ────────────────────────────────────────────────────────────── */}
       <div style={{ ...divider }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs - 2, color: '#6b7280' }}>
-        <span>Documento generado con ConTaERP</span>
+        <span>Documento generado con Lucía</span>
         <span>Impreso: {new Date().toLocaleDateString('es-GT')}</span>
       </div>
     </div>

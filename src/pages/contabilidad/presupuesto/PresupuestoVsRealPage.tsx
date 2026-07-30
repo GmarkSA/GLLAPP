@@ -308,7 +308,7 @@ export default function PresupuestoVsRealPage() {
       `• Ejecución YTD: ${kpis.ytdEjecucion !== null ? kpis.ytdEjecucion.toFixed(1) + '%' : 'N/A'}\n` +
       `• Margen bruto: ${kpis.margenBruto !== null ? kpis.margenBruto.toFixed(1) + '%' : 'N/A'}\n` +
       `• Alertas activas: ${alertCount}\n\n` +
-      `Generado desde ConTaERP el ${dayjs().format('DD/MM/YYYY HH:mm')}`
+      `Generado desde Lucía el ${dayjs().format('DD/MM/YYYY HH:mm')}`
     )
     window.open(`mailto:?subject=${subject}&body=${body}`, '_self')
   }

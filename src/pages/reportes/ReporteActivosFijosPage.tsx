@@ -222,7 +222,7 @@ export default function ReporteActivosFijosPage() {
       `• Valor en libros: ${Q(kpi.totalValLib)}\n` +
       `• Depreciación mensual en curso: ${Q(kpi.depMensual)}\n` +
       (kpi.totalBajas > 0 ? `• Activos dados de baja/vendidos: ${kpi.totalBajas}\n` : '') +
-      `\nGenerado por ConTaERP.`,
+      `\nGenerado por Lucía.`,
     )
     window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_self')
     setShowEmail(false)

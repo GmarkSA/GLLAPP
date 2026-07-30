@@ -246,7 +246,7 @@ export default function TransferenciaPrintPage() {
         {/* Pie de página */}
         <div className="doc-footer">
           Este documento es un comprobante interno de pago. No constituye factura fiscal.
-          Generado por ConTaERP — {dayjs().format('DD/MM/YYYY HH:mm')}
+          Generado por Lucía — {dayjs().format('DD/MM/YYYY HH:mm')}
         </div>
       </div>
     </>
