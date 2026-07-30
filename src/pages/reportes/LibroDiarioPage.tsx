@@ -2,14 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Select, Space, Typography, Tag, Input,
-  Button, Row, Col, Statistic, InputNumber, message, Popconfirm,
+  Button, Row, Col, Statistic, InputNumber, message, Popconfirm, Pagination,
 } from 'antd'
 import {
   SearchOutlined, FileTextOutlined, DownloadOutlined, ArrowLeftOutlined,
   FilePdfOutlined, ReloadOutlined, CheckCircleOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import type { ColumnsType } from 'antd/es/table'
 import {
   getLibroDiario, exportReporte,
   type LibroDiarioEntry, type LibroDiarioLine,
@@ -17,6 +16,11 @@ import {
 import { postAsiento, deleteAsiento } from '../../api/asientos'
 
 const { Text, Title } = Typography
+
+type FlatRow =
+  | { _type: 'header'; entry: LibroDiarioEntry; _key: string }
+  | { _type: 'line';   entry: LibroDiarioEntry; line: LibroDiarioLine; _key: string }
+  | { _type: 'total';  entry: LibroDiarioEntry; _key: string }
 
 const MESES = [
   { value: 1,  label: 'Enero' },   { value: 2,  label: 'Febrero' },
@@ -119,117 +123,112 @@ export default function LibroDiarioPage() {
   const totalDebit  = data.reduce((s, e) => s + e.totalDebit,  0)
   const totalCredit = data.reduce((s, e) => s + e.totalCredit, 0)
 
-  const lineColumns: ColumnsType<LibroDiarioLine> = [
-    {
-      title: 'Cuenta', width: 300,
-      render: (_, l) => (
-        <span>
-          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280', marginRight: 6 }}>{l.accountCode}</Text>
-          <Text style={{ fontSize: 12 }}>{l.accountName}</Text>
-        </span>
-      ),
-    },
-    {
-      title: 'Descripción', dataIndex: 'description',
-      render: (v) => <Text type="secondary" style={{ fontSize: 11 }}>{v}</Text>,
-    },
-    {
-      title: 'Debe', dataIndex: 'debit', width: 130, align: 'right',
-      render: (v) => (
-        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#1faec2' : '#bbb' }}>{fmtQ(v)}</Text>
-      ),
-    },
-    {
-      title: 'Haber', dataIndex: 'credit', width: 130, align: 'right',
-      render: (v) => (
-        <Text style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#2ea172' : '#bbb' }}>{fmtQ(v)}</Text>
-      ),
-    },
-  ]
+  const flatRows: FlatRow[] = data.flatMap(entry => [
+    { _type: 'header', entry, _key: `h-${entry.id}` },
+    ...entry.lines.map((line, i) => ({ _type: 'line' as const, entry, line, _key: `l-${entry.id}-${i}` })),
+    { _type: 'total', entry, _key: `t-${entry.id}` },
+  ])
 
-  const columns: ColumnsType<LibroDiarioEntry> = [
+  const flatColumns = [
     {
-      title: 'Póliza',
-      dataIndex: 'entryNumber',
-      width: 145,
-      render: (v) => (
-        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>
-      ),
-    },
-    {
-      title: 'Fecha', dataIndex: 'entryDate', width: 110,
-      render: (v) => dayjs(v).format('DD/MM/YYYY'),
-    },
-    {
-      title: 'Descripción', dataIndex: 'description',
-      render: (v, r) => (
-        <div>
-          <div style={{ fontWeight: 500, fontSize: 13 }}>{v}</div>
-          {r.reference && (
-            <Text type="secondary" style={{ fontSize: 11 }}>Ref: {r.reference}</Text>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Tipo', dataIndex: 'type', width: 110,
-      render: (v) => <Tag>{TYPE_LABEL[v] ?? v}</Tag>,
-    },
-    {
-      title: 'Estado', dataIndex: 'status', width: 100,
-      render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v}</Tag>,
-    },
-    {
-      title: 'Debe', dataIndex: 'totalDebit', width: 130, align: 'right',
-      render: (v) => (
-        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v)}</Text>
-      ),
-    },
-    {
-      title: 'Haber', dataIndex: 'totalCredit', width: 130, align: 'right',
-      render: (v) => (
-        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>{fmtQ(v)}</Text>
-      ),
-    },
-    {
-      key: 'actions', width: 120, align: 'center',
-      render: (_, row) => {
-        if (row.status === 'draft') {
+      title: 'Cuenta',
+      width: 300,
+      onCell: (row: FlatRow) => {
+        if (row._type === 'header') return { colSpan: 4 }
+        if (row._type === 'total') return { colSpan: 2 }
+        return {}
+      },
+      render: (_: any, row: FlatRow) => {
+        if (row._type === 'header') {
+          const e = row.entry
           return (
-            <Button
-              size="small"
-              type="primary"
-              ghost
-              icon={<CheckCircleOutlined />}
-              loading={posting === row.id}
-              onClick={() => handlePost(row.id)}
-            >
-              Publicar
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12, whiteSpace: 'nowrap' }}>
+                  {e.entryNumber}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                  {dayjs(e.entryDate).format('DD/MM/YYYY')}
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {e.description}
+                </Text>
+                {e.reference && (
+                  <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>Ref: {e.reference}</Text>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <Tag style={{ margin: 0 }}>{TYPE_LABEL[e.type] ?? e.type}</Tag>
+                <Tag color={STATUS_COLOR[e.status] ?? 'default'} style={{ margin: 0 }}>{e.status}</Tag>
+                {e.status === 'draft' && (
+                  <Button size="small" type="primary" ghost icon={<CheckCircleOutlined />}
+                    loading={posting === e.id} onClick={() => handlePost(e.id)}>
+                    Publicar
+                  </Button>
+                )}
+                {e.status === 'void' && (
+                  <Popconfirm
+                    title="¿Eliminar póliza anulada?"
+                    description="Esta acción es permanente y no se puede deshacer."
+                    okText="Eliminar" cancelText="Cancelar"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={() => handleDelete(e.id)}
+                  >
+                    <Button size="small" danger icon={<DeleteOutlined />} loading={deleting === e.id}>
+                      Eliminar
+                    </Button>
+                  </Popconfirm>
+                )}
+              </div>
+            </div>
           )
         }
-        if (row.status === 'void') {
-          return (
-            <Popconfirm
-              title="¿Eliminar póliza anulada?"
-              description="Esta acción es permanente y no se puede deshacer."
-              okText="Eliminar"
-              cancelText="Cancelar"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => handleDelete(row.id)}
-            >
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                loading={deleting === row.id}
-              >
-                Eliminar
-              </Button>
-            </Popconfirm>
-          )
+        if (row._type === 'total') {
+          return <Text strong style={{ fontSize: 11, color: '#374151' }}>Totales</Text>
         }
-        return null
+        const l = row.line
+        return (
+          <span>
+            <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280', marginRight: 6 }}>{l.accountCode}</Text>
+            <Text style={{ fontSize: 12 }}>{l.accountName}</Text>
+          </span>
+        )
+      },
+    },
+    {
+      title: 'Descripción',
+      onCell: (row: FlatRow) => (row._type !== 'line') ? { colSpan: 0 } : {},
+      render: (_: any, row: FlatRow) => {
+        if (row._type !== 'line') return null
+        return <Text type="secondary" style={{ fontSize: 11 }}>{row.line.description}</Text>
+      },
+    },
+    {
+      title: 'Debe', width: 130, align: 'right' as const,
+      onCell: (row: FlatRow) => row._type === 'header' ? { colSpan: 0 } : {},
+      render: (_: any, row: FlatRow) => {
+        if (row._type === 'header') return null
+        const v = row._type === 'total' ? row.entry.totalDebit : row.line.debit
+        return (
+          <Text strong={row._type === 'total'}
+            style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#1faec2' : '#bbb' }}>
+            {fmtQ(v)}
+          </Text>
+        )
+      },
+    },
+    {
+      title: 'Haber', width: 130, align: 'right' as const,
+      onCell: (row: FlatRow) => row._type === 'header' ? { colSpan: 0 } : {},
+      render: (_: any, row: FlatRow) => {
+        if (row._type === 'header') return null
+        const v = row._type === 'total' ? row.entry.totalCredit : row.line.credit
+        return (
+          <Text strong={row._type === 'total'}
+            style={{ fontVariantNumeric: 'tabular-nums', color: v > 0 ? '#2ea172' : '#bbb' }}>
+            {fmtQ(v)}
+          </Text>
+        )
       },
     },
   ]
@@ -335,57 +334,40 @@ export default function LibroDiarioPage() {
         bodyStyle={{ padding: 0 }}
       >
         <Table
-          columns={columns}
-          dataSource={data}
-          rowKey="id"
+          columns={flatColumns}
+          dataSource={flatRows}
+          rowKey="_key"
           loading={loading}
-          size="middle"
-          rowClassName={(row) => row.status === 'void' ? 'row-void' : ''}
-          scroll={{ x: 1000 }}
-          pagination={{
-            total,
-            current: page,
-            pageSize: 50,
-            onChange: setPage,
-            showTotal: t => `${t} asientos`,
-            showSizeChanger: false,
-          }}
-          expandable={{
-            expandedRowKeys: data.map(e => e.id),
-            onExpandedRowsChange: () => {},
-            showExpandColumn: false,
-            expandedRowRender: (entry) => (
-              <Table
-                columns={lineColumns}
-                dataSource={entry.lines}
-                rowKey={(_, i) => String(i)}
-                pagination={false}
-                size="small"
-                style={{ margin: '4px 0 8px 48px' }}
-                summary={() => (
-                  <Table.Summary.Row style={{ background: '#fafbfc' }}>
-                    <Table.Summary.Cell index={0} colSpan={2}>
-                      <Text strong style={{ fontSize: 11 }}>Totales</Text>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} align="right">
-                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
-                        {fmtQ(entry.totalDebit)}
-                      </Text>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} align="right">
-                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>
-                        {fmtQ(entry.totalCredit)}
-                      </Text>
-                    </Table.Summary.Cell>
-                  </Table.Summary.Row>
-                )}
-              />
-            ),
+          size="small"
+          pagination={false}
+          scroll={{ x: 700 }}
+          rowClassName={(row: FlatRow) => {
+            if (row._type === 'header') return `row-ld-header${row.entry.status === 'void' ? ' row-void' : ''}`
+            if (row._type === 'total')  return 'row-ld-total'
+            if (row.entry.status === 'void') return 'row-void'
+            return ''
           }}
           locale={{ emptyText: 'Sin asientos en el período' }}
         />
+        {total > 50 && (
+          <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+            <Pagination
+              current={page}
+              total={total}
+              pageSize={50}
+              onChange={setPage}
+              showTotal={t => `${t} asientos`}
+              showSizeChanger={false}
+              size="small"
+            />
+          </div>
+        )}
       </Card>
-      <style>{`.row-void td { opacity: 0.5; text-decoration: line-through; }`}</style>
+      <style>{`
+        .row-ld-header td { background: #f8fafc !important; border-bottom: 2px solid #e2e8f0 !important; }
+        .row-ld-total  td { background: #fafbfc !important; border-top: 1px solid #e2e8f0 !important; border-bottom: 2px solid #e2e8f0 !important; }
+        .row-void td { opacity: 0.45; text-decoration: line-through; }
+      `}</style>
     </div>
   )
 }
