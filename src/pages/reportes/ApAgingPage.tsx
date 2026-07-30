@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
-  Row, Col, Divider, Select, Space,
+  Row, Col, Select, Space,
 } from 'antd'
 import {
   HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
@@ -36,24 +36,31 @@ const ageBucketColor: Record<string, string> = {
   over_90:  '#e5484d',
 }
 
-type UnifiedRow = (ApAgingRow & { _isAdvance?: false }) | (any & { _isAdvance: true; _rowKey: string })
+type SubtotalRow = { _isSubtotal: true; _rowKey: string; _label: string; _totTotal: number; _totSaldo: number }
+type UnifiedRow = (ApAgingRow & { _isAdvance?: false }) | (any & { _isAdvance: true; _rowKey: string }) | SubtotalRow
 
 const unifiedColumns = [
   {
     title: 'Documento',
     width: 160,
-    render: (_: any, row: UnifiedRow) => row._isAdvance
-      ? <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{(row as any).advanceNumber}</span>
-      : <Link to={`/compras/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{(row as any).invoiceNumber}</Link>,
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 5, style: { background: '#f8fafc' } } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) return (
+        <Text strong style={{ fontSize: 12, color: '#374151' }}>Subtotal — {(row as SubtotalRow)._label}</Text>
+      )
+      if (row._isAdvance) return <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{row.advanceNumber}</span>
+      return <Link to={`/compras/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{row.invoiceNumber}</Link>
+    },
   },
   {
     title: 'Acreedor',
     dataIndex: 'vendorName',
     ellipsis: true,
-    render: (v: string, row: UnifiedRow) => (
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (v: string, row: any) => (row as any)._isSubtotal ? null : (
       <span>
         {v}
-        {!row._isAdvance && (row as any).isExpenseReimbursement && (
+        {!row._isAdvance && row.isExpenseReimbursement && (
           <Tag color="#6b7280" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
             Reembolso
           </Tag>
@@ -64,17 +71,20 @@ const unifiedColumns = [
   {
     title: 'Fecha',
     width: 100,
-    render: (_: any, row: UnifiedRow) => {
-      const d = row._isAdvance ? (row as any).advanceDate : (row as any).invoiceDate
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) return null
+      const d = row._isAdvance ? row.advanceDate : row.invoiceDate
       return d ? new Date(d).toLocaleDateString('es-GT') : '—'
     },
   },
   {
     title: 'Vencimiento',
     width: 110,
-    render: (_: any, row: UnifiedRow) => {
-      if (row._isAdvance) return '—'
-      const d = (row as any).dueDate
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal || row._isAdvance) return null
+      const d = row.dueDate
       return d ? new Date(d).toLocaleDateString('es-GT') : '—'
     },
   },
@@ -82,9 +92,11 @@ const unifiedColumns = [
     title: 'Estado',
     width: 110,
     align: 'right' as const,
-    render: (_: any, row: UnifiedRow) => {
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) return null
       if (row._isAdvance) return <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>
-      const v = (row as any).daysOverdue as number
+      const v = row.daysOverdue as number
       return v <= 0
         ? <Tag color="#2ea172">Vigente</Tag>
         : <Tag color={v > 90 ? '#6b7280' : v > 60 ? '#e5484d' : v > 30 ? '#ff7f00' : '#1faec2'}>{v} días</Tag>
@@ -94,12 +106,16 @@ const unifiedColumns = [
     title: 'Total',
     width: 140,
     align: 'right' as const,
-    render: (_: any, row: UnifiedRow) => {
-      if (row._isAdvance) {
-        return <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number((row as any).amount))})</Text>
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) {
+        const s = row as SubtotalRow
+        return <Text strong style={{ fontSize: 12, color: s._totTotal >= 0 ? '#374151' : '#2ea172' }}>
+          {s._totTotal >= 0 ? fmt(s._totTotal) : `(${fmt(Math.abs(s._totTotal))})`}
+        </Text>
       }
-      const v = (row as any).total as number
-      const cur = (row as any).currency
+      if (row._isAdvance) return <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number(row.amount))})</Text>
+      const v = row.total as number
+      const cur = row.currency
       return (
         <div style={{ textAlign: 'right' }}>
           {cur && cur !== 'GTQ' ? (
@@ -109,7 +125,7 @@ const unifiedColumns = [
               </Text>
               <br />
               <Text style={{ fontSize: 11, color: '#6b7280' }}>
-                Q {((row as any).totalGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                Q {(row.totalGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               </Text>
             </>
           ) : (
@@ -123,12 +139,16 @@ const unifiedColumns = [
     title: 'Saldo',
     width: 150,
     align: 'right' as const,
-    render: (_: any, row: UnifiedRow) => {
-      const v = Number((row as any).balance)
-      if (row._isAdvance) {
-        return <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(v)})</Text>
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) {
+        const s = row as SubtotalRow
+        return <Text strong style={{ fontSize: 12, color: s._totSaldo >= 0 ? '#1faec2' : '#2ea172' }}>
+          {s._totSaldo >= 0 ? fmt(s._totSaldo) : `(${fmt(Math.abs(s._totSaldo))})`}
+        </Text>
       }
-      const cur = (row as any).currency
+      const v = Number(row.balance)
+      if (row._isAdvance) return <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(v)})</Text>
+      const cur = row.currency
       return (
         <div style={{ textAlign: 'right' }}>
           {cur && cur !== 'GTQ' ? (
@@ -138,7 +158,7 @@ const unifiedColumns = [
               </Text>
               <br />
               <Text style={{ fontSize: 11, fontWeight: 600, color: '#1faec2' }}>
-                Q {((row as any).balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                Q {(row.balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
               </Text>
             </>
           ) : (
@@ -165,10 +185,30 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
     ? advances.map((a: any) => ({ ...a, _isAdvance: true as const, _rowKey: `adv-${a.id}` }))
     : []
 
-  const rows: UnifiedRow[] = [
-    ...bucket.items,
-    ...visibleAdvances,
-  ]
+  // Agrupar por proveedor e intercalar filas de subtotal
+  const vendorMap = new Map<string, { name: string; items: any[] }>()
+  for (const item of bucket.items) {
+    const key = (item as any).vendorId || '__sin__'
+    if (!vendorMap.has(key)) vendorMap.set(key, { name: (item as any).vendorName || '—', items: [] })
+    vendorMap.get(key)!.items.push(item)
+  }
+  for (const adv of visibleAdvances) {
+    const key = (adv as any).vendorId || '__sin__'
+    if (!vendorMap.has(key)) vendorMap.set(key, { name: (adv as any).vendorName || '—', items: [] })
+    vendorMap.get(key)!.items.push(adv)
+  }
+
+  const rows: any[] = []
+  let grandT = 0; let grandS = 0
+  for (const [, vendor] of vendorMap) {
+    rows.push(...vendor.items)
+    const subT = vendor.items.reduce((s: number, r: any) =>
+      s + (r._isAdvance ? -Number(r.amount ?? 0) : Number(r.totalGTQ ?? r.total ?? 0)), 0)
+    const subS = vendor.items.reduce((s: number, r: any) =>
+      s + (r._isAdvance ? -Number(r.balance ?? 0) : Number(r.balanceGTQ ?? r.balance ?? 0)), 0)
+    grandT += subT; grandS += subS
+    rows.push({ _isSubtotal: true, _rowKey: `sub-${vendor.name}`, _label: vendor.name, _totTotal: subT, _totSaldo: subS })
+  }
 
   return (
     <Card
@@ -197,11 +237,28 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
         <Table
           dataSource={rows}
           columns={unifiedColumns}
-          rowKey={(r: any) => r._isAdvance ? r._rowKey : r.id}
+          rowKey={(r: any) => r._isSubtotal ? r._rowKey : r._isAdvance ? r._rowKey : r.id}
           pagination={false}
           size="small"
           style={{ marginTop: 4 }}
-          rowClassName={(r: any) => r._isAdvance ? 'aging-row-advance' : ''}
+          rowClassName={(r: any) => r._isSubtotal ? 'aging-row-subtotal' : r._isAdvance ? 'aging-row-advance' : ''}
+          summary={() => (
+            <Table.Summary.Row style={{ background: '#e6fafd', fontWeight: 700 }}>
+              <Table.Summary.Cell index={0} colSpan={5}>
+                <Text strong style={{ fontSize: 12, color: '#1B3A6B' }}>TOTAL GENERAL</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={5} align="right">
+                <Text strong style={{ fontSize: 12, color: grandT >= 0 ? '#374151' : '#2ea172' }}>
+                  {grandT >= 0 ? fmt(grandT) : `(${fmt(Math.abs(grandT))})`}
+                </Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={6} align="right">
+                <Text strong style={{ fontSize: 12, color: grandS >= 0 ? '#1faec2' : '#2ea172' }}>
+                  {grandS >= 0 ? fmt(grandS) : `(${fmt(Math.abs(grandS))})`}
+                </Text>
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          )}
         />
       )}
 

@@ -108,25 +108,35 @@ const ageBucketColor: Record<string, string> = {
   over_90: '#e5484d',
 }
 
-type UnifiedArRow = (ArAgingRow & { _isAdvance?: false }) | (any & { _isAdvance: true; _rowKey: string })
+type SubtotalRow = { _isSubtotal: true; _rowKey: string; _label: string; _totTotal: number; _totSaldo: number }
+type UnifiedArRow = (ArAgingRow & { _isAdvance?: false }) | (any & { _isAdvance: true; _rowKey: string }) | SubtotalRow
 
 const unifiedColumns = [
   {
     title: 'Documento',
     width: 160,
-    render: (_: any, row: UnifiedArRow) => row._isAdvance
-      ? <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{row.advanceNumber}</span>
-      : <Link to={`/ventas/facturas/${(row as ArAgingRow).id}`} style={{ fontWeight: 600, fontSize: 13 }}>{(row as ArAgingRow).invoiceNumber}</Link>,
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 5, style: { background: '#f8fafc' } } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) return (
+        <Text strong style={{ fontSize: 12, color: '#374151' }}>Subtotal — {(row as SubtotalRow)._label}</Text>
+      )
+      if (row._isAdvance) return <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{row.advanceNumber}</span>
+      return <Link to={`/ventas/facturas/${(row as ArAgingRow).id}`} style={{ fontWeight: 600, fontSize: 13 }}>{(row as ArAgingRow).invoiceNumber}</Link>
+    },
   },
   {
     title: 'Cliente',
     dataIndex: 'customerName',
     ellipsis: true,
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (v: string, row: any) => (row as any)._isSubtotal ? null : v,
   },
   {
     title: 'Fecha',
     width: 100,
-    render: (_: any, row: UnifiedArRow) => {
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) return null
       const v = row._isAdvance ? row.advanceDate : (row as ArAgingRow).invoiceDate
       return v ? new Date(v).toLocaleDateString('es-GT') : '—'
     },
@@ -134,8 +144,9 @@ const unifiedColumns = [
   {
     title: 'Vencimiento',
     width: 110,
-    render: (_: any, row: UnifiedArRow) => {
-      if (row._isAdvance) return '—'
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal || row._isAdvance) return null
       const v = (row as ArAgingRow).dueDate
       return v ? new Date(v).toLocaleDateString('es-GT') : '—'
     },
@@ -144,7 +155,9 @@ const unifiedColumns = [
     title: 'Estado',
     width: 120,
     align: 'right' as const,
-    render: (_: any, row: UnifiedArRow) => {
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) return null
       if (row._isAdvance) return <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>
       const r = row as ArAgingRow
       return r.daysOverdue <= 0
@@ -156,7 +169,13 @@ const unifiedColumns = [
     title: 'Total factura',
     width: 130,
     align: 'right' as const,
-    render: (_: any, row: UnifiedArRow) => {
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) {
+        const s = row as SubtotalRow
+        return <Text strong style={{ fontSize: 12, color: s._totTotal >= 0 ? '#374151' : '#2ea172' }}>
+          {s._totTotal >= 0 ? fmt(s._totTotal) : `(${fmt(Math.abs(s._totTotal))})`}
+        </Text>
+      }
       if (row._isAdvance) return <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number(row.amount))})</Text>
       const r = row as ArAgingRow
       return r.currency && r.currency !== 'GTQ' ? (
@@ -176,8 +195,9 @@ const unifiedColumns = [
     title: 'Abonado',
     width: 120,
     align: 'right' as const,
-    render: (_: any, row: UnifiedArRow) => {
-      if (row._isAdvance) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal || row._isAdvance) return null
       const r = row as ArAgingRow
       return (r.paidAmount ?? 0) > 0 ? (
         <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172', fontWeight: 600 }}>
@@ -191,7 +211,13 @@ const unifiedColumns = [
     title: 'Saldo pendiente',
     width: 150,
     align: 'right' as const,
-    render: (_: any, row: UnifiedArRow) => {
+    render: (_: any, row: any) => {
+      if ((row as any)._isSubtotal) {
+        const s = row as SubtotalRow
+        return <Text strong style={{ fontSize: 12, color: s._totSaldo >= 0 ? '#1faec2' : '#2ea172' }}>
+          {s._totSaldo >= 0 ? fmt(s._totSaldo) : `(${fmt(Math.abs(s._totSaldo))})`}
+        </Text>
+      }
       if (row._isAdvance) return <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(Number(row.balance))})</Text>
       const r = row as ArAgingRow
       return r.currency && r.currency !== 'GTQ' ? (
@@ -220,12 +246,34 @@ interface BucketCardProps {
 }
 
 function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAdvances }: BucketCardProps) {
-  const visibleAdvances = showAdvances && advances && advances.length > 0 ? advances : []
+  const visibleAdvances = showAdvances && advances && advances.length > 0
+    ? advances.map((a: any) => ({ ...a, _isAdvance: true as const, _rowKey: `adv-${a.id}` }))
+    : []
 
-  const rows: UnifiedArRow[] = [
-    ...bucket.items,
-    ...visibleAdvances.map((a: any) => ({ ...a, _isAdvance: true as const, _rowKey: `adv-${a.id}` })),
-  ]
+  // Agrupar por cliente e intercalar filas de subtotal
+  const customerMap = new Map<string, { name: string; items: any[] }>()
+  for (const item of bucket.items) {
+    const key = (item as any).customerId || '__sin__'
+    if (!customerMap.has(key)) customerMap.set(key, { name: (item as any).customerName || '—', items: [] })
+    customerMap.get(key)!.items.push(item)
+  }
+  for (const adv of visibleAdvances) {
+    const key = (adv as any).customerId || '__sin__'
+    if (!customerMap.has(key)) customerMap.set(key, { name: (adv as any).customerName || '—', items: [] })
+    customerMap.get(key)!.items.push(adv)
+  }
+
+  const rows: any[] = []
+  let grandT = 0; let grandS = 0
+  for (const [, customer] of customerMap) {
+    rows.push(...customer.items)
+    const subT = customer.items.reduce((s: number, r: any) =>
+      s + (r._isAdvance ? -Number(r.amount ?? 0) : Number(r.totalGTQ ?? r.total ?? 0)), 0)
+    const subS = customer.items.reduce((s: number, r: any) =>
+      s + (r._isAdvance ? -Number(r.balance ?? 0) : Number(r.balanceGTQ ?? r.balance ?? 0)), 0)
+    grandT += subT; grandS += subS
+    rows.push({ _isSubtotal: true, _rowKey: `sub-${customer.name}`, _label: customer.name, _totTotal: subT, _totSaldo: subS })
+  }
 
   return (
     <Card
@@ -251,24 +299,43 @@ function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAd
       }
     >
       {expanded && rows.length > 0 && (
-        <Table<UnifiedArRow>
+        <Table
           dataSource={rows}
           columns={unifiedColumns}
-          rowKey={(row) => (row as any)._isAdvance ? (row as any)._rowKey : (row as ArAgingRow).id}
+          rowKey={(r: any) => r._isSubtotal ? r._rowKey : r._isAdvance ? r._rowKey : (r as ArAgingRow).id}
           pagination={false}
           size="small"
           style={{ marginTop: 4 }}
+          rowClassName={(r: any) => r._isSubtotal ? 'aging-row-subtotal' : r._isAdvance ? 'aging-row-advance' : ''}
           expandable={{
-            expandedRowRender: (row: UnifiedArRow) => {
-              if (row._isAdvance) return null
+            expandedRowRender: (row: any) => {
+              if (row._isSubtotal || row._isAdvance) return null
               const r = row as ArAgingRow
               return r.payments && r.payments.length > 0
                 ? <PaymentsSubTable payments={r.payments} currency={r.currency} />
                 : <div style={{ padding: '8px 48px', color: '#9aa1ab', fontSize: 12 }}>Sin abonos registrados al corte.</div>
             },
-            rowExpandable: (row: UnifiedArRow) => !row._isAdvance && ((row as ArAgingRow).paidAmount ?? 0) > 0,
+            rowExpandable: (row: any) => !row._isSubtotal && !row._isAdvance && ((row as ArAgingRow).paidAmount ?? 0) > 0,
             expandRowByClick: false,
           }}
+          summary={() => (
+            <Table.Summary.Row style={{ background: '#e6fafd', fontWeight: 700 }}>
+              <Table.Summary.Cell index={0} colSpan={5}>
+                <Text strong style={{ fontSize: 12, color: '#1B3A6B' }}>TOTAL GENERAL</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={5} align="right">
+                <Text strong style={{ fontSize: 12, color: grandT >= 0 ? '#374151' : '#2ea172' }}>
+                  {grandT >= 0 ? fmt(grandT) : `(${fmt(Math.abs(grandT))})`}
+                </Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={6} colSpan={0} />
+              <Table.Summary.Cell index={7} align="right">
+                <Text strong style={{ fontSize: 12, color: grandS >= 0 ? '#1faec2' : '#2ea172' }}>
+                  {grandS >= 0 ? fmt(grandS) : `(${fmt(Math.abs(grandS))})`}
+                </Text>
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          )}
         />
       )}
 
