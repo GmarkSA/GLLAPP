@@ -80,8 +80,11 @@ export default function DteSatVentasPage() {
   const [stepperStep,    setStepperStep]    = useState(0)
   const [stepperLoading, setStepperLoading] = useState(false)
   const [stepperResult,  setStepperResult]  = useState<{ invoice: any; dte: SatDteEmitidos } | null>(null)
-  const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string; receivableAccountId?: string; incomeAccountId?: string; taxCode?: string } | null>(null)
+  const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string; receivableAccountId?: string; incomeAccountId?: string; taxCode?: string; tdsEnabled?: boolean; tdsTaxCode?: string } | null>(null)
   const [stepperSuggestion, setStepperSuggestion] = useState<{ name?: string; taxId?: string } | null>(null)
+  const [stepperIsrTax,     setStepperIsrTax]     = useState<Tax | undefined>()
+  const [stepperIsrAmount,  setStepperIsrAmount]  = useState(0)
+  const [editingStepperIsr, setEditingStepperIsr] = useState(false)
   const [stepperForm]     = Form.useForm()
   const [customerForm]    = Form.useForm()
   const [originalInvoices, setOriginalInvoices] = useState<{ value: string; label: string }[]>([])
@@ -323,17 +326,46 @@ export default function DteSatVentasPage() {
       .then((res: any) => {
         if (res.found) {
           setStepperCustomer({
-            id:                res.customer.id,
-            name:              res.customer.name,
+            id:                  res.customer.id,
+            name:                res.customer.name,
             receivableAccountId: res.customer.receivableAccountId,
-            incomeAccountId:   res.customer.incomeAccountId,
-            taxCode:           res.customer.taxCode,
+            incomeAccountId:     res.customer.incomeAccountId,
+            taxCode:             res.customer.taxCode,
+            tdsEnabled:          res.customer.tdsEnabled,
+            tdsTaxCode:          res.customer.tdsTaxCode,
           })
         }
       })
       .catch(() => {})
       .finally(() => setStepperLoading(false))
   }, [stepperStep, stepperDte?.customerId])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-calcular ISR cuando cambia el cliente del stepper o el DTE
+  useEffect(() => {
+    if (!stepperCustomer?.tdsEnabled || !stepperCustomer.tdsTaxCode || !stepperDte) {
+      setStepperIsrTax(undefined)
+      setStepperIsrAmount(0)
+      return
+    }
+    const isrTax = taxes.find(t => t.code === stepperCustomer.tdsTaxCode && t.isWithholding)
+    if (!isrTax) { setStepperIsrTax(undefined); setStepperIsrAmount(0); return }
+    setStepperIsrTax(isrTax)
+    const base = Math.round(Number(stepperDte.subtotal ?? 0) * 100) / 100
+    if (base <= 0) { setStepperIsrAmount(0); return }
+    let isrAmt = 0
+    if (isrTax.tiers && Array.isArray(isrTax.tiers) && isrTax.tiers.length > 0) {
+      let remaining = base
+      for (const tier of isrTax.tiers) {
+        const chunk = tier.upTo != null ? Math.min(remaining, Math.max(0, tier.upTo - (base - remaining))) : remaining
+        isrAmt += Math.round(chunk * (tier.rate / 100) * 100) / 100
+        remaining -= chunk
+        if (remaining <= 0) break
+      }
+    } else {
+      isrAmt = Math.round(base * ((isrTax.rate ?? 0) / 100) * 100) / 100
+    }
+    setStepperIsrAmount(isrAmt)
+  }, [stepperCustomer?.tdsEnabled, stepperCustomer?.tdsTaxCode, stepperDte?.id, taxes])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Abrir stepper ──────────────────────────────────────────────────────────
   const openStepper = (dte: SatDteEmitidos) => {
@@ -364,11 +396,13 @@ export default function DteSatVentasPage() {
       const res: any = await resolveSatEmitidosCustomer(stepperDte.id)
       if (res.found) {
         setStepperCustomer({
-          id:                res.customer.id,
-          name:              res.customer.name,
+          id:                  res.customer.id,
+          name:                res.customer.name,
           receivableAccountId: res.customer.receivableAccountId,
-          incomeAccountId:   res.customer.incomeAccountId,
-          taxCode:           res.customer.taxCode,
+          incomeAccountId:     res.customer.incomeAccountId,
+          taxCode:             res.customer.taxCode,
+          tdsEnabled:          res.customer.tdsEnabled,
+          tdsTaxCode:          res.customer.tdsTaxCode,
         })
         setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
         message.success(`Cliente vinculado: ${res.customer.name}`)
@@ -402,7 +436,7 @@ export default function DteSatVentasPage() {
         incomeAccountId:    vals.incomeAccountId,
         taxCode:            vals.taxCode,
       })
-      setStepperCustomer({ id: res.customer.id, name: res.customer.name, receivableAccountId: vals.receivableAccountId })
+      setStepperCustomer({ id: res.customer.id, name: res.customer.name, receivableAccountId: vals.receivableAccountId, incomeAccountId: vals.incomeAccountId, taxCode: vals.taxCode })
       setDocuments(prev => prev.map(d => d.id === stepperDte.id ? { ...d, ...res.dte } : d))
       // Pre-llenar paso Registrar: cuenta de ingresos + taxId (UUID) que corresponde al código seleccionado
       if (res.customer.id) {
@@ -431,14 +465,16 @@ export default function DteSatVentasPage() {
     setStepperLoading(true)
     try {
       const res = await postSatEmitidos(stepperDte.id, {
-        accountId:         vals.accountId,
-        taxId:             vals.taxId,
-        accountingDate:    vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
-        notes:             vals.notes,
-        estimateId:        vals.estimateId,
-        defaultUnit:       vals.defaultUnit,
-        creditNoteReason:  isNC ? vals.creditNoteReason : undefined,
-        originalInvoiceId: isNC ? vals.originalInvoiceId : undefined,
+        accountId:              vals.accountId,
+        taxId:                  vals.taxId,
+        accountingDate:         vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
+        notes:                  vals.notes,
+        estimateId:             vals.estimateId,
+        defaultUnit:            vals.defaultUnit,
+        creditNoteReason:       isNC ? vals.creditNoteReason : undefined,
+        originalInvoiceId:      isNC ? vals.originalInvoiceId : undefined,
+        isrRetentionAmount:     stepperIsrAmount > 0 ? stepperIsrAmount : undefined,
+        isrRetentionAccountId:  stepperIsrAmount > 0 ? (stepperIsrTax?.salesAccountId ?? undefined) : undefined,
       })
       // Guardar preferencias para próximas facturas del mismo cliente
       if (stepperCustomer?.id) saveDtePrefs(stepperCustomer.id, vals)
@@ -1054,6 +1090,34 @@ export default function DteSatVentasPage() {
                           label: `${(e as any).estimateNumber ?? e.id} — Q ${Number((e as any).total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
                         }))} />
                     </Form.Item>
+                  )}
+                  {!isNC2 && stepperIsrTax && stepperIsrAmount > 0 && (
+                    <div style={{ background: '#f5f3ff', border: '1px solid #c4b5fd', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, color: '#5b21b6', fontWeight: 600 }}>ISR Retención ({stepperIsrTax.name})</span>
+                        {editingStepperIsr ? (
+                          <Space size={4}>
+                            <input
+                              type="number"
+                              defaultValue={stepperIsrAmount}
+                              style={{ width: 90, padding: '2px 6px', border: '1px solid #c4b5fd', borderRadius: 4, fontSize: 12 }}
+                              onBlur={e => { setStepperIsrAmount(Math.max(0, Number(e.target.value))); setEditingStepperIsr(false) }}
+                              autoFocus
+                            />
+                            <Button size="small" type="link" style={{ padding: 0, color: '#7c3aed' }} onClick={() => setEditingStepperIsr(false)}>Aceptar</Button>
+                          </Space>
+                        ) : (
+                          <Space size={4}>
+                            <span style={{ fontSize: 12, color: '#5b21b6' }}>Q {stepperIsrAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
+                            <Button size="small" type="link" style={{ padding: 0, color: '#7c3aed', fontSize: 11 }} onClick={() => setEditingStepperIsr(true)}>Editar</Button>
+                          </Space>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 4, borderTop: '1px dashed #c4b5fd' }}>
+                        <span style={{ fontSize: 11, color: '#7c3aed' }}>Neto a Cobrar</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>Q {(Number(stepperDte?.total ?? 0) - stepperIsrAmount).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
                   )}
                   <Form.Item label="Notas" name="notes">
                     <Input.TextArea rows={2} placeholder="Descripción del servicio o producto..." />
