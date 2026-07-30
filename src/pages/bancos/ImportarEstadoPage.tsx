@@ -30,6 +30,20 @@ type ParsedRow = {
 
 const cleanNumber = (value: unknown) => Number(String(value ?? '').replace(/[^0-9.-]/g, '')) || 0
 
+// Normaliza texto quitando tildes para comparaciones robustas
+const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+const MESES_PERIODO = [
+  { value: 1,  label: 'Enero' },      { value: 2,  label: 'Febrero' },
+  { value: 3,  label: 'Marzo' },      { value: 4,  label: 'Abril' },
+  { value: 5,  label: 'Mayo' },       { value: 6,  label: 'Junio' },
+  { value: 7,  label: 'Julio' },      { value: 8,  label: 'Agosto' },
+  { value: 9,  label: 'Septiembre' }, { value: 10, label: 'Octubre' },
+  { value: 11, label: 'Noviembre' },  { value: 12, label: 'Diciembre' },
+]
+const CUR_YEAR = dayjs().year()
+const ANIOS_PERIODO = Array.from({ length: 4 }, (_, i) => ({ value: CUR_YEAR - i, label: String(CUR_YEAR - i) }))
+
 // ── PDF: extrae texto de cada página agrupando por coordenada Y ───────────────
 async function parsePdfToMatrix(buffer: ArrayBuffer): Promise<string[][]> {
   const pdfjsLib = await import('pdfjs-dist')
@@ -94,6 +108,8 @@ export default function ImportarEstadoPage() {
   const [rows, setRows] = useState<ParsedRow[]>([])
   const [fileName, setFileName] = useState<string>()
   const [isPdf, setIsPdf] = useState(false)
+  const [periodMonth, setPeriodMonth] = useState<number>(dayjs().month() + 1)
+  const [periodYear,  setPeriodYear]  = useState<number>(dayjs().year())
   const [history, setHistory] = useState<BankImportBatch[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -113,9 +129,20 @@ export default function ImportarEstadoPage() {
       .catch(() => setHistory([]))
   }, [selectedAccountId])
 
-  // Parsea fechas en DD-MM-YYYY, DD/MM/YYYY o ISO YYYY-MM-DD → siempre devuelve YYYY-MM-DD
+  // Parsea fechas — maneja:
+  //   · DD-MM-YYYY / DD/MM/YYYY
+  //   · Solo día numérico "15" → usa periodMonth/periodYear (formato PDF correo BI)
+  //   · ISO YYYY-MM-DD y otros formatos reconocidos por dayjs
   const parseDate = (raw: unknown): string => {
     const s = String(raw || '').trim()
+    // Solo número de día 1–31 (PDF correo Banco Industrial)
+    if (/^\d{1,2}$/.test(s)) {
+      const d = parseInt(s)
+      if (d >= 1 && d <= 31 && periodMonth && periodYear) {
+        return `${periodYear}-${String(periodMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      }
+    }
+    // DD-MM-YYYY o DD/MM/YYYY
     if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
       const sep = s[2]
       const [d, m, y] = s.split(sep)
@@ -173,10 +200,12 @@ export default function ImportarEstadoPage() {
 
     const allRows = matrix.filter(row => row.some(cell => cell !== undefined && cell !== null && cell !== ''))
 
-    // Detectar fila de encabezados real (primera fila donde col[0] es "fecha")
+    // Detectar fila de encabezados real — escanea TODO el documento
+    // Acepta "Fecha" (Excel BI) y "Día"/"Dia" (PDF BI descargado y correo)
     let headerIdx = 0
-    for (let i = 0; i < Math.min(allRows.length, 25); i++) {
-      if (String(allRows[i][0] || '').trim().toLowerCase() === 'fecha') {
+    for (let i = 0; i < allRows.length; i++) {
+      const firstCell = norm(String(allRows[i][0] || ''))
+      if (firstCell === 'fecha' || firstCell === 'dia') {
         headerIdx = i
         break
       }
@@ -191,12 +220,12 @@ export default function ImportarEstadoPage() {
     form.resetFields(['dateField', 'descriptionField', 'debitField', 'creditField',
       'amountField', 'referenceField', 'balanceField'])
 
-    // Auto-mapeo multi-banco (BI, BAC, Banrural, G&T, Citi…)
+    // Auto-mapeo multi-banco — comparación sin tildes para cubrir BI, BAC, Banrural, G&T…
     const tryFind = (...needles: string[]) =>
-      labels.findIndex(l => needles.some(n => l.trim().toLowerCase().includes(n.toLowerCase())))
+      labels.findIndex(l => needles.some(n => norm(l).includes(norm(n))))
 
     const autoMap = {
-      dateField:        tryFind('fecha'),
+      dateField:        tryFind('fecha', 'día', 'dia', 'day'),
       descriptionField: tryFind('descripci', 'concepto', 'detalle', 'transacci'),
       referenceField:   tryFind('no. doc', 'ref', 'cheque', 'documento'),
       debitField:       tryFind('debe', 'débito', 'debito', 'cargo', 'retiro', 'egreso'),
@@ -293,13 +322,36 @@ export default function ImportarEstadoPage() {
             </Upload.Dragger>
 
             {isPdf && headers.length > 0 && (
-              <Alert
-                type="warning"
-                showIcon
-                style={{ marginTop: 10, fontSize: 11 }}
-                message="PDF cargado — verifica el mapeo de columnas"
-                description="El texto se extrae automáticamente. Los montos con símbolo de moneda pueden aparecer como una sola celda. Revisa la vista previa antes de importar."
-              />
+              <>
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginTop: 10, fontSize: 11 }}
+                  message="PDF cargado — verifica el mapeo de columnas"
+                  description="El texto se extrae automáticamente. Revisa la vista previa antes de importar."
+                />
+                <div style={{ marginTop: 10 }}>
+                  <Text style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>
+                    Período del estado — requerido si el PDF muestra solo el día (formato correo Bi)
+                  </Text>
+                  <Space>
+                    <Select
+                      value={periodMonth}
+                      onChange={setPeriodMonth}
+                      options={MESES_PERIODO}
+                      style={{ width: 130 }}
+                      size="small"
+                    />
+                    <Select
+                      value={periodYear}
+                      onChange={setPeriodYear}
+                      options={ANIOS_PERIODO}
+                      style={{ width: 85 }}
+                      size="small"
+                    />
+                  </Space>
+                </div>
+              </>
             )}
 
             {headers.length > 0 && (
