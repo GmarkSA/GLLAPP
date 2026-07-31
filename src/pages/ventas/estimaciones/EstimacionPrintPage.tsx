@@ -4,12 +4,15 @@ import { Spin } from 'antd'
 import dayjs from 'dayjs'
 import { getEstimate, type Estimate, ESTIMATE_STATUS_CONFIG } from '../../../api/facturas'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getSavedTemplate } from '../../../components/Print/printFormats'
 
 const fmtQ = (n: number, currency = 'GTQ') =>
   `${currency === 'USD' ? '$' : 'Q'} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 export default function EstimacionPrintPage() {
   const { id } = useParams<{ id: string }>()
+  const tpl    = getSavedTemplate()
+  const pc     = tpl.primaryColor
   const [estimate, setEstimate]   = useState<Estimate | null>(null)
   const [org,      setOrg]        = useState<OrganizationProfile | null>(null)
   const [loading,  setLoading]    = useState(true)
@@ -51,13 +54,16 @@ export default function EstimacionPrintPage() {
     <>
       {/* Print-specific styles */}
       <style>{`
+        @media screen {
+          .print-page { visibility: hidden; }
+        }
         @media print {
           @page { margin: 1.5cm; size: letter; }
           body { margin: 0; }
           .no-print { display: none !important; }
-          .print-page { box-shadow: none !important; border: none !important; }
+          .print-page { visibility: visible !important; box-shadow: none !important; border: none !important; }
         }
-        body { font-family: Arial, sans-serif; background: rgba(10,10,10,0.08); }
+        body { font-family: '${tpl.fontFamily}', Arial, sans-serif; background: rgba(10,10,10,0.08); }
         .print-page {
           background: #fff;
           max-width: 850px;
@@ -66,10 +72,10 @@ export default function EstimacionPrintPage() {
           box-shadow: 0 2px 16px rgba(0,0,0,0.15);
         }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
-        .org-name { font-size: 22px; font-weight: 700; color: #1faec2; }
+        .org-name { font-size: 22px; font-weight: 700; color: ${pc}; }
         .org-sub { font-size: 12px; color: #666; margin-top: 4px; }
         .doc-title { text-align: right; }
-        .doc-number { font-size: 20px; font-weight: 700; color: #1faec2; font-family: monospace; }
+        .doc-number { font-size: 20px; font-weight: 700; color: ${pc}; font-family: monospace; }
         .status-badge {
           display: inline-block; padding: 2px 10px; border-radius: 20px;
           font-size: 11px; font-weight: 600; margin-top: 6px;
@@ -83,7 +89,7 @@ export default function EstimacionPrintPage() {
         .dates-row  { display: flex; gap: 32px; margin-bottom: 28px; }
         .date-item  { }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        thead tr { background: #1faec2; }
+        thead tr { background: ${pc}; }
         thead th { color: #fff; font-size: 11px; padding: 8px 10px; text-align: left; font-weight: 600; }
         thead th.right { text-align: right; }
         tbody tr { border-bottom: 1px solid rgba(10,10,10,0.08); }
@@ -94,8 +100,8 @@ export default function EstimacionPrintPage() {
         .totals { display: flex; justify-content: flex-end; margin-bottom: 28px; }
         .totals-box { width: 260px; }
         .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
-        .totals-row.total { font-weight: 700; font-size: 15px; color: #1faec2;
-          border-top: 2px solid #1faec2; padding-top: 8px; margin-top: 4px; }
+        .totals-row.total { font-weight: 700; font-size: 15px; color: ${pc};
+          border-top: 2px solid ${pc}; padding-top: 8px; margin-top: 4px; }
         .notes-section { border-top: 1px solid rgba(10,10,10,0.08); padding-top: 16px; margin-top: 8px; }
         .notes-title { font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; margin-bottom: 6px; }
         .notes-text  { font-size: 12px; color: #444; white-space: pre-wrap; }
@@ -103,7 +109,7 @@ export default function EstimacionPrintPage() {
           font-size: 10px; color: #aaa; text-align: center; }
         .print-btn {
           position: fixed; bottom: 24px; right: 24px; z-index: 999;
-          padding: 10px 22px; background: #1faec2; color: #fff;
+          padding: 10px 22px; background: ${pc}; color: #fff;
           border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
