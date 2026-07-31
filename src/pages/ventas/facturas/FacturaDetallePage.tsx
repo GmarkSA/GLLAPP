@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
   getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, emitirFelInvoice, anularFelInvoice, deleteInvoice,
-  recomputeJournalLines, reprocessPaymentJournal, getAnticipos, applyAnticipo,
+  recomputeJournalLines, reprocessPaymentJournal, getAnticipos, applyAnticipo, duplicateInvoice,
   INVOICE_STATUS_CONFIG, PAYMENT_MODES,
   type Invoice, type InvoiceItem, type Anticipo,
 } from '../../../api/facturas'
@@ -231,6 +231,17 @@ export default function FacturaDetallePage() {
     } finally { setSaving(false) }
   }
 
+  const handleDuplicate = async () => {
+    setSaving(true)
+    try {
+      const copy = await duplicateInvoice(invoice.id)
+      message.success(`Factura duplicada → ${copy.invoiceNumber}`)
+      navigate(`/ventas/facturas/${copy.id}`)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Error al duplicar')
+    } finally { setSaving(false) }
+  }
+
   const openAnticipoModal = async () => {
     setSelectedAntId(undefined)
     setAnticipoAmount(0)
@@ -411,9 +422,9 @@ export default function FacturaDetallePage() {
             Recalcular
           </Button>
         )}
-        <Tooltip title="Duplicar factura — próximamente">
-          <Button icon={<CopyOutlined />} disabled>Duplicar</Button>
-        </Tooltip>
+        <Button icon={<CopyOutlined />} loading={saving} onClick={handleDuplicate}>
+          Duplicar
+        </Button>
         <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
           Eliminar
         </Button>

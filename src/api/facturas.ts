@@ -359,6 +359,9 @@ export const marcarEnviada = (id: string) =>
 export const recomputeJournalLines = (id: string) =>
   api.post(`${BASE_INV}/${id}/recompute-journal`).then(unwrap) as Promise<Invoice>
 
+export const duplicateInvoice = (id: string) =>
+  api.post(`${BASE_INV}/${id}/duplicar`).then(unwrap) as Promise<Invoice>
+
 /** Reprocesa la póliza contable de un pago (Dr Banco/Cr CxC). Funciona para pagos creados desde cualquier flujo. */
 export const reprocessPaymentJournal = (paymentId: string) =>
   api.patch(`/ventas/pagos-recibidos/${paymentId}/reprocess-journal`).then((r: any) => r.data?.data ?? r.data) as Promise<{ message: string; journalEntryId?: string; entryNumber?: string }>
