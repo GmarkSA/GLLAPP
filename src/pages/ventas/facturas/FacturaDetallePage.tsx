@@ -14,6 +14,7 @@ import {
   FileOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useAuthStore } from '../../../store/authStore'
 import dayjs from 'dayjs'
 import {
   getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, emitirFelInvoice, anularFelInvoice, deleteInvoice,
@@ -71,6 +72,7 @@ function buildJournalEntries(inv: Invoice) {
 export default function FacturaDetallePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const currentUser = useAuthStore().user
 
   const [invoice,  setInvoice]  = useState<Invoice | null>(null)
   const [loading,  setLoading]  = useState(true)
@@ -1007,7 +1009,11 @@ export default function FacturaDetallePage() {
                   </Text>
                   {h.note && <Text style={{ fontSize: 12, display: 'block', color: '#374151', marginTop: 2 }}>{h.note}</Text>}
                   <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
-                    {/^[0-9a-f-]{36}$/i.test(h.by) ? 'Usuario del sistema' : h.by} · {dayjs(h.at).format('DD/MM/YYYY HH:mm')}
+                    {/^[0-9a-f-]{36}$/i.test(h.by)
+                      ? (currentUser?.id === h.by
+                          ? (currentUser.fullName ?? `${currentUser.firstName} ${currentUser.lastName}`.trim())
+                          : 'Usuario del sistema')
+                      : h.by} · {dayjs(h.at).format('DD/MM/YYYY HH:mm')}
                   </Text>
                 </div>
               ),
