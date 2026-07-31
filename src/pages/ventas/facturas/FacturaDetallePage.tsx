@@ -28,6 +28,7 @@ import { getCustomer } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import PrintInvoiceButton from '../../../components/Print/PrintInvoiceButton'
+import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 
 const { Text, Title } = Typography
 const fmt = (n: any) => `Q ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -101,6 +102,9 @@ export default function FacturaDetallePage() {
 
   const [payIsrEnabled, setPayIsrEnabled] = useState(false)
   const [payIsrAmount,  setPayIsrAmount]  = useState<number>(0)
+
+  const [emailTemplates,    setEmailTemplates]    = useState<EmailTemplate[]>([])
+  const [selectedEmailTplId, setSelectedEmailTplId] = useState<string | undefined>()
 
   const [payForm]  = Form.useForm()
   const [voidForm] = Form.useForm()
@@ -197,19 +201,36 @@ export default function FacturaDetallePage() {
     } finally { setSaving(false) }
   }
 
-  const openSendModal = async () => {
-    sendForm.resetFields()
+  const applyEmailTemplate = (tplId: string | undefined, tpls: EmailTemplate[]) => {
+    const tpl = tpls.find(t => t.id === tplId)
+    if (!tpl) return
+    const vars: Record<string, string> = {
+      nombreCliente:  invoice.customerName   ?? '',
+      numeroFactura:  invoice.invoiceNumber  ?? '',
+      total:          `${invoice.currency ?? 'GTQ'} ${Number(invoice.total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+      saldo:          `${invoice.currency ?? 'GTQ'} ${Number(invoice.balance ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+      fecha:          invoice.invoiceDate ? new Date(invoice.invoiceDate + 'T12:00:00').toLocaleDateString('es-GT') : '',
+      nombreEmpresa:  company.name ?? '',
+      moneda:         invoice.currency ?? 'GTQ',
+    }
     sendForm.setFieldsValue({
-      subject: `Factura ${invoice.invoiceNumber} — ${company.name || invoice.customerName}`,
+      subject: replaceVars(tpl.subject, vars),
+      message: replaceVars(tpl.message,  vars),
     })
+  }
+
+  const openSendModal = async () => {
+    const tpls = getEmailTemplates()
+    const defTpl = getDefaultEmailTemplate('factura')
+    setEmailTemplates(tpls)
+    setSelectedEmailTplId(defTpl?.id)
+    sendForm.resetFields()
+    if (defTpl) applyEmailTemplate(defTpl.id, tpls)
     setSendModal(true)
-    // Auto-cargar email del cliente
     if (invoice.customerId) {
       setLoadingEmail(true)
       getCustomer(invoice.customerId)
-        .then((c: any) => {
-          if (c?.email) sendForm.setFieldValue('to', c.email)
-        })
+        .then((c: any) => { if (c?.email) sendForm.setFieldValue('to', c.email) })
         .catch(() => null)
         .finally(() => setLoadingEmail(false))
     }
@@ -1025,6 +1046,20 @@ export default function FacturaDetallePage() {
         width={560}
       >
         <Form form={sendForm} layout="vertical" style={{ marginTop: 8 }}>
+          {/* Selector de plantilla */}
+          {emailTemplates.length > 0 && (
+            <Form.Item label="Plantilla de correo" style={{ marginBottom: 12 }}>
+              <Select
+                value={selectedEmailTplId}
+                onChange={id => {
+                  setSelectedEmailTplId(id)
+                  applyEmailTemplate(id, emailTemplates)
+                }}
+                options={emailTemplates.map(t => ({ label: t.name, value: t.id }))}
+                placeholder="Seleccionar plantilla"
+              />
+            </Form.Item>
+          )}
           <Form.Item
             name="to" label="Enviar a"
             rules={[{ required: true, message: 'Requerido' }, { type: 'email', message: 'Correo inválido' }]}
@@ -1041,11 +1076,11 @@ export default function FacturaDetallePage() {
             <Input />
           </Form.Item>
           <Form.Item name="message" label="Mensaje adicional">
-            <Input.TextArea rows={3} placeholder="Puede agregar un mensaje personalizado que aparecerá en el cuerpo del correo…" />
+            <Input.TextArea rows={3} placeholder="Mensaje personalizado (opcional)" />
           </Form.Item>
           <Alert
             type="info" showIcon style={{ marginTop: 4 }}
-            message="El correo incluirá el resumen de la factura con el importe total y las cuentas bancarias de cobro configuradas en tu empresa."
+            message="El correo incluirá el resumen de la factura con el importe total y las cuentas bancarias configuradas en tu empresa."
           />
         </Form>
       </Modal>
