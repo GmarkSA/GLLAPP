@@ -196,13 +196,15 @@ export interface CreateEstimateDto {
 }
 
 export interface RecordPaymentDto {
-  paymentDate:   string
-  amount:        number
-  mode?:         string
-  reference?:    string
-  bankAccountId?: string
-  notes?:        string
-  currency?:     string
+  paymentDate:          string
+  amount:               number
+  mode?:                string
+  reference?:           string
+  bankAccountId?:       string
+  notes?:               string
+  currency?:            string
+  isrRetentionAmount?:  number
+  isrRetentionAccountId?: string
 }
 
 // ─── Invoice API ──────────────────────────────────────────────────────────────
