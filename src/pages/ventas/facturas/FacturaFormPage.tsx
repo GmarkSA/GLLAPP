@@ -136,6 +136,7 @@ export default function FacturaFormPage() {
         }
         setFelFrases(inv.felFrases ?? [])
         setIsExenta(inv.facturaExenta ?? false)
+        if (Number(inv.isrRetentionAmount) > 0) setIsrAmount(Number(inv.isrRetentionAmount))
 
         const loadedItems: LineItem[] = (inv.items ?? []).map((it) =>
           newLineItem({
