@@ -141,6 +141,7 @@ const menuItems = [
     { key: '/configuracion/empresas/bancos',              label: 'Perfiles Bancarios' },
     { key: '/configuracion/unidades-medida',              label: 'Unidades de Medida' },
     { key: '/configuracion/plantillas-impresion',         label: 'Plantillas de Impresión' },
+    { key: '/configuracion/plantillas-correo',            label: 'Plantillas de Correo' },
     { key: '/configuracion/integraciones',                label: 'Espacio de Desarrollador' },
   ]},
 ]
