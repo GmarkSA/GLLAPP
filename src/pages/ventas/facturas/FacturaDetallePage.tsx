@@ -148,7 +148,7 @@ export default function FacturaDetallePage() {
     try {
       await recordInvoicePayment(invoice.id, {
         paymentDate:          v.paymentDate.format('YYYY-MM-DD'),
-        amount:               v.amount,
+        amount:               Number(v.amount ?? 0),
         mode:                 v.mode,
         reference:            v.reference,
         bankAccountId:        v.bankAccountId,
@@ -837,8 +837,8 @@ export default function FacturaDetallePage() {
             <Form.Item name="paymentDate" label="Fecha de pago" rules={[{ required: true }]} initialValue={dayjs()}>
               <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
             </Form.Item>
-            <Form.Item name="amount" label="Monto" rules={[{ required: true }]}>
-              <InputNumber style={{ width: '100%' }} min={0.01} step={0.01} prefix="Q" max={Number(invoice.balance)} precision={2} />
+            <Form.Item name="amount" label={payIsrEnabled ? 'Efectivo recibido en banco' : 'Monto'} rules={[{ required: !payIsrEnabled }]}>
+              <InputNumber style={{ width: '100%' }} min={0} step={0.01} prefix="Q" max={Number(invoice.balance)} precision={2} placeholder={payIsrEnabled ? '0.00 si es solo retención' : undefined} />
             </Form.Item>
             <Form.Item name="mode" label="Forma de pago" initialValue="bank_transfer">
               <Select options={PAYMENT_MODES} />
@@ -856,7 +856,17 @@ export default function FacturaDetallePage() {
 
           {/* ISR retenido al pago */}
           <Form.Item label="¿Incluye retención ISR?">
-            <Radio.Group value={payIsrEnabled ? 'si' : 'no'} onChange={e => { setPayIsrEnabled(e.target.value === 'si'); if (e.target.value === 'no') setPayIsrAmount(0) }}>
+            <Radio.Group value={payIsrEnabled ? 'si' : 'no'} onChange={e => {
+              const on = e.target.value === 'si'
+              setPayIsrEnabled(on)
+              if (on) {
+                payForm.setFieldValue('amount', 0)  // pago en efectivo empieza en 0
+                setPayIsrAmount(0)
+              } else {
+                payForm.setFieldValue('amount', Number(invoice.balance))
+                setPayIsrAmount(0)
+              }
+            }}>
               <Radio value="no">No</Radio>
               <Radio value="si">Sí — retención fiscal en origen</Radio>
             </Radio.Group>
@@ -866,30 +876,32 @@ export default function FacturaDetallePage() {
               <Form.Item label="ISR retenido por el cliente" style={{ marginBottom: 8 }}>
                 <InputNumber
                   style={{ width: '100%' }} prefix="Q" min={0.01} step={0.01} precision={2}
-                  max={Number(invoice.balance) - 0.01}
+                  max={Number(invoice.balance)}
                   value={payIsrAmount || undefined}
                   placeholder="0.00"
-                  onChange={v => {
-                    const isr = v ?? 0
-                    setPayIsrAmount(isr)
-                    payForm.setFieldValue('amount', Math.max(0.01, Number(invoice.balance) - isr))
-                  }}
+                  onChange={v => setPayIsrAmount(v ?? 0)}
                 />
               </Form.Item>
-              <div style={{ fontSize: 12, color: '#6b21a8', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Efectivo a recibir en banco:</span>
-                  <span>{fmt(Math.max(0, Number(invoice.balance) - payIsrAmount))}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>ISR retenido por cliente:</span>
-                  <span>{fmt(payIsrAmount)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #ddd6fe', paddingTop: 4, marginTop: 2 }}>
-                  <span>Total saldado:</span>
-                  <span>{fmt(invoice.balance)}</span>
-                </div>
-              </div>
+              {(() => {
+                const efectivo = Number(payForm.getFieldValue('amount') ?? 0)
+                const totalAbonado = efectivo + payIsrAmount
+                return (
+                  <div style={{ fontSize: 12, color: '#6b21a8', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {efectivo > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Efectivo recibido en banco:</span>
+                      <span>{fmt(efectivo)}</span>
+                    </div>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>ISR retenido por cliente:</span>
+                      <span>{fmt(payIsrAmount)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #ddd6fe', paddingTop: 4, marginTop: 2 }}>
+                      <span>Total que se abona al saldo:</span>
+                      <span>{fmt(totalAbonado)}</span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )}
 
