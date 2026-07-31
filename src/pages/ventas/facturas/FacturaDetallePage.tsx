@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import {
   Button, Tag, Table, Space, Modal, Form,
   InputNumber, DatePicker, Select, Input, Divider,
-  message, Spin, Typography, Alert, Dropdown, Tooltip, Popconfirm,
+  message, Spin, Typography, Alert, Tooltip, Popconfirm,
 } from 'antd'
 import {
   ArrowLeftOutlined, DollarOutlined, SendOutlined, StopOutlined,
   PrinterOutlined, CopyOutlined, CheckCircleOutlined,
-  FileTextOutlined, MoreOutlined, ExclamationCircleOutlined,
+  FileTextOutlined, ExclamationCircleOutlined,
   SafetyCertificateOutlined, GlobalOutlined, BookOutlined,
   ThunderboltOutlined, SyncOutlined, DeleteOutlined, EditOutlined,
 } from '@ant-design/icons'
@@ -276,14 +276,6 @@ export default function FacturaDetallePage() {
     }
   }
 
-  const moreItems = [
-    { key: 'copy', label: 'Duplicar factura', icon: <CopyOutlined /> },
-    ...(!isEditable ? [{ key: 'recompute', label: 'Recalcular partida contable', icon: <BookOutlined />, onClick: handleRecompute }] : []),
-    { type: 'divider' as const },
-    ...(canVoid ? [{ key: 'void', label: isFelCertified ? 'Anular DTE ante SAT' : 'Anular factura', icon: <StopOutlined />, danger: true, onClick: () => setVoidModal(true) }] : []),
-    { key: 'delete', label: 'Eliminar factura', icon: <DeleteOutlined />, danger: true, onClick: handleDelete },
-  ]
-
   const itemColumns = [
     { title: '#', width: 36, render: (_: any, __: any, i: number) => <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text> },
     {
@@ -368,11 +360,13 @@ export default function FacturaDetallePage() {
         {isFelCertified && <Tag color="#2ea172" icon={<SafetyCertificateOutlined />} style={{ margin: 0 }}>FEL</Tag>}
         {invoice.felTipoDocumento && <Tag style={{ margin: 0, fontSize: 11 }}>{invoice.felTipoDocumento}</Tag>}
         <Divider type="vertical" />
-        {isEditable && (
-          <Button icon={<EditOutlined />} onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`)}>
-            Editar
-          </Button>
-        )}
+        <Button
+          icon={<EditOutlined />}
+          disabled={isVoided || isWritten}
+          onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`)}
+        >
+          Editar
+        </Button>
         <Button icon={<SendOutlined />} onClick={() => setSendModal(true)}>
           Enviar correo
         </Button>
@@ -407,14 +401,22 @@ export default function FacturaDetallePage() {
             Emitir FEL
           </Button>
         )}
-        {isFelCertified && canVoid && (
+        {canVoid && (
           <Button danger icon={<StopOutlined />} onClick={() => setVoidModal(true)}>
-            Anulación FEL
+            {isFelCertified ? 'Anulación FEL' : 'Anular'}
           </Button>
         )}
-        <Dropdown menu={{ items: moreItems }} placement="bottomRight">
-          <Button icon={<MoreOutlined />} />
-        </Dropdown>
+        {!isEditable && (
+          <Button icon={<BookOutlined />} loading={saving} onClick={handleRecompute}>
+            Recalcular
+          </Button>
+        )}
+        <Tooltip title="Duplicar factura — próximamente">
+          <Button icon={<CopyOutlined />} disabled>Duplicar</Button>
+        </Tooltip>
+        <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
+          Eliminar
+        </Button>
       </div>
 
       {/* ── Alertas de estado ────────────────────────────────────────────── */}
@@ -593,6 +595,12 @@ export default function FacturaDetallePage() {
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
                 <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(invoice.total)}</Text>
               </div>
+              {Number(invoice.isrRetentionAmount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <Text style={{ color: '#7c3aed' }}>ISR Retención (retenida por cliente)</Text>
+                  <Text style={{ color: '#7c3aed', fontVariantNumeric: 'tabular-nums' }}>− {fmt(invoice.isrRetentionAmount)}</Text>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Saldo adeudado</Text>
                 <Text strong style={{ fontSize: 14, color: isPaid ? '#2ea172' : '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(invoice.balance)}</Text>
