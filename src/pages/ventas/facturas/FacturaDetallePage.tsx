@@ -427,7 +427,7 @@ export default function FacturaDetallePage() {
           </Button>
         )}
         {canPay && (
-          <Button
+          <Button size="small"
             icon={<ThunderboltOutlined />}
             style={{ borderColor: '#6b7280', color: '#6b7280' }}
             onClick={openAnticipoModal}
@@ -436,7 +436,7 @@ export default function FacturaDetallePage() {
           </Button>
         )}
         {!isVoided && !isWritten && !isFelCertified && (
-          <Button
+          <Button size="small"
             icon={<SafetyCertificateOutlined />}
             style={{ borderColor: '#1faec2', color: '#1faec2' }}
             onClick={() => setEmitirFelModal(true)}
@@ -445,23 +445,23 @@ export default function FacturaDetallePage() {
           </Button>
         )}
         {canVoid && (
-          <Button danger icon={<StopOutlined />} onClick={() => setVoidModal(true)}>
+          <Button size="small" danger icon={<StopOutlined />} onClick={() => setVoidModal(true)}>
             {isFelCertified ? 'Anulación FEL' : 'Anular'}
           </Button>
         )}
         {!isEditable && (
-          <Button icon={<BookOutlined />} loading={saving} onClick={handleRecompute}>
+          <Button size="small" icon={<BookOutlined />} loading={saving} onClick={handleRecompute}>
             Recalcular
           </Button>
         )}
-        <Button icon={<CopyOutlined />} loading={saving} onClick={handleDuplicate}>
+        <Button size="small" icon={<CopyOutlined />} loading={saving} onClick={handleDuplicate}>
           Duplicar
         </Button>
-        <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
+        <Button size="small" danger icon={<DeleteOutlined />} onClick={handleDelete}>
           Eliminar
         </Button>
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
-        <Button icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
+        <Button size="small" icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
           Cargar archivo
           {(invoice.attachments?.length ?? 0) > 0 && (
             <Tag color="#1faec2" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>
@@ -469,7 +469,7 @@ export default function FacturaDetallePage() {
             </Tag>
           )}
         </Button>
-        <Button icon={<CommentOutlined />} onClick={() => setComentariosDrawer(true)}>
+        <Button size="small" icon={<CommentOutlined />} onClick={() => setComentariosDrawer(true)}>
           Comentarios
           {(invoice.history?.length ?? 0) > 0 && (
             <Tag color="#6b7280" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>
@@ -1007,7 +1007,7 @@ export default function FacturaDetallePage() {
                   </Text>
                   {h.note && <Text style={{ fontSize: 12, display: 'block', color: '#374151', marginTop: 2 }}>{h.note}</Text>}
                   <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
-                    {h.by} · {dayjs(h.at).format('DD/MM/YYYY HH:mm')}
+                    {/^[0-9a-f-]{36}$/i.test(h.by) ? 'Usuario del sistema' : h.by} · {dayjs(h.at).format('DD/MM/YYYY HH:mm')}
                   </Text>
                 </div>
               ),
