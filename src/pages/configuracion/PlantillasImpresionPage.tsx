@@ -133,7 +133,13 @@ function InvoicePreview({ tpl }: { tpl: PrintTemplate }) {
             background: pc, color: '#fff', fontWeight: 700, fontSize: 10,
             borderRadius: 4, padding: '4px 8px', marginTop: 4,
           }}>
-            <span>TOTAL A PAGAR (GTQ)</span><span>Q 8,500.00</span>
+            <span>TOTAL FACTURA (GTQ)</span><span>Q 8,500.00</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 9, color: '#2ea172' }}>
+            <span>Pagos aplicados</span><span>− Q 1,000.00</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 10, fontWeight: 700, color: '#e5484d', borderTop: '1px solid rgba(10,10,10,0.12)', marginTop: 2 }}>
+            <span>SALDO ADEUDADO</span><span>Q 7,500.00</span>
           </div>
         </div>
       </div>
