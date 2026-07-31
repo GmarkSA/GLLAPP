@@ -445,15 +445,6 @@ export default function FacturaDetallePage() {
             Registrar pago
           </Button>
         )}
-        {canPay && (
-          <Button size="small"
-            icon={<ThunderboltOutlined />}
-            style={{ borderColor: '#6b7280', color: '#6b7280' }}
-            onClick={openAnticipoModal}
-          >
-            Aplicar anticipo
-          </Button>
-        )}
         {!isVoided && !isWritten && !isFelCertified && (
           <Button size="small"
             icon={<SafetyCertificateOutlined />}
@@ -468,6 +459,9 @@ export default function FacturaDetallePage() {
             {isFelCertified ? 'Anulación FEL' : 'Anular'}
           </Button>
         )}
+        <Button size="small" danger icon={<DeleteOutlined />} onClick={handleDelete}>
+          Eliminar
+        </Button>
         {!isEditable && (
           <Button size="small" icon={<BookOutlined />} loading={saving} onClick={handleRecompute}>
             Recalcular
@@ -476,9 +470,15 @@ export default function FacturaDetallePage() {
         <Button size="small" icon={<CopyOutlined />} loading={saving} onClick={handleDuplicate}>
           Duplicar
         </Button>
-        <Button size="small" danger icon={<DeleteOutlined />} onClick={handleDelete}>
-          Eliminar
-        </Button>
+        {canPay && (
+          <Button size="small"
+            icon={<ThunderboltOutlined />}
+            style={{ borderColor: '#6b7280', color: '#6b7280' }}
+            onClick={openAnticipoModal}
+          >
+            Aplicar anticipo
+          </Button>
+        )}
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
         <Button size="small" icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
           Cargar archivo
