@@ -114,6 +114,8 @@ export interface Invoice {
   journalLines?:   JournalLine[]
   items?:          InvoiceItem[]
   payments?:       InvoicePayment[]
+  attachments?:    Array<{ name: string; size: number; at: string; by: string }>
+  history?:        Array<{ action: string; note?: string; by: string; at: string; sourceId?: string }>
   createdAt:       string
   updatedAt:       string
 }
@@ -361,6 +363,14 @@ export const recomputeJournalLines = (id: string) =>
 
 export const duplicateInvoice = (id: string) =>
   api.post(`${BASE_INV}/${id}/duplicar`).then(unwrap) as Promise<Invoice>
+
+export const attachInvoiceFile = (id: string, file: File) => {
+  const fd = new FormData(); fd.append('file', file)
+  return api.post(`${BASE_INV}/${id}/adjuntar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap) as Promise<{ attached: boolean; name: string }>
+}
+
+export const addInvoiceComment = (id: string, note: string) =>
+  api.post(`${BASE_INV}/${id}/comentario`, { note }).then(unwrap) as Promise<{ ok: boolean }>
 
 /** Reprocesa la póliza contable de un pago (Dr Banco/Cr CxC). Funciona para pagos creados desde cualquier flujo. */
 export const reprocessPaymentJournal = (paymentId: string) =>
