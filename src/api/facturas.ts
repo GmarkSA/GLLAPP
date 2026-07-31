@@ -340,7 +340,7 @@ export const recordInvoicePayment = (id: string, dto: RecordPaymentDto) =>
 export const voidInvoice = (id: string, reason: string) =>
   api.post(`${BASE_INV}/${id}/anular`, { reason }).then(unwrap)
 
-export const sendInvoice = (id: string, dto: { to: string; subject?: string; message?: string }) =>
+export const sendInvoice = (id: string, dto: { to: string; cc?: string; subject?: string; message?: string }) =>
   api.post(`${BASE_INV}/${id}/enviar`, dto).then(unwrap)
 
 export const convertEstimateToInvoice = (estimateId: string) =>
