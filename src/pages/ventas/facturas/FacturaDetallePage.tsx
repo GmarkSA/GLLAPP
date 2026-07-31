@@ -501,14 +501,6 @@ export default function FacturaDetallePage() {
           style={{ marginBottom: 12 }}
         />
       )}
-      {isSent && canPay && (
-        <Alert
-          type="info" showIcon
-          message={<span>¿CÓMO CONTINUAR? Se ha enviado la Factura. Registre su pago tan pronto como lo reciba.</span>}
-          action={<Button size="small" type="primary" style={{ background: '#1faec2' }} onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}>Registrar pago</Button>}
-          style={{ marginBottom: 12 }}
-        />
-      )}
 
       {/* ── Documento de factura ─────────────────────────────────────────── */}
       <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', overflow: 'hidden', position: 'relative' }}>
