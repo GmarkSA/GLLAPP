@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Button, Tag, Table, Space, Modal, Form,
   InputNumber, DatePicker, Select, Input, Divider,
-  message, Spin, Typography, Alert, Tooltip, Popconfirm,
+  message, Spin, Typography, Alert, Tooltip, Popconfirm, Drawer, Upload, Timeline,
 } from 'antd'
 import {
   ArrowLeftOutlined, DollarOutlined, SendOutlined, StopOutlined,
@@ -10,12 +10,15 @@ import {
   FileTextOutlined, ExclamationCircleOutlined,
   SafetyCertificateOutlined, GlobalOutlined, BookOutlined,
   ThunderboltOutlined, SyncOutlined, DeleteOutlined, EditOutlined,
+  PaperClipOutlined, CommentOutlined, UploadOutlined, UserOutlined,
+  FileOutlined,
 } from '@ant-design/icons'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
   getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, emitirFelInvoice, anularFelInvoice, deleteInvoice,
   recomputeJournalLines, reprocessPaymentJournal, getAnticipos, applyAnticipo, duplicateInvoice,
+  attachInvoiceFile, addInvoiceComment,
   INVOICE_STATUS_CONFIG, PAYMENT_MODES,
   type Invoice, type InvoiceItem, type Anticipo,
 } from '../../../api/facturas'
@@ -85,6 +88,12 @@ export default function FacturaDetallePage() {
   const [loadingAnt,     setLoadingAnt]     = useState(false)
   const [selectedAntId,  setSelectedAntId]  = useState<string | undefined>()
   const [anticipoAmount, setAnticipoAmount] = useState<number>(0)
+
+  const [comentariosDrawer, setComentariosDrawer] = useState(false)
+  const [newComment,        setNewComment]        = useState('')
+  const [savingComment,     setSavingComment]     = useState(false)
+  const [uploadingFile,     setUploadingFile]     = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [payForm]  = Form.useForm()
   const [voidForm] = Form.useForm()
@@ -240,6 +249,29 @@ export default function FacturaDetallePage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al duplicar')
     } finally { setSaving(false) }
+  }
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return
+    setSavingComment(true)
+    try {
+      await addInvoiceComment(invoice.id, newComment.trim())
+      setNewComment('')
+      load()
+    } catch { message.error('Error al guardar el comentario') }
+    finally { setSavingComment(false) }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFile(true)
+    try {
+      await attachInvoiceFile(invoice.id, file)
+      message.success(`Archivo "${file.name}" adjuntado`)
+      load()
+    } catch { message.error('Error al adjuntar el archivo') }
+    finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
   const openAnticipoModal = async () => {
@@ -428,6 +460,23 @@ export default function FacturaDetallePage() {
         <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
           Eliminar
         </Button>
+        <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
+        <Button icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
+          Cargar archivo
+          {(invoice.attachments?.length ?? 0) > 0 && (
+            <Tag color="#1faec2" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>
+              {invoice.attachments!.length}
+            </Tag>
+          )}
+        </Button>
+        <Button icon={<CommentOutlined />} onClick={() => setComentariosDrawer(true)}>
+          Comentarios
+          {(invoice.history?.length ?? 0) > 0 && (
+            <Tag color="#6b7280" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>
+              {invoice.history!.length}
+            </Tag>
+          )}
+        </Button>
       </div>
 
       {/* ── Alertas de estado ────────────────────────────────────────────── */}
@@ -523,7 +572,9 @@ export default function FacturaDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Facturar a
             </Text>
-            <Text strong style={{ fontSize: 15, color: '#1faec2', display: 'block' }}>{invoice.customerName}</Text>
+            <Link to={`/ventas/clientes/${invoice.customerId}`} style={{ fontSize: 15, fontWeight: 600, color: '#1faec2', display: 'block' }}>
+              {invoice.customerName}
+            </Link>
             {invoice.customerTaxId && (
               <Text type="secondary" style={{ fontSize: 12 }}>NIT: {invoice.customerTaxId}</Text>
             )}
@@ -906,6 +957,81 @@ export default function FacturaDetallePage() {
       <span id="__print_btn__" style={{ display: 'none' }}>
         <PrintInvoiceButton invoice={invoice} company={company} />
       </span>
+
+      {/* ── Drawer Comentarios / Historial ─────────────────────────────────── */}
+      <Drawer
+        title={<Space><CommentOutlined /><span>Historial y comentarios — {invoice.invoiceNumber}</span></Space>}
+        placement="right" width={420}
+        open={comentariosDrawer} onClose={() => setComentariosDrawer(false)}
+      >
+        {/* Adjuntos */}
+        {(invoice.attachments?.length ?? 0) > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+              Archivos adjuntos
+            </Text>
+            {invoice.attachments!.map((a, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <FileOutlined style={{ color: '#6b7280' }} />
+                <div style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13 }}>{a.name}</Text>
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                    {(a.size / 1024).toFixed(0)} KB · {dayjs(a.at).format('DD/MM/YYYY HH:mm')}
+                  </Text>
+                </div>
+              </div>
+            ))}
+            <Divider style={{ margin: '16px 0 12px' }} />
+          </div>
+        )}
+
+        {/* Timeline historial */}
+        <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
+          Historial de movimientos
+        </Text>
+        {(invoice.history?.length ?? 0) === 0 ? (
+          <Text type="secondary" style={{ fontSize: 13 }}>Sin movimientos registrados.</Text>
+        ) : (
+          <Timeline
+            items={[...invoice.history!].reverse().map((h, i) => ({
+              key: i,
+              dot: h.action === 'comment' ? <CommentOutlined style={{ color: '#1faec2' }} /> : <UserOutlined style={{ color: '#6b7280' }} />,
+              children: (
+                <div>
+                  <Text style={{ fontSize: 12, fontWeight: 600 }}>
+                    {h.action === 'created'         ? 'Factura creada'
+                      : h.action === 'comment'      ? 'Comentario'
+                      : h.action === 'attached_file' ? 'Archivo adjunto'
+                      : h.action === 'duplicated_from' ? 'Duplicada desde otra factura'
+                      : h.action}
+                  </Text>
+                  {h.note && <Text style={{ fontSize: 12, display: 'block', color: '#374151', marginTop: 2 }}>{h.note}</Text>}
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+                    {h.by} · {dayjs(h.at).format('DD/MM/YYYY HH:mm')}
+                  </Text>
+                </div>
+              ),
+            }))}
+          />
+        )}
+
+        {/* Agregar comentario */}
+        <Divider style={{ margin: '16px 0 12px' }} />
+        <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+          Agregar comentario
+        </Text>
+        <Input.TextArea
+          rows={3} value={newComment} onChange={e => setNewComment(e.target.value)}
+          placeholder="Escribe un comentario o nota interna…"
+          style={{ marginBottom: 8 }}
+        />
+        <Button type="primary" block loading={savingComment} onClick={handleAddComment}
+          style={{ background: '#1faec2', borderColor: '#1faec2' }}
+          disabled={!newComment.trim()}
+        >
+          Guardar comentario
+        </Button>
+      </Drawer>
     </div>
   )
 }
