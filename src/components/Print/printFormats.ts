@@ -65,4 +65,45 @@ export function saveFormat(id: PrintFormatId) {
   localStorage.setItem(LS_KEY, id)
 }
 
-// La impresión real se hace en PrintInvoiceButton via renderToStaticMarkup + ventana nueva
+// ── Plantilla de diseño ────────────────────────────────────────────────────────
+
+export interface PrintTemplate {
+  fontFamily:    'Arial' | 'Times New Roman' | 'Helvetica'
+  primaryColor:  string   // color del encabezado, acento y totales
+  headerLayout:  'logo-left' | 'logo-right'  // lado donde va el logo/empresa
+  showLogo:      boolean
+  showUnit:      boolean   // columna Unidad en tabla
+  showDiscount:  boolean   // columna Desc.% en tabla
+  showTaxCol:    boolean   // columna IVA% en tabla
+  showFelBox:    boolean   // caja de certificación FEL
+  footerText:    string
+  showPrintDate: boolean
+}
+
+export const DEFAULT_TEMPLATE: PrintTemplate = {
+  fontFamily:    'Arial',
+  primaryColor:  '#1faec2',
+  headerLayout:  'logo-left',
+  showLogo:      true,
+  showUnit:      true,
+  showDiscount:  true,
+  showTaxCol:    true,
+  showFelBox:    true,
+  footerText:    'Lucía — Sistema de Contabilidad',
+  showPrintDate: true,
+}
+
+const TEMPLATE_LS_KEY = 'contaerp_print_template'
+
+export function getSavedTemplate(): PrintTemplate {
+  try {
+    const raw = localStorage.getItem(TEMPLATE_LS_KEY)
+    return raw ? { ...DEFAULT_TEMPLATE, ...JSON.parse(raw) } : DEFAULT_TEMPLATE
+  } catch {
+    return DEFAULT_TEMPLATE
+  }
+}
+
+export function saveTemplate(tpl: PrintTemplate): void {
+  localStorage.setItem(TEMPLATE_LS_KEY, JSON.stringify(tpl))
+}

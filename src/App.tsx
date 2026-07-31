@@ -21,8 +21,9 @@ const EmpresaFormPage        = lazy(() => import('./pages/configuracion/empresas
 const SucursalesPage         = lazy(() => import('./pages/configuracion/empresas/SucursalesPage'))
 const SeriesDocumentalesPage = lazy(() => import('./pages/configuracion/empresas/SeriesDocumentalesPage'))
 const ElectronicInvoicingPage = lazy(() => import('./pages/configuracion/empresas/ElectronicInvoicingPage'))
-const BankProfilesPage       = lazy(() => import('./pages/configuracion/empresas/BankProfilesPage'))
-const PlatformAdminPage      = lazy(() => import('./pages/admin/PlatformAdminPage'))
+const BankProfilesPage           = lazy(() => import('./pages/configuracion/empresas/BankProfilesPage'))
+const PlantillasImpresionPage    = lazy(() => import('./pages/configuracion/PlantillasImpresionPage'))
+const PlatformAdminPage          = lazy(() => import('./pages/admin/PlatformAdminPage'))
 const CompanyUsersPage       = lazy(() => import('./pages/configuracion/empresas/CompanyUsersPage'))
 const OnboardingWizardPage   = lazy(() => import('./pages/onboarding/OnboardingWizardPage'))
 const SetupGuidePage         = lazy(() => import('./pages/onboarding/SetupGuidePage'))
@@ -365,6 +366,7 @@ export default function App() {
           <Route path="configuracion/empresas/series"                         element={<SeriesDocumentalesPage />} />
           <Route path="configuracion/empresas/facturacion-electronica"        element={<ElectronicInvoicingPage />} />
           <Route path="configuracion/empresas/bancos"                         element={<BankProfilesPage />} />
+          <Route path="configuracion/plantillas-impresion"                   element={<PlantillasImpresionPage />} />
           <Route path="configuracion/empresas/:id"                            element={<EmpresaFormPage />} />
           <Route path="configuracion/empresas/:id/usuarios"                   element={<CompanyUsersPage />} />
           <Route path="configuracion/empresas/:id/sucursales"                 element={<SucursalesPage />} />
