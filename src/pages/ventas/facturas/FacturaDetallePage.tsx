@@ -780,7 +780,7 @@ export default function FacturaDetallePage() {
             <Input.TextArea rows={2} />
           </Form.Item>
           <Alert type="info" showIcon message={`Saldo pendiente: ${fmt(invoice.balance)}`}
-            description={Number(invoice.balance) === Number(invoice.total) ? 'Este pago saldará la factura completamente.' : 'Pago parcial — quedará saldo pendiente.'} />
+            description={Number(invoice.paidAmount) === 0 ? 'Este pago saldará la factura completamente.' : 'Pago parcial — quedará saldo pendiente.'} />
         </Form>
       </Modal>
 

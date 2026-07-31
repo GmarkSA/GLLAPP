@@ -109,6 +109,8 @@ export interface Invoice {
   centroBeneficioId?:  string
   journalEntryId?:     string   // Asiento de venta (CxC / Ingresos / IVA)
   costJournalEntryId?: string   // Asiento de baja de inventario
+  isrRetentionAmount?:    number
+  isrRetentionAccountId?: string
   journalLines?:   JournalLine[]
   items?:          InvoiceItem[]
   payments?:       InvoicePayment[]
