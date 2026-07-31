@@ -27,6 +27,7 @@ import {
   ControlOutlined,
   DeleteOutlined,
   FileExcelOutlined,
+  FilePdfOutlined,
   FileTextOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -36,6 +37,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
 import AccountSelect from '../../components/AccountSelect'
 import { useCompanyStore } from '../../store/companyStore'
 import CategorizarDrawer from './CategorizarDrawer'
@@ -143,17 +145,58 @@ function TransactionModal({ open, account, onClose, onSaved }: {
   )
 }
 
+async function parsePdfToMatrix(buffer: ArrayBuffer): Promise<string[][]> {
+  const pdfjsLib = await import('pdfjs-dist')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+  const allRows: string[][] = []
+  const Y_TOL = 5
+  const MERGE_GAP = 5
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p)
+    const content = await page.getTextContent()
+    const byY = new Map<number, Array<{ x: number; xEnd: number; text: string }>>()
+    for (const raw of content.items) {
+      if (!('str' in raw)) continue
+      const { str, transform, width } = raw as { str: string; transform: number[]; width: number }
+      if (!str.trim()) continue
+      const y = Math.round(transform[5] / Y_TOL) * Y_TOL
+      const x = transform[4]
+      if (!byY.has(y)) byY.set(y, [])
+      byY.get(y)!.push({ x, xEnd: x + Math.abs(width || 0), text: str.trim() })
+    }
+    const sortedYs = [...byY.keys()].sort((a, b) => b - a)
+    for (const y of sortedYs) {
+      const items = byY.get(y)!.sort((a, b) => a.x - b.x)
+      const cells: string[] = []
+      let cur = items[0].text
+      let curEnd = items[0].xEnd
+      for (let i = 1; i < items.length; i++) {
+        const gap = items[i].x - curEnd
+        if (gap < MERGE_GAP) { cur += ' ' + items[i].text; curEnd = Math.max(curEnd, items[i].xEnd) }
+        else { cells.push(cur); cur = items[i].text; curEnd = items[i].xEnd }
+      }
+      cells.push(cur)
+      allRows.push(cells)
+    }
+  }
+  return allRows
+}
+
 function ImportModal({ open, account, onClose, onSaved }: {
   open: boolean
   account: BankAccount | null
   onClose: () => void
   onSaved: () => void
 }) {
-  const [rows, setRows] = useState<any[]>([])
-  const [saving, setSaving] = useState(false)
+  const [rows,    setRows]    = useState<any[]>([])
+  const [saving,  setSaving]  = useState(false)
+  const [isPdf,   setIsPdf]   = useState(false)
+  const [periodMonth, setPeriodMonth] = useState<number | undefined>()
+  const [periodYear,  setPeriodYear]  = useState<number>(dayjs().year())
 
   const parseDate = (raw: unknown): string => {
-    // XLSX serial number from an Excel file (not CSV) — convert via UTC
+    // XLSX serial number
     if (typeof raw === 'number' && raw > 40_000 && raw < 60_000) {
       const dt = new Date(Math.round((raw - 25569) * 86_400_000))
       const y = dt.getUTCFullYear(), mo = String(dt.getUTCMonth() + 1).padStart(2, '0'), d = String(dt.getUTCDate()).padStart(2, '0')
@@ -164,6 +207,12 @@ function ImportModal({ open, account, onClose, onSaved }: {
       return `${y}-${mo}-${d}`
     }
     const s = String(raw || '').trim()
+    // Solo día numérico 1–31 (PDF correo Banco Industrial)
+    if (/^\d{1,2}$/.test(s)) {
+      const d = parseInt(s)
+      if (d >= 1 && d <= 31 && periodMonth && periodYear)
+        return `${periodYear}-${String(periodMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    }
     if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
       const sep = s[2]; const [d, m, y] = s.split(sep)
       return `${y}-${m}-${d}`
@@ -234,17 +283,25 @@ function ImportModal({ open, account, onClose, onSaved }: {
   }
 
   const beforeUpload = async (file: File) => {
+    const ext = file.name.toLowerCase().split('.').pop() ?? ''
+    const pdfFile = ext === 'pdf'
+    setIsPdf(pdfFile)
     const buffer = await file.arrayBuffer()
     let parsed: any[][]
-    if (file.name.toLowerCase().endsWith('.csv')) {
-      // Usar parser de texto para CSV para evitar que XLSX auto-convierta fechas DD-MM-YYYY
-      parsed = parseCSV(new TextDecoder().decode(buffer).replace(/^﻿/, ''))
-    } else {
-      const workbook = XLSX.read(buffer, { type: 'array' })
-      const sheet = workbook.Sheets[workbook.SheetNames[0]]
-      parsed = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+    try {
+      if (pdfFile) {
+        parsed = await parsePdfToMatrix(buffer)
+      } else if (ext === 'csv') {
+        parsed = parseCSV(new TextDecoder().decode(buffer).replace(/^﻿/, ''))
+      } else {
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        parsed = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+      }
+      setRows(parseRows(parsed))
+    } catch {
+      message.error(`No se pudo leer el archivo ${pdfFile ? 'PDF' : 'Excel/CSV'}`)
     }
-    setRows(parseRows(parsed))
     return false
   }
 
@@ -269,20 +326,32 @@ function ImportModal({ open, account, onClose, onSaved }: {
       title="Importar estado de cuenta"
       open={open}
       width={760}
-      onCancel={() => { setRows([]); onClose() }}
+      onCancel={() => { setRows([]); setIsPdf(false); onClose() }}
       footer={[
-        <Button key="cancel" onClick={() => { setRows([]); onClose() }}>Cancelar</Button>,
+        <Button key="cancel" onClick={() => { setRows([]); setIsPdf(false); onClose() }}>Cancelar</Button>,
         <Button key="import" type="primary" disabled={!rows.length} loading={saving} onClick={handleImport} style={{ background: NAVY }}>
           Importar {rows.length || ''} movimientos
         </Button>,
       ]}
       destroyOnClose
     >
-      <Upload.Dragger beforeUpload={beforeUpload} showUploadList={false} accept=".xlsx,.xls,.csv">
-        <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ color: NAVY }} /></p>
-        <p className="ant-upload-text">Arrastra o selecciona un archivo Excel/CSV</p>
-        <p className="ant-upload-hint">Columnas sugeridas: fecha, descripcion, debito, credito, referencia, saldo.</p>
+      <Upload.Dragger beforeUpload={beforeUpload} showUploadList={false} accept=".xlsx,.xls,.csv,.pdf">
+        <p className="ant-upload-drag-icon">
+          {isPdf ? <FilePdfOutlined style={{ color: '#e5484d' }} /> : <FileExcelOutlined style={{ color: NAVY }} />}
+        </p>
+        <p className="ant-upload-text">Arrastra o selecciona un archivo Excel, CSV o PDF</p>
+        <p className="ant-upload-hint">Estado de cuenta Banco Industrial y otros bancos guatemaltecos.</p>
       </Upload.Dragger>
+      {isPdf && !rows.length && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: '#f5f3ff', border: '1px solid #c4b5fd', borderRadius: 6, fontSize: 12 }}>
+          <strong>PDF cargado</strong> — si las fechas muestran solo el día, selecciona el período:&nbsp;
+          <Select size="small" placeholder="Mes" style={{ width: 110 }} onChange={setPeriodMonth}
+            options={[{v:1,l:'Enero'},{v:2,l:'Febrero'},{v:3,l:'Marzo'},{v:4,l:'Abril'},{v:5,l:'Mayo'},{v:6,l:'Junio'},{v:7,l:'Julio'},{v:8,l:'Agosto'},{v:9,l:'Septiembre'},{v:10,l:'Octubre'},{v:11,l:'Noviembre'},{v:12,l:'Diciembre'}].map(x=>({value:x.v,label:x.l}))} />
+          &nbsp;
+          <Select size="small" placeholder="Año" style={{ width: 80 }} value={periodYear} onChange={setPeriodYear}
+            options={Array.from({length:4},(_,i)=>({value:dayjs().year()-i,label:String(dayjs().year()-i)}))} />
+        </div>
+      )}
       {rows.length > 0 && (
         <Table
           style={{ marginTop: 12 }}
