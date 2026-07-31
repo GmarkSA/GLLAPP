@@ -24,6 +24,7 @@ import {
   type Invoice, type InvoiceItem, type Anticipo,
 } from '../../../api/facturas'
 import { deletePagoRecibido } from '../../../api/pagos-recibidos'
+import { getCustomer } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import PrintInvoiceButton from '../../../components/Print/PrintInvoiceButton'
@@ -82,6 +83,7 @@ export default function FacturaDetallePage() {
   const [payModal,       setPayModal]       = useState(false)
   const [voidModal,      setVoidModal]      = useState(false)
   const [sendModal,      setSendModal]      = useState(false)
+  const [loadingEmail,   setLoadingEmail]   = useState(false)
   const [anticipoModal,  setAnticipoModal]  = useState(false)
   const [emitirFelModal, setEmitirFelModal] = useState(false)
   const [saving,         setSaving]         = useState(false)
@@ -195,11 +197,29 @@ export default function FacturaDetallePage() {
     } finally { setSaving(false) }
   }
 
+  const openSendModal = async () => {
+    sendForm.resetFields()
+    sendForm.setFieldsValue({
+      subject: `Factura ${invoice.invoiceNumber} — ${company.name || invoice.customerName}`,
+    })
+    setSendModal(true)
+    // Auto-cargar email del cliente
+    if (invoice.customerId) {
+      setLoadingEmail(true)
+      getCustomer(invoice.customerId)
+        .then((c: any) => {
+          if (c?.email) sendForm.setFieldValue('to', c.email)
+        })
+        .catch(() => null)
+        .finally(() => setLoadingEmail(false))
+    }
+  }
+
   const handleSend = async () => {
     const v = await sendForm.validateFields()
     setSaving(true)
     try {
-      await sendInvoice(invoice.id, { to: v.to, subject: v.subject, message: v.message })
+      await sendInvoice(invoice.id, { to: v.to, cc: v.cc || undefined, subject: v.subject, message: v.message })
       message.success(`Factura enviada a ${v.to}`)
       setSendModal(false)
       load()
@@ -429,7 +449,7 @@ export default function FacturaDetallePage() {
         >
           Editar
         </Button>
-        <Button icon={<SendOutlined />} onClick={() => setSendModal(true)}>
+        <Button icon={<SendOutlined />} onClick={openSendModal}>
           Enviar correo
         </Button>
         <span id="__print_btn__">
@@ -999,20 +1019,34 @@ export default function FacturaDetallePage() {
       </Modal>
 
       <Modal
-        title={<><SendOutlined /> Enviar factura por correo</>}
+        title={<><SendOutlined /> Enviar por correo electrónico — {invoice.invoiceNumber}</>}
         open={sendModal} onOk={handleSend} onCancel={() => setSendModal(false)}
         okText="Enviar" okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
+        width={560}
       >
         <Form form={sendForm} layout="vertical" style={{ marginTop: 8 }}>
-          <Form.Item name="to" label="Correo del destinatario" rules={[{ required: true, type: 'email' }]}>
-            <Input placeholder="cliente@empresa.com" />
+          <Form.Item
+            name="to" label="Enviar a"
+            rules={[{ required: true, message: 'Requerido' }, { type: 'email', message: 'Correo inválido' }]}
+          >
+            <Input
+              prefix={loadingEmail ? <SyncOutlined spin style={{ color: '#bbb' }} /> : undefined}
+              placeholder={loadingEmail ? 'Cargando email del cliente…' : 'destinatario@empresa.com'}
+            />
           </Form.Item>
-          <Form.Item name="subject" label="Asunto" initialValue={`Factura ${invoice.invoiceNumber} — ${invoice.customerName}`}>
+          <Form.Item name="cc" label="Cc" rules={[{ type: 'email', message: 'Correo inválido' }]}>
+            <Input placeholder="copia@empresa.com (opcional)" />
+          </Form.Item>
+          <Form.Item name="subject" label="Asunto" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="message" label="Mensaje">
-            <Input.TextArea rows={3} placeholder="Mensaje adicional para el cliente…" />
+          <Form.Item name="message" label="Mensaje adicional">
+            <Input.TextArea rows={3} placeholder="Puede agregar un mensaje personalizado que aparecerá en el cuerpo del correo…" />
           </Form.Item>
+          <Alert
+            type="info" showIcon style={{ marginTop: 4 }}
+            message="El correo incluirá el resumen de la factura con el importe total y las cuentas bancarias de cobro configuradas en tu empresa."
+          />
         </Form>
       </Modal>
 
