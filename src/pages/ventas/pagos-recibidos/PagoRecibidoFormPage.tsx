@@ -32,6 +32,8 @@ export default function PagoRecibidoFormPage() {
   const [loadingInv,     setLoadingInv]     = useState(false)
   const [selectedInv,    setSelectedInv]    = useState<Invoice | null>(null)
   const [bankAccounts,   setBankAccounts]   = useState<BankAccount[]>([])
+  const [isrEnabled,     setIsrEnabled]     = useState(false)
+  const [isrAmount,      setIsrAmount]      = useState<number>(0)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Load customers — limit: 100 (máximo permitido por @Max(100) en PaginationDto)
@@ -83,13 +85,21 @@ export default function PagoRecibidoFormPage() {
 
   const handleSave = async () => {
     try {
-      // Validate all fields; skip invoiceId validation when in advance mode
       await form.validateFields(
         isAdvance
           ? ['customerId', 'paymentDate', 'amount']
           : undefined,
       )
     } catch { return }
+    if (!isAdvance && isrEnabled && isrAmount <= 0) {
+      message.error('Ingrese el monto de ISR retenido')
+      return
+    }
+    const cashAmount = Number(form.getFieldValue('amount') ?? 0)
+    if (!isAdvance && cashAmount > 0 && !form.getFieldValue('bankAccountId')) {
+      message.error('Seleccione una cuenta bancaria para registrar el efectivo recibido')
+      return
+    }
     setSaving(true)
     try {
       const vals = form.getFieldsValue()
@@ -111,19 +121,22 @@ export default function PagoRecibidoFormPage() {
             isAdvance:     true as const,
           }
         : {
-            customerId:    selectedCust!,
-            invoiceId:     vals.invoiceId,
+            customerId:         selectedCust!,
+            invoiceId:          vals.invoiceId,
             paymentDate,
             accountingDate,
-            amount:        vals.amount,
-            mode:          vals.mode as PaymentMode,
-            reference:     vals.reference || undefined,
-            bankAccountId: vals.bankAccountId || undefined,
-            notes:         vals.notes || undefined,
-            currency:      'GTQ',
+            amount:             cashAmount,
+            mode:               vals.mode as PaymentMode,
+            reference:          vals.reference || undefined,
+            bankAccountId:      vals.bankAccountId || undefined,
+            notes:              vals.notes || undefined,
+            currency:           'GTQ',
+            ...(isrEnabled && isrAmount > 0 ? { isrRetentionAmount: isrAmount } : {}),
           }
       const pago = await createPagoRecibido(dto)
       message.success(`Pago ${pago.paymentNumber} registrado correctamente`)
+      setIsrEnabled(false)
+      setIsrAmount(0)
       navigate(`/ventas/pagos-recibidos/${pago.id}`)
     } catch (e: any) {
       // El backend usa HttpExceptionFilter: { success, error: { message } }
@@ -191,6 +204,8 @@ export default function PagoRecibidoFormPage() {
                     const adv = e.target.value === 'advance'
                     setIsAdvance(adv)
                     setSelectedInv(null)
+                    setIsrEnabled(false)
+                    setIsrAmount(0)
                     form.setFieldsValue({ invoiceId: undefined, amount: undefined })
                   }}
                   optionType="button"
@@ -305,22 +320,23 @@ export default function PagoRecibidoFormPage() {
                 <Col span={8}>
                   <Form.Item
                     name="amount"
-                    label={isAdvance ? 'Monto del anticipo' : 'Monto a aplicar'}
-                    rules={[
-                      { required: true, message: 'Ingresa el monto' },
-                      {
-                        validator: (_, v) =>
-                          v > 0 ? Promise.resolve() : Promise.reject('El monto debe ser mayor a 0'),
-                      },
-                    ]}
+                    label={isAdvance ? 'Monto del anticipo' : (isrEnabled ? 'Efectivo al banco (opcional)' : 'Monto a aplicar')}
+                    rules={
+                      isrEnabled
+                        ? []
+                        : [
+                            { required: true, message: 'Ingresa el monto' },
+                            { validator: (_, v) => v > 0 ? Promise.resolve() : Promise.reject('El monto debe ser mayor a 0') },
+                          ]
+                    }
                   >
                     <InputNumber
                       style={{ width: '100%' }}
                       prefix="Q"
                       precision={2}
-                      min={0.01}
+                      min={0}
                       max={!isAdvance && selectedInv ? Number(selectedInv.balance) : undefined}
-                      placeholder="0.00"
+                      placeholder={isrEnabled ? '0.00 — dejar en 0 si es solo retención' : '0.00'}
                     />
                   </Form.Item>
                 </Col>
@@ -356,6 +372,58 @@ export default function PagoRecibidoFormPage() {
                   ))}
                 </Select>
               </Form.Item>
+
+              {/* ISR retenido al pago (solo en pago a factura) */}
+              {!isAdvance && (
+                <>
+                  <Form.Item label="¿Incluye retención ISR?">
+                    <Radio.Group value={isrEnabled ? 'si' : 'no'} onChange={e => {
+                      const on = e.target.value === 'si'
+                      setIsrEnabled(on)
+                      setIsrAmount(0)
+                      form.setFieldValue('amount', on ? 0 : (selectedInv ? Number(selectedInv.balance) : undefined))
+                    }}>
+                      <Radio value="no">No</Radio>
+                      <Radio value="si">Sí — retención fiscal en origen</Radio>
+                    </Radio.Group>
+                  </Form.Item>
+                  {isrEnabled && (
+                    <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '12px 16px', marginBottom: 16 }}>
+                      <Form.Item label="ISR retenido por el cliente" style={{ marginBottom: 8 }}>
+                        <InputNumber
+                          style={{ width: '100%' }} prefix="Q" min={0.01} step={0.01} precision={2}
+                          max={selectedInv ? Number(selectedInv.balance) : undefined}
+                          value={isrAmount || undefined}
+                          placeholder="0.00"
+                          onChange={v => setIsrAmount(v ?? 0)}
+                        />
+                      </Form.Item>
+                      {(() => {
+                        const efectivo = Number(form.getFieldValue('amount') ?? 0)
+                        const totalAbonado = efectivo + isrAmount
+                        return (
+                          <div style={{ fontSize: 12, color: '#6b21a8', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {efectivo > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Efectivo al banco:</span>
+                                <span>{fmtQ(efectivo)}</span>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>ISR retenido por cliente:</span>
+                              <span>{fmtQ(isrAmount)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #ddd6fe', paddingTop: 4, marginTop: 2 }}>
+                              <span>Total que se abona al saldo:</span>
+                              <span>{fmtQ(totalAbonado)}</span>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Notas */}
               <Form.Item name="notes" label="Notas internas">
