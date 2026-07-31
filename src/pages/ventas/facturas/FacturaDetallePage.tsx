@@ -144,6 +144,10 @@ export default function FacturaDetallePage() {
       message.error('Ingrese el monto de ISR retenido')
       return
     }
+    if (payIsrEnabled && Number(v.amount ?? 0) > 0 && !v.bankAccountId) {
+      message.error('Seleccione una cuenta bancaria para registrar el efectivo recibido')
+      return
+    }
     setSaving(true)
     try {
       await recordInvoicePayment(invoice.id, {
