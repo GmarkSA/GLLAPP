@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Button, Tag, Table, Space, Modal, Form,
   InputNumber, DatePicker, Select, Input, Divider,
-  message, Spin, Typography, Alert, Tooltip, Popconfirm, Drawer, Upload, Timeline,
+  message, Spin, Typography, Alert, Tooltip, Popconfirm, Drawer, Upload, Timeline, Radio,
 } from 'antd'
 import {
   ArrowLeftOutlined, DollarOutlined, SendOutlined, StopOutlined,
@@ -97,6 +97,9 @@ export default function FacturaDetallePage() {
   const [uploadingFile,     setUploadingFile]     = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [payIsrEnabled, setPayIsrEnabled] = useState(false)
+  const [payIsrAmount,  setPayIsrAmount]  = useState<number>(0)
+
   const [payForm]  = Form.useForm()
   const [voidForm] = Form.useForm()
   const [sendForm] = Form.useForm()
@@ -137,18 +140,25 @@ export default function FacturaDetallePage() {
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handlePayment = async () => {
     const v = await payForm.validateFields()
+    if (payIsrEnabled && payIsrAmount <= 0) {
+      message.error('Ingrese el monto de ISR retenido')
+      return
+    }
     setSaving(true)
     try {
       await recordInvoicePayment(invoice.id, {
-        paymentDate:   v.paymentDate.format('YYYY-MM-DD'),
-        amount:        v.amount,
-        mode:          v.mode,
-        reference:     v.reference,
-        bankAccountId: v.bankAccountId,
-        notes:         v.notes,
+        paymentDate:          v.paymentDate.format('YYYY-MM-DD'),
+        amount:               v.amount,
+        mode:                 v.mode,
+        reference:            v.reference,
+        bankAccountId:        v.bankAccountId,
+        notes:                v.notes,
+        ...(payIsrEnabled && payIsrAmount > 0 ? { isrRetentionAmount: payIsrAmount } : {}),
       })
       message.success('Pago registrado exitosamente')
       setPayModal(false)
+      setPayIsrEnabled(false)
+      setPayIsrAmount(0)
       payForm.resetFields()
       load()
     } catch (e: any) {
@@ -423,7 +433,7 @@ export default function FacturaDetallePage() {
             type="primary"
             icon={<DollarOutlined />}
             style={{ background: '#2ea172', borderColor: '#2ea172' }}
-            onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}
+            onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayIsrEnabled(false); setPayIsrAmount(0); setPayModal(true) }}
           >
             Registrar pago
           </Button>
@@ -486,7 +496,7 @@ export default function FacturaDetallePage() {
         <Alert
           type="error" showIcon icon={<ExclamationCircleOutlined />}
           message={`Factura vencida desde ${invoice.dueDate ? dayjs(invoice.dueDate).format('DD/MM/YYYY') : ''}. Saldo pendiente: ${fmt(invoice.balance)}`}
-          action={canPay ? <Button size="small" type="primary" danger onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}>Registrar pago</Button> : null}
+          action={canPay ? <Button size="small" type="primary" danger onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayIsrEnabled(false); setPayIsrAmount(0); setPayModal(true) }}>Registrar pago</Button> : null}
           style={{ marginBottom: 12 }}
         />
       )}
@@ -794,7 +804,7 @@ export default function FacturaDetallePage() {
                 </Text>
                 {canPay && (
                   <Button size="small" type="primary" icon={<DollarOutlined />} style={{ background: '#2ea172', borderColor: '#2ea172' }}
-                    onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayModal(true) }}>
+                    onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayIsrEnabled(false); setPayIsrAmount(0); setPayModal(true) }}>
                     + Pago
                   </Button>
                 )}
@@ -843,6 +853,46 @@ export default function FacturaDetallePage() {
           <Form.Item name="notes" label="Notas">
             <Input.TextArea rows={2} />
           </Form.Item>
+
+          {/* ISR retenido al pago */}
+          <Form.Item label="¿Incluye retención ISR?">
+            <Radio.Group value={payIsrEnabled ? 'si' : 'no'} onChange={e => { setPayIsrEnabled(e.target.value === 'si'); if (e.target.value === 'no') setPayIsrAmount(0) }}>
+              <Radio value="no">No</Radio>
+              <Radio value="si">Sí — retención fiscal en origen</Radio>
+            </Radio.Group>
+          </Form.Item>
+          {payIsrEnabled && (
+            <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '12px 16px', marginBottom: 12 }}>
+              <Form.Item label="ISR retenido por el cliente" style={{ marginBottom: 8 }}>
+                <InputNumber
+                  style={{ width: '100%' }} prefix="Q" min={0.01} step={0.01} precision={2}
+                  max={Number(invoice.balance) - 0.01}
+                  value={payIsrAmount || undefined}
+                  placeholder="0.00"
+                  onChange={v => {
+                    const isr = v ?? 0
+                    setPayIsrAmount(isr)
+                    payForm.setFieldValue('amount', Math.max(0.01, Number(invoice.balance) - isr))
+                  }}
+                />
+              </Form.Item>
+              <div style={{ fontSize: 12, color: '#6b21a8', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Efectivo a recibir en banco:</span>
+                  <span>{fmt(Math.max(0, Number(invoice.balance) - payIsrAmount))}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>ISR retenido por cliente:</span>
+                  <span>{fmt(payIsrAmount)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #ddd6fe', paddingTop: 4, marginTop: 2 }}>
+                  <span>Total saldado:</span>
+                  <span>{fmt(invoice.balance)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <Alert type="info" showIcon message={`Saldo pendiente: ${fmt(invoice.balance)}`}
             description={Number(invoice.paidAmount) === 0 ? 'Este pago saldará la factura completamente.' : 'Pago parcial — quedará saldo pendiente.'} />
         </Form>
