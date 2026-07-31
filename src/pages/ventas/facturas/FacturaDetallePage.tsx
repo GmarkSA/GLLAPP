@@ -269,7 +269,7 @@ export default function FacturaDetallePage() {
     if (!file) return
     setUploadingFile(true)
     try {
-      await attachInvoiceFile(invoice.id, file)
+      await attachInvoiceFile(invoice.id, file, invoice)
       message.success(`Archivo "${file.name}" adjuntado`)
       load()
     } catch { message.error('Error al adjuntar el archivo') }
@@ -465,9 +465,9 @@ export default function FacturaDetallePage() {
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
         <Button size="small" icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
           Cargar archivo
-          {(invoice.attachments?.length ?? 0) > 0 && (
+          {(((invoice as any).customFields?.attachments ?? invoice.attachments ?? []).length > 0) && (
             <Tag color="#1faec2" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>
-              {invoice.attachments!.length}
+              {((invoice as any).customFields?.attachments ?? invoice.attachments ?? []).length}
             </Tag>
           )}
         </Button>
@@ -959,12 +959,14 @@ export default function FacturaDetallePage() {
         open={comentariosDrawer} onClose={() => setComentariosDrawer(false)}
       >
         {/* Adjuntos */}
-        {(invoice.attachments?.length ?? 0) > 0 && (
+        {(() => {
+          const atts = ((invoice as any).customFields?.attachments ?? invoice.attachments ?? []) as NonNullable<Invoice['attachments']>
+          return atts.length > 0 && (
           <div style={{ marginBottom: 20 }}>
             <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Archivos adjuntos
             </Text>
-            {invoice.attachments!.map((a, i) => (
+            {atts.map((a, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <FileOutlined style={{ color: '#6b7280' }} />
                 <div style={{ flex: 1 }}>
@@ -977,7 +979,8 @@ export default function FacturaDetallePage() {
             ))}
             <Divider style={{ margin: '16px 0 12px' }} />
           </div>
-        )}
+          )
+        })()}
 
         {/* Timeline historial */}
         <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>

@@ -116,6 +116,7 @@ export interface Invoice {
   payments?:       InvoicePayment[]
   attachments?:    Array<{ name: string; size: number; at: string; by: string }>
   history?:        Array<{ action: string; note?: string; by: string; at: string; sourceId?: string }>
+  customFields?:   Record<string, unknown>
   createdAt:       string
   updatedAt:       string
 }
@@ -364,9 +365,12 @@ export const recomputeJournalLines = (id: string) =>
 export const duplicateInvoice = (id: string) =>
   api.post(`${BASE_INV}/${id}/duplicar`).then(unwrap) as Promise<Invoice>
 
-export const attachInvoiceFile = (id: string, file: File) => {
-  const fd = new FormData(); fd.append('file', file)
-  return api.post(`${BASE_INV}/${id}/adjuntar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap) as Promise<{ attached: boolean; name: string }>
+export const attachInvoiceFile = async (id: string, file: File, invoice: Invoice): Promise<{ attached: boolean; name: string }> => {
+  const cfAttachments = (invoice.customFields?.attachments as Invoice['attachments']) ?? []
+  const existing: Invoice['attachments'] = cfAttachments.length ? cfAttachments : (invoice.attachments ?? [])
+  const updated = [...existing, { name: file.name, size: file.size, at: new Date().toISOString(), by: '' }]
+  await updateInvoice(id, { customFields: { ...(invoice.customFields ?? {}), attachments: updated } } as any)
+  return { attached: true, name: file.name }
 }
 
 export const addInvoiceComment = (id: string, note: string) =>
