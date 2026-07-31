@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { getInvoice, type Invoice } from '../../../api/facturas'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
-import { getSavedTemplate } from '../../../components/Print/printFormats'
+import { getTemplateForFormat } from '../../../components/Print/printFormats'
 
 type Format = 'carta' | 'media-carta' | 'ticket-80' | 'ticket-58'
 
@@ -24,7 +24,7 @@ export default function FacturaImprimirPage() {
   const [searchParams] = useSearchParams()
   const format         = (searchParams.get('format') ?? 'carta') as Format
   const cfg            = FORMAT_CONFIG[format] ?? FORMAT_CONFIG['carta']
-  const tpl            = getSavedTemplate()
+  const tpl            = getTemplateForFormat(format)
   const pc             = tpl.primaryColor   // primary color alias
 
   const [invoice, setInvoice] = useState<Invoice | null>(null)
@@ -56,10 +56,13 @@ export default function FacturaImprimirPage() {
     return <div style={{ padding: 40 }}>No se encontró la factura.</div>
   }
 
-  const subtotal    = Number(invoice.subtotal     ?? 0)
+  const subtotal    = Number(invoice.subtotal      ?? 0)
   const discount    = Number(invoice.discountAmount ?? 0)
-  const tax         = Number(invoice.taxAmount    ?? 0)
-  const total       = Number(invoice.total        ?? 0)
+  const tax         = Number(invoice.taxAmount     ?? 0)
+  const total       = Number(invoice.total         ?? 0)
+  const paidAmount  = Number(invoice.paidAmount    ?? 0)
+  const balance     = Number(invoice.balance       ?? 0)
+  const hasPayments = paidAmount > 0 && balance < total
   const hasDiscount = tpl.showDiscount && (invoice.items ?? []).some(i => Number(i.discountPercent) > 0)
   const companyName = org?.legalName || org?.name || 'Mi Empresa'
 
@@ -319,9 +322,28 @@ export default function FacturaImprimirPage() {
               </div>
             )}
             <div className="tot-row grand">
-              <span>TOTAL A PAGAR ({invoice.currency ?? 'GTQ'})</span>
+              <span>TOTAL FACTURA ({invoice.currency ?? 'GTQ'})</span>
               <span>{fmtQ(total)}</span>
             </div>
+            {hasPayments && (
+              <>
+                <div className="tot-row" style={{ marginTop: 8 }}>
+                  <span style={{ color: '#666' }}>Pagos aplicados</span>
+                  <span style={{ color: '#2ea172' }}>− {fmtQ(paidAmount)}</span>
+                </div>
+                <div className="tot-row" style={{
+                  fontWeight: 700,
+                  fontSize: cfg.fontSize + (cfg.isTicket ? 3 : 2),
+                  color: balance <= 0 ? '#2ea172' : '#e5484d',
+                  borderTop: '1px solid rgba(10,10,10,0.12)',
+                  paddingTop: 6,
+                  marginTop: 4,
+                }}>
+                  <span>{balance <= 0 ? 'PAGADA' : 'SALDO ADEUDADO'}</span>
+                  <span>{balance <= 0 ? '✓' : fmtQ(balance)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
