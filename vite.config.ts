@@ -2,14 +2,22 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { writeFileSync } from 'fs'
 
+// Versión única por build: se hornea dentro del bundle (__APP_VERSION__) y se
+// escribe también a public/version.json, para que el código sepa con qué versión
+// fue compilado y pueda compararla contra la versión viva del servidor.
+const APP_VERSION = Date.now().toString()
+
 const versionPlugin = () => ({
   name: 'version-file',
   buildStart() {
-    writeFileSync('./public/version.json', JSON.stringify({ v: Date.now() }))
+    writeFileSync('./public/version.json', JSON.stringify({ v: APP_VERSION }))
   },
 })
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   plugins: [react(), versionPlugin()],
   server: {
     port: 5173,
