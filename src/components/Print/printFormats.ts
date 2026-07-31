@@ -5,13 +5,9 @@ export interface PrintFormat {
   id:          PrintFormatId
   label:       string
   description: string
-  /** CSS @page size value */
   pageSize:    string
-  /** CSS @page margin */
   margin:      string
-  /** Base font size en px */
   fontSize:    number
-  /** true = layout de rollo estrecho */
   isTicket:    boolean
 }
 
@@ -54,28 +50,17 @@ export const PRINT_FORMATS: PrintFormat[] = [
   },
 ]
 
-/** Formato guardado en localStorage */
-const LS_KEY = 'contaerp_print_format'
-
-export function getSavedFormat(): PrintFormatId {
-  return (localStorage.getItem(LS_KEY) as PrintFormatId) ?? 'carta'
-}
-
-export function saveFormat(id: PrintFormatId) {
-  localStorage.setItem(LS_KEY, id)
-}
-
-// ── Plantilla de diseño ────────────────────────────────────────────────────────
+// ── Diseño personalizable por plantilla ───────────────────────────────────────
 
 export interface PrintTemplate {
   fontFamily:    'Arial' | 'Times New Roman' | 'Helvetica'
-  primaryColor:  string   // color del encabezado, acento y totales
-  headerLayout:  'logo-left' | 'logo-right'  // lado donde va el logo/empresa
+  primaryColor:  string
+  headerLayout:  'logo-left' | 'logo-right'
   showLogo:      boolean
-  showUnit:      boolean   // columna Unidad en tabla
-  showDiscount:  boolean   // columna Desc.% en tabla
-  showTaxCol:    boolean   // columna IVA% en tabla
-  showFelBox:    boolean   // caja de certificación FEL
+  showUnit:      boolean
+  showDiscount:  boolean
+  showTaxCol:    boolean
+  showFelBox:    boolean
   footerText:    string
   showPrintDate: boolean
 }
@@ -93,17 +78,61 @@ export const DEFAULT_TEMPLATE: PrintTemplate = {
   showPrintDate: true,
 }
 
-const TEMPLATE_LS_KEY = 'contaerp_print_template'
+// ── FormatTemplate: un formato + su diseño + si es predeterminado ─────────────
 
-export function getSavedTemplate(): PrintTemplate {
-  try {
-    const raw = localStorage.getItem(TEMPLATE_LS_KEY)
-    return raw ? { ...DEFAULT_TEMPLATE, ...JSON.parse(raw) } : DEFAULT_TEMPLATE
-  } catch {
-    return DEFAULT_TEMPLATE
-  }
+export interface FormatTemplate {
+  formatId:   PrintFormatId
+  template:   PrintTemplate
+  isDefault:  boolean
 }
 
-export function saveTemplate(tpl: PrintTemplate): void {
-  localStorage.setItem(TEMPLATE_LS_KEY, JSON.stringify(tpl))
+const FORMAT_TEMPLATES_KEY = 'contaerp_format_templates'
+
+function buildDefaults(): FormatTemplate[] {
+  return PRINT_FORMATS.map(f => ({
+    formatId:  f.id,
+    template:  { ...DEFAULT_TEMPLATE },
+    isDefault: f.id === 'carta',
+  }))
+}
+
+export function getFormatTemplates(): FormatTemplate[] {
+  try {
+    const raw = localStorage.getItem(FORMAT_TEMPLATES_KEY)
+    if (raw) {
+      const parsed: FormatTemplate[] = JSON.parse(raw)
+      // Asegurar que existan los 4 formatos (migración segura)
+      return PRINT_FORMATS.map(f => {
+        const saved = parsed.find(t => t.formatId === f.id)
+        return saved
+          ? { ...saved, template: { ...DEFAULT_TEMPLATE, ...saved.template } }
+          : { formatId: f.id, template: { ...DEFAULT_TEMPLATE }, isDefault: f.id === 'carta' }
+      })
+    }
+  } catch { /* fall through */ }
+  return buildDefaults()
+}
+
+export function saveFormatTemplates(templates: FormatTemplate[]): void {
+  localStorage.setItem(FORMAT_TEMPLATES_KEY, JSON.stringify(templates))
+}
+
+/** Devuelve el FormatTemplate marcado como predeterminado */
+export function getDefaultFormatTemplate(): FormatTemplate {
+  const templates = getFormatTemplates()
+  return templates.find(t => t.isDefault) ?? templates[0]
+}
+
+/** Devuelve el PrintTemplate del formato especificado (o del predeterminado) */
+export function getTemplateForFormat(formatId?: PrintFormatId): PrintTemplate {
+  const templates = getFormatTemplates()
+  const entry = formatId
+    ? templates.find(t => t.formatId === formatId)
+    : templates.find(t => t.isDefault)
+  return entry?.template ?? DEFAULT_TEMPLATE
+}
+
+/** @deprecated Usar getTemplateForFormat() */
+export function getSavedTemplate(): PrintTemplate {
+  return getDefaultFormatTemplate().template
 }

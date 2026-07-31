@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { getInvoice, type Invoice } from '../../../api/facturas'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
-import { getSavedTemplate } from '../../../components/Print/printFormats'
+import { getTemplateForFormat } from '../../../components/Print/printFormats'
 
 type Format = 'carta' | 'media-carta' | 'ticket-80' | 'ticket-58'
 
@@ -24,7 +24,7 @@ export default function FacturaImprimirPage() {
   const [searchParams] = useSearchParams()
   const format         = (searchParams.get('format') ?? 'carta') as Format
   const cfg            = FORMAT_CONFIG[format] ?? FORMAT_CONFIG['carta']
-  const tpl            = getSavedTemplate()
+  const tpl            = getTemplateForFormat(format)
   const pc             = tpl.primaryColor   // primary color alias
 
   const [invoice, setInvoice] = useState<Invoice | null>(null)
