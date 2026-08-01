@@ -762,7 +762,7 @@ export default function UsuariosPage() {
           <Form.Item name="email" label="Correo electrónico" rules={[{ required: true, type: 'email' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="password" label="Contraseña" rules={[{ required: true, min: 6 }]}>
+          <Form.Item name="password" label="Contraseña" rules={[{ required: true, min: 8, message: 'Mínimo 8 caracteres' }]}>
             <Input.Password />
           </Form.Item>
           <Form.Item name="roleIds" label="Rol">
