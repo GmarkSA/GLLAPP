@@ -120,7 +120,7 @@ export default function SelectorDimensionesAnaliticas({
       placeholder="Centro de Costo"
       optionFilterProp="label"
       style={{ width: '100%' }}
-      options={cc.map(c => ({ label: `${c.codigo} — ${c.nombre}`, value: c.id }))}
+      options={cc.map(c => ({ label: c.nombre, value: c.id }))}
     />
   )
 
@@ -133,10 +133,10 @@ export default function SelectorDimensionesAnaliticas({
       disabled={disabled}
       value={cbVal}
       onChange={handleCB}
-      placeholder="Centro de Beneficio"
+      placeholder="División"
       optionFilterProp="label"
       style={{ width: '100%' }}
-      options={cb.map(c => ({ label: `${c.codigo} — ${c.nombre}`, value: c.id }))}
+      options={cb.map(c => ({ label: c.nombre, value: c.id }))}
     />
   )
 
@@ -156,8 +156,8 @@ export default function SelectorDimensionesAnaliticas({
       <Form.Item
         label={
           <span>
-            Centro de Beneficio
-            <Tooltip title="Línea de negocio a la que pertenece esta transacción. Permite generar Estado de Resultados y Balance General segmentados.">
+            División
+            <Tooltip title="División o línea de negocio a la que pertenece esta transacción. Permite generar reportes financieros segmentados por división.">
               <InfoCircleOutlined style={{ marginLeft: 4, color: '#6b7280' }} />
             </Tooltip>
           </span>
