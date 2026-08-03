@@ -425,7 +425,7 @@ export default function FacturaFormPage() {
               {/* Fila 1: NIT | Cliente | División */}
               <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 220px', gap: '0 12px' }}>
                 <Form.Item label="NIT" style={{ marginBottom: 8 }}>
-                  <Input value={customerNit} readOnly placeholder="—" style={{ background: '#fafbfc', color: '#374151' }} />
+                  <Input value={customerNit} onChange={e => setCustomerNit(e.target.value)} placeholder="1234567-8" />
                 </Form.Item>
                 <Form.Item name="customerId" label="Cliente" style={{ marginBottom: 8 }}
                   rules={[{ required: true, message: 'Seleccione un cliente' }]}
