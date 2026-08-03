@@ -367,14 +367,12 @@ export default function ClienteFormPage() {
                     </Form.Item>
 
                     <Row gutter={16}>
-                      <Col xs={24} md={8}>
+                      <Col xs={24} md={6}>
                         <Form.Item label="NIT / CUI" name="taxId">
                           <Input placeholder="1234567-8 o CUI" />
                         </Form.Item>
                       </Col>
-                    </Row>
 
-                    <Row gutter={16}>
                       {/* Para individuales: saludo + nombre */}
                       {clientType === 'individual' && (
                         <>
@@ -385,12 +383,12 @@ export default function ClienteFormPage() {
                               </Select>
                             </Form.Item>
                           </Col>
-                          <Col xs={24} md={8}>
+                          <Col xs={24} md={7}>
                             <Form.Item name="firstName" label="Nombre">
                               <Input placeholder="Juan" />
                             </Form.Item>
                           </Col>
-                          <Col xs={24} md={8}>
+                          <Col xs={24} md={7}>
                             <Form.Item name="lastName" label="Apellido">
                               <Input placeholder="García" />
                             </Form.Item>
@@ -398,7 +396,7 @@ export default function ClienteFormPage() {
                         </>
                       )}
 
-                      <Col xs={24} md={clientType === 'individual' ? 12 : 16}>
+                      <Col xs={24} md={clientType === 'individual' ? 12 : 12}>
                         <Form.Item
                           name="legalName"
                           label={clientType === 'company' ? 'Razón social (SAT)' : 'Nombre completo (SAT)'}
@@ -409,7 +407,7 @@ export default function ClienteFormPage() {
                           />
                         </Form.Item>
                       </Col>
-                      <Col xs={24} md={clientType === 'individual' ? 12 : 8}>
+                      <Col xs={24} md={clientType === 'individual' ? 12 : 6}>
                         <Form.Item name="name" label="Nombre comercial">
                           <Input placeholder="Empresa ABC S.A." />
                         </Form.Item>
