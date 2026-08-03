@@ -103,6 +103,11 @@ export default function FacturaDetallePage() {
   const [newComment,        setNewComment]        = useState('')
   const [savingComment,     setSavingComment]     = useState(false)
   const [uploadingFile,     setUploadingFile]     = useState(false)
+
+  type Attachment = NonNullable<Invoice['attachments']>[number]
+  const [previewFile,    setPreviewFile]    = useState<Attachment | null>(null)
+  const [previewUrl,     setPreviewUrl]     = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [payIsrEnabled, setPayIsrEnabled] = useState(false)
@@ -339,12 +344,7 @@ export default function FacturaDetallePage() {
     finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
-  // ── Vista previa de adjuntos ──────────────────────────────────────────────
-  type Attachment = NonNullable<Invoice['attachments']>[number]
-  const [previewFile,    setPreviewFile]    = useState<Attachment | null>(null)
-  const [previewUrl,     setPreviewUrl]     = useState<string | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
-
+  // ── Vista previa de adjuntos (estado declarado arriba con los demás hooks) ──
   const openPreview = async (att: Attachment) => {
     if (!att.key) return
     setPreviewFile(att)
