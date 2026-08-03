@@ -503,7 +503,7 @@ export default function FacturaDetallePage() {
         <Button size="small" danger icon={<DeleteOutlined />} onClick={handleDelete}>
           Eliminar
         </Button>
-        {!isEditable && (
+        {!isEditable && !isVoided && (
           <Button size="small" icon={<BookOutlined />} loading={saving} onClick={handleRecompute}>
             Recalcular
           </Button>
