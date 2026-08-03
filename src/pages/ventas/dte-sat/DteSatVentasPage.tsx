@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Form, Input,
-  message, Modal, Row, Select, Space, Spin, Steps, Table, Tabs, Tag, Tooltip, Typography,
+  message, Modal, Row, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined, RollbackOutlined,
-  SearchOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
+  SearchOutlined, StopOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
@@ -82,6 +82,7 @@ export default function DteSatVentasPage() {
   const [stepperResult,  setStepperResult]  = useState<{ invoice: any; dte: SatDteEmitidos } | null>(null)
   const [stepperCustomer, setStepperCustomer] = useState<{ id: string; name: string; receivableAccountId?: string; incomeAccountId?: string; taxCode?: string; tdsEnabled?: boolean; tdsTaxCode?: string } | null>(null)
   const [stepperSuggestion, setStepperSuggestion] = useState<{ name?: string; taxId?: string } | null>(null)
+  const [stepperIsAnulado,  setStepperIsAnulado]  = useState(false)
   const [stepperIsrTax,     setStepperIsrTax]     = useState<Tax | undefined>()
   const [stepperIsrAmount,  setStepperIsrAmount]  = useState(0)
   const [editingStepperIsr, setEditingStepperIsr] = useState(false)
@@ -372,6 +373,7 @@ export default function DteSatVentasPage() {
     setStepperDte(dte)
     setStepperStep(0)
     setStepperResult(null)
+    setStepperIsAnulado(false)
     setStepperCustomer(dte.customerId ? { id: dte.customerId, name: dte.nombreReceptor ?? '' } : null)
     setStepperSuggestion(null)
     stepperForm.resetFields()
@@ -382,6 +384,7 @@ export default function DteSatVentasPage() {
     setStepperDte(null)
     setStepperStep(0)
     setStepperResult(null)
+    setStepperIsAnulado(false)
     setStepperCustomer(null)
     setStepperSuggestion(null)
     stepperForm.resetFields()
@@ -466,15 +469,16 @@ export default function DteSatVentasPage() {
     try {
       const res = await postSatEmitidos(stepperDte.id, {
         accountId:              vals.accountId,
-        taxId:                  vals.taxId,
+        taxId:                  stepperIsAnulado ? undefined : vals.taxId,
         accountingDate:         vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
         notes:                  vals.notes,
         estimateId:             vals.estimateId,
         defaultUnit:            vals.defaultUnit,
         creditNoteReason:       isNC ? vals.creditNoteReason : undefined,
         originalInvoiceId:      isNC ? vals.originalInvoiceId : undefined,
-        isrRetentionAmount:     stepperIsrAmount > 0 ? stepperIsrAmount : undefined,
-        isrRetentionAccountId:  stepperIsrAmount > 0 ? (stepperIsrTax?.salesAccountId ?? undefined) : undefined,
+        isrRetentionAmount:     (!stepperIsAnulado && stepperIsrAmount > 0) ? stepperIsrAmount : undefined,
+        isrRetentionAccountId:  (!stepperIsAnulado && stepperIsrAmount > 0) ? (stepperIsrTax?.salesAccountId ?? undefined) : undefined,
+        forceZeroAmount:        stepperIsAnulado || undefined,
       })
       // Guardar preferencias para próximas facturas del mismo cliente
       if (stepperCustomer?.id) saveDtePrefs(stepperCustomer.id, vals)
@@ -849,7 +853,13 @@ export default function DteSatVentasPage() {
                     {stepperDte.tipoDocumento ?? 'FACT'} · {stepperDte.serie ?? '—'}/{stepperDte.numeroDte ?? '—'}
                   </Text>
                 </div>
-                <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total)}</Text>
+                {stepperIsAnulado
+                  ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <StopOutlined style={{ color: '#dc2626', fontSize: 14 }} />
+                      <Text strong style={{ fontSize: 16, color: '#dc2626' }}>Q0.00 ANULADA</Text>
+                    </span>
+                  : <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total)}</Text>
+                }
               </div>
               <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
                 { title: 'DTE' },
@@ -870,6 +880,40 @@ export default function DteSatVentasPage() {
                   <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
                     <strong>Nota de Crédito SAT</strong> — Este DTE ({stepperDte.tipoDocumento}) se registrará como Nota de Crédito (NC-XXXX).
                   </div>
+                )}
+
+                {/* Toggle Anulada SAT */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: stepperIsAnulado ? '#fff1f0' : '#f8fafc',
+                  border: `1px solid ${stepperIsAnulado ? '#fca5a5' : '#e2e8f0'}`,
+                  borderRadius: 6, padding: '10px 14px', marginBottom: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <StopOutlined style={{ color: stepperIsAnulado ? '#dc2626' : '#9ca3af', fontSize: 16 }} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: stepperIsAnulado ? '#dc2626' : '#374151' }}>
+                        Factura anulada en SAT
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
+                        Activa si el PDF del SAT tiene sello <strong>ANULADO</strong>. Se registrará con valor Q0.00 y estado Anulada.
+                      </div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={stepperIsAnulado}
+                    onChange={setStepperIsAnulado}
+                    style={{ background: stepperIsAnulado ? '#dc2626' : undefined }}
+                  />
+                </div>
+                {stepperIsAnulado && (
+                  <Alert
+                    type="error"
+                    showIcon
+                    style={{ marginBottom: 12, fontSize: 12 }}
+                    message="Factura será registrada con monto Q0.00 y estado ANULADA"
+                    description="Se creará el registro para cumplimiento legal/fiscal, pero no generará saldo en el cliente ni ingreso contable. No aplica ISR."
+                  />
                 )}
                 <Descriptions size="small" column={2} style={{ background: '#f8fafc', padding: 12, borderRadius: 6 }}>
                   <Descriptions.Item label="Tipo">{stepperDte.tipoDocumento ?? 'FACT'}</Descriptions.Item>
@@ -1023,6 +1067,16 @@ export default function DteSatVentasPage() {
                 const isNC2 = ['NCRE', 'NABN'].includes((stepperDte?.tipoDocumento ?? '').toUpperCase())
                 return (
                 <Form form={stepperForm} layout="vertical" size="small">
+                  {stepperIsAnulado && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      icon={<StopOutlined />}
+                      style={{ marginBottom: 12, fontSize: 12 }}
+                      message={<span style={{ fontWeight: 700 }}>ANULADA — Se registrará con Q0.00</span>}
+                      description="Selecciona la cuenta contable de referencia. El asiento será Q0 y el estado quedará como ANULADA."
+                    />
+                  )}
                   {isNC2 && (
                     <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#92400e' }}>
                       <strong>Nota de Crédito</strong> — Se creará como NC-XXXX con saldo acreditado al cliente.
@@ -1091,7 +1145,7 @@ export default function DteSatVentasPage() {
                         }))} />
                     </Form.Item>
                   )}
-                  {!isNC2 && stepperIsrTax && stepperIsrAmount > 0 && (
+                  {!isNC2 && !stepperIsAnulado && stepperIsrTax && stepperIsrAmount > 0 && (
                     <div style={{ background: '#f5f3ff', border: '1px solid #c4b5fd', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: 12, color: '#5b21b6', fontWeight: 600 }}>ISR Retención ({stepperIsrTax.name})</span>
@@ -1133,9 +1187,18 @@ export default function DteSatVentasPage() {
                 const invoiceId = (stepperResult.invoice as any)?.id
                 return (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <CheckCircleOutlined style={{ fontSize: 52, color: '#2ea172', marginBottom: 14 }} />
-                  <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>DTE Procesado Correctamente</Text>
-                  <div style={{ background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8 }}>
+                  {stepperIsAnulado
+                    ? <StopOutlined style={{ fontSize: 52, color: '#dc2626', marginBottom: 14 }} />
+                    : <CheckCircleOutlined style={{ fontSize: 52, color: '#2ea172', marginBottom: 14 }} />
+                  }
+                  <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 6 }}>
+                    {stepperIsAnulado ? 'DTE Registrado como ANULADO' : 'DTE Procesado Correctamente'}
+                  </Text>
+                  <div style={{
+                    background: stepperIsAnulado ? '#fff1f0' : '#e8f5ef',
+                    border: `1px solid ${stepperIsAnulado ? '#fca5a5' : '#c3e5d8'}`,
+                    borderRadius: 8, padding: '12px 32px', display: 'inline-block', textAlign: 'left', marginTop: 8,
+                  }}>
                     <div>
                       <Text type="secondary">{isNC3 ? 'Nota de Crédito:' : 'Factura:'}</Text>{' '}
                       <Text strong>{invoiceNumber}</Text>
@@ -1143,7 +1206,12 @@ export default function DteSatVentasPage() {
                     {(stepperResult.invoice as any)?.journalEntryId && (
                       <div><Text type="secondary">Póliza:</Text> <Text strong style={{ color: '#2ea172' }}>Generada automáticamente</Text></div>
                     )}
-                    <div><Text type="secondary">Total:</Text> <Text strong>{money(stepperDte?.total)}</Text></div>
+                    <div>
+                      <Text type="secondary">Total registrado:</Text>{' '}
+                      <Text strong style={{ color: stepperIsAnulado ? '#dc2626' : undefined }}>
+                        {stepperIsAnulado ? 'Q0.00 (ANULADA)' : money(stepperDte?.total)}
+                      </Text>
+                    </div>
                   </div>
                   {isNC3 && invoiceId && (
                     <div style={{ marginTop: 12 }}>
