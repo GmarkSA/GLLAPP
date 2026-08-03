@@ -70,6 +70,7 @@ export default function FacturaFormPage() {
   const [customerIsrTax, setCustomerIsrTax] = useState<Tax | undefined>()
   const [isrAmount, setIsrAmount] = useState(0)
   const [editingIsr, setEditingIsr] = useState(false)
+  const [customerNit, setCustomerNit] = useState<string>('')
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -134,6 +135,7 @@ export default function FacturaFormPage() {
         if (inv.customerId && inv.customerName) {
           setCustomers([{ value: inv.customerId, label: inv.customerName }])
         }
+        if (inv.customerTaxId) setCustomerNit(inv.customerTaxId)
         setFelFrases(inv.felFrases ?? [])
         setIsExenta(inv.facturaExenta ?? false)
         if (Number(inv.isrRetentionAmount) > 0) setIsrAmount(Number(inv.isrRetentionAmount))
@@ -206,6 +208,9 @@ export default function FacturaFormPage() {
       setCustomerTermsLabel(label)
       if (days != null && days > 0) applyDueDate(days)
 
+      // NIT del cliente
+      setCustomerNit(cust?.taxId ?? '')
+
       // Mejora 1 — impuesto IVA preferido del cliente
       if (cust?.taxCode && taxes.length) {
         const matched = taxes.find(t => t.code === cust.taxCode && t.isActive)
@@ -228,6 +233,7 @@ export default function FacturaFormPage() {
       setCustomerDefaultTaxId(undefined)
       setCustomerIsrTax(undefined)
       setIsrAmount(0)
+      setCustomerNit('')
     }
   }
 
@@ -416,8 +422,11 @@ export default function FacturaFormPage() {
               size="small"
               initialValues={{ currency: 'GTQ', discountPercent: 0, felTipoDocumento: 'FACT', facturaExenta: false, accountingDate: dayjs() }}
             >
-              {/* Fila 1: Cliente (ancho completo) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0 12px' }}>
+              {/* Fila 1: NIT | Cliente | División */}
+              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 220px', gap: '0 12px' }}>
+                <Form.Item label="NIT" style={{ marginBottom: 8 }}>
+                  <Input value={customerNit} readOnly placeholder="—" style={{ background: '#fafbfc', color: '#374151' }} />
+                </Form.Item>
                 <Form.Item name="customerId" label="Cliente" style={{ marginBottom: 8 }}
                   rules={[{ required: true, message: 'Seleccione un cliente' }]}
                 >
@@ -439,6 +448,9 @@ export default function FacturaFormPage() {
                     }}
                     options={customers.map(c => ({ value: c.value, label: c.label }))}
                   />
+                </Form.Item>
+                <Form.Item name="dimensiones" label="División" style={{ marginBottom: 8 }}>
+                  <SelectorDimensionesAnaliticas layout="compact" showCentroCosto={false} size="small" />
                 </Form.Item>
               </div>
 
@@ -478,11 +490,6 @@ export default function FacturaFormPage() {
                   <InputNumber min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} />
                 </Form.Item>
               </div>
-
-              {/* Dimensiones analíticas */}
-              <Form.Item name="dimensiones" style={{ marginBottom: 8 }}>
-                <SelectorDimensionesAnaliticas layout="form" showCentroCosto={false} />
-              </Form.Item>
 
               {watchCurrency === 'USD' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '0 12px', alignItems: 'end' }}>

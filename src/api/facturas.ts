@@ -139,10 +139,11 @@ export interface Estimate {
   total:           number
   notes?:          string
   termsAndConditions?: string
-  invoiceId?:      string  // set when converted
-  items:           InvoiceItem[]
-  createdAt:       string
-  updatedAt:       string
+  invoiceId?:          string  // set when converted
+  centroBeneficioId?:  string | null
+  items:               InvoiceItem[]
+  createdAt:           string
+  updatedAt:           string
 }
 
 // ─── DTOs ─────────────────────────────────────────────────────────────────────
@@ -185,14 +186,15 @@ export interface CreateInvoiceDto {
 }
 
 export interface CreateEstimateDto {
-  customerId:      string
-  estimateDate:    string
-  expiryDate?:     string
-  currency?:       string
-  discountPercent?: number
-  items:           Omit<InvoiceItem, 'id' | 'discountAmount' | 'taxAmount' | 'lineTotal'>[]
-  notes?:          string
+  customerId:         string
+  estimateDate:       string
+  expiryDate?:        string
+  currency?:          string
+  discountPercent?:   number
+  items:              Omit<InvoiceItem, 'id' | 'discountAmount' | 'taxAmount' | 'lineTotal'>[]
+  notes?:             string
   termsAndConditions?: string
+  centroBeneficioId?: string | null
 }
 
 export interface RecordPaymentDto {
