@@ -1,4 +1,5 @@
 import api from './axios'
+import { requestUploadUrl, uploadToR2 } from './storage'
 
 const unwrap = (r: any) => r.data?.data ?? r.data
 
@@ -114,7 +115,7 @@ export interface Invoice {
   journalLines?:   JournalLine[]
   items?:          InvoiceItem[]
   payments?:       InvoicePayment[]
-  attachments?:    Array<{ name: string; size: number; at: string; by: string }>
+  attachments?:    Array<{ name: string; size: number; at: string; by: string; key?: string; contentType?: string }>
   history?:        Array<{ action: string; note?: string; by: string; at: string; sourceId?: string }>
   customFields?:   Record<string, unknown>
   createdAt:       string
@@ -370,9 +371,25 @@ export const duplicateInvoice = (id: string) =>
   api.post(`${BASE_INV}/${id}/duplicar`).then(unwrap) as Promise<Invoice>
 
 export const attachInvoiceFile = async (id: string, file: File, invoice: Invoice): Promise<{ attached: boolean; name: string }> => {
+  // 1) Subir el archivo a R2 (Cloudflare) vía presigned URL y quedarnos con la key permanente.
+  const empresaId   = sessionStorage.getItem('activeCompanyId') ?? 'default'
+  const ext         = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const contentType = file.type || (ext === 'pdf' ? 'application/pdf' : 'application/octet-stream')
+  const uuid        = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  const { uploadUrl, key } = await requestUploadUrl({
+    fileName: file.name,
+    contentType,
+    docType: 'fel-pdf',
+    empresaId,
+    uuid,
+  })
+  await uploadToR2(uploadUrl, file, contentType)
+
+  // 2) Guardar la metadata + key junto a los adjuntos ya existentes.
   const cfAttachments = (invoice.customFields?.attachments as Invoice['attachments']) ?? []
   const existing: Invoice['attachments'] = cfAttachments.length ? cfAttachments : (invoice.attachments ?? [])
-  const updated = [...existing, { name: file.name, size: file.size, at: new Date().toISOString(), by: '' }]
+  const updated = [...existing, { name: file.name, size: file.size, at: new Date().toISOString(), by: '', key, contentType }]
   await updateInvoice(id, { customFields: { ...(invoice.customFields ?? {}), attachments: updated } } as any)
   return { attached: true, name: file.name }
 }
