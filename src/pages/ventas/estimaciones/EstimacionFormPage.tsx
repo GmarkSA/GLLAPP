@@ -289,10 +289,9 @@ export default function EstimacionFormPage() {
                 <Form.Item label="NIT" style={{ marginBottom: 8 }}>
                   <Input
                     value={customerNit}
-                    readOnly
-                    placeholder="—"
+                    onChange={e => setCustomerNit(e.target.value)}
+                    placeholder="1234567-8"
                     size="small"
-                    style={{ background: '#fafbfc', color: '#374151' }}
                   />
                 </Form.Item>
                 <Form.Item
