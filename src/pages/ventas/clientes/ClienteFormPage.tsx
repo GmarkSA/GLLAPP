@@ -367,6 +367,14 @@ export default function ClienteFormPage() {
                     </Form.Item>
 
                     <Row gutter={16}>
+                      <Col xs={24} md={8}>
+                        <Form.Item label="NIT / CUI" name="taxId">
+                          <Input placeholder="1234567-8 o CUI" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={16}>
                       {/* Para individuales: saludo + nombre */}
                       {clientType === 'individual' && (
                         <>
@@ -409,11 +417,6 @@ export default function ClienteFormPage() {
                     </Row>
 
                     <Row gutter={16}>
-                      <Col xs={24} md={8}>
-                        <Form.Item label="NIT / CUI" name="taxId">
-                          <Input placeholder="1234567-8 o CUI" />
-                        </Form.Item>
-                      </Col>
                       <Col xs={24} md={8}>
                         <Form.Item name="email" label="Correo electrónico"
                           rules={[{ type: 'email', message: 'Email inválido' }]}>

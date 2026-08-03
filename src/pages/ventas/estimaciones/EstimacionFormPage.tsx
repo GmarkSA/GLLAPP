@@ -15,7 +15,8 @@ import {
   createEstimate, updateEstimate, getEstimate, sendEstimate, deleteEstimate, convertEstimate,
   type CreateEstimateDto, ESTIMATE_STATUS_CONFIG, type EstimateStatus,
 } from '../../../api/facturas'
-import { getCustomers } from '../../../api/contactos'
+import { getCustomers, getCustomer } from '../../../api/contactos'
+import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../components/SelectorDimensionesAnaliticas'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getProduct } from '../../../api/inventario'
 import LineItemsEditor, {
@@ -51,6 +52,7 @@ export default function EstimacionFormPage() {
   const [emailTo, setEmailTo] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
 
+  const [customerNit, setCustomerNit] = useState<string>('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export default function EstimacionFormPage() {
     getEstimate(id)
       .then((est) => {
         setStatus(est.status as EstimateStatus)
+        if (est.customerTaxId) setCustomerNit(est.customerTaxId)
         form.setFieldsValue({
           customerId: est.customerId,
           estimateDate: est.estimateDate ? dayjs(est.estimateDate) : undefined,
@@ -77,6 +80,7 @@ export default function EstimacionFormPage() {
           discountPercent: 0,
           notes: est.notes ?? '',
           termsAndConditions: est.termsAndConditions ?? '',
+          dimensiones: { centroBeneficioId: est.centroBeneficioId ?? null, centroCostoId: null },
         })
         if (est.customerId && est.customerName) {
           setCustomers([{ value: est.customerId, label: est.customerName }])
@@ -137,6 +141,12 @@ export default function EstimacionFormPage() {
     debounceRef.current = setTimeout(() => fetchCustomers(val), 300)
   }
 
+  const handleCustomerSelect = (customerId: string) => {
+    getCustomer(customerId)
+      .then((cust: any) => setCustomerNit(cust?.taxId ?? ''))
+      .catch(() => setCustomerNit(''))
+  }
+
   const buildDto = (): CreateEstimateDto => {
     const vals = form.getFieldsValue()
     const lineItems = items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxInclusive, taxId, accountId, projectId }) => ({
@@ -152,6 +162,7 @@ export default function EstimacionFormPage() {
       accountId,
       projectId,
     }))
+    const dimensiones: DimensionesValue | undefined = vals.dimensiones
     return {
       customerId: vals.customerId,
       estimateDate: vals.estimateDate ? vals.estimateDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
@@ -161,6 +172,7 @@ export default function EstimacionFormPage() {
       notes: vals.notes || undefined,
       termsAndConditions: vals.termsAndConditions || undefined,
       items: lineItems,
+      centroBeneficioId: dimensiones?.centroBeneficioId ?? null,
     }
   }
 
@@ -272,11 +284,22 @@ export default function EstimacionFormPage() {
           {/* Header fields */}
           <Card title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Cotización' : 'Nueva Cotización'}</span>}>
             <Form form={form} layout="vertical" initialValues={{ currency: 'GTQ', discountPercent: 0 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+              {/* Fila 1: NIT | Cliente | División */}
+              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 220px', gap: '0 12px' }}>
+                <Form.Item label="NIT" style={{ marginBottom: 8 }}>
+                  <Input
+                    value={customerNit}
+                    readOnly
+                    placeholder="—"
+                    size="small"
+                    style={{ background: '#fafbfc', color: '#374151' }}
+                  />
+                </Form.Item>
                 <Form.Item
                   name="customerId"
                   label="Cliente"
                   rules={[{ required: true, message: 'Seleccione un cliente' }]}
+                  style={{ marginBottom: 8 }}
                 >
                   <Select
                     showSearch
@@ -284,6 +307,7 @@ export default function EstimacionFormPage() {
                     filterOption={false}
                     loading={loadingCustomers}
                     onSearch={handleCustomerSearch}
+                    onSelect={handleCustomerSelect}
                     notFoundContent={loadingCustomers ? 'Buscando…' : 'Sin resultados'}
                     optionRender={(opt) => {
                       const c = customers.find(x => x.value === opt.value)
@@ -299,7 +323,12 @@ export default function EstimacionFormPage() {
                     options={customers.map(c => ({ value: c.value, label: c.label }))}
                   />
                 </Form.Item>
+                <Form.Item name="dimensiones" label="División" style={{ marginBottom: 8 }}>
+                  <SelectorDimensionesAnaliticas layout="compact" showCentroCosto={false} size="small" />
+                </Form.Item>
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                 <Form.Item name="currency" label="Moneda">
                   <Select options={[
                     { value: 'GTQ', label: 'GTQ — Quetzal' },
