@@ -53,6 +53,7 @@ export default function EstimacionFormPage() {
   const [sendingEmail, setSendingEmail] = useState(false)
 
   const [customerNit, setCustomerNit] = useState<string>('')
+  const [customerDefaultTaxId, setCustomerDefaultTaxId] = useState<string | undefined>()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
@@ -143,8 +144,16 @@ export default function EstimacionFormPage() {
 
   const handleCustomerSelect = (customerId: string) => {
     getCustomer(customerId)
-      .then((cust: any) => setCustomerNit(cust?.taxId ?? ''))
-      .catch(() => setCustomerNit(''))
+      .then((cust: any) => {
+        setCustomerNit(cust?.taxId ?? '')
+        if (cust?.taxCode && taxes.length) {
+          const matched = taxes.find((t: any) => t.code === cust.taxCode && t.isActive)
+          setCustomerDefaultTaxId(matched?.id)
+        } else {
+          setCustomerDefaultTaxId(undefined)
+        }
+      })
+      .catch(() => { setCustomerNit(''); setCustomerDefaultTaxId(undefined) })
   }
 
   const buildDto = (): CreateEstimateDto => {
@@ -361,6 +370,7 @@ export default function EstimacionFormPage() {
               taxes={taxes}
               onChange={setItems}
               docType="estimate"
+              vendorDefaultTaxId={customerDefaultTaxId}
             />
           </Card>
 
