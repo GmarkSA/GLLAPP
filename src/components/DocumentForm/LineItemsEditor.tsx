@@ -415,7 +415,11 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
   // Se re-ejecuta cuando cargan los taxes O cuando cambia el proveedor / docType.
   useEffect(() => {
     if (!taxes.length) return
-    const preferredTax = resolvePreferredTax(taxes, isPurchaseDoc, vendorDefaultTaxId)
+    // Ventas: solo aplicar si el cliente tiene un impuesto configurado en su dato maestro.
+    // Sin cliente seleccionado → dejar vacío para que el usuario elija.
+    const isDoc = docType === 'po' || docType === 'bill'
+    if (!isDoc && !vendorDefaultTaxId) return
+    const preferredTax = resolvePreferredTax(taxes, isDoc, vendorDefaultTaxId)
     if (!preferredTax) return
 
     const needsUpdate = items.some(i => !i.productId && i.taxId !== preferredTax.id)
@@ -453,7 +457,9 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
     onChange(items.map(item => item._key === key ? recalc({ ...item, ...patch }) : item))
 
   const addRow = () => {
-    const preferredTax = resolvePreferredTax(taxes, isPurchaseDoc, vendorDefaultTaxId)
+    const preferredTax = (isPurchaseDoc || vendorDefaultTaxId)
+      ? resolvePreferredTax(taxes, isPurchaseDoc, vendorDefaultTaxId)
+      : undefined
     onChange([...items, newLineItem(preferredTax ? {
       taxId:        preferredTax.id,
       taxName:      preferredTax.name,
