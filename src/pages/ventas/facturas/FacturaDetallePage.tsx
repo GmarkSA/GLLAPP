@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Button, Tag, Table, Space, Modal, Form,
   InputNumber, DatePicker, Select, Input, Divider,
-  message, Spin, Typography, Alert, Tooltip, Popconfirm, Drawer, Upload, Timeline, Radio,
+  message, Spin, Typography, Alert, Tooltip, Popconfirm, Drawer, Upload, Timeline, Radio, Popover,
 } from 'antd'
 import {
   ArrowLeftOutlined, DollarOutlined, SendOutlined, StopOutlined,
@@ -11,7 +11,7 @@ import {
   SafetyCertificateOutlined, GlobalOutlined, BookOutlined,
   ThunderboltOutlined, SyncOutlined, DeleteOutlined, EditOutlined,
   PaperClipOutlined, CommentOutlined, UploadOutlined, UserOutlined,
-  FileOutlined,
+  FileOutlined, EyeOutlined, DownloadOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuthStore } from '../../../store/authStore'
@@ -29,7 +29,11 @@ import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import PrintInvoiceButton from '../../../components/Print/PrintInvoiceButton'
 import DocumentLink from '../../../components/DocumentLink'
+import { requestDownloadUrl } from '../../../api/storage'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
+
+const isPdfFile   = (ct?: string, name?: string) => !!ct?.includes('pdf') || /\.pdf$/i.test(name ?? '')
+const isImageFile = (ct?: string, name?: string) => !!ct?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name ?? '')
 
 const { Text, Title } = Typography
 const fmt = (n: any) => `Q ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -335,6 +339,34 @@ export default function FacturaDetallePage() {
     finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
+  // ── Vista previa de adjuntos ──────────────────────────────────────────────
+  type Attachment = NonNullable<Invoice['attachments']>[number]
+  const [previewFile,    setPreviewFile]    = useState<Attachment | null>(null)
+  const [previewUrl,     setPreviewUrl]     = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const openPreview = async (att: Attachment) => {
+    if (!att.key) return
+    setPreviewFile(att)
+    setPreviewUrl(null)
+    setPreviewLoading(true)
+    try {
+      const { downloadUrl } = await requestDownloadUrl(att.key)
+      setPreviewUrl(downloadUrl)
+    } catch { message.error('No se pudo cargar la vista previa') }
+    finally { setPreviewLoading(false) }
+  }
+
+  const downloadAttachment = async (att: Attachment) => {
+    if (!att.key) return
+    try {
+      const { downloadUrl } = await requestDownloadUrl(att.key)
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+    } catch { message.error('No se pudo abrir el archivo') }
+  }
+
+  const closePreview = () => { setPreviewFile(null); setPreviewUrl(null) }
+
   const openAnticipoModal = async () => {
     setSelectedAntId(undefined)
     setAnticipoAmount(0)
@@ -525,9 +557,37 @@ export default function FacturaDetallePage() {
         <Button size="small" icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
           Cargar archivo
           {(((invoice as any).customFields?.attachments ?? invoice.attachments ?? []).length > 0) && (
-            <Tag color="#1faec2" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>
-              {((invoice as any).customFields?.attachments ?? invoice.attachments ?? []).length}
-            </Tag>
+            <Popover
+              trigger="click"
+              placement="bottomRight"
+              title="Archivos adjuntos"
+              content={
+                <div style={{ minWidth: 240, maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+                  {(((invoice as any).customFields?.attachments ?? invoice.attachments ?? []) as Attachment[]).map((a, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
+                      <FileOutlined style={{ color: '#6b7280' }} />
+                      <Text ellipsis style={{ flex: 1, fontSize: 12 }} title={a.name}>{a.name}</Text>
+                      {a.key ? (
+                        <>
+                          <Tooltip title="Vista previa"><Button size="small" type="text" icon={<EyeOutlined />} onClick={() => openPreview(a)} /></Tooltip>
+                          <Tooltip title="Descargar"><Button size="small" type="text" icon={<DownloadOutlined />} onClick={() => downloadAttachment(a)} /></Tooltip>
+                        </>
+                      ) : (
+                        <Text type="secondary" style={{ fontSize: 11 }}>sin archivo</Text>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              }
+            >
+              <Tag
+                color="#1faec2"
+                style={{ marginLeft: 4, fontSize: 10, padding: '0 4px', cursor: 'pointer' }}
+                onClick={e => e.stopPropagation()}
+              >
+                {((invoice as any).customFields?.attachments ?? invoice.attachments ?? []).length}
+              </Tag>
+            </Popover>
           )}
         </Button>
         <Button size="small" icon={<CommentOutlined />} onClick={() => setComentariosDrawer(true)}>
@@ -539,6 +599,37 @@ export default function FacturaDetallePage() {
           )}
         </Button>
       </div>
+
+      {/* ── Vista previa de adjunto ──────────────────────────────────────── */}
+      <Modal
+        open={!!previewFile}
+        title={previewFile?.name}
+        onCancel={closePreview}
+        width={900}
+        footer={[
+          <Button
+            key="tab"
+            icon={<GlobalOutlined />}
+            disabled={!previewUrl}
+            onClick={() => previewUrl && window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+          >
+            Abrir en pestaña
+          </Button>,
+          <Button key="close" onClick={closePreview}>Cerrar</Button>,
+        ]}
+      >
+        {previewLoading || !previewUrl ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>
+        ) : isImageFile(previewFile?.contentType, previewFile?.name) ? (
+          <img src={previewUrl} alt={previewFile?.name} style={{ maxWidth: '100%', display: 'block', margin: '0 auto' }} />
+        ) : isPdfFile(previewFile?.contentType, previewFile?.name) ? (
+          <iframe title={previewFile?.name} src={previewUrl} style={{ width: '100%', height: '70vh', border: 0 }} />
+        ) : (
+          <div style={{ textAlign: 'center', padding: 32 }}>
+            <Text type="secondary">Este tipo de archivo no se puede previsualizar aquí. Usá "Abrir en pestaña" para descargarlo.</Text>
+          </div>
+        )}
+      </Modal>
 
       {/* ── Alertas de estado ────────────────────────────────────────────── */}
       {invoice.status === 'overdue' && (
@@ -1115,6 +1206,11 @@ export default function FacturaDetallePage() {
                     {(a.size / 1024).toFixed(0)} KB · {dayjs(a.at).format('DD/MM/YYYY HH:mm')}
                   </Text>
                 </div>
+                {a.key && (
+                  <Tooltip title="Vista previa">
+                    <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => openPreview(a)} />
+                  </Tooltip>
+                )}
               </div>
             ))}
             <Divider style={{ margin: '16px 0 12px' }} />
