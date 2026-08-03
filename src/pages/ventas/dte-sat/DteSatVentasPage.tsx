@@ -1535,16 +1535,34 @@ export default function DteSatVentasPage() {
                       </Button>
                     ))}
                   </Space>
-                  {selectedIds.length > 0 && (
-                    <Button
-                      size="small"
-                      icon={<ThunderboltOutlined />}
-                      style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}
-                      onClick={openBatchModal}
-                    >
-                      Registrar {selectedIds.length} seleccionado{selectedIds.length > 1 ? 's' : ''}
-                    </Button>
-                  )}
+                  <Space>
+                    {(() => {
+                      const batchable = documents.filter(isBatchable)
+                      const allSelected = batchable.length > 0 && batchable.every(d => selectedIds.includes(d.id))
+                      return batchable.length > 0 ? (
+                        <Button
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => allSelected
+                            ? setSelectedIds([])
+                            : setSelectedIds(batchable.map(d => d.id))
+                          }
+                        >
+                          {allSelected ? 'Quitar selección' : `Seleccionar todo Listo (${batchable.length})`}
+                        </Button>
+                      ) : null
+                    })()}
+                    {selectedIds.length > 0 && (
+                      <Button
+                        size="small"
+                        icon={<ThunderboltOutlined />}
+                        style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}
+                        onClick={openBatchModal}
+                      >
+                        Registrar {selectedIds.length} seleccionado{selectedIds.length > 1 ? 's' : ''}
+                      </Button>
+                    )}
+                  </Space>
                 </div>
                 <Table
                   columns={cols}
@@ -1558,7 +1576,15 @@ export default function DteSatVentasPage() {
                   rowSelection={{
                     selectedRowKeys: selectedIds,
                     onChange: keys => setSelectedIds(keys as string[]),
-                    getCheckboxProps: r => ({ disabled: !isBatchable(r) }),
+                    getCheckboxProps: r => ({
+                      disabled: !isBatchable(r),
+                      title: isBatchable(r) ? undefined
+                        : r.status === 'posted' ? 'Ya fue contabilizado'
+                        : r.status === 'duplicate' ? 'Documento duplicado — ya existe una factura con este UUID'
+                        : ['NCRE', 'NABN'].includes((r.tipoDocumento ?? '').toUpperCase()) ? 'Las Notas de Crédito se procesan individualmente (clic en Procesar)'
+                        : !r.customerId ? 'Vincula un cliente primero (clic en Procesar)'
+                        : undefined,
+                    }),
                   }}
                 />
               </Card>
