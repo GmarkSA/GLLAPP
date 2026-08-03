@@ -28,6 +28,7 @@ import { getCustomer } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import PrintInvoiceButton from '../../../components/Print/PrintInvoiceButton'
+import DocumentLink from '../../../components/DocumentLink'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 
 const { Text, Title } = Typography
@@ -1107,7 +1108,9 @@ export default function FacturaDetallePage() {
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <FileOutlined style={{ color: '#6b7280' }} />
                 <div style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13 }}>{a.name}</Text>
+                  {a.key
+                    ? <DocumentLink documentKey={a.key} label={a.name} docType={a.contentType?.includes('pdf') ? 'fel-pdf' : undefined} />
+                    : <Text style={{ fontSize: 13 }}>{a.name}</Text>}
                   <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
                     {(a.size / 1024).toFixed(0)} KB · {dayjs(a.at).format('DD/MM/YYYY HH:mm')}
                   </Text>
