@@ -19,7 +19,7 @@ import dayjs from 'dayjs'
 import {
   getInvoice, recordInvoicePayment, voidInvoice, sendInvoice, emitirFelInvoice, anularFelInvoice, deleteInvoice,
   recomputeJournalLines, reprocessPaymentJournal, getAnticipos, applyAnticipo, duplicateInvoice,
-  attachInvoiceFile, addInvoiceComment,
+  attachInvoiceFile, removeInvoiceAttachment, addInvoiceComment,
   INVOICE_STATUS_CONFIG, PAYMENT_MODES,
   type Invoice, type InvoiceItem, type Anticipo,
 } from '../../../api/facturas'
@@ -367,6 +367,18 @@ export default function FacturaDetallePage() {
 
   const closePreview = () => { setPreviewFile(null); setPreviewUrl(null) }
 
+  const attachments = (((invoice as any).customFields?.attachments ?? invoice.attachments ?? []) as Attachment[])
+
+  const handleRemoveAttachment = async (att: Attachment) => {
+    if (!att.key) return
+    try {
+      await removeInvoiceAttachment(invoice.id, att.key, invoice)
+      message.success('Archivo eliminado')
+      if (previewFile?.key === att.key) closePreview()
+      load()
+    } catch { message.error('No se pudo eliminar el archivo') }
+  }
+
   const openAnticipoModal = async () => {
     setSelectedAntId(undefined)
     setAnticipoAmount(0)
@@ -556,40 +568,44 @@ export default function FacturaDetallePage() {
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
         <Button size="small" icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
           Cargar archivo
-          {(((invoice as any).customFields?.attachments ?? invoice.attachments ?? []).length > 0) && (
-            <Popover
-              trigger="click"
-              placement="bottomRight"
-              title="Archivos adjuntos"
-              content={
-                <div style={{ minWidth: 240, maxWidth: 340 }} onClick={e => e.stopPropagation()}>
-                  {(((invoice as any).customFields?.attachments ?? invoice.attachments ?? []) as Attachment[]).map((a, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
-                      <FileOutlined style={{ color: '#6b7280' }} />
-                      <Text ellipsis style={{ flex: 1, fontSize: 12 }} title={a.name}>{a.name}</Text>
-                      {a.key ? (
-                        <>
-                          <Tooltip title="Vista previa"><Button size="small" type="text" icon={<EyeOutlined />} onClick={() => openPreview(a)} /></Tooltip>
-                          <Tooltip title="Descargar"><Button size="small" type="text" icon={<DownloadOutlined />} onClick={() => downloadAttachment(a)} /></Tooltip>
-                        </>
-                      ) : (
-                        <Text type="secondary" style={{ fontSize: 11 }}>sin archivo</Text>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              }
-            >
-              <Tag
-                color="#1faec2"
-                style={{ marginLeft: 4, fontSize: 10, padding: '0 4px', cursor: 'pointer' }}
-                onClick={e => e.stopPropagation()}
-              >
-                {((invoice as any).customFields?.attachments ?? invoice.attachments ?? []).length}
-              </Tag>
-            </Popover>
-          )}
         </Button>
+        {attachments.length > 0 && (
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            title="Archivos adjuntos"
+            content={
+              <div style={{ minWidth: 260, maxWidth: 360 }}>
+                {attachments.map((a, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
+                    <FileOutlined style={{ color: '#6b7280' }} />
+                    <Text ellipsis style={{ flex: 1, fontSize: 12 }} title={a.name}>{a.name}</Text>
+                    {a.key ? (
+                      <>
+                        <Tooltip title="Vista previa"><Button size="small" type="text" icon={<EyeOutlined />} onClick={() => openPreview(a)} /></Tooltip>
+                        <Tooltip title="Descargar"><Button size="small" type="text" icon={<DownloadOutlined />} onClick={() => downloadAttachment(a)} /></Tooltip>
+                        <Popconfirm
+                          title="¿Eliminar este archivo?"
+                          okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+                          onConfirm={() => handleRemoveAttachment(a)}
+                        >
+                          <Tooltip title="Eliminar"><Button size="small" type="text" danger icon={<DeleteOutlined />} /></Tooltip>
+                        </Popconfirm>
+                      </>
+                    ) : (
+                      <Text type="secondary" style={{ fontSize: 11 }}>sin archivo</Text>
+                    )}
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <Button size="small" icon={<EyeOutlined />}>
+              Ver archivos
+              <Tag color="#1faec2" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>{attachments.length}</Tag>
+            </Button>
+          </Popover>
+        )}
         <Button size="small" icon={<CommentOutlined />} onClick={() => setComentariosDrawer(true)}>
           Comentarios
           {(invoice.history?.length ?? 0) > 0 && (
@@ -1207,9 +1223,18 @@ export default function FacturaDetallePage() {
                   </Text>
                 </div>
                 {a.key && (
-                  <Tooltip title="Vista previa">
-                    <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => openPreview(a)} />
-                  </Tooltip>
+                  <>
+                    <Tooltip title="Vista previa">
+                      <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => openPreview(a)} />
+                    </Tooltip>
+                    <Popconfirm
+                      title="¿Eliminar este archivo?"
+                      okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+                      onConfirm={() => handleRemoveAttachment(a)}
+                    >
+                      <Tooltip title="Eliminar"><Button type="text" size="small" danger icon={<DeleteOutlined />} /></Tooltip>
+                    </Popconfirm>
+                  </>
                 )}
               </div>
             ))}
