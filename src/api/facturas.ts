@@ -1,5 +1,5 @@
 import api from './axios'
-import { requestUploadUrl, uploadToR2 } from './storage'
+import { requestUploadUrl, uploadToR2, deleteDocument } from './storage'
 
 const unwrap = (r: any) => r.data?.data ?? r.data
 
@@ -392,6 +392,15 @@ export const attachInvoiceFile = async (id: string, file: File, invoice: Invoice
   const updated = [...existing, { name: file.name, size: file.size, at: new Date().toISOString(), by: '', key, contentType }]
   await updateInvoice(id, { customFields: { ...(invoice.customFields ?? {}), attachments: updated } } as any)
   return { attached: true, name: file.name }
+}
+
+/** Quita un adjunto del listado de la factura y (best-effort) borra el objeto de R2. */
+export const removeInvoiceAttachment = async (id: string, key: string, invoice: Invoice): Promise<void> => {
+  const list = (invoice.customFields?.attachments as Invoice['attachments']) ?? invoice.attachments ?? []
+  const updated = list.filter(a => a.key !== key)
+  await updateInvoice(id, { customFields: { ...(invoice.customFields ?? {}), attachments: updated } } as any)
+  // El borrado en R2 puede fallar por permisos → no debe bloquear la eliminación del listado.
+  try { await deleteDocument(key) } catch { /* ignore */ }
 }
 
 export const addInvoiceComment = (id: string, note: string) =>
