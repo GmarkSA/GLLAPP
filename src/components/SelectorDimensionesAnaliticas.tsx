@@ -54,6 +54,8 @@ export interface SelectorDimensionesAnaliticasProps {
   disabled?:              boolean
   requiredCentroCosto?:   boolean
   requiredCentroBeneficio?: boolean
+  /** Ocultar Centro de Costo (ej: módulo Ventas — solo aplica Centro de Beneficio) */
+  showCentroCosto?: boolean
   /** "form": labels + grid 2 cols. "compact": sin labels, una fila */
   layout?: 'form' | 'compact'
   size?: 'small' | 'middle'
@@ -68,6 +70,7 @@ export default function SelectorDimensionesAnaliticas({
   disabled = false,
   requiredCentroCosto   = false,
   requiredCentroBeneficio = false,
+  showCentroCosto = true,
   layout = 'form',
   size   = 'middle',
 }: SelectorDimensionesAnaliticasProps) {
@@ -140,16 +143,16 @@ export default function SelectorDimensionesAnaliticas({
   // ── Modo compacto (tabla) ─────────────────────────────────────────────────
   if (layout === 'compact') {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: showCentroCosto ? '1fr 1fr' : '1fr', gap: 4 }}>
         {selectCB}
-        {selectCC}
+        {showCentroCosto && selectCC}
       </div>
     )
   }
 
   // ── Modo formulario (cabecera de documento) ───────────────────────────────
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: showCentroCosto ? '1fr 1fr' : '1fr', gap: 12 }}>
       <Form.Item
         label={
           <span>
@@ -164,20 +167,22 @@ export default function SelectorDimensionesAnaliticas({
       >
         {selectCB}
       </Form.Item>
-      <Form.Item
-        label={
-          <span>
-            Centro de Costo
-            <Tooltip title="Área de responsabilidad para el análisis de gastos y costos. Solo aplica a cuentas de tipo Costo o Gasto.">
-              <InfoCircleOutlined style={{ marginLeft: 4, color: '#6b7280' }} />
-            </Tooltip>
-          </span>
-        }
-        required={requiredCentroCosto}
-        style={{ marginBottom: 0 }}
-      >
-        {selectCC}
-      </Form.Item>
+      {showCentroCosto && (
+        <Form.Item
+          label={
+            <span>
+              Centro de Costo
+              <Tooltip title="Área de responsabilidad para el análisis de gastos y costos. Solo aplica a cuentas de tipo Costo o Gasto.">
+                <InfoCircleOutlined style={{ marginLeft: 4, color: '#6b7280' }} />
+              </Tooltip>
+            </span>
+          }
+          required={requiredCentroCosto}
+          style={{ marginBottom: 0 }}
+        >
+          {selectCC}
+        </Form.Item>
+      )}
     </div>
   )
 }

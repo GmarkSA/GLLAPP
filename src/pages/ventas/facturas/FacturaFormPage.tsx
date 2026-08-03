@@ -481,7 +481,7 @@ export default function FacturaFormPage() {
 
               {/* Dimensiones analíticas */}
               <Form.Item name="dimensiones" style={{ marginBottom: 8 }}>
-                <SelectorDimensionesAnaliticas layout="form" />
+                <SelectorDimensionesAnaliticas layout="form" showCentroCosto={false} />
               </Form.Item>
 
               {watchCurrency === 'USD' && (
