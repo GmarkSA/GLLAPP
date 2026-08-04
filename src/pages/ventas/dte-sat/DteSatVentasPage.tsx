@@ -1470,30 +1470,26 @@ export default function DteSatVentasPage() {
           </Space>
         }
       >
-        <Form form={importForm} layout="vertical" size="small" onFinish={handleImport}>
-          <Row gutter={[16, 0]} align="bottom">
-            <Col xs={24} md={14}>
-              <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
-                rules={[{ required: true, message: 'Selecciona el rango de fechas' }]}
-              >
-                <RangePicker
-                  style={{ width: '100%' }}
-                  presets={[
-                    { label: 'Este mes',      value: [dayjs().startOf('month'), dayjs()] },
-                    { label: 'Mes anterior',  value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
-                    { label: 'Este trimestre', value: [dayjs().subtract(2, 'month').startOf('month'), dayjs()] },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={10}>
-              <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
-                disabled={!satCredentials.satNit}
-                block style={{ background: '#1faec2' }}>
-                Importar Emitidos
-              </Button>
-            </Col>
-          </Row>
+        <Form form={importForm} layout="inline" size="small" onFinish={handleImport}>
+          <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
+            rules={[{ required: true, message: 'Selecciona el rango de fechas' }]}
+          >
+            <RangePicker
+              style={{ width: 280 }}
+              presets={[
+                { label: 'Este mes',       value: [dayjs().startOf('month'), dayjs()] },
+                { label: 'Mes anterior',   value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+                { label: 'Este trimestre', value: [dayjs().subtract(2, 'month').startOf('month'), dayjs()] },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
+              disabled={!satCredentials.satNit}
+              style={{ background: '#1faec2' }}>
+              Importar Emitidos
+            </Button>
+          </Form.Item>
         </Form>
       </Card>
 
