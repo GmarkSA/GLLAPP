@@ -369,6 +369,19 @@ export default function MainLayout() {
               />
             </Badge>
 
+            <Tooltip title="Configuración">
+              <Button
+                type="text"
+                shape="circle"
+                icon={<SettingOutlined style={{ fontSize: 17, color: location.pathname.startsWith('/configuracion') ? '#1faec2' : '#6b7280' }} />}
+                onClick={() => navigate('/configuracion')}
+                style={{
+                  borderRadius: 10,
+                  background: location.pathname.startsWith('/configuracion') ? 'rgba(31,174,194,0.1)' : undefined,
+                }}
+              />
+            </Tooltip>
+
             <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,

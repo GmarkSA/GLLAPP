@@ -14,7 +14,7 @@ import {
   FileTextOutlined, ClockCircleOutlined, PercentageOutlined,
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
-  ThunderboltOutlined, RocketOutlined,
+  ThunderboltOutlined, RocketOutlined, ArrowLeftOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
@@ -1630,12 +1630,97 @@ const cardStyle: React.CSSProperties = {
   background: '#fff',
 }
 
+// ── Hub data ───────────────────────────────────────────────────────────────
+
+const HUB_GROUPS = [
+  {
+    groupTitle: 'Configuraciones de la organización',
+    cards: [
+      {
+        key: 'org',
+        color: '#1faec2', bg: '#e8fafa',
+        title: 'Organización',
+        icon: 'bank',
+        links: [
+          { label: 'Perfil de organización',   sectionKey: 'organization' },
+          { label: 'Configuración fiscal',      sectionKey: 'organization' },
+          { label: 'Módulos del sistema',       sectionKey: 'modules'      },
+        ],
+      },
+      {
+        key: 'users',
+        color: '#7c5cfc', bg: '#f3f0ff',
+        title: 'Usuarios y roles',
+        icon: 'team',
+        links: [
+          { label: 'Usuarios y permisos', sectionKey: 'users' },
+        ],
+      },
+      {
+        key: 'install',
+        color: '#ff7f00', bg: '#fff7e6',
+        title: 'Instalación y config.',
+        icon: 'setting',
+        links: [
+          { label: 'Monedas y tipos de cambio', sectionKey: 'currency'     },
+          { label: 'Guía de inicio',            sectionKey: 'setup-guide'  },
+        ],
+      },
+      {
+        key: 'sub',
+        color: '#e5484d', bg: '#fff0f0',
+        title: 'Suscripción',
+        icon: 'credit',
+        links: [
+          { label: 'Plan y facturación', sectionKey: 'subscription' },
+        ],
+      },
+    ],
+  },
+  {
+    groupTitle: 'Contabilidad y cumplimiento',
+    cards: [
+      {
+        key: 'taxes',
+        color: '#f59e0b', bg: '#fffbeb',
+        title: 'Impuestos',
+        icon: 'percent',
+        links: [
+          { label: 'Impuestos generales',    sectionKey: 'taxes'     },
+          { label: 'Columnas libros SAT',    sectionKey: 'librosSAT' },
+        ],
+      },
+      {
+        key: 'accounting',
+        color: '#1B3A6B', bg: '#eff3fa',
+        title: 'Contabilidad',
+        icon: 'audit',
+        links: [
+          { label: 'Cuentas por defecto',     sectionKey: 'contabilidad' },
+          { label: 'Dimensiones analíticas',  sectionKey: 'contabilidad' },
+          { label: 'Impuestos especiales',    sectionKey: 'contabilidad' },
+        ],
+      },
+      {
+        key: 'tech',
+        color: '#059669', bg: '#ecfdf5',
+        title: 'Integraciones',
+        icon: 'api',
+        links: [
+          { label: 'Integraciones',        sectionKey: 'integrations' },
+          { label: 'Espacio de desarrollo', sectionKey: 'devspace'    },
+        ],
+      },
+    ],
+  },
+]
+
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function ConfiguracionPage() {
   const navigate   = useNavigate()
   const [searchParams] = useSearchParams()
-  const [activeKey, setActiveKey] = useState(searchParams.get('tab') ?? 'organization')
+  const [activeKey, setActiveKey] = useState<string | null>(searchParams.get('tab'))
   const [profile, setProfile] = useState<OrganizationProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -1739,48 +1824,100 @@ export default function ConfiguracionPage() {
     }
   }
 
-  return (
-    <Layout style={{ background: 'transparent', minHeight: 'calc(100vh - 112px)' }}>
-      {/* Left nav — Zoho Books style */}
-      <Sider
-        width={230}
-        style={{
-          background: '#fff',
-          borderRadius: 10,
-          boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
-          marginRight: 20,
-          alignSelf: 'flex-start',
-          position: 'sticky',
-          top: 88,
-        }}
-      >
-        <div style={{ padding: '20px 16px 12px' }}>
-          <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Configuración
-          </Text>
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[activeKey]}
-          onClick={({ key }) => setActiveKey(key)}
-          style={{ border: 'none', fontSize: 13 }}
-          items={sections.map(s => ({
-            ...s,
-            style: {
-              borderRadius: 6,
-              margin: '2px 8px',
-              width: 'calc(100% - 16px)',
-            },
-          }))}
-        />
-        <div style={{ height: 20 }} />
-      </Sider>
+  const ICON_MAP: Record<string, React.ReactNode> = {
+    bank:    <BankOutlined />,
+    team:    <TeamOutlined />,
+    setting: <SettingOutlined />,
+    credit:  <CreditCardOutlined />,
+    percent: <PercentageOutlined />,
+    audit:   <AuditOutlined />,
+    api:     <ApiOutlined />,
+  }
 
-      {/* Right content */}
-      <Content style={{ background: 'transparent' }}>
-        {renderContent()}
-      </Content>
-    </Layout>
+  const handleHubClick = (sectionKey: string) => {
+    if (sectionKey === 'setup-guide')   { navigate('/onboarding/setup');           return }
+    if (sectionKey === 'users')         { navigate('/configuracion/usuarios');      return }
+    if (sectionKey === 'subscription')  { navigate('/configuracion/suscripcion');   return }
+    setActiveKey(sectionKey)
+  }
+
+  // ── Hub view ─────────────────────────────────────────────────────────────
+  if (activeKey === null) {
+    return (
+      <div style={{ minHeight: 'calc(100vh - 112px)' }}>
+        <div style={{ marginBottom: 32 }}>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Configuración</Title>
+          <Text type="secondary">Administra tu empresa, usuarios y preferencias del sistema</Text>
+        </div>
+
+        {HUB_GROUPS.map(group => (
+          <div key={group.groupTitle} style={{ marginBottom: 36 }}>
+            <Text style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>
+              {group.groupTitle}
+            </Text>
+            <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
+              {group.cards.map(card => (
+                <Col key={card.key} xs={24} sm={12} md={8} lg={6}>
+                  <Card
+                    bordered={false}
+                    hoverable
+                    style={{ ...cardStyle, height: '100%' }}
+                    bodyStyle={{ padding: '20px 20px 16px' }}
+                  >
+                    {/* Card header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: card.bg,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 17, color: card.color, flexShrink: 0,
+                      }}>
+                        {ICON_MAP[card.icon]}
+                      </div>
+                      <Text strong style={{ fontSize: 14, color: '#111827', lineHeight: 1.3 }}>
+                        {card.title}
+                      </Text>
+                    </div>
+
+                    {/* Links */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {card.links.map(link => (
+                        <div
+                          key={link.label}
+                          onClick={() => handleHubClick(link.sectionKey)}
+                          style={{ fontSize: 13, color: '#4b5563', cursor: 'pointer', lineHeight: 1.4, transition: 'color 0.15s' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.color = card.color }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.color = '#4b5563' }}
+                        >
+                          {link.label}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // ── Section view ─────────────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: 'calc(100vh - 112px)' }}>
+      <div style={{ marginBottom: 20 }}>
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => setActiveKey(null)}
+          style={{ padding: '4px 8px', color: '#6b7280', fontSize: 13 }}
+        >
+          Configuración
+        </Button>
+      </div>
+      {renderContent()}
+    </div>
   )
 }
 
