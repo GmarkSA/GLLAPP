@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Form, Input, Spin, Typography, message } from 'antd'
+import { Alert, Button, Card, Form, Input, Select, Spin, Typography, message } from 'antd'
 import { IdcardOutlined, SaveOutlined } from '@ant-design/icons'
 import { getPatrono, guardarPatrono, type ConfiguracionPatrono } from '../../../api/planillas'
 
@@ -75,10 +75,20 @@ export default function DatosPatronoPage() {
                 <Input />
               </Form.Item>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0 12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 12px' }}>
               <Form.Item name="tipoPlanillaNombreIGSS" label="Nombre del tipo de planilla (archivo IGSS)"
                 tooltip="Descripción del tipo de planilla que exige el archivo de planilla electrónica v2.2.0, ej. 'Sueldos administración'">
                 <Input />
+              </Form.Item>
+              <Form.Item name="periodicidadPlanilla" label="Periodicidad de planilla"
+                tooltip="Quincenal: 2 pagos al mes (1-15 y 16-fin). Mensual: 1 pago al mes. Define qué motor de cálculo se usa al generar la planilla.">
+                <Select
+                  options={[
+                    { value: 'QUINCENAL', label: 'Quincenal (2 pagos/mes)' },
+                    { value: 'MENSUAL',   label: 'Mensual (1 pago/mes)' },
+                  ]}
+                  placeholder="Quincenal (2 pagos/mes)"
+                />
               </Form.Item>
             </div>
           </Card>

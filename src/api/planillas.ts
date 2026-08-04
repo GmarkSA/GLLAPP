@@ -78,6 +78,7 @@ export interface ConfiguracionPatrono {
   actividadEconomica?: string | null
   codigoActividadEconomicaIGSS?: string | null
   tipoPlanillaNombreIGSS?: string
+  periodicidadPlanilla?: 'QUINCENAL' | 'MENSUAL'
   regimenFiscal?: string | null
   telefono?: string | null
   email?: string | null
