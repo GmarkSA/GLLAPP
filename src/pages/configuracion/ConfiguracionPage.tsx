@@ -1642,9 +1642,11 @@ const HUB_GROUPS = [
         title: 'Organización',
         icon: 'bank',
         links: [
-          { label: 'Perfil de organización',   sectionKey: 'organization' },
-          { label: 'Configuración fiscal',      sectionKey: 'organization' },
-          { label: 'Módulos del sistema',       sectionKey: 'modules'      },
+          { label: 'Perfil de organización',  sectionKey: 'organization'                          },
+          { label: 'Configuración fiscal',     sectionKey: 'organization'                          },
+          { label: 'Empresa',                  sectionKey: '/configuracion/empresas'               },
+          { label: 'Sucursales',               sectionKey: '/configuracion/empresas/sucursales'    },
+          { label: 'Módulos del sistema',      sectionKey: 'modules'                               },
         ],
       },
       {
@@ -1653,7 +1655,7 @@ const HUB_GROUPS = [
         title: 'Usuarios y roles',
         icon: 'team',
         links: [
-          { label: 'Usuarios y permisos', sectionKey: 'users' },
+          { label: 'Usuarios y permisos', sectionKey: '/configuracion/usuarios' },
         ],
       },
       {
@@ -1662,8 +1664,21 @@ const HUB_GROUPS = [
         title: 'Instalación y config.',
         icon: 'setting',
         links: [
-          { label: 'Monedas y tipos de cambio', sectionKey: 'currency'     },
-          { label: 'Guía de inicio',            sectionKey: 'setup-guide'  },
+          { label: 'Series de documentos',      sectionKey: '/configuracion/empresas/series'                   },
+          { label: 'Facturación Electrónica',   sectionKey: '/configuracion/empresas/facturacion-electronica'  },
+          { label: 'Perfiles Bancarios',         sectionKey: '/configuracion/empresas/bancos'                   },
+          { label: 'Unidades de Medida',         sectionKey: '/configuracion/unidades-medida'                   },
+          { label: 'Monedas y tipos de cambio',  sectionKey: 'currency'                                         },
+        ],
+      },
+      {
+        key: 'personalizacion',
+        color: '#c026d3', bg: '#fdf4ff',
+        title: 'Personalización',
+        icon: 'appstore',
+        links: [
+          { label: 'Plantillas de impresión', sectionKey: '/configuracion/plantillas-impresion' },
+          { label: 'Plantillas de correo',     sectionKey: '/configuracion/plantillas-correo'   },
         ],
       },
       {
@@ -1672,7 +1687,7 @@ const HUB_GROUPS = [
         title: 'Suscripción',
         icon: 'credit',
         links: [
-          { label: 'Plan y facturación', sectionKey: 'subscription' },
+          { label: 'Plan y facturación', sectionKey: '/configuracion/suscripcion' },
         ],
       },
     ],
@@ -1686,8 +1701,8 @@ const HUB_GROUPS = [
         title: 'Impuestos',
         icon: 'percent',
         links: [
-          { label: 'Impuestos generales',    sectionKey: 'taxes'     },
-          { label: 'Columnas libros SAT',    sectionKey: 'librosSAT' },
+          { label: 'Impuestos generales',  sectionKey: 'taxes'     },
+          { label: 'Columnas libros SAT',  sectionKey: 'librosSAT' },
         ],
       },
       {
@@ -1696,9 +1711,9 @@ const HUB_GROUPS = [
         title: 'Contabilidad',
         icon: 'audit',
         links: [
-          { label: 'Cuentas por defecto',     sectionKey: 'contabilidad' },
-          { label: 'Dimensiones analíticas',  sectionKey: 'contabilidad' },
-          { label: 'Impuestos especiales',    sectionKey: 'contabilidad' },
+          { label: 'Cuentas por defecto',    sectionKey: 'contabilidad' },
+          { label: 'Dimensiones analíticas', sectionKey: 'contabilidad' },
+          { label: 'Impuestos especiales',   sectionKey: 'contabilidad' },
         ],
       },
       {
@@ -1707,8 +1722,8 @@ const HUB_GROUPS = [
         title: 'Integraciones',
         icon: 'api',
         links: [
-          { label: 'Integraciones',        sectionKey: 'integrations' },
-          { label: 'Espacio de desarrollo', sectionKey: 'devspace'    },
+          { label: 'Integraciones',         sectionKey: '/configuracion/integraciones' },
+          { label: 'Espacio de desarrollo',  sectionKey: 'devspace'                    },
         ],
       },
     ],
@@ -1825,19 +1840,19 @@ export default function ConfiguracionPage() {
   }
 
   const ICON_MAP: Record<string, React.ReactNode> = {
-    bank:    <BankOutlined />,
-    team:    <TeamOutlined />,
-    setting: <SettingOutlined />,
-    credit:  <CreditCardOutlined />,
-    percent: <PercentageOutlined />,
-    audit:   <AuditOutlined />,
-    api:     <ApiOutlined />,
+    bank:     <BankOutlined />,
+    team:     <TeamOutlined />,
+    setting:  <SettingOutlined />,
+    credit:   <CreditCardOutlined />,
+    percent:  <PercentageOutlined />,
+    audit:    <AuditOutlined />,
+    api:      <ApiOutlined />,
+    appstore: <AppstoreOutlined />,
   }
 
   const handleHubClick = (sectionKey: string) => {
-    if (sectionKey === 'setup-guide')   { navigate('/onboarding/setup');           return }
-    if (sectionKey === 'users')         { navigate('/configuracion/usuarios');      return }
-    if (sectionKey === 'subscription')  { navigate('/configuracion/suscripcion');   return }
+    if (sectionKey === 'setup-guide') { navigate('/onboarding/setup'); return }
+    if (sectionKey.startsWith('/'))   { navigate(sectionKey);          return }
     setActiveKey(sectionKey)
   }
 

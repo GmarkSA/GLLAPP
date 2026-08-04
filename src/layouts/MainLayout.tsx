@@ -132,18 +132,6 @@ const menuItems = [
   { key: '/proyectos',       icon: <ProjectOutlined />,      label: 'Proyectos' },
   { key: '/reportes',        icon: <BarChartOutlined />,     label: 'Reportes' },
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
-  { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
-    { key: '/configuracion',                              label: 'General' },
-    { key: '/configuracion/empresas',                     label: 'Empresas' },
-    { key: '/configuracion/empresas/sucursales',          label: 'Sucursales' },
-    { key: '/configuracion/empresas/series',              label: 'Series de Documentos' },
-    { key: '/configuracion/empresas/facturacion-electronica', label: 'Facturación Electrónica' },
-    { key: '/configuracion/empresas/bancos',              label: 'Perfiles Bancarios' },
-    { key: '/configuracion/unidades-medida',              label: 'Unidades de Medida' },
-    { key: '/configuracion/plantillas-impresion',         label: 'Plantillas de Impresión' },
-    { key: '/configuracion/plantillas-correo',            label: 'Plantillas de Correo' },
-    { key: '/configuracion/integraciones',                label: 'Espacio de Desarrollador' },
-  ]},
 ]
 
 const pageVariants = {
@@ -185,7 +173,7 @@ export default function MainLayout() {
   // ── Filtrado del menú ─────────────────────────────────────────────────────
   // Paso 1: filtrar por módulos habilitados en la empresa activa
   const filteredMenuItems = menuItems.filter(item => {
-    const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform']
+    const alwaysVisible = ['/dashboard', '/admin/platform']
     if (alwaysVisible.includes(item.key)) return true
     // Normaliza /pos → pos, /proyectos → proyectos para comparar con enabledModules
     const moduleKey = item.key.startsWith('/') ? item.key.slice(1) : item.key
@@ -211,7 +199,6 @@ export default function MainLayout() {
   const visibleMenuItems = filteredMenuItems.filter(item => {
     if (item.key === '/dashboard')      return true
     if (item.key === '/admin/platform') return !!user?.isSuperAdmin
-    if (item.key === 'configuracion')   return true
     return canSeeModule(item.key)
   })
 
