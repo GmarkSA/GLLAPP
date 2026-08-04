@@ -1,5 +1,6 @@
 import api from './axios'
 import { requestUploadUrl, uploadToR2, deleteDocument } from './storage'
+import { useCompanyStore } from '../store/companyStore'
 
 const unwrap = (r: any) => r.data?.data ?? r.data
 
@@ -372,16 +373,19 @@ export const duplicateInvoice = (id: string) =>
 
 export const attachInvoiceFile = async (id: string, file: File, invoice: Invoice): Promise<{ attached: boolean; name: string }> => {
   // 1) Subir el archivo a R2 (Cloudflare) vía presigned URL y quedarnos con la key permanente.
-  const empresaId   = sessionStorage.getItem('activeCompanyId') ?? 'default'
-  const ext         = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
-  const contentType = file.type || (ext === 'pdf' ? 'application/pdf' : 'application/octet-stream')
-  const uuid        = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const empresaId     = sessionStorage.getItem('activeCompanyId') ?? 'default'
+  const activeCompany = useCompanyStore.getState().activeCompany
+  const empresaNombre = activeCompany?.legalName ?? activeCompany?.tradeName ?? undefined
+  const ext           = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const contentType   = file.type || (ext === 'pdf' ? 'application/pdf' : 'application/octet-stream')
+  const uuid          = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
   const { uploadUrl, key } = await requestUploadUrl({
     fileName: file.name,
     contentType,
     docType: 'fel-pdf',
     empresaId,
+    empresaNombre,
     uuid,
   })
   await uploadToR2(uploadUrl, file, contentType)
