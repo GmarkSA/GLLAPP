@@ -991,10 +991,14 @@ export default function DteSatPage() {
                     </Descriptions.Item>
                     <Descriptions.Item label="Archivos" span={2}>
                       <Space size={16}>
-                        {stepperDte.xmlUrl ? <a href={stepperDte.xmlUrl} target="_blank" rel="noreferrer">XML ↗</a> : <Text type="secondary">XML</Text>}
-                        {stepperDte.pdfUrl
-                          ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
-                          : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#ff7f00' }}>Ver en SAT ↗</a>}
+                        {stepperDte.xmlKey
+                          ? <DocumentLink documentKey={stepperDte.xmlKey} docType="fel-xml-proveedor" label="XML" />
+                          : stepperDte.xmlUrl ? <a href={stepperDte.xmlUrl} target="_blank" rel="noreferrer">XML ↗</a> : <Text type="secondary">XML</Text>}
+                        {stepperDte.pdfKey
+                          ? <DocumentLink documentKey={stepperDte.pdfKey} docType="fel-pdf-proveedor" label="PDF" />
+                          : stepperDte.pdfUrl
+                            ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
+                            : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#ff7f00' }}>Ver en SAT ↗</a>}
                       </Space>
                     </Descriptions.Item>
                   </Descriptions>
@@ -1574,16 +1578,18 @@ export default function DteSatPage() {
                 <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(postingDte.total, postingDte.moneda)}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="Factura PDF" span={2}>
-                {postingDte.pdfUrl
-                  ? <a href={postingDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>Ver PDF de la factura ↗</a>
-                  : <a
-                      href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${postingDte.uuid}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: '#ff7f00' }}
-                    >
-                      Ver en portal SAT (verificación FEL) ↗
-                    </a>
+                {postingDte.pdfKey
+                  ? <DocumentLink documentKey={postingDte.pdfKey} docType="fel-pdf-proveedor" label="Ver PDF de la factura" />
+                  : postingDte.pdfUrl
+                    ? <a href={postingDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>Ver PDF de la factura ↗</a>
+                    : <a
+                        href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${postingDte.uuid}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: '#ff7f00' }}
+                      >
+                        Ver en portal SAT (verificación FEL) ↗
+                      </a>
                 }
               </Descriptions.Item>
             </Descriptions>

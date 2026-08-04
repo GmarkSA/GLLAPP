@@ -935,12 +935,16 @@ export default function DteSatVentasPage() {
                   </Descriptions.Item>
                   <Descriptions.Item label="Archivos" span={2}>
                     <Space size={16}>
-                      {stepperDte.xmlUrl
-                        ? <a href={stepperDte.xmlUrl} target="_blank" rel="noreferrer">XML ↗</a>
-                        : <Text type="secondary">XML</Text>}
-                      {stepperDte.pdfUrl
-                        ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
-                        : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#ff7f00' }}>Ver en SAT ↗</a>}
+                      {stepperDte.xmlKey
+                        ? <DocumentLink documentKey={stepperDte.xmlKey} docType="fel-xml" label="XML" />
+                        : stepperDte.xmlUrl
+                          ? <a href={stepperDte.xmlUrl} target="_blank" rel="noreferrer">XML ↗</a>
+                          : <Text type="secondary">XML</Text>}
+                      {stepperDte.pdfKey
+                        ? <DocumentLink documentKey={stepperDte.pdfKey} docType="fel-pdf" label="PDF" />
+                        : stepperDte.pdfUrl
+                          ? <a href={stepperDte.pdfUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>PDF ↗</a>
+                          : <a href={`https://portal.sat.gob.gt/portal/verificar-fel?uuid=${stepperDte.uuid}`} target="_blank" rel="noreferrer" style={{ color: '#ff7f00' }}>Ver en SAT ↗</a>}
                     </Space>
                   </Descriptions.Item>
                 </Descriptions>
