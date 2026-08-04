@@ -72,7 +72,9 @@ export default function LoginPage() {
       navigate(isCajero ? '/pos' : '/dashboard')
     } catch (err: any) {
       const status = err?.response?.status
-      if (status === 401 || status === 400) {
+      if (status === 423) {
+        message.error(err?.response?.data?.error?.message ?? err?.response?.data?.message ?? 'Cuenta bloqueada temporalmente por intentos fallidos. Restablecé tu contraseña o esperá unos minutos.')
+      } else if (status === 401 || status === 400) {
         message.error('Credenciales incorrectas. Verifica tu email y contraseña.')
       } else if (!status) {
         message.error('No se pudo conectar al servidor. Verifica tu conexión.')
