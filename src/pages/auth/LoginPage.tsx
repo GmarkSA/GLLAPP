@@ -72,7 +72,9 @@ export default function LoginPage() {
       navigate(isCajero ? '/pos' : '/dashboard')
     } catch (err: any) {
       const status = err?.response?.status
-      if (status === 401 || status === 400) {
+      if (status === 423) {
+        message.error(err?.response?.data?.error?.message ?? err?.response?.data?.message ?? 'Cuenta bloqueada temporalmente por intentos fallidos. Restablecé tu contraseña o esperá unos minutos.')
+      } else if (status === 401 || status === 400) {
         message.error('Credenciales incorrectas. Verifica tu email y contraseña.')
       } else if (!status) {
         message.error('No se pudo conectar al servidor. Verifica tu conexión.')
@@ -149,6 +151,12 @@ export default function LoginPage() {
                 style={{ height: 44, borderRadius: 10, background: '#fbfcfe', borderColor: 'rgba(10,10,10,0.14)' }}
               />
             </Form.Item>
+
+            <div style={{ textAlign: 'right', marginBottom: 10 }}>
+              <Link to="/olvide-contrasena" style={{ fontSize: 13, color: '#0a6d7f' }}>
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
 
             <Form.Item style={{ marginBottom: 0, marginTop: 6 }}>
               <Button

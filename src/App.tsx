@@ -9,6 +9,8 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 // Carga inmediata — rutas críticas
 import LoginPage    from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import SetPasswordPage from './pages/auth/SetPasswordPage'
+import OlvideContrasenaPage from './pages/auth/OlvideContrasenaPage'
 
 // Lazy loading — el resto carga solo cuando se navega ahí
 const DashboardPage          = lazy(() => import('./pages/DashboardPage'))
@@ -208,6 +210,9 @@ export default function App() {
       <Routes>
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/olvide-contrasena"      element={<OlvideContrasenaPage />} />
+        <Route path="/definir-contrasena"     element={<SetPasswordPage mode="invite" />} />
+        <Route path="/restablecer-contrasena" element={<SetPasswordPage mode="reset" />} />
 
         <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
