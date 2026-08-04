@@ -47,7 +47,8 @@ export const createUser = (dto: {
   firstName:    string
   lastName:     string
   email:        string
-  password:     string
+  password?:    string
+  sendInvitation?: boolean
   isSuperAdmin?: boolean
   roleIds?:     string[]
 }) => api.post(BASE, dto).then(unwrap) as Promise<TenantUser>

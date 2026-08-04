@@ -319,14 +319,15 @@ export default function UsuariosPage() {
     const vals = await form.validateFields()
     setSaving(true)
     try {
+      const invitar = vals.invitar !== false
       await createUser({
         firstName: vals.firstName,
         lastName:  vals.lastName,
         email:     vals.email,
-        password:  vals.password,
+        ...(invitar ? { sendInvitation: true } : { password: vals.password }),
         roleIds:   vals.roleIds ?? [],
       })
-      message.success('Usuario creado')
+      message.success(invitar ? 'Invitación enviada por correo' : 'Usuario creado')
       setModal(null)
       form.resetFields()
       load()
@@ -762,8 +763,15 @@ export default function UsuariosPage() {
           <Form.Item name="email" label="Correo electrónico" rules={[{ required: true, type: 'email' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="password" label="Contraseña" rules={[{ required: true, min: 8, message: 'Mínimo 8 caracteres' }]}>
-            <Input.Password />
+          <Form.Item name="invitar" valuePropName="checked" initialValue={true} style={{ marginBottom: 8 }}>
+            <Checkbox>Enviar invitación por correo — el usuario define su propia contraseña</Checkbox>
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.invitar !== cur.invitar}>
+            {({ getFieldValue }) => getFieldValue('invitar') === false ? (
+              <Form.Item name="password" label="Contraseña" rules={[{ required: true, min: 8, message: 'Mínimo 8 caracteres' }]}>
+                <Input.Password />
+              </Form.Item>
+            ) : null}
           </Form.Item>
           <Form.Item name="roleIds" label="Rol">
             <Select mode="multiple" placeholder="Selecciona rol(es)"
