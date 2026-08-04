@@ -121,7 +121,7 @@ const menuItems = [
   ]},
   { key: '/pos',             icon: <TabletOutlined />,       label: 'Terminal POS' },
   { key: 'planillas',        icon: <TeamOutlined />,         label: 'Planillas', children: [
-    { key: '/planillas/corridas',                           label: 'Corridas de planilla' },
+    { key: '/planillas/corridas',                           label: 'Generar Planilla' },
     { key: '/planillas/empleados',                          label: 'Empleados' },
     { key: '/planillas/finiquitos',                         label: 'Finiquitos' },
     { key: '/planillas/configuracion/parametros-fiscales', label: 'Parámetros fiscales' },

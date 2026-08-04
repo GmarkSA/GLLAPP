@@ -173,7 +173,7 @@ export default function PeriodosPlanillaPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <Title level={4} style={{ margin: 0, color: NAVY }}>
-            <CalendarOutlined style={{ marginRight: 8 }} />Corridas de planilla
+            <CalendarOutlined style={{ marginRight: 8 }} />Generar Planilla
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>
             Quincenal (1-15 y 16-fin de mes) · BORRADOR editable → APROBADA congelada
@@ -221,9 +221,9 @@ export default function PeriodosPlanillaPage() {
       <Modal
         title={tipoSel === 'BONO14' ? 'Planilla de Bono 14'
           : tipoSel === 'AGUINALDO' ? 'Planilla de Aguinaldo'
-          : 'Generar planilla quincenal'}
+          : 'Generar Planilla'}
         open={modalOpen} onCancel={() => setModalOpen(false)}
-        onOk={crear} okText="Crear corrida" cancelText="Cancelar"
+        onOk={crear} okText="Generar" cancelText="Cancelar"
         confirmLoading={creando}
       >
         <Form form={form} layout="vertical" size="small">
@@ -248,7 +248,7 @@ export default function PeriodosPlanillaPage() {
               </Form.Item>
             )}
             {!esEspecial && (
-              <Form.Item name="quincena" label="Quincena" rules={[{ required: !esEspecial }]}>
+              <Form.Item name="quincena" label="Planilla" rules={[{ required: !esEspecial }]}>
                 <Select options={[
                   { value: 1, label: '1ra (días 1-15)' },
                   { value: 2, label: '2da (16-fin de mes)' },
