@@ -70,19 +70,26 @@ const COL_WIDTHS: Record<string, number> = {
 }
 
 // ── Definiciones de columna ───────────────────────────────────────────────────
+const dateSort = (a: Invoice, b: Invoice, field: keyof Invoice) =>
+  ((a[field] ?? '') as string) < ((b[field] ?? '') as string) ? -1 : 1
+const numSort  = (a: Invoice, b: Invoice, field: keyof Invoice) =>
+  Number(a[field] ?? 0) - Number(b[field] ?? 0)
+
 function buildColDef(
   key: string,
   openVoid: (inv: Invoice) => void,
   handleDelete: (inv: Invoice) => void,
   navigate: (path: string) => void,
 ): ColumnsType<Invoice>[number] | null {
-  const base = { key }
+  const base = { key, showSorterTooltip: false }
   switch (key) {
     case 'invoiceNumber':
       return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 120, fixed: 'left' as const,
+        sorter: (a: Invoice, b: Invoice) => (a.invoiceNumber ?? '').localeCompare(b.invoiceNumber ?? ''),
         render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> }
     case 'customer':
       return { ...base, title: 'Cliente', width: 220,
+        sorter: (a: Invoice, b: Invoice) => (a.customerName ?? '').localeCompare(b.customerName ?? ''),
         render: (_: any, r: Invoice) => (
           <div>
             <div style={{ fontWeight: 600, fontSize: 13 }}>{r.customerName}</div>
@@ -91,12 +98,16 @@ function buildColDef(
         ) }
     case 'customerTaxId':
       return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
+        sorter: (a: Invoice, b: Invoice) => (a.customerTaxId ?? '').localeCompare(b.customerTaxId ?? ''),
         render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'invoiceDate':
       return { ...base, title: 'Fecha Factura', dataIndex: 'invoiceDate', width: 110,
+        sorter: (a: Invoice, b: Invoice) => dateSort(a, b, 'invoiceDate'),
+        defaultSortOrder: 'descend' as const,
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
     case 'accountingDate':
       return { ...base, title: 'Fecha Contabiliz.', dataIndex: 'accountingDate', width: 115,
+        sorter: (a: Invoice, b: Invoice) => dateSort(a, b, 'accountingDate'),
         render: (v: string, r: Invoice) => {
           const diff = v && r.invoiceDate && new Date(v).toDateString() !== new Date(r.invoiceDate).toDateString()
           return <span style={{ fontSize: 12, color: diff ? '#ff7f00' : undefined, fontWeight: diff ? 600 : undefined }}>
@@ -105,9 +116,11 @@ function buildColDef(
         } }
     case 'felSerie':
       return { ...base, title: 'Serie FEL', dataIndex: 'felSerie', width: 80,
+        sorter: (a: Invoice, b: Invoice) => (a.felSerie ?? '').localeCompare(b.felSerie ?? ''),
         render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'felNumero':
       return { ...base, title: 'No. SAT', dataIndex: 'felNumero', width: 100,
+        sorter: (a: Invoice, b: Invoice) => (a.felNumero ?? '').localeCompare(b.felNumero ?? ''),
         render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'currency':
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 80,
@@ -120,6 +133,7 @@ function buildColDef(
             : <Text type="secondary">—</Text> }
     case 'dueDate':
       return { ...base, title: 'Vence', dataIndex: 'dueDate', width: 105,
+        sorter: (a: Invoice, b: Invoice) => dateSort(a, b, 'dueDate'),
         render: (v: string, r: Invoice) => {
           if (!v) return <Text type="secondary">—</Text>
           const isOver = r.status === 'overdue'
@@ -129,25 +143,31 @@ function buildColDef(
         } }
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 120, align: 'right' as const,
+        sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'subtotal'),
         render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
     case 'discountAmount':
       return { ...base, title: 'Descuento', dataIndex: 'discountAmount', width: 105, align: 'right' as const,
+        sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'discountAmount'),
         render: (v: number) => Number(v) > 0
           ? <span style={{ fontSize: 12, color: '#059669' }}>- {fmt(v)}</span>
           : <Text type="secondary">—</Text> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 105, align: 'right' as const,
+        sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'taxAmount'),
         render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
+        sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'total'),
         render: (v: number) => <Text strong style={{ fontSize: 13 }}>{fmt(v)}</Text> }
     case 'paidAmount':
       return { ...base, title: 'Pagado', dataIndex: 'paidAmount', width: 120, align: 'right' as const,
+        sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'paidAmount'),
         render: (v: number) => Number(v) > 0
           ? <span style={{ fontSize: 12, color: '#2ea172' }}>{fmt(v)}</span>
           : <Text type="secondary">—</Text> }
     case 'balance':
       return { ...base, title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
+        sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'balance'),
         render: (v: number) => (
           <Text style={{ fontWeight: 700, fontSize: 13, color: Number(v) > 0 ? '#e5484d' : '#2ea172' }}>
             {fmt(v)}
@@ -155,6 +175,7 @@ function buildColDef(
         ) }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 105,
+        sorter: (a: Invoice, b: Invoice) => (a.status ?? '').localeCompare(b.status ?? ''),
         render: (v: InvoiceStatus) => {
           const cfg = INVOICE_STATUS_CONFIG[v]
           return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>
@@ -355,23 +376,36 @@ export default function FacturasPage() {
       {/* Stats */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         {[
-          { title: 'Total Facturado', value: stats.totalFacturado, icon: <DollarOutlined />,            color: '#1faec2' },
-          { title: 'Pendiente',       value: stats.pendiente,       icon: <ClockCircleOutlined />,        color: '#ff7f00' },
-          { title: 'Vencidas',        value: stats.vencidas,        icon: <ExclamationCircleOutlined />,  color: '#e5484d' },
-          { title: 'Cobradas',        value: stats.cobradas,        icon: <CheckCircleOutlined />,        color: '#2ea172' },
-        ].map(s => (
-          <Col span={6} key={s.title}>
-            <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-              <Statistic
-                title={<span style={{ fontSize: 12 }}>{s.title}</span>}
-                value={s.value}
-                prefix={<span style={{ color: s.color, marginRight: 4 }}>{s.icon}</span>}
-                formatter={(v) => fmt(Number(v))}
-                valueStyle={{ fontSize: 18, color: s.color }}
-              />
-            </Card>
-          </Col>
-        ))}
+          { title: 'Total Facturado', value: stats.totalFacturado, icon: <DollarOutlined />,            color: '#1faec2', tabKey: 'all'     },
+          { title: 'Pendiente',       value: stats.pendiente,       icon: <ClockCircleOutlined />,        color: '#ff7f00', tabKey: 'pending' },
+          { title: 'Vencidas',        value: stats.vencidas,        icon: <ExclamationCircleOutlined />,  color: '#e5484d', tabKey: 'overdue' },
+          { title: 'Cobradas',        value: stats.cobradas,        icon: <CheckCircleOutlined />,        color: '#2ea172', tabKey: 'paid'    },
+        ].map(s => {
+          const isActive = statusTab === s.tabKey
+          return (
+            <Col span={6} key={s.title}>
+              <Card
+                hoverable
+                bordered={false}
+                onClick={() => { setStatusTab(s.tabKey); setPage(1) }}
+                style={{
+                  borderRadius: 10,
+                  boxShadow: isActive ? `0 0 0 2px ${s.color}` : '0 1px 6px rgba(0,0,0,0.06)',
+                  cursor: 'pointer',
+                  transition: 'box-shadow 0.2s',
+                }}
+              >
+                <Statistic
+                  title={<span style={{ fontSize: 12 }}>{s.title}</span>}
+                  value={s.value}
+                  prefix={<span style={{ color: s.color, marginRight: 4 }}>{s.icon}</span>}
+                  formatter={(v) => fmt(Number(v))}
+                  valueStyle={{ fontSize: 18, color: s.color }}
+                />
+              </Card>
+            </Col>
+          )
+        })}
       </Row>
 
       {/* Filters */}
