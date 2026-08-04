@@ -51,6 +51,8 @@ export interface PeriodoPlanilla {
   mes: number
   /** 1 = días 1-15 (sin deducciones) · 2 = día 16-fin de mes (IGSS/ISR/bonificación del mes completo) · 0 = corrida especial */
   quincena: number
+  /** QUINCENAL (2 pagos/mes) o MENSUAL (1 pago del mes completo). La define el patrono. */
+  periodicidad?: 'QUINCENAL' | 'MENSUAL'
   tipo: TipoPeriodoPlanilla
   fechaInicio: string
   fechaFin: string
@@ -89,7 +91,7 @@ export const getPeriodosPlanilla = () =>
 export const getPeriodoPlanilla = (id: string) =>
   api.get(`${BASE}/${id}`).then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
-export const crearPeriodoPlanilla = (dto: { anio: number; mes: number; quincena: number }) =>
+export const crearPeriodoPlanilla = (dto: { anio: number; mes: number; quincena?: number }) =>
   api.post(BASE, dto).then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
 export const crearCorridaEspecial = (dto: { anio: number; tipo: 'BONO14' | 'AGUINALDO' }) =>

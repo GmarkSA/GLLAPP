@@ -12,6 +12,7 @@ import dayjs from 'dayjs'
 import {
   getPeriodosPlanilla, crearPeriodoPlanilla, crearCorridaEspecial, descargarArchivoIGSS, type PeriodoPlanilla,
 } from '../../../api/planillas-corrida'
+import { getPatrono } from '../../../api/planillas'
 
 const { Text, Title } = Typography
 const NAVY = '#1B3A6B'
@@ -29,6 +30,7 @@ export default function PeriodosPlanillaPage() {
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [creando, setCreando] = useState(false)
+  const [esMensual, setEsMensual] = useState(false)
   const [form] = Form.useForm()
 
   const cargar = () => {
@@ -40,6 +42,10 @@ export default function PeriodosPlanillaPage() {
   }
 
   useEffect(cargar, [])
+  // Periodicidad definida en Datos del Patrono — decide si la planilla es quincenal o mensual.
+  useEffect(() => {
+    getPatrono().then(p => setEsMensual(p?.periodicidadPlanilla === 'MENSUAL')).catch(() => {})
+  }, [])
 
   // Combinaciones año/mes/quincena que ya tienen corrida — se muestran en
   // gris en el modal para que el usuario no las vuelva a correr. Solo
@@ -62,7 +68,9 @@ export default function PeriodosPlanillaPage() {
         : await crearPeriodoPlanilla(vals)
       message.success(vals.tipo !== 'ORDINARIA'
         ? `Corrida de ${vals.tipo === 'BONO14' ? 'Bono 14' : 'Aguinaldo'} ${vals.anio} creada con ${periodo.totalEmpleados} empleados`
-        : `Corrida ${MESES[vals.mes - 1]} ${vals.anio} — ${vals.quincena === 1 ? '1ra' : '2da'} quincena creada con ${periodo.totalEmpleados} empleados`)
+        : esMensual
+          ? `Planilla mensual de ${MESES[vals.mes - 1]} ${vals.anio} creada con ${periodo.totalEmpleados} empleados`
+          : `Corrida ${MESES[vals.mes - 1]} ${vals.anio} — ${vals.quincena === 1 ? '1ra' : '2da'} quincena creada con ${periodo.totalEmpleados} empleados`)
       setModalOpen(false)
       navigate(`/planillas/corridas/${periodo.id}`)
     } catch (e: any) {
@@ -86,7 +94,7 @@ export default function PeriodosPlanillaPage() {
       ) : (
         <div>
           <Text strong style={{ fontSize: 12, color: NAVY }}>{MESES[p.mes - 1]} {p.anio}</Text>
-          <div style={{ fontSize: 11, color: '#8c8c8c' }}>{p.quincena === 1 ? '1ra quincena (1-15)' : '2da quincena (16-fin)'}</div>
+          <div style={{ fontSize: 11, color: '#8c8c8c' }}>{p.periodicidad === 'MENSUAL' ? 'Mensual (mes completo)' : p.quincena === 1 ? '1ra quincena (1-15)' : '2da quincena (16-fin)'}</div>
         </div>
       ),
       sorter: (a, b) => (a.anio * 10000 + a.mes * 10 + a.quincena) - (b.anio * 10000 + b.mes * 10 + b.quincena),
@@ -242,13 +250,15 @@ export default function PeriodosPlanillaPage() {
             {!esEspecial && (
               <Form.Item name="mes" label="Mes" rules={[{ required: !esEspecial }]}>
                 <Select options={MESES.map((m, i) => {
-                  const completo = !!anioSel && yaCorrida(anioSel, i + 1, 1) && yaCorrida(anioSel, i + 1, 2)
+                  const completo = !!anioSel && (esMensual
+                    ? yaCorrida(anioSel, i + 1, 2)
+                    : (yaCorrida(anioSel, i + 1, 1) && yaCorrida(anioSel, i + 1, 2)))
                   return { value: i + 1, label: completo ? `${m} — ya corrido` : m, disabled: completo }
                 })} />
               </Form.Item>
             )}
-            {!esEspecial && (
-              <Form.Item name="quincena" label="Planilla" rules={[{ required: !esEspecial }]}>
+            {!esEspecial && !esMensual && (
+              <Form.Item name="quincena" label="Planilla" rules={[{ required: !esEspecial && !esMensual }]}>
                 <Select options={[
                   { value: 1, label: '1ra (días 1-15)' },
                   { value: 2, label: '2da (16-fin de mes)' },
@@ -264,7 +274,9 @@ export default function PeriodosPlanillaPage() {
               ? (tipoSel === 'BONO14'
                 ? 'Calcula el Bono 14 de cada empleado (Dto. 42-92): salario × días trabajados del 1/jul al 30/jun ÷ 365, por tramo salarial. Exento de IGSS e ISR; el asiento liquida la provisión acumulada y solo postea el ajuste.'
                 : 'Calcula el Aguinaldo de cada empleado (Dto. 76-78): salario × días trabajados del 1/dic al 30/nov ÷ 365, por tramo salarial. Exento de IGSS e ISR; el asiento liquida la provisión acumulada y solo postea el ajuste.')
-              : '1ra quincena: paga la mitad del salario, sin deducciones. 2da quincena: paga la otra mitad + horas extra + bonificación incentivo completa, y ahí se descuentan IGSS, ISR y otras deducciones calculados sobre el mes completo.'}
+              : esMensual
+                ? 'Planilla mensual: un solo pago del mes con el salario completo (prorrateado por días trabajados) + horas extra + bonificación incentivo, y ahí se descuentan IGSS, ISR y otras deducciones del mes completo.'
+                : '1ra quincena: paga la mitad del salario, sin deducciones. 2da quincena: paga la otra mitad + horas extra + bonificación incentivo completa, y ahí se descuentan IGSS, ISR y otras deducciones calculados sobre el mes completo.'}
           </Text>
         </Form>
       </Modal>
