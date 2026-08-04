@@ -25,6 +25,7 @@ export interface RequestUploadUrlParams {
   contentType: string
   docType: FelDocType
   empresaId: string
+  empresaNombre?: string
   uuid: string
 }
 
