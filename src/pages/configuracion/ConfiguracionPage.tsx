@@ -1640,6 +1640,7 @@ const HUB_GROUPS = [
         key: 'org',
         color: '#1faec2', bg: '#e8fafa',
         title: 'Organización',
+        desc: 'Datos de tu empresa, régimen fiscal y estructura de sucursales.',
         icon: 'bank',
         links: [
           { label: 'Perfil de organización',  sectionKey: 'organization'                          },
@@ -1653,6 +1654,7 @@ const HUB_GROUPS = [
         key: 'users',
         color: '#7c5cfc', bg: '#f3f0ff',
         title: 'Usuarios y roles',
+        desc: 'Gestioná el acceso de tu equipo, roles y permisos.',
         icon: 'team',
         links: [
           { label: 'Usuarios y permisos', sectionKey: '/configuracion/usuarios' },
@@ -1662,6 +1664,7 @@ const HUB_GROUPS = [
         key: 'install',
         color: '#ff7f00', bg: '#fff7e6',
         title: 'Instalación y config.',
+        desc: 'Series, facturación electrónica, bancos y catálogos base.',
         icon: 'setting',
         links: [
           { label: 'Series de documentos',      sectionKey: '/configuracion/empresas/series'                   },
@@ -1675,6 +1678,7 @@ const HUB_GROUPS = [
         key: 'personalizacion',
         color: '#c026d3', bg: '#fdf4ff',
         title: 'Personalización',
+        desc: 'Diseño de tus facturas y correos.',
         icon: 'appstore',
         links: [
           { label: 'Plantillas de impresión', sectionKey: '/configuracion/plantillas-impresion' },
@@ -1685,6 +1689,7 @@ const HUB_GROUPS = [
         key: 'sub',
         color: '#e5484d', bg: '#fff0f0',
         title: 'Suscripción',
+        desc: 'Tu plan, facturación y consumo.',
         icon: 'credit',
         links: [
           { label: 'Plan y facturación', sectionKey: '/configuracion/suscripcion' },
@@ -1699,6 +1704,7 @@ const HUB_GROUPS = [
         key: 'taxes',
         color: '#f59e0b', bg: '#fffbeb',
         title: 'Impuestos',
+        desc: 'IVA, retenciones y columnas de los libros SAT.',
         icon: 'percent',
         links: [
           { label: 'Impuestos generales',  sectionKey: 'taxes'     },
@@ -1709,6 +1715,7 @@ const HUB_GROUPS = [
         key: 'accounting',
         color: '#1B3A6B', bg: '#eff3fa',
         title: 'Contabilidad',
+        desc: 'Cuentas por defecto, dimensiones e impuestos especiales.',
         icon: 'audit',
         links: [
           { label: 'Cuentas por defecto',    sectionKey: 'contabilidad' },
@@ -1720,6 +1727,7 @@ const HUB_GROUPS = [
         key: 'tech',
         color: '#059669', bg: '#ecfdf5',
         title: 'Integraciones',
+        desc: 'Conectá servicios externos y accedé a la API.',
         icon: 'api',
         links: [
           { label: 'Integraciones',         sectionKey: '/configuracion/integraciones' },
@@ -1858,67 +1866,74 @@ export default function ConfiguracionPage() {
 
   // ── Hub view ─────────────────────────────────────────────────────────────
   if (activeKey === null) {
-    const allCards = HUB_GROUPS.flatMap(g => g.cards)
-
     return (
       <div style={{ minHeight: 'calc(100vh - 112px)' }}>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 8 }}>
           <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Configuración</Title>
           <Text type="secondary">Administra tu empresa, usuarios y preferencias del sistema</Text>
         </div>
 
-        <Card
-          bordered={false}
-          style={{ borderRadius: 12, boxShadow: '0 1px 8px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.07)', overflow: 'hidden' }}
-          bodyStyle={{ padding: 0 }}
-        >
-          <Row>
-            {allCards.map((card, i) => (
-              <Col
-                key={card.key}
-                xs={12} md={6}
-                style={{
-                  borderRight: (i + 1) % 4 !== 0 ? '1px solid rgba(0,0,0,0.06)' : undefined,
-                  borderBottom: i < 4 ? '1px solid rgba(0,0,0,0.06)' : undefined,
-                }}
-              >
-                <div style={{ padding: '20px 22px' }}>
+        {HUB_GROUPS.map(group => (
+          <div key={group.groupTitle} style={{ marginTop: 26 }}>
+            {/* Encabezado de sección */}
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9aa1ab', margin: '0 0 12px' }}>
+              {group.groupTitle}
+            </div>
 
+            {/* Grilla de tarjetas — se ajustan a su contenido (align-items: start) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, alignItems: 'start' }}>
+              {group.cards.map(card => (
+                <div
+                  key={card.key}
+                  style={{
+                    background: '#fff', border: '1px solid rgba(10,10,10,0.08)', borderRadius: 14,
+                    padding: '18px 18px 12px', boxShadow: '0 1px 2px rgba(10,10,10,0.03)',
+                    transition: 'box-shadow .15s, border-color .15s',
+                  }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = '0 6px 20px rgba(10,10,10,0.08)'; el.style.borderColor = 'rgba(10,10,10,0.14)' }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = '0 1px 2px rgba(10,10,10,0.03)'; el.style.borderColor = 'rgba(10,10,10,0.08)' }}
+                >
                   {/* Ícono + título */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <div style={{
-                      width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-                      background: card.bg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 14, color: card.color,
+                      width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                      background: card.bg, color: card.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
                     }}>
                       {ICON_MAP[card.icon]}
                     </div>
-                    <Text strong style={{ fontSize: 13, color: '#111827', lineHeight: 1.3 }}>
-                      {card.title}
-                    </Text>
+                    <Text strong style={{ fontSize: 14, color: '#111827' }}>{card.title}</Text>
                   </div>
 
+                  {/* Descripción */}
+                  {card.desc && (
+                    <div style={{ fontSize: 12, color: '#9aa1ab', margin: '0 0 12px', lineHeight: 1.45 }}>{card.desc}</div>
+                  )}
+
                   {/* Links */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {card.links.map(link => (
                       <div
                         key={link.label}
                         onClick={() => handleHubClick(link.sectionKey)}
-                        style={{ fontSize: 12, color: '#6b7280', cursor: 'pointer', lineHeight: 1.5, transition: 'color 0.12s' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.color = card.color }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.color = '#6b7280' }}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          fontSize: 13, color: '#4b5563', padding: '7px 8px', margin: '0 -8px',
+                          borderRadius: 8, cursor: 'pointer', transition: 'background .12s, color .12s',
+                        }}
+                        onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.background = '#f6f8fb'; el.style.color = '#0a0a0a' }}
+                        onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.background = 'transparent'; el.style.color = '#4b5563' }}
                       >
-                        {link.label}
+                        <span>{link.label}</span>
+                        <span style={{ fontSize: 12, color: '#c4c9d2' }}>›</span>
                       </div>
                     ))}
                   </div>
-
                 </div>
-              </Col>
-            ))}
-          </Row>
-        </Card>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     )
   }
