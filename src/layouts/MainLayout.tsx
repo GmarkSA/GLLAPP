@@ -20,6 +20,7 @@ import NoCompanyGuard from '../components/NoCompanyGuard'
 import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
 import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
+import GlobalSearchModal from '../components/GlobalSearch/GlobalSearchModal'
 
 const { Header, Sider, Content } = Layout
 
@@ -132,18 +133,6 @@ const menuItems = [
   { key: '/proyectos',       icon: <ProjectOutlined />,      label: 'Proyectos' },
   { key: '/reportes',        icon: <BarChartOutlined />,     label: 'Reportes' },
   { key: '/admin/platform',  icon: <GlobalOutlined />,       label: 'Platform Admin' },
-  { key: 'configuracion',    icon: <SettingOutlined />,      label: 'Configuración', children: [
-    { key: '/configuracion',                              label: 'General' },
-    { key: '/configuracion/empresas',                     label: 'Empresas' },
-    { key: '/configuracion/empresas/sucursales',          label: 'Sucursales' },
-    { key: '/configuracion/empresas/series',              label: 'Series de Documentos' },
-    { key: '/configuracion/empresas/facturacion-electronica', label: 'Facturación Electrónica' },
-    { key: '/configuracion/empresas/bancos',              label: 'Perfiles Bancarios' },
-    { key: '/configuracion/unidades-medida',              label: 'Unidades de Medida' },
-    { key: '/configuracion/plantillas-impresion',         label: 'Plantillas de Impresión' },
-    { key: '/configuracion/plantillas-correo',            label: 'Plantillas de Correo' },
-    { key: '/configuracion/integraciones',                label: 'Espacio de Desarrollador' },
-  ]},
 ]
 
 const pageVariants = {
@@ -154,10 +143,23 @@ const pageVariants = {
 
 export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(true)
+  const [searchOpen, setSearchOpen] = useState(false)
   const lastNavKey = useRef('')
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+
+  // Cmd+K / Ctrl+K abre el buscador global
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(prev => !prev)
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
   const isModuleEnabled  = useCompanyStore(s => s.isModuleEnabled)
   const activeCompany    = useCompanyStore(s => s.activeCompany)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
@@ -185,7 +187,7 @@ export default function MainLayout() {
   // ── Filtrado del menú ─────────────────────────────────────────────────────
   // Paso 1: filtrar por módulos habilitados en la empresa activa
   const filteredMenuItems = menuItems.filter(item => {
-    const alwaysVisible = ['/dashboard', 'configuracion', '/admin/platform']
+    const alwaysVisible = ['/dashboard', '/admin/platform']
     if (alwaysVisible.includes(item.key)) return true
     // Normaliza /pos → pos, /proyectos → proyectos para comparar con enabledModules
     const moduleKey = item.key.startsWith('/') ? item.key.slice(1) : item.key
@@ -211,7 +213,6 @@ export default function MainLayout() {
   const visibleMenuItems = filteredMenuItems.filter(item => {
     if (item.key === '/dashboard')      return true
     if (item.key === '/admin/platform') return !!user?.isSuperAdmin
-    if (item.key === 'configuracion')   return true
     return canSeeModule(item.key)
   })
 
@@ -351,11 +352,12 @@ export default function MainLayout() {
 
           {/* Right */}
           <Space size={8}>
-            <Tooltip title="Buscar">
+            <Tooltip title="Buscar  Cmd+K">
               <Button
                 type="text"
                 shape="circle"
                 icon={<SearchOutlined style={{ color: '#6b7280' }} />}
+                onClick={() => setSearchOpen(true)}
                 style={{ borderRadius: 10 }}
               />
             </Tooltip>
@@ -440,6 +442,7 @@ export default function MainLayout() {
       </Layout>
 
       <OnboardingChatDrawer />
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </Layout>
   )
 }
