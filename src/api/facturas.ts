@@ -640,3 +640,6 @@ export const postSatEmitidos = (id: string, dto: {
   invoice: Invoice
   dte: SatDteEmitidos
 }>
+
+export const backfillInvoiceDueDates = () =>
+  api.post(`${BASE_INV}/backfill-due-dates`).then(unwrap) as Promise<{ updated: number; skipped: number }>
