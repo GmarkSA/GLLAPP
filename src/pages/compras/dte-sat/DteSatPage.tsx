@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert, Badge, Button, Card, Checkbox, Col, DatePicker, Descriptions, Divider, Form, Input,
-  message, Row, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
+  Alert, Badge, Button, Card, Checkbox, DatePicker, Descriptions, Divider, Form, Input,
+  message, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -691,6 +691,7 @@ export default function DteSatPage() {
       dataIndex: 'subtotal',
       align: 'right',
       width: 100,
+      sorter: (a, b) => Number(a.subtotal) - Number(b.subtotal),
       render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
@@ -698,6 +699,7 @@ export default function DteSatPage() {
       dataIndex: 'totalIva',
       align: 'right',
       width: 90,
+      sorter: (a, b) => Number(a.totalIva) - Number(b.totalIva),
       render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
@@ -1680,36 +1682,26 @@ export default function DteSatPage() {
         style={{ borderTop: '3px solid #1faec2' }}
         styles={{ body: { paddingTop: 10, paddingBottom: 10 } }}
       >
-        <Form form={form} layout="vertical" size="small" onFinish={handleImport}>
-          <Row gutter={[16, 0]} align="bottom">
-            <Col xs={24} md={14}>
-              <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
-                rules={[{ required: true, message: 'Selecciona el rango' }]}
-              >
-                <RangePicker
-                  style={{ width: '100%' }}
-                  presets={[
-                    { label: 'Este mes', value: [dayjs().startOf('month'), dayjs()] },
-                    { label: 'Mes anterior', value: [dayjs().subtract(1,'month').startOf('month'), dayjs().subtract(1,'month').endOf('month')] },
-                    { label: 'Este trimestre', value: [dayjs().subtract(2,'month').startOf('month'), dayjs()] },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={10}>
-              <Button
-                type="primary"
-                htmlType="submit"
-                icon={<ApiOutlined />}
-                loading={importing}
-                disabled={!satCredentials.satNit}
-                block
-                style={{ background: '#1faec2' }}
-              >
-                Iniciar importación SAT
-              </Button>
-            </Col>
-          </Row>
+        <Form form={form} layout="inline" size="small" onFinish={handleImport}>
+          <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
+            rules={[{ required: true, message: 'Selecciona el rango de fechas' }]}
+          >
+            <RangePicker
+              style={{ width: 280 }}
+              presets={[
+                { label: 'Este mes',       value: [dayjs().startOf('month'), dayjs()] },
+                { label: 'Mes anterior',   value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+                { label: 'Este trimestre', value: [dayjs().subtract(2, 'month').startOf('month'), dayjs()] },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
+              disabled={!satCredentials.satNit}
+              style={{ background: '#1faec2' }}>
+              Importar Recibidos
+            </Button>
+          </Form.Item>
         </Form>
       </Card>
 
