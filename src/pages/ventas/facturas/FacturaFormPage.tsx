@@ -360,6 +360,14 @@ export default function FacturaFormPage() {
           notes:          v.notes,
           termsAndConditions: v.termsAndConditions,
           purchaseOrderRef:   v.reference,
+          // Incluir cuentas contables de cada línea (el backend solo actualiza accountId)
+          items: items.map(item => ({
+            id:          item._key,
+            accountId:   item.accountId,
+            description: item.description,
+            quantity:    item.quantity,
+            unitPrice:   item.unitPrice,
+          } as any)),
         }
         result = await updateInvoice(id!, safeDto as any)
         message.success('Cambios guardados')
@@ -649,6 +657,7 @@ export default function FacturaFormPage() {
               taxes={taxes}
               onChange={setItems}
               readOnly={isSentEdit}
+              accountEditable={isSentEdit}
               docType="invoice"
               vendorDefaultTaxId={customerDefaultTaxId}
             />
