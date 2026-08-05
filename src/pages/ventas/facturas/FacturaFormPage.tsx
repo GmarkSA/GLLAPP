@@ -436,16 +436,6 @@ export default function FacturaFormPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {/* ── 1. Datos generales ─────────────────────────────────────────── */}
-          {isSentEdit && (
-            <Alert
-              type="warning"
-              showIcon
-              style={{ marginBottom: 8 }}
-              message="Factura emitida — edición limitada"
-              description="Solo puedes modificar la Fecha Contable, Vencimiento, Notas y Condiciones. Los datos de la factura (cliente, items, montos) no pueden cambiarse."
-            />
-          )}
-
           <Card
             size="small"
             title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Factura' : 'Nueva Factura'}</span>}
