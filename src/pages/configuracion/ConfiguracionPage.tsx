@@ -1858,62 +1858,67 @@ export default function ConfiguracionPage() {
 
   // ── Hub view ─────────────────────────────────────────────────────────────
   if (activeKey === null) {
+    const allCards = HUB_GROUPS.flatMap(g => g.cards)
+
     return (
       <div style={{ minHeight: 'calc(100vh - 112px)' }}>
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 24 }}>
           <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Configuración</Title>
           <Text type="secondary">Administra tu empresa, usuarios y preferencias del sistema</Text>
         </div>
 
-        {HUB_GROUPS.map(group => (
-          <div key={group.groupTitle} style={{ marginBottom: 36 }}>
-            <Text style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>
-              {group.groupTitle}
-            </Text>
-            <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
-              {group.cards.map(card => (
-                <Col key={card.key} xs={24} sm={12} md={8} lg={6}>
-                  <Card
-                    bordered={false}
-                    hoverable
-                    style={{ ...cardStyle, height: '100%' }}
-                    bodyStyle={{ padding: '20px 20px 16px' }}
-                  >
-                    {/* Card header */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 8,
-                        background: card.bg,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 17, color: card.color, flexShrink: 0,
-                      }}>
-                        {ICON_MAP[card.icon]}
-                      </div>
-                      <Text strong style={{ fontSize: 14, color: '#111827', lineHeight: 1.3 }}>
-                        {card.title}
-                      </Text>
-                    </div>
+        <Card
+          bordered={false}
+          style={{ borderRadius: 12, boxShadow: '0 1px 8px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.07)', overflow: 'hidden' }}
+          bodyStyle={{ padding: 0 }}
+        >
+          <Row>
+            {allCards.map((card, i) => (
+              <Col
+                key={card.key}
+                xs={12} md={6}
+                style={{
+                  borderRight: (i + 1) % 4 !== 0 ? '1px solid rgba(0,0,0,0.06)' : undefined,
+                  borderBottom: i < 4 ? '1px solid rgba(0,0,0,0.06)' : undefined,
+                }}
+              >
+                <div style={{ padding: '20px 22px' }}>
 
-                    {/* Links */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {card.links.map(link => (
-                        <div
-                          key={link.label}
-                          onClick={() => handleHubClick(link.sectionKey)}
-                          style={{ fontSize: 13, color: '#4b5563', cursor: 'pointer', lineHeight: 1.4, transition: 'color 0.15s' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.color = card.color }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.color = '#4b5563' }}
-                        >
-                          {link.label}
-                        </div>
-                      ))}
+                  {/* Ícono + título */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
+                    <div style={{
+                      width: 30, height: 30, borderRadius: 7, flexShrink: 0,
+                      background: card.bg,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, color: card.color,
+                    }}>
+                      {ICON_MAP[card.icon]}
                     </div>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </div>
-        ))}
+                    <Text strong style={{ fontSize: 13, color: '#111827', lineHeight: 1.3 }}>
+                      {card.title}
+                    </Text>
+                  </div>
+
+                  {/* Links */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {card.links.map(link => (
+                      <div
+                        key={link.label}
+                        onClick={() => handleHubClick(link.sectionKey)}
+                        style={{ fontSize: 12, color: '#6b7280', cursor: 'pointer', lineHeight: 1.5, transition: 'color 0.12s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.color = card.color }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.color = '#6b7280' }}
+                      >
+                        {link.label}
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              </Col>
+            ))}
+          </Row>
+        </Card>
       </div>
     )
   }
