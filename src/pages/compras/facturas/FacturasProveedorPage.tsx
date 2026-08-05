@@ -109,12 +109,15 @@ function buildColDef(
   switch (key) {
     case 'invoiceNumber':
       return { ...base, title: '# Factura', dataIndex: 'invoiceNumber', width: 140, fixed: 'left' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.invoiceNumber ?? '').localeCompare(b.invoiceNumber ?? ''),
         render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> }
     case 'vendorInvoiceNumber':
       return { ...base, title: '# Fact. Proveedor', dataIndex: 'vendorInvoiceNumber', width: 140,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.vendorInvoiceNumber ?? '').localeCompare(b.vendorInvoiceNumber ?? ''),
         render: (v: string) => v ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text> }
     case 'vendor':
       return { ...base, title: 'Proveedor', width: 200,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.vendorName ?? '').localeCompare(b.vendorName ?? ''),
         render: (_: any, r: PurchaseInvoice) => (
           <div>
             <div style={{ fontWeight: 600, fontSize: 13 }}>{r.vendorName}</div>
@@ -123,6 +126,7 @@ function buildColDef(
         ) }
     case 'vendorTaxId':
       return { ...base, title: 'NIT Proveedor', dataIndex: 'vendorTaxId', width: 120,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.vendorTaxId ?? '').localeCompare(b.vendorTaxId ?? ''),
         render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'invoiceType':
       return { ...base, title: 'Tipo', dataIndex: 'invoiceType', width: 130,
@@ -132,9 +136,11 @@ function buildColDef(
         } }
     case 'invoiceDate':
       return { ...base, title: 'Fecha Factura', dataIndex: 'invoiceDate', width: 105,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.invoiceDate ?? '').localeCompare(b.invoiceDate ?? ''),
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
     case 'accountingDate':
       return { ...base, title: 'Fecha Contabiliz.', dataIndex: 'accountingDate', width: 115,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.accountingDate ?? a.invoiceDate ?? '').localeCompare(b.accountingDate ?? b.invoiceDate ?? ''),
         render: (v: string, r: PurchaseInvoice) => {
           const diff = v && r.invoiceDate && new Date(v).toDateString() !== new Date(r.invoiceDate as any).toDateString()
           return <span style={{ fontSize: 12, color: diff ? '#ff7f00' : undefined, fontWeight: diff ? 600 : undefined }}>
@@ -146,6 +152,7 @@ function buildColDef(
         render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'felNumber':
       return { ...base, title: 'No. SAT', dataIndex: 'felNumber', width: 100,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.felNumber ?? '').localeCompare(b.felNumber ?? ''),
         render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'currency':
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 75,
@@ -161,6 +168,7 @@ function buildColDef(
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? getPaymentTermLabel(v) : '—'}</span> }
     case 'dueDate':
       return { ...base, title: 'Vence', dataIndex: 'dueDate', width: 105,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''),
         render: (v: string, r: PurchaseInvoice) => {
           if (!v) return <Text type="secondary">—</Text>
           const isOver = r.status === 'overdue'
@@ -170,30 +178,38 @@ function buildColDef(
         } }
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.subtotal) - Number(b.subtotal),
         render: (v: number, r: PurchaseInvoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} /> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 100, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.taxAmount) - Number(b.taxAmount),
         render: (v: number, r: PurchaseInvoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} /> }
     case 'idpAmount':
       return { ...base, title: 'IDP', dataIndex: 'idpAmount', width: 90, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.idpAmount) - Number(b.idpAmount),
         render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#ff7f00' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
     case 'isrRetentionAmount':
       return { ...base, title: 'Ret. ISR', dataIndex: 'isrRetentionAmount', width: 100, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.isrRetentionAmount) - Number(b.isrRetentionAmount),
         render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#ff7f00' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
     case 'ivaRetentionAmount':
       return { ...base, title: 'Ret. IVA', dataIndex: 'ivaRetentionAmount', width: 100, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.ivaRetentionAmount) - Number(b.ivaRetentionAmount),
         render: (v: number) => Number(v) > 0 ? <span style={{ fontSize: 12, color: '#ff7f00' }}>{fmtGTQ(v)}</span> : <Text type="secondary">—</Text> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.total) - Number(b.total),
         render: (v: number, r: PurchaseInvoice) => <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} bold /> }
     case 'paidAmount':
       return { ...base, title: 'Pagado', dataIndex: 'paidAmount', width: 110, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.paidAmount) - Number(b.paidAmount),
         render: (v: number, r: PurchaseInvoice) =>
           Number(v) > 0
             ? <FmtDual amount={v} currency={r.currency} exchangeRate={r.exchangeRate} />
             : <Text type="secondary">—</Text> }
     case 'balance':
       return { ...base, title: 'Saldo', dataIndex: 'balance', width: 130, align: 'right' as const,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => Number(a.balance) - Number(b.balance),
         render: (v: number, r: PurchaseInvoice) => {
           const isFx = r.currency && r.currency !== 'GTQ' && Number(r.exchangeRate) > 1
           if (isFx) return (
@@ -211,6 +227,7 @@ function buildColDef(
         } }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 110,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.status ?? '').localeCompare(b.status ?? ''),
         render: (v: BillStatus) => {
           const cfg = BILL_STATUS_CONFIG[v]
           return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>
