@@ -564,6 +564,7 @@ export const postSatDte = (id: string, dto: {
   timbrePrensaAccountId?: string
   turismoAmount?: number
   turismoAccountId?: string
+  forceZeroAmount?: boolean
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: PurchaseInvoice
   dte: SatDte

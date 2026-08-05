@@ -7,7 +7,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined,
-  SearchOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
+  SearchOutlined, StopOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
@@ -104,6 +104,7 @@ export default function DteSatPage() {
   const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
   const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
   const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
+  const [stepperIsAnulado, setStepperIsAnulado] = useState(false)
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
@@ -415,6 +416,7 @@ export default function DteSatPage() {
     setStepperResult(null)
     setStepperHasTimbre(false)
     setStepperHasTurismo(false)
+    setStepperIsAnulado(false)
     // Pre-llenar desde datos maestros del proveedor (términos, cuenta de gasto, IVA)
     let vendorPaymentTerms = 'immediate'
     let vendorExpenseAccountId: string | undefined
@@ -523,7 +525,7 @@ export default function DteSatPage() {
         ? Math.round(dteSubtotal * (turismoRate / 100) * 100) / 100 : 0
       const result = await postSatDte(stepperDte.id, {
         invoiceType:         invType,
-        taxId:               values.taxId,
+        taxId:               stepperIsAnulado ? undefined : values.taxId,
         accountId:           values.accountId,
         paymentTerms:        values.paymentTerms,
         accountingDate:      values.accountingDate?.format('YYYY-MM-DD'),
@@ -539,6 +541,7 @@ export default function DteSatPage() {
         timbrePrensaAccountId:  timbrePrensaAmount > 0 ? values.timbrePrensaAccountId : undefined,
         turismoAmount:          turismoAmount || undefined,
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
+        forceZeroAmount:        stepperIsAnulado || undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
       setStepperResult(result)
@@ -939,6 +942,7 @@ export default function DteSatPage() {
             stepperStep === 1 ? (vendorLinked && !stepperVendorPayableMissing) :
             stepperStep === 2 ? (
               isNC ||
+              stepperIsAnulado ||
               stepperOcChoice === 'skip' ||
               stepperOcChoice === 'reimbursement' ||
               (stepperOcChoice === 'select' && !!stepperOcId)
@@ -958,7 +962,13 @@ export default function DteSatPage() {
                       {(stepperDte as any).tipoDocumento ?? 'FACT'} · {stepperDte.serie ?? '—'}/{stepperDte.numeroDte ?? '—'}
                     </Text>
                   </div>
-                  <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                  {stepperIsAnulado
+                    ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <StopOutlined style={{ color: '#dc2626', fontSize: 14 }} />
+                        <Text strong style={{ fontSize: 16, color: '#dc2626' }}>Q0.00 ANULADA</Text>
+                      </span>
+                    : <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                  }
                 </div>
                 <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
                   { title: 'DTE' },
@@ -982,6 +992,41 @@ export default function DteSatPage() {
                       <strong>Nota de Crédito Proveedor</strong> — Este DTE ({(stepperDte as any).tipoDocumento}) se registrará como Nota de Crédito de Proveedor.
                     </div>
                   )}
+
+                  {/* Toggle Anulada SAT */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: stepperIsAnulado ? '#fff1f0' : '#f8fafc',
+                    border: `1px solid ${stepperIsAnulado ? '#fca5a5' : '#e2e8f0'}`,
+                    borderRadius: 6, padding: '10px 14px', marginBottom: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <StopOutlined style={{ color: stepperIsAnulado ? '#dc2626' : '#9ca3af', fontSize: 16 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: stepperIsAnulado ? '#dc2626' : '#374151' }}>
+                          Factura anulada en SAT
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
+                          Activa si el PDF del SAT tiene sello <strong>ANULADO</strong>. Se registrará con valor Q0.00 y estado Anulada.
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={stepperIsAnulado}
+                      onChange={setStepperIsAnulado}
+                      style={{ background: stepperIsAnulado ? '#dc2626' : undefined }}
+                    />
+                  </div>
+                  {stepperIsAnulado && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      style={{ marginBottom: 12, fontSize: 12 }}
+                      message="Factura será registrada con monto Q0.00 y estado ANULADA"
+                      description="Se creará el registro para cumplimiento legal/fiscal, pero no generará saldo en el proveedor ni gasto contable."
+                    />
+                  )}
+
                   <Descriptions size="small" column={2} style={{ background: '#f8fafc', padding: 12, borderRadius: 6 }}>
                     <Descriptions.Item label="Emisor" span={2}><Text strong>{stepperDte.nombreEmisor}</Text></Descriptions.Item>
                     <Descriptions.Item label="Fecha">{stepperDte.fechaEmision ? dayjs(stepperDte.fechaEmision).format('DD/MM/YYYY') : '—'}</Descriptions.Item>
@@ -1082,6 +1127,13 @@ export default function DteSatPage() {
                       <Text type="secondary" style={{ fontSize: 12 }}>Continúa para registrar la nota de crédito.</Text>
                     </div>
                   )
+                  if (stepperIsAnulado) return (
+                    <div style={{ background: '#fff1f0', border: '1px solid #fca5a5', borderRadius: 6, padding: '12px 16px', fontSize: 13, color: '#dc2626' }}>
+                      <strong>Factura Anulada</strong> — No aplica Orden de Compra.
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 12 }}>Continúa para registrar la factura con valor Q0.00.</Text>
+                    </div>
+                  )
                   return (
                   <div>
                     <Text style={{ display: 'block', marginBottom: 18, fontSize: 13 }}>
@@ -1125,6 +1177,16 @@ export default function DteSatPage() {
                 {stepperStep === 3 && (
                   <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}
                     initialValues={{ invoiceType: 'goods' }}>
+                    {stepperIsAnulado && (
+                      <Alert
+                        type="error"
+                        showIcon
+                        icon={<StopOutlined />}
+                        style={{ marginBottom: 12, fontSize: 12 }}
+                        message={<span style={{ fontWeight: 700 }}>ANULADA — Se registrará con Q0.00</span>}
+                        description="Selecciona la cuenta contable de referencia. El asiento será Q0 y el estado quedará como ANULADA."
+                      />
+                    )}
                     {isNC && (
                       <>
                       <Form.Item name="originalInvoiceId" label="Factura original del proveedor (opcional)">
