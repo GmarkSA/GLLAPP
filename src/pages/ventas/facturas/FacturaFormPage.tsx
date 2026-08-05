@@ -365,8 +365,11 @@ export default function FacturaFormPage() {
           notes:          v.notes || undefined,
           termsAndConditions: v.termsAndConditions || undefined,
           purchaseOrderRef:   v.reference || undefined,
-          // Solo id + accountId — el backend ignora el resto en facturas emitidas
-          items: items.map(item => ({ id: item._key, accountId: item.accountId } as any)),
+          // Items completos y válidos (para pasar la validación del DTO). El backend
+          // solo aplica el accountId en facturas emitidas; el resto queda igual.
+          items: items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId }) => ({
+            productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId,
+          })) as any,
         }
         result = await updateInvoice(id!, safeDto as any)
         message.success('Cambios guardados')
