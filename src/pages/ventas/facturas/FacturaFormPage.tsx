@@ -64,6 +64,7 @@ export default function FacturaFormPage() {
   const [certifying, setCertifying] = useState(false)
   const [felCertResult, setFelCertResult] = useState<{ success: boolean; uuid?: string; serie?: string; numero?: string; url?: string; mensaje: string } | null>(null)
   const [invStatus, setInvStatus] = useState<string>('draft')
+  const invStatusRef = useRef<string>('draft')
   const activeCompany = useCompanyStore(s => s.activeCompany)
   // Mejora 1 — impuesto preferido del cliente
   const [customerDefaultTaxId, setCustomerDefaultTaxId] = useState<string | undefined>()
@@ -141,6 +142,7 @@ export default function FacturaFormPage() {
         setIsExenta(inv.facturaExenta ?? false)
         if (Number(inv.isrRetentionAmount) > 0) setIsrAmount(Number(inv.isrRetentionAmount))
         setInvStatus(inv.status ?? 'draft')
+        invStatusRef.current = inv.status ?? 'draft'
 
         const loadedItems: LineItem[] = (inv.items ?? []).map((it) =>
           newLineItem({
@@ -345,29 +347,26 @@ export default function FacturaFormPage() {
   const isSentEdit = !!id && invStatus !== 'draft'
 
   const handleSave = async (status: 'draft' | 'sent') => {
-    if (!isSentEdit) {
+    // Usar ref para detectar el estado real al momento de guardar,
+    // independiente del ciclo de render de React
+    const isEditingSent = !!id && invStatusRef.current !== 'draft'
+    if (!isEditingSent) {
       try { await form.validateFields(['customerId', 'invoiceDate']) } catch { return }
     }
     setSaving(true)
     try {
       let result: any
-      if (isSentEdit) {
+      if (isEditingSent) {
         // Solo campos permitidos para facturas ya emitidas
         const v = form.getFieldsValue()
         const safeDto: Partial<CreateInvoiceDto> = {
           accountingDate: v.accountingDate ? (v.accountingDate as any).format('YYYY-MM-DD') : undefined,
           dueDate:        v.dueDate        ? (v.dueDate as any).format('YYYY-MM-DD')        : undefined,
-          notes:          v.notes,
-          termsAndConditions: v.termsAndConditions,
-          purchaseOrderRef:   v.reference,
-          // Incluir cuentas contables de cada línea (el backend solo actualiza accountId)
-          items: items.map(item => ({
-            id:          item._key,
-            accountId:   item.accountId,
-            description: item.description,
-            quantity:    item.quantity,
-            unitPrice:   item.unitPrice,
-          } as any)),
+          notes:          v.notes || undefined,
+          termsAndConditions: v.termsAndConditions || undefined,
+          purchaseOrderRef:   v.reference || undefined,
+          // Solo id + accountId — el backend ignora el resto en facturas emitidas
+          items: items.map(item => ({ id: item._key, accountId: item.accountId } as any)),
         }
         result = await updateInvoice(id!, safeDto as any)
         message.success('Cambios guardados')
