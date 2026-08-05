@@ -111,6 +111,8 @@ interface Props {
   taxes:    Tax[]
   onChange: (items: LineItem[]) => void
   readOnly?: boolean
+  /** Permite editar solo la cuenta contable aunque readOnly=true (edición de facturas emitidas) */
+  accountEditable?: boolean
   docType?: 'invoice' | 'estimate' | 'bill' | 'po'
   /** ID del impuesto por defecto configurado en el proveedor (solo po/bill) */
   vendorDefaultTaxId?: string
@@ -280,7 +282,7 @@ const TABLE_COMPONENTS = {
   },
 }
 
-export default function LineItemsEditor({ items, taxes, onChange, readOnly, docType = 'invoice', vendorDefaultTaxId, currency = 'GTQ' }: Props) {
+export default function LineItemsEditor({ items, taxes, onChange, readOnly, accountEditable, docType = 'invoice', vendorDefaultTaxId, currency = 'GTQ' }: Props) {
   const [prodOptions, setProdOptions]     = useState<ProdOption[]>([])
   const [searching,   setSearching]       = useState(false)
   const [initialized, setInitialized]     = useState(false)
@@ -620,18 +622,45 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, docT
         const acc = accountMap[row.accountId ?? '']
 
         if (readOnly) {
+          const isIncome = (a: Account) =>
+            a.code.startsWith('4') ||
+            a.type?.toLowerCase().includes('ingreso') ||
+            a.type?.toLowerCase().includes('income') ||
+            a.type?.toLowerCase().includes('revenue') ||
+            a.balanceType?.toLowerCase().includes('acreedor')
+          const income = allAccounts.filter(isIncome)
+          const others = allAccounts.filter(a => !isIncome(a))
+          const toOpt  = (a: Account) => ({ value: a.id, label: `${a.code} — ${a.name}` })
           return (
             <div>
               <Typography.Text style={{ fontSize: 13, color: '#1a1a1a', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
                 {row.description}
               </Typography.Text>
-              {acc && (
-                <div style={{ marginTop: 4 }}>
-                  <Tag style={{ fontSize: 10, margin: 0, background: '#e8f5ef', borderColor: '#c3e5d8', color: '#2ea172' }}>
-                    {acc.code}
-                  </Tag>
-                </div>
-              )}
+              <div style={{ marginTop: 4 }}>
+                {accountEditable ? (
+                  <Select
+                    size="small" placeholder="Cuenta contable…"
+                    showSearch optionFilterProp="label"
+                    style={{ width: '100%' }}
+                    value={row.accountId || undefined}
+                    allowClear onClear={() => update(row._key, { accountId: undefined })}
+                    onChange={(v: string) => update(row._key, { accountId: v })}
+                    listHeight={320}
+                    popupMatchSelectWidth={false}
+                    notFoundContent={allAccounts.length === 0 ? 'Cargando cuentas…' : 'Sin resultados'}
+                    options={[
+                      ...(income.length ? [{ label: '— Ingresos —',      options: income.map(toOpt) }] : []),
+                      ...(others.length ? [{ label: '— Otras cuentas —', options: others.map(toOpt) }] : []),
+                    ]}
+                  />
+                ) : (
+                  acc && (
+                    <Tag style={{ fontSize: 10, margin: 0, background: '#e8f5ef', borderColor: '#c3e5d8', color: '#2ea172' }}>
+                      {acc.code}
+                    </Tag>
+                  )
+                )}
+              </div>
             </div>
           )
         }

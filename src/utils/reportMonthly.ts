@@ -38,7 +38,7 @@ export function getColConfig(n: number): ColConfig {
   if (n <= 3)  return { codeW: 60,   colW: 105, nameW: 200, useDecimals: true, cellFont: 13, nameFont: 13 }
   if (n <= 6)  return { codeW: 55,   colW: 98,  nameW: 190, useDecimals: true, cellFont: 12, nameFont: 12 }
   if (n <= 9)  return { codeW: 50,   colW: 88,  nameW: 175, useDecimals: true, cellFont: 11, nameFont: 12 }
-  return              { codeW: null, colW: 78,  nameW: 160, useDecimals: true, cellFont: 10, nameFont: 11 }
+  return              { codeW: 44,   colW: 78,  nameW: 150, useDecimals: true, cellFont: 10, nameFont: 11 }
 }
 
 export function fmtCol(n: number, useDecimals: boolean): string {

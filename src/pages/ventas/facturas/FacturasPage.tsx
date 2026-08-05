@@ -10,7 +10,6 @@ import {
   EyeOutlined, DollarOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, CheckCircleOutlined,
   CheckSquareOutlined, SettingOutlined, StopOutlined, DeleteOutlined,
-  SyncOutlined,
 } from '@ant-design/icons'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import type { ColumnsType } from 'antd/es/table'
@@ -18,7 +17,6 @@ import type { RangePickerProps } from 'antd/es/date-picker'
 import dayjs from 'dayjs'
 import {
   getInvoices, deleteInvoice, voidInvoice, marcarEnviadasMasivo,
-  backfillInvoiceDueDates,
   INVOICE_STATUS_CONFIG, type Invoice, type InvoiceStatus,
 } from '../../../api/facturas'
 import ColumnConfigurator, {
@@ -218,7 +216,6 @@ export default function FacturasPage() {
   // Row selection
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [bulkLoading, setBulkLoading]         = useState(false)
-  const [backfillLoading, setBackfillLoading] = useState(false)
 
   // Column config
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
@@ -289,17 +286,6 @@ export default function FacturasPage() {
   }
 
   const openVoid = (inv: Invoice) => { setVoidTarget(inv); setVoidModal(true) }
-
-  const handleBackfillDueDates = async () => {
-    setBackfillLoading(true)
-    try {
-      const res = await backfillInvoiceDueDates()
-      message.success(`Vencimientos actualizados: ${res.updated} facturas corregidas, ${res.skipped} omitidas.`)
-      fetchInvoices()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al recalcular vencimientos')
-    } finally { setBackfillLoading(false) }
-  }
 
   const handleBulkMarcarEnviadas = async () => {
     if (!selectedRowKeys.length) return
@@ -381,16 +367,9 @@ export default function FacturasPage() {
         title="Facturas de venta"
         subtitle="Gestión de facturas emitidas a clientes"
         actions={
-          <Space>
-            <Tooltip title="Recalcula el vencimiento de las facturas pendientes que tienen fecha de vence vacía, usando los términos de pago del cliente.">
-              <Button icon={<SyncOutlined />} loading={backfillLoading} onClick={handleBackfillDueDates}>
-                Recalcular vencimientos
-              </Button>
-            </Tooltip>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }}>
-              Nueva factura
-            </Button>
-          </Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }}>
+            Nueva factura
+          </Button>
         }
       />
 
