@@ -63,6 +63,7 @@ export default function FacturaFormPage() {
   const [exchangeRateMeta, setExchangeRateMeta] = useState<{ effectiveDate: string; source: string } | null>(null)
   const [certifying, setCertifying] = useState(false)
   const [felCertResult, setFelCertResult] = useState<{ success: boolean; uuid?: string; serie?: string; numero?: string; url?: string; mensaje: string } | null>(null)
+  const [invStatus, setInvStatus] = useState<string>('draft')
   const activeCompany = useCompanyStore(s => s.activeCompany)
   // Mejora 1 — impuesto preferido del cliente
   const [customerDefaultTaxId, setCustomerDefaultTaxId] = useState<string | undefined>()
@@ -139,6 +140,7 @@ export default function FacturaFormPage() {
         setFelFrases(inv.felFrases ?? [])
         setIsExenta(inv.facturaExenta ?? false)
         if (Number(inv.isrRetentionAmount) > 0) setIsrAmount(Number(inv.isrRetentionAmount))
+        setInvStatus(inv.status ?? 'draft')
 
         const loadedItems: LineItem[] = (inv.items ?? []).map((it) =>
           newLineItem({
@@ -340,18 +342,34 @@ export default function FacturaFormPage() {
     } finally { setCertifying(false) }
   }
 
+  const isSentEdit = !!id && invStatus !== 'draft'
+
   const handleSave = async (status: 'draft' | 'sent') => {
-    try { await form.validateFields(['customerId', 'invoiceDate']) } catch { return }
+    if (!isSentEdit) {
+      try { await form.validateFields(['customerId', 'invoiceDate']) } catch { return }
+    }
     setSaving(true)
     try {
-      const dto: CreateInvoiceDto = { ...buildDto(), status: status as any }
-      const result = id
-        ? await updateInvoice(id, dto)
-        : await createInvoice(dto)
-      message.success(status === 'draft' ? 'Borrador guardado' : 'Factura emitida')
+      let result: any
+      if (isSentEdit) {
+        // Solo campos permitidos para facturas ya emitidas
+        const v = form.getFieldsValue()
+        const safeDto: Partial<CreateInvoiceDto> = {
+          accountingDate: v.accountingDate ? (v.accountingDate as any).format('YYYY-MM-DD') : undefined,
+          dueDate:        v.dueDate        ? (v.dueDate as any).format('YYYY-MM-DD')        : undefined,
+          notes:          v.notes,
+          termsAndConditions: v.termsAndConditions,
+          purchaseOrderRef:   v.reference,
+        }
+        result = await updateInvoice(id!, safeDto as any)
+        message.success('Cambios guardados')
+      } else {
+        const dto: CreateInvoiceDto = { ...buildDto(), status: status as any }
+        result = id ? await updateInvoice(id, dto) : await createInvoice(dto)
+        message.success(status === 'draft' ? 'Borrador guardado' : 'Factura emitida')
+      }
       navigate(`/ventas/facturas/${result.id}`)
     } catch (err: any) {
-      // El backend puede devolver message como string o como string[], anidado en error.message
       const raw = err?.response?.data?.error?.message ?? err?.response?.data?.message
       const msg = Array.isArray(raw) ? raw.join(' | ') : (raw ?? 'Error al guardar la factura')
       message.error(msg, 6)
@@ -411,6 +429,16 @@ export default function FacturaFormPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {/* ── 1. Datos generales ─────────────────────────────────────────── */}
+          {isSentEdit && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 8 }}
+              message="Factura emitida — edición limitada"
+              description="Solo puedes modificar la Fecha Contable, Vencimiento, Notas y Condiciones. Los datos de la factura (cliente, items, montos) no pueden cambiarse."
+            />
+          )}
+
           <Card
             size="small"
             title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Factura' : 'Nueva Factura'}</span>}
@@ -433,6 +461,7 @@ export default function FacturaFormPage() {
                   <Select
                     showSearch placeholder="Buscar por Razón Social o nombre comercial…"
                     filterOption={false} loading={loadingCustomers}
+                    disabled={isSentEdit}
                     onSearch={handleCustomerSearch} onSelect={handleCustomerSelect}
                     notFoundContent={loadingCustomers ? 'Buscando…' : 'Sin resultados'}
                     optionRender={(opt) => {
@@ -457,13 +486,13 @@ export default function FacturaFormPage() {
               {/* Fila 2: Moneda | Fecha Factura | Vencimiento | F. Contabilización | Referencia | Desc.% */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="currency" label="Moneda" style={{ marginBottom: 8 }}>
-                  <Select options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]} />
+                  <Select disabled={isSentEdit} options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]} />
                 </Form.Item>
 
                 <Form.Item name="invoiceDate" label="Fecha Factura" style={{ marginBottom: 8 }}
                   rules={[{ required: true, message: 'Ingrese la fecha' }]}
                 >
-                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" onChange={handleInvoiceDateChange} />
+                  <DatePicker disabled={isSentEdit} style={{ width: '100%' }} format="DD/MM/YYYY" onChange={handleInvoiceDateChange} />
                 </Form.Item>
 
                 <Form.Item name="dueDate" style={{ marginBottom: 8 }}
@@ -487,7 +516,7 @@ export default function FacturaFormPage() {
                 </Form.Item>
 
                 <Form.Item name="discountPercent" label="Desc. Global %" style={{ marginBottom: 8 }}>
-                  <InputNumber min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} />
+                  <InputNumber disabled={isSentEdit} min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} />
                 </Form.Item>
               </div>
 
@@ -619,6 +648,7 @@ export default function FacturaFormPage() {
               items={items}
               taxes={taxes}
               onChange={setItems}
+              readOnly={isSentEdit}
               docType="invoice"
               vendorDefaultTaxId={customerDefaultTaxId}
             />
@@ -684,18 +714,29 @@ export default function FacturaFormPage() {
           {/* Acciones */}
           <Card size="small" title={<span style={{ color: '#1faec2', fontWeight: 600 }}>Acciones</span>}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <Button block icon={<SaveOutlined />} loading={saving}
-                onClick={() => handleSave('draft')}
-                style={{ borderColor: '#1faec2', color: '#1faec2' }}
-              >
-                Guardar borrador
-              </Button>
-              <Button block icon={<SendOutlined />} loading={saving}
-                onClick={() => handleSave('sent')}
-                style={{ borderColor: '#1faec2', color: '#1faec2' }}
-              >
-                Guardar y marcar enviada
-              </Button>
+              {isSentEdit ? (
+                <Button block type="primary" icon={<SaveOutlined />} loading={saving}
+                  onClick={() => handleSave('sent')}
+                  style={{ background: '#1faec2', borderColor: '#1faec2' }}
+                >
+                  Guardar cambios
+                </Button>
+              ) : (
+                <>
+                  <Button block icon={<SaveOutlined />} loading={saving}
+                    onClick={() => handleSave('draft')}
+                    style={{ borderColor: '#1faec2', color: '#1faec2' }}
+                  >
+                    Guardar borrador
+                  </Button>
+                  <Button block icon={<SendOutlined />} loading={saving}
+                    onClick={() => handleSave('sent')}
+                    style={{ borderColor: '#1faec2', color: '#1faec2' }}
+                  >
+                    Guardar y marcar enviada
+                  </Button>
+                </>
+              )}
               {id && (
                 <Button block type="primary" icon={<SafetyCertificateOutlined />}
                   loading={certifying}
