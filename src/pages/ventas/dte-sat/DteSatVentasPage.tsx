@@ -314,6 +314,16 @@ export default function DteSatVentasPage() {
       }
     }
 
+    // Concepto de la factura: prellenar notas con la descripción de los ítems del DTE
+    // (así se confirma si es bien o servicio y queda como concepto del asiento).
+    if (!updates.notes && (stepperDte?.items as any[])?.length) {
+      const descs = (stepperDte!.items as any[])
+        .map(it => it?.descripcion ?? it?.description ?? it?.desc ?? '')
+        .map((s: any) => String(s).trim())
+        .filter(Boolean)
+      if (descs.length) updates.notes = descs.slice(0, 3).join(' · ').slice(0, 200)
+    }
+
     if (Object.keys(updates).length > 0) stepperForm.setFieldsValue(updates)
   }, [stepperStep, stepperCustomer?.id])   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -546,6 +556,10 @@ export default function DteSatVentasPage() {
       }
       const accObj = incomeAccounts.find(a => a.id === accountId)
       const taxObj = taxes.find(t => t.id === taxId)
+      // Unidad: detectar del primer ítem del DTE (SAT trae bien/servicio + unidad) para agilizar.
+      const firstItem = (d.items as any[] | undefined)?.[0]
+      const rawUnit = firstItem?.unidad_medida ?? firstItem?.UnidadMedida ?? firstItem?.unidad ?? firstItem?.unit
+      const detectedUnit = rawUnit ? unidades.find(u => u.code === String(rawUnit).toUpperCase())?.code : undefined
       rows.push({
         id: d.id,
         label: `${d.nombreReceptor ?? d.nitReceptor ?? '—'} · ${d.serie}/${d.numeroDte}`,
@@ -555,7 +569,9 @@ export default function DteSatVentasPage() {
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
         taxId,
         taxLabel: taxObj ? `${taxObj.code} (${taxObj.rate}%)` : undefined,
-        accountingDate: dayjs(),
+        defaultUnit: detectedUnit,
+        // Fecha contable = fecha de emisión de la factura (no la de hoy).
+        accountingDate: d.fechaEmision ? dayjs(d.fechaEmision) : dayjs(),
         missing: !accountId ? 'Falta cuenta de ingreso — configúrala en el maestro del cliente' : undefined,
       })
     }
@@ -1177,8 +1193,9 @@ export default function DteSatVentasPage() {
                       </div>
                     </div>
                   )}
-                  <Form.Item label="Notas" name="notes">
-                    <Input.TextArea rows={2} placeholder="Descripción del servicio o producto..." />
+                  <Form.Item label="Concepto de la factura" name="notes"
+                    tooltip="Se prellena con la descripción de los ítems del DTE — confirma si es bien o servicio. Se guarda como concepto del asiento.">
+                    <Input.TextArea rows={2} placeholder="Concepto / descripción del bien o servicio..." />
                   </Form.Item>
                 </Form>
                 )
@@ -1294,7 +1311,7 @@ export default function DteSatVentasPage() {
         return (
         <Modal
           open={batchOpen}
-          width={820}
+          width={920}
           title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} />Registro masivo — {batchRows.length} DTE{batchRows.length > 1 ? 's' : ''}</Space>}
           footer={null}
           maskClosable={false}
@@ -1308,21 +1325,22 @@ export default function DteSatVentasPage() {
           ) : (
             <>
               {/* Tabla con cuenta y unidad editables por fila */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, tableLayout: 'fixed' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Cliente / DTE</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 200 }}>Cuenta de ingreso</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Unidad</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Fecha contable</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 230 }}>Cliente / DTE</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 240 }}>Cuenta de ingreso</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 90 }}>Unidad</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 120 }}>Fecha contable</th>
                     <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 90 }}>Total</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 120 }}>Estado</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 110 }}>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {batchRows.map(row => (
                     <tr key={row.id} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)', background: row.missing ? 'rgba(255,127,0,0.10)' : undefined }}>
-                      <td style={{ padding: '6px 10px' }}><Text style={{ fontSize: 12 }}>{row.label}</Text></td>
+                      <td style={{ padding: '6px 10px', wordBreak: 'break-word', whiteSpace: 'normal' }}><Text style={{ fontSize: 12 }}>{row.label}</Text></td>
                       <td style={{ padding: '4px 6px' }}>
                         {row.status === 'pending' ? (
                           <Select
@@ -1383,6 +1401,7 @@ export default function DteSatVentasPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {/* Resumen + botones */}
               <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
