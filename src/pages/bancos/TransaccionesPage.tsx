@@ -244,23 +244,38 @@ function ImportModal({ open, account, onClose, onSaved }: {
   }
 
   const parseRows = (allRows: any[][]) => {
-    // Detectar fila de encabezado real (busca "Fecha" en col[0], max 20 filas)
+    // Quita tildes y normaliza a minúsculas para comparaciones robustas
+    const normStr = (s: string) =>
+      String(s || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
     const noEmpty = allRows.filter(r => r.some(c => c !== undefined && c !== null && c !== ''))
+
+    // Detectar fila de encabezado real: acepta "Fecha" (Excel BI) y "Día"/"Dia" (PDF BI correo)
     let headerIdx = 0
     for (let i = 0; i < Math.min(noEmpty.length, 20); i++) {
-      if (String(noEmpty[i][0] || '').trim().toLowerCase() === 'fecha') { headerIdx = i; break }
+      const f = normStr(String(noEmpty[i][0] || ''))
+      if (f === 'fecha' || f === 'dia') { headerIdx = i; break }
     }
     const head = noEmpty[headerIdx] as string[]
     const body = noEmpty.slice(headerIdx + 1)
 
-    // Mapear columnas por nombre (BI: Fecha,TT,Descripción,No. Doc,Debe,Haber,Saldo)
-    const col = (needle: string) => head.findIndex((h: string) => String(h || '').trim().toLowerCase().startsWith(needle.toLowerCase()))
-    const iDate = col('Fecha') >= 0 ? col('Fecha') : 0
-    const iDesc = col('Descrip') >= 0 ? col('Descrip') : 1
-    const iRef  = col('No. Doc') >= 0 ? col('No. Doc') : -1
-    const iDebe = col('Debe') >= 0 ? col('Debe') : 2
-    const iHaber = col('Haber') >= 0 ? col('Haber') : 3
-    const iSaldo = col('Saldo') >= 0 ? col('Saldo') : -1
+    // Comparación sin tildes — cubre ambos formatos BI:
+    //   Excel: Fecha | TT | Descripción | No. Doc | Debe  | Haber  | Saldo
+    //   PDF:   Día   | Doc.| Descripción | Débito  | Crédito| Saldo
+    const col = (needle: string) =>
+      head.findIndex((h: string) => normStr(String(h)).startsWith(normStr(needle)))
+
+    const iDate  = col('fecha') >= 0 ? col('fecha') : col('dia') >= 0 ? col('dia') : 0
+    const iDesc  = col('descrip') >= 0 ? col('descrip') : 1
+    const iRef   = col('no. doc') >= 0 ? col('no. doc')
+                 : col('doc.') >= 0    ? col('doc.')
+                 : col('doc')  >= 0    ? col('doc') : -1
+    const iDebe  = col('debe') >= 0   ? col('debe')
+                 : col('debito') >= 0  ? col('debito') : 2
+    const iHaber = col('haber') >= 0  ? col('haber')
+                 : col('credito') >= 0 ? col('credito')
+                 : col('abono') >= 0   ? col('abono') : iDebe + 1
+    const iSaldo = col('saldo') >= 0 ? col('saldo') : -1
 
     return body
       .map(cols => {
@@ -361,10 +376,11 @@ function ImportModal({ open, account, onClose, onSaved }: {
           pagination={{ pageSize: 8 }}
           scroll={{ x: 'max-content', y: 320 }}
           columns={[
-            { title: 'Fecha', dataIndex: 'transactionDate', width: 100 },
+            { title: 'Fecha', dataIndex: 'transactionDate', width: 105, render: (v: string) => dayjs(v).isValid() ? dayjs(v).format('DD/MM/YYYY') : v },
             { title: 'Descripcion', dataIndex: 'description', ellipsis: true },
-            { title: 'Tipo', dataIndex: 'type', width: 90, render: v => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
-            { title: 'Monto', dataIndex: 'amount', width: 120, align: 'right', render: v => moneyFmt(Number(v), account?.currency) },
+            { title: 'Ref.', dataIndex: 'reference', width: 90 },
+            { title: 'Tipo', dataIndex: 'type', width: 90, render: (v: string) => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
+            { title: 'Monto', dataIndex: 'amount', width: 120, align: 'right', render: (v: number) => moneyFmt(Number(v), account?.currency) },
           ]}
         />
       )}
