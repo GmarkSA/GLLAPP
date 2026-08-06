@@ -1634,31 +1634,20 @@ export default function DteSatPage() {
                           <td style={{ padding: '4px 6px' }}>
                             {row.status === 'pending' ? (
                               <>
-                                <Radio.Group
+                                <Select size="small" style={{ width: '100%' }}
                                   value={row.ocType ?? 'direct'}
-                                  onChange={e => setBatchRows(prev => prev.map(r => r.id === row.id
-                                    ? { ...r, ocType: e.target.value as BatchRow['ocType'], employeeId: undefined }
+                                  onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id
+                                    ? { ...r, ocType: val as BatchRow['ocType'], employeeId: undefined }
                                     : r))}
-                                  style={{ width: '100%' }}
-                                >
-                                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                                    <Radio value="direct" style={{ fontSize: 11 }}>
-                                      <Text strong style={{ fontSize: 11 }}>Compra directa</Text>
-                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>La factura se registra sin orden de compra</Text>
-                                    </Radio>
-                                    <Radio value="select" style={{ fontSize: 11 }}>
-                                      <Text strong style={{ fontSize: 11 }}>Vincular a una Orden de Compra existente</Text>
-                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>Cierra la OC y vincula la factura</Text>
-                                    </Radio>
-                                    <Radio value="reimbursement" style={{ fontSize: 11 }}>
-                                      <Text strong style={{ fontSize: 11 }}>Reembolso de Gastos (Empleado)</Text>
-                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>La deuda se reclasifica al empleado</Text>
-                                    </Radio>
-                                  </Space>
-                                </Radio.Group>
+                                  options={[
+                                    { value: 'direct',        label: 'Compra directa' },
+                                    { value: 'select',        label: 'Vincular OC existente' },
+                                    { value: 'reimbursement', label: 'Reembolso (Empleado)' },
+                                  ]}
+                                />
                                 {row.ocType === 'reimbursement' && (
-                                  <div style={{ marginTop: 6, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '6px 8px' }}>
-                                    <Text style={{ fontSize: 10, color: '#5b21b6', display: 'block', marginBottom: 4 }}>Empleado</Text>
+                                  <div style={{ marginTop: 4, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '5px 7px' }}>
+                                    <Text style={{ fontSize: 10, color: '#5b21b6', display: 'block', marginBottom: 3 }}>Empleado</Text>
                                     <Select size="small" style={{ width: '100%' }} showSearch allowClear
                                       placeholder="Buscar empleado…"
                                       value={row.employeeId}
