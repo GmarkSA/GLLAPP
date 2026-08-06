@@ -133,7 +133,8 @@ export default function DteSatPage() {
     taxId?: string; taxLabel?: string
     invoiceType?: string
     idpType?: string; idpAccountId?: string
-    ocType?: 'direct' | 'reimbursement'
+    ocType?: 'direct' | 'select' | 'reimbursement'
+    employeeId?: string
     paymentTerms?: string; paymentTermsLabel?: string
     defaultUnit?: string
     accountingDate?: Dayjs
@@ -695,6 +696,7 @@ export default function DteSatPage() {
           defaultUnit:            row.defaultUnit,
           accountingDate:         row.accountingDate?.format('YYYY-MM-DD'),
           isExpenseReimbursement: row.ocType === 'reimbursement',
+          employeeId:             row.ocType === 'reimbursement' ? row.employeeId : undefined,
           idpType:                row.invoiceType === 'fuel' ? row.idpType : undefined,
           idpAccountId:           row.invoiceType === 'fuel' ? row.idpAccountId : undefined,
           lineAccounts:           multiLine
@@ -1578,7 +1580,7 @@ export default function DteSatPage() {
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 155 }}>Proveedor / DTE</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 115 }}>Tipo factura</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 165 }}>Tipo factura</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 195 }}>Registro</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 185 }}>Cuenta de gasto</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 90 }}>Unidad</th>
@@ -1631,22 +1633,47 @@ export default function DteSatPage() {
                           </td>
                           <td style={{ padding: '4px 6px' }}>
                             {row.status === 'pending' ? (
-                              <Radio.Group
-                                value={row.ocType ?? 'direct'}
-                                onChange={e => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, ocType: e.target.value as BatchRow['ocType'] } : r))}
-                                style={{ width: '100%' }}
-                              >
-                                <Space direction="vertical" size={6} style={{ width: '100%' }}>
-                                  <Radio value="direct" style={{ fontSize: 11 }}>
-                                    <Text style={{ fontSize: 11 }}>Compra directa</Text>
-                                  </Radio>
-                                  <Radio value="reimbursement" style={{ fontSize: 11 }}>
-                                    <Text style={{ fontSize: 11 }}>Reembolso de Gastos</Text>
-                                  </Radio>
-                                </Space>
-                              </Radio.Group>
+                              <>
+                                <Radio.Group
+                                  value={row.ocType ?? 'direct'}
+                                  onChange={e => setBatchRows(prev => prev.map(r => r.id === row.id
+                                    ? { ...r, ocType: e.target.value as BatchRow['ocType'], employeeId: undefined }
+                                    : r))}
+                                  style={{ width: '100%' }}
+                                >
+                                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                                    <Radio value="direct" style={{ fontSize: 11 }}>
+                                      <Text strong style={{ fontSize: 11 }}>Compra directa</Text>
+                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>La factura se registra sin orden de compra</Text>
+                                    </Radio>
+                                    <Radio value="select" style={{ fontSize: 11 }}>
+                                      <Text strong style={{ fontSize: 11 }}>Vincular a una Orden de Compra existente</Text>
+                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>Cierra la OC y vincula la factura</Text>
+                                    </Radio>
+                                    <Radio value="reimbursement" style={{ fontSize: 11 }}>
+                                      <Text strong style={{ fontSize: 11 }}>Reembolso de Gastos (Empleado)</Text>
+                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>La deuda se reclasifica al empleado</Text>
+                                    </Radio>
+                                  </Space>
+                                </Radio.Group>
+                                {row.ocType === 'reimbursement' && (
+                                  <div style={{ marginTop: 6, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '6px 8px' }}>
+                                    <Text style={{ fontSize: 10, color: '#5b21b6', display: 'block', marginBottom: 4 }}>Empleado</Text>
+                                    <Select size="small" style={{ width: '100%' }} showSearch allowClear
+                                      placeholder="Buscar empleado…"
+                                      value={row.employeeId}
+                                      options={vendors}
+                                      filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                                      onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, employeeId: val } : r))}
+                                      notFoundContent="Sin empleados registrados"
+                                    />
+                                  </div>
+                                )}
+                              </>
                             ) : (
-                              <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.ocType === 'reimbursement' ? 'Reembolso' : 'Compra directa'}</Text>
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>
+                                {row.ocType === 'reimbursement' ? 'Reembolso' : row.ocType === 'select' ? 'Vincular OC' : 'Compra directa'}
+                              </Text>
                             )}
                           </td>
                           <td style={{ padding: '4px 6px' }}>
