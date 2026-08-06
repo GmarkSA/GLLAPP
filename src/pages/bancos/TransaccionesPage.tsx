@@ -189,14 +189,20 @@ function ImportModal({ open, account, onClose, onSaved }: {
   onClose: () => void
   onSaved: () => void
 }) {
-  const [rows,    setRows]    = useState<any[]>([])
-  const [saving,  setSaving]  = useState(false)
-  const [isPdf,   setIsPdf]   = useState(false)
-  const [periodMonth, setPeriodMonth] = useState<number | undefined>()
+  const [rows,      setRows]      = useState<any[]>([])
+  const [saving,    setSaving]    = useState(false)
+  const [isPdf,     setIsPdf]     = useState(false)
+  const [rawMatrix, setRawMatrix] = useState<any[][] | null>(null)
+  // Inicializar al mes actual para que el primer upload de PDF funcione sin configurar nada
+  const [periodMonth, setPeriodMonth] = useState<number>(dayjs().month() + 1)
   const [periodYear,  setPeriodYear]  = useState<number>(dayjs().year())
 
-  const parseDate = (raw: unknown): string => {
-    // XLSX serial number
+  // Quita tildes y normaliza a minúsculas para comparaciones robustas
+  const normStr = (s: string) =>
+    String(s || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+  // parseDate recibe mes/año explícitos para evitar closures obsoletos
+  const parseDate = (raw: unknown, month: number, year: number): string => {
     if (typeof raw === 'number' && raw > 40_000 && raw < 60_000) {
       const dt = new Date(Math.round((raw - 25569) * 86_400_000))
       const y = dt.getUTCFullYear(), mo = String(dt.getUTCMonth() + 1).padStart(2, '0'), d = String(dt.getUTCDate()).padStart(2, '0')
@@ -210,8 +216,8 @@ function ImportModal({ open, account, onClose, onSaved }: {
     // Solo día numérico 1–31 (PDF correo Banco Industrial)
     if (/^\d{1,2}$/.test(s)) {
       const d = parseInt(s)
-      if (d >= 1 && d <= 31 && periodMonth && periodYear)
-        return `${periodYear}-${String(periodMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      if (d >= 1 && d <= 31 && month && year)
+        return `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     }
     if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
       const sep = s[2]; const [d, m, y] = s.split(sep)
@@ -243,11 +249,8 @@ function ImportModal({ open, account, onClose, onSaved }: {
     return rows
   }
 
-  const parseRows = (allRows: any[][]) => {
-    // Quita tildes y normaliza a minúsculas para comparaciones robustas
-    const normStr = (s: string) =>
-      String(s || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
+  // parseRows recibe mes/año explícitos para poder re-parsear sin stale closures
+  const parseRows = (allRows: any[][], month: number, year: number) => {
     const noEmpty = allRows.filter(r => r.some(c => c !== undefined && c !== null && c !== ''))
 
     // Detectar fila de encabezado real: acepta "Fecha" (Excel BI) y "Día"/"Dia" (PDF BI correo)
@@ -279,7 +282,7 @@ function ImportModal({ open, account, onClose, onSaved }: {
 
     return body
       .map(cols => {
-        const transactionDate = parseDate(cols[iDate])
+        const transactionDate = parseDate(cols[iDate], month, year)
         const description = String(cols[iDesc] ?? '').trim()
         const debitAmt  = Number(String(cols[iDebe]  ?? '').replace(/[^0-9.-]/g, ''))
         const creditAmt = Number(String(cols[iHaber] ?? '').replace(/[^0-9.-]/g, ''))
@@ -306,18 +309,33 @@ function ImportModal({ open, account, onClose, onSaved }: {
     try {
       if (pdfFile) {
         parsed = await parsePdfToMatrix(buffer)
+        setRawMatrix(parsed)  // guardar para re-parsear al cambiar período
       } else if (ext === 'csv') {
         parsed = parseCSV(new TextDecoder().decode(buffer).replace(/^﻿/, ''))
+        setRawMatrix(null)
       } else {
         const workbook = XLSX.read(buffer, { type: 'array' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         parsed = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+        setRawMatrix(null)
       }
-      setRows(parseRows(parsed))
+      setRows(parseRows(parsed, periodMonth, periodYear))
     } catch {
       message.error(`No se pudo leer el archivo ${pdfFile ? 'PDF' : 'Excel/CSV'}`)
     }
     return false
+  }
+
+  // Cambia mes y re-parsea inmediatamente si ya hay una matriz PDF cargada
+  const handleMonthChange = (m: number) => {
+    setPeriodMonth(m)
+    if (rawMatrix) setRows(parseRows(rawMatrix, m, periodYear))
+  }
+
+  // Cambia año y re-parsea inmediatamente si ya hay una matriz PDF cargada
+  const handleYearChange = (y: number) => {
+    setPeriodYear(y)
+    if (rawMatrix) setRows(parseRows(rawMatrix, periodMonth, y))
   }
 
   const handleImport = async () => {
@@ -327,6 +345,7 @@ function ImportModal({ open, account, onClose, onSaved }: {
       const res = await importStatement(account.id, { rows })
       message.success(`Importadas: ${res.imported} - Duplicadas/omitidas: ${res.skipped}`)
       setRows([])
+      setRawMatrix(null)
       onSaved()
       onClose()
     } catch {
@@ -341,15 +360,24 @@ function ImportModal({ open, account, onClose, onSaved }: {
       title="Importar estado de cuenta"
       open={open}
       width={760}
-      onCancel={() => { setRows([]); setIsPdf(false); onClose() }}
+      onCancel={() => { setRows([]); setRawMatrix(null); setIsPdf(false); onClose() }}
       footer={[
-        <Button key="cancel" onClick={() => { setRows([]); setIsPdf(false); onClose() }}>Cancelar</Button>,
+        <Button key="cancel" onClick={() => { setRows([]); setRawMatrix(null); setIsPdf(false); onClose() }}>Cancelar</Button>,
         <Button key="import" type="primary" disabled={!rows.length} loading={saving} onClick={handleImport} style={{ background: NAVY }}>
           Importar {rows.length || ''} movimientos
         </Button>,
       ]}
       destroyOnClose
     >
+      {/* Selector de período siempre visible — necesario para PDF BI que muestra solo el día */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '6px 10px', background: '#f8f9fc', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12 }}>
+        <span style={{ color: '#6b7280' }}>Período del estado:</span>
+        <Select size="small" value={periodMonth} onChange={handleMonthChange} style={{ width: 120 }}
+          options={[{v:1,l:'Enero'},{v:2,l:'Febrero'},{v:3,l:'Marzo'},{v:4,l:'Abril'},{v:5,l:'Mayo'},{v:6,l:'Junio'},{v:7,l:'Julio'},{v:8,l:'Agosto'},{v:9,l:'Septiembre'},{v:10,l:'Octubre'},{v:11,l:'Noviembre'},{v:12,l:'Diciembre'}].map(x=>({value:x.v,label:x.l}))} />
+        <Select size="small" value={periodYear} onChange={handleYearChange} style={{ width: 82 }}
+          options={Array.from({length:4},(_,i)=>({value:dayjs().year()-i,label:String(dayjs().year()-i)}))} />
+        <span style={{ color: '#9aa1ab', fontSize: 11 }}>Requerido para PDF Banco Industrial (muestra solo el día)</span>
+      </div>
       <Upload.Dragger beforeUpload={beforeUpload} showUploadList={false} accept=".xlsx,.xls,.csv,.pdf">
         <p className="ant-upload-drag-icon">
           {isPdf ? <FilePdfOutlined style={{ color: '#e5484d' }} /> : <FileExcelOutlined style={{ color: NAVY }} />}
@@ -357,16 +385,6 @@ function ImportModal({ open, account, onClose, onSaved }: {
         <p className="ant-upload-text">Arrastra o selecciona un archivo Excel, CSV o PDF</p>
         <p className="ant-upload-hint">Estado de cuenta Banco Industrial y otros bancos guatemaltecos.</p>
       </Upload.Dragger>
-      {isPdf && !rows.length && (
-        <div style={{ marginTop: 10, padding: '8px 12px', background: '#f5f3ff', border: '1px solid #c4b5fd', borderRadius: 6, fontSize: 12 }}>
-          <strong>PDF cargado</strong> — si las fechas muestran solo el día, selecciona el período:&nbsp;
-          <Select size="small" placeholder="Mes" style={{ width: 110 }} onChange={setPeriodMonth}
-            options={[{v:1,l:'Enero'},{v:2,l:'Febrero'},{v:3,l:'Marzo'},{v:4,l:'Abril'},{v:5,l:'Mayo'},{v:6,l:'Junio'},{v:7,l:'Julio'},{v:8,l:'Agosto'},{v:9,l:'Septiembre'},{v:10,l:'Octubre'},{v:11,l:'Noviembre'},{v:12,l:'Diciembre'}].map(x=>({value:x.v,label:x.l}))} />
-          &nbsp;
-          <Select size="small" placeholder="Año" style={{ width: 80 }} value={periodYear} onChange={setPeriodYear}
-            options={Array.from({length:4},(_,i)=>({value:dayjs().year()-i,label:String(dayjs().year()-i)}))} />
-        </div>
-      )}
       {rows.length > 0 && (
         <Table
           style={{ marginTop: 12 }}
