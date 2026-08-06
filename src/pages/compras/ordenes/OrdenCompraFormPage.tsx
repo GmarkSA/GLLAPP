@@ -33,6 +33,7 @@ interface VendorOption {
   defaultPurchaseTaxId?: string
   paymentTerms?: string
   paymentTermsDays?: number
+  taxId?: string
 }
 
 export default function OrdenCompraFormPage() {
@@ -53,6 +54,7 @@ export default function OrdenCompraFormPage() {
   const [vendorId, setVendorId]                 = useState<string | undefined>()
   const [vendorName, setVendorName]             = useState<string | undefined>()
   const [vendorDefaultTaxId, setVendorDefaultTaxId] = useState<string | undefined>()
+  const [vendorNit, setVendorNit]               = useState('')
   const [emailModal, setEmailModal]     = useState(false)
   const [emailTo, setEmailTo]           = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -113,6 +115,7 @@ export default function OrdenCompraFormPage() {
             return [{ value: po.vendorId, label: po.vendorName }, ...prev]
           })
         }
+        if (po.vendorTaxId) setVendorNit(po.vendorTaxId)
         const loadedItems: LineItem[] = (po.items ?? []).map((it) =>
           newLineItem({
             _key: it.id ?? undefined,
@@ -148,6 +151,7 @@ export default function OrdenCompraFormPage() {
             defaultPurchaseTaxId: v.defaultPurchaseTaxId ?? undefined,
             paymentTerms:         v.paymentTerms ?? undefined,
             paymentTermsDays:     v.paymentTermsDays ?? undefined,
+            taxId:                v.taxId ?? undefined,
           }))
           return [...keepMap.values()]
         })
@@ -296,13 +300,17 @@ export default function OrdenCompraFormPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}</span>}>
             <Form form={form} layout="vertical" size="small">
-              {/* Fila 1: Proveedor (span 2 cols) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+              {/* Fila 1: NIT | Proveedor | Términos de pago */}
+              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 220px', gap: '0 12px' }}>
+                <Form.Item label="NIT" style={{ marginBottom: 8 }}>
+                  <Input value={vendorNit} onChange={e => setVendorNit(e.target.value)} placeholder="1234567-8" disabled={!isEditable} />
+                </Form.Item>
+
                 <Form.Item
                   name="vendorId"
                   label="Proveedor"
                   rules={[{ required: true, message: 'Seleccione un proveedor' }]}
-                  style={{ gridColumn: '1 / -1' }}
+                  style={{ marginBottom: 8 }}
                 >
                   <Select
                     showSearch
@@ -316,6 +324,7 @@ export default function OrdenCompraFormPage() {
                       setVendorId(v)
                       setVendorName(selected?.label)
                       setVendorDefaultTaxId(selected?.defaultPurchaseTaxId)
+                      setVendorNit(selected?.taxId ?? '')
                     }}
                     disabled={!isEditable}
                     optionRender={(opt) => {
@@ -333,6 +342,13 @@ export default function OrdenCompraFormPage() {
                   />
                 </Form.Item>
 
+                <Form.Item name="paymentTerms" label="Términos de pago" style={{ marginBottom: 8 }}>
+                  <PaymentTermsSelect size="small" disabled={!isEditable} />
+                </Form.Item>
+              </div>
+
+              {/* Fila 2: Fechas */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
                 <Form.Item
                   name="orderDate"
                   label="Fecha de Orden"
@@ -344,12 +360,6 @@ export default function OrdenCompraFormPage() {
                 <Form.Item name="expectedDeliveryDate" label="Fecha Estimada de Entrega">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" disabled={!isEditable} />
                 </Form.Item>
-
-                <Form.Item name="paymentTerms" label="Términos de pago">
-                  <PaymentTermsSelect size="small" disabled={!isEditable} />
-                </Form.Item>
-
-                <div />
               </div>
             </Form>
           </Card>

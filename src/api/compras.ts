@@ -66,7 +66,7 @@ export const applyVendorAdvanceToBill = (
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type BillStatus   = 'draft' | 'pending_approval' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'
-export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel' | 'credit_note'
+export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel' | 'credit_note' | 'exempt' | 'donation' | 'small_taxpayer'
 export type PaymentTerms = 'immediate' | 'net_15' | 'net_30' | 'net_60' | 'net_90' | 'custom'
 export type POStatus     = 'draft' | 'sent' | 'received' | 'billed' | 'cancelled'
 
@@ -165,6 +165,7 @@ export interface PurchaseOrder {
   status:                POStatus
   vendorId:              string
   vendorName:            string
+  vendorTaxId?:          string
   orderDate:             string
   expectedDeliveryDate?: string
   currency:              string
@@ -410,12 +411,15 @@ export const BILL_STATUS_CONFIG: Record<BillStatus, { label: string; color: stri
 }
 
 export const BILL_TYPE_CONFIG: Record<BillType, { label: string }> = {
-  goods:         { label: 'Compra de bienes'          },
-  services:      { label: 'Servicios'                 },
-  reimbursement: { label: 'Reembolso de gastos'       },
-  special:       { label: 'Factura Especial (SAT)'    },
-  fuel:          { label: 'Combustible (con IDP)'     },
-  credit_note:   { label: 'Nota de Crédito'           },
+  goods:          { label: 'Compra de bienes'          },
+  services:       { label: 'Servicios'                 },
+  reimbursement:  { label: 'Reembolso de gastos'       },
+  special:        { label: 'Factura Especial (SAT)'    },
+  fuel:           { label: 'Combustible (con IDP)'     },
+  credit_note:    { label: 'Nota de Crédito'           },
+  exempt:         { label: 'Exenta'                    },
+  donation:       { label: 'Recibo Donación'           },
+  small_taxpayer: { label: 'Pequeño Contribuyente'     },
 }
 
 // ─── Notas de crédito de proveedor ───────────────────────────────────────────

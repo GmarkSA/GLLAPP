@@ -52,10 +52,13 @@ function calcProgressiveISR(base: number, tiers: { upTo: number | null; rate: nu
 }
 
 const BILL_TYPES: { value: BillType; label: string }[] = [
-  { value: 'goods',    label: BILL_TYPE_CONFIG.goods.label    },
-  { value: 'services', label: BILL_TYPE_CONFIG.services.label },
-  { value: 'special',  label: BILL_TYPE_CONFIG.special.label  },
-  { value: 'fuel',     label: BILL_TYPE_CONFIG.fuel.label     },
+  { value: 'goods',          label: BILL_TYPE_CONFIG.goods.label          },
+  { value: 'services',       label: BILL_TYPE_CONFIG.services.label       },
+  { value: 'special',        label: BILL_TYPE_CONFIG.special.label        },
+  { value: 'fuel',           label: BILL_TYPE_CONFIG.fuel.label           },
+  { value: 'exempt',         label: BILL_TYPE_CONFIG.exempt.label         },
+  { value: 'donation',       label: BILL_TYPE_CONFIG.donation.label       },
+  { value: 'small_taxpayer', label: BILL_TYPE_CONFIG.small_taxpayer.label },
 ]
 
 
@@ -70,7 +73,8 @@ export default function FacturaProveedorFormPage() {
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
   const [taxes, setTaxes]               = useState<Tax[]>([])
-  const [vendors, setVendors]           = useState<{ value: string; label: string; commercialName?: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string; currency?: string }[]>([])
+  const [vendors, setVendors]           = useState<{ value: string; label: string; commercialName?: string; type?: string; defaultPurchaseTaxId?: string; tdsEnabled?: boolean; tdsTaxCode?: string; paymentTerms?: string; paymentTermsDays?: number; expenseAccountId?: string; payableAccountId?: string; currency?: string; taxId?: string }[]>([])
+  const [vendorNit, setVendorNit]       = useState('')
   const [vendorCurrency, setVendorCurrency] = useState<string>('GTQ')
   const [exchangeRate,   setExchangeRate]   = useState<number>(1)
   const [rateDate,       setRateDate]       = useState<string>(dayjs().format('YYYY-MM-DD'))
@@ -254,6 +258,7 @@ export default function FacturaProveedorFormPage() {
             return [{ value: bill.vendorId, label: bill.vendorName }, ...prev]
           })
         }
+        if (bill.vendorTaxId) setVendorNit(bill.vendorTaxId)
         setIsrAmount(Number(bill.isrRetentionAmount ?? 0))
         setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
         // Restaurar tipo de cambio si la factura es en moneda extranjera
@@ -316,6 +321,7 @@ export default function FacturaProveedorFormPage() {
     const found = vendors.find(v => v.value === watchVendorId)
     if (!found) return
     setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+    setVendorNit(found.taxId ?? '')
 
     // Auto-set moneda y tipo de cambio según el proveedor
     if (!id && found.currency) {
@@ -413,6 +419,7 @@ export default function FacturaProveedorFormPage() {
             paymentTerms:         v.paymentTerms ?? undefined,
             paymentTermsDays:     v.paymentTermsDays ?? undefined,
             currency:             v.currency ?? undefined,
+            taxId:                v.taxId ?? undefined,
           }))
           return [...map.values()]
         })
@@ -686,9 +693,13 @@ export default function FacturaProveedorFormPage() {
           </span>}>
             <Form form={form} layout="vertical" size="small" initialValues={{ currency: 'GTQ', invoiceType: 'goods', paymentTerms: 'immediate', accountingDate: dayjs() }}>
 
-              {/* Fila 1: Proveedor | Tipo de factura + checkboxes servicios */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr minmax(180px, auto)', gap: '0 16px' }}>
-                <Form.Item name="vendorId" label="Proveedor / Empleado" rules={[{ required: true, message: 'Seleccione un proveedor' }]}>
+              {/* Fila 1: NIT | Proveedor | Términos de pago | Tipo de factura */}
+              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 220px 180px', gap: '0 12px' }}>
+                <Form.Item label="NIT" style={{ marginBottom: 8 }}>
+                  <Input value={vendorNit} onChange={e => setVendorNit(e.target.value)} placeholder="1234567-8" />
+                </Form.Item>
+
+                <Form.Item name="vendorId" label="Proveedor / Empleado" rules={[{ required: true, message: 'Seleccione un proveedor' }]} style={{ marginBottom: 8 }}>
                   <Select
                     showSearch
                     placeholder="Buscar por Razón Social o nombre comercial…"
@@ -710,22 +721,21 @@ export default function FacturaProveedorFormPage() {
                     options={vendors.map(v => ({ value: v.value, label: v.label }))}
                   />
                 </Form.Item>
-                <div>
-                  <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]}>
+
+                <Form.Item name="paymentTerms" label="Términos de pago" style={{ marginBottom: 8 }}>
+                  <PaymentTermsSelect size="small" />
+                </Form.Item>
+
+                <div style={{ marginBottom: 8 }}>
+                  <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]} style={{ marginBottom: 0 }}>
                     <Select options={BILL_TYPES} />
                   </Form.Item>
                   {invoiceType === 'services' && (
-                    <div style={{ display: 'flex', gap: 16, marginTop: -8, marginBottom: 12, flexWrap: 'wrap' }}>
-                      <Checkbox
-                        checked={hasTimbrePrens}
-                        onChange={e => setHasTimbrePrens(e.target.checked)}
-                      >
+                    <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
+                      <Checkbox checked={hasTimbrePrens} onChange={e => setHasTimbrePrens(e.target.checked)}>
                         <span style={{ fontSize: 12 }}>Timbre de Prensa</span>
                       </Checkbox>
-                      <Checkbox
-                        checked={hasTurismo}
-                        onChange={e => setHasTurismo(e.target.checked)}
-                      >
+                      <Checkbox checked={hasTurismo} onChange={e => setHasTurismo(e.target.checked)}>
                         <span style={{ fontSize: 12 }}>Turismo INGUAT</span>
                       </Checkbox>
                     </div>
@@ -798,13 +808,10 @@ export default function FacturaProveedorFormPage() {
                 </Form.Item>
               </div>
 
-              {/* Fila 3: Autorización SAT | Términos de pago | Fecha de vencimiento | Fecha de contabilización */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: '0 12px' }}>
+              {/* Fila 3: Autorización SAT | Fecha vencimiento | Fecha contabilización | División | Centro de Costo */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="felAuthNumber" label="Autorización SAT">
                   <Input placeholder="Número de autorización SAT" />
-                </Form.Item>
-                <Form.Item name="paymentTerms" label="Términos de pago">
-                  <PaymentTermsSelect size="small" />
                 </Form.Item>
                 <Form.Item name="dueDate" label="Fecha de vencimiento">
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
@@ -823,12 +830,10 @@ export default function FacturaProveedorFormPage() {
                 >
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
+                <Form.Item name="dimensiones" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
+                  <SelectorDimensionesAnaliticas layout="form" />
+                </Form.Item>
               </div>
-
-              {/* Dimensiones analíticas */}
-              <Form.Item name="dimensiones" style={{ marginBottom: 4 }}>
-                <SelectorDimensionesAnaliticas layout="form" />
-              </Form.Item>
 
             </Form>
           </Card>
