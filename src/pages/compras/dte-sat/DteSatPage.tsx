@@ -1563,7 +1563,7 @@ export default function DteSatPage() {
         <Modal
           open={batchOpen}
           title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
-          width={1160}
+          width={1360}
           footer={null}
           onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
           maskClosable={false}
@@ -1579,7 +1579,7 @@ export default function DteSatPage() {
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 155 }}>Proveedor / DTE</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 115 }}>Tipo factura</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 105 }}>Registro</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 195 }}>Registro</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 185 }}>Cuenta de gasto</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 90 }}>Unidad</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Fecha contable</th>
@@ -1631,14 +1631,20 @@ export default function DteSatPage() {
                           </td>
                           <td style={{ padding: '4px 6px' }}>
                             {row.status === 'pending' ? (
-                              <Select size="small" style={{ width: '100%' }}
+                              <Radio.Group
                                 value={row.ocType ?? 'direct'}
-                                onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, ocType: val as BatchRow['ocType'] } : r))}
-                                options={[
-                                  { value: 'direct',       label: 'Compra directa' },
-                                  { value: 'reimbursement',label: 'Reembolso' },
-                                ]}
-                              />
+                                onChange={e => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, ocType: e.target.value as BatchRow['ocType'] } : r))}
+                                style={{ width: '100%' }}
+                              >
+                                <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                                  <Radio value="direct" style={{ fontSize: 11 }}>
+                                    <Text style={{ fontSize: 11 }}>Compra directa</Text>
+                                  </Radio>
+                                  <Radio value="reimbursement" style={{ fontSize: 11 }}>
+                                    <Text style={{ fontSize: 11 }}>Reembolso de Gastos</Text>
+                                  </Radio>
+                                </Space>
+                              </Radio.Group>
                             ) : (
                               <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.ocType === 'reimbursement' ? 'Reembolso' : 'Compra directa'}</Text>
                             )}
