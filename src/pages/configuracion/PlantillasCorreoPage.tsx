@@ -47,7 +47,7 @@ function EmailPreview({ tpl }: { tpl: EmailTemplate }) {
       {/* Barra de email */}
       <div style={{ background: '#f9fafb', padding: '8px 14px', borderBottom: '1px solid #e5e7eb', fontSize: 11 }}>
         <div style={{ color: '#6b7280' }}>
-          <strong>De:</strong> {PREVIEW_VARS.nombreEmpresa} &lt;facturas@contaerp.com&gt;
+          <strong>De:</strong> {PREVIEW_VARS.nombreEmpresa} &lt;facturas@lucia.gllconsulting.com&gt;
         </div>
         <div style={{ color: '#6b7280' }}>
           <strong>Para:</strong> cliente@empresaejemplo.com
@@ -117,7 +117,7 @@ function EmailPreview({ tpl }: { tpl: EmailTemplate }) {
           <div style={{ background: '#f9fafb', padding: '10px 20px', textAlign: 'center', fontSize: 10, color: '#9ca3af', borderTop: '1px solid #e5e7eb' }}>
             {PREVIEW_VARS.nombreEmpresa}
             {tpl.footerText && ` · ${tpl.footerText}`}
-            <br /><span style={{ fontSize: 9 }}>Enviado desde ConTaERP</span>
+            <br /><span style={{ fontSize: 9 }}>Enviado desde Lucía</span>
           </div>
         </div>
       </div>
