@@ -279,7 +279,7 @@ export default function FacturaRecurrenteFormPage() {
           <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Programación</Text>
           <Divider style={{ margin: '10px 0 16px' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: tipoVigencia === 'por_fecha_fin' ? '1fr 1fr 1fr 160px' : '1fr 1fr 1fr', gap: '0 16px' }}>
             <Form.Item name="frecuencia" label="Frecuencia" rules={[{ required: true }]}>
               <Select onChange={(v) => setFrecuencia(v)}>
                 {FRECUENCIAS.map(([v, l]) => <Select.Option key={v} value={v}>{l}</Select.Option>)}
@@ -289,15 +289,6 @@ export default function FacturaRecurrenteFormPage() {
             <Form.Item name="fechaInicio" label="Fecha de inicio" rules={[{ required: true }]}>
               <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} onChange={(d) => d && setFechaInicio(d)} />
             </Form.Item>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap', marginTop: 4 }}>
-            <div style={{ paddingBottom: 5 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Próx. generación: <strong style={{ color: '#1faec2' }}>{proximaFecha.format('DD/MM/YYYY')}</strong>
-                <Tag color="#1faec2" style={{ marginLeft: 6, fontSize: 11 }}>{FRECUENCIA_LABELS[frecuencia]}</Tag>
-              </Text>
-            </div>
 
             <Form.Item name="tipoVigencia" label="Vigencia" style={{ marginBottom: 0 }}>
               <Radio.Group onChange={(e) => setTipoVigencia(e.target.value)}>
@@ -307,10 +298,17 @@ export default function FacturaRecurrenteFormPage() {
             </Form.Item>
 
             {tipoVigencia === 'por_fecha_fin' && (
-              <Form.Item name="fechaFin" label="Fecha de fin" rules={[{ required: true, message: 'Indica la fecha de fin' }]} style={{ marginBottom: 0, minWidth: 160 }}>
+              <Form.Item name="fechaFin" label="Fecha de fin" rules={[{ required: true, message: 'Indica la fecha de fin' }]} style={{ marginBottom: 0 }}>
                 <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} disabledDate={(d) => d && d.isBefore(fechaInicio)} />
               </Form.Item>
             )}
+          </div>
+
+          <div style={{ marginTop: 8 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Próx. generación: <strong style={{ color: '#1faec2' }}>{proximaFecha.format('DD/MM/YYYY')}</strong>
+              <Tag color="#1faec2" style={{ marginLeft: 6, fontSize: 11 }}>{FRECUENCIA_LABELS[frecuencia]}</Tag>
+            </Text>
           </div>
         </div>
 
