@@ -445,7 +445,7 @@ export default function FacturaProveedorDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Factura de
             </Text>
-            <Text strong style={{ fontSize: 15, color: '#1faec2', display: 'block' }}>{bill.vendorName}</Text>
+            <Link to={`/compras/proveedores/${bill.vendorId}`} style={{ fontSize: 15, fontWeight: 600, color: '#1faec2', display: 'block' }}>{bill.vendorName}</Link>
             {bill.vendorTaxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT: {bill.vendorTaxId}</Text>}
             {isReimb && bill.employeeName && (
               <div style={{ marginTop: 8, padding: '6px 10px', background: '#f5f0ff', borderRadius: 6 }}>
