@@ -376,7 +376,7 @@ export default function ConciliacionImprimirPage() {
         {/* Footer */}
         <div style={{ marginTop: 20, borderTop: '1px solid #e5e7eb', paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#9ca3af' }}>
           <span>{companyName} — Conciliación Bancaria {periodoLabel}</span>
-          <span>Generado por ConTaERP · {printedAt}</span>
+          <span>Generado por Lucía · {printedAt}</span>
         </div>
       </div>
     </>
