@@ -1320,16 +1320,18 @@ export default function DteSatPage() {
                         rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}>
                         <Select
                           placeholder="Selecciona el impuesto (IVA)"
-                          options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${t.rate}%)` : `${t.code} — ${t.name}` }))}
+                          options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${Number(t.rate)}%)` : `${t.code} — ${t.name}` }))}
                         />
                       </Form.Item>
                     </div>
                     <Form.Item name="paymentTerms" hidden><input /></Form.Item>
-                    <Form.Item name="defaultUnit" label="Unidad de medida">
-                      <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
-                        options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
-                      />
-                    </Form.Item>
+                    {!isFuelStep3 && (
+                      <Form.Item name="defaultUnit" label="Unidad de medida">
+                        <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
+                          options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
+                        />
+                      </Form.Item>
+                    )}
                     <Form.Item name="accountId" label="Cuenta de gasto"
                       rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
                       <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
