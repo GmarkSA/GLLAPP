@@ -1276,10 +1276,13 @@ export default function DteSatPage() {
                         <Form.Item name="invoiceType" label="Tipo de factura" style={{ marginBottom: 6 }}>
                           <Select
                             options={[
-                              { value: 'goods',    label: 'Compra de bienes' },
-                              { value: 'services', label: 'Prestación de servicios' },
-                              { value: 'fuel',     label: 'Combustible con IDP' },
-                              { value: 'special',  label: 'Factura especial' },
+                              { value: 'goods',          label: 'Compra de bienes' },
+                              { value: 'services',       label: 'Prestación de servicios' },
+                              { value: 'fuel',           label: 'Combustible con IDP' },
+                              { value: 'special',        label: 'Factura especial' },
+                              { value: 'exempt',         label: 'Exenta' },
+                              { value: 'donation',       label: 'Recibo de donación' },
+                              { value: 'small_taxpayer', label: 'Pequeño contribuyente' },
                             ]}
                             onChange={(val) => {
                               setStepperHasTimbre(false)
