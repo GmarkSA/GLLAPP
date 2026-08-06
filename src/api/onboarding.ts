@@ -3,7 +3,8 @@ import api from './axios'
 const unwrap = (r: any) => r.data?.data ?? r.data
 
 export interface OnboardingStep {
-  key:   'plan_cuentas' | 'clientes' | 'proveedores' | 'bancos' | 'productos'
+  key:   'empresa' | 'regimen_fiscal' | 'plan_cuentas' | 'impuestos' | 'series_documentos'
+       | 'clientes' | 'proveedores' | 'bancos' | 'productos'
   label: string
   route: string
   done:  boolean

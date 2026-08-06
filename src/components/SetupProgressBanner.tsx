@@ -1,58 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Progress } from 'antd'
 import { RocketOutlined, CloseOutlined } from '@ant-design/icons'
-import { useCompanyStore } from '../store/companyStore'
-import { companiesApi } from '../api/companies'
-import { getAccounts } from '../api/catalogo'
-import { getTaxes } from '../api/impuestos'
-import { tenantsApi } from '../api/tenants'
+import { useSetupSteps } from '../hooks/useSetupSteps'
 
 const DISMISS_KEY = 'setup_banner_dismissed'
 
 export default function SetupProgressBanner() {
-  const navigate      = useNavigate()
-  const activeCompany = useCompanyStore(s => s.activeCompany)
-  const [completed, setCompleted] = useState<number | null>(null)
-  const [dismissed, setDismissed] = useState(false)
-
-  const TOTAL = 5
-
-  useEffect(() => {
-    // No mostrar si el usuario lo cerró en esta sesión
-    if (sessionStorage.getItem(DISMISS_KEY)) { setDismissed(true); return }
-    if (!activeCompany) return
-
-    Promise.all([
-      companiesApi.getOne(activeCompany.id).catch(() => null),
-      getAccounts({ limit: 1 }).catch(() => []),
-      tenantsApi.getProfile().catch(() => null),
-      getTaxes().catch(() => []),
-    ]).then(([company, accounts, profile, taxes]) => {
-      let done = 1  // paso 1 (empresa) siempre completo
-      // Perfil: requiere nombre legal + NIT + régimen fiscal
-      if (company?.legalName && company?.taxId && (company as any)?.fiscalRegimeId) done++
-      // Catálogo: requiere visita explícita del usuario + que existan cuentas
-      if (localStorage.getItem('setup_visited_catalogo') === '1' &&
-          Array.isArray(accounts) && accounts.length > 0) done++
-      // Cuentas por defecto
-      if (profile?.settings?.accountDefaults &&
-          Object.values(profile.settings.accountDefaults).some(Boolean)) done++
-      // Impuestos
-      if (Array.isArray(taxes) && taxes.length > 0) done++
-      setCompleted(done)
-    })
-  }, [activeCompany])
+  const navigate = useNavigate()
+  const { steps, loading, completedCount, completionPercent } = useSetupSteps()
+  const [dismissed, setDismissed] = useState(
+    () => !!sessionStorage.getItem(DISMISS_KEY),
+  )
 
   const handleDismiss = () => {
     sessionStorage.setItem(DISMISS_KEY, '1')
     setDismissed(true)
   }
 
-  // No mostrar si: cargando, cerrado o todo completo
-  if (dismissed || completed === null || completed >= TOTAL) return null
+  // No mostrar si: cerrado, cargando aún sin datos, o todo completo
+  if (dismissed || loading || steps.length === 0 || completionPercent >= 100) return null
 
-  const pending = TOTAL - completed
+  const pending = steps.length - completedCount
 
   return (
     <div style={{
@@ -81,7 +50,7 @@ export default function SetupProgressBanner() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Progress
-            percent={Math.round((completed / TOTAL) * 100)}
+            percent={completionPercent}
             strokeColor="#1faec2"
             trailColor="rgba(10,10,10,0.10)"
             showInfo={false}
@@ -89,7 +58,7 @@ export default function SetupProgressBanner() {
             style={{ flex: 1, margin: 0 }}
           />
           <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
-            {completed} de {TOTAL}
+            {completedCount} de {steps.length}
           </span>
         </div>
       </div>
