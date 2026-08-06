@@ -870,31 +870,29 @@ export default function DteSatPage() {
       fixed: 'right',
       render: (_, row) => (
         <Space size={4}>
-          {row.status === 'duplicate'
-            ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
-            : row.status === 'posted'
-              ? <>
-                  <Tooltip title="Ver factura">
-                    <Button size="small" icon={<EyeOutlined />}
-                      onClick={() => navigate(`/compras/facturas/${row.purchaseInvoiceId}`)}
-                      style={{ fontSize: 11 }} />
-                  </Tooltip>
-                  <Tooltip title="Re-procesar">
-                    <Button size="small" icon={<RollbackOutlined />}
-                      onClick={() => handleReactivate(row)}
-                      style={{ fontSize: 11, color: '#7c3aed', borderColor: '#7c3aed' }} />
-                  </Tooltip>
-                </>
-              : <Button
-                  size="small"
-                  type="primary"
-                  icon={<BookOutlined />}
+          {row.status === 'posted'
+            ? <Tooltip title="Ver factura y póliza contable">
+                <Button size="small" icon={<EyeOutlined />}
+                  onClick={() => row.purchaseInvoiceId && navigate(`/compras/facturas/${row.purchaseInvoiceId}`)}
+                  style={{ fontSize: 11, borderColor: '#1faec2', color: '#1faec2' }}>
+                  Ver factura
+                </Button>
+              </Tooltip>
+            : row.status === 'duplicate'
+              ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
+              : <Button size="small" type="primary" icon={<BookOutlined />}
                   onClick={() => openStepper(row)}
-                  style={{ fontSize: 11, background: '#1faec2' }}
-                >
+                  style={{ fontSize: 11, background: '#1faec2' }}>
                   Procesar
                 </Button>
           }
+          {row.status === 'posted' && (
+            <Tooltip title="Re-procesar — usar si la factura vinculada fue eliminada">
+              <Button size="small" icon={<RollbackOutlined />}
+                onClick={() => handleReactivate(row)}
+                style={{ fontSize: 11, color: '#7c3aed', borderColor: '#c4b5fd' }} />
+            </Tooltip>
+          )}
           <Tooltip title="Eliminar de la bandeja">
             <Button size="small" danger icon={<DeleteOutlined />}
               onClick={() => handleDeleteDte(row)} style={{ fontSize: 11 }} />
