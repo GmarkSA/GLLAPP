@@ -435,7 +435,7 @@ export default function DteSatPage() {
     stepperForm.setFieldsValue({
       taxId:           vendorDefaultTaxId,
       paymentTerms:    vendorPaymentTerms,
-      accountingDate:  dayjs(),
+      accountingDate:  row.fechaEmision ? dayjs(row.fechaEmision) : dayjs(),
       concepto:        autoConcepto,
       accountId:       vendorExpenseAccountId,
     })
@@ -470,6 +470,14 @@ export default function DteSatPage() {
       })
       if ((result as any)?.dte) setStepperDte((result as any).dte as SatDte)
       setStepperVendorPayableMissing(!values.payableAccountId)
+      // Guardar preferencias para pre-llenar el paso Registrar
+      const createdVendorId = (result as any)?.dte?.vendorId
+      if (createdVendorId && (values.expenseAccountId || values.defaultPurchaseTaxId)) {
+        saveDtePrefs(createdVendorId, {
+          accountId: values.expenseAccountId,
+          taxId: values.defaultPurchaseTaxId,
+        })
+      }
       message.success('Proveedor creado y vinculado')
       await load(true)
     } catch (err: unknown) {
@@ -1106,7 +1114,7 @@ export default function DteSatPage() {
                           <Form.Item name="defaultPurchaseTaxId" label="Impuesto IVA" style={{ marginBottom: 8 }}
                             tooltip="Impuesto predeterminado al registrar facturas de este proveedor">
                             <Select showSearch allowClear placeholder="IVA12 — Tasa general 12%"
-                              options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
+                              options={taxes.filter(t => !t.isWithholding).map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
                           </Form.Item>
                         </div>
                         <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1faec2' }}>
@@ -1250,17 +1258,12 @@ export default function DteSatPage() {
                         />
                       </Form.Item>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                      <Form.Item name="paymentTerms" label="Términos de pago"
-                        rules={[{ required: true, message: 'Selecciona términos' }]}>
-                        <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
-                      </Form.Item>
-                      <Form.Item name="defaultUnit" label="Unidad de medida">
-                        <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
-                          options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
-                        />
-                      </Form.Item>
-                    </div>
+                    <Form.Item name="paymentTerms" hidden><input /></Form.Item>
+                    <Form.Item name="defaultUnit" label="Unidad de medida">
+                      <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
+                        options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
+                      />
+                    </Form.Item>
                     <Form.Item name="accountId" label="Cuenta de gasto"
                       rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
                       <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
