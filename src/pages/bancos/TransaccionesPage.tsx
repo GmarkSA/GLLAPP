@@ -706,7 +706,6 @@ export default function TransaccionesPage() {
       const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
       return <Tag color={cfg.color}>{cfg.label}</Tag>
     } },
-    { title: 'Cuenta contable', key: 'account', width: 180, render: (_, row) => row.accountName || row.accountCode ? <Tooltip title={row.accountName}><Tag color="#6b7280">{row.accountCode || row.accountName}</Tag></Tooltip> : <Tag color="#ff7f00">Sin categorizar</Tag> },
     {
       title: '',
       key: 'actions',
