@@ -63,8 +63,8 @@ export default function FacturaFormPage() {
   const [exchangeRateMeta, setExchangeRateMeta] = useState<{ effectiveDate: string; source: string } | null>(null)
   const [certifying, setCertifying] = useState(false)
   const [felCertResult, setFelCertResult] = useState<{ success: boolean; uuid?: string; serie?: string; numero?: string; url?: string; mensaje: string } | null>(null)
-  const [invStatus, setInvStatus] = useState<string>('draft')
-  const invStatusRef = useRef<string>('draft')
+  // Estado real de la factura cargada — ref para evitar problemas de timing en React
+  const loadedStatusRef = useRef<string>('draft')
   const activeCompany = useCompanyStore(s => s.activeCompany)
   // Mejora 1 — impuesto preferido del cliente
   const [customerDefaultTaxId, setCustomerDefaultTaxId] = useState<string | undefined>()
@@ -141,8 +141,7 @@ export default function FacturaFormPage() {
         setFelFrases(inv.felFrases ?? [])
         setIsExenta(inv.facturaExenta ?? false)
         if (Number(inv.isrRetentionAmount) > 0) setIsrAmount(Number(inv.isrRetentionAmount))
-        setInvStatus(inv.status ?? 'draft')
-        invStatusRef.current = inv.status ?? 'draft'
+        loadedStatusRef.current = inv.status ?? 'draft'
 
         const loadedItems: LineItem[] = (inv.items ?? []).map((it) =>
           newLineItem({
@@ -344,32 +343,29 @@ export default function FacturaFormPage() {
     } finally { setCertifying(false) }
   }
 
-  const isSentEdit = !!id && invStatus !== 'draft'
+  // true cuando la factura ya fue emitida: limita los campos editables
+  const isSentEdit = !!id && loadedStatusRef.current !== 'draft'
 
   const handleSave = async (status: 'draft' | 'sent') => {
-    // Usar ref para detectar el estado real al momento de guardar,
-    // independiente del ciclo de render de React
-    const isEditingSent = !!id && invStatusRef.current !== 'draft'
-    if (!isEditingSent) {
+    // Leer el ref al momento del click, independiente del ciclo de render
+    const isNonDraft = !!id && loadedStatusRef.current !== 'draft'
+    if (!isNonDraft) {
       try { await form.validateFields(['customerId', 'invoiceDate']) } catch { return }
     }
     setSaving(true)
     try {
       let result: any
-      if (isEditingSent) {
-        // Solo campos permitidos para facturas ya emitidas
+      if (isNonDraft) {
+        // Facturas ya emitidas: solo campos seguros (el backend rechaza el resto)
         const v = form.getFieldsValue()
         const safeDto: Partial<CreateInvoiceDto> = {
-          accountingDate: v.accountingDate ? (v.accountingDate as any).format('YYYY-MM-DD') : undefined,
-          dueDate:        v.dueDate        ? (v.dueDate as any).format('YYYY-MM-DD')        : undefined,
-          notes:          v.notes || undefined,
+          accountingDate:     v.accountingDate ? (v.accountingDate as any).format('YYYY-MM-DD') : undefined,
+          dueDate:            v.dueDate        ? (v.dueDate as any).format('YYYY-MM-DD')        : undefined,
+          notes:              v.notes              || undefined,
           termsAndConditions: v.termsAndConditions || undefined,
-          purchaseOrderRef:   v.reference || undefined,
-          // Items completos y válidos (para pasar la validación del DTO). El backend
-          // solo aplica el accountId en facturas emitidas; el resto queda igual.
-          items: items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId }) => ({
-            productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId,
-          })) as any,
+          purchaseOrderRef:   v.reference          || undefined,
+          // Solo id+accountId — el backend ignora el resto en emitidas
+          items: items.map(item => ({ id: item._key, accountId: item.accountId } as any)),
         }
         result = await updateInvoice(id!, safeDto as any)
         message.success('Cambios guardados')
@@ -439,6 +435,13 @@ export default function FacturaFormPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {/* ── 1. Datos generales ─────────────────────────────────────────── */}
+          {isSentEdit && (
+            <Alert
+              type="warning" showIcon
+              message="Factura emitida — solo puedes modificar la fecha contable, vencimiento, notas, cuenta de ingresos y campos FEL."
+              style={{ marginBottom: 8, fontSize: 12 }}
+            />
+          )}
           <Card
             size="small"
             title={<span style={{ color: '#1faec2', fontWeight: 600 }}>{id ? 'Editar Factura' : 'Nueva Factura'}</span>}
@@ -460,8 +463,7 @@ export default function FacturaFormPage() {
                 >
                   <Select
                     showSearch placeholder="Buscar por Razón Social o nombre comercial…"
-                    filterOption={false} loading={loadingCustomers}
-                    disabled={isSentEdit}
+                    filterOption={false} loading={loadingCustomers} disabled={isSentEdit}
                     onSearch={handleCustomerSearch} onSelect={handleCustomerSelect}
                     notFoundContent={loadingCustomers ? 'Buscando…' : 'Sin resultados'}
                     optionRender={(opt) => {
@@ -486,13 +488,13 @@ export default function FacturaFormPage() {
               {/* Fila 2: Moneda | Fecha Factura | Vencimiento | F. Contabilización | Referencia | Desc.% */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="currency" label="Moneda" style={{ marginBottom: 8 }}>
-                  <Select disabled={isSentEdit} options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]} />
+                  <Select options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]} disabled={isSentEdit} />
                 </Form.Item>
 
                 <Form.Item name="invoiceDate" label="Fecha Factura" style={{ marginBottom: 8 }}
                   rules={[{ required: true, message: 'Ingrese la fecha' }]}
                 >
-                  <DatePicker disabled={isSentEdit} style={{ width: '100%' }} format="DD/MM/YYYY" onChange={handleInvoiceDateChange} />
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" onChange={handleInvoiceDateChange} disabled={isSentEdit} />
                 </Form.Item>
 
                 <Form.Item name="dueDate" style={{ marginBottom: 8 }}
@@ -516,7 +518,7 @@ export default function FacturaFormPage() {
                 </Form.Item>
 
                 <Form.Item name="discountPercent" label="Desc. Global %" style={{ marginBottom: 8 }}>
-                  <InputNumber disabled={isSentEdit} min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} />
+                  <InputNumber min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} disabled={isSentEdit} />
                 </Form.Item>
               </div>
 
@@ -648,10 +650,10 @@ export default function FacturaFormPage() {
               items={items}
               taxes={taxes}
               onChange={setItems}
-              readOnly={isSentEdit}
-              accountEditable={isSentEdit}
               docType="invoice"
               vendorDefaultTaxId={customerDefaultTaxId}
+              readOnly={isSentEdit}
+              accountEditable={isSentEdit}
             />
 
             {/* ── ISR Retención en origen ──────────────────────────────────── */}
