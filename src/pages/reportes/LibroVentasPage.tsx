@@ -75,7 +75,9 @@ const FIXED_HEADER_COLS = [
     dataIndex: 'tipoDocumento',
     width: 90,
     sorter: (a: any, b: any) => (a.tipoDocumento || '').localeCompare(b.tipoDocumento || ''),
-    render: (v: string) => <Tag style={{ fontSize: 10, padding: '0 4px' }}>{v || 'FACT'}</Tag>,
+    render: (v: string, r: any) => r.status === 'voided'
+      ? <Tag color="error" style={{ fontSize: 10, padding: '0 4px' }}>ANULADA</Tag>
+      : <Tag style={{ fontSize: 10, padding: '0 4px' }}>{v || 'FACT'}</Tag>,
   },
   {
     title: 'Fecha Factura',
@@ -439,6 +441,7 @@ export default function LibroVentasPage() {
               dataSource={data.items}
               columns={tableColumns}
               rowKey={(r) => r.uuid || r.numeroInterno}
+              rowClassName={(r: any) => r.status === 'voided' ? 'row-voided' : ''}
               pagination={{ pageSize: 100, showSizeChanger: true, showTotal: (t) => `${t} registros` }}
               size="small"
               scroll={{ x: 'max-content' }}

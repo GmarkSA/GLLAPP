@@ -261,6 +261,7 @@ export default function FacturasProveedorPage() {
   const [debouncedSearch, setDebounced] = useState('')
   const [total, setTotal]             = useState(0)
   const [page, setPage]               = useState(1)
+  const [pageSize, setPageSize]       = useState(100)
   const [statusTab, setStatusTab]     = useState('all')
 
   // Column config
@@ -284,7 +285,7 @@ export default function FacturasProveedorPage() {
   const fetchBills = useCallback(async () => {
     setLoading(true)
     try {
-      const params: Record<string, any> = { page, limit: 20 }
+      const params: Record<string, any> = { page, limit: pageSize }
       if (debouncedSearch) params.search = debouncedSearch
       if (statusTab !== 'all') params.status = statusTab
       const res = await getBills(params)
@@ -294,7 +295,7 @@ export default function FacturasProveedorPage() {
       message.error('Error cargando facturas de proveedor')
       setBills([]); setTotal(0)
     } finally { setLoading(false) }
-  }, [page, debouncedSearch, statusTab])
+  }, [page, pageSize, debouncedSearch, statusTab])
 
   useEffect(() => { fetchBills() }, [fetchBills])
 
@@ -476,10 +477,11 @@ export default function FacturasProveedorPage() {
           pagination={{
             total,
             current: page,
-            pageSize: 20,
-            onChange: setPage,
+            pageSize,
+            onChange: (p, ps) => { setPage(p); setPageSize(ps) },
             showTotal: (t) => `${t} facturas`,
-            showSizeChanger: false,
+            showSizeChanger: true,
+            pageSizeOptions: ['50', '100', '200'],
           }}
           locale={{ emptyText: 'Sin facturas de proveedor' }}
         />

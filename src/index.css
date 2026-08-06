@@ -143,6 +143,11 @@ body {
 /* Tags pill */
 .ant-tag { border-radius: 20px !important; font-weight: 500 !important; }
 
+/* Facturas anuladas en Libros SAT */
+.row-voided > td { background: #fff5f5 !important; color: #9ca3af !important; text-decoration: line-through; }
+.row-voided > td .ant-tag { text-decoration: none; }
+.ant-table-tbody > .row-voided:hover > td { background: #ffe4e6 !important; }
+
 /* Tags preset — palette Notion-style (transparent tints, no sólidos) */
 .ant-tag-success {
   background: rgba(46,161,114,0.08) !important;
