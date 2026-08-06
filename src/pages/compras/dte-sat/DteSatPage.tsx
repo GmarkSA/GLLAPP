@@ -1325,16 +1325,10 @@ export default function DteSatPage() {
                       </Form.Item>
                     </div>
                     <Form.Item name="paymentTerms" hidden><input /></Form.Item>
-                    {!isFuelStep3 && (
-                      <Form.Item name="defaultUnit" label="Unidad de medida">
-                        <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
-                          options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
-                        />
-                      </Form.Item>
-                    )}
                     <Form.Item name="accountId" label="Cuenta de gasto"
                       rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
                       <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
+                        filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                         options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || (a as any).type === 'expense'))
                           .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                     </Form.Item>
@@ -1436,12 +1430,19 @@ export default function DteSatPage() {
                       <Form.Item name="accountingDate" label="Fecha contable">
                         <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                       </Form.Item>
-                      {stepperOcId && (
-                        <Form.Item label="OC vinculada">
-                          <Tag color="#1faec2">{stepperPOs?.find(p => p.id === stepperOcId)?.orderNumber ?? 'OC seleccionada'}</Tag>
+                      {!isFuelStep3 && (
+                        <Form.Item name="defaultUnit" label="Unidad de medida">
+                          <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
+                            options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
+                          />
                         </Form.Item>
                       )}
                     </div>
+                    {stepperOcId && (
+                      <Form.Item label="OC vinculada" style={{ marginBottom: 6 }}>
+                        <Tag color="#1faec2">{stepperPOs?.find(p => p.id === stepperOcId)?.orderNumber ?? 'OC seleccionada'}</Tag>
+                      </Form.Item>
+                    )}
                   </Form>
                 )}
 
