@@ -58,7 +58,8 @@ const PagosRealizadosPage      = lazy(() => import('./pages/compras/pagos-realiz
 const PagoRealizadoFormPage    = lazy(() => import('./pages/compras/pagos-realizados/PagoRealizadoFormPage'))
 const ChequePrintPage          = lazy(() => import('./pages/compras/pagos-realizados/ChequePrintPage'))
 const ChequeLotePrintPage      = lazy(() => import('./pages/compras/pagos-realizados/ChequeLotePrintPage'))
-const TransferenciaPrintPage   = lazy(() => import('./pages/bancos/TransferenciaPrintPage'))
+const TransferenciaPrintPage        = lazy(() => import('./pages/bancos/TransferenciaPrintPage'))
+const ConciliacionImprimirPage      = lazy(() => import('./pages/bancos/ConciliacionImprimirPage'))
 const NotasCreditoProveedorPage          = lazy(() => import('./pages/compras/notas-credito-proveedor/NotasCreditoProveedorPage'))
 const NotaCreditoProveedorFormPage       = lazy(() => import('./pages/compras/notas-credito-proveedor/NotaCreditoProveedorFormPage'))
 const NotaCreditoProveedorDetallePage    = lazy(() => import('./pages/compras/notas-credito-proveedor/NotaCreditoProveedorDetallePage'))
@@ -218,9 +219,10 @@ export default function App() {
         <Route path="/ventas/estimaciones/:id/imprimir" element={<PrivateRoute><EstimacionPrintPage /></PrivateRoute>} />
         <Route path="/ventas/facturas/:id/imprimir"     element={<PrivateRoute><FacturaImprimirPage /></PrivateRoute>} />
         <Route path="/planillas/mensual/:anio/:mes/imprimir-boletas" element={<PrivateRoute><BoletasPagoImprimirPage /></PrivateRoute>} />
-        <Route path="/bancos/pagos-realizados/:id/cheque"      element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
-        <Route path="/bancos/pagos-realizados/:id/comprobante" element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
-        <Route path="/bancos/cheques/imprimir-lote"            element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
+        <Route path="/bancos/pagos-realizados/:id/cheque"         element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
+        <Route path="/bancos/pagos-realizados/:id/comprobante"  element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
+        <Route path="/bancos/cheques/imprimir-lote"             element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
+        <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
 
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />

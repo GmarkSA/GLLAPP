@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Card, Empty, Input, Modal, Space, Statistic, Table, Tag, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SearchOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   autoMatchReconciliation,
@@ -205,6 +205,32 @@ export default function ConciliacionPage() {
         </div>
         <Space wrap>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>Actualizar</Button>
+          <Button icon={<PrinterOutlined />} onClick={() => {
+            const month = account.lastStatementDate
+              ? dayjs(account.lastStatementDate).month() + 1
+              : dayjs().month() + 1
+            const year  = account.lastStatementDate
+              ? dayjs(account.lastStatementDate).year()
+              : dayjs().year()
+            window.open(`/bancos/${account.id}/conciliacion/imprimir?month=${month}&year=${year}`, '_blank')
+          }}>
+            Imprimir / PDF
+          </Button>
+          <Button icon={<MailOutlined />} onClick={() => {
+            const month = account.lastStatementDate
+              ? dayjs(account.lastStatementDate).month() + 1
+              : dayjs().month() + 1
+            const year  = account.lastStatementDate
+              ? dayjs(account.lastStatementDate).year()
+              : dayjs().year()
+            const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+            const periodo = `${meses[month - 1]} ${year}`
+            const subject = encodeURIComponent(`Conciliación Bancaria — ${account.name} — ${periodo}`)
+            const body    = encodeURIComponent(`Estimados,\n\nAdjunto la conciliación bancaria de la cuenta ${account.name} (${account.bankName || ''}) correspondiente al período ${periodo}.\n\nSaludos.`)
+            window.location.href = `mailto:?subject=${subject}&body=${body}`
+          }}>
+            Enviar por correo
+          </Button>
           <Button type="primary" icon={<RobotOutlined />} loading={matching} style={{ background: NAVY }} onClick={handleAutoMatch}>
             Buscar coincidencias
           </Button>
