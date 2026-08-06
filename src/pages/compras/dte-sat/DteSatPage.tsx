@@ -121,16 +121,23 @@ export default function DteSatPage() {
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
+  interface BatchLineItem {
+    descripcion?: string; description?: string
+    cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string
+    accountId?: string; accountLabel?: string
+  }
   interface BatchRow {
     id: string; label: string; vendorName: string; dteRef: string
     total: number; moneda: string; status: BatchRowStatus
     accountId?: string; accountLabel?: string
     taxId?: string; taxLabel?: string
     invoiceType?: string
+    idpType?: string; idpAccountId?: string
+    ocType?: 'direct' | 'reimbursement'
     paymentTerms?: string; paymentTermsLabel?: string
     defaultUnit?: string
     accountingDate?: Dayjs
-    dteItems?: SatDte['items']
+    dteItems?: BatchLineItem[]
     result?: string; error?: string; missing?: string
   }
   const [batchOpen,    setBatchOpen]    = useState(false)
@@ -638,6 +645,12 @@ export default function DteSatPage() {
       }
       const accObj = accounts.find(a => a.id === accountId)
       const taxObj = taxes.find(t => t.id === taxId)
+      const idpAcc = orgImpEsp?.idpAccountCode ? accounts.find(a => a.code === orgImpEsp!.idpAccountCode) : undefined
+      const dteItems: BatchLineItem[] = (d.items ?? []).map(it => ({
+        ...it,
+        accountId,
+        accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : undefined,
+      }))
       rows.push({
         id: d.id,
         label: `${d.nombreEmisor ?? 'Sin nombre'} · ${d.serie ?? '—'}/${d.numeroDte ?? '—'}`,
@@ -651,10 +664,12 @@ export default function DteSatPage() {
         taxId,
         taxLabel: taxObj ? `${taxObj.code} (${Number(taxObj.rate)}%)` : undefined,
         invoiceType: 'goods',
+        idpAccountId: idpAcc?.id,
+        ocType: 'direct',
         paymentTerms: paymentTerms ?? 'immediate',
         paymentTermsLabel: PAYMENT_TERMS_CONFIG[(paymentTerms ?? 'immediate') as keyof typeof PAYMENT_TERMS_CONFIG] ?? paymentTerms ?? 'Inmediato',
         accountingDate: d.fechaEmision ? dayjs(d.fechaEmision) : dayjs(),
-        dteItems: d.items,
+        dteItems,
         missing: !accountId ? 'Falta cuenta de gasto — configúrala en el maestro del proveedor' : undefined,
       })
     }
@@ -671,13 +686,20 @@ export default function DteSatPage() {
       setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'processing' } : r))
       try {
         const dte = documents.find(d => d.id === row.id)!
+        const multiLine = (row.dteItems?.length ?? 0) > 1
         const result = await postSatDte(row.id, {
-          taxId:          row.taxId,
-          invoiceType:    row.invoiceType,
-          accountId:      row.accountId,
-          paymentTerms:   row.paymentTerms ?? 'immediate',
-          defaultUnit:    row.defaultUnit,
-          accountingDate: row.accountingDate?.format('YYYY-MM-DD'),
+          taxId:                  row.taxId,
+          invoiceType:            row.invoiceType,
+          accountId:              row.accountId,
+          paymentTerms:           row.paymentTerms ?? 'immediate',
+          defaultUnit:            row.defaultUnit,
+          accountingDate:         row.accountingDate?.format('YYYY-MM-DD'),
+          isExpenseReimbursement: row.ocType === 'reimbursement',
+          idpType:                row.invoiceType === 'fuel' ? row.idpType : undefined,
+          idpAccountId:           row.invoiceType === 'fuel' ? row.idpAccountId : undefined,
+          lineAccounts:           multiLine
+            ? row.dteItems!.map((item, idx) => ({ index: idx, accountId: item.accountId ?? row.accountId ?? '' }))
+            : undefined,
         })
         if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId })
         setBatchRows(prev => prev.map(r => r.id === row.id
@@ -1541,7 +1563,7 @@ export default function DteSatPage() {
         <Modal
           open={batchOpen}
           title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
-          width={1060}
+          width={1160}
           footer={null}
           onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
           maskClosable={false}
@@ -1555,18 +1577,20 @@ export default function DteSatPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 160 }}>Proveedor / DTE</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 120 }}>Tipo</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 200 }}>Cuenta de gasto</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 100 }}>Unidad</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 115 }}>Fecha contable</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 85 }}>Total</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 110 }}>Estado</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 155 }}>Proveedor / DTE</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 115 }}>Tipo factura</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 105 }}>Registro</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 185 }}>Cuenta de gasto</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 90 }}>Unidad</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Fecha contable</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 80 }}>Total</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 100 }}>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {batchRows.map(row => {
                     const lines = row.dteItems ?? []
+                    const multiLine = lines.length > 1
                     return (
                       <React.Fragment key={row.id}>
                         {/* Fila principal del DTE */}
@@ -1576,43 +1600,68 @@ export default function DteSatPage() {
                             <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>{row.dteRef}</div>
                             {row.taxLabel && <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>{row.taxLabel}</div>}
                           </td>
-                          <td style={{ padding: '4px 6px' }}>
+                          <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
                             {row.status === 'pending' ? (
-                              <Select size="small" style={{ width: '100%' }}
-                                value={row.invoiceType ?? 'goods'}
-                                onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, invoiceType: val } : r))}
-                                options={[
-                                  { value: 'goods',          label: 'Bienes' },
-                                  { value: 'services',       label: 'Servicios' },
-                                  { value: 'fuel',           label: 'Combustible' },
-                                  { value: 'special',        label: 'Especial' },
-                                  { value: 'exempt',         label: 'Exenta' },
-                                  { value: 'donation',       label: 'Donación' },
-                                  { value: 'small_taxpayer', label: 'Peq. Contribuyente' },
-                                ]}
-                              />
+                              <>
+                                <Select size="small" style={{ width: '100%' }}
+                                  value={row.invoiceType ?? 'goods'}
+                                  onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, invoiceType: val } : r))}
+                                  options={[
+                                    { value: 'goods',          label: 'Bienes' },
+                                    { value: 'services',       label: 'Servicios' },
+                                    { value: 'fuel',           label: 'Combustible' },
+                                    { value: 'special',        label: 'Especial' },
+                                    { value: 'exempt',         label: 'Exenta' },
+                                    { value: 'donation',       label: 'Donación' },
+                                    { value: 'small_taxpayer', label: 'Peq. Contrib.' },
+                                  ]}
+                                />
+                                {row.invoiceType === 'fuel' && (
+                                  <Select size="small" style={{ width: '100%', marginTop: 3 }}
+                                    placeholder="Tipo combustible"
+                                    value={row.idpType}
+                                    onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, idpType: val } : r))}
+                                    options={Object.entries(IDP_RATES_FE).map(([k, v]) => ({ value: k, label: `${v.label} (Q${v.rate.toFixed(2)}/gal)` }))}
+                                  />
+                                )}
+                              </>
                             ) : (
                               <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.invoiceType ?? 'goods'}</Text>
                             )}
                           </td>
                           <td style={{ padding: '4px 6px' }}>
                             {row.status === 'pending' ? (
-                              <Select
-                                size="small"
-                                style={{ width: '100%' }}
-                                showSearch
+                              <Select size="small" style={{ width: '100%' }}
+                                value={row.ocType ?? 'direct'}
+                                onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, ocType: val as BatchRow['ocType'] } : r))}
+                                options={[
+                                  { value: 'direct',       label: 'Compra directa' },
+                                  { value: 'reimbursement',label: 'Reembolso' },
+                                ]}
+                              />
+                            ) : (
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.ocType === 'reimbursement' ? 'Reembolso' : 'Compra directa'}</Text>
+                            )}
+                          </td>
+                          <td style={{ padding: '4px 6px' }}>
+                            {row.status === 'pending' && !multiLine ? (
+                              <Select size="small" style={{ width: '100%' }} showSearch
                                 placeholder="Seleccionar cuenta…"
                                 filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                                 value={row.accountId}
                                 status={!row.accountId ? 'error' : undefined}
                                 onChange={val => {
                                   const acc = expenseAccounts.find(a => a.id === val)
+                                  const lbl = acc ? `${acc.code} — ${acc.name}` : val
                                   setBatchRows(prev => prev.map(r => r.id === row.id
-                                    ? { ...r, accountId: val, accountLabel: acc ? `${acc.code} — ${acc.name}` : val, missing: undefined }
+                                    ? { ...r, accountId: val, accountLabel: lbl, missing: undefined,
+                                        dteItems: r.dteItems?.map(li => ({ ...li, accountId: val, accountLabel: lbl })) }
                                     : r))
                                 }}
                                 options={expenseAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
                               />
+                            ) : row.status === 'pending' && multiLine ? (
+                              <Text style={{ fontSize: 10, color: '#6b7280' }}>← asigna por línea</Text>
                             ) : (
                               <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountLabel ?? '—'}</Text>
                             )}
@@ -1651,14 +1700,33 @@ export default function DteSatPage() {
                         </tr>
                         {/* Sub-filas de líneas del DTE */}
                         {lines.map((line, idx) => (
-                          <tr key={`${row.id}-line-${idx}`} style={{ borderBottom: idx === lines.length - 1 ? '1px solid rgba(10,10,10,0.08)' : '1px solid rgba(10,10,10,0.04)', background: '#fafafa' }}>
-                            <td colSpan={2} style={{ padding: '3px 10px 3px 24px' }}>
+                          <tr key={`${row.id}-line-${idx}`} style={{ borderBottom: idx === lines.length - 1 ? '1px solid rgba(10,10,10,0.08)' : '1px solid rgba(10,10,10,0.04)', background: '#f5f7fa' }}>
+                            <td colSpan={3} style={{ padding: '3px 10px 3px 24px' }}>
                               <Text style={{ fontSize: 10, color: '#374151' }}>
                                 {String(line.descripcion || line.description || '').trim() || `Línea ${idx + 1}`}
                               </Text>
                             </td>
                             <td style={{ padding: '3px 6px' }}>
-                              <Text style={{ fontSize: 10, color: '#6b7280' }}>↳ cuenta DTE</Text>
+                              {row.status === 'pending' && multiLine ? (
+                                <Select size="small" style={{ width: '100%' }} showSearch allowClear
+                                  placeholder="Cuenta línea…"
+                                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                                  value={line.accountId}
+                                  onChange={val => {
+                                    const acc = expenseAccounts.find(a => a.id === val)
+                                    setBatchRows(prev => prev.map(r => {
+                                      if (r.id !== row.id) return r
+                                      const newItems = (r.dteItems ?? []).map((li, i) =>
+                                        i === idx ? { ...li, accountId: val, accountLabel: acc ? `${acc.code} — ${acc.name}` : val } : li
+                                      )
+                                      return { ...r, dteItems: newItems, missing: undefined }
+                                    }))
+                                  }}
+                                  options={expenseAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                                />
+                              ) : (
+                                <Text style={{ fontSize: 10, color: '#6b7280' }}>{line.accountLabel ?? '↳ cuenta DTE'}</Text>
+                              )}
                             </td>
                             <td style={{ padding: '3px 6px' }}>
                               <Text style={{ fontSize: 10, color: '#6b7280' }}>{line.cantidad ? `× ${line.cantidad}` : ''}</Text>
@@ -1964,14 +2032,11 @@ export default function DteSatPage() {
                       </Button>
                     ))}
                     {stats.ready?.count > 0 && !statusFilter && (
-                      <Text style={{ fontSize: 11, color: '#6b7280' }}>
-                        — ve a{' '}
-                        <span style={{ color: '#2ea172', fontWeight: 600, cursor: 'pointer' }}
-                          onClick={() => setStatusFilter('ready')}>
-                          Listo ({stats.ready.count})
-                        </span>
-                        , selecciona y haz clic en <strong>Registrar</strong>
-                      </Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
+                        onClick={() => setStatusFilter('ready')}>
+                        <CheckCircleOutlined style={{ color: '#2ea172' }} />
+                        <span><strong>{stats.ready.count}</strong> listos — haz clic aquí, selecciona y <strong>Registra</strong></span>
+                      </div>
                     )}
                   </Space>
                   {selectedIds.length > 0 && (
