@@ -245,6 +245,47 @@ export const getPendingReconciliation = (accountId: string, params?: { page?: nu
 export const unreconcileTransaction = (dto: { transactionId: string }) =>
   api.post(`${RECONCILIATION_BASE}/desconciliar`, dto).then(unwrap)
 
+// ── Historial de períodos conciliados ──────────────────────────────────────────
+
+export interface ReconciliationPeriod {
+  id: string
+  bankAccountId: string
+  year: number
+  month: number
+  status: 'draft' | 'closed' | 'approved'
+  saldoBanco: number
+  saldoSistema: number
+  diferencia: number
+  totalCredito: number
+  totalDebito: number
+  totalTransactions: number
+  reconciledCount: number
+  pendingCount: number
+  closedById?: string
+  closedByName?: string
+  approvedById?: string
+  approvedByName?: string
+  closedAt?: string
+  approvedAt?: string
+  notes?: string
+  createdAt: string
+}
+
+export const listReconciliationPeriods = (accountId: string) =>
+  api.get(`${RECONCILIATION_BASE}/${accountId}/periodos`).then(unwrap) as Promise<ReconciliationPeriod[]>
+
+export const saveReconciliationPeriod = (accountId: string, dto: {
+  month: number; year: number
+  saldoBanco: number; saldoSistema: number; diferencia: number
+  totalCredito: number; totalDebito: number
+  totalTransactions: number; reconciledCount: number; pendingCount: number
+  notes?: string
+}) =>
+  api.post(`${RECONCILIATION_BASE}/${accountId}/periodos`, dto).then(unwrap) as Promise<ReconciliationPeriod>
+
+export const approveReconciliationPeriod = (accountId: string, periodId: string) =>
+  api.patch(`${RECONCILIATION_BASE}/${accountId}/periodos/${periodId}/aprobar`).then(unwrap) as Promise<ReconciliationPeriod>
+
 export const autoMatchReconciliation = (accountId: string) =>
   api.post(`${RECONCILIATION_BASE}/auto-match/${accountId}`).then(unwrap) as Promise<{ matched: number; message?: string }>
 
