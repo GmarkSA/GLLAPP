@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Form, Select, DatePicker, InputNumber, Input, Button, Typography,
-  Space, Breadcrumb, message, Divider, Alert, Tag, Row, Col, Spin, Radio,
+  Space, Breadcrumb, message, Tag, Row, Col, Spin, Radio, Table, Alert,
 } from 'antd'
-import { DollarOutlined, SaveOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import {
+  DollarOutlined, SaveOutlined, ArrowLeftOutlined, ThunderboltOutlined,
+  DeleteOutlined, InfoCircleOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { createPagoRecibido, type PaymentMode, PAYMENT_MODE_LABELS } from '../../../api/pagos-recibidos'
 import { getInvoices, type Invoice } from '../../../api/facturas'
@@ -14,29 +17,32 @@ import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 const { Title, Text } = Typography
 const { Option } = Select
 
+const r2 = (n: number) => Math.round(n * 100) / 100
 const fmtQ = (n: number | undefined) =>
   n !== undefined ? `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
 
 interface Customer { id: string; name: string; legalName?: string; taxId?: string }
 
 export default function PagoRecibidoFormPage() {
-  const navigate = useNavigate()
-  const [form] = Form.useForm()
+  const navigate   = useNavigate()
+  const [form]     = Form.useForm()
 
-  const [saving,         setSaving]         = useState(false)
-  const [isAdvance,      setIsAdvance]      = useState(false)
-  const [customers,      setCustomers]      = useState<Customer[]>([])
-  const [loadingCust,    setLoadingCust]    = useState(false)
-  const [selectedCust,   setSelectedCust]   = useState<string | null>(null)
-  const [openInvoices,   setOpenInvoices]   = useState<Invoice[]>([])
-  const [loadingInv,     setLoadingInv]     = useState(false)
-  const [selectedInv,    setSelectedInv]    = useState<Invoice | null>(null)
-  const [bankAccounts,   setBankAccounts]   = useState<BankAccount[]>([])
-  const [isrEnabled,     setIsrEnabled]     = useState(false)
-  const [isrAmount,      setIsrAmount]      = useState<number>(0)
+  const [saving,       setSaving]       = useState(false)
+  const [isAdvance,    setIsAdvance]    = useState(false)
+  const [customers,    setCustomers]    = useState<Customer[]>([])
+  const [loadingCust,  setLoadingCust]  = useState(false)
+  const [selectedCust, setSelectedCust] = useState<string | null>(null)
+  const [openInvoices, setOpenInvoices] = useState<Invoice[]>([])
+  const [loadingInv,   setLoadingInv]   = useState(false)
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [isrEnabled,   setIsrEnabled]   = useState(false)
+  const [isrAmount,    setIsrAmount]    = useState<number>(0)
+  // allocations: invoiceId → amount to apply
+  const [allocations,  setAllocations]  = useState<Record<string, number>>({})
+  const [totalAmount,  setTotalAmount]  = useState<number | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  // Load customers — limit: 100 (máximo permitido por @Max(100) en PaginationDto)
+  // ── Customers ─────────────────────────────────────────────────────────────
   const fetchCustomers = (search: string) => {
     setLoadingCust(true)
     getCustomers({ limit: 100, search: search || undefined })
@@ -50,102 +56,229 @@ export default function PagoRecibidoFormPage() {
 
   useEffect(() => { fetchCustomers('') }, [])
 
-  // Load bank accounts
+  // ── Bank accounts ─────────────────────────────────────────────────────────
   useEffect(() => {
     getBankAccounts({ status: 'active' })
-      .then((res: any) => {
-        const list: BankAccount[] = Array.isArray(res) ? res : (res?.data ?? [])
-        setBankAccounts(list)
-      })
+      .then((res: any) => setBankAccounts(Array.isArray(res) ? res : (res?.data ?? [])))
       .catch(() => setBankAccounts([]))
   }, [])
 
-  // Load open invoices when customer changes
+  // ── Open invoices when customer changes ──────────────────────────────────
   useEffect(() => {
-    if (!selectedCust) { setOpenInvoices([]); setSelectedInv(null); return }
+    if (!selectedCust) { setOpenInvoices([]); setAllocations({}); return }
     setLoadingInv(true)
-    getInvoices({ customerId: selectedCust, limit: 100 })
+    getInvoices({ customerId: selectedCust, limit: 200 })
       .then(res => {
-        const open = (res.data ?? []).filter(inv =>
-          ['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.balance) > 0,
-        )
+        const open = (res.data ?? [])
+          .filter(inv => ['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.balance) > 0)
+          .sort((a, b) => new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime())
         setOpenInvoices(open)
+        setAllocations({})
       })
       .catch(() => setOpenInvoices([]))
       .finally(() => setLoadingInv(false))
   }, [selectedCust])
 
-  const handleInvoiceChange = (id: string) => {
-    const inv = openInvoices.find(i => i.id === id) ?? null
-    setSelectedInv(inv)
-    if (inv) {
-      form.setFieldsValue({ amount: Number(inv.balance) })
+  // ── Auto-distribute oldest-first ─────────────────────────────────────────
+  const autoDistribute = useCallback((amount: number) => {
+    let remaining = r2(amount)
+    const newAlloc: Record<string, number> = {}
+    for (const inv of openInvoices) {
+      if (remaining <= 0) { newAlloc[inv.id] = 0; continue }
+      const bal   = r2(Number(inv.balance))
+      const apply = r2(Math.min(remaining, bal))
+      newAlloc[inv.id] = apply
+      remaining = r2(remaining - apply)
     }
+    setAllocations(newAlloc)
+  }, [openInvoices])
+
+  const clearAllocations = () => {
+    setAllocations(Object.fromEntries(openInvoices.map(inv => [inv.id, 0])))
   }
 
+  // derived totals
+  const totalApplied  = r2(Object.values(allocations).reduce((s, v) => s + (v || 0), 0))
+  const totalReceived = totalAmount ?? 0
+  const difference    = r2(totalReceived - totalApplied)
+
+  // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     try {
-      await form.validateFields(
-        isAdvance
-          ? ['customerId', 'paymentDate', 'amount']
-          : undefined,
-      )
+      await form.validateFields(['customerId', 'paymentDate'])
     } catch { return }
-    if (!isAdvance && isrEnabled && isrAmount <= 0) {
-      message.error('Ingrese el monto de ISR retenido')
+
+    if (isAdvance) {
+      // Anticipo — flujo simple existente
+      try { await form.validateFields(['amount']) } catch { return }
+      setSaving(true)
+      try {
+        const vals        = form.getFieldsValue()
+        const paymentDate = (vals.paymentDate as dayjs.Dayjs).format('YYYY-MM-DD')
+        const accountingDate = vals.accountingDate ? (vals.accountingDate as dayjs.Dayjs).format('YYYY-MM-DD') : undefined
+        const pago = await createPagoRecibido({
+          customerId:    selectedCust!,
+          paymentDate, accountingDate,
+          amount:        vals.amount,
+          mode:          vals.mode as PaymentMode,
+          reference:     vals.reference || undefined,
+          bankAccountId: vals.bankAccountId || undefined,
+          notes:         vals.notes || undefined,
+          currency:      'GTQ',
+          isAdvance:     true as const,
+        })
+        message.success(`Anticipo ${pago.paymentNumber} registrado`)
+        navigate(`/ventas/pagos-recibidos/${pago.id}`)
+      } catch (e: any) {
+        const raw = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Error al registrar anticipo'
+        message.error(Array.isArray(raw) ? raw.join(' | ') : raw, 8)
+      } finally { setSaving(false) }
       return
     }
-    const cashAmount = Number(form.getFieldValue('amount') ?? 0)
-    if (!isAdvance && cashAmount > 0 && !form.getFieldValue('bankAccountId')) {
-      message.error('Seleccione una cuenta bancaria para registrar el efectivo recibido')
+
+    // Multi-invoice payment
+    const invoicesToPay = openInvoices.filter(inv => (allocations[inv.id] ?? 0) > 0)
+    if (invoicesToPay.length === 0) {
+      message.error('Aplica al menos un importe a una factura antes de guardar')
       return
     }
+    if (!form.getFieldValue('bankAccountId')) {
+      message.error('Selecciona una cuenta bancaria para registrar el efectivo recibido')
+      return
+    }
+
     setSaving(true)
     try {
-      const vals = form.getFieldsValue()
-      const paymentDate    = (vals.paymentDate    as dayjs.Dayjs).format('YYYY-MM-DD')
-      const accountingDate = vals.accountingDate
-        ? (vals.accountingDate as dayjs.Dayjs).format('YYYY-MM-DD')
-        : undefined
-      const dto = isAdvance
-        ? {
-            customerId:    selectedCust!,
-            paymentDate,
-            accountingDate,
-            amount:        vals.amount,
-            mode:          vals.mode as PaymentMode,
-            reference:     vals.reference || undefined,
-            bankAccountId: vals.bankAccountId || undefined,
-            notes:         vals.notes || undefined,
-            currency:      'GTQ',
-            isAdvance:     true as const,
-          }
-        : {
-            customerId:         selectedCust!,
-            invoiceId:          vals.invoiceId,
-            paymentDate,
-            accountingDate,
-            amount:             cashAmount,
-            mode:               vals.mode as PaymentMode,
-            reference:          vals.reference || undefined,
-            bankAccountId:      vals.bankAccountId || undefined,
-            notes:              vals.notes || undefined,
-            currency:           'GTQ',
-            ...(isrEnabled && isrAmount > 0 ? { isrRetentionAmount: isrAmount } : {}),
-          }
-      const pago = await createPagoRecibido(dto)
-      message.success(`Pago ${pago.paymentNumber} registrado correctamente`)
-      setIsrEnabled(false)
-      setIsrAmount(0)
-      navigate(`/ventas/pagos-recibidos/${pago.id}`)
+      const vals           = form.getFieldsValue()
+      const paymentDate    = (vals.paymentDate as dayjs.Dayjs).format('YYYY-MM-DD')
+      const accountingDate = vals.accountingDate ? (vals.accountingDate as dayjs.Dayjs).format('YYYY-MM-DD') : undefined
+      const baseDto = {
+        customerId:    selectedCust!,
+        paymentDate, accountingDate,
+        mode:          vals.mode as PaymentMode,
+        reference:     vals.reference || undefined,
+        bankAccountId: vals.bankAccountId || undefined,
+        notes:         vals.notes || undefined,
+        currency:      'GTQ',
+        ...(isrEnabled && isrAmount > 0 ? { isrRetentionAmount: isrAmount } : {}),
+      }
+
+      const results = []
+      for (const inv of invoicesToPay) {
+        const pago = await createPagoRecibido({ ...baseDto, invoiceId: inv.id, amount: allocations[inv.id] })
+        results.push(pago)
+      }
+
+      if (results.length === 1) {
+        message.success(`Pago ${results[0].paymentNumber} registrado correctamente`)
+        navigate(`/ventas/pagos-recibidos/${results[0].id}`)
+      } else {
+        message.success(`${results.length} pagos registrados correctamente`)
+        navigate('/ventas/pagos-recibidos')
+      }
     } catch (e: any) {
-      // El backend usa HttpExceptionFilter: { success, error: { message } }
-      const errData = e?.response?.data
-      const raw = errData?.error?.message ?? errData?.message ?? errData?.error
-      const msg = Array.isArray(raw) ? raw.join(' | ') : (raw || 'Error al registrar el pago')
-      message.error(msg, 8)
+      const raw = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Error al registrar pago'
+      message.error(Array.isArray(raw) ? raw.join(' | ') : raw, 8)
     } finally { setSaving(false) }
   }
+
+  // ── Invoice table columns ─────────────────────────────────────────────────
+  const paymentDate = form.getFieldValue('paymentDate') as dayjs.Dayjs | undefined
+
+  const invColumns = [
+    {
+      title: 'FECHA',
+      dataIndex: 'invoiceDate',
+      width: 110,
+      render: (v: string, r: Invoice) => (
+        <div>
+          <div style={{ fontSize: 12 }}>{dayjs(v).format('DD MMM YYYY')}</div>
+          {r.dueDate && (
+            <div style={{ fontSize: 10, color: '#9ca3af' }}>
+              Fecha de vencimiento: {dayjs(r.dueDate).format('DD MMM YYYY')}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'NÚMERO DE FACTURA',
+      dataIndex: 'invoiceNumber',
+      width: 150,
+      render: (v: string, r: Invoice) => (
+        <div>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, fontWeight: 600, color: '#1faec2' }}>{v}</Text>
+          {r.status === 'overdue' && (
+            <Tag color="error" style={{ fontSize: 10, marginLeft: 4 }}>Vencida</Tag>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'IMPORTE DE LA FACTURA',
+      dataIndex: 'total',
+      width: 150,
+      align: 'right' as const,
+      render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
+    },
+    {
+      title: 'IMPORTE ADEUDADO',
+      dataIndex: 'balance',
+      width: 140,
+      align: 'right' as const,
+      render: (v: number) => (
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, fontWeight: 600, color: Number(v) > 0 ? '#fa541c' : '#2ea172' }}>
+          {fmtQ(v)}
+        </Text>
+      ),
+    },
+    {
+      title: 'PAGO RECIBIDO EL',
+      width: 140,
+      align: 'center' as const,
+      render: () => (
+        <Text style={{ fontSize: 12, color: '#6b7280' }}>
+          {paymentDate ? paymentDate.format('DD MMM YYYY') : '—'}
+        </Text>
+      ),
+    },
+    {
+      title: 'PAGO',
+      width: 160,
+      align: 'right' as const,
+      render: (_: any, r: Invoice) => {
+        const val = allocations[r.id] ?? 0
+        return (
+          <div style={{ textAlign: 'right' }}>
+            <InputNumber
+              value={val || undefined}
+              min={0}
+              max={Number(r.balance)}
+              precision={2}
+              prefix="Q"
+              size="small"
+              style={{ width: 130 }}
+              placeholder="0.00"
+              onChange={v => {
+                const newVal = r2(Math.min(v ?? 0, Number(r.balance)))
+                setAllocations(prev => ({ ...prev, [r.id]: newVal }))
+              }}
+            />
+            <div style={{ marginTop: 2 }}>
+              <Button
+                type="link"
+                size="small"
+                style={{ fontSize: 11, padding: 0, color: '#1faec2' }}
+                onClick={() => setAllocations(prev => ({ ...prev, [r.id]: r2(Number(r.balance)) }))}
+              >
+                Pagar el total
+              </Button>
+            </div>
+          </div>
+        )
+      },
+    },
+  ]
 
   return (
     <div>
@@ -163,11 +296,9 @@ export default function PagoRecibidoFormPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <DollarOutlined style={{ fontSize: 22, color: '#1faec2' }} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Registrar Pago Recibido</Title>
+            <Title level={4} style={{ margin: 0 }}>Registrar Pago Recibido</Title>
             <Text type="secondary">
-              {isAdvance
-                ? 'Se registrará como anticipo de cliente (sin factura asociada)'
-                : 'Aplica el cobro directamente al saldo pendiente de una factura'}
+              {isAdvance ? 'Anticipo de cliente — sin factura asociada' : 'El importe se distribuye automáticamente en las facturas más antiguas'}
             </Text>
           </div>
         </div>
@@ -175,53 +306,39 @@ export default function PagoRecibidoFormPage() {
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ventas/pagos-recibidos')}>
             Volver
           </Button>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            loading={saving}
-            onClick={handleSave}
-            style={{ background: '#1faec2' }}
-          >
+          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave} style={{ background: '#1faec2' }}>
             Registrar pago
           </Button>
         </Space>
       </div>
 
-      <Row gutter={16}>
-        <Col xs={24} lg={14}>
-          <Card
-            title="Datos del pago"
-            bordered={false}
-            style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}
-          >
-            <Form form={form} layout="vertical" initialValues={{ paymentDate: dayjs(), accountingDate: dayjs(), currency: 'GTQ' }}>
+      {/* Form card */}
+      <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+        <Form form={form} layout="vertical" initialValues={{ paymentDate: dayjs(), accountingDate: dayjs(), currency: 'GTQ' }}>
 
-              {/* Tipo de pago */}
-              <Form.Item label="Tipo de pago" style={{ marginBottom: 16 }}>
-                <Radio.Group
-                  value={isAdvance ? 'advance' : 'invoice'}
-                  onChange={e => {
-                    const adv = e.target.value === 'advance'
-                    setIsAdvance(adv)
-                    setSelectedInv(null)
-                    setIsrEnabled(false)
-                    setIsrAmount(0)
-                    form.setFieldsValue({ invoiceId: undefined, amount: undefined })
-                  }}
-                  optionType="button"
-                  buttonStyle="solid"
-                >
-                  <Radio.Button value="invoice">Pago a factura</Radio.Button>
-                  <Radio.Button value="advance">Anticipo (sin factura)</Radio.Button>
-                </Radio.Group>
-              </Form.Item>
+          {/* Tipo de pago */}
+          <Form.Item label="Tipo de pago" style={{ marginBottom: 16 }}>
+            <Radio.Group
+              value={isAdvance ? 'advance' : 'invoice'}
+              onChange={e => {
+                const adv = e.target.value === 'advance'
+                setIsAdvance(adv)
+                setIsrEnabled(false); setIsrAmount(0)
+                setAllocations({})
+                form.setFieldsValue({ amount: undefined })
+              }}
+              optionType="button"
+              buttonStyle="solid"
+            >
+              <Radio.Button value="invoice">Pago a factura(s)</Radio.Button>
+              <Radio.Button value="advance">Anticipo (sin factura)</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
 
-              {/* Cliente */}
-              <Form.Item
-                name="customerId"
-                label="Cliente"
-                rules={[{ required: true, message: 'Selecciona el cliente' }]}
-              >
+          <Row gutter={16}>
+            {/* Cliente */}
+            <Col xs={24} md={8}>
+              <Form.Item name="customerId" label="Cliente" rules={[{ required: true, message: 'Selecciona el cliente' }]}>
                 <Select
                   showSearch
                   placeholder="Buscar cliente por nombre o NIT..."
@@ -233,14 +350,12 @@ export default function PagoRecibidoFormPage() {
                   }}
                   onChange={(val) => {
                     setSelectedCust(val)
-                    setSelectedInv(null)
-                    form.setFieldsValue({ invoiceId: undefined, amount: undefined })
+                    setAllocations({})
+                    setTotalAmount(null)
+                    form.setFieldsValue({ amount: undefined })
                   }}
                   notFoundContent={loadingCust ? <Spin size="small" /> : 'Sin resultados'}
-                  options={customers.map(c => ({
-                    value: c.id,
-                    label: c.legalName ?? c.name,
-                  }))}
+                  options={customers.map(c => ({ value: c.id, label: c.legalName ?? c.name }))}
                   optionRender={(opt) => {
                     const c = customers.find(x => x.id === opt.value)
                     const displayName = c?.legalName ?? c?.name ?? ''
@@ -258,282 +373,206 @@ export default function PagoRecibidoFormPage() {
                   }}
                 />
               </Form.Item>
+            </Col>
 
-              {/* Factura (solo en modo pago a factura) */}
-              {!isAdvance && (
-                <Form.Item
-                  name="invoiceId"
-                  label="Factura a abonar"
-                  rules={[{ required: true, message: 'Selecciona la factura' }]}
-                >
-                  <Select
-                    placeholder={selectedCust ? 'Seleccionar factura...' : 'Primero selecciona un cliente'}
-                    disabled={!selectedCust}
-                    loading={loadingInv}
-                    onChange={handleInvoiceChange}
-                    notFoundContent={
-                      loadingInv
-                        ? <Spin size="small" />
-                        : <Text type="secondary" style={{ fontSize: 12 }}>No hay facturas con saldo pendiente</Text>
-                    }
-                  >
-                    {openInvoices.map(inv => (
-                      <Option key={inv.id} value={inv.id}>
-                        <Space>
-                          <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{inv.invoiceNumber}</Text>
-                          <Text type="secondary" style={{ fontSize: 11 }}>
-                            Total: {fmtQ(inv.total)} | Saldo: {fmtQ(inv.balance)}
-                          </Text>
-                          <Tag color={inv.status === 'overdue' ? '#e5484d' : '#1faec2'} style={{ fontSize: 10 }}>
-                            {inv.status === 'overdue' ? 'Vencida' : 'Pendiente'}
-                          </Tag>
-                        </Space>
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              )}
+            {/* Fecha de pago */}
+            <Col xs={12} md={4}>
+              <Form.Item name="paymentDate" label="Fecha de pago" rules={[{ required: true, message: 'Selecciona la fecha' }]}>
+                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" onChange={() => form.validateFields(['paymentDate'])} />
+              </Form.Item>
+            </Col>
 
-              <Row gutter={12}>
-                {/* Fecha de pago */}
-                <Col span={8}>
-                  <Form.Item
-                    name="paymentDate"
-                    label="Fecha de pago"
-                    rules={[{ required: true, message: 'Selecciona la fecha' }]}
-                  >
-                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                  </Form.Item>
-                </Col>
-                {/* Fecha de contabilización */}
-                <Col span={8}>
-                  <Form.Item
-                    name="accountingDate"
-                    label="Fecha de contabilización"
-                    tooltip="Período contable. La póliza se registra en esta fecha."
-                  >
-                    <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                  </Form.Item>
-                </Col>
+            {/* Fecha de contabilización */}
+            <Col xs={12} md={4}>
+              <Form.Item name="accountingDate" label="Fecha contabiliz." tooltip="Período contable en el que se registra la póliza.">
+                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+              </Form.Item>
+            </Col>
 
-                {/* Monto */}
-                <Col span={8}>
-                  <Form.Item
-                    name="amount"
-                    label={isAdvance ? 'Monto del anticipo' : (isrEnabled ? 'Efectivo al banco (opcional)' : 'Monto a aplicar')}
-                    rules={
-                      isrEnabled
-                        ? []
-                        : [
-                            { required: true, message: 'Ingresa el monto' },
-                            { validator: (_, v) => v > 0 ? Promise.resolve() : Promise.reject('El monto debe ser mayor a 0') },
-                          ]
-                    }
-                  >
-                    <InputNumber
-                      style={{ width: '100%' }}
-                      prefix="Q"
-                      precision={2}
-                      min={0}
-                      max={!isAdvance && selectedInv ? Number(selectedInv.balance) : undefined}
-                      placeholder={isrEnabled ? '0.00 — dejar en 0 si es solo retención' : '0.00'}
+            {/* Importe recibido */}
+            <Col xs={24} md={8}>
+              <Form.Item
+                name={isAdvance ? 'amount' : undefined}
+                label={isAdvance ? 'Monto del anticipo' : 'Importe recibido'}
+                rules={isAdvance ? [
+                  { required: true, message: 'Ingresa el monto' },
+                  { validator: (_, v) => v > 0 ? Promise.resolve() : Promise.reject('Debe ser mayor a 0') },
+                ] : []}
+              >
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <InputNumber
+                    value={isAdvance ? undefined : totalAmount ?? undefined}
+                    style={{ flex: 1 }}
+                    prefix="Q"
+                    precision={2}
+                    min={0}
+                    placeholder="0.00"
+                    onChange={v => {
+                      if (isAdvance) {
+                        form.setFieldValue('amount', v)
+                      } else {
+                        setTotalAmount(v)
+                        if (v && v > 0) autoDistribute(v)
+                        else clearAllocations()
+                      }
+                    }}
+                  />
+                  {!isAdvance && (
+                    <Button
+                      icon={<ThunderboltOutlined />}
+                      title="Distribuir automáticamente en facturas más antiguas"
+                      onClick={() => { if (totalAmount && totalAmount > 0) autoDistribute(totalAmount) }}
+                      disabled={!totalAmount || totalAmount <= 0 || openInvoices.length === 0}
                     />
-                  </Form.Item>
-                </Col>
-              </Row>
+                  )}
+                </div>
+              </Form.Item>
+            </Col>
+          </Row>
 
-              <Row gutter={12}>
-                {/* Forma de pago */}
-                <Col span={12}>
-                  <Form.Item name="mode" label="Forma de pago">
-                    <Select placeholder="Seleccionar...">
-                      {(Object.entries(PAYMENT_MODE_LABELS) as [PaymentMode, string][]).map(([k, v]) => (
-                        <Option key={k} value={k}>{v}</Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
+          <Row gutter={16}>
+            {/* Forma de pago */}
+            <Col xs={12} md={6}>
+              <Form.Item name="mode" label="Forma de pago">
+                <Select placeholder="Seleccionar...">
+                  {(Object.entries(PAYMENT_MODE_LABELS) as [PaymentMode, string][]).map(([k, v]) => (
+                    <Option key={k} value={k}>{v}</Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
 
-                {/* Referencia */}
-                <Col span={12}>
-                  <Form.Item name="reference" label="Referencia / N° documento">
-                    <Input placeholder="N° cheque, transferencia..." />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              {/* Cuenta bancaria */}
+            {/* Cuenta bancaria */}
+            <Col xs={12} md={6}>
               <Form.Item name="bankAccountId" label="Cuenta bancaria destino">
-                <Select allowClear placeholder="Seleccionar cuenta (opcional)">
+                <Select allowClear placeholder="Seleccionar cuenta">
                   {bankAccounts.map((ba: any) => (
                     <Option key={ba.id} value={ba.id}>
-                      {ba.name} {ba.bankName ? `— ${ba.bankName}` : ''} {ba.accountNumber ? `(${ba.accountNumber})` : ''}
+                      {ba.name}{ba.bankName ? ` — ${ba.bankName}` : ''}{ba.accountNumber ? ` (${ba.accountNumber})` : ''}
                     </Option>
                   ))}
                 </Select>
               </Form.Item>
+            </Col>
 
-              {/* ISR retenido al pago (solo en pago a factura) */}
-              {!isAdvance && (
-                <>
-                  <Form.Item label="¿Incluye retención ISR?">
-                    <Radio.Group value={isrEnabled ? 'si' : 'no'} onChange={e => {
-                      const on = e.target.value === 'si'
-                      setIsrEnabled(on)
-                      setIsrAmount(0)
-                      form.setFieldValue('amount', on ? 0 : (selectedInv ? Number(selectedInv.balance) : undefined))
-                    }}>
-                      <Radio value="no">No</Radio>
-                      <Radio value="si">Sí — retención fiscal en origen</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                  {isrEnabled && (
-                    <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '12px 16px', marginBottom: 16 }}>
-                      <Form.Item label="ISR retenido por el cliente" style={{ marginBottom: 8 }}>
-                        <InputNumber
-                          style={{ width: '100%' }} prefix="Q" min={0.01} step={0.01} precision={2}
-                          max={selectedInv ? Number(selectedInv.balance) : undefined}
-                          value={isrAmount || undefined}
-                          placeholder="0.00"
-                          onChange={v => setIsrAmount(v ?? 0)}
-                        />
-                      </Form.Item>
-                      {(() => {
-                        const efectivo = Number(form.getFieldValue('amount') ?? 0)
-                        const totalAbonado = efectivo + isrAmount
-                        return (
-                          <div style={{ fontSize: 12, color: '#6b21a8', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            {efectivo > 0 && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Efectivo al banco:</span>
-                                <span>{fmtQ(efectivo)}</span>
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>ISR retenido por cliente:</span>
-                              <span>{fmtQ(isrAmount)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #ddd6fe', paddingTop: 4, marginTop: 2 }}>
-                              <span>Total que se abona al saldo:</span>
-                              <span>{fmtQ(totalAbonado)}</span>
-                            </div>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Notas */}
-              <Form.Item name="notes" label="Notas internas">
-                <Input.TextArea rows={2} placeholder="Observaciones del pago..." />
+            {/* Referencia */}
+            <Col xs={12} md={6}>
+              <Form.Item name="reference" label="N.º de referencia">
+                <Input placeholder="N° cheque, transferencia..." />
               </Form.Item>
-            </Form>
-          </Card>
-        </Col>
+            </Col>
 
-        {/* Panel resumen factura / anticipo */}
-        <Col xs={24} lg={10}>
-          {isAdvance ? (
-            <Card
-              title={<Space><InfoCircleOutlined style={{ color: '#1faec2' }} /> Anticipo de cliente</Space>}
-              bordered={false}
-              style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-            >
-              <Space direction="vertical" style={{ width: '100%' }} size={10}>
-                <Alert
-                  type="info"
-                  showIcon
-                  message="Este pago se registrará como anticipo de cliente."
-                  description="No se asocia a ninguna factura específica. Podrá aplicarse a una factura futura desde el módulo de Anticipos."
-                />
-                <Divider style={{ margin: '8px 0' }}>Póliza contable generada</Divider>
-                {/* Tabla asiento estilo ERP */}
-                <div style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 6, overflow: 'hidden', fontSize: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', background: '#fafbfc', padding: '6px 10px', fontWeight: 600, color: '#6b7280', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
-                    <span>Cuenta</span><span style={{ marginRight: 16 }}>Debe</span><span>Haber</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '6px 10px', borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
-                    <Text style={{ fontSize: 12 }}>Banco / Caja</Text>
-                    <Text style={{ fontVariantNumeric: 'tabular-nums', marginRight: 16, color: '#1faec2' }}>Q monto</Text>
-                    <Text style={{ color: '#bbb', fontVariantNumeric: 'tabular-nums' }}>—</Text>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '6px 10px' }}>
-                    <Text style={{ fontSize: 12 }}>Anticipos de Clientes <Tag style={{ fontSize: 10, fontVariantNumeric: 'tabular-nums', marginLeft: 4 }}>2110</Tag></Text>
-                    <Text style={{ color: '#bbb', fontVariantNumeric: 'tabular-nums', marginRight: 16 }}>—</Text>
-                    <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>Q monto</Text>
-                  </div>
+            {/* Notas */}
+            <Col xs={12} md={6}>
+              <Form.Item name="notes" label="Notas internas">
+                <Input placeholder="Observaciones..." />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* ISR (solo en pago a facturas) */}
+          {!isAdvance && (
+            <Form.Item label="¿Se han deducido los impuestos?" style={{ marginBottom: 0 }}>
+              <Radio.Group value={isrEnabled ? 'si' : 'no'} onChange={e => {
+                const on = e.target.value === 'si'
+                setIsrEnabled(on); setIsrAmount(0)
+              }}>
+                <Radio value="no">No se han retenido impuestos</Radio>
+                <Radio value="si">Sí, retención fiscal en origen</Radio>
+              </Radio.Group>
+              {isrEnabled && (
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Text style={{ fontSize: 12 }}>ISR retenido:</Text>
+                  <InputNumber
+                    style={{ width: 140 }} prefix="Q" min={0.01} step={0.01} precision={2}
+                    value={isrAmount || undefined} placeholder="0.00"
+                    onChange={v => setIsrAmount(v ?? 0)}
+                  />
                 </div>
-                <Divider style={{ margin: '4px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>N° anticipo asignado</Text>
-                  <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>ANT-{new Date().getFullYear()}-NNNNN</Text>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>N° pago asignado</Text>
-                  <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>PAG-{new Date().getFullYear()}-NNNNN</Text>
-                </div>
-              </Space>
-            </Card>
+              )}
+            </Form.Item>
+          )}
+        </Form>
+      </Card>
+
+      {/* Invoice distribution table (solo en pago a facturas) */}
+      {!isAdvance && (
+        <Card
+          bordered={false}
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          title={
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text strong>Facturas no pagadas</Text>
+              <Button
+                size="small"
+                icon={<DeleteOutlined />}
+                onClick={clearAllocations}
+                disabled={openInvoices.length === 0}
+              >
+                Borrar importe aplicado
+              </Button>
+            </div>
+          }
+        >
+          {!selectedCust ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: '#bbb' }}>
+              <InfoCircleOutlined style={{ fontSize: 28, marginBottom: 8, display: 'block' }} />
+              <Text type="secondary">Selecciona un cliente para ver sus facturas pendientes</Text>
+            </div>
+          ) : loadingInv ? (
+            <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+          ) : openInvoices.length === 0 ? (
+            <Alert type="success" showIcon message="Este cliente no tiene facturas con saldo pendiente." />
           ) : (
-            <Card
-              title="Resumen de factura"
-              bordered={false}
-              style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
-            >
-              {selectedInv ? (
-                <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text type="secondary">N° Factura</Text>
-                    <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{selectedInv.invoiceNumber}</Text>
+            <>
+              <Table
+                dataSource={openInvoices}
+                columns={invColumns}
+                rowKey="id"
+                pagination={false}
+                size="small"
+                scroll={{ x: 'max-content' }}
+                locale={{ emptyText: 'Sin facturas pendientes' }}
+              />
+
+              {/* Totales */}
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ width: 320, border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '8px 14px', background: '#fafbfc', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                    <Text style={{ fontSize: 12 }}>Importe recibido</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(totalReceived)}</Text>
                   </div>
-                  <Divider style={{ margin: '6px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text type="secondary">Total factura</Text>
-                    <Text>{fmtQ(selectedInv.total)}</Text>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '8px 14px', background: '#fafbfc', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                    <Text style={{ fontSize: 12 }}>Total aplicado a facturas</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2', fontWeight: 600 }}>{fmtQ(totalApplied)}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text type="secondary">Ya pagado</Text>
-                    <Text>{fmtQ(selectedInv.paidAmount)}</Text>
-                  </div>
-                  <Divider style={{ margin: '6px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text type="secondary">Saldo pendiente</Text>
-                    <Text strong style={{ fontSize: 16, color: Number(selectedInv.balance) > 0 ? '#fa541c' : '#2ea172' }}>
-                      {fmtQ(selectedInv.balance)}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '10px 14px', background: difference < -0.009 ? '#fff5f5' : difference > 0.009 ? '#fffbeb' : '#f0fdf4' }}>
+                    <Text style={{ fontSize: 13, fontWeight: 700 }}>Diferencia</Text>
+                    <Text style={{
+                      fontVariantNumeric: 'tabular-nums', fontSize: 13, fontWeight: 700,
+                      color: Math.abs(difference) < 0.01 ? '#2ea172' : difference > 0 ? '#d97706' : '#dc2626',
+                    }}>
+                      {fmtQ(Math.abs(difference))} {difference > 0.009 ? '(sin aplicar)' : difference < -0.009 ? '(excede importe)' : '✓'}
                     </Text>
                   </div>
-                  <Divider style={{ margin: '6px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text type="secondary">Estado</Text>
-                    <Tag color={selectedInv.status === 'overdue' ? '#e5484d' : '#1faec2'}>
-                      {selectedInv.status === 'overdue' ? 'Vencida' : 'Pendiente'}
-                    </Tag>
-                  </div>
-                  {selectedInv.dueDate && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary">Vence</Text>
-                      <Text>{dayjs(selectedInv.dueDate).format('DD/MM/YYYY')}</Text>
-                    </div>
-                  )}
-                  <Alert
-                    type="info"
-                    showIcon
-                    style={{ marginTop: 8 }}
-                    message="El pago se aplicará automáticamente al saldo de la factura y se generará la póliza contable Dr Banco / Cr CxC."
-                  />
-                </Space>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '32px 0', color: '#bbb' }}>
-                  <DollarOutlined style={{ fontSize: 32, marginBottom: 8, display: 'block' }} />
-                  <Text type="secondary">Selecciona un cliente y una factura para ver el resumen</Text>
                 </div>
-              )}
-            </Card>
+              </div>
+            </>
           )}
-        </Col>
-      </Row>
+        </Card>
+      )}
+
+      {/* Anticipo info card */}
+      {isAdvance && (
+        <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+          <Alert
+            type="info"
+            showIcon
+            message="Anticipo de cliente"
+            description="Este pago se registrará como anticipo sin factura asociada. Podrá aplicarse a una factura futura desde el módulo de Anticipos."
+          />
+        </Card>
+      )}
     </div>
   )
 }
