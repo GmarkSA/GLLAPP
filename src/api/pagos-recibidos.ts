@@ -48,19 +48,20 @@ export interface PagoRecibido {
 }
 
 export interface CreatePagoRecibidoDto {
-  customerId:          string
-  invoiceId?:          string
-  isAdvance?:          boolean
-  paymentDate:         string
-  accountingDate?:     string
-  amount:              number
-  mode?:               PaymentMode
-  reference?:          string
-  bankAccountId?:      string
-  notes?:              string
-  currency?:           string
-  exchangeRate?:       number
-  isrRetentionAmount?: number
+  customerId:           string
+  invoiceId?:           string
+  isAdvance?:           boolean
+  paymentDate:          string
+  accountingDate?:      string
+  amount:               number
+  mode?:                PaymentMode
+  reference?:           string
+  bankAccountId?:       string
+  bankTransactionId?:   string   // enlaza al movimiento importado, evita crear banco_transaction duplicado
+  notes?:               string
+  currency?:            string
+  exchangeRate?:        number
+  isrRetentionAmount?:  number
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
