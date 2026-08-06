@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   Button,
   Card,
-  Dropdown,
   Empty,
   Input,
   Select,
@@ -23,7 +22,6 @@ import {
   CheckCircleOutlined,
   EditOutlined,
   FileSearchOutlined,
-  MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -186,7 +184,7 @@ export default function CuentasBancariasPage() {
     {
       title: 'Cuenta contable',
       dataIndex: 'glAccountCode',
-      width: 220,
+      width: 130,
       render: (_, row) => row.glAccountCode
         ? <Tooltip title={row.glAccountName}><Tag color="#6b7280">{row.glAccountCode}</Tag></Tooltip>
         : <Tag color="#ff7f00">Sin vincular</Tag>,
@@ -212,39 +210,37 @@ export default function CuentasBancariasPage() {
     {
       title: 'Estado',
       dataIndex: 'status',
-      width: 110,
+      width: 80,
       render: v => <Tag color={v === 'active' ? '#2ea172' : 'default'}>{v === 'active' ? 'Activa' : 'Inactiva'}</Tag>,
     },
     {
-      title: '',
+      title: 'Acciones',
       key: 'actions',
-      width: 56,
+      width: 160,
       fixed: 'right',
       render: (_, row) => (
-        <Dropdown
-          trigger={['click']}
-          menu={{
-            items: [
-              { key: 'movements', label: 'Ver movimientos', icon: <FileSearchOutlined /> },
-              { key: 'edit', label: 'Editar', icon: <EditOutlined /> },
-              { key: 'reconcile', label: 'Conciliacion', icon: <CheckCircleOutlined /> },
-              { key: 'refresh', label: 'Actualizar saldo', icon: <ReloadOutlined /> },
-              { type: 'divider' },
-              row.status === 'active'
-                ? { key: 'toggle', label: 'Desactivar', icon: <StopOutlined />, danger: true }
-                : { key: 'toggle', label: 'Activar', icon: <CheckCircleOutlined /> },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'movements') navigate(`/bancos/${row.id}`)
-              if (key === 'edit') navigate(`/bancos/${row.id}/editar`)
-              if (key === 'reconcile') navigate(`/bancos/${row.id}/conciliacion`)
-              if (key === 'refresh') handleRefreshBalance(row)
-              if (key === 'toggle') handleToggleStatus(row)
-            },
-          }}
-        >
-          <Button type="text" icon={<MoreOutlined />} />
-        </Dropdown>
+        <Space size={2}>
+          <Tooltip title="Ver movimientos">
+            <Button size="small" type="text" icon={<FileSearchOutlined />} onClick={() => navigate(`/bancos/${row.id}`)} />
+          </Tooltip>
+          <Tooltip title="Editar">
+            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => navigate(`/bancos/${row.id}/editar`)} />
+          </Tooltip>
+          <Tooltip title="Conciliación">
+            <Button size="small" type="text" icon={<CheckCircleOutlined />} onClick={() => navigate(`/bancos/${row.id}/conciliacion`)} />
+          </Tooltip>
+          <Tooltip title="Actualizar saldo">
+            <Button size="small" type="text" icon={<ReloadOutlined />} onClick={() => handleRefreshBalance(row)} />
+          </Tooltip>
+          <Tooltip title={row.status === 'active' ? 'Desactivar' : 'Activar'}>
+            <Button
+              size="small" type="text"
+              icon={row.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />}
+              danger={row.status === 'active'}
+              onClick={() => handleToggleStatus(row)}
+            />
+          </Tooltip>
+        </Space>
       ),
     },
   ]
