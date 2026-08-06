@@ -11,7 +11,7 @@ import {
   getLibroVentas, downloadLibroVentasExcel,
   type LibroVentasReport,
 } from '../../api/facturas'
-import { printLibro } from '../../components/ReportHeader/printLibro'
+import { printLibro, type LibroRow, type LibroTotals } from '../../components/ReportHeader/printLibro'
 import {
   getEmpresaInfo, getCorrelativo, setCorrelativo,
   type EmpresaInfo,
@@ -288,38 +288,42 @@ export default function LibroVentasPage() {
 
   const handlePrint = () => {
     if (!data) return
-    const printRows = data.items.map(r => {
-      const base: any = {
-        folio: r.folio, tipoDocumento: r.tipoDocumento, fecha: String(r.fecha),
-        felSerie: r.felSerie, felNumero: r.felNumero, referencia: r.referencia,
-        nitParty: r.nitCliente, nombreParty: r.nombreCliente,
-        iva: r.iva, total: r.total,
-      }
-      activeCols.slice(0, 6).forEach((col, i) => {
-        base[`col${i + 1}`]   = (r as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
-        base[`label${i + 1}`] = col.label
-      })
-      return base
-    })
-    const printTotals: any = { iva: data.totals.iva, total: data.totals.total }
-    activeCols.slice(0, 6).forEach((col, i) => {
-      printTotals[`col${i + 1}`] = (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
-    })
+
+    const printColumns = activeCols.map(c => ({ key: c.key, label: c.label }))
+
+    const printRows: LibroRow[] = data.items.map(r => ({
+      folio:         r.folio,
+      tipoDocumento: (r.tipoDocumento ?? 'FACT').toUpperCase(),
+      fecha:         String(r.fecha),
+      felSerie:      r.felSerie,
+      felNumero:     r.felNumero,
+      referencia:    r.referencia,
+      nitParty:      r.nitCliente,
+      nombreParty:   r.nombreCliente,
+      values:        activeCols.map(col => (r as any)[FIELD_MAP[col.key] ?? col.key] ?? 0),
+      iva:           r.iva,
+      total:         r.total,
+    }))
+
+    const printTotals: LibroTotals = {
+      values: activeCols.map(col => (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0),
+      iva:    data.totals.iva,
+      total:  data.totals.total,
+    }
 
     printLibro({
       empresa,
-      reportName: 'Libro de Ventas y Servicios',
+      reportName:  'Libro de Ventas y Servicios',
       period,
       folioInicio,
       folioFin,
       nitLabel:    'NIT Cliente',
       nombreLabel: 'Nombre del Cliente',
-      hasIdp:  false,
-      hasCol5: activeCols.length > 4,
-      hasCol6: activeCols.length > 5,
-      rows:   printRows,
-      totals: printTotals,
-      resumen: data.resumenCategoria.map(r => ({
+      hasIdp:      false,
+      columns:     printColumns,
+      rows:        printRows,
+      totals:      printTotals,
+      resumen:     data.resumenCategoria.map(r => ({
         label:    activeCols.find(c => c.key === r.categoria)?.label ?? r.categoria,
         cantidad: r.cantidad, base: r.base, iva: r.iva, total: r.total,
       })),

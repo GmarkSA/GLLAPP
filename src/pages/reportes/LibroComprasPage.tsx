@@ -11,7 +11,7 @@ import {
   getLibroCompras, downloadLibroComprasExcel,
   type LibroComprasReport,
 } from '../../api/compras'
-import { printLibro } from '../../components/ReportHeader/printLibro'
+import { printLibro, type LibroRow, type LibroTotals } from '../../components/ReportHeader/printLibro'
 import {
   getEmpresaInfo, getCorrelativo, setCorrelativo,
   type EmpresaInfo,
@@ -49,6 +49,19 @@ const FIELD_MAP: Record<string, string> = {
   exento:               'exento',
 }
 
+// Tipo de documento interno → código SAT DTE
+const TIPO_DOC_SAT: Record<string, string> = {
+  goods:          'FACT',
+  services:       'FACT',
+  fuel:           'FACT',
+  special:        'FE',
+  reimbursement:  'FACT',
+  exempt:         'FACT',
+  donation:       'RDON',
+  small_taxpayer: 'FACT',
+  credit_note:    'NCRE',
+}
+
 const CATEGORIA_COLOR: Record<string, string> = {
   bienes:               '#1faec2',
   servicios:            '#1faec2',
@@ -73,11 +86,11 @@ const FIXED_HEADER_COLS = [
   {
     title: 'Tipo Doc.',
     dataIndex: 'tipoDocumento',
-    width: 90,
+    width: 80,
     sorter: (a: any, b: any) => (a.tipoDocumento || '').localeCompare(b.tipoDocumento || ''),
     render: (v: string) => (
       <Tag style={{ fontSize: 10, padding: '0 4px' }}>
-        {v === 'goods' ? 'FACT' : v === 'services' ? 'SERV' : v === 'fuel' ? 'COMB' : v === 'special' ? 'FE' : v === 'reimbursement' ? 'REEM' : v.toUpperCase()}
+        {TIPO_DOC_SAT[v] ?? v?.toUpperCase() ?? 'FACT'}
       </Tag>
     ),
   },
@@ -326,38 +339,44 @@ export default function LibroComprasPage() {
 
   const handlePrint = () => {
     if (!data) return
-    const printRows = data.items.map(r => {
-      const base: any = {
-        folio: r.folio, tipoDocumento: r.tipoDocumento, fecha: String(r.fecha),
-        felSerie: r.felSerie, felNumero: r.felNumero, referencia: r.referencia,
-        nitParty: r.nitProveedor, nombreParty: r.nombreProveedor,
-        idp: r.idp, iva: r.iva, total: r.total,
-      }
-      activeCols.slice(0, 6).forEach((col, i) => {
-        base[`col${i + 1}`]   = (r as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
-        base[`label${i + 1}`] = col.label
-      })
-      return base
-    })
-    const printTotals: any = { idp: data.totals.idp, iva: data.totals.iva, total: data.totals.total }
-    activeCols.slice(0, 6).forEach((col, i) => {
-      printTotals[`col${i + 1}`] = (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0
-    })
+
+    const printColumns = activeCols.map(c => ({ key: c.key, label: c.label }))
+
+    const printRows: LibroRow[] = data.items.map(r => ({
+      folio:         r.folio,
+      tipoDocumento: TIPO_DOC_SAT[r.tipoDocumento] ?? r.tipoDocumento?.toUpperCase() ?? 'FACT',
+      fecha:         String(r.fecha),
+      felSerie:      r.felSerie,
+      felNumero:     r.felNumero,
+      referencia:    r.referencia,
+      nitParty:      r.nitProveedor,
+      nombreParty:   r.nombreProveedor,
+      values:        activeCols.map(col => (r as any)[FIELD_MAP[col.key] ?? col.key] ?? 0),
+      idp:           r.idp,
+      iva:           r.iva,
+      total:         r.total,
+    }))
+
+    const printTotals: LibroTotals = {
+      values: activeCols.map(col => (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0),
+      idp:    data.totals.idp,
+      iva:    data.totals.iva,
+      total:  data.totals.total,
+    }
 
     printLibro({
       empresa,
-      reportName: 'Libro de Compras y Servicios',
+      reportName:  'Libro de Compras y Servicios',
       period,
       folioInicio,
       folioFin,
       nitLabel:    'NIT Contribuyente',
       nombreLabel: 'Nombre del Contribuyente',
-      hasIdp:  data.totals.idp > 0,
-      hasCol5: activeCols.length > 4,
-      hasCol6: activeCols.length > 5,
-      rows:   printRows,
-      totals: printTotals,
-      resumen: data.resumenCategoria.map(r => ({
+      hasIdp:      data.totals.idp > 0,
+      columns:     printColumns,
+      rows:        printRows,
+      totals:      printTotals,
+      resumen:     data.resumenCategoria.map(r => ({
         label:    activeCols.find(c => c.key === r.categoria)?.label ?? r.categoria,
         cantidad: r.cantidad, base: r.base, iva: r.iva, total: r.total,
       })),
