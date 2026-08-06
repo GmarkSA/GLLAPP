@@ -647,30 +647,6 @@ export default function ProveedorFormPage() {
                         </Form.Item>
 
                         <Row gutter={20}>
-                          {/* IVA */}
-                          <Col xs={24} md={12}>
-                            <Card
-                              size="small" bordered={false}
-                              style={{ background: '#e6fafd', borderRadius: 8, marginBottom: 16 }}
-                            >
-                              <div style={{ fontWeight: 600, color: '#1faec2', marginBottom: 8 }}>
-                                IVA aplicable en facturas de compra
-                              </div>
-                              <Form.Item name="taxCode" label="Impuesto IVA" style={{ marginBottom: 0 }}>
-                                <Select placeholder="Selecciona impuesto IVA" allowClear>
-                                  {ivaTaxes.length > 0
-                                    ? ivaTaxes.map(t => (
-                                      <Option key={t.code} value={t.code}>
-                                        <Space><Tag color="#1faec2">{t.code}</Tag>{t.name}</Space>
-                                      </Option>
-                                    ))
-                                    : <Option disabled value="">Sin impuestos — configúralos en Configuración → Impuestos</Option>
-                                  }
-                                </Select>
-                              </Form.Item>
-                            </Card>
-                          </Col>
-
                           {/* IVA Retenida — solo para contribuyente especial / gobierno */}
                           {showRetention && (
                             <Col xs={24} md={12}>
