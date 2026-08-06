@@ -419,7 +419,6 @@ export default function ProveedorDetallePage() {
                     <Text>{vendor.paymentTerms || '—'}</Text>
                     <Text type="secondary">Tipo fiscal</Text>
                     <Text style={{ fontSize: 12 }}>{TAX_TREATMENT_LABELS[vendor.taxTreatment ?? ''] ?? vendor.taxTreatment ?? '—'}</Text>
-                    {vendor.taxCode && <><Text type="secondary">IVA</Text><Tag color="#1faec2" style={{ fontSize: 11 }}>{vendor.taxCode}</Tag></>}
                     {vendor.tdsEnabled && vendor.tdsTaxCode && <><Text type="secondary">ISR</Text><Tag color="#6b7280" style={{ fontSize: 11 }}>{vendor.tdsTaxCode}</Tag></>}
                   </div>
                 </div>

@@ -56,7 +56,6 @@ const ALL_COL_META: ColMeta[] = [
   { key: 'paymentTerms',  label: 'Términos de pago' },
   { key: 'taxTreatment',  label: 'Tipo fiscal' },
   { key: 'impuesto',      label: 'Impuesto',         description: 'IVA, ISR y retenciones asignadas' },
-  { key: 'taxCode',       label: 'Código IVA' },
   { key: 'balance',       label: 'Saldo' },
   { key: 'status',        label: 'Estado' },
   { key: 'ciudad',        label: 'Ciudad' },
@@ -73,7 +72,7 @@ const COL_WIDTHS: Record<string, number> = {
   nombre: 260, vendorNumber: 120, type: 130, legalName: 200,
   taxId: 110, contacto: 200, email: 180, phone: 120,
   mobile: 120, currency: 80, paymentTerms: 140,
-  taxTreatment: 145, impuesto: 120, taxCode: 110,
+  taxTreatment: 145, impuesto: 120,
   balance: 110, status: 100, ciudad: 120, notes: 160,
 }
 
@@ -154,14 +153,10 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
       return { ...base, title: 'Impuesto', width: 120,
         render: (_: any, r: Vendor) => (
           <Space size={4} direction="vertical" style={{ gap: 2 }}>
-            {r.taxCode        && <Tag color="#1faec2"   style={{ fontSize: 11 }}>{r.taxCode}</Tag>}
             {r.tdsEnabled && r.tdsTaxCode && <Tag color="#6b7280" style={{ fontSize: 11 }}>ISR: {r.tdsTaxCode}</Tag>}
             {r.ivaRetentionCode && <Tag color="#ff7f00" style={{ fontSize: 11 }}>{r.ivaRetentionCode}</Tag>}
           </Space>
         ) }
-    case 'taxCode':
-      return { ...base, title: 'Código IVA', dataIndex: 'taxCode', width: 110,
-        render: (v: string) => v ? <Tag color="#1faec2" style={{ fontSize: 11 }}>{v}</Tag> : <Text type="secondary">—</Text> }
     case 'balance':
       return { ...base, title: 'Saldo', dataIndex: 'balance', width: 110, align: 'right' as const,
         render: (v: number) => (
