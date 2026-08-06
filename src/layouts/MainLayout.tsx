@@ -21,6 +21,7 @@ import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgress
 import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 import GlobalSearchModal from '../components/GlobalSearch/GlobalSearchModal'
+import NotificationsDrawer, { useAlertCount } from '../components/NotificationsDrawer'
 
 const { Header, Sider, Content } = Layout
 
@@ -142,8 +143,10 @@ const pageVariants = {
 }
 
 export default function MainLayout() {
-  const [collapsed, setCollapsed] = useState(true)
-  const [searchOpen, setSearchOpen] = useState(false)
+  const [collapsed,      setCollapsed]      = useState(true)
+  const [searchOpen,     setSearchOpen]     = useState(false)
+  const [notifOpen,      setNotifOpen]      = useState(false)
+  const alertCount = useAlertCount()
   const lastNavKey = useRef('')
   const navigate = useNavigate()
   const location = useLocation()
@@ -362,14 +365,17 @@ export default function MainLayout() {
               />
             </Tooltip>
 
-            <Badge count={3} size="small" offset={[-2, 2]}>
-              <Button
-                type="text"
-                shape="circle"
-                icon={<BellOutlined style={{ fontSize: 17, color: '#6b7280' }} />}
-                style={{ borderRadius: 10 }}
-              />
-            </Badge>
+            <Tooltip title="Alertas del negocio">
+              <Badge count={alertCount} size="small" offset={[-2, 2]} overflowCount={99}>
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<BellOutlined style={{ fontSize: 17, color: notifOpen ? '#1faec2' : '#6b7280' }} />}
+                  style={{ borderRadius: 10, background: notifOpen ? 'rgba(31,174,194,0.1)' : undefined }}
+                  onClick={() => setNotifOpen(true)}
+                />
+              </Badge>
+            </Tooltip>
 
             <Tooltip title="Configuración">
               <Button
@@ -443,6 +449,7 @@ export default function MainLayout() {
 
       <OnboardingChatDrawer />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <NotificationsDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
     </Layout>
   )
 }
