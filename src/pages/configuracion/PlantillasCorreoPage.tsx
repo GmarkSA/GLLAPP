@@ -20,15 +20,19 @@ import {
 const { TextArea } = Input
 
 const DOC_TYPE_LABELS: Record<EmailDocumentType, string> = {
-  factura:    'Factura',
-  cotizacion: 'Cotización',
-  pago:       'Pago recibido',
+  factura:           'Factura',
+  cotizacion:        'Cotización',
+  pago:              'Pago recibido',
+  factura_proveedor: 'Factura Proveedor',
+  orden_compra:      'Orden de Compra',
 }
 
 const DOC_TYPE_COLORS: Record<EmailDocumentType, string> = {
-  factura:    '#1faec2',
-  cotizacion: '#6c47d2',
-  pago:       '#2ea172',
+  factura:           '#1faec2',
+  cotizacion:        '#6c47d2',
+  pago:              '#2ea172',
+  factura_proveedor: '#ff7f00',
+  orden_compra:      '#1B3A6B',
 }
 
 // ── Vista previa del email ────────────────────────────────────────────────────
@@ -306,9 +310,11 @@ export default function PlantillasCorreoPage() {
                       value={selected.documentType}
                       onChange={v => update({ documentType: v })}
                       options={[
-                        { label: 'Factura',         value: 'factura'    },
-                        { label: 'Cotización',      value: 'cotizacion' },
-                        { label: 'Pago recibido',   value: 'pago'       },
+                        { label: 'Factura',             value: 'factura'           },
+                        { label: 'Cotización',          value: 'cotizacion'        },
+                        { label: 'Pago recibido',       value: 'pago'              },
+                        { label: 'Factura Proveedor',   value: 'factura_proveedor' },
+                        { label: 'Orden de Compra',     value: 'orden_compra'      },
                       ]}
                     />
                   </Form.Item>
