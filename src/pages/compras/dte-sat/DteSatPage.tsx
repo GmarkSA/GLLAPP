@@ -1147,7 +1147,7 @@ export default function DteSatPage() {
                       <Divider plain style={{ fontSize: 12 }}>o crear nuevo proveedor</Divider>
                       <Form form={stepperVendorForm} layout="vertical" size="small" onFinish={handleStepperCreateVendor}>
                         {/* Fila 1: Nombre | Cuenta CxP | Términos de pago */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 140px', gap: '0 12px' }}>
                           <Form.Item name="name" label="Nombre" style={{ marginBottom: 8 }}>
                             <Input placeholder={stepperDte.nombreEmisor ?? 'Nombre del proveedor'} />
                           </Form.Item>
@@ -1173,7 +1173,7 @@ export default function DteSatPage() {
                           <Form.Item name="defaultPurchaseTaxId" label="Impuesto IVA" style={{ marginBottom: 8 }}
                             tooltip="Impuesto predeterminado al registrar facturas de este proveedor">
                             <Select showSearch allowClear placeholder="IVA12 — Tasa general 12%"
-                              options={taxes.filter(t => !t.isWithholding).map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
+                              options={taxes.filter(t => !t.isWithholding).map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${Number(t.rate)}%)` }))} />
                           </Form.Item>
                         </div>
                         <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1faec2' }}>
