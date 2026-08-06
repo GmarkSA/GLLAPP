@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Checkbox, DatePicker, Descriptions, Divider, Form, Input,
   message, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
@@ -6,13 +7,13 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
-  DeleteOutlined, FileTextOutlined, ReloadOutlined,
+  DeleteOutlined, EyeOutlined, FileTextOutlined, ReloadOutlined, RollbackOutlined,
   SearchOutlined, StopOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
 import {
-  createSatDteVendor, deleteSatDte,
+  createSatDteVendor, deleteSatDte, reactivateSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   getPurchaseOrders, getBills, postSatDte,
   resolveSatDteVendor, resubirR2SatDte,
@@ -76,6 +77,7 @@ function getErrorMessage(err: unknown, fallback: string) {
 }
 
 export default function DteSatPage() {
+  const navigate = useNavigate()
   const [form] = Form.useForm()
   const [documents, setDocuments] = useState<SatDte[]>([])
   const [jobs, setJobs] = useState<SatImportJob[]>([])
@@ -376,6 +378,35 @@ export default function DteSatPage() {
           await load()
         } catch (err: unknown) {
           message.error(getErrorMessage(err, 'No se pudo eliminar el DTE'))
+        }
+      },
+    })
+  }
+
+  const handleReactivate = (row: SatDte) => {
+    Modal.confirm({
+      title: 'Reactivar DTE para re-procesarlo',
+      content: (
+        <div>
+          <Alert type="info" showIcon style={{ marginBottom: 10, fontSize: 12 }}
+            message="Usa esta opción si eliminaste la factura vinculada y necesitas volver a contabilizarla." />
+          <Text>¿Reactivar <Text strong>{row.nombreEmisor}</Text> ({row.serie}/{row.numeroDte})?</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            El DTE volverá al estado "Listo para procesar" y podrás generar una nueva factura.
+          </Text>
+        </div>
+      ),
+      okText: 'Reactivar',
+      okButtonProps: { style: { background: '#7c3aed', borderColor: '#7c3aed' } },
+      cancelText: 'Cancelar',
+      async onOk() {
+        try {
+          await reactivateSatDte(row.id)
+          message.success('DTE reactivado — ya puedes procesarlo nuevamente')
+          await load()
+        } catch (err: unknown) {
+          message.error(getErrorMessage(err, 'No se pudo reactivar el DTE'))
         }
       },
     })
@@ -839,20 +870,29 @@ export default function DteSatPage() {
       fixed: 'right',
       render: (_, row) => (
         <Space size={4}>
-          {row.status === 'posted' || row.status === 'duplicate'
-            ? <Tag color={row.status === 'posted' ? '#1faec2' : 'volcano'} style={{ fontSize: 10 }}>
-                {row.status === 'posted' ? 'Procesado' : 'Duplicado'}
-              </Tag>
-            : <Button
-                size="small"
-                type="primary"
-                icon={<BookOutlined />}
-                onClick={() => openStepper(row)}
-                style={{ fontSize: 11, background: '#1faec2' }}
-              >
-                Procesar
-              </Button>
+          {row.status === 'posted'
+            ? <Tooltip title="Ver factura y póliza contable">
+                <Button size="small" icon={<EyeOutlined />}
+                  onClick={() => row.purchaseInvoiceId && navigate(`/compras/facturas/${row.purchaseInvoiceId}`)}
+                  style={{ fontSize: 11, borderColor: '#1faec2', color: '#1faec2' }}>
+                  Ver factura
+                </Button>
+              </Tooltip>
+            : row.status === 'duplicate'
+              ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
+              : <Button size="small" type="primary" icon={<BookOutlined />}
+                  onClick={() => openStepper(row)}
+                  style={{ fontSize: 11, background: '#1faec2' }}>
+                  Procesar
+                </Button>
           }
+          {row.status === 'posted' && (
+            <Tooltip title="Re-procesar — usar si la factura vinculada fue eliminada">
+              <Button size="small" icon={<RollbackOutlined />}
+                onClick={() => handleReactivate(row)}
+                style={{ fontSize: 11, color: '#7c3aed', borderColor: '#c4b5fd' }} />
+            </Tooltip>
+          )}
           <Tooltip title="Eliminar de la bandeja">
             <Button size="small" danger icon={<DeleteOutlined />}
               onClick={() => handleDeleteDte(row)} style={{ fontSize: 11 }} />
