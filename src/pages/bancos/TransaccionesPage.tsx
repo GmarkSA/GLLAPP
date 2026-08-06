@@ -287,6 +287,8 @@ function ImportModal({ open, account, onClose, onSaved }: {
                  : col('abono') >= 0   ? col('abono') : -1
     const iSaldo = col('saldo') >= 0 ? col('saldo') : -1
 
+    let prevSaldo = 0   // rastrea balance acumulado para determinar crédito/débito cuando hay celdas omitidas
+
     return body
       .map(cols => {
         const transactionDate = parseDate(cols[iDate], month, year)
@@ -303,21 +305,45 @@ function ImportModal({ open, account, onClose, onSaved }: {
           if (fallbackIdx >= 0) description = String(cols[fallbackIdx]).trim()
         }
 
-        // Montos: si no hay mapeo explícito, inferir por posición
-        const effectiveDebe  = iDebe  >= 0 ? iDebe  : (iDate === 0 ? 2 : iDate + 2)
-        const effectiveHaber = iHaber >= 0 ? iHaber : effectiveDebe + 1
-        const debitAmt  = Number(String(cols[effectiveDebe]  ?? '').replace(/[^0-9.-]/g, ''))
-        const creditAmt = Number(String(cols[effectiveHaber] ?? '').replace(/[^0-9.-]/g, ''))
-        const amount = creditAmt > 0 ? creditAmt : Math.abs(debitAmt)
+        // Montos: cuando el PDF omite celdas vacías (Débito o Crédito en blanco),
+        // la fila de datos es más corta que el header y los índices se corren.
+        // Solución: si la fila es más corta y Saldo está mapeado →
+        //   penúltimo valor = monto transacción, último = saldo corriente.
+        //   El tipo se deduce comparando saldo corriente con el anterior.
+        let amount = 0
+        let txType: 'credit' | 'debit' = 'credit'
+        let runningBal: number | undefined
+
+        if (iSaldo >= 0 && cols.length < head.length) {
+          const curSaldo = Number(String(cols[cols.length - 1] ?? '').replace(/[^0-9.-]/g, ''))
+          const txAmt    = Number(String(cols[cols.length - 2] ?? '').replace(/[^0-9.-]/g, ''))
+          if (txAmt > 0) {
+            amount      = txAmt
+            txType      = curSaldo >= prevSaldo ? 'credit' : 'debit'
+            prevSaldo   = curSaldo
+            runningBal  = curSaldo
+          }
+        } else {
+          const effectiveDebe  = iDebe  >= 0 ? iDebe  : (iDate === 0 ? 2 : iDate + 2)
+          const effectiveHaber = iHaber >= 0 ? iHaber : effectiveDebe + 1
+          const debitAmt  = Number(String(cols[effectiveDebe]  ?? '').replace(/[^0-9.-]/g, ''))
+          const creditAmt = Number(String(cols[effectiveHaber] ?? '').replace(/[^0-9.-]/g, ''))
+          amount = creditAmt > 0 ? creditAmt : Math.abs(debitAmt)
+          txType = creditAmt > 0 ? 'credit' : 'debit'
+          if (iSaldo >= 0 && cols[iSaldo] !== undefined) {
+            prevSaldo  = Number(String(cols[iSaldo]).replace(/[^0-9.-]/g, '')) || prevSaldo
+            runningBal = prevSaldo || undefined
+          }
+        }
 
         if (!transactionDate || !description || !amount) return null
         return {
           transactionDate,
           description,
           amount,
-          type: creditAmt > 0 ? 'credit' : 'debit',
+          type: txType,
           reference: iRef >= 0 && cols[iRef] ? String(cols[iRef]) : undefined,
-          runningBalance: iSaldo >= 0 && cols[iSaldo] ? Number(String(cols[iSaldo]).replace(/[^0-9.-]/g, '')) : undefined,
+          runningBalance: runningBal,
         }
       })
       .filter(Boolean)
