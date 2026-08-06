@@ -4,7 +4,7 @@ import {
   Form, Input, Select, Button, Card, message, Spin, Typography,
   Radio, Checkbox, Alert, Switch, Tag, Space,
 } from 'antd'
-import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, StarOutlined } from '@ant-design/icons'
 import { companiesApi, type CompanySettings } from '../../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
 import { satLookupApi, type SatProviderConfig } from '../../../api/satLookup'
@@ -60,6 +60,7 @@ export default function EmpresaFormPage() {
   const [savingSat, setSavingSat]       = useState(false)
   const [testingSat, setTestingSat]     = useState(false)
 
+  const isTemplateValue = Form.useWatch('isTemplate', form)
   const [showSatForm, setShowSatForm] = useState(false)
   // Mostrar bloque SAT si ya tiene credenciales o el usuario lo abrió manualmente
   const showSatBlock = !!(satConfig.entityId && satConfig.apiKey) || showSatForm
@@ -509,6 +510,37 @@ export default function EmpresaFormPage() {
                     Configurar lookup automático de NIT/CUI (opcional)
                   </Button>
                 </div>
+              )}
+
+              {/* Plantilla de onboarding rápido (solo en edición) */}
+              {isEdit && (
+                <Card
+                  title={<Space><StarOutlined style={{ color: '#f59e0b' }} />Plantilla de onboarding rápido</Space>}
+                  extra={isTemplateValue ? <Tag color="#f59e0b">Pública</Tag> : <Tag>Privada</Tag>}
+                >
+                  <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                    Marca esta empresa como plantilla para que nuevos clientes puedan copiarla al crear su empresa en el onboarding rápido.
+                  </Typography.Text>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <Form.Item name="isTemplate" valuePropName="checked" noStyle>
+                      <Switch size="small" />
+                    </Form.Item>
+                    <span style={{ fontSize: 13 }}>Publicar como plantilla</span>
+                  </div>
+                  {isTemplateValue && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr', gap: '0 12px', alignItems: 'start' }}>
+                      <Form.Item name="templateIcon" label="Ícono" style={{ marginBottom: 12 }}>
+                        <Input placeholder="🏢" style={{ textAlign: 'center', fontSize: 20 }} />
+                      </Form.Item>
+                      <Form.Item name="templateDisplayName" label="Nombre de la plantilla" rules={[{ required: true, message: 'Requerido' }]} style={{ marginBottom: 12 }}>
+                        <Input placeholder="Empresa de Servicios" />
+                      </Form.Item>
+                      <Form.Item name="templateDescription" label="Descripción breve" style={{ gridColumn: '1 / -1', marginBottom: 0 }}>
+                        <Input.TextArea rows={2} placeholder="Ideal para empresas de consultoría, transporte, educación..." />
+                      </Form.Item>
+                    </div>
+                  )}
+                </Card>
               )}
             </div>
           </div>

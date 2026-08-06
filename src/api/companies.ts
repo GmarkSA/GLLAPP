@@ -42,6 +42,13 @@ export interface DocumentSeries {
   resetPeriod: string | null
 }
 
+export interface CompanyTemplate {
+  id: string
+  templateDisplayName: string
+  templateDescription: string
+  templateIcon: string
+}
+
 export const companiesApi = {
   getAll: ()                       => api.get('/companies').then(unwrap) as Promise<Company[]>,
   getOne: (id: string)             => api.get(`/companies/${id}`).then(unwrap) as Promise<Company>,
@@ -62,6 +69,9 @@ export const companiesApi = {
   // ── Migración datos legacy (one-time) ────────────────────────────────────
   migrateLegacy: (id: string)                             => api.post(`/companies/${id}/migrate-legacy`).then(unwrap),
   diagnoseData:  ()                                       => api.get('/companies/diagnose-data').then(unwrap),
+
+  // ── Plantillas de onboarding ──────────────────────────────────────────────
+  getTemplates: () => api.get('/companies/templates').then(unwrap) as Promise<CompanyTemplate[]>,
 
   // ── Clone (Template Engine) ───────────────────────────────────────────────
   clone: (id: string, dto: any)                           => api.post(`/companies/${id}/clone`, dto).then(unwrap),

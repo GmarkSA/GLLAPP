@@ -272,10 +272,15 @@ export default function EmpresasPage() {
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Empresas</Title>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
-          onClick={() => navigate('/configuracion/empresas/nueva')}>
-          Nueva Empresa
-        </Button>
+        <Space>
+          <Button icon={<StarOutlined />} onClick={() => navigate('/onboarding/rapido')}>
+            Onboarding rápido con plantilla
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
+            onClick={() => navigate('/configuracion/empresas/nueva')}>
+            Nueva Empresa
+          </Button>
+        </Space>
       </div>
       <Table
         rowKey="id"
