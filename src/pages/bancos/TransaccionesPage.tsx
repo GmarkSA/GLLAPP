@@ -253,40 +253,63 @@ function ImportModal({ open, account, onClose, onSaved }: {
   const parseRows = (allRows: any[][], month: number, year: number) => {
     const noEmpty = allRows.filter(r => r.some(c => c !== undefined && c !== null && c !== ''))
 
-    // Detectar fila de encabezado real: acepta "Fecha" (Excel BI) y "Día"/"Dia" (PDF BI correo)
-    let headerIdx = 0
-    for (let i = 0; i < Math.min(noEmpty.length, 20); i++) {
-      const f = normStr(String(noEmpty[i][0] || ''))
-      if (f === 'fecha' || f === 'dia') { headerIdx = i; break }
+    // Detectar fila de encabezado real buscando la fila con más palabras clave de columnas.
+    // Soporta ambos formatos BI:
+    //   Excel: Fecha | TT | Descripción | No. Doc | Debe   | Haber   | Saldo
+    //   PDF:   Día   | Doc.| Descripción | Débito  | Crédito| Saldo
+    const HEADER_KEYWORDS = ['dia', 'fecha', 'descrip', 'debe', 'haber', 'debito', 'credito', 'saldo', 'doc']
+    let headerIdx = -1
+    let bestScore = 0
+    for (let i = 0; i < Math.min(noEmpty.length, 60); i++) {
+      const cells = noEmpty[i].map((c: any) => normStr(String(c || '')))
+      const score = HEADER_KEYWORDS.filter(kw => cells.some(c => c.startsWith(kw))).length
+      if (score > bestScore) { bestScore = score; headerIdx = i }
+      if (score >= 4) break   // suficiente confianza — no seguir buscando
     }
+    if (headerIdx < 0 || bestScore < 2) headerIdx = 0   // fallback
+
     const head = noEmpty[headerIdx] as string[]
     const body = noEmpty.slice(headerIdx + 1)
 
-    // Comparación sin tildes — cubre ambos formatos BI:
-    //   Excel: Fecha | TT | Descripción | No. Doc | Debe  | Haber  | Saldo
-    //   PDF:   Día   | Doc.| Descripción | Débito  | Crédito| Saldo
+    // Mapear columnas por nombre (sin tildes)
     const col = (needle: string) =>
       head.findIndex((h: string) => normStr(String(h)).startsWith(normStr(needle)))
 
     const iDate  = col('fecha') >= 0 ? col('fecha') : col('dia') >= 0 ? col('dia') : 0
-    const iDesc  = col('descrip') >= 0 ? col('descrip') : 1
+    const iDesc  = col('descrip') >= 0 ? col('descrip') : -1
     const iRef   = col('no. doc') >= 0 ? col('no. doc')
                  : col('doc.') >= 0    ? col('doc.')
                  : col('doc')  >= 0    ? col('doc') : -1
     const iDebe  = col('debe') >= 0   ? col('debe')
-                 : col('debito') >= 0  ? col('debito') : 2
+                 : col('debito') >= 0  ? col('debito') : -1
     const iHaber = col('haber') >= 0  ? col('haber')
                  : col('credito') >= 0 ? col('credito')
-                 : col('abono') >= 0   ? col('abono') : iDebe + 1
+                 : col('abono') >= 0   ? col('abono') : -1
     const iSaldo = col('saldo') >= 0 ? col('saldo') : -1
 
     return body
       .map(cols => {
         const transactionDate = parseDate(cols[iDate], month, year)
-        const description = String(cols[iDesc] ?? '').trim()
-        const debitAmt  = Number(String(cols[iDebe]  ?? '').replace(/[^0-9.-]/g, ''))
-        const creditAmt = Number(String(cols[iHaber] ?? '').replace(/[^0-9.-]/g, ''))
+
+        // Descripción: columna mapeada; si no hay mapeo o el valor es solo dígitos
+        // (probablemente es un número de referencia), intentar la columna siguiente
+        let description = iDesc >= 0 ? String(cols[iDesc] ?? '').trim() : ''
+        if (!description || /^\d+$/.test(description)) {
+          // Buscar primera columna no-numérica que no sea la fecha ni referencia
+          const fallbackIdx = cols.findIndex((_: any, ci: number) =>
+            ci !== iDate && ci !== iRef && ci !== iDebe && ci !== iHaber && ci !== iSaldo
+            && /[a-zA-Z]/.test(String(cols[ci] ?? ''))
+          )
+          if (fallbackIdx >= 0) description = String(cols[fallbackIdx]).trim()
+        }
+
+        // Montos: si no hay mapeo explícito, inferir por posición
+        const effectiveDebe  = iDebe  >= 0 ? iDebe  : (iDate === 0 ? 2 : iDate + 2)
+        const effectiveHaber = iHaber >= 0 ? iHaber : effectiveDebe + 1
+        const debitAmt  = Number(String(cols[effectiveDebe]  ?? '').replace(/[^0-9.-]/g, ''))
+        const creditAmt = Number(String(cols[effectiveHaber] ?? '').replace(/[^0-9.-]/g, ''))
         const amount = creditAmt > 0 ? creditAmt : Math.abs(debitAmt)
+
         if (!transactionDate || !description || !amount) return null
         return {
           transactionDate,
