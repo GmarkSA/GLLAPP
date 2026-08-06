@@ -26,6 +26,10 @@ export interface Company {
   isDefault: boolean
   status: string
   createdAt?: string
+  isTemplate?: boolean
+  templateDisplayName?: string
+  templateDescription?: string
+  templateIcon?: string
 }
 
 interface AuthState {
