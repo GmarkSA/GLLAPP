@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getApiError } from '../../../api/axios'
 import {
@@ -8,15 +8,17 @@ import {
 import {
   ArrowLeftOutlined, EditOutlined, CheckOutlined, DollarOutlined,
   SyncOutlined, StopOutlined, DeleteOutlined, GlobalOutlined, ThunderboltOutlined, SaveOutlined, CloseOutlined,
+  UploadOutlined, MailOutlined, SendOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getBill, approveBill, voidBill, deleteBill, regenerateBillJournalEntry,
   getJournalEntry, recordBillPayment, getVendorAdvances, applyVendorAdvanceToBill,
-  updateBill,
+  updateBill, attachBillFile, sendBill,
   BILL_STATUS_CONFIG, BILL_TYPE_CONFIG,
   type PurchaseInvoice, type JournalEntry, type JournalEntryLine, type VendorAdvance, type BillItem,
 } from '../../../api/compras'
+import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { getBankAccounts } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
@@ -63,6 +65,13 @@ export default function FacturaProveedorDetallePage() {
   const [editedItems,  setEditedItems]  = useState<BillItem[]>([])
   const [taxOptions,   setTaxOptions]   = useState<Tax[]>([])
   const [centrosCosto, centrosBeneficio] = useCentrosOptions()
+  const [uploadingFile,     setUploadingFile]     = useState(false)
+  const [showEmailModal,    setShowEmailModal]     = useState(false)
+  const [sendingEmail,      setSendingEmail]       = useState(false)
+  const [emailTemplates,    setEmailTemplates]     = useState<EmailTemplate[]>([])
+  const [selectedEmailTplId, setSelectedEmailTplId] = useState<string | undefined>()
+  const [emailForm] = Form.useForm()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadBill = useCallback(async () => {
     if (!id) return
@@ -327,6 +336,54 @@ export default function FacturaProveedorDetallePage() {
       cbNombre: l.centroBeneficioId ? (centrosBeneficio.find(c => c.id === l.centroBeneficioId)?.nombre ?? l.centroBeneficioId) : null,
     }))
 
+  const applyEmailTemplate = (tplId: string | undefined, tpls: EmailTemplate[]) => {
+    const tpl = tpls.find(t => t.id === tplId)
+    if (!tpl) return
+    const vars: Record<string, string> = {
+      nombreCliente: bill.vendorName ?? '',
+      numeroFactura: bill.invoiceNumber ?? '',
+      total:         `${bill.currency ?? 'GTQ'} ${Number(bill.total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+      saldo:         `${bill.currency ?? 'GTQ'} ${Number(bill.balance ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+      fecha:         bill.invoiceDate ? new Date(bill.invoiceDate + 'T12:00:00').toLocaleDateString('es-GT') : '',
+      nombreEmpresa: company.name ?? '',
+      moneda:        bill.currency ?? 'GTQ',
+    }
+    emailForm.setFieldsValue({ subject: replaceVars(tpl.subject, vars), message: replaceVars(tpl.message, vars) })
+  }
+
+  const openEmailModal = () => {
+    const tpls = getEmailTemplates().filter(t => t.documentType === 'factura_proveedor')
+    const defTpl = tpls.find(t => t.isDefault) ?? tpls[0]
+    setEmailTemplates(tpls)
+    setSelectedEmailTplId(defTpl?.id)
+    emailForm.resetFields()
+    if (defTpl) applyEmailTemplate(defTpl.id, tpls)
+    setShowEmailModal(true)
+  }
+
+  const handleSendEmail = async () => {
+    const v = await emailForm.validateFields()
+    setSendingEmail(true)
+    try {
+      await sendBill(bill.id, { to: v.to, subject: v.subject, message: v.message })
+      message.success(`Correo enviado a ${v.to}`)
+      setShowEmailModal(false)
+    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al enviar') }
+    finally { setSendingEmail(false) }
+  }
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFile(true)
+    try {
+      await attachBillFile(bill.id, file, bill)
+      message.success(`Archivo "${file.name}" adjuntado`)
+      loadBill()
+    } catch { message.error('Error al cargar el archivo') }
+    finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = '' }
+  }
+
   const totalRetention = Number(bill.isrRetentionAmount ?? 0) + Number(bill.ivaRetentionAmount ?? 0)
   const netPayable     = Number(bill.total) + Number(bill.idpAmount ?? 0) - totalRetention
 
@@ -393,6 +450,14 @@ export default function FacturaProveedorDetallePage() {
             <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
           </Popconfirm>
         )}
+        <Divider type="vertical" />
+        <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadFile} />
+        <Button icon={<UploadOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
+          Cargar archivo
+        </Button>
+        <Button icon={<MailOutlined />} onClick={openEmailModal}>
+          Enviar por correo
+        </Button>
       </div>
 
       {/* ── Documento ─────────────────────────────────────────────────────── */}
@@ -445,7 +510,7 @@ export default function FacturaProveedorDetallePage() {
             <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
               Factura de
             </Text>
-            <Text strong style={{ fontSize: 15, color: '#1faec2', display: 'block' }}>{bill.vendorName}</Text>
+            <Link to={`/compras/proveedores/${bill.vendorId}`} style={{ fontSize: 15, fontWeight: 600, color: '#1faec2', display: 'block' }}>{bill.vendorName}</Link>
             {bill.vendorTaxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT: {bill.vendorTaxId}</Text>}
             {isReimb && bill.employeeName && (
               <div style={{ marginTop: 8, padding: '6px 10px', background: '#f5f0ff', borderRadius: 6 }}>
@@ -779,6 +844,37 @@ export default function FacturaProveedorDetallePage() {
                 )}
               </Form>
             )}
+      </Modal>
+
+      {/* ── Modal Enviar por correo ──────────────────────────────────────────── */}
+      <Modal
+        title={<><SendOutlined /> Enviar por correo — {bill.invoiceNumber}</>}
+        open={showEmailModal} onOk={handleSendEmail} onCancel={() => setShowEmailModal(false)}
+        okText="Enviar" okButtonProps={{ loading: sendingEmail, style: { background: '#1faec2' } }}
+        width={520}
+      >
+        <Form form={emailForm} layout="vertical" style={{ marginTop: 8 }}>
+          {emailTemplates.length > 0 && (
+            <Form.Item label="Plantilla de correo" style={{ marginBottom: 12 }}>
+              <Select
+                value={selectedEmailTplId}
+                onChange={id => { setSelectedEmailTplId(id); applyEmailTemplate(id, emailTemplates) }}
+                options={emailTemplates.map(t => ({ label: t.name, value: t.id }))}
+                placeholder="Seleccionar plantilla"
+              />
+            </Form.Item>
+          )}
+          <Form.Item name="to" label="Enviar a"
+            rules={[{ required: true, message: 'Requerido' }, { type: 'email', message: 'Correo inválido' }]}>
+            <Input placeholder="proveedor@empresa.com" />
+          </Form.Item>
+          <Form.Item name="subject" label="Asunto" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="message" label="Mensaje adicional">
+            <Input.TextArea rows={3} placeholder="Mensaje personalizado (opcional)" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   )

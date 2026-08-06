@@ -336,7 +336,7 @@ export default function EstimacionFormPage() {
                 </Form.Item>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 140px', gap: '0 16px' }}>
                 <Form.Item name="currency" label="Moneda">
                   <Select options={[
                     { value: 'GTQ', label: 'GTQ — Quetzal' },
@@ -356,8 +356,8 @@ export default function EstimacionFormPage() {
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                 </Form.Item>
 
-                <Form.Item name="discountPercent" label="Descuento Global (%)" style={{ gridColumn: 'span 2' }}>
-                  <InputNumber min={0} max={100} step={1} suffix="%" style={{ width: 160 }} />
+                <Form.Item name="discountPercent" label="Descuento Global (%)">
+                  <InputNumber min={0} max={100} step={1} suffix="%" style={{ width: '100%' }} />
                 </Form.Item>
               </div>
             </Form>

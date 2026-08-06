@@ -1,5 +1,7 @@
 import api from './axios'
 import { getOrganizationProfile } from './configuracion'
+import { requestUploadUrl, uploadToR2, deleteDocument } from './storage'
+import { useCompanyStore } from '../store/companyStore'
 
 const unwrap = (r: any) => r.data?.data ?? r.data
 
@@ -66,7 +68,7 @@ export const applyVendorAdvanceToBill = (
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type BillStatus   = 'draft' | 'pending_approval' | 'open' | 'partial' | 'paid' | 'overdue' | 'voided'
-export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel' | 'credit_note'
+export type BillType     = 'goods' | 'services' | 'reimbursement' | 'special' | 'fuel' | 'credit_note' | 'exempt' | 'donation' | 'small_taxpayer'
 export type PaymentTerms = 'immediate' | 'net_15' | 'net_30' | 'net_60' | 'net_90' | 'custom'
 export type POStatus     = 'draft' | 'sent' | 'received' | 'billed' | 'cancelled'
 
@@ -155,6 +157,7 @@ export interface PurchaseInvoice {
   centroBeneficioId?:      string
   items:                   BillItem[]
   attachments?:            any[]
+  customFields?:           Record<string, any>
   createdAt:               string
   updatedAt?:              string
 }
@@ -165,6 +168,7 @@ export interface PurchaseOrder {
   status:                POStatus
   vendorId:              string
   vendorName:            string
+  vendorTaxId?:          string
   orderDate:             string
   expectedDeliveryDate?: string
   currency:              string
@@ -173,6 +177,7 @@ export interface PurchaseOrder {
   total:                 number
   notes?:                string
   items:                 BillItem[]
+  customFields?:         Record<string, any>
   createdAt:             string
 }
 
@@ -380,7 +385,7 @@ export const updatePurchaseOrder = (id: string, dto: Partial<PurchaseOrder>) =>
 export const approvePurchaseOrder = (id: string) =>
   api.post(`${PO}/${id}/aprobar`).then(unwrap)
 
-export const sendPurchaseOrder = (id: string, dto: { to: string }) =>
+export const sendPurchaseOrder = (id: string, dto: { to: string; subject?: string; message?: string }) =>
   api.post(`${PO}/${id}/enviar`, dto).then(unwrap)
 
 export const deletePurchaseOrder = (id: string) =>
@@ -410,12 +415,15 @@ export const BILL_STATUS_CONFIG: Record<BillStatus, { label: string; color: stri
 }
 
 export const BILL_TYPE_CONFIG: Record<BillType, { label: string }> = {
-  goods:         { label: 'Compra de bienes'          },
-  services:      { label: 'Servicios'                 },
-  reimbursement: { label: 'Reembolso de gastos'       },
-  special:       { label: 'Factura Especial (SAT)'    },
-  fuel:          { label: 'Combustible (con IDP)'     },
-  credit_note:   { label: 'Nota de Crédito'           },
+  goods:          { label: 'Compra de bienes'          },
+  services:       { label: 'Servicios'                 },
+  reimbursement:  { label: 'Reembolso de gastos'       },
+  special:        { label: 'Factura Especial (SAT)'    },
+  fuel:           { label: 'Combustible (con IDP)'     },
+  credit_note:    { label: 'Nota de Crédito'           },
+  exempt:         { label: 'Exenta'                    },
+  donation:       { label: 'Recibo Donación'           },
+  small_taxpayer: { label: 'Pequeño Contribuyente'     },
 }
 
 // ─── Notas de crédito de proveedor ───────────────────────────────────────────
@@ -545,6 +553,62 @@ export const reactivateSatDte = (id: string) =>
 export const resubirR2SatDte = (id: string) =>
   api.post(`${DTE_SAT}/documentos/${id}/re-subir-r2`).then(unwrap)
 
+// ─── Bill Attachments & Email ─────────────────────────────────────────────────
+type AttachmentMeta = { name: string; size: number; at: string; by: string; key: string; contentType: string }
+
+export const attachBillFile = async (id: string, file: File, bill: PurchaseInvoice): Promise<{ attached: boolean; name: string }> => {
+  const empresaId     = sessionStorage.getItem('activeCompanyId') ?? 'default'
+  const activeCompany = useCompanyStore.getState().activeCompany
+  const empresaNombre = activeCompany?.legalName ?? activeCompany?.tradeName ?? undefined
+  const ext           = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const contentType   = file.type || (ext === 'pdf' ? 'application/pdf' : 'application/octet-stream')
+  const uuid          = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  const { uploadUrl, key } = await requestUploadUrl({ fileName: file.name, contentType, docType: 'fel-pdf', empresaId, empresaNombre, uuid })
+  await uploadToR2(uploadUrl, file, contentType)
+
+  const existing: AttachmentMeta[] = (bill.customFields?.attachments as AttachmentMeta[]) ?? bill.attachments ?? []
+  const updated = [...existing, { name: file.name, size: file.size, at: new Date().toISOString(), by: '', key, contentType }]
+  await updateBill(id, { customFields: { ...(bill.customFields ?? {}), attachments: updated } } as any)
+  return { attached: true, name: file.name }
+}
+
+export const removeBillAttachment = async (id: string, key: string, bill: PurchaseInvoice): Promise<void> => {
+  const list: AttachmentMeta[] = (bill.customFields?.attachments as AttachmentMeta[]) ?? bill.attachments ?? []
+  const updated = list.filter(a => a.key !== key)
+  await updateBill(id, { customFields: { ...(bill.customFields ?? {}), attachments: updated } } as any)
+  try { await deleteDocument(key) } catch { /* ignore */ }
+}
+
+export const sendBill = (id: string, dto: { to: string; subject?: string; message?: string }) =>
+  api.post(`${BILL}/${id}/enviar`, dto).then(unwrap)
+
+// ─── PO Attachments ───────────────────────────────────────────────────────────
+export const attachPoFile = async (id: string, file: File, po: PurchaseOrder): Promise<{ attached: boolean; name: string }> => {
+  const empresaId     = sessionStorage.getItem('activeCompanyId') ?? 'default'
+  const activeCompany = useCompanyStore.getState().activeCompany
+  const empresaNombre = activeCompany?.legalName ?? activeCompany?.tradeName ?? undefined
+  const ext           = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const contentType   = file.type || (ext === 'pdf' ? 'application/pdf' : 'application/octet-stream')
+  const uuid          = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  const { uploadUrl, key } = await requestUploadUrl({ fileName: file.name, contentType, docType: 'fel-pdf', empresaId, empresaNombre, uuid })
+  await uploadToR2(uploadUrl, file, contentType)
+
+  const existing: AttachmentMeta[] = (po.customFields?.attachments as AttachmentMeta[]) ?? []
+  const updated = [...existing, { name: file.name, size: file.size, at: new Date().toISOString(), by: '', key, contentType }]
+  await updatePurchaseOrder(id, { customFields: { ...(po.customFields ?? {}), attachments: updated } } as any)
+  return { attached: true, name: file.name }
+}
+
+export const removePoAttachment = async (id: string, key: string, po: PurchaseOrder): Promise<void> => {
+  const list: AttachmentMeta[] = (po.customFields?.attachments as AttachmentMeta[]) ?? []
+  const updated = list.filter(a => a.key !== key)
+  await updatePurchaseOrder(id, { customFields: { ...(po.customFields ?? {}), attachments: updated } } as any)
+  try { await deleteDocument(key) } catch { /* ignore */ }
+}
+
+// ─── DTE SAT ─────────────────────────────────────────────────────────────────
 export const postSatDte = (id: string, dto: {
   taxId?: string
   invoiceType?: string
@@ -557,6 +621,7 @@ export const postSatDte = (id: string, dto: {
   isExpenseReimbursement?: boolean
   employeeId?: string
   idpAccountId?: string
+  idpType?: string
   defaultUnit?: string
   originalInvoiceId?: string
   creditNoteReason?: string
@@ -564,6 +629,8 @@ export const postSatDte = (id: string, dto: {
   timbrePrensaAccountId?: string
   turismoAmount?: number
   turismoAccountId?: string
+  forceZeroAmount?: boolean
+  lineAccounts?: Array<{ index: number; accountId: string }>
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: PurchaseInvoice
   dte: SatDte

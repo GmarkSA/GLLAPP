@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  Alert, Badge, Button, Card, Checkbox, Col, DatePicker, Descriptions, Divider, Form, Input,
-  message, Row, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
+  Alert, Badge, Button, Card, Checkbox, DatePicker, Descriptions, Divider, Form, Input,
+  message, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
-  DeleteOutlined, FileTextOutlined, ReloadOutlined,
-  SearchOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
+  DeleteOutlined, EyeOutlined, FileTextOutlined, ReloadOutlined, RollbackOutlined,
+  SearchOutlined, StopOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
 import {
-  createSatDteVendor, deleteSatDte,
+  createSatDteVendor, deleteSatDte, reactivateSatDte,
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   getPurchaseOrders, getBills, postSatDte,
   resolveSatDteVendor, resubirR2SatDte,
@@ -30,6 +31,17 @@ const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 
 const POLL_INTERVAL_MS = 20_000 // 20 segundos — polling para jobs en ejecución
+
+const IDP_RATES_FE: Record<string, { label: string; rate: number }> = {
+  super:    { label: 'Gasolina superior',      rate: 4.70 },
+  regular:  { label: 'Gasolina regular',       rate: 4.60 },
+  aviacion: { label: 'Gasolina de aviación',   rate: 4.70 },
+  diesel:   { label: 'Diésel y gas oil',       rate: 1.30 },
+  propano:  { label: 'Gas propano vehicular',  rate: 0.60 },
+  bunker:   { label: 'Fuel oil / Bunker C',    rate: 0.55 },
+  kerosina: { label: 'Kerosina (DPK)',         rate: 0.50 },
+  other:    { label: 'Otros derivados',        rate: 0.50 },
+}
 
 const statusConfig: Record<SatDteStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:    { label: 'Proveedor pendiente', color: 'gold',    icon: <WarningOutlined /> },
@@ -65,6 +77,7 @@ function getErrorMessage(err: unknown, fallback: string) {
 }
 
 export default function DteSatPage() {
+  const navigate = useNavigate()
   const [form] = Form.useForm()
   const [documents, setDocuments] = useState<SatDte[]>([])
   const [jobs, setJobs] = useState<SatImportJob[]>([])
@@ -104,16 +117,28 @@ export default function DteSatPage() {
   const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
   const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
   const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
+  const [stepperIsAnulado, setStepperIsAnulado] = useState(false)
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
+  interface BatchLineItem {
+    descripcion?: string; description?: string
+    cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string
+    accountId?: string; accountLabel?: string
+  }
   interface BatchRow {
-    id: string; label: string; total: number; moneda: string; status: BatchRowStatus
+    id: string; label: string; vendorName: string; dteRef: string
+    total: number; moneda: string; status: BatchRowStatus
     accountId?: string; accountLabel?: string
     taxId?: string; taxLabel?: string
+    invoiceType?: string
+    idpType?: string; idpAccountId?: string
+    ocType?: 'direct' | 'select' | 'reimbursement'
+    employeeId?: string
     paymentTerms?: string; paymentTermsLabel?: string
     defaultUnit?: string
     accountingDate?: Dayjs
+    dteItems?: BatchLineItem[]
     result?: string; error?: string; missing?: string
   }
   const [batchOpen,    setBatchOpen]    = useState(false)
@@ -369,6 +394,35 @@ export default function DteSatPage() {
     })
   }
 
+  const handleReactivate = (row: SatDte) => {
+    Modal.confirm({
+      title: 'Reactivar DTE para re-procesarlo',
+      content: (
+        <div>
+          <Alert type="info" showIcon style={{ marginBottom: 10, fontSize: 12 }}
+            message="Usa esta opción si eliminaste la factura vinculada y necesitas volver a contabilizarla." />
+          <Text>¿Reactivar <Text strong>{row.nombreEmisor}</Text> ({row.serie}/{row.numeroDte})?</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            El DTE volverá al estado "Listo para procesar" y podrás generar una nueva factura.
+          </Text>
+        </div>
+      ),
+      okText: 'Reactivar',
+      okButtonProps: { style: { background: '#7c3aed', borderColor: '#7c3aed' } },
+      cancelText: 'Cancelar',
+      async onOk() {
+        try {
+          await reactivateSatDte(row.id)
+          message.success('DTE reactivado — ya puedes procesarlo nuevamente')
+          await load()
+        } catch (err: unknown) {
+          message.error(getErrorMessage(err, 'No se pudo reactivar el DTE'))
+        }
+      },
+    })
+  }
+
   const handleResubirR2 = async (row: SatDte) => {
     setResubirId(row.id)
     try {
@@ -415,6 +469,7 @@ export default function DteSatPage() {
     setStepperResult(null)
     setStepperHasTimbre(false)
     setStepperHasTurismo(false)
+    setStepperIsAnulado(false)
     // Pre-llenar desde datos maestros del proveedor (términos, cuenta de gasto, IVA)
     let vendorPaymentTerms = 'immediate'
     let vendorExpenseAccountId: string | undefined
@@ -433,7 +488,7 @@ export default function DteSatPage() {
     stepperForm.setFieldsValue({
       taxId:           vendorDefaultTaxId,
       paymentTerms:    vendorPaymentTerms,
-      accountingDate:  dayjs(),
+      accountingDate:  row.fechaEmision ? dayjs(row.fechaEmision) : dayjs(),
       concepto:        autoConcepto,
       accountId:       vendorExpenseAccountId,
     })
@@ -468,6 +523,14 @@ export default function DteSatPage() {
       })
       if ((result as any)?.dte) setStepperDte((result as any).dte as SatDte)
       setStepperVendorPayableMissing(!values.payableAccountId)
+      // Guardar preferencias para pre-llenar el paso Registrar
+      const createdVendorId = (result as any)?.dte?.vendorId
+      if (createdVendorId && (values.expenseAccountId || values.defaultPurchaseTaxId)) {
+        saveDtePrefs(createdVendorId, {
+          accountId: values.expenseAccountId,
+          taxId: values.defaultPurchaseTaxId,
+        })
+      }
       message.success('Proveedor creado y vinculado')
       await load(true)
     } catch (err: unknown) {
@@ -504,7 +567,7 @@ export default function DteSatPage() {
 
   const handleStepperPost = async (values: {
     concepto: string; taxId?: string; invoiceType?: string; accountId?: string; paymentTerms: string
-    accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; defaultUnit?: string
+    accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; idpType?: string; defaultUnit?: string
     originalInvoiceId?: string; creditNoteReason?: string
     timbrePrensaAccountId?: string; turismoAccountId?: string
   }) => {
@@ -523,7 +586,7 @@ export default function DteSatPage() {
         ? Math.round(dteSubtotal * (turismoRate / 100) * 100) / 100 : 0
       const result = await postSatDte(stepperDte.id, {
         invoiceType:         invType,
-        taxId:               values.taxId,
+        taxId:               stepperIsAnulado ? undefined : values.taxId,
         accountId:           values.accountId,
         paymentTerms:        values.paymentTerms,
         accountingDate:      values.accountingDate?.format('YYYY-MM-DD'),
@@ -532,6 +595,7 @@ export default function DteSatPage() {
         isExpenseReimbursement: isReimbursement,
         employeeId:          isReimbursement ? values.employeeId : undefined,
         idpAccountId:        invType === 'fuel' ? values.idpAccountId : undefined,
+        idpType:             invType === 'fuel' ? values.idpType : undefined,
         defaultUnit:         values.defaultUnit,
         originalInvoiceId:   isNC ? values.originalInvoiceId : undefined,
         creditNoteReason:    isNC ? values.creditNoteReason : undefined,
@@ -539,6 +603,7 @@ export default function DteSatPage() {
         timbrePrensaAccountId:  timbrePrensaAmount > 0 ? values.timbrePrensaAccountId : undefined,
         turismoAmount:          turismoAmount || undefined,
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
+        forceZeroAmount:        stepperIsAnulado || undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
       setStepperResult(result)
@@ -581,19 +646,31 @@ export default function DteSatPage() {
       }
       const accObj = accounts.find(a => a.id === accountId)
       const taxObj = taxes.find(t => t.id === taxId)
+      const idpAcc = orgImpEsp?.idpAccountCode ? accounts.find(a => a.code === orgImpEsp!.idpAccountCode) : undefined
+      const dteItems: BatchLineItem[] = (d.items ?? []).map(it => ({
+        ...it,
+        accountId,
+        accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : undefined,
+      }))
       rows.push({
         id: d.id,
         label: `${d.nombreEmisor ?? 'Sin nombre'} · ${d.serie ?? '—'}/${d.numeroDte ?? '—'}`,
+        vendorName: d.nombreEmisor ?? 'Sin nombre',
+        dteRef: `${d.serie ?? '—'} / ${d.numeroDte ?? '—'}`,
         total: Number(d.total),
         moneda: d.moneda ?? 'GTQ',
         status: 'pending',
         accountId,
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
         taxId,
-        taxLabel: taxObj ? `${taxObj.code} (${taxObj.rate}%)` : undefined,
+        taxLabel: taxObj ? `${taxObj.code} (${Number(taxObj.rate)}%)` : undefined,
+        invoiceType: 'goods',
+        idpAccountId: idpAcc?.id,
+        ocType: 'direct',
         paymentTerms: paymentTerms ?? 'immediate',
         paymentTermsLabel: PAYMENT_TERMS_CONFIG[(paymentTerms ?? 'immediate') as keyof typeof PAYMENT_TERMS_CONFIG] ?? paymentTerms ?? 'Inmediato',
-        accountingDate: dayjs(),
+        accountingDate: d.fechaEmision ? dayjs(d.fechaEmision) : dayjs(),
+        dteItems,
         missing: !accountId ? 'Falta cuenta de gasto — configúrala en el maestro del proveedor' : undefined,
       })
     }
@@ -610,12 +687,21 @@ export default function DteSatPage() {
       setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'processing' } : r))
       try {
         const dte = documents.find(d => d.id === row.id)!
+        const multiLine = (row.dteItems?.length ?? 0) > 1
         const result = await postSatDte(row.id, {
-          taxId:          row.taxId,
-          accountId:      row.accountId,
-          paymentTerms:   row.paymentTerms ?? 'immediate',
-          defaultUnit:    row.defaultUnit,
-          accountingDate: row.accountingDate?.format('YYYY-MM-DD'),
+          taxId:                  row.taxId,
+          invoiceType:            row.invoiceType,
+          accountId:              row.accountId,
+          paymentTerms:           row.paymentTerms ?? 'immediate',
+          defaultUnit:            row.defaultUnit,
+          accountingDate:         row.accountingDate?.format('YYYY-MM-DD'),
+          isExpenseReimbursement: row.ocType === 'reimbursement',
+          employeeId:             row.ocType === 'reimbursement' ? row.employeeId : undefined,
+          idpType:                row.invoiceType === 'fuel' ? row.idpType : undefined,
+          idpAccountId:           row.invoiceType === 'fuel' ? row.idpAccountId : undefined,
+          lineAccounts:           multiLine
+            ? row.dteItems!.map((item, idx) => ({ index: idx, accountId: item.accountId ?? row.accountId ?? '' }))
+            : undefined,
         })
         if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId })
         setBatchRows(prev => prev.map(r => r.id === row.id
@@ -691,6 +777,7 @@ export default function DteSatPage() {
       dataIndex: 'subtotal',
       align: 'right',
       width: 100,
+      sorter: (a, b) => Number(a.subtotal) - Number(b.subtotal),
       render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
@@ -698,6 +785,7 @@ export default function DteSatPage() {
       dataIndex: 'totalIva',
       align: 'right',
       width: 90,
+      sorter: (a, b) => Number(a.totalIva) - Number(b.totalIva),
       render: (v: number, row) => <Text style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
@@ -814,20 +902,29 @@ export default function DteSatPage() {
       fixed: 'right',
       render: (_, row) => (
         <Space size={4}>
-          {row.status === 'posted' || row.status === 'duplicate'
-            ? <Tag color={row.status === 'posted' ? '#1faec2' : 'volcano'} style={{ fontSize: 10 }}>
-                {row.status === 'posted' ? 'Procesado' : 'Duplicado'}
-              </Tag>
-            : <Button
-                size="small"
-                type="primary"
-                icon={<BookOutlined />}
-                onClick={() => openStepper(row)}
-                style={{ fontSize: 11, background: '#1faec2' }}
-              >
-                Procesar
-              </Button>
+          {row.status === 'posted'
+            ? <Tooltip title="Ver factura y póliza contable">
+                <Button size="small" icon={<EyeOutlined />}
+                  onClick={() => row.purchaseInvoiceId && navigate(`/compras/facturas/${row.purchaseInvoiceId}`)}
+                  style={{ fontSize: 11, borderColor: '#1faec2', color: '#1faec2' }}>
+                  Ver factura
+                </Button>
+              </Tooltip>
+            : row.status === 'duplicate'
+              ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
+              : <Button size="small" type="primary" icon={<BookOutlined />}
+                  onClick={() => openStepper(row)}
+                  style={{ fontSize: 11, background: '#1faec2' }}>
+                  Procesar
+                </Button>
           }
+          {row.status === 'posted' && (
+            <Tooltip title="Re-procesar — usar si la factura vinculada fue eliminada">
+              <Button size="small" icon={<RollbackOutlined />}
+                onClick={() => handleReactivate(row)}
+                style={{ fontSize: 11, color: '#7c3aed', borderColor: '#c4b5fd' }} />
+            </Tooltip>
+          )}
           <Tooltip title="Eliminar de la bandeja">
             <Button size="small" danger icon={<DeleteOutlined />}
               onClick={() => handleDeleteDte(row)} style={{ fontSize: 11 }} />
@@ -909,8 +1006,15 @@ export default function DteSatPage() {
   // ── Valores reactivos del formulario del stepper ──────────────────────────
   const watchedTaxId    = Form.useWatch('taxId',        stepperForm) as string | undefined
   const watchedInvType  = Form.useWatch('invoiceType',  stepperForm) as string | undefined ?? 'goods'
+  const watchedIdpType  = Form.useWatch('idpType',      stepperForm) as string | undefined
   const isFuelStep3     = watchedInvType === 'fuel'
   const isServiceStep3  = watchedInvType === 'services'
+
+  const idpCalcAmount = useMemo(() => {
+    if (!watchedIdpType || !isFuelStep3 || !stepperDte) return 0
+    const qty = ((stepperDte.items as any[]) ?? []).reduce((s: number, l: any) => s + (Number(l.cantidad) || 0), 0)
+    return Math.round(qty * (IDP_RATES_FE[watchedIdpType]?.rate ?? 0) * 100) / 100
+  }, [watchedIdpType, isFuelStep3, stepperDte])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -937,6 +1041,7 @@ export default function DteSatPage() {
             stepperStep === 1 ? (vendorLinked && !stepperVendorPayableMissing) :
             stepperStep === 2 ? (
               isNC ||
+              stepperIsAnulado ||
               stepperOcChoice === 'skip' ||
               stepperOcChoice === 'reimbursement' ||
               (stepperOcChoice === 'select' && !!stepperOcId)
@@ -956,7 +1061,13 @@ export default function DteSatPage() {
                       {(stepperDte as any).tipoDocumento ?? 'FACT'} · {stepperDte.serie ?? '—'}/{stepperDte.numeroDte ?? '—'}
                     </Text>
                   </div>
-                  <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                  {stepperIsAnulado
+                    ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <StopOutlined style={{ color: '#dc2626', fontSize: 14 }} />
+                        <Text strong style={{ fontSize: 16, color: '#dc2626' }}>Q0.00 ANULADA</Text>
+                      </span>
+                    : <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
+                  }
                 </div>
                 <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
                   { title: 'DTE' },
@@ -980,6 +1091,41 @@ export default function DteSatPage() {
                       <strong>Nota de Crédito Proveedor</strong> — Este DTE ({(stepperDte as any).tipoDocumento}) se registrará como Nota de Crédito de Proveedor.
                     </div>
                   )}
+
+                  {/* Toggle Anulada SAT */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: stepperIsAnulado ? '#fff1f0' : '#f8fafc',
+                    border: `1px solid ${stepperIsAnulado ? '#fca5a5' : '#e2e8f0'}`,
+                    borderRadius: 6, padding: '10px 14px', marginBottom: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <StopOutlined style={{ color: stepperIsAnulado ? '#dc2626' : '#9ca3af', fontSize: 16 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: stepperIsAnulado ? '#dc2626' : '#374151' }}>
+                          Factura anulada en SAT
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
+                          Activa si el PDF del SAT tiene sello <strong>ANULADO</strong>. Se registrará con valor Q0.00 y estado Anulada.
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={stepperIsAnulado}
+                      onChange={setStepperIsAnulado}
+                      style={{ background: stepperIsAnulado ? '#dc2626' : undefined }}
+                    />
+                  </div>
+                  {stepperIsAnulado && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      style={{ marginBottom: 12, fontSize: 12 }}
+                      message="Factura será registrada con monto Q0.00 y estado ANULADA"
+                      description="Se creará el registro para cumplimiento legal/fiscal, pero no generará saldo en el proveedor ni gasto contable."
+                    />
+                  )}
+
                   <Descriptions size="small" column={2} style={{ background: '#f8fafc', padding: 12, borderRadius: 6 }}>
                     <Descriptions.Item label="Emisor" span={2}><Text strong>{stepperDte.nombreEmisor}</Text></Descriptions.Item>
                     <Descriptions.Item label="Fecha">{stepperDte.fechaEmision ? dayjs(stepperDte.fechaEmision).format('DD/MM/YYYY') : '—'}</Descriptions.Item>
@@ -1033,7 +1179,7 @@ export default function DteSatPage() {
                       <Divider plain style={{ fontSize: 12 }}>o crear nuevo proveedor</Divider>
                       <Form form={stepperVendorForm} layout="vertical" size="small" onFinish={handleStepperCreateVendor}>
                         {/* Fila 1: Nombre | Cuenta CxP | Términos de pago */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 140px', gap: '0 12px' }}>
                           <Form.Item name="name" label="Nombre" style={{ marginBottom: 8 }}>
                             <Input placeholder={stepperDte.nombreEmisor ?? 'Nombre del proveedor'} />
                           </Form.Item>
@@ -1059,7 +1205,7 @@ export default function DteSatPage() {
                           <Form.Item name="defaultPurchaseTaxId" label="Impuesto IVA" style={{ marginBottom: 8 }}
                             tooltip="Impuesto predeterminado al registrar facturas de este proveedor">
                             <Select showSearch allowClear placeholder="IVA12 — Tasa general 12%"
-                              options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${t.rate}%)` }))} />
+                              options={taxes.filter(t => !t.isWithholding).map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${Number(t.rate)}%)` }))} />
                           </Form.Item>
                         </div>
                         <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1faec2' }}>
@@ -1078,6 +1224,13 @@ export default function DteSatPage() {
                       <strong>Nota de Crédito Proveedor</strong> — No aplica Orden de Compra.
                       <br />
                       <Text type="secondary" style={{ fontSize: 12 }}>Continúa para registrar la nota de crédito.</Text>
+                    </div>
+                  )
+                  if (stepperIsAnulado) return (
+                    <div style={{ background: '#fff1f0', border: '1px solid #fca5a5', borderRadius: 6, padding: '12px 16px', fontSize: 13, color: '#dc2626' }}>
+                      <strong>Factura Anulada</strong> — No aplica Orden de Compra.
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 12 }}>Continúa para registrar la factura con valor Q0.00.</Text>
                     </div>
                   )
                   return (
@@ -1123,6 +1276,16 @@ export default function DteSatPage() {
                 {stepperStep === 3 && (
                   <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}
                     initialValues={{ invoiceType: 'goods' }}>
+                    {stepperIsAnulado && (
+                      <Alert
+                        type="error"
+                        showIcon
+                        icon={<StopOutlined />}
+                        style={{ marginBottom: 12, fontSize: 12 }}
+                        message={<span style={{ fontWeight: 700 }}>ANULADA — Se registrará con Q0.00</span>}
+                        description="Selecciona la cuenta contable de referencia. El asiento será Q0 y el estado quedará como ANULADA."
+                      />
+                    )}
                     {isNC && (
                       <>
                       <Form.Item name="originalInvoiceId" label="Factura original del proveedor (opcional)">
@@ -1145,12 +1308,22 @@ export default function DteSatPage() {
                         <Form.Item name="invoiceType" label="Tipo de factura" style={{ marginBottom: 6 }}>
                           <Select
                             options={[
-                              { value: 'goods',    label: 'Compra de bienes' },
-                              { value: 'services', label: 'Prestación de servicios' },
-                              { value: 'fuel',     label: 'Combustible con IDP' },
-                              { value: 'special',  label: 'Factura especial' },
+                              { value: 'goods',          label: 'Compra de bienes' },
+                              { value: 'services',       label: 'Prestación de servicios' },
+                              { value: 'fuel',           label: 'Combustible con IDP' },
+                              { value: 'special',        label: 'Factura especial' },
+                              { value: 'exempt',         label: 'Exenta' },
+                              { value: 'donation',       label: 'Recibo de donación' },
+                              { value: 'small_taxpayer', label: 'Pequeño contribuyente' },
                             ]}
-                            onChange={() => { setStepperHasTimbre(false); setStepperHasTurismo(false) }}
+                            onChange={(val) => {
+                              setStepperHasTimbre(false)
+                              setStepperHasTurismo(false)
+                              if (val === 'fuel' && orgImpEsp?.idpAccountCode) {
+                                const acc = accounts.find(a => a.code === orgImpEsp!.idpAccountCode)
+                                if (acc) stepperForm.setFieldValue('idpAccountId', acc.id)
+                              }
+                            }}
                           />
                         </Form.Item>
                         {isServiceStep3 && (
@@ -1182,24 +1355,15 @@ export default function DteSatPage() {
                         rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}>
                         <Select
                           placeholder="Selecciona el impuesto (IVA)"
-                          options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${t.rate}%)` : `${t.code} — ${t.name}` }))}
+                          options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${Number(t.rate)}%)` : `${t.code} — ${t.name}` }))}
                         />
                       </Form.Item>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                      <Form.Item name="paymentTerms" label="Términos de pago"
-                        rules={[{ required: true, message: 'Selecciona términos' }]}>
-                        <Select options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
-                      </Form.Item>
-                      <Form.Item name="defaultUnit" label="Unidad de medida">
-                        <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
-                          options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
-                        />
-                      </Form.Item>
-                    </div>
+                    <Form.Item name="paymentTerms" hidden><input /></Form.Item>
                     <Form.Item name="accountId" label="Cuenta de gasto"
                       rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
                       <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
+                        filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                         options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || (a as any).type === 'expense'))
                           .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                     </Form.Item>
@@ -1207,16 +1371,35 @@ export default function DteSatPage() {
                     {/* IDP — visible cuando tipo = Combustible */}
                     {isFuelStep3 && (
                       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
-                        <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 6 }}>
+                        <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 8 }}>
                           IDP — Combustible (Dto. 38-92)
                         </Text>
-                        <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar"
-                          rules={[{ required: true, message: 'Ingresa la cuenta IDP' }]}
-                          style={{ marginBottom: 0 }}>
-                          <Select showSearch allowClear placeholder="Ej. 1106 — IDP por Acreditar"
-                            options={accounts.filter(a => !a.isHeader && a.isActive)
-                              .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-                        </Form.Item>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                          <Form.Item name="idpType" label="Tipo de combustible"
+                            rules={[{ required: true, message: 'Selecciona el tipo de combustible' }]}
+                            style={{ marginBottom: 6 }}>
+                            <Select placeholder="Gasolina, diésel..."
+                              options={Object.entries(IDP_RATES_FE).map(([k, v]) => ({
+                                value: k,
+                                label: `${v.label} (Q${v.rate.toFixed(2)}/gal)`,
+                              }))}
+                            />
+                          </Form.Item>
+                          <Form.Item name="idpAccountId" label="Cuenta IDP"
+                            rules={[{ required: true, message: 'Selecciona la cuenta IDP' }]}
+                            style={{ marginBottom: 6 }}>
+                            <Select showSearch allowClear placeholder="630011 — IDP"
+                              options={accounts.filter(a => !a.isHeader && a.isActive)
+                                .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                          </Form.Item>
+                        </div>
+                        {idpCalcAmount > 0 && (
+                          <div style={{ fontSize: 11, color: '#92400e', marginTop: 2 }}>
+                            IDP calculado: <strong>Q {idpCalcAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
+                            {' · '}
+                            {((stepperDte?.items as any[]) ?? []).reduce((s: number, l: any) => s + (Number(l.cantidad) || 0), 0).toFixed(5)} gal × Q{(IDP_RATES_FE[watchedIdpType!]?.rate ?? 0).toFixed(2)}/gal
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1282,12 +1465,19 @@ export default function DteSatPage() {
                       <Form.Item name="accountingDate" label="Fecha contable">
                         <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
                       </Form.Item>
-                      {stepperOcId && (
-                        <Form.Item label="OC vinculada">
-                          <Tag color="#1faec2">{stepperPOs?.find(p => p.id === stepperOcId)?.orderNumber ?? 'OC seleccionada'}</Tag>
+                      {!isFuelStep3 && (
+                        <Form.Item name="defaultUnit" label="Unidad de medida">
+                          <Select allowClear showSearch placeholder="Unidad por defecto para las líneas"
+                            options={unidades.map(u => ({ value: u.code, label: `${u.code} — ${u.name}` }))}
+                          />
                         </Form.Item>
                       )}
                     </div>
+                    {stepperOcId && (
+                      <Form.Item label="OC vinculada" style={{ marginBottom: 6 }}>
+                        <Tag color="#1faec2">{stepperPOs?.find(p => p.id === stepperOcId)?.orderNumber ?? 'OC seleccionada'}</Tag>
+                      </Form.Item>
+                    )}
                   </Form>
                 )}
 
@@ -1375,7 +1565,7 @@ export default function DteSatPage() {
         <Modal
           open={batchOpen}
           title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
-          width={820}
+          width={1360}
           footer={null}
           onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
           maskClosable={false}
@@ -1389,78 +1579,201 @@ export default function DteSatPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Proveedor / DTE</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 200 }}>Cuenta de gasto</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Unidad</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 155 }}>Proveedor / DTE</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 165 }}>Tipo factura</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 195 }}>Registro</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 185 }}>Cuenta de gasto</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 90 }}>Unidad</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Fecha contable</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 90 }}>Total</th>
-                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 120 }}>Estado</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 80 }}>Total</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, fontSize: 11, width: 100 }}>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {batchRows.map(row => (
-                    <tr key={row.id} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)', background: row.missing ? 'rgba(255,127,0,0.10)' : undefined }}>
-                      <td style={{ padding: '6px 10px' }}>
-                        <Text style={{ fontSize: 12 }}>{row.label}</Text>
-                      </td>
-                      <td style={{ padding: '4px 6px' }}>
-                        {row.status === 'pending' ? (
-                          <Select
-                            size="small"
-                            style={{ width: '100%' }}
-                            showSearch
-                            placeholder="Seleccionar cuenta…"
-                            optionFilterProp="label"
-                            value={row.accountId}
-                            status={!row.accountId ? 'error' : undefined}
-                            onChange={val => {
-                              const acc = expenseAccounts.find(a => a.id === val)
-                              setBatchRows(prev => prev.map(r => r.id === row.id
-                                ? { ...r, accountId: val, accountLabel: acc ? `${acc.code} — ${acc.name}` : val, missing: undefined }
-                                : r))
-                            }}
-                            options={expenseAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
-                          />
-                        ) : (
-                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountLabel ?? '—'}</Text>
-                        )}
-                        {row.missing && row.status === 'pending' && (
-                          <div style={{ color: '#ff7f00', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
-                        )}
-                      </td>
-                      <td style={{ padding: '4px 6px' }}>
-                        {row.status === 'pending' ? (
-                          <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND"
-                            value={row.defaultUnit}
-                            onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, defaultUnit: val ?? undefined } : r))}
-                            options={unidades.map(u => ({ value: u.code, label: u.code }))} />
-                        ) : (
-                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.defaultUnit ?? '—'}</Text>
-                        )}
-                      </td>
-                      <td style={{ padding: '4px 6px' }}>
-                        {row.status === 'pending' ? (
-                          <DatePicker
-                            size="small"
-                            style={{ width: '100%' }}
-                            format="DD/MM/YYYY"
-                            value={row.accountingDate}
-                            onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, accountingDate: val ?? dayjs() } : r))}
-                          />
-                        ) : (
-                          <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountingDate?.format('DD/MM/YYYY') ?? '—'}</Text>
-                        )}
-                      </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
-                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                        {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
-                        {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
-                        {row.status === 'processing'              && <Tag color="processing" style={{ fontSize: 10 }}>Procesando…</Tag>}
-                        {row.status === 'ok'                      && <Tag color="success" style={{ fontSize: 10 }}>✓ {row.result}</Tag>}
-                        {row.status === 'error'                   && <Tooltip title={row.error}><Tag color="error" style={{ fontSize: 10 }}>✗ Error</Tag></Tooltip>}
-                      </td>
-                    </tr>
-                  ))}
+                  {batchRows.map(row => {
+                    const lines = row.dteItems ?? []
+                    const multiLine = lines.length > 1
+                    return (
+                      <React.Fragment key={row.id}>
+                        {/* Fila principal del DTE */}
+                        <tr style={{ borderBottom: lines.length > 0 ? undefined : '1px solid rgba(10,10,10,0.08)', background: row.missing ? 'rgba(255,127,0,0.10)' : undefined }}>
+                          <td style={{ padding: '6px 10px' }}>
+                            <div style={{ fontWeight: 600, fontSize: 12 }}>{row.vendorName}</div>
+                            <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>{row.dteRef}</div>
+                            {row.taxLabel && <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>{row.taxLabel}</div>}
+                          </td>
+                          <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+                            {row.status === 'pending' ? (
+                              <>
+                                <Select size="small" style={{ width: '100%' }}
+                                  value={row.invoiceType ?? 'goods'}
+                                  onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, invoiceType: val } : r))}
+                                  options={[
+                                    { value: 'goods',          label: 'Bienes' },
+                                    { value: 'services',       label: 'Servicios' },
+                                    { value: 'fuel',           label: 'Combustible' },
+                                    { value: 'special',        label: 'Especial' },
+                                    { value: 'exempt',         label: 'Exenta' },
+                                    { value: 'donation',       label: 'Donación' },
+                                    { value: 'small_taxpayer', label: 'Peq. Contrib.' },
+                                  ]}
+                                />
+                                {row.invoiceType === 'fuel' && (
+                                  <Select size="small" style={{ width: '100%', marginTop: 3 }}
+                                    placeholder="Tipo combustible"
+                                    value={row.idpType}
+                                    onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, idpType: val } : r))}
+                                    options={Object.entries(IDP_RATES_FE).map(([k, v]) => ({ value: k, label: `${v.label} (Q${v.rate.toFixed(2)}/gal)` }))}
+                                  />
+                                )}
+                              </>
+                            ) : (
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.invoiceType ?? 'goods'}</Text>
+                            )}
+                          </td>
+                          <td style={{ padding: '4px 6px' }}>
+                            {row.status === 'pending' ? (
+                              <>
+                                <Radio.Group
+                                  value={row.ocType ?? 'direct'}
+                                  onChange={e => setBatchRows(prev => prev.map(r => r.id === row.id
+                                    ? { ...r, ocType: e.target.value as BatchRow['ocType'], employeeId: undefined }
+                                    : r))}
+                                  style={{ width: '100%' }}
+                                >
+                                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                                    <Radio value="direct" style={{ fontSize: 11 }}>
+                                      <Text strong style={{ fontSize: 11 }}>Compra directa</Text>
+                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>La factura se registra sin orden de compra</Text>
+                                    </Radio>
+                                    <Radio value="select" style={{ fontSize: 11 }}>
+                                      <Text strong style={{ fontSize: 11 }}>Vincular a una Orden de Compra existente</Text>
+                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>Cierra la OC y vincula la factura</Text>
+                                    </Radio>
+                                    <Radio value="reimbursement" style={{ fontSize: 11 }}>
+                                      <Text strong style={{ fontSize: 11 }}>Reembolso de Gastos (Empleado)</Text>
+                                      <br /><Text type="secondary" style={{ fontSize: 10 }}>La deuda se reclasifica al empleado</Text>
+                                    </Radio>
+                                  </Space>
+                                </Radio.Group>
+                                {row.ocType === 'reimbursement' && (
+                                  <div style={{ marginTop: 6, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '6px 8px' }}>
+                                    <Text style={{ fontSize: 10, color: '#5b21b6', display: 'block', marginBottom: 4 }}>Empleado</Text>
+                                    <Select size="small" style={{ width: '100%' }} showSearch allowClear
+                                      placeholder="Buscar empleado…"
+                                      value={row.employeeId}
+                                      options={vendors}
+                                      filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                                      onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, employeeId: val } : r))}
+                                      notFoundContent="Sin empleados registrados"
+                                    />
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>
+                                {row.ocType === 'reimbursement' ? 'Reembolso' : row.ocType === 'select' ? 'Vincular OC' : 'Compra directa'}
+                              </Text>
+                            )}
+                          </td>
+                          <td style={{ padding: '4px 6px' }}>
+                            {row.status === 'pending' && !multiLine ? (
+                              <Select size="small" style={{ width: '100%' }} showSearch
+                                placeholder="Seleccionar cuenta…"
+                                filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                                value={row.accountId}
+                                status={!row.accountId ? 'error' : undefined}
+                                onChange={val => {
+                                  const acc = expenseAccounts.find(a => a.id === val)
+                                  const lbl = acc ? `${acc.code} — ${acc.name}` : val
+                                  setBatchRows(prev => prev.map(r => r.id === row.id
+                                    ? { ...r, accountId: val, accountLabel: lbl, missing: undefined,
+                                        dteItems: r.dteItems?.map(li => ({ ...li, accountId: val, accountLabel: lbl })) }
+                                    : r))
+                                }}
+                                options={expenseAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                              />
+                            ) : row.status === 'pending' && multiLine ? (
+                              <Text style={{ fontSize: 10, color: '#6b7280' }}>← asigna por línea</Text>
+                            ) : (
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountLabel ?? '—'}</Text>
+                            )}
+                            {row.missing && row.status === 'pending' && (
+                              <div style={{ color: '#ff7f00', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                            )}
+                          </td>
+                          <td style={{ padding: '4px 6px' }}>
+                            {row.status === 'pending' ? (
+                              <Select size="small" style={{ width: '100%' }} allowClear placeholder="UND"
+                                value={row.defaultUnit}
+                                onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, defaultUnit: val ?? undefined } : r))}
+                                options={unidades.map(u => ({ value: u.code, label: u.code }))} />
+                            ) : (
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.defaultUnit ?? '—'}</Text>
+                            )}
+                          </td>
+                          <td style={{ padding: '4px 6px' }}>
+                            {row.status === 'pending' ? (
+                              <DatePicker size="small" style={{ width: '100%' }} format="DD/MM/YYYY"
+                                value={row.accountingDate}
+                                onChange={val => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, accountingDate: val ?? dayjs() } : r))}
+                              />
+                            ) : (
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountingDate?.format('DD/MM/YYYY') ?? '—'}</Text>
+                            )}
+                          </td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                            {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
+                            {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
+                            {row.status === 'processing'              && <Tag color="processing" style={{ fontSize: 10 }}>Procesando…</Tag>}
+                            {row.status === 'ok'                      && <Tag color="success" style={{ fontSize: 10 }}>✓ {row.result}</Tag>}
+                            {row.status === 'error'                   && <Tooltip title={row.error}><Tag color="error" style={{ fontSize: 10 }}>✗ Error</Tag></Tooltip>}
+                          </td>
+                        </tr>
+                        {/* Sub-filas de líneas del DTE */}
+                        {lines.map((line, idx) => (
+                          <tr key={`${row.id}-line-${idx}`} style={{ borderBottom: idx === lines.length - 1 ? '1px solid rgba(10,10,10,0.08)' : '1px solid rgba(10,10,10,0.04)', background: '#f5f7fa' }}>
+                            <td colSpan={3} style={{ padding: '3px 10px 3px 24px' }}>
+                              <Text style={{ fontSize: 10, color: '#374151' }}>
+                                {String(line.descripcion || line.description || '').trim() || `Línea ${idx + 1}`}
+                              </Text>
+                            </td>
+                            <td style={{ padding: '3px 6px' }}>
+                              {row.status === 'pending' && multiLine ? (
+                                <Select size="small" style={{ width: '100%' }} showSearch allowClear
+                                  placeholder="Cuenta línea…"
+                                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                                  value={line.accountId}
+                                  onChange={val => {
+                                    const acc = expenseAccounts.find(a => a.id === val)
+                                    setBatchRows(prev => prev.map(r => {
+                                      if (r.id !== row.id) return r
+                                      const newItems = (r.dteItems ?? []).map((li, i) =>
+                                        i === idx ? { ...li, accountId: val, accountLabel: acc ? `${acc.code} — ${acc.name}` : val } : li
+                                      )
+                                      return { ...r, dteItems: newItems, missing: undefined }
+                                    }))
+                                  }}
+                                  options={expenseAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                                />
+                              ) : (
+                                <Text style={{ fontSize: 10, color: '#6b7280' }}>{line.accountLabel ?? '↳ cuenta DTE'}</Text>
+                              )}
+                            </td>
+                            <td style={{ padding: '3px 6px' }}>
+                              <Text style={{ fontSize: 10, color: '#6b7280' }}>{line.cantidad ? `× ${line.cantidad}` : ''}</Text>
+                            </td>
+                            <td />
+                            <td style={{ padding: '3px 10px', textAlign: 'right', fontSize: 10, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>
+                              {line.total_linea ? `Q ${Number(line.total_linea).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : ''}
+                            </td>
+                            <td />
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
 
@@ -1680,36 +1993,26 @@ export default function DteSatPage() {
         style={{ borderTop: '3px solid #1faec2' }}
         styles={{ body: { paddingTop: 10, paddingBottom: 10 } }}
       >
-        <Form form={form} layout="vertical" size="small" onFinish={handleImport}>
-          <Row gutter={[16, 0]} align="bottom">
-            <Col xs={24} md={14}>
-              <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
-                rules={[{ required: true, message: 'Selecciona el rango' }]}
-              >
-                <RangePicker
-                  style={{ width: '100%' }}
-                  presets={[
-                    { label: 'Este mes', value: [dayjs().startOf('month'), dayjs()] },
-                    { label: 'Mes anterior', value: [dayjs().subtract(1,'month').startOf('month'), dayjs().subtract(1,'month').endOf('month')] },
-                    { label: 'Este trimestre', value: [dayjs().subtract(2,'month').startOf('month'), dayjs()] },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={10}>
-              <Button
-                type="primary"
-                htmlType="submit"
-                icon={<ApiOutlined />}
-                loading={importing}
-                disabled={!satCredentials.satNit}
-                block
-                style={{ background: '#1faec2' }}
-              >
-                Iniciar importación SAT
-              </Button>
-            </Col>
-          </Row>
+        <Form form={form} layout="inline" size="small" onFinish={handleImport}>
+          <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
+            rules={[{ required: true, message: 'Selecciona el rango de fechas' }]}
+          >
+            <RangePicker
+              style={{ width: 280 }}
+              presets={[
+                { label: 'Este mes',       value: [dayjs().startOf('month'), dayjs()] },
+                { label: 'Mes anterior',   value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+                { label: 'Este trimestre', value: [dayjs().subtract(2, 'month').startOf('month'), dayjs()] },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
+              disabled={!satCredentials.satNit}
+              style={{ background: '#1faec2' }}>
+              Importar Recibidos
+            </Button>
+          </Form.Item>
         </Form>
       </Card>
 
@@ -1761,6 +2064,13 @@ export default function DteSatPage() {
                         {stats[key]?.count ? ` (${stats[key].count})` : ''}
                       </Button>
                     ))}
+                    {stats.ready?.count > 0 && !statusFilter && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
+                        onClick={() => setStatusFilter('ready')}>
+                        <CheckCircleOutlined style={{ color: '#2ea172' }} />
+                        <span><strong>{stats.ready.count}</strong> listos — haz clic aquí, selecciona y <strong>Registra</strong></span>
+                      </div>
+                    )}
                   </Space>
                   {selectedIds.length > 0 && (
                     <Button

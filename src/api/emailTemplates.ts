@@ -1,4 +1,4 @@
-export type EmailDocumentType = 'factura' | 'cotizacion' | 'pago'
+export type EmailDocumentType = 'factura' | 'cotizacion' | 'pago' | 'factura_proveedor' | 'orden_compra'
 
 export interface EmailTemplate {
   id:               string
@@ -69,6 +69,28 @@ const DEFAULT_TEMPLATES: EmailTemplate[] = [
     showBankAccounts: false,
     footerText:       '',
     isDefault:        false,
+  },
+  {
+    id:               'default-factura-proveedor',
+    name:             'Factura Proveedor Estándar',
+    documentType:     'factura_proveedor',
+    subject:          'Consulta factura {{numeroFactura}} — {{nombreEmpresa}}',
+    greeting:         'Estimado proveedor:',
+    message:          'Nos comunicamos en referencia a la factura {{numeroFactura}} de fecha {{fecha}} por un monto de {{total}}. Quedamos atentos a cualquier aclaración.',
+    showBankAccounts: false,
+    footerText:       '',
+    isDefault:        true,
+  },
+  {
+    id:               'default-orden-compra',
+    name:             'Orden de Compra Estándar',
+    documentType:     'orden_compra',
+    subject:          'Orden de Compra — {{nombreEmpresa}}',
+    greeting:         'Estimado proveedor:',
+    message:          'Adjuntamos la orden de compra correspondiente. Favor confirmar recepción e indicar fecha estimada de entrega.',
+    showBankAccounts: false,
+    footerText:       '',
+    isDefault:        true,
   },
 ]
 

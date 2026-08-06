@@ -1,19 +1,20 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button, Typography, Tag, Table, Divider, Spin, message,
-  Modal, Form, Input, Alert, Popconfirm,
+  Modal, Form, Input, Alert, Popconfirm, Select,
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, SendOutlined,
-  CheckCircleOutlined, FileTextOutlined, DeleteOutlined,
+  CheckCircleOutlined, FileTextOutlined, DeleteOutlined, UploadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPurchaseOrder, sendPurchaseOrder, approvePurchaseOrder, deletePurchaseOrder,
-  PO_STATUS_CONFIG, type PurchaseOrder,
+  attachPoFile, PO_STATUS_CONFIG, type PurchaseOrder,
 } from '../../../api/compras'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -30,6 +31,10 @@ export default function OrdenCompraDetallePage() {
   const [approving,   setApproving]   = useState(false)
   const [showSend,    setShowSend]    = useState(false)
   const [sendForm]  = Form.useForm()
+  const [uploadingFile,      setUploadingFile]      = useState(false)
+  const [emailTemplates,     setEmailTemplates]     = useState<EmailTemplate[]>([])
+  const [selectedEmailTplId, setSelectedEmailTplId] = useState<string | undefined>()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadPO = useCallback(async () => {
     if (!id) return
@@ -47,16 +52,43 @@ export default function OrdenCompraDetallePage() {
 
   useEffect(() => { loadPO() }, [loadPO])
 
+  const applyEmailTemplate = (tplId: string | undefined, tpls: EmailTemplate[], currentPo: PurchaseOrder, currentCompany: OrganizationProfile) => {
+    const tpl = tpls.find(t => t.id === tplId)
+    if (!tpl) return
+    const vars: Record<string, string> = {
+      nombreCliente: currentPo.vendorName ?? '',
+      numeroFactura: currentPo.orderNumber ?? '',
+      total:         `${currentPo.currency ?? 'GTQ'} ${Number(currentPo.total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+      saldo:         '',
+      fecha:         currentPo.orderDate ? new Date(currentPo.orderDate + 'T12:00:00').toLocaleDateString('es-GT') : '',
+      nombreEmpresa: currentCompany.name ?? '',
+      moneda:        currentPo.currency ?? 'GTQ',
+    }
+    sendForm.setFieldsValue({ subject: replaceVars(tpl.subject, vars), message: replaceVars(tpl.message, vars) })
+  }
+
   const handleSend = async () => {
     try { await sendForm.validateFields() } catch { return }
     setSending(true)
     try {
-      const { to } = sendForm.getFieldsValue()
-      await sendPurchaseOrder(po!.id, { to })
+      const { to, subject, message: msg } = sendForm.getFieldsValue()
+      await sendPurchaseOrder(po!.id, { to, subject, message: msg })
       message.success(`Orden enviada a ${to}`)
       setShowSend(false); sendForm.resetFields(); loadPO()
     } catch (e: any) { message.error(e?.response?.data?.message || 'Error al enviar') }
     finally { setSending(false) }
+  }
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !po) return
+    setUploadingFile(true)
+    try {
+      await attachPoFile(po.id, file, po)
+      message.success(`Archivo "${file.name}" adjuntado`)
+      loadPO()
+    } catch { message.error('Error al cargar el archivo') }
+    finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
   const handleApprove = async () => {
@@ -149,7 +181,15 @@ export default function OrdenCompraDetallePage() {
           </Button>
         )}
         {canSend && (
-          <Button icon={<SendOutlined />} onClick={() => { sendForm.resetFields(); setShowSend(true) }}>
+          <Button icon={<SendOutlined />} onClick={() => {
+            const tpls = getEmailTemplates().filter(t => t.documentType === 'orden_compra')
+            const defTpl = tpls.find(t => t.isDefault) ?? tpls[0] ?? getDefaultEmailTemplate('orden_compra')
+            setEmailTemplates(tpls)
+            setSelectedEmailTplId(defTpl?.id)
+            sendForm.resetFields()
+            if (defTpl && po) applyEmailTemplate(defTpl.id, tpls.length ? tpls : getEmailTemplates(), po, company)
+            setShowSend(true)
+          }}>
             Enviar al proveedor
           </Button>
         )}
@@ -171,6 +211,11 @@ export default function OrdenCompraDetallePage() {
             <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
           </Popconfirm>
         )}
+        <Divider type="vertical" />
+        <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadFile} />
+        <Button icon={<UploadOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
+          Cargar archivo
+        </Button>
       </div>
 
       {/* ── Alerta borrador ─────────────────────────────────────────────────── */}
@@ -311,14 +356,32 @@ export default function OrdenCompraDetallePage() {
       </div>
 
       {/* ── Modal enviar ─────────────────────────────────────────────────── */}
-      <Modal title={`Enviar OC ${po.orderNumber} al proveedor`} open={showSend}
+      <Modal title={<><SendOutlined /> Enviar OC {po.orderNumber} al proveedor</>} open={showSend}
         onCancel={() => { setShowSend(false); sendForm.resetFields() }}
         onOk={handleSend} confirmLoading={sending} okText="Enviar"
-        okButtonProps={{ style: { background: '#1faec2' } }}>
-        <Form form={sendForm} layout="vertical">
+        okButtonProps={{ style: { background: '#1faec2' } }}
+        width={520}
+      >
+        <Form form={sendForm} layout="vertical" style={{ marginTop: 8 }}>
+          {emailTemplates.length > 0 && (
+            <Form.Item label="Plantilla de correo" style={{ marginBottom: 12 }}>
+              <Select
+                value={selectedEmailTplId}
+                onChange={id => { setSelectedEmailTplId(id); applyEmailTemplate(id, emailTemplates, po, company) }}
+                options={emailTemplates.map(t => ({ label: t.name, value: t.id }))}
+                placeholder="Seleccionar plantilla"
+              />
+            </Form.Item>
+          )}
           <Form.Item name="to" label="Correo del proveedor"
             rules={[{ required: true, message: 'El correo es requerido' }, { type: 'email', message: 'Correo inválido' }]}>
             <Input placeholder="proveedor@empresa.com" />
+          </Form.Item>
+          <Form.Item name="subject" label="Asunto">
+            <Input />
+          </Form.Item>
+          <Form.Item name="message" label="Mensaje adicional">
+            <Input.TextArea rows={3} placeholder="Mensaje personalizado (opcional)" />
           </Form.Item>
         </Form>
       </Modal>
