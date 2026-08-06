@@ -557,6 +557,7 @@ export const postSatDte = (id: string, dto: {
   isExpenseReimbursement?: boolean
   employeeId?: string
   idpAccountId?: string
+  idpType?: string
   defaultUnit?: string
   originalInvoiceId?: string
   creditNoteReason?: string

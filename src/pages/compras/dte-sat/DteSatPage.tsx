@@ -31,6 +31,17 @@ const { RangePicker } = DatePicker
 
 const POLL_INTERVAL_MS = 20_000 // 20 segundos — polling para jobs en ejecución
 
+const IDP_RATES_FE: Record<string, { label: string; rate: number }> = {
+  super:    { label: 'Gasolina superior',      rate: 4.70 },
+  regular:  { label: 'Gasolina regular',       rate: 4.60 },
+  aviacion: { label: 'Gasolina de aviación',   rate: 4.70 },
+  diesel:   { label: 'Diésel y gas oil',       rate: 1.30 },
+  propano:  { label: 'Gas propano vehicular',  rate: 0.60 },
+  bunker:   { label: 'Fuel oil / Bunker C',    rate: 0.55 },
+  kerosina: { label: 'Kerosina (DPK)',         rate: 0.50 },
+  other:    { label: 'Otros derivados',        rate: 0.50 },
+}
+
 const statusConfig: Record<SatDteStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:    { label: 'Proveedor pendiente', color: 'gold',    icon: <WarningOutlined /> },
   ready:      { label: 'Listo',               color: '#2ea172',   icon: <CheckCircleOutlined /> },
@@ -514,7 +525,7 @@ export default function DteSatPage() {
 
   const handleStepperPost = async (values: {
     concepto: string; taxId?: string; invoiceType?: string; accountId?: string; paymentTerms: string
-    accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; defaultUnit?: string
+    accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; idpType?: string; defaultUnit?: string
     originalInvoiceId?: string; creditNoteReason?: string
     timbrePrensaAccountId?: string; turismoAccountId?: string
   }) => {
@@ -542,6 +553,7 @@ export default function DteSatPage() {
         isExpenseReimbursement: isReimbursement,
         employeeId:          isReimbursement ? values.employeeId : undefined,
         idpAccountId:        invType === 'fuel' ? values.idpAccountId : undefined,
+        idpType:             invType === 'fuel' ? values.idpType : undefined,
         defaultUnit:         values.defaultUnit,
         originalInvoiceId:   isNC ? values.originalInvoiceId : undefined,
         creditNoteReason:    isNC ? values.creditNoteReason : undefined,
@@ -922,8 +934,15 @@ export default function DteSatPage() {
   // ── Valores reactivos del formulario del stepper ──────────────────────────
   const watchedTaxId    = Form.useWatch('taxId',        stepperForm) as string | undefined
   const watchedInvType  = Form.useWatch('invoiceType',  stepperForm) as string | undefined ?? 'goods'
+  const watchedIdpType  = Form.useWatch('idpType',      stepperForm) as string | undefined
   const isFuelStep3     = watchedInvType === 'fuel'
   const isServiceStep3  = watchedInvType === 'services'
+
+  const idpCalcAmount = useMemo(() => {
+    if (!watchedIdpType || !isFuelStep3 || !stepperDte) return 0
+    const qty = ((stepperDte.items as any[]) ?? []).reduce((s: number, l: any) => s + (Number(l.cantidad) || 0), 0)
+    return Math.round(qty * (IDP_RATES_FE[watchedIdpType]?.rate ?? 0) * 100) / 100
+  }, [watchedIdpType, isFuelStep3, stepperDte])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -1222,7 +1241,14 @@ export default function DteSatPage() {
                               { value: 'fuel',     label: 'Combustible con IDP' },
                               { value: 'special',  label: 'Factura especial' },
                             ]}
-                            onChange={() => { setStepperHasTimbre(false); setStepperHasTurismo(false) }}
+                            onChange={(val) => {
+                              setStepperHasTimbre(false)
+                              setStepperHasTurismo(false)
+                              if (val === 'fuel' && orgImpEsp?.idpAccountCode) {
+                                const acc = accounts.find(a => a.code === orgImpEsp!.idpAccountCode)
+                                if (acc) stepperForm.setFieldValue('idpAccountId', acc.id)
+                              }
+                            }}
                           />
                         </Form.Item>
                         {isServiceStep3 && (
@@ -1274,16 +1300,35 @@ export default function DteSatPage() {
                     {/* IDP — visible cuando tipo = Combustible */}
                     {isFuelStep3 && (
                       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
-                        <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 6 }}>
+                        <Text strong style={{ fontSize: 12, color: '#92400e', display: 'block', marginBottom: 8 }}>
                           IDP — Combustible (Dto. 38-92)
                         </Text>
-                        <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar"
-                          rules={[{ required: true, message: 'Ingresa la cuenta IDP' }]}
-                          style={{ marginBottom: 0 }}>
-                          <Select showSearch allowClear placeholder="Ej. 1106 — IDP por Acreditar"
-                            options={accounts.filter(a => !a.isHeader && a.isActive)
-                              .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-                        </Form.Item>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                          <Form.Item name="idpType" label="Tipo de combustible"
+                            rules={[{ required: true, message: 'Selecciona el tipo de combustible' }]}
+                            style={{ marginBottom: 6 }}>
+                            <Select placeholder="Gasolina, diésel..."
+                              options={Object.entries(IDP_RATES_FE).map(([k, v]) => ({
+                                value: k,
+                                label: `${v.label} (Q${v.rate.toFixed(2)}/gal)`,
+                              }))}
+                            />
+                          </Form.Item>
+                          <Form.Item name="idpAccountId" label="Cuenta IDP"
+                            rules={[{ required: true, message: 'Selecciona la cuenta IDP' }]}
+                            style={{ marginBottom: 6 }}>
+                            <Select showSearch allowClear placeholder="630011 — IDP"
+                              options={accounts.filter(a => !a.isHeader && a.isActive)
+                                .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                          </Form.Item>
+                        </div>
+                        {idpCalcAmount > 0 && (
+                          <div style={{ fontSize: 11, color: '#92400e', marginTop: 2 }}>
+                            IDP calculado: <strong>Q {idpCalcAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong>
+                            {' · '}
+                            {((stepperDte?.items as any[]) ?? []).reduce((s: number, l: any) => s + (Number(l.cantidad) || 0), 0).toFixed(5)} gal × Q{(IDP_RATES_FE[watchedIdpType!]?.rate ?? 0).toFixed(2)}/gal
+                          </div>
+                        )}
                       </div>
                     )}
 
