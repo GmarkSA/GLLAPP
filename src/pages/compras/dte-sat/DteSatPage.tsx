@@ -1963,6 +1963,16 @@ export default function DteSatPage() {
                         {stats[key]?.count ? ` (${stats[key].count})` : ''}
                       </Button>
                     ))}
+                    {stats.ready?.count > 0 && !statusFilter && (
+                      <Text style={{ fontSize: 11, color: '#6b7280' }}>
+                        — ve a{' '}
+                        <span style={{ color: '#2ea172', fontWeight: 600, cursor: 'pointer' }}
+                          onClick={() => setStatusFilter('ready')}>
+                          Listo ({stats.ready.count})
+                        </span>
+                        , selecciona y haz clic en <strong>Registrar</strong>
+                      </Text>
+                    )}
                   </Space>
                   {selectedIds.length > 0 && (
                     <Button
@@ -1975,20 +1985,6 @@ export default function DteSatPage() {
                     </Button>
                   )}
                 </div>
-                {stats.ready?.count > 0 && !statusFilter && (
-                  <Alert
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 10, fontSize: 12 }}
-                    message={
-                      <span>
-                        Tienes <strong>{stats.ready.count}</strong> documento{stats.ready.count !== 1 ? 's' : ''} listo{stats.ready.count !== 1 ? 's' : ''} para contabilizar —
-                        ve a la pestaña <strong style={{ color: '#2ea172', cursor: 'pointer' }} onClick={() => setStatusFilter('ready')}>Listo ({stats.ready.count})</strong>,
-                        selecciona los documentos con el checkbox y haz clic en <strong>Registrar</strong>.
-                      </span>
-                    }
-                  />
-                )}
                 <Table
                   columns={columns}
                   dataSource={documents}
