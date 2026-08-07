@@ -8,12 +8,15 @@ import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
   EyeOutlined, RocketOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
+  StarFilled, StarOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
+import type { Company } from '../../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import { getGtqExchangeRate, setGtqExchangeRate } from '../../api/billing'
+import { companiesApi } from '../../api/companies'
 
 const { Title, Text } = Typography
 
@@ -176,6 +179,193 @@ interface AdminCompany {
 interface AdminUser {
   id: string; email: string; firstName: string; lastName: string
   status: string; isSuperAdmin?: boolean; roles?: string[]
+}
+
+// ── TemplatesTab ──────────────────────────────────────────────────────────────
+function TemplatesTab() {
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [loading, setLoading]     = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [tplForm] = Form.useForm()
+
+  const load = async () => {
+    setLoading(true)
+    try { setCompanies(await companiesApi.getAll()) }
+    catch { message.error('Error al cargar empresas') }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const openModal = (company: Company, asTemplate: boolean) => {
+    setEditingId(company.id)
+    tplForm.setFieldsValue({
+      templateIcon:        company.templateIcon        ?? '🏢',
+      templateDisplayName: company.templateDisplayName ?? '',
+      templateDescription: company.templateDescription ?? '',
+      isTemplate:          asTemplate,
+    })
+    setModalOpen(true)
+  }
+
+  const handleSave = async () => {
+    if (!editingId) return
+    const values = await tplForm.validateFields()
+    setSaving(true)
+    try {
+      await companiesApi.update(editingId, values)
+      message.success(values.isTemplate ? 'Plantilla activada' : 'Plantilla desactivada')
+      setModalOpen(false)
+      load()
+    } catch { message.error('Error al guardar') }
+    finally { setSaving(false) }
+  }
+
+  const handleDeactivate = async (company: Company) => {
+    try {
+      await companiesApi.update(company.id, { isTemplate: false } as any)
+      message.success('Plantilla desactivada')
+      load()
+    } catch { message.error('Error') }
+  }
+
+  const templates    = companies.filter(c => c.isTemplate)
+  const nonTemplates = companies.filter(c => !c.isTemplate)
+
+  return (
+    <div>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 20, fontSize: 13 }}>
+        Configura las empresas que aparecerán como plantillas en el onboarding rápido de nuevos clientes.
+        Solo las empresas configuradas aquí serán visibles en la pantalla de selección.
+      </Text>
+
+      {/* Plantillas activas */}
+      {templates.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, color: '#0a0a0a' }}>
+            <StarFilled style={{ color: '#f59e0b', marginRight: 6 }} />
+            Plantillas activas ({templates.length})
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+            {templates.map(c => (
+              <Card
+                key={c.id}
+                size="small"
+                style={{ border: '1.5px solid #1faec2', borderRadius: 10 }}
+                extra={
+                  <Space size={4}>
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openModal(c, true)}>
+                      Editar
+                    </Button>
+                    <Button size="small" danger onClick={() => handleDeactivate(c)}>
+                      Quitar
+                    </Button>
+                  </Space>
+                }
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 36, lineHeight: 1 }}>{c.templateIcon || '🏢'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>
+                      {c.templateDisplayName || c.legalName}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                      {c.templateDescription || 'Sin descripción'}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9aa1ab', marginTop: 4 }}>
+                      {c.legalName}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empresas disponibles */}
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, color: '#0a0a0a' }}>
+        <StarOutlined style={{ color: '#9aa1ab', marginRight: 6 }} />
+        Empresas disponibles para convertir en plantilla
+      </div>
+      <Table<Company>
+        rowKey="id"
+        dataSource={nonTemplates}
+        loading={loading}
+        size="small"
+        pagination={false}
+        locale={{ emptyText: 'Todas las empresas ya son plantillas' }}
+        columns={[
+          {
+            title: 'Empresa',
+            render: (_, r) => (
+              <div>
+                <b style={{ fontSize: 13 }}>{r.legalName}</b>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>{r.taxId ?? '—'} · {r.currencyCode}</div>
+              </div>
+            ),
+          },
+          { title: 'País', dataIndex: 'countryCode', width: 70, render: (v: string) => <Tag>{v}</Tag> },
+          { title: 'Estado', dataIndex: 'status', width: 100, render: (v: string) => <Badge status={v === 'active' ? 'success' : 'warning'} text={v} /> },
+          {
+            title: '',
+            width: 180,
+            render: (_, r) => (
+              <Button
+                size="small"
+                type="primary"
+                icon={<StarOutlined />}
+                style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
+                onClick={() => openModal(r, true)}
+              >
+                Convertir en plantilla
+              </Button>
+            ),
+          },
+        ]}
+      />
+
+      {/* Modal configurar plantilla */}
+      <Modal
+        title={
+          <Space>
+            <StarFilled style={{ color: '#f59e0b' }} />
+            Configurar plantilla de onboarding
+          </Space>
+        }
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSave}
+        confirmLoading={saving}
+        okText="Guardar plantilla"
+        okButtonProps={{ style: { background: '#1faec2' } }}
+        width={480}
+      >
+        <Form form={tplForm} layout="vertical" style={{ marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: '0 12px', alignItems: 'start' }}>
+            <Form.Item name="templateIcon" label="Ícono (emoji)">
+              <Input style={{ textAlign: 'center', fontSize: 26, height: 44 }} />
+            </Form.Item>
+            <Form.Item
+              name="templateDisplayName"
+              label="Nombre visible para el cliente"
+              rules={[{ required: true, message: 'Requerido' }]}
+            >
+              <Input placeholder="Empresa de Servicios" />
+            </Form.Item>
+          </div>
+          <Form.Item name="templateDescription" label="Descripción breve" style={{ marginBottom: 0 }}>
+            <Input.TextArea
+              rows={2}
+              placeholder="Ideal para empresas de consultoría, transporte, educación..."
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  )
 }
 
 export default function PlatformAdminPage() {
@@ -633,6 +823,11 @@ export default function PlatformAdminPage() {
               </Row>
               </>
             ),
+          },
+          {
+            key: 'templates',
+            label: <Space><StarFilled style={{ color: '#f59e0b' }} />Plantillas onboarding</Space>,
+            children: <TemplatesTab />,
           },
           {
             key: 'billing',
