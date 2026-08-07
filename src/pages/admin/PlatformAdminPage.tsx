@@ -390,6 +390,7 @@ export default function PlatformAdminPage() {
 
   // Assign plan to tenant
   const [assigningTenantId, setAssigningTenantId] = useState<string | null>(null)
+  const [impersonating, setImpersonating]         = useState<string | null>(null)
 
   // Assign user to company (Platform Admin direct flow)
   const [assigningCompanyId, setAssigningCompanyId] = useState<string | null>(null) // companyId being assigned
@@ -617,6 +618,23 @@ export default function PlatformAdminPage() {
     }
   }
 
+  const handleImpersonate = async (tenant: TenantSummary) => {
+    setImpersonating(tenant.id)
+    try {
+      const res: any = await api.post(`/admin/tenants/${tenant.id}/impersonate`).then(unwrap)
+      sessionStorage.setItem('impersonationToken',    res.impersonationToken)
+      sessionStorage.setItem('impersonationTenantId', res.tenantId)
+      sessionStorage.setItem('impersonationTenantName', res.tenantName)
+      // Limpiar empresa activa para que el cliente empiece sin empresa pre-seleccionada
+      sessionStorage.removeItem('activeCompanyId')
+      navigate('/dashboard')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al acceder al tenant')
+    } finally {
+      setImpersonating(null)
+    }
+  }
+
   const totalCompanies = tenants.reduce((s, t) => s + (t.companiesCount ?? 0), 0)
   const totalUsers     = tenants.reduce((s, t) => s + (t.usersCount ?? 0), 0)
   const planOptions = (plans.length > 0 ? plans : [
@@ -661,10 +679,21 @@ export default function PlatformAdminPage() {
     { title: 'Empresas', dataIndex: 'companiesCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     {
-      title: '', width: 100,
+      title: '', width: 150,
       render: (_, r) => (
         <Space size={4}>
-          <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} />
+          <Button
+            size="small"
+            type="primary"
+            icon={<EyeOutlined />}
+            loading={impersonating === r.id}
+            onClick={() => handleImpersonate(r)}
+            style={{ background: '#1B3A6B' }}
+            title="Acceder como este tenant"
+          >
+            Acceder
+          </Button>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} title="Ver detalle" />
           <Popconfirm
             title={r.status === 'suspended' ? '¿Activar tenant?' : '¿Suspender tenant por falta de pago?'}
             onConfirm={() => handleTenantStatus(r.id, r.status === 'suspended' ? 'active' : 'suspended')}

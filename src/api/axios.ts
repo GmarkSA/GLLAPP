@@ -14,8 +14,12 @@ const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/l
 
 // sessionStorage → cada pestaña tiene sus propios tokens (usuario y empresa aislados por tab)
 api.interceptors.request.use((config) => {
-  const token           = sessionStorage.getItem('accessToken')
-  const tenantId        = sessionStorage.getItem('tenantId')
+  // Si hay una sesión de impersonación activa, usamos su token y tenantId
+  const impersonationToken    = sessionStorage.getItem('impersonationToken')
+  const impersonationTenantId = sessionStorage.getItem('impersonationTenantId')
+
+  const token           = impersonationToken    ?? sessionStorage.getItem('accessToken')
+  const tenantId        = impersonationTenantId ?? sessionStorage.getItem('tenantId')
   const activeCompanyId = sessionStorage.getItem('activeCompanyId')
 
   if (token)           config.headers.Authorization   = `Bearer ${token}`

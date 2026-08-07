@@ -147,6 +147,18 @@ export default function MainLayout() {
   const [searchOpen,     setSearchOpen]     = useState(false)
   const [notifOpen,      setNotifOpen]      = useState(false)
   const alertCount = useAlertCount()
+
+  // ── Impersonación de tenant ──────────────────────────────────────────────
+  const impersonationTenantName = sessionStorage.getItem('impersonationTenantName')
+  const isImpersonating         = !!sessionStorage.getItem('impersonationToken')
+
+  const handleExitImpersonation = () => {
+    sessionStorage.removeItem('impersonationToken')
+    sessionStorage.removeItem('impersonationTenantId')
+    sessionStorage.removeItem('impersonationTenantName')
+    sessionStorage.removeItem('activeCompanyId')
+    navigate('/admin/platform')
+  }
   const lastNavKey = useRef('')
   const navigate = useNavigate()
   const location = useLocation()
@@ -235,6 +247,32 @@ export default function MainLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
 
+      {/* ── Banner de impersonación ──────────────────────────────── */}
+      {isImpersonating && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
+          background: '#1B3A6B', color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
+          padding: '6px 24px', fontSize: 13, fontWeight: 500,
+        }}>
+          <span style={{ opacity: 0.7 }}>👁</span>
+          <span>
+            Accediendo como: <strong style={{ color: '#93c5fd' }}>{impersonationTenantName}</strong>
+            {' '}— Eres el administrador de la plataforma
+          </span>
+          <Button
+            size="small"
+            onClick={handleExitImpersonation}
+            style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+              color: '#fff', fontWeight: 600, fontSize: 12,
+            }}
+          >
+            Salir ✕
+          </Button>
+        </div>
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <Sider
         trigger={null}
@@ -244,9 +282,9 @@ export default function MainLayout() {
         style={{
           background: '#ffffff',
           position: 'fixed',
-          height: '100vh',
+          height: isImpersonating ? 'calc(100vh - 34px)' : '100vh',
           left: 0,
-          top: 0,
+          top: isImpersonating ? 34 : 0,
           zIndex: 100,
           borderRight: '1px solid rgba(10,10,10,0.08)',
           boxShadow: '2px 0 8px rgba(10,10,10,0.04)',
@@ -296,6 +334,7 @@ export default function MainLayout() {
       {/* ── Main area ───────────────────────────────────────────── */}
       <Layout style={{
         marginLeft: collapsed ? 80 : 248,
+        marginTop: isImpersonating ? 34 : 0,
         transition: 'margin 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }}>
 
