@@ -77,13 +77,18 @@ export default function OnboardingWizardPage() {
   const [done, setDone]       = useState(false)
   const step0Ref              = useRef<Record<string, any>>({})
 
-  // Carga plantillas para la pantalla de elección
+  // Carga plantillas — si no hay ninguna, salta directo al wizard de 3 pasos
   useEffect(() => {
+    if (mode !== null) return  // ya eligió, no cargar
     platformTemplatesApi.list()
-      .then(tpls => setTemplates(tpls.filter(t => t.isActive)))
-      .catch(() => {})
+      .then(tpls => {
+        const active = tpls.filter(t => t.isActive)
+        setTemplates(active)
+        if (active.length === 0) setMode('scratch')  // sin plantillas → wizard directo
+      })
+      .catch(() => setMode('scratch'))  // error de red → wizard directo
       .finally(() => setLoadingTemplates(false))
-  }, [])
+  }, [mode])
 
   // Paso 0 — Tu empresa (fusión de grupo + empresa)
   const [form] = Form.useForm()
@@ -305,10 +310,6 @@ export default function OnboardingWizardPage() {
               </>
             )}
 
-            {/* Si no hay plantillas, va directo al wizard sin mostrar elección */}
-            {templates.length === 0 && (
-              <>{setMode('scratch')}</>
-            )}
           </>
         )}
       </div>
