@@ -6,7 +6,8 @@ import {
 import {
   RocketOutlined, ArrowLeftOutlined, ArrowRightOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
-import { companiesApi, type CompanyTemplate } from '../../api/companies'
+import { companiesApi } from '../../api/companies'
+import { platformTemplatesApi, type PlatformTemplate } from '../../api/platformTemplates'
 
 const { Title, Text } = Typography
 
@@ -28,21 +29,21 @@ const COUNTRIES = [
 export default function OnboardingRapidoPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
-  const [templates, setTemplates] = useState<CompanyTemplate[]>([])
+  const [templates, setTemplates] = useState<PlatformTemplate[]>([])
   const [loadingTemplates, setLoadingTemplates] = useState(true)
-  const [selected, setSelected] = useState<CompanyTemplate | null>(null)
+  const [selected, setSelected] = useState<PlatformTemplate | null>(null)
   const [done, setDone] = useState(false)
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    companiesApi.getTemplates()
-      .then(setTemplates)
+    platformTemplatesApi.list()
+      .then(tpls => setTemplates(tpls.filter(t => t.isActive)))
       .catch(() => message.error('Error al cargar plantillas'))
       .finally(() => setLoadingTemplates(false))
   }, [])
 
-  const handlePickTemplate = (tpl: CompanyTemplate) => {
+  const handlePickTemplate = (tpl: PlatformTemplate) => {
     setSelected(tpl)
     setStep(1)
   }
@@ -56,16 +57,7 @@ export default function OnboardingRapidoPage() {
     if (!selected) return
     setSaving(true)
     try {
-      await companiesApi.clone(selected.id, {
-        targetCompany: values,
-        options: {
-          copyChartOfAccounts: true,
-          copyTaxes:           true,
-          copyDocumentSeries:  true,
-          copyBranches:        true,
-          copySettings:        true,
-        },
-      })
+      await companiesApi.cloneFromTemplate(selected.id, { targetCompany: values })
       setDone(true)
     } catch {
       message.error('Error al crear la empresa. Inténtalo de nuevo.')
@@ -81,7 +73,7 @@ export default function OnboardingRapidoPage() {
         <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
         <Title level={3} style={{ margin: '0 0 8px' }}>¡Empresa creada exitosamente!</Title>
         <Text type="secondary" style={{ display: 'block', marginBottom: 28, fontSize: 15 }}>
-          Tu empresa fue configurada con la plantilla <strong>{selected?.templateDisplayName}</strong>.
+          Tu empresa fue configurada con la plantilla <strong>{selected?.displayName}</strong>.
           Solo quedan tus datos específicos.
         </Text>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -156,14 +148,14 @@ export default function OnboardingRapidoPage() {
                     onClick={() => handlePickTemplate(tpl)}
                   >
                     <div style={{ fontSize: 44, lineHeight: 1, marginBottom: 10 }}>
-                      {tpl.templateIcon || '🏢'}
+                      {tpl.icon || '🏢'}
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
-                      {tpl.templateDisplayName}
+                      {tpl.displayName}
                     </div>
-                    {tpl.templateDescription && (
+                    {tpl.description && (
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {tpl.templateDescription}
+                        {tpl.description}
                       </Text>
                     )}
                     <div style={{ marginTop: 14 }}>
@@ -203,11 +195,11 @@ export default function OnboardingRapidoPage() {
             background: '#f0fafe', border: '1px solid #b2e6f0',
             borderRadius: 10, padding: '12px 16px', marginBottom: 24,
           }}>
-            <span style={{ fontSize: 36 }}>{selected.templateIcon || '🏢'}</span>
+            <span style={{ fontSize: 36 }}>{selected.icon || '🏢'}</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{selected.templateDisplayName}</div>
-              {selected.templateDescription && (
-                <Text type="secondary" style={{ fontSize: 12 }}>{selected.templateDescription}</Text>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{selected.displayName}</div>
+              {selected.description && (
+                <Text type="secondary" style={{ fontSize: 12 }}>{selected.description}</Text>
               )}
             </div>
             <Tag color="cyan" icon={<CheckCircleOutlined />}>Seleccionada</Tag>

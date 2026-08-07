@@ -70,8 +70,9 @@ export const companiesApi = {
   migrateLegacy: (id: string)                             => api.post(`/companies/${id}/migrate-legacy`).then(unwrap),
   diagnoseData:  ()                                       => api.get('/companies/diagnose-data').then(unwrap),
 
-  // ── Plantillas de onboarding ──────────────────────────────────────────────
-  getTemplates: () => api.get('/companies/templates').then(unwrap) as Promise<CompanyTemplate[]>,
+  // ── Plantillas globales de onboarding (public schema) ────────────────────
+  getTemplates:           ()                  => api.get('/admin/platform/templates').then(unwrap) as Promise<CompanyTemplate[]>,
+  cloneFromTemplate:      (id: string, dto: any) => api.post(`/admin/platform/templates/${id}/clone`, dto).then(unwrap),
 
   // ── Clone (Template Engine) ───────────────────────────────────────────────
   clone: (id: string, dto: any)                           => api.post(`/companies/${id}/clone`, dto).then(unwrap),
