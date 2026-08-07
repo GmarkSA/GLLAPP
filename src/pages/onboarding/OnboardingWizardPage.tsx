@@ -1,14 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Steps, Button, Form, Input, Select, Card, message,
   Typography, Space, Tag, Spin,
 } from 'antd'
 import {
   BankOutlined, FileTextOutlined,
-  AppstoreOutlined, CheckCircleOutlined,
+  AppstoreOutlined, CheckCircleOutlined, ArrowRightOutlined,
+  RocketOutlined, ArrowLeftOutlined,
 } from '@ant-design/icons'
 import { companiesApi } from '../../api/companies'
+import { platformTemplatesApi, type PlatformTemplate } from '../../api/platformTemplates'
 import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import { useCompanyStore } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
@@ -52,14 +54,36 @@ const MODULES: Array<{ value: string; label: string; icon: string; desc: string;
 
 export default function OnboardingWizardPage() {
   const navigate           = useNavigate()
+  const [searchParams]     = useSearchParams()
   const loadCompanies      = useCompanyStore(s => s.loadCompanies)
   const setActiveCompany   = useCompanyStore(s => s.setActiveCompany)
   const setTenantGroupName = useAuthStore(s => s.setTenantGroupName)
+
+  // mode: null = pantalla de elección, 'scratch' = wizard 3 pasos, 'template' = flujo rápido
+  const [mode, setMode]   = useState<null | 'scratch' | 'template'>(
+    searchParams.get('mode') === 'scratch' ? 'scratch' : null,
+  )
+  // Estado del flujo rápido (plantillas)
+  const [templates,         setTemplates]         = useState<PlatformTemplate[]>([])
+  const [loadingTemplates,  setLoadingTemplates]   = useState(true)
+  const [selectedTemplate,  setSelectedTemplate]   = useState<PlatformTemplate | null>(null)
+  const [templateStep,      setTemplateStep]       = useState(0)  // 0=elegir 1=datos empresa
+  const [templateForm]      = Form.useForm()
+  const [cloning,           setCloning]            = useState(false)
+  const [cloneDone,         setCloneDone]          = useState(false)
 
   const [current, setCurrent] = useState(0)
   const [saving, setSaving]   = useState(false)
   const [done, setDone]       = useState(false)
   const step0Ref              = useRef<Record<string, any>>({})
+
+  // Carga plantillas para la pantalla de elección
+  useEffect(() => {
+    platformTemplatesApi.list()
+      .then(tpls => setTemplates(tpls.filter(t => t.isActive)))
+      .catch(() => {})
+      .finally(() => setLoadingTemplates(false))
+  }, [])
 
   // Paso 0 — Tu empresa (fusión de grupo + empresa)
   const [form] = Form.useForm()
@@ -171,20 +195,206 @@ export default function OnboardingWizardPage() {
     }
   }
 
+  const onCountryChangeTemplate = (code: string) => {
+    const c = COUNTRIES.find(x => x.code === code)
+    if (c) templateForm.setFieldsValue({ currencyCode: c.currency })
+  }
+
+  const handleCloneTemplate = async (values: any) => {
+    if (!selectedTemplate) return
+    setCloning(true)
+    try {
+      await companiesApi.cloneFromTemplate(selectedTemplate.id, { targetCompany: values })
+      await loadCompanies()
+      setCloneDone(true)
+    } catch {
+      message.error('Error al crear la empresa. Inténtalo de nuevo.')
+    } finally {
+      setCloning(false)
+    }
+  }
+
   const steps = [
     { title: 'Tu empresa', icon: <BankOutlined /> },
     { title: 'Régimen',    icon: <FileTextOutlined /> },
     { title: 'Módulos',    icon: <AppstoreOutlined /> },
   ]
 
-  // ── Pantalla final ──────────────────────────────────────────────────────────
+  // ── Pantalla final scratch ─────────────────────────────────────────────────
   if (done) {
-    // Redirigir inmediatamente a la guía de configuración
     navigate('/onboarding/setup', { replace: true })
     return null
   }
 
-  // ── Wizard ──────────────────────────────────────────────────────────────────
+  // ── Éxito flujo rápido ─────────────────────────────────────────────────────
+  if (cloneDone) {
+    return (
+      <div style={{ maxWidth: 560, margin: '80px auto', textAlign: 'center', padding: '0 24px' }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+        <Title level={3} style={{ margin: '0 0 8px' }}>¡Empresa creada exitosamente!</Title>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 28, fontSize: 15 }}>
+          Tu empresa fue configurada con la plantilla <strong>{selectedTemplate?.displayName}</strong>.
+          Ya puedes empezar a operar.
+        </Text>
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Button type="primary" size="large" block icon={<ArrowRightOutlined />}
+            style={{ background: '#1faec2' }} onClick={() => navigate('/onboarding/setup')}>
+            Ver pasos pendientes
+          </Button>
+          <Button size="large" block onClick={() => navigate('/dashboard')}>
+            Ir al inicio
+          </Button>
+        </Space>
+      </div>
+    )
+  }
+
+  // ── Pantalla de elección (modo null) ────────────────────────────────────────
+  if (mode === null) {
+    return (
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '40px 24px' }}>
+        <div style={{ marginBottom: 32 }}>
+          <Title level={3} style={{ margin: 0, color: '#0a0a0a' }}>Configurar mi empresa</Title>
+          <Text type="secondary">¿Cómo quieres empezar?</Text>
+        </div>
+
+        {loadingTemplates ? (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}><Spin size="large" /></div>
+        ) : (
+          <>
+            {templates.length > 0 && (
+              <>
+                <Text style={{ display: 'block', fontWeight: 600, marginBottom: 14, fontSize: 14 }}>
+                  Elige una plantilla y tu empresa queda lista en 2 pasos
+                </Text>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gap: 16,
+                  marginBottom: 32,
+                }}>
+                  {templates.map(tpl => (
+                    <Card key={tpl.id} hoverable
+                      style={{ textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                      onClick={() => { setSelectedTemplate(tpl); setMode('template'); setTemplateStep(1) }}
+                    >
+                      <div style={{ fontSize: 44, lineHeight: 1, marginBottom: 10 }}>{tpl.icon || '🏢'}</div>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{tpl.displayName}</div>
+                      {tpl.description && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>{tpl.description}</Text>
+                      )}
+                      <div style={{ marginTop: 14 }}>
+                        <Button type="primary" size="small" icon={<RocketOutlined />}
+                          style={{ background: '#1faec2' }}>
+                          Usar esta plantilla
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', paddingTop: 24, textAlign: 'center' }}>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    ¿Ninguna encaja o prefieres control total?{' '}
+                  </Text>
+                  <Button type="link" style={{ padding: '0 4px', fontSize: 13 }}
+                    onClick={() => setMode('scratch')}>
+                    Configurar desde cero (3 pasos)
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* Si no hay plantillas, va directo al wizard sin mostrar elección */}
+            {templates.length === 0 && (
+              <>{setMode('scratch')}</>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // ── Flujo rápido (plantilla seleccionada) ──────────────────────────────────
+  if (mode === 'template' && selectedTemplate) {
+    return (
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '32px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+          <Button icon={<ArrowLeftOutlined />}
+            onClick={() => { setMode(null); setTemplateStep(0); setSelectedTemplate(null) }} />
+          <div>
+            <Title level={4} style={{ margin: 0 }}>Configuración rápida</Title>
+            <Text type="secondary" style={{ fontSize: 13 }}>2 pasos y listo para operar</Text>
+          </div>
+        </div>
+
+        <Steps current={templateStep} size="small"
+          items={[{ title: 'Plantilla elegida' }, { title: 'Datos de tu empresa' }]}
+          style={{ marginBottom: 32 }} />
+
+        {/* Plantilla seleccionada — resumen */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 14,
+          background: '#f0fafe', border: '1px solid #b2e6f0',
+          borderRadius: 10, padding: '12px 16px', marginBottom: 24,
+        }}>
+          <span style={{ fontSize: 36 }}>{selectedTemplate.icon || '🏢'}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{selectedTemplate.displayName}</div>
+            {selectedTemplate.description && (
+              <Text type="secondary" style={{ fontSize: 12 }}>{selectedTemplate.description}</Text>
+            )}
+          </div>
+          <Button size="small" onClick={() => { setMode(null); setSelectedTemplate(null) }}>
+            Cambiar
+          </Button>
+        </div>
+
+        <Form form={templateForm} layout="vertical" size="small"
+          onFinish={handleCloneTemplate}
+          initialValues={{ countryCode: 'GT', currencyCode: 'GTQ', taxIdLabel: 'NIT' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
+            <Form.Item label="Nombre Legal de la Empresa" name="legalName"
+              rules={[{ required: true, message: 'Requerido' }]}
+              style={{ gridColumn: '1 / -1' }}>
+              <Input placeholder="Mi Empresa S.A." size="middle" />
+            </Form.Item>
+            <Form.Item label="Nombre Comercial" name="tradeName">
+              <Input placeholder="Opcional" />
+            </Form.Item>
+            <Form.Item label="País" name="countryCode" rules={[{ required: true }]}>
+              <Select onChange={onCountryChangeTemplate}
+                options={COUNTRIES.map(c => ({ value: c.code, label: c.name }))} />
+            </Form.Item>
+            <Form.Item label="NIT / Número Fiscal" name="taxId">
+              <Input placeholder="1234567-8" />
+            </Form.Item>
+            <Form.Item label="Tipo de ID" name="taxIdLabel">
+              <Input placeholder="NIT" />
+            </Form.Item>
+            <Form.Item label="Teléfono" name="phone">
+              <Input placeholder="+502 2222-2222" />
+            </Form.Item>
+            <Form.Item label="Email" name="email">
+              <Input placeholder="contacto@miempresa.com" />
+            </Form.Item>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <Button icon={<ArrowLeftOutlined />}
+              onClick={() => { setMode(null); setSelectedTemplate(null) }}>
+              Volver
+            </Button>
+            <Button type="primary" htmlType="submit" loading={cloning}
+              icon={<RocketOutlined />} size="middle" style={{ background: '#1faec2' }}>
+              Crear mi empresa
+            </Button>
+          </div>
+        </Form>
+      </div>
+    )
+  }
+
+  // ── Wizard desde cero ───────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: 24 }}>
       <div style={{ marginBottom: 24 }}>
@@ -329,7 +539,9 @@ export default function OnboardingWizardPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
         <div>
           {current === 0
-            ? <Button onClick={() => navigate('/configuracion/empresas')}>Cancelar</Button>
+            ? <Button onClick={() => templates.length > 0 ? setMode(null) : navigate('/configuracion/empresas')}>
+                {templates.length > 0 ? 'Volver' : 'Cancelar'}
+              </Button>
             : <Button onClick={prev}>Anterior</Button>
           }
         </div>
