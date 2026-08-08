@@ -1198,7 +1198,8 @@ export default function DteSatPage() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
                           <Form.Item name="expenseAccountId" label="Cuenta de gasto" style={{ marginBottom: 8 }}
                             tooltip="Cuenta de gasto o activo que se debita en la póliza">
-                            <Select showSearch allowClear placeholder="6101 — Compras locales"
+                            <Select showSearch allowClear placeholder="Busca por código o nombre..."
+                              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                               options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.code?.startsWith('5') || a.type === 'expense'))
                                 .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                           </Form.Item>
@@ -1364,7 +1365,7 @@ export default function DteSatPage() {
                       rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
                       <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
                         filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || (a as any).type === 'expense'))
+                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.code?.startsWith('5') || (a as any).type === 'expense'))
                           .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                     </Form.Item>
 
