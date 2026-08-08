@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Checkbox, DatePicker, Descriptions, Divider, Form, Input,
-  message, Modal, Radio, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
+  message, Modal, Radio, Segmented, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -118,6 +118,7 @@ export default function DteSatPage() {
   const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
   const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
   const [stepperIsAnulado, setStepperIsAnulado] = useState(false)
+  const [accountMode, setAccountMode] = useState<'expense' | 'asset' | 'all'>('expense')
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
@@ -470,6 +471,7 @@ export default function DteSatPage() {
     setStepperHasTimbre(false)
     setStepperHasTurismo(false)
     setStepperIsAnulado(false)
+    setAccountMode('expense')
     // Pre-llenar desde datos maestros del proveedor (términos, cuenta de gasto, IVA)
     let vendorPaymentTerms = 'immediate'
     let vendorExpenseAccountId: string | undefined
@@ -1391,12 +1393,41 @@ export default function DteSatPage() {
                       </Form.Item>
                     </div>
                     <Form.Item name="paymentTerms" hidden><input /></Form.Item>
-                    <Form.Item name="accountId" label="Cuenta de gasto"
-                      rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
-                      <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
+                    <Form.Item
+                      label={
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <span>Cuenta contable</span>
+                          <Segmented
+                            size="small"
+                            value={accountMode}
+                            onChange={v => { setAccountMode(v as typeof accountMode); stepperForm.setFieldValue('accountId', undefined) }}
+                            options={[
+                              { value: 'expense', label: 'Gasto / Costo' },
+                              { value: 'asset',   label: 'Activo' },
+                              { value: 'all',     label: 'Todas' },
+                            ]}
+                          />
+                        </div>
+                      }
+                      name="accountId"
+                      rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}
+                    >
+                      <Select showSearch allowClear
+                        placeholder={
+                          accountMode === 'asset'   ? 'Busca activo fijo (ej: 1205 Mobiliario)' :
+                          accountMode === 'all'      ? 'Busca en todo el catálogo...' :
+                                                       'Busca por código o nombre (ej: 6101 Compras)'
+                        }
                         filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.code?.startsWith('5') || (a as any).type === 'expense'))
-                          .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                        options={accounts
+                          .filter(a => {
+                            if (a.isHeader || !a.isActive) return false
+                            if (accountMode === 'asset')   return a.code?.startsWith('1')
+                            if (accountMode === 'all')     return true
+                            return a.code?.startsWith('5') || a.code?.startsWith('6') || (a as any).type === 'expense'
+                          })
+                          .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                      />
                     </Form.Item>
 
                     {/* IDP — visible cuando tipo = Combustible */}
