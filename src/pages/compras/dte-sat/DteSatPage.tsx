@@ -501,7 +501,21 @@ export default function DteSatPage() {
     try {
       const result = await resolveSatDteVendor(stepperDte.id)
       if (result?.dte) setStepperDte(result.dte as SatDte)
-      if (!result?.vendor) message.info('No se encontró proveedor — puedes crearlo abajo.')
+      if (!result?.vendor) {
+        message.info('No se encontró proveedor — puedes crearlo abajo.')
+      } else {
+        // También vincular los demás DTEs del mismo NIT que estén pendientes
+        const sameNitPending = documents.filter(d =>
+          d.id !== stepperDte.id &&
+          d.nitEmisor === stepperDte.nitEmisor &&
+          d.status === 'pending',
+        )
+        let autoLinked = 0
+        for (const dte of sameNitPending) {
+          try { await resolveSatDteVendor(dte.id); autoLinked++ } catch { /* silencioso */ }
+        }
+        if (autoLinked > 0) message.success(`Proveedor vinculado a ${autoLinked + 1} DTE(s) del mismo NIT`)
+      }
       await load(true)
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'No se pudo buscar el proveedor'))
@@ -531,7 +545,23 @@ export default function DteSatPage() {
           taxId: values.defaultPurchaseTaxId,
         })
       }
-      message.success('Proveedor creado y vinculado')
+
+      // Auto-vincular todos los demás DTEs del mismo NIT que aún están pendientes
+      const sameNitPending = documents.filter(d =>
+        d.id !== stepperDte.id &&
+        d.nitEmisor === stepperDte.nitEmisor &&
+        d.status === 'pending',
+      )
+      let autoLinked = 0
+      for (const dte of sameNitPending) {
+        try { await resolveSatDteVendor(dte.id); autoLinked++ } catch { /* silencioso */ }
+      }
+
+      message.success(
+        autoLinked > 0
+          ? `Proveedor creado y vinculado a ${autoLinked + 1} DTE(s) del mismo NIT`
+          : 'Proveedor creado y vinculado',
+      )
       await load(true)
     } catch (err: unknown) {
       message.error(getErrorMessage(err, 'No se pudo crear el proveedor'))
@@ -1198,7 +1228,8 @@ export default function DteSatPage() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
                           <Form.Item name="expenseAccountId" label="Cuenta de gasto" style={{ marginBottom: 8 }}
                             tooltip="Cuenta de gasto o activo que se debita en la póliza">
-                            <Select showSearch allowClear placeholder="6101 — Compras locales"
+                            <Select showSearch allowClear placeholder="Busca por código o nombre..."
+                              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                               options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.code?.startsWith('5') || a.type === 'expense'))
                                 .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                           </Form.Item>
@@ -1364,7 +1395,7 @@ export default function DteSatPage() {
                       rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}>
                       <Select showSearch allowClear placeholder="Busca por código o nombre (ej: 6101 Publicidad)"
                         filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || (a as any).type === 'expense'))
+                        options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('6') || a.code?.startsWith('5') || (a as any).type === 'expense'))
                           .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                     </Form.Item>
 
