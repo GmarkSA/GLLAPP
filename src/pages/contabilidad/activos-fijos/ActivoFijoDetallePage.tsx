@@ -15,7 +15,7 @@ import dayjs from 'dayjs'
 import {
   getActivoFijo, getHistorialDepreciacion, depreciarActivo, activarActivoFijo,
   actualizarActivoFijo, venderActivoFijo, darDeBajaActivoFijo, revertirVentaActivoFijo, revertirBajaActivoFijo,
-  getPolizasActivoFijo,
+  revertirActivacionActivoFijo, getPolizasActivoFijo,
   type ActivoFijo, type HistorialDepreciacion, type EstadoActivoFijo, type PolizaActivo,
 } from '../../../api/activos-fijos'
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../../api/clases-activo-fijo'
@@ -265,6 +265,16 @@ export default function ActivoFijoDetallePage() {
     } finally { setSavingRevertirBaja(false) }
   }
 
+  const handleRevertirActivacion = async () => {
+    try {
+      await revertirActivacionActivoFijo(id!)
+      message.success('Activación revertida — póliza de alta eliminada, activo regresó a BORRADOR')
+      load()
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al revertir la activación'))
+    }
+  }
+
   const handleBaja = async () => {
     const vals = await formBaja.validateFields()
     setSavingBaja(true)
@@ -507,6 +517,18 @@ export default function ActivoFijoDetallePage() {
               okButtonProps={{ danger: true }}>
               <Button size="small" danger icon={<RollbackOutlined />} loading={savingRevertir}>
                 Revertir venta
+              </Button>
+            </Popconfirm>
+          )}
+          {esActivo && (
+            <Popconfirm
+              title="¿Revertir la activación?"
+              description="Se eliminará la póliza de alta y el activo regresará a BORRADOR para corregir y reactivar."
+              onConfirm={handleRevertirActivacion}
+              okText="Revertir" cancelText="Cancelar"
+              okButtonProps={{ danger: true }}>
+              <Button size="small" icon={<RollbackOutlined />} style={{ color: '#f59e0b', borderColor: '#f59e0b' }}>
+                Revertir activación
               </Button>
             </Popconfirm>
           )}
