@@ -303,8 +303,13 @@ export default function FacturaProveedorDetallePage() {
   }
   const ribbonColor = ribbonColors[bill.status] ?? '#6b7280'
 
-  const activeItems   = inlineEdit ? editedItems : (bill.items ?? [])
-  const hasDiscounts  = activeItems.some(it => Number(it.discountPercent ?? 0) > 0 || Number(it.discountAmount ?? 0) > 0)
+  const activeItems  = inlineEdit ? editedItems : (bill.items ?? [])
+  const hasDiscounts = activeItems.some(it => {
+    if (Number(it.discountPercent ?? 0) > 0 || Number(it.discountAmount ?? 0) > 0) return true
+    // Fallback: inferir descuento cuando lineTotal < qty × unitPrice (discountPercent guardado como 0)
+    const gross = Number(it.quantity ?? 1) * Number(it.unitPrice ?? 0)
+    return gross > 0.001 && Number(it.lineTotal ?? gross) < gross - 0.001
+  })
 
   const itemColumns = [
     { title: '#', width: 36, render: (_: any, __: any, i: number) => <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text> },
@@ -322,9 +327,11 @@ export default function FacturaProveedorDetallePage() {
     ...(hasDiscounts ? [{
       title: 'Descuento', width: 110, align: 'right' as const,
       render: (_v: any, row: any) => {
+        const gross   = Number(row.quantity ?? 1) * Number(row.unitPrice ?? 0)
         const discAmt = Number(row.discountAmount ?? 0)
-          || Number(row.quantity ?? 1) * Number(row.unitPrice ?? 0) * Number(row.discountPercent ?? 0) / 100
-        return discAmt > 0
+          || gross * Number(row.discountPercent ?? 0) / 100
+          || Math.max(0, gross - Number(row.lineTotal ?? gross))
+        return discAmt > 0.001
           ? <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>−{fmtQ(discAmt)}</Text>
           : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
       },
