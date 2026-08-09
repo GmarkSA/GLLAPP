@@ -81,8 +81,9 @@ export interface BillItem {
   unit?:           string
   quantity:        number
   unitPrice:       number
-  discountPercent: number
-  taxPercent:      number
+  discountPercent:  number
+  discountAmount?:  number
+  taxPercent:       number
   taxId?:          string
   lineTotal:       number
   accountId?:      string

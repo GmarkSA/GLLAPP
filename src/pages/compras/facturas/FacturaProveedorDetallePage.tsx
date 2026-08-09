@@ -303,6 +303,9 @@ export default function FacturaProveedorDetallePage() {
   }
   const ribbonColor = ribbonColors[bill.status] ?? '#6b7280'
 
+  const activeItems   = inlineEdit ? editedItems : (bill.items ?? [])
+  const hasDiscounts  = activeItems.some(it => Number(it.discountPercent ?? 0) > 0 || Number(it.discountAmount ?? 0) > 0)
+
   const itemColumns = [
     { title: '#', width: 36, render: (_: any, __: any, i: number) => <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text> },
     {
@@ -315,7 +318,17 @@ export default function FacturaProveedorDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'P. Unitario', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    ...(hasDiscounts ? [{
+      title: 'Descuento', width: 110, align: 'right' as const,
+      render: (_v: any, row: any) => {
+        const discAmt = Number(row.discountAmount ?? 0)
+          || Number(row.quantity ?? 1) * Number(row.unitPrice ?? 0) * Number(row.discountPercent ?? 0) / 100
+        return discAmt > 0
+          ? <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>−{fmtQ(discAmt)}</Text>
+          : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+      },
+    }] : []),
     {
       title: 'IVA', dataIndex: 'taxId', width: inlineEdit ? 200 : 80, align: 'center' as const,
       render: (taxId: string, _row: any, idx: number) => {
@@ -630,7 +643,7 @@ export default function FacturaProveedorDetallePage() {
 
         {/* Ítems */}
         <div style={{ padding: '0 40px 24px' }}>
-          <Table columns={itemColumns} dataSource={inlineEdit ? editedItems : (bill.items ?? [])} rowKey={(_, i) => String(i)}
+          <Table columns={itemColumns} dataSource={activeItems} rowKey={(_, i) => String(i)}
             pagination={false} size="small" scroll={{ x: 620 }}
             style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }} />
 
