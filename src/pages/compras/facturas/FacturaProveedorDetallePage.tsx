@@ -675,23 +675,28 @@ export default function FacturaProveedorDetallePage() {
                   <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.idpAmount), bill.currency)}</Text>
                 </div>
               )}
-              {/* ISR — editable en modo inline edit, estático en vista normal */}
-              {inlineEdit ? (
+              {/* ISR editable: solo aparece si el dato maestro del proveedor tiene tdsEnabled=true */}
+              {inlineEdit && (vendorIsrTax !== null || loadingVendorIsr) ? (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13,
                   background: '#f8f9fa', borderRadius: 6, padding: '8px 10px', margin: '4px 0', border: '1px dashed #d1d5db' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Checkbox
-                      checked={editIsrEnabled}
-                      onChange={e => { setEditIsrEnabled(e.target.checked); if (!e.target.checked) setEditingIsrAmt(false) }}
-                    >
-                      <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención ISR</Text>
-                    </Checkbox>
-                    {editIsrEnabled && vendorIsrTax && (
-                      <Tag color="#6b7280" style={{ fontSize: 10, margin: 0 }}>{vendorIsrTax.code}</Tag>
+                    {loadingVendorIsr ? (
+                      <Text style={{ fontSize: 11, color: '#9aa1ab' }}>Verificando configuración ISR...</Text>
+                    ) : (
+                      <>
+                        <Checkbox
+                          checked={editIsrEnabled}
+                          onChange={e => { setEditIsrEnabled(e.target.checked); if (!e.target.checked) setEditingIsrAmt(false) }}
+                        >
+                          <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención ISR</Text>
+                        </Checkbox>
+                        {vendorIsrTax && (
+                          <Tag color="#6b7280" style={{ fontSize: 10, margin: 0 }}>{vendorIsrTax.code}</Tag>
+                        )}
+                      </>
                     )}
-                    {loadingVendorIsr && <Text style={{ fontSize: 11, color: '#9aa1ab' }}>Cargando...</Text>}
                   </div>
-                  {editIsrEnabled && (
+                  {editIsrEnabled && !loadingVendorIsr && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Text style={{ color: '#6b7280' }}>−</Text>
                       {editingIsrAmt ? (
