@@ -5,10 +5,10 @@ import 'dayjs/locale/es'
 import {
   getBankAccount,
   getTransactions,
-  getReconciliationSummary,
+  listReconciliationPeriods,
   type BankAccount,
   type BankTransaction,
-  type ReconciliationSummary,
+  type ReconciliationPeriod,
 } from '../../api/bancos'
 import { useCompanyStore } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
@@ -48,7 +48,7 @@ export default function ConciliacionImprimirPage() {
   const year  = Number(params.get('year')  || dayjs().year())
 
   const [account,  setAccount]  = useState<BankAccount | null>(null)
-  const [summary,  setSummary]  = useState<ReconciliationSummary | null>(null)
+  const [period,   setPeriod]   = useState<ReconciliationPeriod | null>(null)
   const [rows,     setRows]     = useState<BankTransaction[]>([])
   const [loading,  setLoading]  = useState(true)
   const [printedAt] = useState(() => dayjs().format('DD/MM/YYYY HH:mm'))
@@ -61,11 +61,18 @@ export default function ConciliacionImprimirPage() {
     Promise.all([
       getBankAccount(id),
       getTransactions(id, { limit: 500, fromDate, toDate }),
-      getReconciliationSummary(id).catch(() => null),
-    ]).then(([acc, txRes, sum]) => {
+      listReconciliationPeriods(id).catch(() => []),
+    ]).then(([acc, txRes, periods]) => {
       setAccount(acc)
-      setRows(txRes.data || [])
-      setSummary(sum)
+      // Filter on client side too — ensures no cross-period leakage
+      const filtered = (txRes.data || []).filter((r: BankTransaction) => {
+        const d = r.transactionDate?.slice(0, 10)
+        return d && d >= fromDate && d <= toDate
+      })
+      setRows(filtered)
+      // Use saved period snapshot for historical saldos
+      const savedPeriod = periods.find((p: ReconciliationPeriod) => p.month === month && p.year === year)
+      setPeriod(savedPeriod ?? null)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [id, month, year])
@@ -91,10 +98,11 @@ export default function ConciliacionImprimirPage() {
   const reconciledRows  = rows.filter(r => r.status === 'reconciled')
   const pendingRows     = rows.filter(r => r.status === 'pending')
   const otherRows       = rows.filter(r => !['reconciled','pending'].includes(r.status))
-  const saldoBanco      = Number(account.bankBalance ?? account.currentBalance)
-  const saldoSistema    = Number(account.currentBalance)
-  const diferencia      = saldoBanco - saldoSistema
-  const cuadra          = Math.abs(diferencia) < 0.015
+  // Usar saldos guardados del período cerrado; si no existe, caer al balance actual
+  const saldoBanco   = period ? Number(period.saldoBanco)   : Number(account.bankBalance ?? account.currentBalance)
+  const saldoSistema = period ? Number(period.saldoSistema) : Number(account.currentBalance)
+  const diferencia   = period ? Number(period.diferencia)   : saldoBanco - saldoSistema
+  const cuadra       = Math.abs(diferencia) < 0.015
 
   const periodoLabel    = `${MESES[month - 1]} ${year}`
   const companyName     = activeCompany?.tradeName || activeCompany?.legalName || ''
@@ -188,20 +196,31 @@ export default function ConciliacionImprimirPage() {
           <div style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 12, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Datos de la cuenta bancaria
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px 12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 0.9fr 0.4fr 2fr', gap: '6px 12px' }}>
             <InfoRow label="Cuenta" value={account.name} />
             <InfoRow label="Banco" value={account.bankName || '—'} />
             <InfoRow label="N° cuenta" value={account.accountNumber ? `****${account.accountNumber.slice(-6)}` : '—'} />
             <InfoRow label="Moneda" value={account.currency} />
-            {account.glAccountCode && <InfoRow label="Cuenta contable" value={`${account.glAccountCode}${account.glAccountName ? ` — ${account.glAccountName}` : ''}`} />}
-            {account.branchName && <InfoRow label="Agencia" value={account.branchName} />}
+            {account.glAccountCode
+              ? <InfoRow label="Cuenta contable" value={`${account.glAccountCode}${account.glAccountName ? ` — ${account.glAccountName}` : ''}`} />
+              : account.branchName
+              ? <InfoRow label="Agencia" value={account.branchName} />
+              : <div />
+            }
           </div>
         </div>
 
         {/* ══ RESUMEN DE CONCILIACIÓN ══════════════════════════════════════ */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '2px solid #e5e7eb', paddingBottom: 4 }}>
-            Resumen de conciliación
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: 4, marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, color: '#1B3A6B', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Resumen de conciliación
+            </div>
+            {period && (
+              <span style={{ fontSize: 9, background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                Período cerrado {period.closedByName ? `· ${period.closedByName}` : ''}
+              </span>
+            )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {/* Columna izquierda: saldos */}
