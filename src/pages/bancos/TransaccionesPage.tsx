@@ -420,7 +420,7 @@ function ImportModal({ open, account, onClose, onSaved }: {
     <Modal
       title="Importar estado de cuenta"
       open={open}
-      width={760}
+      width={960}
       onCancel={() => { setRows([]); setRawMatrix(null); setIsPdf(false); onClose() }}
       footer={[
         <Button key="cancel" onClick={() => { setRows([]); setRawMatrix(null); setIsPdf(false); onClose() }}>Cancelar</Button>,
@@ -452,14 +452,21 @@ function ImportModal({ open, account, onClose, onSaved }: {
           size="small"
           dataSource={rows}
           rowKey={(_, i) => String(i)}
-          pagination={{ pageSize: 8 }}
-          scroll={{ x: 'max-content', y: 320 }}
+          pagination={{ pageSize: 10, showTotal: t => `${t} movimientos` }}
+          scroll={{ y: 380 }}
           columns={[
-            { title: 'Fecha', dataIndex: 'transactionDate', width: 105, render: (v: string) => dayjs(v).isValid() ? dayjs(v).format('DD/MM/YYYY') : v },
-            { title: 'Descripcion', dataIndex: 'description', ellipsis: true },
-            { title: 'Ref.', dataIndex: 'reference', width: 90 },
-            { title: 'Tipo', dataIndex: 'type', width: 90, render: (v: string) => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
-            { title: 'Monto', dataIndex: 'amount', width: 120, align: 'right', render: (v: number) => moneyFmt(Number(v), account?.currency) },
+            { title: 'Fecha',       dataIndex: 'transactionDate', width: 110,
+              render: (v: string) => dayjs(v).isValid() ? dayjs(v).format('DD/MM/YYYY') : v },
+            { title: 'Descripcion', dataIndex: 'description', ellipsis: true, minWidth: 220 },
+            { title: 'Ref.',        dataIndex: 'reference',        width: 100 },
+            { title: 'Tipo',        dataIndex: 'type',             width: 100,
+              render: (v: string) => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
+            { title: 'Monto',       dataIndex: 'amount',           width: 140, align: 'right',
+              render: (v: number) => <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{moneyFmt(Number(v), account?.currency)}</span> },
+            { title: 'Saldo',       dataIndex: 'runningBalance',   width: 140, align: 'right',
+              render: (v: number | undefined) => v != null && v > 0
+                ? <span style={{ fontVariantNumeric: 'tabular-nums', color: '#6b7280', fontSize: 12 }}>{moneyFmt(v, account?.currency)}</span>
+                : <span style={{ color: '#d1d5db' }}>—</span> },
           ]}
         />
       )}
