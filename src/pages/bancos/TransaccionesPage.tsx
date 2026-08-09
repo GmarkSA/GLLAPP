@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   DatePicker,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -30,6 +31,10 @@ import {
   FileExcelOutlined,
   FilePdfOutlined,
   FileTextOutlined,
+  HistoryOutlined,
+  LockOutlined,
+  MailOutlined,
+  PrinterOutlined,
   PlusOutlined,
   ReloadOutlined,
   RollbackOutlined,
@@ -52,9 +57,13 @@ import {
   getBankAccount,
   getTransactions,
   importStatement,
+  listReconciliationPeriods,
+  saveReconciliationPeriod,
+  sendEmailConciliacion,
   updateTransaction,
   type BankAccount,
   type BankTransaction,
+  type ReconciliationPeriod,
   type TransactionStatus,
   type TransactionType,
 } from '../../api/bancos'
@@ -631,11 +640,72 @@ export default function TransaccionesPage() {
     } catch { localStorage.removeItem(`conciliacion_${accountId}`); return null }
   }
   const [activeSession, setActiveSession]  = useState<{ month: number; year: number; saldo: number } | null>(() => readSession(id))
+  const [periods, setPeriods]             = useState<ReconciliationPeriod[]>([])
+  const [showHistorialTx, setShowHistorialTx] = useState(false)
+  const [showCerrarTx, setShowCerrarTx]   = useState(false)
+  const [cerrarSaldo, setCerrarSaldo]     = useState<number | null>(null)
+  const [savingPeriodTx, setSavingPeriodTx] = useState(false)
+  const [showEmailTx, setShowEmailTx]     = useState(false)
+  const [emailToTx, setEmailToTx]         = useState('')
+  const [emailCcTx, setEmailCcTx]         = useState('')
+  const [sendingEmailTx, setSendingEmailTx] = useState(false)
 
   const mesesTx = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
   // Actualizar sesión activa al volver desde otra página (el componente se remonta)
   useEffect(() => { setActiveSession(readSession(id)) }, [id])
+
+  // Cargar períodos históricos cuando hay sesión activa
+  useEffect(() => {
+    if (!id || !activeSession) return
+    listReconciliationPeriods(id).then(setPeriods).catch(() => null)
+  }, [id, activeSession])
+
+  const handleCerrarPeriodTx = async () => {
+    if (!id || !activeSession || cerrarSaldo == null || !account) return
+    setSavingPeriodTx(true)
+    try {
+      const { month, year } = activeSession
+      const fromDate = `${year}-${String(month).padStart(2, '0')}-01`
+      const toDate   = dayjs(fromDate).endOf('month').format('YYYY-MM-DD')
+      const txRes    = await getTransactions(id, { limit: 2000, fromDate, toDate })
+      const txs      = txRes.data || []
+      const totalCredito    = txs.filter(t => t.type === 'credit').reduce((s, t) => s + Number(t.amount), 0)
+      const totalDebito     = txs.filter(t => t.type === 'debit').reduce((s, t) => s + Number(t.amount), 0)
+      const reconciledCount = txs.filter(t => t.status === 'reconciled').length
+      const pendingCount    = txs.filter(t => t.status === 'pending').length
+      const pendingNet      = txs.filter(t => t.status === 'pending').reduce((s, t) => s + (t.type === 'credit' ? Number(t.amount) : -Number(t.amount)), 0)
+      const diferencia      = Math.abs(pendingNet)
+      const saldoSistema    = cerrarSaldo - pendingNet
+      await saveReconciliationPeriod(id, {
+        month, year, saldoBanco: cerrarSaldo, saldoSistema, diferencia,
+        totalCredito, totalDebito, totalTransactions: txs.length, reconciledCount, pendingCount,
+      })
+      message.success(`Período ${mesesTx[month - 1]} ${year} cerrado correctamente`)
+      localStorage.removeItem(`conciliacion_${id}`)
+      setActiveSession(null)
+      setShowCerrarTx(false)
+      listReconciliationPeriods(id).then(setPeriods).catch(() => null)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo cerrar el período')
+    } finally {
+      setSavingPeriodTx(false)
+    }
+  }
+
+  const handleSendEmailTx = async () => {
+    if (!id || !emailToTx || !activeSession) return
+    setSendingEmailTx(true)
+    try {
+      const res = await sendEmailConciliacion(id, { to: emailToTx, cc: emailCcTx || undefined, month: activeSession.month, year: activeSession.year })
+      if (res.sent) { message.success(`Correo enviado a ${emailToTx}`); setShowEmailTx(false) }
+      else message.warning('El servidor de correo no está configurado.')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo enviar el correo')
+    } finally {
+      setSendingEmailTx(false)
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -875,6 +945,38 @@ export default function TransaccionesPage() {
               setConciliarOpen(true)
             }}>Conciliacion</Button>
           )}
+          {activeSession && (
+            <>
+              <Button
+                size="small"
+                icon={<HistoryOutlined />}
+                onClick={() => { listReconciliationPeriods(id!).then(setPeriods).catch(() => null); setShowHistorialTx(true) }}
+              >
+                Historial ({periods.length})
+              </Button>
+              <Button
+                size="small"
+                icon={<LockOutlined />}
+                onClick={() => { setCerrarSaldo(activeSession.saldo); setShowCerrarTx(true) }}
+              >
+                Cerrar período
+              </Button>
+              <Button
+                size="small"
+                icon={<PrinterOutlined />}
+                onClick={() => window.open(`/bancos/${account?.id}/conciliacion/imprimir?month=${activeSession.month}&year=${activeSession.year}`, '_blank')}
+              >
+                Imprimir / PDF
+              </Button>
+              <Button
+                size="small"
+                icon={<MailOutlined />}
+                onClick={() => { setEmailToTx(''); setEmailCcTx(''); setShowEmailTx(true) }}
+              >
+                Enviar correo
+              </Button>
+            </>
+          )}
           <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>Importar estado</Button>
           <Button icon={<ControlOutlined />} onClick={() => navigate('/bancos/reglas')}>Reglas bancarias</Button>
           <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }} onClick={() => setTransactionOpen(true)}>Agregar transaccion</Button>
@@ -977,6 +1079,97 @@ export default function TransaccionesPage() {
               Ingresa el saldo final que aparece en tu estado de cuenta del banco para este mes.
             </div>
           </div>
+        </div>
+      </Modal>
+
+      {/* ── Historial de conciliaciones ────────────────────────────────────── */}
+      <Modal
+        title={<><HistoryOutlined /> Historial de conciliaciones</>}
+        open={showHistorialTx}
+        onCancel={() => setShowHistorialTx(false)}
+        footer={null}
+        width={680}
+      >
+        {periods.length === 0 ? (
+          <Empty description="Sin períodos guardados aún" />
+        ) : (
+          <Table<ReconciliationPeriod>
+            size="small"
+            dataSource={[...periods].sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month)}
+            rowKey="id"
+            pagination={false}
+            columns={[
+              { title: 'Período', render: (_, r) => `${mesesTx[r.month - 1]} ${r.year}`, width: 130 },
+              { title: 'Saldo banco', dataIndex: 'saldoBanco', align: 'right', width: 140, render: v => moneyFmt(Number(v)) },
+              { title: 'Sin conciliar', dataIndex: 'diferencia', align: 'right', width: 130, render: v => moneyFmt(Number(v)) },
+              { title: 'Estado', dataIndex: 'status', width: 100, render: v => (
+                <Tag color={v === 'approved' ? '#2ea172' : v === 'closed' ? NAVY : '#ff7f00'}>
+                  {v === 'approved' ? 'Aprobado' : v === 'closed' ? 'Cerrado' : 'Borrador'}
+                </Tag>
+              )},
+              { title: 'Cerrado por', dataIndex: 'closedByName', render: v => v || '—' },
+            ]}
+          />
+        )}
+      </Modal>
+
+      {/* ── Cerrar período ─────────────────────────────────────────────────── */}
+      <Modal
+        title={<><LockOutlined /> Cerrar período de conciliación</>}
+        open={showCerrarTx}
+        onCancel={() => setShowCerrarTx(false)}
+        okText="Cerrar período"
+        okButtonProps={{ style: { background: NAVY }, loading: savingPeriodTx, disabled: cerrarSaldo == null }}
+        onOk={handleCerrarPeriodTx}
+        width={420}
+      >
+        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+          <div>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>Período a cerrar</Typography.Text>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              {activeSession ? `${mesesTx[activeSession.month - 1]} ${activeSession.year}` : '—'}
+            </div>
+          </div>
+          <div>
+            <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Saldo al cierre del estado de cuenta</Typography.Text>
+            <InputNumber
+              size="small"
+              style={{ width: '100%' }}
+              prefix="Q"
+              min={0}
+              precision={2}
+              placeholder="0.00"
+              value={cerrarSaldo}
+              onChange={v => setCerrarSaldo(v)}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Enviar correo ──────────────────────────────────────────────────── */}
+      <Modal
+        title={<><MailOutlined /> Enviar conciliación por correo</>}
+        open={showEmailTx}
+        onCancel={() => setShowEmailTx(false)}
+        okText="Enviar"
+        okButtonProps={{ style: { background: NAVY }, loading: sendingEmailTx, disabled: !emailToTx }}
+        onOk={handleSendEmailTx}
+        width={420}
+      >
+        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+          <div>
+            <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Para (correo destino)</Typography.Text>
+            <Input size="small" placeholder="correo@empresa.com" value={emailToTx} onChange={e => setEmailToTx(e.target.value)} />
+          </div>
+          <div>
+            <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>CC (opcional)</Typography.Text>
+            <Input size="small" placeholder="copia@empresa.com" value={emailCcTx} onChange={e => setEmailCcTx(e.target.value)} />
+          </div>
+          {activeSession && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Período: {mesesTx[activeSession.month - 1]} {activeSession.year}
+            </Typography.Text>
+          )}
         </div>
       </Modal>
     </div>
