@@ -333,6 +333,12 @@ export const generarPolizaBorradorIva = (id: string) =>
 export const marcarIvaPresentada = (id: string) =>
   api.post(`${BASE}/impuestos/declaracion-iva/${id}/marcar-presentada`).then(unwrap) as Promise<DeclaracionIva>
 
+export const actualizarDeclaracionIva = (
+  id: string,
+  dto: { ivaDebitoFiscal?: number; ivaCreditoFiscal?: number; retencionIva?: number; baseVentas?: number; baseCompras?: number },
+) =>
+  api.patch(`${BASE}/impuestos/declaracion-iva/${id}`, dto).then(unwrap) as Promise<DeclaracionIva>
+
 export const exportReporte = (tipo: string, formato: 'excel' | 'pdf', params: Record<string, string>) => {
   const qs = new URLSearchParams(params)
   return api.get(`${BASE}/exportar/${tipo}/${formato}`, {
