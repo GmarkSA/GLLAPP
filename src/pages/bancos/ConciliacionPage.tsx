@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Empty, Input, InputNumber, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -58,6 +58,9 @@ export default function ConciliacionPage() {
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [emailTo, setEmailTo]     = useState('')
   const [emailCc, setEmailCc]     = useState('')
+  const [selectedTxIds, setSelectedTxIds] = useState<React.Key[]>([])
+  const [savingReconcile, setSavingReconcile] = useState(false)
+  const [sessionSearch, setSessionSearch] = useState('')
   const [emailMes, setEmailMes]   = useState<number>(dayjs().month() + 1)
   const [emailAnio, setEmailAnio] = useState<number>(dayjs().year())
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -131,6 +134,84 @@ export default function ConciliacionPage() {
   const isTxLocked = (tx: BankTransaction) => {
     const d = dayjs(tx.transactionDate)
     return approvedKeys.has(`${d.year()}-${d.month() + 1}`)
+  }
+
+  const isSessionMode = !!(urlMonth && urlYear && urlSaldo != null)
+
+  // Transacciones del período de sesión visibles en modo conciliacion (excluye anuladas/excluidas)
+  const sessionRows = useMemo(() => {
+    const base = periodTxs.filter(t => t.status !== 'excluded' && t.status !== 'voided')
+    if (!sessionSearch.trim()) return base
+    const q = sessionSearch.toLowerCase()
+    return base.filter(t =>
+      t.description?.toLowerCase().includes(q) ||
+      t.reference?.toLowerCase().includes(q) ||
+      t.accountName?.toLowerCase().includes(q),
+    )
+  }, [periodTxs, sessionSearch])
+
+  const handleBatchReconcile = async () => {
+    if (!id || !selectedTxIds.length) { message.warning('Selecciona al menos una transaccion'); return }
+    setSavingReconcile(true)
+    try {
+      await Promise.all((selectedTxIds as string[]).map(txId => reconcileTransaction({ transactionId: txId })))
+      message.success(`${selectedTxIds.length} transacciones marcadas como conciliadas`)
+      setSelectedTxIds([])
+      if (urlMonth && urlYear) {
+        const fromDate = `${urlYear}-${String(urlMonth).padStart(2, '0')}-01`
+        const toDate   = dayjs(fromDate).endOf('month').format('YYYY-MM-DD')
+        const r = await getTransactions(id, { limit: 2000, fromDate, toDate })
+        setPeriodTxs(r.data || [])
+      }
+      listReconciliationPeriods(id).then(setPeriods).catch(() => null)
+    } catch {
+      message.error('No se pudo guardar los cambios')
+    } finally {
+      setSavingReconcile(false)
+    }
+  }
+
+  const sessionColumns: ColumnsType<BankTransaction> = [
+    { title: 'Fecha', dataIndex: 'transactionDate', width: 100, render: v => dayjs(v).format('DD/MM/YYYY') },
+    {
+      title: 'Descripcion', dataIndex: 'description', ellipsis: true,
+      render: (v, row) => (
+        <div>
+          <Text strong style={{ color: row.status === 'reconciled' ? '#9ca3af' : undefined }}>{v}</Text>
+          {row.reference && <div style={{ fontSize: 12, color: '#9ca3af' }}>Ref. {row.reference}</div>}
+        </div>
+      ),
+    },
+    { title: 'Tipo', dataIndex: 'type', width: 90, render: v => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
+    {
+      title: 'Monto', dataIndex: 'amount', width: 140, align: 'right',
+      render: (v, row) => (
+        <Text style={{ fontVariantNumeric: 'tabular-nums', color: row.status === 'reconciled' ? '#9ca3af' : row.type === 'credit' ? '#2ea172' : '#e5484d' }}>
+          {moneyFmt(Number(v), account?.currency)}
+        </Text>
+      ),
+    },
+    {
+      title: 'Cuenta contable', dataIndex: 'accountName', width: 200,
+      render: (v, row) => row.accountName
+        ? <Text style={{ fontSize: 12, color: '#374151' }}>{row.accountName}</Text>
+        : <Text type="secondary" style={{ fontSize: 12 }}>Sin categorizar</Text>,
+    },
+    {
+      title: 'Estado', dataIndex: 'status', width: 120,
+      render: v => {
+        const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
+        return <Tag color={cfg.color}>{cfg.label}</Tag>
+      },
+    },
+  ]
+
+  const rowSelection = {
+    selectedRowKeys: selectedTxIds,
+    onChange: (keys: React.Key[]) => setSelectedTxIds(keys),
+    getCheckboxProps: (row: BankTransaction) => ({
+      disabled: row.status === 'reconciled' || isTxLocked(row),
+    }),
   }
 
   const handleFilterClick = (filter: StatusFilter) => {
@@ -394,11 +475,46 @@ export default function ConciliacionPage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/bancos/${account.id}`)} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Conciliacion bancaria</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
+              {isSessionMode ? `Conciliando ${meses[(urlMonth ?? 1) - 1]} ${urlYear}` : 'Conciliacion bancaria'}
+            </Title>
             <Text type="secondary">{account.name} - {account.bankName}</Text>
           </div>
         </div>
         <Space wrap>
+          {isSessionMode && (
+            <>
+              <Button
+                size="small"
+                onClick={() => setSelectedTxIds([])}
+                disabled={!selectedTxIds.length}
+              >
+                Limpiar seleccion
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                loading={savingReconcile}
+                disabled={!selectedTxIds.length}
+                style={{ background: '#2ea172', borderColor: '#2ea172' }}
+                onClick={handleBatchReconcile}
+              >
+                Guardar cambios ({selectedTxIds.length})
+              </Button>
+              <Button
+                size="small"
+                icon={<SendOutlined />}
+                disabled={savingReconcile}
+                onClick={() => {
+                  setSelectedTxIds([])
+                  load()
+                }}
+              >
+                Continuar conciliando
+              </Button>
+            </>
+          )}
           <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>Actualizar</Button>
           <Button icon={<HistoryOutlined />} onClick={() => setShowHistory(true)}>
             Historial ({periods.length})
@@ -434,49 +550,51 @@ export default function ConciliacionPage() {
         </Space>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
-        <Card
-          size="small"
-          style={cardStyle(statusFilter === undefined)}
-          onClick={() => handleFilterClick(undefined)}
-        >
-          <Statistic
-            title={<span>Pendientes{statusFilter === undefined && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
-            value={totals.nonReconciled}
-            valueStyle={{ color: '#ff7f00', fontSize: 18 }}
-          />
-        </Card>
-        <Card
-          size="small"
-          style={cardStyle(statusFilter === 'matched')}
-          onClick={() => handleFilterClick('matched')}
-        >
-          <Statistic
-            title={<span>Con coincidencia{statusFilter === 'matched' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
-            value={totals.matched}
-            valueStyle={{ color: '#6b7280', fontSize: 18 }}
-          />
-        </Card>
-        <Card
-          size="small"
-          style={cardStyle(statusFilter === 'reconciled')}
-          onClick={() => handleFilterClick('reconciled')}
-        >
-          <Statistic
-            title={<span>Conciliadas{statusFilter === 'reconciled' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
-            value={totals.reconciled}
-            valueStyle={{ color: '#2ea172', fontSize: 18 }}
-          />
-        </Card>
-        <Card size="small" style={panelStyle}>
-          <Statistic
-            title="Diferencia"
-            value={totals.difference ?? 0}
-            formatter={v => totals.difference == null ? 'Sin saldo banco' : moneyFmt(Number(v), account.currency)}
-            valueStyle={{ color: totals.difference != null && Math.abs(totals.difference) > 0.01 ? '#e5484d' : NAVY, fontSize: 18 }}
-          />
-        </Card>
-      </div>
+      {!isSessionMode && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
+          <Card
+            size="small"
+            style={cardStyle(statusFilter === undefined)}
+            onClick={() => handleFilterClick(undefined)}
+          >
+            <Statistic
+              title={<span>Pendientes{statusFilter === undefined && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
+              value={totals.nonReconciled}
+              valueStyle={{ color: '#ff7f00', fontSize: 18 }}
+            />
+          </Card>
+          <Card
+            size="small"
+            style={cardStyle(statusFilter === 'matched')}
+            onClick={() => handleFilterClick('matched')}
+          >
+            <Statistic
+              title={<span>Con coincidencia{statusFilter === 'matched' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
+              value={totals.matched}
+              valueStyle={{ color: '#6b7280', fontSize: 18 }}
+            />
+          </Card>
+          <Card
+            size="small"
+            style={cardStyle(statusFilter === 'reconciled')}
+            onClick={() => handleFilterClick('reconciled')}
+          >
+            <Statistic
+              title={<span>Conciliadas{statusFilter === 'reconciled' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>}
+              value={totals.reconciled}
+              valueStyle={{ color: '#2ea172', fontSize: 18 }}
+            />
+          </Card>
+          <Card size="small" style={panelStyle}>
+            <Statistic
+              title="Diferencia"
+              value={totals.difference ?? 0}
+              formatter={v => totals.difference == null ? 'Sin saldo banco' : moneyFmt(Number(v), account.currency)}
+              valueStyle={{ color: totals.difference != null && Math.abs(totals.difference) > 0.01 ? '#e5484d' : NAVY, fontSize: 18 }}
+            />
+          </Card>
+        </div>
+      )}
 
       {urlSaldo != null && urlMonth && urlYear && (() => {
         const pendingDiff  = periodTxs
@@ -514,38 +632,75 @@ export default function ConciliacionPage() {
         )
       })()}
 
-      <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>
-        <Space wrap>
-          <Input
-            allowClear
-            size="small"
-            prefix={<SearchOutlined />}
-            placeholder="Buscar descripcion o referencia"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onPressEnter={() => { setPage(1); load() }}
-            style={{ width: 320 }}
-          />
-          <Button size="small" onClick={() => { setPage(1); load() }}>Filtrar</Button>
-          {statusFilter && (
-            <Button size="small" onClick={() => { setStatusFilter(undefined); setPage(1) }}>
-              Limpiar filtro
-            </Button>
-          )}
-        </Space>
-      </Card>
+      {!isSessionMode && (
+        <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>
+          <Space wrap>
+            <Input
+              allowClear
+              size="small"
+              prefix={<SearchOutlined />}
+              placeholder="Buscar descripcion o referencia"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onPressEnter={() => { setPage(1); load() }}
+              style={{ width: 320 }}
+            />
+            <Button size="small" onClick={() => { setPage(1); load() }}>Filtrar</Button>
+            {statusFilter && (
+              <Button size="small" onClick={() => { setStatusFilter(undefined); setPage(1) }}>
+                Limpiar filtro
+              </Button>
+            )}
+          </Space>
+        </Card>
+      )}
+
+      {isSessionMode && (
+        <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>
+          <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {sessionRows.filter(t => t.status === 'reconciled').length} de {sessionRows.length} transacciones conciliadas
+              {selectedTxIds.length > 0 && <Tag color={NAVY} style={{ marginLeft: 8 }}>{selectedTxIds.length} seleccionadas</Tag>}
+            </Text>
+            <Input
+              allowClear
+              size="small"
+              prefix={<SearchOutlined />}
+              placeholder="Buscar en este mes"
+              value={sessionSearch}
+              onChange={e => setSessionSearch(e.target.value)}
+              style={{ width: 260 }}
+            />
+          </Space>
+        </Card>
+      )}
 
       <Card size="small" style={panelStyle} styles={{ body: { padding: 0 } }}>
-        <Table<BankTransaction>
-          columns={columns}
-          dataSource={rows}
-          rowKey="id"
-          size="small"
-          loading={loading}
-          scroll={{ x: 'max-content', y: 'calc(100vh - 400px)' }}
-          pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
-          locale={{ emptyText: <Empty description="Sin movimientos en este estado" /> }}
-        />
+        {isSessionMode ? (
+          <Table<BankTransaction>
+            columns={sessionColumns}
+            dataSource={sessionRows}
+            rowKey="id"
+            size="small"
+            loading={loading || savingReconcile}
+            rowSelection={rowSelection}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 420px)' }}
+            pagination={sessionRows.length > 100 ? { pageSize: 100, showTotal: t => `${t} movimientos del mes` } : false}
+            locale={{ emptyText: <Empty description="Sin movimientos en este mes" /> }}
+            rowClassName={row => row.status === 'reconciled' ? 'tx-reconciled-row' : ''}
+          />
+        ) : (
+          <Table<BankTransaction>
+            columns={columns}
+            dataSource={rows}
+            rowKey="id"
+            size="small"
+            loading={loading}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 400px)' }}
+            pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
+            locale={{ emptyText: <Empty description="Sin movimientos en este estado" /> }}
+          />
+        )}
       </Card>
 
       {/* ── Modal cerrar período ────────────────────────────────────────────── */}
