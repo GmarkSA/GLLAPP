@@ -325,7 +325,7 @@ export const getDeclaracionIva = (id: string) =>
   api.get(`${BASE}/impuestos/declaracion-iva/${id}`).then(unwrap) as Promise<DeclaracionIva>
 
 export const generarBorradorIva = (mes: number, anio: number) =>
-  api.post(`${BASE}/impuestos/declaracion-iva/generar-borrador`, null, { params: { mes, anio } }).then(unwrap) as Promise<DeclaracionIva>
+  api.post(`${BASE}/impuestos/declaracion-iva/generar-borrador`, {}, { params: { mes, anio } }).then(unwrap) as Promise<DeclaracionIva>
 
 export const generarPolizaBorradorIva = (id: string) =>
   api.post(`${BASE}/impuestos/declaracion-iva/${id}/poliza-borrador`).then(unwrap) as Promise<DeclaracionIva>
