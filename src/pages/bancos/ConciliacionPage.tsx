@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Empty, Input, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined, SyncOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined, SyncOutlined, UnlockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   autoMatchReconciliation,
@@ -13,6 +13,7 @@ import {
   listReconciliationPeriods,
   saveReconciliationPeriod,
   approveReconciliationPeriod,
+  reabrirReconciliationPeriod,
   reconcileTransaction,
   unreconcileTransaction,
   sendEmailConciliacion,
@@ -92,6 +93,16 @@ export default function ConciliacionPage() {
     reconciled: summary?.reconciled ?? 0,
     difference: account?.bankBalance == null ? null : Number(account.bankBalance) - Number(account.currentBalance),
   }), [account, summary])
+
+  // Conjunto de "año-mes" cuyos períodos están aprobados → transacciones bloqueadas
+  const approvedKeys = useMemo(
+    () => new Set(periods.filter(p => p.status === 'approved').map(p => `${p.year}-${p.month}`)),
+    [periods],
+  )
+  const isTxLocked = (tx: BankTransaction) => {
+    const d = dayjs(tx.transactionDate)
+    return approvedKeys.has(`${d.year()}-${d.month() + 1}`)
+  }
 
   const handleFilterClick = (filter: StatusFilter) => {
     setStatusFilter(prev => prev === filter ? undefined : filter)
@@ -303,6 +314,13 @@ export default function ConciliacionPage() {
       width: 150,
       fixed: 'right',
       render: (_, row) => {
+        if (isTxLocked(row)) {
+          return (
+            <Tooltip title="Período aprobado — usa 'Habilitar conciliación' en el Historial para editar">
+              <LockOutlined style={{ color: '#9ca3af', fontSize: 16 }} />
+            </Tooltip>
+          )
+        }
         if (row.status === 'reconciled') {
           return (
             <Button size="small" danger icon={<RollbackOutlined />} onClick={() => handleUnreconcile(row)}>
@@ -659,6 +677,24 @@ export default function ConciliacionPage() {
                                 const updated = await approveReconciliationPeriod(account.id, r.id)
                                 setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
                                 message.success('Período aprobado')
+                              },
+                            })
+                          }} />
+                      </Tooltip>
+                    )}
+                    {r.status === 'approved' && (
+                      <Tooltip title="Habilitar conciliación (revertir a Cerrado para editar)">
+                        <Button size="small" icon={<UnlockOutlined />} style={{ color: '#d97706', borderColor: '#d97706' }}
+                          onClick={() => {
+                            Modal.confirm({
+                              title: 'Habilitar conciliación',
+                              content: `El período ${meses[r.month - 1]} ${r.year} volverá a estado Cerrado. Las transacciones de ese mes quedarán desbloqueadas para edición.`,
+                              okText: 'Habilitar',
+                              okButtonProps: { style: { background: '#d97706', borderColor: '#d97706' } },
+                              onOk: async () => {
+                                const updated = await reabrirReconciliationPeriod(account.id, r.id)
+                                setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
+                                message.success(`Conciliación de ${meses[r.month - 1]} ${r.year} habilitada para edición`)
                               },
                             })
                           }} />
