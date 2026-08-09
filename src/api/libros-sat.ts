@@ -19,6 +19,7 @@ export const DEFAULT_COMPRAS: LibroColumn[] = [
   { key: 'importacion',          label: 'Importación',          sortOrder: 4, isActive: true },
   { key: 'pequenoContribuyente', label: 'Peq. Contribuyente',   sortOrder: 5, isActive: true },
   { key: 'exento',               label: 'Exento',               sortOrder: 6, isActive: true },
+  { key: 'activosFijos',         label: 'Activos Fijos',        sortOrder: 7, isActive: true },
 ]
 
 export const DEFAULT_VENTAS: LibroColumn[] = [
