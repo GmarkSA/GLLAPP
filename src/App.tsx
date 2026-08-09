@@ -81,6 +81,7 @@ const AnticiposProveedorPage   = lazy(() => import('./pages/compras/anticipos-pr
 const ApAgingPage              = lazy(() => import('./pages/reportes/ApAgingPage'))
 const ArAgingPage              = lazy(() => import('./pages/reportes/ArAgingPage'))
 const LibroComprasPage         = lazy(() => import('./pages/reportes/LibroComprasPage'))
+const DeclaracionIvaPage       = lazy(() => import('./pages/reportes/DeclaracionIvaPage'))
 const OrdenesCompraPage        = lazy(() => import('./pages/compras/ordenes/OrdenesCompraPage'))
 const OrdenCompraFormPage      = lazy(() => import('./pages/compras/ordenes/OrdenCompraFormPage'))
 const OrdenCompraDetallePage   = lazy(() => import('./pages/compras/ordenes/OrdenCompraDetallePage'))
@@ -348,6 +349,7 @@ export default function App() {
             <Route path="activos-fijos"              element={<ReporteActivosFijosPage />} />
             <Route path="centros-beneficio"          element={<RentabilidadCentrosBeneficioPage />} />
             <Route path="centros-costo"              element={<EjecucionCentrosCostoPage />} />
+            <Route path="declaracion-iva"            element={<DeclaracionIvaPage />} />
           </Route>
 
           <Route path="planillas/corridas"                           element={<PeriodosPlanillaPage />} />
