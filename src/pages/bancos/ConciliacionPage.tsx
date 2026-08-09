@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import {
   autoMatchReconciliation,
   getBankAccount,
+  getTransactions,
   getPendingReconciliation,
   getReconciliationSummary,
   listReconciliationPeriods,
@@ -112,22 +113,43 @@ export default function ConciliacionPage() {
   }
 
   const handleSavePeriod = async () => {
-    if (!id || !account || !summary) return
+    if (!id || !account) return
     setSavingPeriod(true)
     try {
-      const saldoBanco   = Number(account.bankBalance ?? account.currentBalance)
-      const saldoSistema = Number(account.currentBalance)
+      // Calcular balances y totales desde las transacciones reales del período
+      const fromDate = `${closeAnio}-${String(closeMes).padStart(2, '0')}-01`
+      const toDate   = dayjs(fromDate).endOf('month').format('YYYY-MM-DD')
+      const txRes    = await getTransactions(id, { limit: 2000, fromDate, toDate })
+      const periodTxs = txRes.data || []
+
+      const totalCredito    = periodTxs.filter(t => t.type === 'credit').reduce((s, t) => s + Number(t.amount), 0)
+      const totalDebito     = periodTxs.filter(t => t.type === 'debit').reduce((s, t) => s + Number(t.amount), 0)
+      const reconciledCount = periodTxs.filter(t => t.status === 'reconciled').length
+      const pendingCount    = periodTxs.filter(t => t.status === 'pending').length
+
+      // saldoBanco = saldo al cierre del período (runningBalance de la última transacción del mes)
+      const lastTx = [...periodTxs].sort((a, b) => a.transactionDate > b.transactionDate ? -1 : 1)[0]
+      const saldoBanco = lastTx?.runningBalance != null
+        ? Number(lastTx.runningBalance)
+        : Number(account.bankBalance ?? account.currentBalance)
+
+      // diferencia = monto de transacciones no conciliadas del período
+      const diferencia = periodTxs
+        .filter(t => t.status === 'pending' || t.status === 'categorized')
+        .reduce((s, t) => s + (t.type === 'credit' ? Number(t.amount) : -Number(t.amount)), 0)
+      const saldoSistema = saldoBanco - diferencia
+
       const saved = await saveReconciliationPeriod(id, {
         month: closeMes,
         year:  closeAnio,
         saldoBanco,
         saldoSistema,
-        diferencia:        saldoBanco - saldoSistema,
-        totalCredito:      0,
-        totalDebito:       0,
-        totalTransactions: summary.total,
-        reconciledCount:   summary.reconciled,
-        pendingCount:      summary.pending,
+        diferencia,
+        totalCredito,
+        totalDebito,
+        totalTransactions: periodTxs.length,
+        reconciledCount,
+        pendingCount,
       })
       setPeriods(prev => {
         const idx = prev.findIndex(p => p.month === closeMes && p.year === closeAnio)
