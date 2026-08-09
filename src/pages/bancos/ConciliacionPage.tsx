@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Empty, Input, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined, SyncOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   autoMatchReconciliation,
@@ -162,6 +162,43 @@ export default function ConciliacionPage() {
       message.error(e?.response?.data?.message || 'No se pudo guardar el período')
     } finally {
       setSavingPeriod(false)
+    }
+  }
+
+  // Recalcula los saldos de un período ya guardado usando las transacciones reales del mes
+  const recalcularPeriodo = async (month: number, year: number) => {
+    if (!id || !account) return
+    const fromDate = `${year}-${String(month).padStart(2, '0')}-01`
+    const toDate   = dayjs(fromDate).endOf('month').format('YYYY-MM-DD')
+    try {
+      const txRes     = await getTransactions(id, { limit: 2000, fromDate, toDate })
+      const periodTxs = txRes.data || []
+
+      const totalCredito    = periodTxs.filter(t => t.type === 'credit').reduce((s, t) => s + Number(t.amount), 0)
+      const totalDebito     = periodTxs.filter(t => t.type === 'debit').reduce((s, t) => s + Number(t.amount), 0)
+      const reconciledCount = periodTxs.filter(t => t.status === 'reconciled').length
+      const pendingCount    = periodTxs.filter(t => t.status === 'pending').length
+
+      const lastTx = [...periodTxs].sort((a, b) => a.transactionDate > b.transactionDate ? -1 : 1)[0]
+      const saldoBanco = lastTx?.runningBalance != null
+        ? Number(lastTx.runningBalance)
+        : Number(account.bankBalance ?? account.currentBalance)
+
+      const diferencia   = periodTxs
+        .filter(t => t.status === 'pending' || t.status === 'categorized')
+        .reduce((s, t) => s + (t.type === 'credit' ? Number(t.amount) : -Number(t.amount)), 0)
+      const saldoSistema = saldoBanco - diferencia
+
+      const saved = await saveReconciliationPeriod(id, {
+        month, year, saldoBanco, saldoSistema, diferencia,
+        totalCredito, totalDebito,
+        totalTransactions: periodTxs.length,
+        reconciledCount, pendingCount,
+      })
+      setPeriods(prev => prev.map(p => (p.month === month && p.year === year) ? saved : p))
+      message.success(`Saldos de ${meses[month - 1]} ${year} recalculados`)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo recalcular')
     }
   }
 
@@ -601,6 +638,10 @@ export default function ConciliacionPage() {
                 width: 120,
                 render: (_, r) => (
                   <Space size={4}>
+                    <Tooltip title="Recalcular saldos del período">
+                      <Button size="small" icon={<SyncOutlined />}
+                        onClick={() => recalcularPeriodo(r.month, r.year)} />
+                    </Tooltip>
                     <Tooltip title="Reimprimir PDF">
                       <Button size="small" icon={<PrinterOutlined />}
                         onClick={() => window.open(`/bancos/${account.id}/conciliacion/imprimir?month=${r.month}&year=${r.year}`, '_blank')} />
