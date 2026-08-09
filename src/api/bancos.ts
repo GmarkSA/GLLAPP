@@ -298,6 +298,12 @@ export const reconcileTransaction = (dto: {
 }) =>
   api.post(`${RECONCILIATION_BASE}/conciliar`, dto).then(unwrap)
 
+export const sendEmailConciliacion = (
+  accountId: string,
+  dto: { to: string; cc?: string; month: number; year: number },
+) =>
+  api.post(`${RECONCILIATION_BASE}/${accountId}/enviar-email`, dto).then(unwrap) as Promise<{ sent: boolean }>
+
 export const createBankTransfer = (dto: BankTransferDto) =>
   api.post(TRANSFERS_BASE, dto).then(unwrap) as Promise<BankTransfer>
 

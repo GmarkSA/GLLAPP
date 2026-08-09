@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Button, Card, Empty, Input, Modal, Space, Statistic, Steps, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
+import { Alert, Button, Card, Empty, Input, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   autoMatchReconciliation,
@@ -14,6 +14,7 @@ import {
   approveReconciliationPeriod,
   reconcileTransaction,
   unreconcileTransaction,
+  sendEmailConciliacion,
   TRANSACTION_STATUS_CONFIG,
   type BankAccount,
   type BankTransaction,
@@ -42,10 +43,15 @@ export default function ConciliacionPage() {
   const [periods, setPeriods] = useState<ReconciliationPeriod[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [savingPeriod, setSavingPeriod] = useState(false)
+  const [showCloseModal, setShowCloseModal] = useState(false)
+  const [closeMes, setCloseMes]   = useState<number>(dayjs().month() + 1)
+  const [closeAnio, setCloseAnio] = useState<number>(dayjs().year())
   const [showEmailModal, setShowEmailModal] = useState(false)
-  const [emailStep, setEmailStep] = useState(0)
-  const [emailTo, setEmailTo] = useState('')
-  const [emailCc, setEmailCc] = useState('')
+  const [emailTo, setEmailTo]     = useState('')
+  const [emailCc, setEmailCc]     = useState('')
+  const [emailMes, setEmailMes]   = useState<number>(dayjs().month() + 1)
+  const [emailAnio, setEmailAnio] = useState<number>(dayjs().year())
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -91,52 +97,68 @@ export default function ConciliacionPage() {
     setPage(1)
   }
 
-  const handleSavePeriod = async () => {
-    if (!id || !account || !summary) return
-    const month = account.lastStatementDate
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+  const openCloseModal = () => {
+    const defaultMonth = account?.lastStatementDate
       ? dayjs(account.lastStatementDate).month() + 1
       : dayjs().month() + 1
-    const year  = account.lastStatementDate
+    const defaultYear  = account?.lastStatementDate
       ? dayjs(account.lastStatementDate).year()
       : dayjs().year()
-    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-    const periodo = `${meses[month - 1]} ${year}`
+    setCloseMes(defaultMonth)
+    setCloseAnio(defaultYear)
+    setShowCloseModal(true)
+  }
 
-    Modal.confirm({
-      title: `Cerrar período de conciliación — ${periodo}`,
-      content: `Se guardará una instantánea del estado actual de conciliación para ${account.name}. Podrás reimprimirla en cualquier momento.`,
-      okText: 'Guardar período',
-      okButtonProps: { style: { background: NAVY } },
-      onOk: async () => {
-        setSavingPeriod(true)
-        try {
-          const saldoBanco   = Number(account.bankBalance ?? account.currentBalance)
-          const saldoSistema = Number(account.currentBalance)
-          const saved = await saveReconciliationPeriod(id, {
-            month,
-            year,
-            saldoBanco,
-            saldoSistema,
-            diferencia:        saldoBanco - saldoSistema,
-            totalCredito:      0,
-            totalDebito:       0,
-            totalTransactions: summary.total,
-            reconciledCount:   summary.reconciled,
-            pendingCount:      summary.pending,
-          })
-          setPeriods(prev => {
-            const idx = prev.findIndex(p => p.month === month && p.year === year)
-            if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next }
-            return [saved, ...prev]
-          })
-          message.success(`Período ${periodo} guardado correctamente`)
-        } catch (e: any) {
-          message.error(e?.response?.data?.message || 'No se pudo guardar el período')
-        } finally {
-          setSavingPeriod(false)
-        }
-      },
-    })
+  const handleSavePeriod = async () => {
+    if (!id || !account || !summary) return
+    setSavingPeriod(true)
+    try {
+      const saldoBanco   = Number(account.bankBalance ?? account.currentBalance)
+      const saldoSistema = Number(account.currentBalance)
+      const saved = await saveReconciliationPeriod(id, {
+        month: closeMes,
+        year:  closeAnio,
+        saldoBanco,
+        saldoSistema,
+        diferencia:        saldoBanco - saldoSistema,
+        totalCredito:      0,
+        totalDebito:       0,
+        totalTransactions: summary.total,
+        reconciledCount:   summary.reconciled,
+        pendingCount:      summary.pending,
+      })
+      setPeriods(prev => {
+        const idx = prev.findIndex(p => p.month === closeMes && p.year === closeAnio)
+        if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next }
+        return [saved, ...prev]
+      })
+      message.success(`Período ${meses[closeMes - 1]} ${closeAnio} guardado correctamente`)
+      setShowCloseModal(false)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo guardar el período')
+    } finally {
+      setSavingPeriod(false)
+    }
+  }
+
+  const handleSendEmail = async () => {
+    if (!id || !emailTo) return
+    setSendingEmail(true)
+    try {
+      const res = await sendEmailConciliacion(id, { to: emailTo, cc: emailCc || undefined, month: emailMes, year: emailAnio })
+      if (res.sent) {
+        message.success(`Correo enviado a ${emailTo}`)
+        setShowEmailModal(false)
+      } else {
+        message.warning('El servidor de correo no está configurado. Usa la opción de imprimir y enviar manualmente.')
+      }
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo enviar el correo')
+    } finally {
+      setSendingEmail(false)
+    }
   }
 
   const handleAutoMatch = async () => {
@@ -268,7 +290,7 @@ export default function ConciliacionPage() {
           <Button icon={<HistoryOutlined />} onClick={() => setShowHistory(true)}>
             Historial ({periods.length})
           </Button>
-          <Button icon={<LockOutlined />} loading={savingPeriod} onClick={handleSavePeriod}>
+          <Button icon={<LockOutlined />} onClick={openCloseModal}>
             Cerrar período
           </Button>
           <Button icon={<PrinterOutlined />} onClick={() => {
@@ -282,7 +304,12 @@ export default function ConciliacionPage() {
           }}>
             Imprimir / PDF
           </Button>
-          <Button icon={<MailOutlined />} onClick={() => { setEmailStep(0); setShowEmailModal(true) }}>
+          <Button icon={<MailOutlined />} onClick={() => {
+            const defaultMonth = account?.lastStatementDate ? dayjs(account.lastStatementDate).month() + 1 : dayjs().month() + 1
+            const defaultYear  = account?.lastStatementDate ? dayjs(account.lastStatementDate).year() : dayjs().year()
+            setEmailMes(defaultMonth); setEmailAnio(defaultYear)
+            setShowEmailModal(true)
+          }}>
             Enviar por correo
           </Button>
           <Button type="primary" icon={<RobotOutlined />} loading={matching} style={{ background: NAVY }} onClick={handleAutoMatch}>
@@ -369,160 +396,114 @@ export default function ConciliacionPage() {
         />
       </Card>
 
+      {/* ── Modal cerrar período ────────────────────────────────────────────── */}
+      <Modal
+        title={<><LockOutlined /> Cerrar período de conciliación</>}
+        open={showCloseModal}
+        onCancel={() => setShowCloseModal(false)}
+        okText="Guardar período"
+        okButtonProps={{ style: { background: NAVY }, loading: savingPeriod }}
+        onOk={handleSavePeriod}
+        width={440}
+      >
+        <Alert
+          type="info" showIcon
+          message="Se guardará una instantánea del estado actual de conciliación para la cuenta seleccionada. Podrás reimprimirla en cualquier momento."
+          style={{ marginBottom: 18 }}
+        />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Mes</Text>
+            <Select size="small" value={closeMes} onChange={setCloseMes} style={{ width: '100%' }}>
+              {meses.map((m, i) => <Select.Option key={i + 1} value={i + 1}>{m}</Select.Option>)}
+            </Select>
+          </div>
+          <div>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Año</Text>
+            <Select size="small" value={closeAnio} onChange={setCloseAnio} style={{ width: '100%' }}>
+              {Array.from({ length: 5 }, (_, i) => dayjs().year() - i).map(y =>
+                <Select.Option key={y} value={y}>{y}</Select.Option>
+              )}
+            </Select>
+          </div>
+        </div>
+        <div style={{ marginTop: 14, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>Cuenta: </Text>
+          <Text strong style={{ fontSize: 12 }}>{account.name}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>Período seleccionado: </Text>
+          <Text strong style={{ fontSize: 12, color: NAVY }}>{meses[closeMes - 1]} {closeAnio}</Text>
+        </div>
+      </Modal>
+
       {/* ── Modal enviar por correo ─────────────────────────────────────────── */}
-      {(() => {
-        const month = account.lastStatementDate
-          ? dayjs(account.lastStatementDate).month() + 1
-          : dayjs().month() + 1
-        const year  = account.lastStatementDate
-          ? dayjs(account.lastStatementDate).year()
-          : dayjs().year()
-        const meses  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-        const periodo = `${meses[month - 1]} ${year}`
-        const printUrl = `${window.location.origin}/bancos/${account.id}/conciliacion/imprimir?month=${month}&year=${year}`
+      <Modal
+        title={<><MailOutlined /> Enviar conciliación por correo</>}
+        open={showEmailModal}
+        onCancel={() => setShowEmailModal(false)}
+        footer={null}
+        width={480}
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          {/* Selector de período */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Período — Mes</Text>
+              <Select size="small" value={emailMes} onChange={setEmailMes} style={{ width: '100%' }}>
+                {meses.map((m, i) => <Select.Option key={i + 1} value={i + 1}>{m}</Select.Option>)}
+              </Select>
+            </div>
+            <div>
+              <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Año</Text>
+              <Select size="small" value={emailAnio} onChange={setEmailAnio} style={{ width: '100%' }}>
+                {Array.from({ length: 5 }, (_, i) => dayjs().year() - i).map(y =>
+                  <Select.Option key={y} value={y}>{y}</Select.Option>
+                )}
+              </Select>
+            </div>
+          </div>
 
-        const openMailto = () => {
-          const subject = encodeURIComponent(`Conciliación Bancaria — ${account.name} — ${periodo}`)
-          const body    = encodeURIComponent(
-            `Estimados,\n\nAdjunto la conciliación bancaria de la cuenta:\n` +
-            `  Cuenta: ${account.name}\n` +
-            `  Banco: ${account.bankName || '—'}\n` +
-            `  Período: ${periodo}\n\n` +
-            `El documento PDF se puede consultar también en:\n${printUrl}\n\n` +
-            `Saludos.`
-          )
-          const toParam  = emailTo  ? encodeURIComponent(emailTo)  : ''
-          const ccParam  = emailCc  ? `&cc=${encodeURIComponent(emailCc)}`  : ''
-          window.location.href = `mailto:${toParam}?subject=${subject}${ccParam}&body=${body}`
-        }
-
-        return (
-          <Modal
-            title={<><MailOutlined /> Enviar conciliación por correo</>}
-            open={showEmailModal}
-            onCancel={() => setShowEmailModal(false)}
-            footer={null}
-            width={520}
-          >
-            <Steps
+          {/* Destinatarios */}
+          <div>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Para (requerido)</Text>
+            <Input
               size="small"
-              current={emailStep}
-              style={{ marginBottom: 24 }}
-              items={[
-                { title: 'Generar PDF' },
-                { title: 'Destinatario' },
-                { title: 'Enviar' },
-              ]}
+              placeholder="correo@empresa.com"
+              value={emailTo}
+              onChange={e => setEmailTo(e.target.value)}
             />
+          </div>
+          <div>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Con copia (Cc — opcional)</Text>
+            <Input
+              size="small"
+              placeholder="copia@empresa.com"
+              value={emailCc}
+              onChange={e => setEmailCc(e.target.value)}
+            />
+          </div>
 
-            {emailStep === 0 && (
-              <div>
-                <Alert
-                  type="info"
-                  showIcon
-                  message="Paso 1 — Descarga el PDF"
-                  description={
-                    <>
-                      Haz clic en el botón para abrir el documento de conciliación.
-                      En la pantalla que se abre usa <strong>Ctrl+P → Guardar como PDF</strong>{' '}
-                      (o el botón "Imprimir / Guardar PDF"). Luego regresa aquí para continuar.
-                    </>
-                  }
-                  style={{ marginBottom: 20 }}
-                />
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <Button
-                    type="primary"
-                    icon={<PrinterOutlined />}
-                    style={{ flex: 1, background: NAVY }}
-                    onClick={() => {
-                      window.open(printUrl, '_blank')
-                      setEmailStep(1)
-                    }}
-                  >
-                    Abrir PDF de conciliación — {periodo}
-                  </Button>
-                </div>
-                <div style={{ marginTop: 10, textAlign: 'center' }}>
-                  <Button type="link" onClick={() => setEmailStep(1)}>
-                    Ya tengo el PDF, continuar →
-                  </Button>
-                </div>
-              </div>
-            )}
+          {/* Preview de lo que se enviará */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+            <div><Text type="secondary">Asunto: </Text><Text>Conciliación Bancaria — {account.name} — {meses[emailMes - 1]} {emailAnio}</Text></div>
+            <div style={{ marginTop: 4 }}><Text type="secondary">Contenido: </Text><Text>Resumen de saldos + enlace al PDF</Text></div>
+          </div>
 
-            {emailStep === 1 && (
-              <div>
-                <Alert
-                  type="success"
-                  showIcon
-                  message="Paso 2 — Ingresa el destinatario"
-                  description="Indica a quién va dirigida la conciliación. Luego adjunta el PDF que descargaste."
-                  style={{ marginBottom: 20 }}
-                />
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <div>
-                    <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Para (requerido)</Text>
-                    <Input
-                      size="small"
-                      placeholder="correo@empresa.com"
-                      value={emailTo}
-                      onChange={e => setEmailTo(e.target.value)}
-                      onPressEnter={() => emailTo && setEmailStep(2)}
-                    />
-                  </div>
-                  <div>
-                    <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Con copia (Cc)</Text>
-                    <Input
-                      size="small"
-                      placeholder="copia@empresa.com (opcional)"
-                      value={emailCc}
-                      onChange={e => setEmailCc(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <Button onClick={() => setEmailStep(0)}>Atrás</Button>
-                  <Button type="primary" style={{ background: NAVY }} disabled={!emailTo}
-                    onClick={() => setEmailStep(2)}>
-                    Continuar →
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {emailStep === 2 && (
-              <div>
-                <Alert
-                  type="warning"
-                  showIcon
-                  message="Paso 3 — Abre tu cliente de correo y adjunta el PDF"
-                  description={
-                    <>
-                      Al hacer clic se abrirá tu cliente de correo con asunto y cuerpo pre-llenados.{' '}
-                      <strong>Adjunta manualmente el PDF</strong> que descargaste en el paso 1.
-                    </>
-                  }
-                  style={{ marginBottom: 20 }}
-                />
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontSize: 12 }}>
-                  <div><Text type="secondary">Para:</Text> <Text strong>{emailTo}</Text></div>
-                  {emailCc && <div><Text type="secondary">Cc:</Text> <Text>{emailCc}</Text></div>}
-                  <div><Text type="secondary">Asunto:</Text> <Text>Conciliación Bancaria — {account.name} — {periodo}</Text></div>
-                  <div style={{ marginTop: 6 }}><Text type="secondary">PDF:</Text> <Text type="warning">Adjuntar manualmente</Text></div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <Button onClick={() => setEmailStep(1)}>Atrás</Button>
-                  <Button type="primary" icon={<MailOutlined />} style={{ background: NAVY }}
-                    onClick={() => { openMailto(); setShowEmailModal(false) }}>
-                    Abrir cliente de correo
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Modal>
-        )
-      })()}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button onClick={() => setShowEmailModal(false)}>Cancelar</Button>
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              style={{ background: NAVY, color: 'white' }}
+              disabled={!emailTo}
+              loading={sendingEmail}
+              onClick={handleSendEmail}
+            >
+              Enviar correo
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Modal historial de períodos ─────────────────────────────────────── */}
       <Modal
