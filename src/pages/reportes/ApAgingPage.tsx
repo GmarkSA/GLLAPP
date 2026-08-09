@@ -1,17 +1,19 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
-  Row, Col, Select, Space,
+  Select, Space, Progress, Tooltip,
 } from 'antd'
+import type { ColumnsType, TableProps } from 'antd/es/table'
 import {
   HomeOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined,
-  SwapOutlined, SearchOutlined, AuditOutlined, ArrowLeftOutlined, FileExcelOutlined,
+  SwapOutlined, SearchOutlined, AuditOutlined, ArrowLeftOutlined,
+  FileExcelOutlined, FireOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 
-import { getApAging, type ApAgingRow, type ApAgingBucket } from '../../api/compras'
+import { getApAging, type ApAgingRow } from '../../api/compras'
 
 const { Title, Text } = Typography
 
@@ -28,287 +30,89 @@ const ANIOS = Array.from({ length: 6 }, (_, i) => ({ value: CUR_YEAR - i, label:
 
 const fmt = (n: number) => `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
-const ageBucketColor: Record<string, string> = {
+const BUCKET_KEYS = ['current', 'days_30', 'days_60', 'days_90', 'over_90'] as const
+type BucketKey = typeof BUCKET_KEYS[number]
+
+const BUCKET_LABELS: Record<BucketKey, string> = {
+  current: 'Vigente',
+  days_30: '1-30 días',
+  days_60: '31-60 días',
+  days_90: '61-90 días',
+  over_90: '+90 días',
+}
+const BUCKET_COLORS: Record<BucketKey, string> = {
   current: '#2ea172',
   days_30: '#1faec2',
   days_60: '#ff7f00',
   days_90: '#e5484d',
-  over_90:  '#e5484d',
+  over_90: '#991b1b',
 }
 
-type SubtotalRow = { _isSubtotal: true; _rowKey: string; _label: string; _totTotal: number; _totSaldo: number }
-type UnifiedRow = (ApAgingRow & { _isAdvance?: false }) | (any & { _isAdvance: true; _rowKey: string }) | SubtotalRow
-
-const unifiedColumns = [
-  {
-    title: 'Documento',
-    width: 160,
-    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 5, style: { background: '#f8fafc' } } : {},
-    render: (_: any, row: any) => {
-      if ((row as any)._isSubtotal) return (
-        <Text strong style={{ fontSize: 12, color: '#374151' }}>Subtotal — {(row as SubtotalRow)._label}</Text>
-      )
-      if (row._isAdvance) return <span style={{ fontWeight: 600, fontSize: 13, color: '#2ea172' }}>{row.advanceNumber}</span>
-      return <Link to={`/compras/facturas/${row.id}`} style={{ fontWeight: 600, fontSize: 13 }}>{row.invoiceNumber}</Link>
-    },
-  },
-  {
-    title: 'Acreedor',
-    dataIndex: 'vendorName',
-    ellipsis: true,
-    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
-    render: (v: string, row: any) => (row as any)._isSubtotal ? null : (
-      <span>
-        {v}
-        {!row._isAdvance && row.isExpenseReimbursement && (
-          <Tag color="#6b7280" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
-            Reembolso
-          </Tag>
-        )}
-      </span>
-    ),
-  },
-  {
-    title: 'Fecha',
-    width: 100,
-    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
-    render: (_: any, row: any) => {
-      if ((row as any)._isSubtotal) return null
-      const d = row._isAdvance ? row.advanceDate : row.invoiceDate
-      return d ? new Date(d).toLocaleDateString('es-GT') : '—'
-    },
-  },
-  {
-    title: 'Vencimiento',
-    width: 110,
-    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
-    render: (_: any, row: any) => {
-      if ((row as any)._isSubtotal || row._isAdvance) return null
-      const d = row.dueDate
-      return d ? new Date(d).toLocaleDateString('es-GT') : '—'
-    },
-  },
-  {
-    title: 'Estado',
-    width: 110,
-    align: 'right' as const,
-    onCell: (row: any) => (row as any)._isSubtotal ? { colSpan: 0 } : {},
-    render: (_: any, row: any) => {
-      if ((row as any)._isSubtotal) return null
-      if (row._isAdvance) return <Tag color="#2ea172" style={{ fontWeight: 600 }}>Anticipo</Tag>
-      const v = row.daysOverdue as number
-      return v <= 0
-        ? <Tag color="#2ea172">Vigente</Tag>
-        : <Tag color={v > 90 ? '#6b7280' : v > 60 ? '#e5484d' : v > 30 ? '#ff7f00' : '#1faec2'}>{v} días</Tag>
-    },
-  },
-  {
-    title: 'Total',
-    width: 140,
-    align: 'right' as const,
-    render: (_: any, row: any) => {
-      if ((row as any)._isSubtotal) {
-        const s = row as SubtotalRow
-        return <Text strong style={{ fontSize: 12, color: s._totTotal >= 0 ? '#374151' : '#2ea172' }}>
-          {s._totTotal >= 0 ? fmt(s._totTotal) : `(${fmt(Math.abs(s._totTotal))})`}
-        </Text>
-      }
-      if (row._isAdvance) return <Text style={{ fontSize: 13, color: '#2ea172' }}>({fmt(Number(row.amount))})</Text>
-      const v = row.total as number
-      const cur = row.currency
-      return (
-        <div style={{ textAlign: 'right' }}>
-          {cur && cur !== 'GTQ' ? (
-            <>
-              <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
-                {cur} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-              </Text>
-              <br />
-              <Text style={{ fontSize: 11, color: '#6b7280' }}>
-                Q {(row.totalGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-              </Text>
-            </>
-          ) : (
-            <Text style={{ fontSize: 13 }}>{fmt(v)}</Text>
-          )}
-        </div>
-      )
-    },
-  },
-  {
-    title: 'Saldo',
-    width: 150,
-    align: 'right' as const,
-    render: (_: any, row: any) => {
-      if ((row as any)._isSubtotal) {
-        const s = row as SubtotalRow
-        return <Text strong style={{ fontSize: 12, color: s._totSaldo >= 0 ? '#1faec2' : '#2ea172' }}>
-          {s._totSaldo >= 0 ? fmt(s._totSaldo) : `(${fmt(Math.abs(s._totSaldo))})`}
-        </Text>
-      }
-      const v = Number(row.balance)
-      if (row._isAdvance) return <Text style={{ fontWeight: 700, color: '#2ea172', fontSize: 13 }}>({fmt(v)})</Text>
-      const cur = row.currency
-      return (
-        <div style={{ textAlign: 'right' }}>
-          {cur && cur !== 'GTQ' ? (
-            <>
-              <Text style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
-                {cur} {v.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-              </Text>
-              <br />
-              <Text style={{ fontSize: 11, fontWeight: 600, color: '#1faec2' }}>
-                Q {(row.balanceGTQ ?? v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-              </Text>
-            </>
-          ) : (
-            <Text style={{ fontWeight: 700, color: '#1faec2', fontSize: 13 }}>{fmt(v)}</Text>
-          )}
-        </div>
-      )
-    },
-  },
-]
-
-interface BucketCardProps {
-  label: string
-  bucket: ApAgingBucket
-  color: string
-  expanded: boolean
-  onToggle: () => void
-  advances?: any[]
-  showAdvances?: boolean
-}
-
-function BucketCard({ label, bucket, color, expanded, onToggle, advances, showAdvances }: BucketCardProps) {
-  const visibleAdvances = showAdvances && advances && advances.length > 0
-    ? advances.map((a: any) => ({ ...a, _isAdvance: true as const, _rowKey: `adv-${a.id}` }))
-    : []
-
-  // Agrupar por proveedor e intercalar filas de subtotal
-  const vendorMap = new Map<string, { name: string; items: any[] }>()
-  for (const item of bucket.items) {
-    const key = (item as any).vendorId || '__sin__'
-    if (!vendorMap.has(key)) vendorMap.set(key, { name: (item as any).vendorName || '—', items: [] })
-    vendorMap.get(key)!.items.push(item)
-  }
-  for (const adv of visibleAdvances) {
-    const key = (adv as any).vendorId || '__sin__'
-    if (!vendorMap.has(key)) vendorMap.set(key, { name: (adv as any).vendorName || '—', items: [] })
-    vendorMap.get(key)!.items.push(adv)
-  }
-
-  const rows: any[] = []
-  let grandT = 0; let grandS = 0
-  for (const [, vendor] of vendorMap) {
-    rows.push(...vendor.items)
-    const subT = vendor.items.reduce((s: number, r: any) =>
-      s + (r._isAdvance ? -Number(r.amount ?? 0) : Number(r.totalGTQ ?? r.total ?? 0)), 0)
-    const subS = vendor.items.reduce((s: number, r: any) =>
-      s + (r._isAdvance ? -Number(r.balance ?? 0) : Number(r.balanceGTQ ?? r.balance ?? 0)), 0)
-    grandT += subT; grandS += subS
-    rows.push({ _isSubtotal: true, _rowKey: `sub-${vendor.name}`, _label: vendor.name, _totTotal: subT, _totSaldo: subS })
-  }
-
-  return (
-    <Card
-      size="small"
-      style={{ marginBottom: 12, border: '1px solid rgba(10,10,10,0.08)', borderLeft: `3px solid ${color}`, borderRadius: 8 }}
-      styles={{ header: { background: 'transparent', borderBottom: '1px solid rgba(10,10,10,0.06)' } }}
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ color, fontWeight: 700 }}>{label}</span>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#6b7280' }}>{bucket.count} facturas</Text>
-            {visibleAdvances.length > 0 && (
-              <Text style={{ fontSize: 12, color: '#2ea172' }}>
-                + {visibleAdvances.length} anticipo{visibleAdvances.length > 1 ? 's' : ''}
-              </Text>
-            )}
-            <Text style={{ fontWeight: 700, color, fontSize: 14 }}>{fmt(bucket.total)}</Text>
-            <Button size="small" type="text" onClick={onToggle} style={{ color: '#9aa1ab', fontSize: 12 }}>
-              {expanded ? 'Ocultar' : 'Ver detalle'}
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      {expanded && rows.length > 0 && (
-        <Table
-          dataSource={rows}
-          columns={unifiedColumns}
-          rowKey={(r: any) => r._isSubtotal ? r._rowKey : r._isAdvance ? r._rowKey : r.id}
-          pagination={false}
-          size="small"
-          style={{ marginTop: 4 }}
-          rowClassName={(r: any) => r._isSubtotal ? 'aging-row-subtotal' : r._isAdvance ? 'aging-row-advance' : ''}
-          summary={() => (
-            <Table.Summary.Row style={{ background: '#e6fafd', fontWeight: 700 }}>
-              <Table.Summary.Cell index={0} colSpan={5}>
-                <Text strong style={{ fontSize: 12, color: '#1B3A6B' }}>TOTAL GENERAL</Text>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={5} align="right">
-                <Text strong style={{ fontSize: 12, color: grandT >= 0 ? '#374151' : '#2ea172' }}>
-                  {grandT >= 0 ? fmt(grandT) : `(${fmt(Math.abs(grandT))})`}
-                </Text>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={6} align="right">
-                <Text strong style={{ fontSize: 12, color: grandS >= 0 ? '#1faec2' : '#2ea172' }}>
-                  {grandS >= 0 ? fmt(grandS) : `(${fmt(Math.abs(grandS))})`}
-                </Text>
-              </Table.Summary.Cell>
-            </Table.Summary.Row>
-          )}
-        />
-      )}
-
-      {expanded && rows.length === 0 && (
-        <Text style={{ color: '#9aa1ab', fontSize: 12 }}>Sin facturas en este rango.</Text>
-      )}
-    </Card>
-  )
-}
-
-interface NettingRow {
-  key: string
+interface VendorAgingRow {
+  vendorId: string
   vendorName: string
-  cxp: number
+  current: number
+  days_30: number
+  days_60: number
+  days_90: number
+  over_90: number
   anticipo: number
+  total: number
   neto: number
-  advanceNumbers: string[]
+  pctVencido: number
+  nextDueDays: number | null
+  nextDueDate: string | null
+  priority: 'urgent' | 'warning' | 'ok'
+  invoices: Array<ApAgingRow & { bucket: BucketKey }>
 }
 
-function buildVendorNetting(data: any): NettingRow[] {
-  const byVendor = new Map<string, { name: string; cxp: number; anticipo: number; advanceNumbers: string[] }>()
+function buildVendorRows(data: any): VendorAgingRow[] {
+  const map = new Map<string, VendorAgingRow>()
 
-  const ensure = (key: string, name: string) => {
-    if (!byVendor.has(key)) byVendor.set(key, { name, cxp: 0, anticipo: 0, advanceNumbers: [] })
-    return byVendor.get(key)!
+  const ensure = (vid: string, vname: string): VendorAgingRow => {
+    if (!map.has(vid)) {
+      map.set(vid, {
+        vendorId: vid, vendorName: vname,
+        current: 0, days_30: 0, days_60: 0, days_90: 0, over_90: 0,
+        anticipo: 0, total: 0, neto: 0, pctVencido: 0,
+        nextDueDays: null, nextDueDate: null,
+        priority: 'ok', invoices: [],
+      })
+    }
+    return map.get(vid)!
   }
 
-  for (const bucket of Object.values(data.buckets) as any[]) {
-    for (const item of bucket.items ?? []) {
-      const key = item.vendorId || '__sin__'
-      ensure(key, item.vendorName || '—').cxp += Number(item.balanceGTQ ?? item.balance ?? 0)
+  for (const key of BUCKET_KEYS) {
+    for (const item of (data.buckets[key]?.items ?? []) as ApAgingRow[]) {
+      const row = ensure(item.vendorId || '__sin__', item.vendorName || '—')
+      const bal = Number((item as any).balanceGTQ ?? item.balance ?? 0)
+      row[key] += bal
+      row.invoices.push({ ...(item as any), bucket: key })
+      if (item.dueDate) {
+        const d = dayjs(item.dueDate).diff(dayjs(), 'day')
+        if (row.nextDueDays === null || d < row.nextDueDays) {
+          row.nextDueDays = d
+          row.nextDueDate = item.dueDate
+        }
+      }
     }
   }
+
   for (const adv of data.advances ?? []) {
-    const key = adv.vendorId || '__sin__'
-    const entry = ensure(key, adv.vendorName || '—')
-    entry.anticipo += Number(adv.balance ?? 0)
-    if (adv.advanceNumber) entry.advanceNumbers.push(adv.advanceNumber)
+    const row = ensure(adv.vendorId || '__sin__', adv.vendorName || '—')
+    row.anticipo += Number(adv.balance ?? 0)
   }
 
-  return [...byVendor.entries()]
-    .map(([key, v]) => ({
-      key,
-      vendorName:     v.name,
-      cxp:            Math.round(v.cxp * 100) / 100,
-      anticipo:       Math.round(v.anticipo * 100) / 100,
-      neto:           Math.round((v.cxp - v.anticipo) * 100) / 100,
-      advanceNumbers: v.advanceNumbers,
-    }))
-    .sort((a, b) => a.vendorName.localeCompare(b.vendorName, 'es'))
+  for (const row of map.values()) {
+    row.total = row.current + row.days_30 + row.days_60 + row.days_90 + row.over_90
+    row.neto = Math.max(0, row.total - row.anticipo)
+    row.pctVencido = row.total > 0
+      ? ((row.days_60 + row.days_90 + row.over_90) / row.total) * 100 : 0
+    row.priority = (row.over_90 > 0 || row.days_90 > 0) ? 'urgent'
+      : row.days_60 > 0 ? 'warning' : 'ok'
+  }
+
+  return [...map.values()].sort((a, b) => b.total - a.total)
 }
 
 export default function ApAgingPage() {
@@ -318,103 +122,322 @@ export default function ApAgingPage() {
   const [data,          setData]          = useState<any>(null)
   const [loading,       setLoading]       = useState(false)
   const [showAdvances,  setShowAdvances]  = useState(true)
-  const [expanded,      setExpanded]      = useState<Record<string, boolean>>({
-    current: false, days_30: false, days_60: false, days_90: false, over_90: false,
+  const [highlightBucket, setHighlightBucket] = useState<BucketKey | null>(null)
+  const [sortedInfo, setSortedInfo] = useState<{ columnKey: string; order: 'ascend' | 'descend' }>({
+    columnKey: 'total', order: 'descend',
   })
 
-  // Último día del mes seleccionado → snapshot de cierre
   const asOf = dayjs().year(selectedYear).month(selectedMonth - 1).endOf('month').format('YYYY-MM-DD')
   const periodLabel = MESES.find(m => m.value === selectedMonth)?.label + ' ' + selectedYear
 
   const load = useCallback(() => {
     setLoading(true)
     getApAging(asOf)
-      .then(d => {
-        setData(d)
-        // Auto-expandir buckets con saldo
-        setExpanded(prev => ({
-          current:  prev.current  || (d.buckets?.current?.count  ?? 0) > 0,
-          days_30:  prev.days_30  || (d.buckets?.days_30?.count  ?? 0) > 0,
-          days_60:  prev.days_60  || (d.buckets?.days_60?.count  ?? 0) > 0,
-          days_90:  prev.days_90  || (d.buckets?.days_90?.count  ?? 0) > 0,
-          over_90:  prev.over_90  || (d.buckets?.over_90?.count  ?? 0) > 0,
-        }))
-      })
+      .then(d => setData(d))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [asOf])
 
-  // Auto-cargar al abrir la página y al cambiar mes/año
   useEffect(() => { load() }, [load])
 
-  const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
+  const vendorRows = useMemo(() => data ? buildVendorRows(data) : [], [data])
 
-  const BUCKET_LABELS: Record<string, string> = {
-    current: 'Vigente', days_30: '1-30 días', days_60: '31-60 días',
-    days_90: '61-90 días', over_90: '+90 días',
+  const top5 = useMemo(() =>
+    [...vendorRows]
+      .sort((a, b) => (b.over_90 + b.days_90) - (a.over_90 + a.days_90))
+      .filter(r => r.over_90 + r.days_90 > 0)
+      .slice(0, 5),
+    [vendorRows]
+  )
+
+  const handleKpiClick = (key: BucketKey) => {
+    setHighlightBucket(prev => prev === key ? null : key)
+    setSortedInfo({ columnKey: key, order: 'descend' })
   }
+
+  const handleTableChange: TableProps<VendorAgingRow>['onChange'] = (_, __, sorter) => {
+    const s = Array.isArray(sorter) ? sorter[0] : sorter
+    if (s && s.columnKey) {
+      setSortedInfo({ columnKey: String(s.columnKey), order: (s.order ?? 'descend') as 'ascend' | 'descend' })
+      const bk = BUCKET_KEYS.find(k => k === s.columnKey)
+      setHighlightBucket(bk ?? null)
+    }
+  }
+
+  const expandedRowRender = useCallback((row: VendorAgingRow) => {
+    const invCols: ColumnsType<any> = [
+      {
+        title: 'Documento', width: 140,
+        render: (_: any, inv: any) => (
+          <Link to={`/compras/facturas/${inv.id}`} style={{ fontWeight: 600, fontSize: 12 }}>
+            {inv.invoiceNumber}
+          </Link>
+        ),
+      },
+      {
+        title: 'Fecha', width: 100,
+        render: (_: any, inv: any) => (
+          <Text style={{ fontSize: 12 }}>
+            {inv.invoiceDate ? dayjs(inv.invoiceDate).format('DD/MM/YYYY') : '—'}
+          </Text>
+        ),
+      },
+      {
+        title: 'Vencimiento', width: 120,
+        render: (_: any, inv: any) => {
+          if (!inv.dueDate) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+          const d = dayjs(inv.dueDate).diff(dayjs(), 'day')
+          return (
+            <Text style={{ fontSize: 12, color: d < 0 ? '#e5484d' : d <= 7 ? '#ff7f00' : '#374151' }}>
+              {dayjs(inv.dueDate).format('DD/MM/YYYY')}
+              {d < 0 && <span style={{ fontSize: 10, marginLeft: 4 }}>({Math.abs(d)}d vencida)</span>}
+            </Text>
+          )
+        },
+      },
+      {
+        title: 'Antigüedad', width: 105, align: 'center' as const,
+        render: (_: any, inv: any) => (
+          <Tag color={BUCKET_COLORS[inv.bucket as BucketKey]} style={{ fontSize: 11 }}>
+            {BUCKET_LABELS[inv.bucket as BucketKey]}
+          </Tag>
+        ),
+      },
+      {
+        title: 'Total', width: 130, align: 'right' as const,
+        render: (_: any, inv: any) => (
+          <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(Number((inv as any).totalGTQ ?? inv.total))}
+          </Text>
+        ),
+      },
+      {
+        title: 'Saldo', width: 130, align: 'right' as const,
+        render: (_: any, inv: any) => (
+          <Text strong style={{ fontSize: 12, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(Number((inv as any).balanceGTQ ?? inv.balance))}
+          </Text>
+        ),
+      },
+    ]
+    return (
+      <Table
+        columns={invCols}
+        dataSource={row.invoices}
+        rowKey="id"
+        size="small"
+        pagination={false}
+        style={{ background: '#fafbfc', margin: '0 32px' }}
+      />
+    )
+  }, [])
+
+  const columns: ColumnsType<VendorAgingRow> = useMemo((): ColumnsType<VendorAgingRow> => [
+    {
+      title: 'Proveedor',
+      key: 'vendorName',
+      width: 260,
+      sorter: (a, b) => a.vendorName.localeCompare(b.vendorName, 'es'),
+      sortOrder: sortedInfo.columnKey === 'vendorName' ? sortedInfo.order : null,
+      render: (_, row) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+            background: row.priority === 'urgent' ? '#e5484d'
+              : row.priority === 'warning' ? '#ff7f00' : '#2ea172',
+          }} />
+          <Text strong style={{ fontSize: 13 }}>{row.vendorName}</Text>
+          {showAdvances && row.anticipo > 0 && (
+            <Tooltip title={`Anticipo disponible: ${fmt(row.anticipo)}`}>
+              <Tag color="#2ea172" style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>ANT</Tag>
+            </Tooltip>
+          )}
+        </div>
+      ),
+    },
+    ...BUCKET_KEYS.map((key): ColumnsType<VendorAgingRow>[number] => ({
+      title: BUCKET_LABELS[key],
+      key,
+      dataIndex: key,
+      width: 120,
+      align: 'right',
+      sorter: (a: VendorAgingRow, b: VendorAgingRow) => a[key] - b[key],
+      sortOrder: sortedInfo.columnKey === key ? sortedInfo.order : null,
+      onHeaderCell: () => ({
+        style: {
+          background: highlightBucket === key ? `${BUCKET_COLORS[key]}22` : undefined,
+          transition: 'background 0.2s',
+        },
+      }),
+      onCell: (row: VendorAgingRow) => ({
+        style: {
+          background: highlightBucket === key && row[key] > 0
+            ? `${BUCKET_COLORS[key]}0f` : undefined,
+        },
+      }),
+      render: (v: number) => v > 0 ? (
+        <Text style={{
+          fontSize: 13,
+          fontWeight: (key === 'days_90' || key === 'over_90') ? 600 : 400,
+          color: BUCKET_COLORS[key],
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {fmt(v)}
+        </Text>
+      ) : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>,
+    })),
+    {
+      title: 'Total CxP',
+      key: 'total',
+      dataIndex: 'total',
+      width: 145,
+      align: 'right',
+      sorter: (a, b) => a.total - b.total,
+      sortOrder: sortedInfo.columnKey === 'total' ? sortedInfo.order : null,
+      render: (v: number, row) => (
+        <div>
+          <Text strong style={{ fontSize: 13, color: '#1B3A6B', fontVariantNumeric: 'tabular-nums', display: 'block' }}>
+            {fmt(v)}
+          </Text>
+          {showAdvances && row.anticipo > 0 && (
+            <Text style={{ fontSize: 10, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>
+              Neto: {fmt(row.neto)}
+            </Text>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '% Vencido',
+      key: 'pctVencido',
+      dataIndex: 'pctVencido',
+      width: 115,
+      align: 'center',
+      sorter: (a, b) => a.pctVencido - b.pctVencido,
+      sortOrder: sortedInfo.columnKey === 'pctVencido' ? sortedInfo.order : null,
+      render: (v: number) => (
+        <div style={{ padding: '0 4px' }}>
+          <Progress
+            percent={Math.round(v)}
+            size="small"
+            strokeColor={v >= 60 ? '#e5484d' : v >= 30 ? '#ff7f00' : '#1faec2'}
+            format={p => <span style={{ fontSize: 10 }}>{p}%</span>}
+          />
+        </div>
+      ),
+    },
+    {
+      title: 'Próx. Vcto',
+      key: 'nextDueDays',
+      dataIndex: 'nextDueDays',
+      width: 110,
+      align: 'center',
+      sorter: (a, b) => (a.nextDueDays ?? 9999) - (b.nextDueDays ?? 9999),
+      sortOrder: sortedInfo.columnKey === 'nextDueDays' ? sortedInfo.order : null,
+      render: (days: number | null, row) => {
+        if (!row.nextDueDate || days === null)
+          return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+        if (days < 0) return (
+          <Tooltip title={dayjs(row.nextDueDate).format('DD/MM/YYYY')}>
+            <Tag color="#e5484d" style={{ fontSize: 11 }}>{Math.abs(days)}d vencida</Tag>
+          </Tooltip>
+        )
+        if (days <= 7) return (
+          <Tooltip title={dayjs(row.nextDueDate).format('DD/MM/YYYY')}>
+            <Tag color="#ff7f00" style={{ fontSize: 11 }}>En {days}d</Tag>
+          </Tooltip>
+        )
+        return (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(row.nextDueDate).format('DD/MM/YYYY')}
+          </Text>
+        )
+      },
+    },
+  ], [highlightBucket, sortedInfo, showAdvances])
 
   const handleExcel = () => {
     if (!data) return
-    const vendorMap = new Map<string, { name: string; invoices: any[]; advances: any[] }>()
-    const ensure = (id: string, name: string) => {
-      if (!vendorMap.has(id)) vendorMap.set(id, { name, invoices: [], advances: [] })
-      return vendorMap.get(id)!
-    }
-    for (const [key, bucket] of Object.entries(data.buckets) as [string, ApAgingBucket][]) {
-      for (const item of bucket.items) {
-        ensure(item.vendorId || '__sin__', item.vendorName || '—')
-          .invoices.push({ ...item, bucketLabel: BUCKET_LABELS[key] })
-      }
-    }
-    for (const adv of data.advances ?? []) {
-      ensure(adv.vendorId || '__sin__', adv.vendorName || '—').advances.push(adv)
-    }
-
     const rows: any[][] = [
-      ['AP Aging — Cuentas por Pagar'],
-      [`Corte: ${data.asOf}`, '', '', '', '', '', `Generado: ${new Date(data.generatedAt).toLocaleString('es-GT')}`],
+      ['AP Aging — Cuentas por Pagar por Proveedor'],
+      [`Período: ${periodLabel}`, '', '', '', '', '', '', `Corte: ${data.asOf}`, `Generado: ${new Date(data.generatedAt).toLocaleString('es-GT')}`],
       [],
-      ['Documento', 'Acreedor', 'Fecha', 'Vencimiento', 'Bucket', 'Estado', 'Total (GTQ)', 'Saldo (GTQ)'],
+      ['Proveedor', 'Vigente', '1-30 días', '31-60 días', '61-90 días', '+90 días', 'Anticipo', 'Total CxP', 'Neto', '% Vencido'],
     ]
-
-    let grandCxP = 0; let grandAdv = 0
-    for (const [, v] of vendorMap) {
-      let vCxP = 0; let vAdv = 0
-      for (const inv of v.invoices) {
-        const bal = Number(inv.balanceGTQ ?? inv.balance ?? 0)
-        vCxP += bal
+    for (const row of vendorRows) {
+      rows.push([
+        row.vendorName,
+        row.current || 0, row.days_30 || 0, row.days_60 || 0, row.days_90 || 0, row.over_90 || 0,
+        row.anticipo || 0, row.total || 0, row.neto || 0,
+        `${Math.round(row.pctVencido)}%`,
+      ])
+      for (const inv of row.invoices) {
         rows.push([
-          inv.invoiceNumber, inv.vendorName,
-          inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString('es-GT') : '',
-          inv.dueDate     ? new Date(inv.dueDate).toLocaleDateString('es-GT')     : '',
-          inv.bucketLabel,
-          inv.daysOverdue <= 0 ? 'Vigente' : `${inv.daysOverdue} días`,
-          Number(inv.totalGTQ ?? inv.total ?? 0), bal,
+          `  ${inv.invoiceNumber}`,
+          inv.bucket === 'current' ? Number((inv as any).balanceGTQ ?? inv.balance) : '',
+          inv.bucket === 'days_30' ? Number((inv as any).balanceGTQ ?? inv.balance) : '',
+          inv.bucket === 'days_60' ? Number((inv as any).balanceGTQ ?? inv.balance) : '',
+          inv.bucket === 'days_90' ? Number((inv as any).balanceGTQ ?? inv.balance) : '',
+          inv.bucket === 'over_90' ? Number((inv as any).balanceGTQ ?? inv.balance) : '',
+          '', Number((inv as any).balanceGTQ ?? inv.balance),
         ])
       }
-      for (const adv of v.advances) {
-        const bal = Number(adv.balance ?? 0)
-        vAdv += bal
-        rows.push([
-          adv.advanceNumber, adv.vendorName,
-          adv.advanceDate ? new Date(adv.advanceDate).toLocaleDateString('es-GT') : '',
-          '—', 'Anticipo', 'Anticipo',
-          -Number(adv.amount), -bal,
-        ])
-      }
-      rows.push(['', `SUBTOTAL — ${v.name}`, '', '', '', '', vCxP, vCxP - vAdv])
       rows.push([])
-      grandCxP += vCxP; grandAdv += vAdv
     }
-    rows.push(['', 'TOTAL GENERAL', '', '', '', '', grandCxP, grandCxP - grandAdv])
-
+    rows.push([
+      'TOTAL GENERAL',
+      data.buckets.current.total, data.buckets.days_30.total,
+      data.buckets.days_60.total, data.buckets.days_90.total, data.buckets.over_90.total,
+      data.totalAdvances ?? 0, data.grandTotal,
+    ])
     const ws = XLSX.utils.aoa_to_sheet(rows)
-    ws['!cols'] = [{ wch: 18 }, { wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }]
+    ws['!cols'] = [
+      { wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 },
+    ]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'AP Aging')
     XLSX.writeFile(wb, `ap-aging-${data.asOf}.xlsx`)
   }
+
+  const summaryRow = () => {
+    if (!data) return null
+    return (
+      <Table.Summary fixed="bottom">
+        <Table.Summary.Row style={{ background: '#e6fafd' }}>
+          <Table.Summary.Cell index={0} colSpan={1}>
+            <Text strong style={{ fontSize: 12, color: '#1B3A6B' }}>
+              TOTAL — {vendorRows.length} proveedor{vendorRows.length !== 1 ? 'es' : ''}
+            </Text>
+          </Table.Summary.Cell>
+          {BUCKET_KEYS.map((key, i) => (
+            <Table.Summary.Cell key={key} index={i + 1} align="right">
+              {(data.buckets[key]?.total ?? 0) > 0 ? (
+                <Text strong style={{ fontSize: 12, color: BUCKET_COLORS[key], fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(data.buckets[key].total)}
+                </Text>
+              ) : (
+                <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+              )}
+            </Table.Summary.Cell>
+          ))}
+          <Table.Summary.Cell index={6} align="right">
+            <Text strong style={{ fontSize: 12, color: '#1B3A6B', fontVariantNumeric: 'tabular-nums' }}>
+              {fmt(data.grandTotal ?? 0)}
+            </Text>
+          </Table.Summary.Cell>
+          <Table.Summary.Cell index={7} />
+          <Table.Summary.Cell index={8} />
+        </Table.Summary.Row>
+      </Table.Summary>
+    )
+  }
+
+  const totalOverdue = data ? (data.buckets.days_90.total + data.buckets.over_90.total) : 0
+  const totalBalance = data
+    ? BUCKET_KEYS.reduce((s, k) => s + (data.buckets[k]?.total ?? 0), 0) : 0
+
+  const kpiGridCols = showAdvances ? 'repeat(8, 1fr)' : 'repeat(6, 1fr)'
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -429,11 +452,9 @@ export default function ApAgingPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} />
           <AuditOutlined style={{ fontSize: 22, color: '#1faec2' }} />
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
-            AP Aging — Cuentas por Pagar
-          </Title>
+          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>AP Aging — Cuentas por Pagar</Title>
         </div>
         <Space>
           <Select value={selectedMonth} onChange={setSelectedMonth} options={MESES} style={{ width: 130 }} />
@@ -470,123 +491,170 @@ export default function ApAgingPage() {
 
       {data && (
         <>
-          {/* Etiqueta de período */}
           <div style={{
-            marginBottom: 12, padding: '6px 12px', background: '#e6fafd',
-            borderRadius: 6, border: '1px solid rgba(31,174,194,0.3)', display: 'inline-flex', alignItems: 'center', gap: 8,
+            marginBottom: 10, padding: '6px 12px', background: '#e6fafd',
+            borderRadius: 6, border: '1px solid rgba(31,174,194,0.3)',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
           }}>
             <Text style={{ fontSize: 12, color: '#1faec2', fontWeight: 600 }}>
               Saldo CxP al cierre de {periodLabel}
             </Text>
-            <Text style={{ fontSize: 11, color: '#6b7280' }}>
-              (corte {data.asOf})
-            </Text>
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>(corte {data.asOf})</Text>
           </div>
 
-          <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
-            {[
-              { label: 'Vigente',    value: data.buckets.current.total,  color: '#2ea172' },
-              { label: '1-30 días',  value: data.buckets.days_30.total,  color: '#1faec2' },
-              { label: '31-60 días', value: data.buckets.days_60.total,  color: '#ff7f00' },
-              { label: '61-90 días', value: data.buckets.days_90.total,  color: '#e5484d' },
-              { label: '+90 días',   value: data.buckets.over_90.total,  color: '#e5484d' },
-            ].map(({ label, value, color }) => (
-              <Col key={label} span={showAdvances ? 3 : 4}>
-                <Card size="small" style={{ textAlign: 'center', borderColor: `${color}22` }}>
-                  <Statistic
-                    title={<span style={{ fontSize: 11, color }}>{label}</span>}
-                    value={value}
-                    prefix="Q"
-                    precision={2}
-                    valueStyle={{ fontSize: showAdvances ? 14 : 16, color }}
-                  />
-                </Card>
-              </Col>
-            ))}
-            <Col span={showAdvances ? 3 : 4}>
-              <Card size="small" style={{ textAlign: 'center', background: '#1faec2', borderColor: '#1faec2' }}>
+          {/* KPI Cards — clickeables para ordenar y resaltar columna */}
+          <div style={{ display: 'grid', gridTemplateColumns: kpiGridCols, gap: 8, marginBottom: 14, marginTop: 8 }}>
+            {BUCKET_KEYS.map(key => (
+              <Card
+                key={key}
+                size="small"
+                style={{
+                  textAlign: 'center', cursor: 'pointer',
+                  borderColor: highlightBucket === key ? BUCKET_COLORS[key] : `${BUCKET_COLORS[key]}33`,
+                  background: highlightBucket === key ? `${BUCKET_COLORS[key]}11` : '#fff',
+                  boxShadow: highlightBucket === key ? `0 0 0 2px ${BUCKET_COLORS[key]}44` : 'none',
+                  transition: 'all 0.2s',
+                }}
+                onClick={() => handleKpiClick(key)}
+              >
                 <Statistic
-                  title={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>TOTAL CxP</span>}
-                  value={data.grandTotal}
+                  title={<span style={{ fontSize: 10, color: BUCKET_COLORS[key] }}>{BUCKET_LABELS[key]}</span>}
+                  value={data.buckets[key].total}
                   prefix="Q"
                   precision={2}
-                  valueStyle={{ fontSize: showAdvances ? 14 : 16, color: '#fff', fontWeight: 700 }}
+                  valueStyle={{ fontSize: 13, color: BUCKET_COLORS[key], fontWeight: 600 }}
                 />
+                <Text style={{ fontSize: 10, color: '#9aa1ab' }}>{data.buckets[key].count} fact.</Text>
               </Card>
-            </Col>
+            ))}
+
+            <Card size="small" style={{ textAlign: 'center', background: '#1B3A6B', borderColor: '#1B3A6B' }}>
+              <Statistic
+                title={<span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>TOTAL CxP</span>}
+                value={data.grandTotal}
+                prefix="Q"
+                precision={2}
+                valueStyle={{ fontSize: 13, color: '#fff', fontWeight: 700 }}
+              />
+            </Card>
+
             {showAdvances && (
               <>
-                <Col span={3}>
-                  <Card size="small" style={{ textAlign: 'center', borderColor: '#2ea17244', background: '#e8f5ef' }}>
-                    <Statistic
-                      title={<span style={{ fontSize: 11, color: '#2ea172' }}>Anticipos</span>}
-                      value={data.totalAdvances ?? 0}
-                      prefix="Q"
-                      precision={2}
-                      valueStyle={{ fontSize: 14, color: '#2ea172', fontWeight: 700 }}
-                    />
-                  </Card>
-                </Col>
-                <Col span={3}>
-                  <Card size="small" style={{
+                <Card size="small" style={{ textAlign: 'center', background: '#e8f5ef', borderColor: '#2ea17244' }}>
+                  <Statistic
+                    title={<span style={{ fontSize: 10, color: '#2ea172' }}>Anticipos</span>}
+                    value={data.totalAdvances ?? 0}
+                    prefix="Q"
+                    precision={2}
+                    valueStyle={{ fontSize: 13, color: '#2ea172', fontWeight: 600 }}
+                  />
+                </Card>
+                <Card
+                  size="small"
+                  style={{
                     textAlign: 'center',
                     background: (data.netTotal ?? data.grandTotal) <= 0 ? '#e8f5ef' : '#fef2f2',
                     borderColor: (data.netTotal ?? data.grandTotal) <= 0 ? '#2ea17244' : '#e5484d44',
-                  }}>
-                    <Statistic
-                      title={<span style={{ fontSize: 11, color: '#6b7280' }}>Neto CxP</span>}
-                      value={Math.abs(data.netTotal ?? data.grandTotal)}
-                      prefix={(data.netTotal ?? data.grandTotal) < 0 ? '(A fav) Q' : 'Q'}
-                      precision={2}
-                      valueStyle={{
-                        fontSize: 14, fontWeight: 700,
-                        color: (data.netTotal ?? data.grandTotal) <= 0 ? '#2ea172' : '#e5484d',
-                      }}
-                    />
-                  </Card>
-                </Col>
+                  }}
+                >
+                  <Statistic
+                    title={<span style={{ fontSize: 10, color: '#6b7280' }}>Neto CxP</span>}
+                    value={Math.abs(data.netTotal ?? data.grandTotal)}
+                    prefix={(data.netTotal ?? data.grandTotal) < 0 ? '(A fav) Q' : 'Q'}
+                    precision={2}
+                    valueStyle={{
+                      fontSize: 13, fontWeight: 700,
+                      color: (data.netTotal ?? data.grandTotal) <= 0 ? '#2ea172' : '#e5484d',
+                    }}
+                  />
+                </Card>
               </>
             )}
-          </Row>
+          </div>
 
+          {/* Top 5 proveedores con mayor urgencia */}
+          {top5.length > 0 && (
+            <div style={{
+              marginBottom: 14, padding: '10px 14px',
+              background: '#fef2f2', borderRadius: 8, border: '1px solid #fca5a5',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <FireOutlined style={{ color: '#e5484d' }} />
+                <Text strong style={{ fontSize: 13, color: '#e5484d' }}>
+                  Atención — {top5.length} proveedor{top5.length > 1 ? 'es' : ''} con saldos vencidos +60 días
+                </Text>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${top5.length}, 1fr)`, gap: 8 }}>
+                {top5.map(v => (
+                  <div key={v.vendorId} style={{
+                    background: '#fff', borderRadius: 6, padding: '8px 10px',
+                    border: '1px solid #fca5a5',
+                  }}>
+                    <Text strong style={{ fontSize: 11, display: 'block', color: '#374151', marginBottom: 2 }}>
+                      {v.vendorName.length > 24 ? v.vendorName.slice(0, 24) + '…' : v.vendorName}
+                    </Text>
+                    {v.over_90 > 0 && (
+                      <Text style={{ fontSize: 12, color: '#991b1b', display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                        +90d: <strong>{fmt(v.over_90)}</strong>
+                      </Text>
+                    )}
+                    {v.days_90 > 0 && (
+                      <Text style={{ fontSize: 12, color: '#e5484d', display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                        61-90d: {fmt(v.days_90)}
+                      </Text>
+                    )}
+                    <Text style={{ fontSize: 10, color: '#6b7280' }}>Total: {fmt(v.total)}</Text>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {(data.buckets.days_90.total + data.buckets.over_90.total) > 0 && (
+          {totalOverdue > 0 && top5.length === 0 && (
             <div style={{
               padding: '10px 16px', background: '#fef2f2', borderRadius: 8,
-              border: '1px solid #fca5a5', marginBottom: 16,
+              border: '1px solid #fca5a5', marginBottom: 14,
               display: 'flex', alignItems: 'center', gap: 10,
             }}>
               <WarningOutlined style={{ color: '#e5484d' }} />
               <Text style={{ color: '#e5484d', fontWeight: 500, fontSize: 13 }}>
-                Tiene saldos vencidos por más de 60 días: {fmt(data.buckets.days_90.total + data.buckets.over_90.total)}
+                Saldos vencidos +60 días: {fmt(totalOverdue)}
               </Text>
             </div>
           )}
 
-          {(data.buckets.current.total + data.buckets.days_30.total + data.buckets.days_60.total + data.buckets.days_90.total + data.buckets.over_90.total) === 0 && (
-            <div style={{ padding: '24px', textAlign: 'center' }}>
+          {totalBalance === 0 && (
+            <div style={{ padding: 24, textAlign: 'center' }}>
               <CheckCircleOutlined style={{ fontSize: 40, color: '#2ea172', marginBottom: 12 }} />
-              <div><Text style={{ color: '#2ea172', fontSize: 15 }}>No hay saldos pendientes de pago al cierre de {periodLabel}.</Text></div>
+              <div>
+                <Text style={{ color: '#2ea172', fontSize: 15 }}>
+                  No hay saldos pendientes de pago al cierre de {periodLabel}.
+                </Text>
+              </div>
             </div>
           )}
 
-          {(Object.entries(data.buckets) as [string, ApAgingBucket][]).map(([key, bucket]) => (
-            <BucketCard
-              key={key}
-              label={bucket.label}
-              bucket={bucket}
-              color={ageBucketColor[key] ?? '#6b7280'}
-              expanded={expanded[key]}
-              onToggle={() => toggle(key)}
-              advances={key === 'current' ? (data.advances ?? []) : undefined}
-              showAdvances={showAdvances}
+          {totalBalance > 0 && (
+            <Table
+              columns={columns}
+              dataSource={vendorRows}
+              rowKey="vendorId"
+              size="small"
+              expandable={{ expandedRowRender, rowExpandable: row => row.invoices.length > 0 }}
+              pagination={{ pageSize: 30, showTotal: t => `${t} proveedores`, showSizeChanger: true, pageSizeOptions: ['15', '30', '50', '100'] }}
+              onChange={handleTableChange}
+              summary={summaryRow}
+              scroll={{ x: 'max-content' }}
+              loading={loading}
             />
-          ))}
+          )}
 
-          <Text style={{ fontSize: 11, color: '#9aa1ab' }}>
-            Generado: {new Date(data.generatedAt).toLocaleString('es-GT')}
-            {' · '}Corte: {data.asOf}
-          </Text>
+          <div style={{ marginTop: 10 }}>
+            <Text style={{ fontSize: 11, color: '#9aa1ab' }}>
+              Generado: {new Date(data.generatedAt).toLocaleString('es-GT')}
+              {' · '}Corte: {data.asOf}
+            </Text>
+          </div>
         </>
       )}
 
