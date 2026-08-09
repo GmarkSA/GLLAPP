@@ -153,5 +153,8 @@ export const revertirBajaActivoFijo = (id: string) =>
 export const revertirActivacionActivoFijo = (id: string) =>
   api.delete(`${BASE}/${id}/activacion`).then(unwrap) as Promise<ActivoFijo>
 
+export const eliminarActivoFijo = (id: string) =>
+  api.delete(`${BASE}/${id}`).then(unwrap) as Promise<void>
+
 export const getPolizasActivoFijo = (id: string) =>
   api.get(`${BASE}/${id}/polizas`).then(unwrap) as Promise<PolizaActivo[]>
