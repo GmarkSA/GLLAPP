@@ -286,6 +286,9 @@ export const saveReconciliationPeriod = (accountId: string, dto: {
 export const approveReconciliationPeriod = (accountId: string, periodId: string) =>
   api.patch(`${RECONCILIATION_BASE}/${accountId}/periodos/${periodId}/aprobar`).then(unwrap) as Promise<ReconciliationPeriod>
 
+export const reabrirReconciliationPeriod = (accountId: string, periodId: string) =>
+  api.patch(`${RECONCILIATION_BASE}/${accountId}/periodos/${periodId}/reabrir`).then(unwrap) as Promise<ReconciliationPeriod>
+
 export const autoMatchReconciliation = (accountId: string) =>
   api.post(`${RECONCILIATION_BASE}/auto-match/${accountId}`).then(unwrap) as Promise<{ matched: number; message?: string }>
 
