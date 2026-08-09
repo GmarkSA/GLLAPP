@@ -44,22 +44,26 @@ const MESES_PERIODO = [
 const CUR_YEAR = dayjs().year()
 const ANIOS_PERIODO = Array.from({ length: 4 }, (_, i) => ({ value: CUR_YEAR - i, label: String(CUR_YEAR - i) }))
 
+type PdfItem = { x: number; xEnd: number; text: string }
+
 // ── PDF: extrae texto de cada página agrupando por coordenada Y ───────────────
+// Fase 1: extrae filas como arrays de PdfItem con posición X exacta
+// Fase 2: detecta encabezados de columna para fijar anchos y evitar desplazamiento
+//         cuando celdas quedan vacías (bug: 1.00 en Débito se leía como Crédito)
 async function parsePdfToMatrix(buffer: ArrayBuffer): Promise<string[][]> {
   const pdfjsLib = await import('pdfjs-dist')
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
-  const allRows: string[][] = []
-  const Y_TOL        = 5   // tolerancia en pts para agrupar ítems en la misma fila
-  const MERGE_GAP    = 5   // pts — si la brecha entre ítems es menor se fusionan como una celda
+  const allRawRows: PdfItem[][] = []
+  const Y_TOL     = 5   // tolerancia en pts para agrupar ítems en la misma fila
+  const MERGE_GAP = 5   // pts — brecha menor → fusionar en una celda
 
   for (let p = 1; p <= pdf.numPages; p++) {
-    const page   = await pdf.getPage(p)
+    const page    = await pdf.getPage(p)
     const content = await page.getTextContent()
 
-    // Agrupar ítems de texto por Y redondeado
-    const byY = new Map<number, Array<{ x: number; xEnd: number; text: string }>>()
+    const byY = new Map<number, PdfItem[]>()
     for (const raw of content.items) {
       if (!('str' in raw)) continue
       const { str, transform, width } = raw as { str: string; transform: number[]; width: number }
@@ -70,31 +74,60 @@ async function parsePdfToMatrix(buffer: ArrayBuffer): Promise<string[][]> {
       byY.get(y)!.push({ x, xEnd: x + Math.abs(width || 0), text: str.trim() })
     }
 
-    // Ordenar filas top-to-bottom (Y en PDF crece hacia arriba → orden descendente)
     const sortedYs = [...byY.keys()].sort((a, b) => b - a)
     for (const y of sortedYs) {
       const items = byY.get(y)!.sort((a, b) => a.x - b.x)
-      const cells: string[] = []
-      let cur    = items[0].text
-      let curEnd = items[0].xEnd
-
+      // Fusionar ítems muy cercanos en una sola celda
+      const merged: PdfItem[] = []
+      let cur = { ...items[0] }
       for (let i = 1; i < items.length; i++) {
-        const gap = items[i].x - curEnd
+        const gap = items[i].x - cur.xEnd
         if (gap <= MERGE_GAP) {
-          // Mismo "token" — fusionar (agregar espacio si hay brecha visible)
-          cur += (gap > 0 ? ' ' : '') + items[i].text
+          cur.text += (gap > 0 ? ' ' : '') + items[i].text
+          cur.xEnd  = Math.max(cur.xEnd, items[i].xEnd)
         } else {
-          cells.push(cur)
-          cur = items[i].text
+          merged.push(cur)
+          cur = { ...items[i] }
         }
-        curEnd = Math.max(curEnd, items[i].xEnd)
       }
-      cells.push(cur)
-      if (cells.length > 0) allRows.push(cells)
+      merged.push(cur)
+      if (merged.length > 0) allRawRows.push(merged)
     }
   }
 
-  return allRows
+  // Detectar fila de encabezados para fijar columnas por posición X
+  const headerIdx = allRawRows.findIndex(row =>
+    row.some(i => { const t = norm(i.text); return t === 'fecha' || t === 'dia' })
+  )
+
+  if (headerIdx < 0) {
+    // Sin encabezado reconocido → modo simple (Excel/CSV no pasan por aquí)
+    return allRawRows.map(row => row.map(i => i.text))
+  }
+
+  // Centro X de cada columna según los encabezados
+  const colCenters = allRawRows[headerIdx].map(i => (i.x + i.xEnd) / 2)
+  const numCols    = colCenters.length
+
+  const nearestCol = (item: PdfItem) => {
+    const center = (item.x + item.xEnd) / 2
+    let best = 0, bestDist = Math.abs(center - colCenters[0])
+    for (let c = 1; c < numCols; c++) {
+      const dist = Math.abs(center - colCenters[c])
+      if (dist < bestDist) { bestDist = dist; best = c }
+    }
+    return best
+  }
+
+  // Construir matriz de ancho fijo — columnas vacías quedan como ''
+  return allRawRows.map(row => {
+    const cells = new Array<string>(numCols).fill('')
+    for (const item of row) {
+      const c = nearestCol(item)
+      cells[c] = cells[c] ? cells[c] + ' ' + item.text : item.text
+    }
+    return cells
+  })
 }
 
 export default function ImportarEstadoPage() {
@@ -273,10 +306,32 @@ export default function ImportarEstadoPage() {
 
   const headerOptions = headers.map((label, value) => ({ label, value }))
 
+  const toggleType = (index: number) => {
+    setRows(prev => prev.map((r, i) =>
+      i === index ? { ...r, type: r.type === 'credit' ? 'debit' : 'credit' } : r,
+    ))
+  }
+
+  const creditCount = rows.filter(r => r.type === 'credit').length
+
   const previewColumns: ColumnsType<ParsedRow> = [
     { title: 'Fecha', dataIndex: 'transactionDate', width: 110, render: v => dayjs(v).format('DD/MM/YYYY') },
     { title: 'Descripcion', dataIndex: 'description', ellipsis: true },
-    { title: 'Tipo', dataIndex: 'type', width: 100, render: v => <Tag color={v === 'credit' ? '#2ea172' : '#e5484d'}>{v === 'credit' ? 'Ingreso' : 'Egreso'}</Tag> },
+    {
+      title: 'Tipo',
+      dataIndex: 'type',
+      width: 120,
+      render: (v, _, index) => (
+        <Tag
+          color={v === 'credit' ? '#2ea172' : '#e5484d'}
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+          title="Clic para cambiar entre Ingreso / Egreso"
+          onClick={() => toggleType(index)}
+        >
+          {v === 'credit' ? '▲ Ingreso' : '▼ Egreso'}
+        </Tag>
+      ),
+    },
     { title: 'Monto', dataIndex: 'amount', width: 130, align: 'right', render: v => money(Number(v), selectedAccount?.currency) },
     { title: 'Referencia', dataIndex: 'reference', width: 150 },
   ]
@@ -393,7 +448,23 @@ export default function ImportarEstadoPage() {
           </Form>
         </Card>
 
-        <Card size="small" style={panelStyle} bodyStyle={{ padding: 0 }}>
+        <Card
+          size="small"
+          style={panelStyle}
+          bodyStyle={{ padding: 0 }}
+          title={rows.length > 0 ? (
+            <Space size={16}>
+              <Text style={{ fontSize: 12 }}>
+                Vista previa — <strong>{rows.length}</strong> registros
+              </Text>
+              <Tag color="#2ea172">▲ {creditCount} Ingresos</Tag>
+              <Tag color="#e5484d">▼ {rows.length - creditCount} Egresos</Tag>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                Haz clic en el tipo para corregir filas incorrectas
+              </Text>
+            </Space>
+          ) : undefined}
+        >
           <Table<ParsedRow>
             columns={previewColumns}
             dataSource={rows}
