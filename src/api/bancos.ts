@@ -303,9 +303,34 @@ export const reconcileTransaction = (dto: {
 
 export const sendEmailConciliacion = (
   accountId: string,
-  dto: { to: string; cc?: string; month: number; year: number },
+  dto: { to: string; cc?: string; month: number; year: number; companyName?: string; companyNit?: string },
 ) =>
   api.post(`${RECONCILIATION_BASE}/${accountId}/enviar-email`, dto).then(unwrap) as Promise<{ sent: boolean }>
+
+const MESES_API = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+
+export const downloadConciliacionPdf = async (
+  accountId: string,
+  month: number,
+  year: number,
+  opts?: { companyName?: string; companyNit?: string },
+): Promise<void> => {
+  const params = new URLSearchParams({ month: String(month), year: String(year) })
+  if (opts?.companyName) params.set('companyName', opts.companyName)
+  if (opts?.companyNit)  params.set('companyNit',  opts.companyNit)
+  const response = await api.get(
+    `${RECONCILIATION_BASE}/${accountId}/pdf?${params.toString()}`,
+    { responseType: 'blob' },
+  )
+  const url  = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+  const link = document.createElement('a')
+  link.href  = url
+  link.setAttribute('download', `conciliacion-${MESES_API[month - 1]}-${year}.pdf`)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
 
 export const createBankTransfer = (dto: BankTransferDto) =>
   api.post(TRANSFERS_BASE, dto).then(unwrap) as Promise<BankTransfer>
