@@ -404,14 +404,15 @@ export default function ApAgingPage() {
     if (!data) return null
     return (
       <Table.Summary fixed="bottom">
-        <Table.Summary.Row style={{ background: '#e6fafd' }}>
-          <Table.Summary.Cell index={0} colSpan={1}>
-            <Text strong style={{ fontSize: 12, color: '#1B3A6B' }}>
-              TOTAL — {vendorRows.length} proveedor{vendorRows.length !== 1 ? 'es' : ''}
+        <Table.Summary.Row style={{ background: '#e6fafd', fontWeight: 700 }}>
+          {/* colSpan=2: cubre la columna del ícono expandir + columna Proveedor */}
+          <Table.Summary.Cell index={0} colSpan={2}>
+            <Text strong style={{ fontSize: 12, color: '#1B3A6B', whiteSpace: 'nowrap' }}>
+              TOTAL GENERAL — {vendorRows.length} proveedores
             </Text>
           </Table.Summary.Cell>
           {BUCKET_KEYS.map((key, i) => (
-            <Table.Summary.Cell key={key} index={i + 1} align="right">
+            <Table.Summary.Cell key={key} index={i + 2} align="right">
               {(data.buckets[key]?.total ?? 0) > 0 ? (
                 <Text strong style={{ fontSize: 12, color: BUCKET_COLORS[key], fontVariantNumeric: 'tabular-nums' }}>
                   {fmt(data.buckets[key].total)}
@@ -421,13 +422,13 @@ export default function ApAgingPage() {
               )}
             </Table.Summary.Cell>
           ))}
-          <Table.Summary.Cell index={6} align="right">
+          <Table.Summary.Cell index={7} align="right">
             <Text strong style={{ fontSize: 12, color: '#1B3A6B', fontVariantNumeric: 'tabular-nums' }}>
               {fmt(data.grandTotal ?? 0)}
             </Text>
           </Table.Summary.Cell>
-          <Table.Summary.Cell index={7} />
           <Table.Summary.Cell index={8} />
+          <Table.Summary.Cell index={9} />
         </Table.Summary.Row>
       </Table.Summary>
     )
