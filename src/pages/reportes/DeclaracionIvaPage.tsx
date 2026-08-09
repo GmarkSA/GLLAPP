@@ -66,7 +66,8 @@ export default function DeclaracionIvaPage() {
       })
       message.success('Borrador calculado correctamente')
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al calcular')
+      const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message ?? 'Error al calcular'
+      message.error(typeof msg === 'string' ? msg : JSON.stringify(msg))
     } finally {
       setCalcLoading(false)
     }
@@ -81,7 +82,8 @@ export default function DeclaracionIvaPage() {
       setLista(prev => prev.map(x => x.id === result.id ? result : x))
       message.success('Póliza borrador generada — puede revisarla en el módulo de Contabilidad')
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al generar póliza')
+      const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message ?? 'Error al generar póliza'
+      message.error(typeof msg === 'string' ? msg : JSON.stringify(msg))
     } finally {
       setLoading(false)
     }
@@ -96,7 +98,8 @@ export default function DeclaracionIvaPage() {
       setLista(prev => prev.map(x => x.id === result.id ? result : x))
       message.success('Declaración marcada como presentada')
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error')
+      const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message ?? 'Error'
+      message.error(typeof msg === 'string' ? msg : JSON.stringify(msg))
     } finally {
       setLoading(false)
     }
