@@ -198,12 +198,20 @@ export default function ClienteDetallePage() {
   const statementRows = useMemo(() => {
     const from = stmtFrom.startOf('day')
     const to   = stmtTo.endOf('day')
-    const rows: { key: string; date: string; type: string; ref: string; route?: string; debit: number; credit: number }[] = []
+    type StmtRow = { key: string; date: string; type: string; ref: string; route?: string; debit: number; credit: number }
+    const periodRows: StmtRow[] = []
+
+    // Saldo anterior: suma de todos los movimientos antes del período seleccionado
+    let prevBalance = 0
+    invoices.filter(inv => dayjs(inv.invoiceDate ?? inv.createdAt).isBefore(from) && inv.status !== 'voided')
+      .forEach(inv => { prevBalance += Number(inv.total ?? 0) })
+    payments.filter(p => dayjs(p.paymentDate ?? p.createdAt).isBefore(from))
+      .forEach(p => { prevBalance -= Number(p.amount ?? 0) })
 
     invoices.filter(inv => {
       const d = dayjs(inv.invoiceDate ?? inv.createdAt)
       return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && inv.status !== 'voided'
-    }).forEach(inv => rows.push({
+    }).forEach(inv => periodRows.push({
       key: inv.id, date: inv.invoiceDate, type: 'Factura', ref: inv.invoiceNumber,
       route: `/ventas/facturas/${inv.id}`,
       debit: Number(inv.total ?? 0), credit: 0,
@@ -212,16 +220,21 @@ export default function ClienteDetallePage() {
     payments.filter(p => {
       const d = dayjs(p.paymentDate ?? p.createdAt)
       return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms'))
-    }).forEach(p => rows.push({
+    }).forEach(p => periodRows.push({
       key: p.id, date: p.paymentDate, type: 'Pago', ref: p.paymentNumber,
       route: `/ventas/pagos-recibidos/${p.id}`,
       debit: 0, credit: Number(p.amount ?? 0),
     }))
 
-    rows.sort((a, b) => a.date.localeCompare(b.date))
+    periodRows.sort((a, b) => a.date.localeCompare(b.date))
+
+    // Saldo anterior encabeza siempre como débito si es > 0
+    const allRows: StmtRow[] = prevBalance > 0.001
+      ? [{ key: 'saldo-anterior', date: from.format('YYYY-MM-DD'), type: 'Saldo anterior', ref: 'Saldo período anterior', debit: prevBalance, credit: 0 }, ...periodRows]
+      : periodRows
 
     let balance = 0
-    return rows.map(r => {
+    return allRows.map(r => {
       balance = balance + r.debit - r.credit
       return { ...r, balance }
     })
@@ -292,7 +305,7 @@ export default function ClienteDetallePage() {
 
   const stmtCols = [
     { title: 'Fecha', dataIndex: 'date', width: 100, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
-    { title: 'Tipo', dataIndex: 'type', width: 90, render: (v: string) => <Tag color={v === 'Factura' ? '#1faec2' : '#2ea172'} style={{ fontSize: 11 }}>{v}</Tag> },
+    { title: 'Tipo', dataIndex: 'type', width: 110, render: (v: string) => <Tag color={v === 'Factura' ? '#1faec2' : v === 'Pago' ? '#2ea172' : '#6b7280'} style={{ fontSize: 11 }}>{v}</Tag> },
     {
       title: 'Referencia', dataIndex: 'ref',
       render: (v: string, r: any) => r.route
