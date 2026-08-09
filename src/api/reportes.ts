@@ -295,6 +295,44 @@ export const getCorrelativo = (tipo: string, year?: string) =>
 export const nextCorrelativo = (tipo: string, year?: string) =>
   api.post<any>(`${BASE}/correlativo/${tipo}/next`, null, { params: { year } }).then(unwrap) as Promise<CorrelativoData>
 
+// ─── Declaración IVA (Impuestos) ──────────────────────────────────────────────
+
+export type DeclaracionIvaStatus = 'borrador' | 'poliza_generada' | 'presentada'
+
+export interface DeclaracionIva {
+  id:               string
+  tenantId:         string
+  companyId:        string | null
+  mes:              number
+  anio:             number
+  status:           DeclaracionIvaStatus
+  ivaDebitoFiscal:  number
+  ivaCreditoFiscal: number
+  retencionIva:     number
+  ivaNeto:          number
+  baseVentas:       number
+  baseCompras:      number
+  polizaId:         string | null
+  snapshot:         Record<string, any> | null
+  createdAt:        string
+  updatedAt:        string
+}
+
+export const getDeclaracionesIva = () =>
+  api.get(`${BASE}/impuestos/declaracion-iva`).then(unwrap) as Promise<DeclaracionIva[]>
+
+export const getDeclaracionIva = (id: string) =>
+  api.get(`${BASE}/impuestos/declaracion-iva/${id}`).then(unwrap) as Promise<DeclaracionIva>
+
+export const generarBorradorIva = (mes: number, anio: number) =>
+  api.post(`${BASE}/impuestos/declaracion-iva/generar-borrador`, null, { params: { mes, anio } }).then(unwrap) as Promise<DeclaracionIva>
+
+export const generarPolizaBorradorIva = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-iva/${id}/poliza-borrador`).then(unwrap) as Promise<DeclaracionIva>
+
+export const marcarIvaPresentada = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-iva/${id}/marcar-presentada`).then(unwrap) as Promise<DeclaracionIva>
+
 export const exportReporte = (tipo: string, formato: 'excel' | 'pdf', params: Record<string, string>) => {
   const qs = new URLSearchParams(params)
   return api.get(`${BASE}/exportar/${tipo}/${formato}`, {

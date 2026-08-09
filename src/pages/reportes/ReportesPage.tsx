@@ -5,7 +5,7 @@ import {
   AuditOutlined, RiseOutlined, AccountBookOutlined,
   FileTextOutlined, BookOutlined, ShopOutlined,
   PieChartOutlined, DashboardOutlined, TeamOutlined,
-  WalletOutlined, BankOutlined,
+  WalletOutlined, BankOutlined, FileProtectOutlined,
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
@@ -64,6 +64,13 @@ const GROUPS: ReportGroup[] = [
       { key: 'activos-fijos',      icon: <DashboardOutlined />, title: 'Activos Fijos',              desc: 'Depreciación acumulada, valor en libros y vida útil restante.',        path: '/reportes/activos-fijos',      color: '#6b7280' },
       { key: 'centros-beneficio',  icon: <PieChartOutlined />,  title: 'Rentabilidad C. Beneficio',  desc: 'P&L por línea de negocio con análisis de concentración y tendencia.',   path: '/reportes/centros-beneficio',  color: '#1faec2' },
       { key: 'centros-costo',      icon: <DashboardOutlined />, title: 'Ejecución C. Costo',         desc: 'Gasto real vs presupuesto por centro de costo y proyección al cierre.',  path: '/reportes/centros-costo',      color: '#f59e0b' },
+    ],
+  },
+  {
+    id: 'impuestos',
+    label: 'Impuestos',
+    reports: [
+      { key: 'declaracion-iva', icon: <FileProtectOutlined />, title: 'Declaración IVA', desc: 'Cierre mensual: débito fiscal, crédito fiscal y póliza de regularización SAT-2237.', path: '/reportes/declaracion-iva', color: '#1B3A6B' },
     ],
   },
 ]
