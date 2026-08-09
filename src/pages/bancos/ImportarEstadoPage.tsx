@@ -97,7 +97,7 @@ async function parsePdfToMatrix(buffer: ArrayBuffer): Promise<string[][]> {
 
   // Detectar fila de encabezados para fijar columnas por posición X
   const headerIdx = allRawRows.findIndex(row =>
-    row.some(i => { const t = norm(i.text); return t === 'fecha' || t === 'dia' })
+    row.some(i => { const t = norm(i.text); return t === 'fecha' || t === 'dia' || t === 'date' })
   )
 
   if (headerIdx < 0) {
@@ -179,7 +179,12 @@ export default function ImportarEstadoPage() {
     if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
       const sep = s[2]
       const [d, m, y] = s.split(sep)
-      return `${y}-${m}-${d}`
+      // Detectar MM/DD/YYYY (BAC): si el primer segmento > 12, es día → DD/MM/YYYY
+      // Si ambos ≤ 12 usamos DD/MM/YYYY (convención guatemalteca por defecto)
+      const n1 = parseInt(d), n2 = parseInt(m)
+      if (n1 > 12) return `${y}-${m}-${d}`           // n1 no puede ser mes → DD/MM
+      if (n2 > 12) return `${y}-${String(n1).padStart(2,'0')}-${String(n2).padStart(2,'0')}` // n2 no puede ser mes → MM/DD
+      return `${y}-${m}-${d}`                         // ambos ≤ 12 → asumir DD/MM/YYYY
     }
     const d = dayjs(s)
     return d.isValid() ? d.format('YYYY-MM-DD') : ''
@@ -238,7 +243,7 @@ export default function ImportarEstadoPage() {
     let headerIdx = 0
     for (let i = 0; i < allRows.length; i++) {
       const firstCell = norm(String(allRows[i][0] || ''))
-      if (firstCell === 'fecha' || firstCell === 'dia') {
+      if (firstCell === 'fecha' || firstCell === 'dia' || firstCell === 'date') {
         headerIdx = i
         break
       }
@@ -253,17 +258,24 @@ export default function ImportarEstadoPage() {
     form.resetFields(['dateField', 'descriptionField', 'debitField', 'creditField',
       'amountField', 'referenceField', 'balanceField'])
 
-    // Auto-mapeo multi-banco — comparación sin tildes para cubrir BI, BAC, Banrural, G&T…
+    // Auto-mapeo multi-banco (BI, G&T, Agromercantil, BAC, Banrural…)
+    // Comparación sin tildes — se busca el primero que coincida
     const tryFind = (...needles: string[]) =>
       labels.findIndex(l => needles.some(n => norm(l).includes(norm(n))))
 
     const autoMap = {
-      dateField:        tryFind('fecha', 'día', 'dia', 'day'),
-      descriptionField: tryFind('descripci', 'concepto', 'detalle', 'transacci'),
-      referenceField:   tryFind('no. doc', 'ref', 'cheque', 'documento'),
-      debitField:       tryFind('debe', 'débito', 'debito', 'cargo', 'retiro', 'egreso'),
-      creditField:      tryFind('haber', 'crédito', 'credito', 'abono', 'depósito', 'deposito', 'ingreso'),
-      balanceField:     tryFind('saldo'),
+      // ES: fecha/día/dia  |  EN: date
+      dateField:        tryFind('fecha', 'día', 'dia', 'date'),
+      // ES: descripción/concepto/detalle/transacción  |  EN: description/detail/concept
+      descriptionField: tryFind('descripci', 'concepto', 'detalle', 'transacci', 'descript', 'detail', 'concept'),
+      // ES: no. doc/referencia/cheque/documento  |  EN: reference/check/doc
+      referenceField:   tryFind('no. doc', 'referencia', 'ref', 'cheque', 'documento', 'check', 'doc num'),
+      // ES: debe/débito/cargo/retiro/egreso  |  EN: debit/withdrawal/charge
+      debitField:       tryFind('debe', 'débito', 'debito', 'cargo', 'retiro', 'egreso', 'debit', 'withdrawal', 'charge'),
+      // ES: haber/crédito/abono/depósito/ingreso  |  EN: credit/deposit/payment
+      creditField:      tryFind('haber', 'crédito', 'credito', 'abono', 'depósito', 'deposito', 'ingreso', 'credit', 'deposit', 'payment'),
+      // ES: saldo  |  EN: balance
+      balanceField:     tryFind('saldo', 'balance'),
     }
 
     const detected = Object.values(autoMap).filter(v => v >= 0).length >= 4
