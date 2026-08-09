@@ -135,7 +135,7 @@ export default function ConciliacionPage() {
 
       // diferencia = monto de transacciones no conciliadas del período
       const diferencia = periodTxs
-        .filter(t => t.status === 'pending' || t.status === 'categorized')
+        .filter(t => t.status === 'pending')
         .reduce((s, t) => s + (t.type === 'credit' ? Number(t.amount) : -Number(t.amount)), 0)
       const saldoSistema = saldoBanco - diferencia
 
@@ -185,7 +185,7 @@ export default function ConciliacionPage() {
         : Number(account.bankBalance ?? account.currentBalance)
 
       const diferencia   = periodTxs
-        .filter(t => t.status === 'pending' || t.status === 'categorized')
+        .filter(t => t.status === 'pending')
         .reduce((s, t) => s + (t.type === 'credit' ? Number(t.amount) : -Number(t.amount)), 0)
       const saldoSistema = saldoBanco - diferencia
 
@@ -573,7 +573,7 @@ export default function ConciliacionPage() {
         open={showHistory}
         onCancel={() => setShowHistory(false)}
         footer={null}
-        width={720}
+        width={960}
       >
         {periods.length === 0 ? (
           <Empty description="Sin períodos guardados. Usa 'Cerrar período' para guardar el estado actual." />
