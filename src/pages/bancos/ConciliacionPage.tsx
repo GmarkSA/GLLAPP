@@ -73,6 +73,10 @@ export default function ConciliacionPage() {
     if (urlMonth) setCloseMes(urlMonth)
     if (urlYear)  setCloseAnio(urlYear)
     if (urlSaldo != null) setCloseSaldo(urlSaldo)
+    // Persistir sesión en localStorage para que TransaccionesPage detecte sesión activa
+    if (urlMonth && urlYear && urlSaldo != null) {
+      localStorage.setItem(`conciliacion_${id}`, JSON.stringify({ month: urlMonth, year: urlYear, saldo: urlSaldo }))
+    }
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cargar transacciones del período de sesión para el panel de referencia
@@ -285,6 +289,7 @@ export default function ConciliacionPage() {
         return [saved, ...prev]
       })
       message.success(`Período ${meses[closeMes - 1]} ${closeAnio} guardado correctamente`)
+      localStorage.removeItem(`conciliacion_${id}`)
       setShowCloseModal(false)
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'No se pudo guardar el período')
@@ -597,18 +602,18 @@ export default function ConciliacionPage() {
       )}
 
       {urlSaldo != null && urlMonth && urlYear && (() => {
-        const pendingDiff  = periodTxs
-          .filter(t => t.status === 'pending')
-          .reduce((s, t) => s + (t.type === 'credit' ? Number(t.amount) : -Number(t.amount)), 0)
-        const saldoSistema = urlSaldo - pendingDiff
-        const diferencia   = Math.abs(urlSaldo - saldoSistema)
-        const cuadrado     = diferencia < 0.01
+        const reconciledTxs = periodTxs.filter(t => t.status === 'reconciled')
+        const pendingTxs    = periodTxs.filter(t => t.status === 'pending')
+        const reconciledAmt = reconciledTxs.reduce((s, t) => s + Number(t.amount), 0)
+        const pendingAmt    = pendingTxs.reduce((s, t) => s + Number(t.amount), 0)
+        const cuadrado      = pendingAmt < 0.01 && periodTxs.length > 0
+        const totalTxs      = periodTxs.filter(t => t.status !== 'excluded' && t.status !== 'voided').length
         return (
           <Card size="small" style={{ ...panelStyle, marginBottom: 12, border: `2px solid ${cuadrado ? '#2ea172' : '#ff7f00'}` }}>
-            <div style={{ textAlign: 'center', marginBottom: 6 }}>
+            <div style={{ textAlign: 'center', marginBottom: 8 }}>
               <Text type="secondary" style={{ fontSize: 11 }}>
                 Conciliacion {meses[urlMonth - 1]} {urlYear}
-                {cuadrado && <Tag color="#2ea172" style={{ marginLeft: 8 }}>Cuadrado</Tag>}
+                {cuadrado && <Tag color="#2ea172" style={{ marginLeft: 8 }}>Cuadrado ✓</Tag>}
               </Text>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center' }}>
@@ -617,15 +622,16 @@ export default function ConciliacionPage() {
                 <div style={{ fontSize: 20, fontWeight: 700, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(urlSaldo, account.currency)}</div>
               </div>
               <div>
-                <Text type="secondary" style={{ fontSize: 11 }}>Saldo sistema</Text>
-                <div style={{ fontSize: 20, fontWeight: 700, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(saldoSistema, account.currency)}</div>
-                <Text type="secondary" style={{ fontSize: 10 }}>saldo banco − pendientes</Text>
+                <Text type="secondary" style={{ fontSize: 11 }}>Conciliado este mes</Text>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(reconciledAmt, account.currency)}</div>
+                <Text type="secondary" style={{ fontSize: 10 }}>{reconciledTxs.length} de {totalTxs} transacciones</Text>
               </div>
               <div>
-                <Text type="secondary" style={{ fontSize: 11 }}>Diferencia</Text>
+                <Text type="secondary" style={{ fontSize: 11 }}>Sin conciliar</Text>
                 <div style={{ fontSize: 20, fontWeight: 700, color: cuadrado ? '#2ea172' : '#e5484d', fontVariantNumeric: 'tabular-nums' }}>
-                  {moneyFmt(diferencia, account.currency)}
+                  {moneyFmt(pendingAmt, account.currency)}
                 </div>
+                <Text type="secondary" style={{ fontSize: 10 }}>{pendingTxs.length} transacciones pendientes</Text>
               </div>
             </div>
           </Card>

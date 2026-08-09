@@ -24,6 +24,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
+  CloseOutlined,
   ControlOutlined,
   DeleteOutlined,
   FileExcelOutlined,
@@ -32,6 +33,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
   RollbackOutlined,
+  SyncOutlined,
   TagsOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
@@ -621,6 +623,9 @@ export default function TransaccionesPage() {
   const [conciliarMes,  setConciliarMes]   = useState<number>(dayjs().month() + 1)
   const [conciliarAnio, setConciliarAnio]  = useState<number>(dayjs().year())
   const [conciliarSaldo, setConciliarSaldo] = useState<number | null>(null)
+  const [activeSession, setActiveSession]  = useState<{ month: number; year: number; saldo: number } | null>(null)
+
+  const mesesTx = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
   useEffect(() => {
     if (!id) return
@@ -630,6 +635,11 @@ export default function TransaccionesPage() {
         message.error('Cuenta bancaria no encontrada')
         navigate('/bancos')
       })
+    // Restaurar sesión de conciliación activa desde localStorage
+    try {
+      const stored = localStorage.getItem(`conciliacion_${id}`)
+      if (stored) setActiveSession(JSON.parse(stored))
+    } catch { localStorage.removeItem(`conciliacion_${id}`) }
   }, [id, navigate])
 
   const loadTransactions = useCallback(async () => {
@@ -836,12 +846,30 @@ export default function TransaccionesPage() {
           </div>
         </div>
         <Space wrap>
-          <Button icon={<CheckCircleOutlined />} onClick={() => {
-            setConciliarMes(dayjs().month() + 1)
-            setConciliarAnio(dayjs().year())
-            setConciliarSaldo(null)
-            setConciliarOpen(true)
-          }}>Conciliacion</Button>
+          {activeSession ? (
+            <Button.Group>
+              <Button
+                icon={<SyncOutlined spin />}
+                style={{ background: '#ff7f00', borderColor: '#ff7f00', color: '#fff' }}
+                onClick={() => navigate(`/bancos/${account.id}/conciliacion?month=${activeSession.month}&year=${activeSession.year}&refSaldo=${activeSession.saldo}`)}
+              >
+                Conciliacion en proceso ({mesesTx[activeSession.month - 1]})
+              </Button>
+              <Button
+                icon={<CloseOutlined />}
+                style={{ borderColor: '#ff7f00', color: '#ff7f00' }}
+                title="Terminar sesión de conciliación"
+                onClick={() => { localStorage.removeItem(`conciliacion_${account.id}`); setActiveSession(null) }}
+              />
+            </Button.Group>
+          ) : (
+            <Button icon={<CheckCircleOutlined />} onClick={() => {
+              setConciliarMes(dayjs().month() + 1)
+              setConciliarAnio(dayjs().year())
+              setConciliarSaldo(null)
+              setConciliarOpen(true)
+            }}>Conciliacion</Button>
+          )}
           <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>Importar estado</Button>
           <Button icon={<ControlOutlined />} onClick={() => navigate('/bancos/reglas')}>Reglas bancarias</Button>
           <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }} onClick={() => setTransactionOpen(true)}>Agregar transaccion</Button>
@@ -903,6 +931,9 @@ export default function TransaccionesPage() {
         okButtonProps={{ style: { background: NAVY }, disabled: conciliarSaldo == null }}
         onOk={() => {
           if (conciliarSaldo == null) { message.warning('Ingresa el saldo al cierre del estado de cuenta'); return }
+          const session = { month: conciliarMes, year: conciliarAnio, saldo: conciliarSaldo }
+          localStorage.setItem(`conciliacion_${account.id}`, JSON.stringify(session))
+          setActiveSession(session)
           setConciliarOpen(false)
           navigate(`/bancos/${account.id}/conciliacion?month=${conciliarMes}&year=${conciliarAnio}&refSaldo=${conciliarSaldo}`)
         }}
