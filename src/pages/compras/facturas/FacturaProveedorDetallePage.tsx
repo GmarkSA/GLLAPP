@@ -598,6 +598,18 @@ export default function FacturaProveedorDetallePage() {
                 <Text type="secondary">IVA</Text>
                 <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.taxAmount), bill.currency)}</Text>
               </div>
+              {Number(bill.timbrePrensaAmount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <Text style={{ color: '#6d28d9' }}>Timbre de Prensa (0.5%)</Text>
+                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.timbrePrensaAmount), bill.currency)}</Text>
+                </div>
+              )}
+              {Number(bill.turismoAmount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <Text style={{ color: '#6d28d9' }}>Turismo INGUAT (10%)</Text>
+                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.turismoAmount), bill.currency)}</Text>
+                </div>
+              )}
               {Number(bill.idpAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#ff7f00' }}>IDP Combustible</Text>
