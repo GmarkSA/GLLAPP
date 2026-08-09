@@ -650,6 +650,8 @@ export default function TransaccionesPage() {
   const [showEmailTx, setShowEmailTx]     = useState(false)
   const [emailToTx, setEmailToTx]         = useState('')
   const [emailCcTx, setEmailCcTx]         = useState('')
+  const [emailMesTx, setEmailMesTx]       = useState<number>(dayjs().month() + 1)
+  const [emailAnioTx, setEmailAnioTx]     = useState<number>(dayjs().year())
   const [sendingEmailTx, setSendingEmailTx] = useState(false)
 
   const mesesTx = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -696,10 +698,10 @@ export default function TransaccionesPage() {
   }
 
   const handleSendEmailTx = async () => {
-    if (!id || !emailToTx || !activeSession) return
+    if (!id || !emailToTx) return
     setSendingEmailTx(true)
     try {
-      const res = await sendEmailConciliacion(id, { to: emailToTx, cc: emailCcTx || undefined, month: activeSession.month, year: activeSession.year })
+      const res = await sendEmailConciliacion(id, { to: emailToTx, cc: emailCcTx || undefined, month: emailMesTx, year: emailAnioTx })
       if (res.sent) { message.success(`Correo enviado a ${emailToTx}`); setShowEmailTx(false) }
       else message.warning('El servidor de correo no está configurado.')
     } catch (e: any) {
@@ -973,7 +975,11 @@ export default function TransaccionesPage() {
               <Button
                 size="small"
                 icon={<MailOutlined />}
-                onClick={() => { setEmailToTx(''); setEmailCcTx(''); setShowEmailTx(true) }}
+                onClick={() => {
+                  setEmailToTx(''); setEmailCcTx('')
+                  setEmailMesTx(activeSession.month); setEmailAnioTx(activeSession.year)
+                  setShowEmailTx(true)
+                }}
               >
                 Enviar correo
               </Button>
@@ -1202,25 +1208,46 @@ export default function TransaccionesPage() {
         title={<><MailOutlined /> Enviar conciliación por correo</>}
         open={showEmailTx}
         onCancel={() => setShowEmailTx(false)}
-        okText="Enviar"
+        okText="Enviar correo"
         okButtonProps={{ style: { background: NAVY }, loading: sendingEmailTx, disabled: !emailToTx }}
         onOk={handleSendEmailTx}
-        width={420}
+        width={440}
       >
-        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
           <div>
-            <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Para (correo destino)</Typography.Text>
-            <Input size="small" placeholder="correo@empresa.com" value={emailToTx} onChange={e => setEmailToTx(e.target.value)} />
+            <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Período a enviar</Typography.Text>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Select
+                size="small"
+                value={emailMesTx}
+                onChange={setEmailMesTx}
+                options={mesesTx.map((label, i) => ({ value: i + 1, label }))}
+              />
+              <Select
+                size="small"
+                value={emailAnioTx}
+                onChange={setEmailAnioTx}
+                options={Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => ({ value: y, label: String(y) }))}
+              />
+            </div>
+          </div>
+          <div>
+            <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Para (correo destino) <span style={{ color: '#e5484d' }}>*</span></Typography.Text>
+            <Input
+              size="small"
+              placeholder="correo@empresa.com"
+              value={emailToTx}
+              onChange={e => setEmailToTx(e.target.value)}
+              onPressEnter={handleSendEmailTx}
+            />
           </div>
           <div>
             <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>CC (opcional)</Typography.Text>
             <Input size="small" placeholder="copia@empresa.com" value={emailCcTx} onChange={e => setEmailCcTx(e.target.value)} />
           </div>
-          {activeSession && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Período: {mesesTx[activeSession.month - 1]} {activeSession.year}
-            </Typography.Text>
-          )}
+          <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+            El correo incluirá el resumen de saldos y un enlace al PDF de {mesesTx[emailMesTx - 1]} {emailAnioTx}.
+          </Typography.Text>
         </div>
       </Modal>
     </div>
