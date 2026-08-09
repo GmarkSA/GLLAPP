@@ -1123,9 +1123,16 @@ export default function TransaccionesPage() {
                 </span>
               )},
               {
-                title: 'Acciones', key: 'acciones', width: 180,
+                title: 'Acciones', key: 'acciones', width: 210,
                 render: (_, r) => (
                   <Space size={4}>
+                    <Tooltip title={`Imprimir / PDF ${mesesTx[r.month - 1]} ${r.year}`}>
+                      <Button
+                        size="small"
+                        icon={<PrinterOutlined />}
+                        onClick={() => window.open(`/bancos/${account?.id}/conciliacion/imprimir?month=${r.month}&year=${r.year}`, '_blank')}
+                      />
+                    </Tooltip>
                     {r.status === 'closed' && (
                       <Tooltip title="Aprobar y bloquear el período">
                         <Button
