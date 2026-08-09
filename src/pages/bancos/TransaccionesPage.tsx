@@ -287,7 +287,19 @@ function ImportModal({ open, account, onClose, onSaved }: {
                  : col('abono') >= 0   ? col('abono') : -1
     const iSaldo = col('saldo') >= 0 ? col('saldo') : -1
 
-    let prevSaldo = 0   // rastrea balance acumulado para determinar crédito/débito cuando hay celdas omitidas
+    // Inicializar saldo desde fila SALDO ANTERIOR para clasificar correctamente la primera transacción.
+    // Sin esto, prevSaldo=0 y la primera fila (saldo ~300k) siempre se clasifica como credit aunque sea débito.
+    let prevSaldo = 0
+    for (const row of body) {
+      const joined = row.map((c: any) => String(c || '').toUpperCase()).join(' ')
+      if (joined.includes('SALDO ANTERIOR') || joined.includes('SALDO INI')) {
+        for (const cell of row) {
+          const num = Number(String(cell).replace(/[^0-9.,]/g, '').replace(/,/g, ''))
+          if (num > 100) { prevSaldo = num; break }
+        }
+        break
+      }
+    }
 
     return body
       .map(cols => {
