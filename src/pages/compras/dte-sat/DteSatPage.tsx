@@ -609,7 +609,12 @@ export default function DteSatPage() {
       const isNC = ['NCRE', 'NABN'].includes(((stepperDte as any).tipoDocumento ?? '').toUpperCase())
       const isReimbursement = stepperOcChoice === 'reimbursement'
       const invType = values.invoiceType ?? 'goods'
-      const dteSubtotal = Number(stepperDte.subtotal ?? 0)
+      // Base gravable para Timbre/Turismo: extraer desde IVA del DTE (totalIva / 0.12)
+      // NO usar subtotal: cuando hay Turismo, subtotal = total − IVA incluye el turismo → base inflada
+      const dteIva      = Number(stepperDte.totalIva ?? 0)
+      const dteSubtotal = dteIva > 0
+        ? Math.round((dteIva / 0.12) * 100) / 100
+        : Number(stepperDte.subtotal ?? 0)
       const timbreRate  = orgImpEsp?.timbrePrensaRate ?? 0.5
       const turismoRate = orgImpEsp?.turismoRate ?? 10
       const timbrePrensaAmount = (invType === 'services' && stepperHasTimbre)
@@ -1467,7 +1472,14 @@ export default function DteSatPage() {
 
                     {/* Timbre de Prensa / Turismo — cuando tipo = Servicios y checkbox activo */}
                     {isServiceStep3 && (stepperHasTimbre || stepperHasTurismo) && (() => {
-                      const sub = Number(stepperDte?.subtotal ?? 0)
+                      // Base gravable: se extrae desde el IVA del DTE (totalIva / 0.12)
+                      // NO usar subtotal cuando hay impuestos adicionales (Turismo):
+                      //   subtotal = total − IVA incluye el Turismo → base inflada
+                      // Con IVA: totalIva / 0.12 = base exacta en ambos casos
+                      const dteIva  = Number(stepperDte?.totalIva ?? 0)
+                      const sub     = dteIva > 0
+                        ? Math.round((dteIva / 0.12) * 100) / 100
+                        : Number(stepperDte?.subtotal ?? 0)
                       const timbreRate  = orgImpEsp?.timbrePrensaRate ?? 0.5
                       const turismoRate = orgImpEsp?.turismoRate ?? 10
                       const fmt2 = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2 })
