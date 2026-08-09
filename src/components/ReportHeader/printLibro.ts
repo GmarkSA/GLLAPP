@@ -79,15 +79,17 @@ export interface LibroRow {
   nombreParty:   string
   values:        number[]   // un valor por cada columna activa (mismo orden)
   idp?:          number
+  turismo?:      number
   iva:           number
   total:         number
 }
 
 export interface LibroTotals {
-  values: number[]
-  idp?:   number
-  iva:    number
-  total:  number
+  values:   number[]
+  idp?:     number
+  turismo?: number
+  iva:      number
+  total:    number
 }
 
 export interface LibroResumenRow {
@@ -111,10 +113,11 @@ interface PrintLibroOptions {
   totals:      LibroTotals
   resumen:     LibroResumenRow[]
   hasIdp?:     boolean
+  hasTurismo?: boolean
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function buildHeaderCells(cols: LibroColumn[], nitLabel: string, nombreLabel: string, hasIdp: boolean, colW: Record<string, string>) {
+function buildHeaderCells(cols: LibroColumn[], nitLabel: string, nombreLabel: string, hasIdp: boolean, hasTurismo: boolean, colW: Record<string, string>) {
   return [
     `<th style="width:${colW.no}">No.</th>`,
     `<th style="width:${colW.tipo}">Tipo Doc.</th>`,
@@ -124,13 +127,14 @@ function buildHeaderCells(cols: LibroColumn[], nitLabel: string, nombreLabel: st
     `<th style="width:${colW.nit}">${nitLabel}</th>`,
     `<th style="width:${colW.nombre}">${nombreLabel}</th>`,
     ...cols.map(c => `<th class="r" style="width:${colW.base}">${c.label}</th>`),
-    ...(hasIdp ? [`<th class="r" style="width:${colW.idp}">IDP</th>`] : []),
+    ...(hasIdp     ? [`<th class="r" style="width:${colW.idp}">IDP</th>`]         : []),
+    ...(hasTurismo ? [`<th class="r" style="width:${colW.idp}">Turismo</th>`]     : []),
     `<th class="r" style="width:${colW.iva}">IVA</th>`,
     `<th class="r" style="width:${colW.total}">Total</th>`,
   ].join('')
 }
 
-function buildDataRow(r: LibroRow, hasIdp: boolean) {
+function buildDataRow(r: LibroRow, hasIdp: boolean, hasTurismo: boolean) {
   const baseCells = r.values.map(v => `<td class="r">${fmt(v)}</td>`).join('')
   return `<tr>
     <td>${r.folio}</td>
@@ -141,7 +145,8 @@ function buildDataRow(r: LibroRow, hasIdp: boolean) {
     <td>${r.nitParty || '—'}</td>
     <td>${r.nombreParty}</td>
     ${baseCells}
-    ${hasIdp ? `<td class="r" style="color:#ff7f00">${fmt(r.idp ?? 0)}</td>` : ''}
+    ${hasIdp     ? `<td class="r" style="color:#ff7f00">${fmt(r.idp     ?? 0)}</td>` : ''}
+    ${hasTurismo ? `<td class="r" style="color:#7c3aed">${fmt(r.turismo ?? 0)}</td>` : ''}
     <td class="r">${fmt(r.iva)}</td>
     <td class="r"><strong>${fmt(r.total)}</strong></td>
   </tr>`
@@ -175,7 +180,7 @@ export function printLibro(opts: PrintLibroOptions) {
   const {
     empresa, reportName, period, folioInicio,
     nitLabel, nombreLabel, columns, rows, totals, resumen,
-    hasIdp = false,
+    hasIdp = false, hasTurismo = false,
   } = opts
 
   const currency = empresa?.currency ?? 'GTQ'
@@ -186,11 +191,11 @@ export function printLibro(opts: PrintLibroOptions) {
     no:    '3%', tipo:  '5%', fecha: '5.5%', serie: '4%',
     ndoc:  '8%', nit:   '7%', nombre: '13%',
     base:  `${baseW}%`,
-    idp:   hasIdp ? '4%' : '0',
+    idp:   (hasIdp || hasTurismo) ? '4%' : '0',
     iva:   '5%', total: '7%',
   }
 
-  const headerCells = buildHeaderCells(columns, nitLabel, nombreLabel, hasIdp, colW)
+  const headerCells = buildHeaderCells(columns, nitLabel, nombreLabel, hasIdp, hasTurismo, colW)
   const totalPages  = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE))
 
   // ── Genera una página por bloque de 20 filas ─────────────────────────────
@@ -198,13 +203,14 @@ export function printLibro(opts: PrintLibroOptions) {
     const folioNum  = folioInicio + pi
     const slice     = rows.slice(pi * ROWS_PER_PAGE, (pi + 1) * ROWS_PER_PAGE)
     const isLast    = pi === totalPages - 1
-    const dataRows  = slice.map(r => buildDataRow(r, hasIdp)).join('')
+    const dataRows  = slice.map(r => buildDataRow(r, hasIdp, hasTurismo)).join('')
 
     // Fila totales solo en última página
     const totalsRow = isLast ? `<tr class="totals-row">
       <td colspan="7"><strong>TOTALES — ${rows.length} documentos</strong></td>
       ${totals.values.map(v => `<td class="r">${fmt(v)}</td>`).join('')}
-      ${hasIdp ? `<td class="r">${fmt(totals.idp ?? 0)}</td>` : ''}
+      ${hasIdp     ? `<td class="r">${fmt(totals.idp     ?? 0)}</td>` : ''}
+      ${hasTurismo ? `<td class="r">${fmt(totals.turismo ?? 0)}</td>` : ''}
       <td class="r">${fmt(totals.iva)}</td>
       <td class="r">${fmt(totals.total)}</td>
     </tr>` : ''

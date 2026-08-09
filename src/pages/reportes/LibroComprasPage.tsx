@@ -135,6 +135,16 @@ const FIXED_TAIL_COLS = [
       : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span>,
   },
   {
+    title: 'Turismo',
+    dataIndex: 'turismo',
+    width: 72,
+    align: 'right' as const,
+    sorter: (a: any, b: any) => (a.turismo ?? 0) - (b.turismo ?? 0),
+    render: (v: number) => v > 0
+      ? <span style={{ fontSize: 11, color: '#7c3aed' }}>{fmt(v)}</span>
+      : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span>,
+  },
+  {
     title: 'IVA',
     dataIndex: 'iva',
     width: 80,
@@ -173,7 +183,7 @@ function TotalsRow({ data, colsConfig }: { data: LibroComprasReport; colsConfig:
   const t        = data.totals
   const activeCols = colsConfig.filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
   const catVals  = activeCols.map(col => (t as any)[FIELD_MAP[col.key] ?? col.key] ?? 0)
-  const vals     = [...catVals, t.idp, t.iva, t.total]
+  const vals     = [...catVals, t.idp, t.turismo, t.iva, t.total]
 
   return (
     <Table.Summary.Row style={{ background: '#f0f4ff', fontWeight: 700 }}>
@@ -270,6 +280,13 @@ function ResumenIVA({
           </Text>
         </div>
       )}
+      {totals.turismo > 0 && (
+        <div style={{ marginTop: 8, padding: '8px 12px', background: '#f5f3ff', borderRadius: 6, border: '1px solid #ddd6fe', fontSize: 12 }}>
+          <Text style={{ color: '#5b21b6' }}>
+            <strong>Turismo INGUAT:</strong> {fmtQ(totals.turismo)} — no forma parte de la base IVA
+          </Text>
+        </div>
+      )}
       {(totals.retencionIsr + totals.retencionIva) > 0 && (
         <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef2f2', borderRadius: 6, border: '1px solid #fca5a5', fontSize: 12 }}>
           <Text style={{ color: '#991b1b' }}>
@@ -354,15 +371,17 @@ export default function LibroComprasPage() {
       nombreParty:   r.nombreProveedor,
       values:        activeCols.map(col => (r as any)[FIELD_MAP[col.key] ?? col.key] ?? 0),
       idp:           r.idp,
+      turismo:       r.turismo,
       iva:           r.iva,
       total:         r.total,
     }))
 
     const printTotals: LibroTotals = {
-      values: activeCols.map(col => (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0),
-      idp:    data.totals.idp,
-      iva:    data.totals.iva,
-      total:  data.totals.total,
+      values:  activeCols.map(col => (data.totals as any)[FIELD_MAP[col.key] ?? col.key] ?? 0),
+      idp:     data.totals.idp,
+      turismo: data.totals.turismo,
+      iva:     data.totals.iva,
+      total:   data.totals.total,
     }
 
     printLibro({
@@ -374,6 +393,7 @@ export default function LibroComprasPage() {
       nitLabel:    'NIT Contribuyente',
       nombreLabel: 'Nombre del Contribuyente',
       hasIdp:      data.totals.idp > 0,
+      hasTurismo:  data.totals.turismo > 0,
       columns:     printColumns,
       rows:        printRows,
       totals:      printTotals,
