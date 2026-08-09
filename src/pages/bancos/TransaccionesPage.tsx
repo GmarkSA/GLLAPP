@@ -617,6 +617,10 @@ export default function TransaccionesPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [categorizarTx, setCategorizarTx] = useState<BankTransaction | null>(null)
   const [polizaJeId, setPolizaJeId]       = useState<string | null>(null)
+  const [conciliarOpen, setConciliarOpen]  = useState(false)
+  const [conciliarMes,  setConciliarMes]   = useState<number>(dayjs().month() + 1)
+  const [conciliarAnio, setConciliarAnio]  = useState<number>(dayjs().year())
+  const [conciliarSaldo, setConciliarSaldo] = useState<number | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -832,7 +836,12 @@ export default function TransaccionesPage() {
           </div>
         </div>
         <Space wrap>
-          <Button icon={<CheckCircleOutlined />} onClick={() => navigate(`/bancos/${account.id}/conciliacion`)}>Conciliacion</Button>
+          <Button icon={<CheckCircleOutlined />} onClick={() => {
+            setConciliarMes(dayjs().month() + 1)
+            setConciliarAnio(dayjs().year())
+            setConciliarSaldo(null)
+            setConciliarOpen(true)
+          }}>Conciliacion</Button>
           <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>Importar estado</Button>
           <Button icon={<ControlOutlined />} onClick={() => navigate('/bancos/reglas')}>Reglas bancarias</Button>
           <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }} onClick={() => setTransactionOpen(true)}>Agregar transaccion</Button>
@@ -885,6 +894,55 @@ export default function TransaccionesPage() {
         isForeign={account.currency !== 'GTQ'}
         onClose={() => setPolizaJeId(null)}
       />
+
+      <Modal
+        title="Iniciar conciliacion bancaria"
+        open={conciliarOpen}
+        onCancel={() => setConciliarOpen(false)}
+        okText="Iniciar conciliacion"
+        okButtonProps={{ style: { background: NAVY }, disabled: conciliarSaldo == null }}
+        onOk={() => {
+          if (conciliarSaldo == null) { message.warning('Ingresa el saldo al cierre del estado de cuenta'); return }
+          setConciliarOpen(false)
+          navigate(`/bancos/${account.id}/conciliacion?month=${conciliarMes}&year=${conciliarAnio}&refSaldo=${conciliarSaldo}`)
+        }}
+      >
+        <div style={{ display: 'grid', gap: 14, marginTop: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Mes y año a conciliar</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Select
+                size="small"
+                value={conciliarMes}
+                onChange={setConciliarMes}
+                options={['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((label, i) => ({ value: i + 1, label }))}
+              />
+              <Select
+                size="small"
+                value={conciliarAnio}
+                onChange={setConciliarAnio}
+                options={Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => ({ value: y, label: String(y) }))}
+              />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Saldo al cierre del estado de cuenta bancario</div>
+            <InputNumber
+              size="small"
+              style={{ width: '100%' }}
+              prefix="Q"
+              min={0}
+              precision={2}
+              placeholder="0.00"
+              value={conciliarSaldo}
+              onChange={v => setConciliarSaldo(v)}
+            />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              Ingresa el saldo final que aparece en tu estado de cuenta del banco para este mes.
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

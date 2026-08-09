@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Empty, Input, InputNumber, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined, SyncOutlined, UnlockOutlined } from '@ant-design/icons'
@@ -33,6 +33,12 @@ type StatusFilter = 'pending' | 'categorized' | 'matched' | 'reconciled' | undef
 export default function ConciliacionPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const [urlParams] = useSearchParams()
+  // Parámetros de sesión pasados al iniciar conciliación desde la cuenta
+  const urlMonth  = Number(urlParams.get('month')  || 0) || null
+  const urlYear   = Number(urlParams.get('year')   || 0) || null
+  const urlSaldo  = Number(urlParams.get('refSaldo') || 0) || null
+  const [periodTxs, setPeriodTxs] = useState<BankTransaction[]>([])
   const [account, setAccount] = useState<BankAccount | null>(null)
   const [summary, setSummary] = useState<ReconciliationSummary | null>(null)
   const [rows, setRows] = useState<BankTransaction[]>([])
@@ -60,7 +66,21 @@ export default function ConciliacionPage() {
     if (!id) return
     getBankAccount(id).then(setAccount).catch(() => navigate('/bancos'))
     listReconciliationPeriods(id).then(setPeriods).catch(() => null)
-  }, [id, navigate])
+    // Pre-rellenar valores del modal de cierre si vienen en la URL
+    if (urlMonth) setCloseMes(urlMonth)
+    if (urlYear)  setCloseAnio(urlYear)
+    if (urlSaldo != null) setCloseSaldo(urlSaldo)
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cargar transacciones del período de sesión para el panel de referencia
+  useEffect(() => {
+    if (!id || !urlMonth || !urlYear) return
+    const fromDate = `${urlYear}-${String(urlMonth).padStart(2, '0')}-01`
+    const toDate   = dayjs(fromDate).endOf('month').format('YYYY-MM-DD')
+    getTransactions(id, { limit: 2000, fromDate, toDate })
+      .then(r => setPeriodTxs(r.data || []))
+      .catch(() => null)
+  }, [id, urlMonth, urlYear])
 
   const load = useCallback(async () => {
     if (!id) return
@@ -78,6 +98,14 @@ export default function ConciliacionPage() {
       setRows(Array.isArray(pending.data) ? pending.data : [])
       setTotal(pending.total || 0)
       setSummary(sum)
+      // Refrescar transacciones del período de sesión para actualizar el panel de referencia
+      if (urlMonth && urlYear) {
+        const fromDate = `${urlYear}-${String(urlMonth).padStart(2, '0')}-01`
+        const toDate   = dayjs(fromDate).endOf('month').format('YYYY-MM-DD')
+        getTransactions(id, { limit: 2000, fromDate, toDate })
+          .then(r => setPeriodTxs(r.data || []))
+          .catch(() => null)
+      }
     } catch {
       setRows([])
       setTotal(0)
@@ -406,52 +434,6 @@ export default function ConciliacionPage() {
         </Space>
       </div>
 
-      {/* ── Panel de referencia: saldo banco declarado vs sistema ─────────── */}
-      {(() => {
-        const lastPeriod = [...periods]
-          .filter(p => p.status === 'closed' || p.status === 'approved')
-          .sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month)[0]
-        if (!lastPeriod) return null
-        const mesLabel = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][lastPeriod.month - 1]
-        const sb = Number(lastPeriod.saldoBanco)
-        const ss = Number(lastPeriod.saldoSistema)
-        const df = Number(lastPeriod.diferencia)
-        const cuadra = Math.abs(df) < 0.01
-        return (
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0,
-            background: '#fff', border: `2px solid ${cuadra ? '#2ea172' : NAVY}`,
-            borderRadius: 8, marginBottom: 12, overflow: 'hidden',
-          }}>
-            <div style={{ padding: '10px 18px', borderRight: '1px solid #e5e7eb' }}>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>
-                Saldo banco declarado — {mesLabel} {lastPeriod.year}
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: NAVY }}>
-                {moneyFmt(sb, account.currency)}
-              </div>
-              <div style={{ fontSize: 11, color: '#9ca3af' }}>Según estado de cuenta bancario</div>
-            </div>
-            <div style={{ padding: '10px 18px', borderRight: '1px solid #e5e7eb' }}>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>Saldo sistema (contabilidad)</div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#374151' }}>
-                {moneyFmt(ss, account.currency)}
-              </div>
-              <div style={{ fontSize: 11, color: '#9ca3af' }}>Saldo categorizado al cierre</div>
-            </div>
-            <div style={{ padding: '10px 18px', background: cuadra ? '#f0fdf4' : '#fff7ed' }}>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>Diferencia</div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: cuadra ? '#15803d' : '#d97706' }}>
-                {moneyFmt(Math.abs(df), account.currency)}
-              </div>
-              <div style={{ fontSize: 11, color: cuadra ? '#15803d' : '#d97706' }}>
-                {cuadra ? '✓ Cuadrado' : 'Por categorizar para cuadrar'}
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
         <Card
           size="small"
@@ -495,6 +477,42 @@ export default function ConciliacionPage() {
           />
         </Card>
       </div>
+
+      {urlSaldo != null && urlMonth && urlYear && (() => {
+        const pendingDiff  = periodTxs
+          .filter(t => t.status === 'pending')
+          .reduce((s, t) => s + (t.type === 'credit' ? Number(t.amount) : -Number(t.amount)), 0)
+        const saldoSistema = urlSaldo - pendingDiff
+        const diferencia   = Math.abs(urlSaldo - saldoSistema)
+        const cuadrado     = diferencia < 0.01
+        return (
+          <Card size="small" style={{ ...panelStyle, marginBottom: 12, border: `2px solid ${cuadrado ? '#2ea172' : '#ff7f00'}` }}>
+            <div style={{ textAlign: 'center', marginBottom: 6 }}>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                Conciliacion {meses[urlMonth - 1]} {urlYear}
+                {cuadrado && <Tag color="#2ea172" style={{ marginLeft: 8 }}>Cuadrado</Tag>}
+              </Text>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center' }}>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Saldo banco (estado de cuenta)</Text>
+                <div style={{ fontSize: 20, fontWeight: 700, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(urlSaldo, account.currency)}</div>
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Saldo sistema</Text>
+                <div style={{ fontSize: 20, fontWeight: 700, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(saldoSistema, account.currency)}</div>
+                <Text type="secondary" style={{ fontSize: 10 }}>saldo banco − pendientes</Text>
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Diferencia</Text>
+                <div style={{ fontSize: 20, fontWeight: 700, color: cuadrado ? '#2ea172' : '#e5484d', fontVariantNumeric: 'tabular-nums' }}>
+                  {moneyFmt(diferencia, account.currency)}
+                </div>
+              </div>
+            </div>
+          </Card>
+        )
+      })()}
 
       <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>
         <Space wrap>
