@@ -623,9 +623,19 @@ export default function TransaccionesPage() {
   const [conciliarMes,  setConciliarMes]   = useState<number>(dayjs().month() + 1)
   const [conciliarAnio, setConciliarAnio]  = useState<number>(dayjs().year())
   const [conciliarSaldo, setConciliarSaldo] = useState<number | null>(null)
-  const [activeSession, setActiveSession]  = useState<{ month: number; year: number; saldo: number } | null>(null)
+  const readSession = (accountId: string | undefined) => {
+    if (!accountId) return null
+    try {
+      const stored = localStorage.getItem(`conciliacion_${accountId}`)
+      return stored ? (JSON.parse(stored) as { month: number; year: number; saldo: number }) : null
+    } catch { localStorage.removeItem(`conciliacion_${accountId}`); return null }
+  }
+  const [activeSession, setActiveSession]  = useState<{ month: number; year: number; saldo: number } | null>(() => readSession(id))
 
   const mesesTx = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+  // Actualizar sesión activa al volver desde otra página (el componente se remonta)
+  useEffect(() => { setActiveSession(readSession(id)) }, [id])
 
   useEffect(() => {
     if (!id) return
@@ -635,11 +645,6 @@ export default function TransaccionesPage() {
         message.error('Cuenta bancaria no encontrada')
         navigate('/bancos')
       })
-    // Restaurar sesión de conciliación activa desde localStorage
-    try {
-      const stored = localStorage.getItem(`conciliacion_${id}`)
-      if (stored) setActiveSession(JSON.parse(stored))
-    } catch { localStorage.removeItem(`conciliacion_${id}`) }
   }, [id, navigate])
 
   const loadTransactions = useCallback(async () => {
