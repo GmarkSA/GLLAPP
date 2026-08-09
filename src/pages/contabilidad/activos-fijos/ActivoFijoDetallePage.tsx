@@ -8,6 +8,7 @@ import {
 import {
   ArrowLeftOutlined, CheckCircleOutlined, EditOutlined,
   DollarOutlined, StopOutlined, ThunderboltOutlined, FileSearchOutlined, RollbackOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons'
 import { getApiError } from '../../../api/axios'
 import ReactECharts from 'echarts-for-react'
@@ -15,7 +16,7 @@ import dayjs from 'dayjs'
 import {
   getActivoFijo, getHistorialDepreciacion, depreciarActivo, activarActivoFijo,
   actualizarActivoFijo, venderActivoFijo, darDeBajaActivoFijo, revertirVentaActivoFijo, revertirBajaActivoFijo,
-  revertirActivacionActivoFijo, getPolizasActivoFijo,
+  revertirActivacionActivoFijo, getPolizasActivoFijo, eliminarActivoFijo,
   type ActivoFijo, type HistorialDepreciacion, type EstadoActivoFijo, type PolizaActivo,
 } from '../../../api/activos-fijos'
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../../api/clases-activo-fijo'
@@ -84,9 +85,7 @@ export default function ActivoFijoDetallePage() {
   const [loading,   setLoading]   = useState(false)
 
   // Modales
-  const [modalActivar, setModalActivar] = useState(false)
-  const [savingAct,    setSavingAct]    = useState(false)
-  const [formActivar]  = Form.useForm()
+  const [savingAct, setSavingAct] = useState(false)
 
   const [modalDep,  setModalDep]  = useState(false)
   const [savingDep, setSavingDep] = useState(false)
@@ -148,12 +147,10 @@ export default function ActivoFijoDetallePage() {
   // ── Acciones ──────────────────────────────────────────────────────────────
 
   const handleActivar = async () => {
-    const vals = formActivar.getFieldsValue()
     setSavingAct(true)
     try {
-      await activarActivoFijo(id!, { cuentaContrapartidaId: vals.cuentaContrapartidaId })
-      message.success('Activo activado — póliza de alta generada')
-      setModalActivar(false)
+      await activarActivoFijo(id!, {})
+      message.success('Activo activado')
       load()
     } catch (e: any) {
       message.error(getApiError(e, 'Error al activar'))
@@ -272,6 +269,16 @@ export default function ActivoFijoDetallePage() {
       load()
     } catch (e: any) {
       message.error(getApiError(e, 'Error al revertir la activación'))
+    }
+  }
+
+  const handleEliminar = async () => {
+    try {
+      await eliminarActivoFijo(id!)
+      message.success('Activo eliminado')
+      navigate('/contabilidad/activos-fijos')
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al eliminar el activo'))
     }
   }
 
@@ -484,11 +491,31 @@ export default function ActivoFijoDetallePage() {
             <Button size="small" icon={<EditOutlined />} onClick={openEdit}>Editar</Button>
           )}
           {esBorrador && (
-            <Button size="small" type="primary" icon={<CheckCircleOutlined />}
-              style={{ background: '#2ea172', borderColor: '#2ea172' }}
-              onClick={() => { formActivar.resetFields(); setModalActivar(true) }}>
-              Marcar como activo
-            </Button>
+            <Popconfirm
+              title="¿Eliminar este activo fijo?"
+              description="Esta acción no se puede deshacer. Solo se permite eliminar activos en estado Borrador."
+              onConfirm={handleEliminar}
+              okText="Eliminar" cancelText="Cancelar"
+              okButtonProps={{ danger: true }}>
+              <Button size="small" danger icon={<DeleteOutlined />}>Eliminar</Button>
+            </Popconfirm>
+          )}
+          {esBorrador && (
+            <Popconfirm
+              title="¿Activar este activo fijo?"
+              description={
+                activo.purchaseInvoiceId
+                  ? 'El estado cambiará a Activo. No se generará póliza contable (ya fue contabilizado con la factura de compra).'
+                  : 'El estado cambiará a Activo. Se generará la póliza de alta con contrapartida a Cuentas por Pagar.'
+              }
+              onConfirm={handleActivar}
+              okText="Activar" cancelText="Cancelar"
+              okButtonProps={{ style: { background: '#2ea172', borderColor: '#2ea172' } }}>
+              <Button size="small" type="primary" icon={<CheckCircleOutlined />}
+                style={{ background: '#2ea172', borderColor: '#2ea172' }}>
+                Marcar como activo
+              </Button>
+            </Popconfirm>
           )}
           {esActivo && depreciable && (
             <Button size="small" icon={<ThunderboltOutlined />}
@@ -872,35 +899,6 @@ export default function ActivoFijoDetallePage() {
       <style>{`
         .row-dep-done td { background: #e8f5ef !important; }
       `}</style>
-
-      {/* ── Modal: Marcar como activo ──────────────────────────────────────── */}
-      <Modal
-        title="Activar activo fijo"
-        open={modalActivar}
-        onCancel={() => setModalActivar(false)}
-        onOk={handleActivar}
-        confirmLoading={savingAct}
-        okText="Activar"
-        okButtonProps={{ style: { background: '#2ea172', borderColor: '#2ea172' } }}
-        width={420}
-      >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
-          Se generará la póliza de alta del activo fijo.
-          Selecciona la cuenta de contrapartida (CxP proveedor o banco).
-        </Text>
-        <Form form={formActivar} layout="vertical" size="small">
-          <Form.Item name="cuentaContrapartidaId" label="Cuenta contrapartida (opcional)">
-            <Select
-              showSearch allowClear placeholder="Cuentas por Pagar (por defecto)"
-              optionFilterProp="label"
-              options={accounts.filter(a => !a.isHeader).map(a => ({
-                value: a.id,
-                label: `${a.code} — ${a.name}`,
-              }))}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* ── Modal: Registrar depreciación manual ───────────────────────────── */}
       <Modal
