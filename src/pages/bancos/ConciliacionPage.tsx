@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Button, Card, Empty, Input, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
+import { Alert, Button, Card, Empty, Input, InputNumber, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined, SyncOutlined, UnlockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -46,8 +46,9 @@ export default function ConciliacionPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [savingPeriod, setSavingPeriod] = useState(false)
   const [showCloseModal, setShowCloseModal] = useState(false)
-  const [closeMes, setCloseMes]   = useState<number>(dayjs().month() + 1)
-  const [closeAnio, setCloseAnio] = useState<number>(dayjs().year())
+  const [closeMes, setCloseMes]     = useState<number>(dayjs().month() + 1)
+  const [closeAnio, setCloseAnio]   = useState<number>(dayjs().year())
+  const [closeSaldo, setCloseSaldo] = useState<number | null>(null)
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [emailTo, setEmailTo]     = useState('')
   const [emailCc, setEmailCc]     = useState('')
@@ -120,11 +121,16 @@ export default function ConciliacionPage() {
       : dayjs().year()
     setCloseMes(defaultMonth)
     setCloseAnio(defaultYear)
+    setCloseSaldo(null)
     setShowCloseModal(true)
   }
 
   const handleSavePeriod = async () => {
     if (!id || !account) return
+    if (closeSaldo == null) {
+      message.warning('Ingresa el saldo al cierre según el estado de cuenta bancario')
+      return
+    }
     setSavingPeriod(true)
     try {
       // Calcular balances y totales desde las transacciones reales del período
@@ -138,11 +144,13 @@ export default function ConciliacionPage() {
       const reconciledCount = periodTxs.filter(t => t.status === 'reconciled').length
       const pendingCount    = periodTxs.filter(t => t.status === 'pending').length
 
-      // saldoBanco = saldo al cierre del período (runningBalance de la última transacción del mes)
+      // saldoBanco = lo que el usuario declaró del estado de cuenta; fallback a runningBalance
       const lastTx = [...periodTxs].sort((a, b) => a.transactionDate > b.transactionDate ? -1 : 1)[0]
-      const saldoBanco = lastTx?.runningBalance != null
-        ? Number(lastTx.runningBalance)
-        : Number(account.bankBalance ?? account.currentBalance)
+      const saldoBanco = closeSaldo != null
+        ? closeSaldo
+        : lastTx?.runningBalance != null
+          ? Number(lastTx.runningBalance)
+          : Number(account.bankBalance ?? account.currentBalance)
 
       // diferencia = monto de transacciones no conciliadas del período
       const diferencia = periodTxs
@@ -398,6 +406,52 @@ export default function ConciliacionPage() {
         </Space>
       </div>
 
+      {/* ── Panel de referencia: saldo banco declarado vs sistema ─────────── */}
+      {(() => {
+        const lastPeriod = [...periods]
+          .filter(p => p.status === 'closed' || p.status === 'approved')
+          .sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month)[0]
+        if (!lastPeriod) return null
+        const mesLabel = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][lastPeriod.month - 1]
+        const sb = Number(lastPeriod.saldoBanco)
+        const ss = Number(lastPeriod.saldoSistema)
+        const df = Number(lastPeriod.diferencia)
+        const cuadra = Math.abs(df) < 0.01
+        return (
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0,
+            background: '#fff', border: `2px solid ${cuadra ? '#2ea172' : NAVY}`,
+            borderRadius: 8, marginBottom: 12, overflow: 'hidden',
+          }}>
+            <div style={{ padding: '10px 18px', borderRight: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>
+                Saldo banco declarado — {mesLabel} {lastPeriod.year}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: NAVY }}>
+                {moneyFmt(sb, account.currency)}
+              </div>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>Según estado de cuenta bancario</div>
+            </div>
+            <div style={{ padding: '10px 18px', borderRight: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>Saldo sistema (contabilidad)</div>
+              <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#374151' }}>
+                {moneyFmt(ss, account.currency)}
+              </div>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>Saldo categorizado al cierre</div>
+            </div>
+            <div style={{ padding: '10px 18px', background: cuadra ? '#f0fdf4' : '#fff7ed' }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>Diferencia</div>
+              <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: cuadra ? '#15803d' : '#d97706' }}>
+                {moneyFmt(Math.abs(df), account.currency)}
+              </div>
+              <div style={{ fontSize: 11, color: cuadra ? '#15803d' : '#d97706' }}>
+                {cuadra ? '✓ Cuadrado' : 'Por categorizar para cuadrar'}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
         <Card
           size="small"
@@ -507,11 +561,28 @@ export default function ConciliacionPage() {
             </Select>
           </div>
         </div>
-        <div style={{ marginTop: 14, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+        <div style={{ marginTop: 14 }}>
+          <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            Saldo al cierre según estado de cuenta bancario <Text type="danger">*</Text>
+          </Text>
+          <InputNumber
+            size="small"
+            prefix="Q"
+            style={{ width: '100%' }}
+            value={closeSaldo}
+            onChange={v => setCloseSaldo(v)}
+            precision={2}
+            min={0}
+            placeholder="Ingresa el saldo que muestra el banco al final del período"
+          />
+          <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
+            Este es el saldo oficial del banco al {dayjs(`${closeAnio}-${String(closeMes).padStart(2,'0')}-01`).endOf('month').format('DD/MM/YYYY')}
+          </Text>
+        </div>
+        <div style={{ marginTop: 12, padding: '8px 12px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>Cuenta: </Text>
           <Text strong style={{ fontSize: 12 }}>{account.name}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>Período seleccionado: </Text>
+          <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>Período: </Text>
           <Text strong style={{ fontSize: 12, color: NAVY }}>{meses[closeMes - 1]} {closeAnio}</Text>
         </div>
       </Modal>
