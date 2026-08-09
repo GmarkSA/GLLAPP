@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getApiError } from '../../../api/axios'
 import {
   Button, Typography, Tag, Table, Divider, Spin, message,
-  Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space,
+  Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space, Checkbox,
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, CheckOutlined, DollarOutlined,
@@ -22,6 +22,7 @@ import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemp
 import { getBankAccounts } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
+import { getVendor } from '../../../api/contactos'
 import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title, Text } = Typography
@@ -63,7 +64,12 @@ export default function FacturaProveedorDetallePage() {
   const [inlineEdit,  setInlineEdit]  = useState(false)
   const [inlineSaving, setInlineSaving] = useState(false)
   const [editedItems,  setEditedItems]  = useState<BillItem[]>([])
-  const [taxOptions,   setTaxOptions]   = useState<Tax[]>([])
+  const [taxOptions,       setTaxOptions]       = useState<Tax[]>([])
+  const [editIsrEnabled,   setEditIsrEnabled]   = useState(false)
+  const [editIsrAmount,    setEditIsrAmount]    = useState(0)
+  const [editingIsrAmt,    setEditingIsrAmt]    = useState(false)
+  const [vendorIsrTax,     setVendorIsrTax]     = useState<Tax | null>(null)
+  const [loadingVendorIsr, setLoadingVendorIsr] = useState(false)
   const [centrosCosto, centrosBeneficio] = useCentrosOptions()
   const [uploadingFile,     setUploadingFile]     = useState(false)
   const [showEmailModal,    setShowEmailModal]     = useState(false)
@@ -200,23 +206,62 @@ export default function FacturaProveedorDetallePage() {
   }
 
   const enterInlineEdit = () => {
-    if (taxOptions.length === 0) {
-      getTaxes().then((res: any) => setTaxOptions(Array.isArray(res) ? res : (res?.data ?? []))).catch(() => {})
+    const existingIsrAmt = Number(bill?.isrRetentionAmount ?? 0)
+    setEditIsrEnabled(existingIsrAmt > 0)
+    setEditIsrAmount(existingIsrAmt)
+    setEditingIsrAmt(false)
+
+    const loadTaxes = taxOptions.length === 0
+      ? getTaxes().then((res: any) => { const list = Array.isArray(res) ? res : (res?.data ?? []); setTaxOptions(list); return list as Tax[] })
+      : Promise.resolve(taxOptions)
+
+    if (bill?.vendorId) {
+      setLoadingVendorIsr(true)
+      Promise.all([loadTaxes, getVendor(bill.vendorId)])
+        .then(([taxes, vendor]: [Tax[], any]) => {
+          if (vendor?.tdsEnabled && vendor.tdsTaxCode) {
+            const tax = taxes.find((t: Tax) => t.code === vendor.tdsTaxCode && t.isActive)
+            setVendorIsrTax(tax ?? null)
+          } else {
+            setVendorIsrTax(null)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingVendorIsr(false))
+    } else {
+      loadTaxes.catch(() => {})
     }
+
     setEditedItems((bill?.items ?? []).map(it => ({ ...it })))
     setInlineEdit(true)
   }
 
-  const cancelInlineEdit = () => { setInlineEdit(false); setEditedItems([]) }
+  const cancelInlineEdit = () => {
+    setInlineEdit(false)
+    setEditedItems([])
+    setEditIsrEnabled(false)
+    setEditIsrAmount(0)
+    setEditingIsrAmt(false)
+    setVendorIsrTax(null)
+  }
 
   const saveInlineEdit = async () => {
     setInlineSaving(true)
     try {
-      await updateBill(bill!.id, { items: editedItems } as any)
+      await updateBill(bill!.id, {
+        items: editedItems,
+        isrRetentionAmount: editIsrEnabled ? editIsrAmount : 0,
+        isrRetentionAccountId: editIsrEnabled && vendorIsrTax
+          ? (vendorIsrTax.retentionAccountId ?? vendorIsrTax.purchaseAccountId ?? undefined)
+          : undefined,
+      } as any)
       await regenerateBillJournalEntry(bill!.id)
       message.success('Factura actualizada y póliza recalculada')
       setInlineEdit(false)
       setEditedItems([])
+      setEditIsrEnabled(false)
+      setEditIsrAmount(0)
+      setVendorIsrTax(null)
       await loadBill()
     } catch (e: any) {
       message.error(getApiError(e, 'Error al guardar'))
@@ -384,7 +429,8 @@ export default function FacturaProveedorDetallePage() {
     finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
-  const totalRetention = Number(bill.isrRetentionAmount ?? 0) + Number(bill.ivaRetentionAmount ?? 0)
+  const displayIsrAmt  = inlineEdit ? (editIsrEnabled ? editIsrAmount : 0) : Number(bill.isrRetentionAmount ?? 0)
+  const totalRetention = displayIsrAmt + Number(bill.ivaRetentionAmount ?? 0)
   const netPayable     = Number(bill.total) + Number(bill.idpAmount ?? 0) - totalRetention
 
   return (
@@ -616,11 +662,55 @@ export default function FacturaProveedorDetallePage() {
                   <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.idpAmount), bill.currency)}</Text>
                 </div>
               )}
-              {Number(bill.isrRetentionAmount) > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                  <Text style={{ color: '#6b7280' }}>Retención ISR</Text>
-                  <Text style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>−{fmtGTQ(Number(bill.isrRetentionAmount), bill.currency)}</Text>
+              {/* ISR — editable en modo inline edit, estático en vista normal */}
+              {inlineEdit ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13,
+                  background: '#f8f9fa', borderRadius: 6, padding: '8px 10px', margin: '4px 0', border: '1px dashed #d1d5db' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Checkbox
+                      checked={editIsrEnabled}
+                      onChange={e => { setEditIsrEnabled(e.target.checked); if (!e.target.checked) setEditingIsrAmt(false) }}
+                    >
+                      <Text style={{ fontSize: 12, color: '#6b7280' }}>Retención ISR</Text>
+                    </Checkbox>
+                    {editIsrEnabled && vendorIsrTax && (
+                      <Tag color="#6b7280" style={{ fontSize: 10, margin: 0 }}>{vendorIsrTax.code}</Tag>
+                    )}
+                    {loadingVendorIsr && <Text style={{ fontSize: 11, color: '#9aa1ab' }}>Cargando...</Text>}
+                  </div>
+                  {editIsrEnabled && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ color: '#6b7280' }}>−</Text>
+                      {editingIsrAmt ? (
+                        <>
+                          <InputNumber
+                            size="small" min={0} step={0.01} prefix="Q" precision={2}
+                            value={editIsrAmount}
+                            onChange={v => setEditIsrAmount(v ?? 0)}
+                            style={{ width: 120 }}
+                            formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
+                            parser={v => parseFloat((v ?? '').replace(/,/g, '')) || 0}
+                          />
+                          <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => setEditingIsrAmt(false)} style={{ color: '#2ea172' }} />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
+                            {fmtGTQ(editIsrAmount, bill.currency)}
+                          </Text>
+                          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsrAmt(true)} style={{ color: '#9aa1ab' }} />
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
+              ) : (
+                displayIsrAmt > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                    <Text style={{ color: '#6b7280' }}>Retención ISR</Text>
+                    <Text style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>−{fmtGTQ(displayIsrAmt, bill.currency)}</Text>
+                  </div>
+                )
               )}
               {Number(bill.ivaRetentionAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
