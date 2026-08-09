@@ -62,6 +62,7 @@ import {
   reabrirReconciliationPeriod,
   saveReconciliationPeriod,
   sendEmailConciliacion,
+  downloadConciliacionPdf,
   updateTransaction,
   type BankAccount,
   type BankTransaction,
@@ -617,6 +618,7 @@ function PolizaModal({ jeId, isForeign, onClose }: {
 export default function TransaccionesPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const activeCompany = useCompanyStore(s => s.activeCompany)
   const [account, setAccount] = useState<BankAccount | null>(null)
   const [transactions, setTransactions] = useState<BankTransaction[]>([])
   const [total, setTotal] = useState(0)
@@ -701,7 +703,11 @@ export default function TransaccionesPage() {
     if (!id || !emailToTx) return
     setSendingEmailTx(true)
     try {
-      const res = await sendEmailConciliacion(id, { to: emailToTx, cc: emailCcTx || undefined, month: emailMesTx, year: emailAnioTx })
+      const res = await sendEmailConciliacion(id, {
+        to: emailToTx, cc: emailCcTx || undefined, month: emailMesTx, year: emailAnioTx,
+        companyName: activeCompany?.tradeName || activeCompany?.legalName || undefined,
+        companyNit:  activeCompany?.taxId ? `NIT: ${activeCompany.taxId}` : undefined,
+      })
       if (res.sent) { message.success(`Correo enviado a ${emailToTx}`); setShowEmailTx(false) }
       else message.warning('El servidor de correo no está configurado.')
     } catch (e: any) {
@@ -968,9 +974,12 @@ export default function TransaccionesPage() {
               <Button
                 size="small"
                 icon={<PrinterOutlined />}
-                onClick={() => window.open(`/bancos/${account?.id}/conciliacion/imprimir?month=${activeSession.month}&year=${activeSession.year}`, '_blank')}
+                onClick={() => downloadConciliacionPdf(account!.id, activeSession.month, activeSession.year, {
+                  companyName: activeCompany?.tradeName || activeCompany?.legalName || undefined,
+                  companyNit:  activeCompany?.taxId ? `NIT: ${activeCompany.taxId}` : undefined,
+                })}
               >
-                Imprimir / PDF
+                Descargar PDF
               </Button>
               <Button
                 size="small"
@@ -1126,11 +1135,14 @@ export default function TransaccionesPage() {
                 title: 'Acciones', key: 'acciones', width: 210,
                 render: (_, r) => (
                   <Space size={4}>
-                    <Tooltip title={`Imprimir / PDF ${mesesTx[r.month - 1]} ${r.year}`}>
+                    <Tooltip title={`Descargar PDF ${mesesTx[r.month - 1]} ${r.year}`}>
                       <Button
                         size="small"
                         icon={<PrinterOutlined />}
-                        onClick={() => window.open(`/bancos/${account?.id}/conciliacion/imprimir?month=${r.month}&year=${r.year}`, '_blank')}
+                        onClick={() => downloadConciliacionPdf(account!.id, r.month, r.year, {
+                          companyName: activeCompany?.tradeName || activeCompany?.legalName || undefined,
+                          companyNit:  activeCompany?.taxId ? `NIT: ${activeCompany.taxId}` : undefined,
+                        })}
                       />
                     </Tooltip>
                     {r.status === 'closed' && (

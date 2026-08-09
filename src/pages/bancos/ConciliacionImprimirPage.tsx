@@ -6,6 +6,7 @@ import {
   getBankAccount,
   getTransactions,
   listReconciliationPeriods,
+  downloadConciliacionPdf,
   type BankAccount,
   type BankTransaction,
   type ReconciliationPeriod,
@@ -47,10 +48,11 @@ export default function ConciliacionImprimirPage() {
   const month = Number(params.get('month') || dayjs().month() + 1)
   const year  = Number(params.get('year')  || dayjs().year())
 
-  const [account,  setAccount]  = useState<BankAccount | null>(null)
-  const [period,   setPeriod]   = useState<ReconciliationPeriod | null>(null)
-  const [rows,     setRows]     = useState<BankTransaction[]>([])
-  const [loading,  setLoading]  = useState(true)
+  const [account,      setAccount]      = useState<BankAccount | null>(null)
+  const [period,       setPeriod]       = useState<ReconciliationPeriod | null>(null)
+  const [rows,         setRows]         = useState<BankTransaction[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [downloading,  setDownloading]  = useState(false)
   const [printedAt] = useState(() => dayjs().format('DD/MM/YYYY HH:mm'))
 
   useEffect(() => {
@@ -105,9 +107,22 @@ export default function ConciliacionImprimirPage() {
   const cuadra       = Math.abs(diferencia) < 0.015
 
   const periodoLabel    = `${MESES[month - 1]} ${year}`
-  const companyName     = activeCompany?.tradeName || activeCompany?.legalName || ''
-  const companyNit      = activeCompany?.taxId ? `NIT: ${activeCompany.taxId}` : ''
-  const userName        = user ? `${user.firstName} ${user.lastName}` : ''
+  const companyName = activeCompany?.tradeName || activeCompany?.legalName || ''
+  const companyNit  = activeCompany?.taxId ? `NIT: ${activeCompany.taxId}` : ''
+  const userName    = (user as any)?.fullName || ''
+
+  const handleDownloadPdf = async () => {
+    if (!id) return
+    setDownloading(true)
+    try {
+      await downloadConciliacionPdf(id, month, year, {
+        companyName: companyName || undefined,
+        companyNit:  activeCompany?.taxId ? `NIT: ${activeCompany.taxId}` : undefined,
+      })
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const renderTxRows = (list: BankTransaction[]) =>
     list.map((r, i) => (
@@ -144,25 +159,27 @@ export default function ConciliacionImprimirPage() {
       <div className="no-print" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         background: '#1B3A6B', padding: '8px 20px',
-        display: 'flex', alignItems: 'center', gap: 12,
+        display: 'flex', alignItems: 'center', gap: 10,
       }}>
-        <span style={{ color: '#fff', fontFamily: 'sans-serif', fontSize: 14, fontWeight: 600 }}>
+        <span style={{ color: '#fff', fontFamily: 'sans-serif', fontSize: 14, fontWeight: 600, flex: 1 }}>
           Conciliación Bancaria — {account.name} — {periodoLabel}
         </span>
+        <button
+          onClick={handleDownloadPdf}
+          disabled={downloading}
+          style={{
+            background: '#fff', color: '#1B3A6B',
+            border: 'none', borderRadius: 6, padding: '6px 18px', cursor: downloading ? 'wait' : 'pointer',
+            fontWeight: 700, fontSize: 13, opacity: downloading ? 0.7 : 1,
+          }}
+        >
+          {downloading ? 'Generando…' : 'Descargar PDF'}
+        </button>
         <button onClick={() => window.print()} style={{
-          marginLeft: 'auto', background: '#fff', color: '#1B3A6B',
-          border: 'none', borderRadius: 6, padding: '6px 18px', cursor: 'pointer',
-          fontWeight: 700, fontSize: 13,
-        }}>Imprimir / Guardar PDF</button>
-        <button onClick={() => {
-          const subject = encodeURIComponent(`Conciliación Bancaria — ${account.name} — ${periodoLabel}`)
-          const body    = encodeURIComponent(`Adjunto conciliación bancaria de ${account.name} correspondiente a ${periodoLabel}.`)
-          window.location.href = `mailto:?subject=${subject}&body=${body}`
-        }} style={{
           background: 'transparent', color: '#fff',
           border: '1px solid rgba(255,255,255,0.5)', borderRadius: 6, padding: '6px 18px',
           cursor: 'pointer', fontSize: 13,
-        }}>Enviar por correo</button>
+        }}>Imprimir</button>
       </div>
 
       {/* Contenido imprimible */}
