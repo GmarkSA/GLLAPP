@@ -444,6 +444,7 @@ export default function DteSatPage() {
     try {
       localStorage.setItem(`dte_compras_prefs_${vendorId}`, JSON.stringify({
         taxId: vals.taxId, accountId: vals.accountId, defaultUnit: vals.defaultUnit,
+        invoiceType: vals.invoiceType, idpType: vals.idpType,
       }))
     } catch { /* silent */ }
   }
@@ -472,6 +473,10 @@ export default function DteSatPage() {
     setStepperHasTurismo(false)
     setStepperIsAnulado(false)
     setAccountMode('expense')
+
+    // Limpiar completamente el formulario para no heredar campos del DTE anterior
+    stepperForm.resetFields()
+
     // Pre-llenar desde datos maestros del proveedor (términos, cuenta de gasto, IVA)
     let vendorPaymentTerms = 'immediate'
     let vendorExpenseAccountId: string | undefined
@@ -487,13 +492,33 @@ export default function DteSatPage() {
     } else {
       setStepperVendorPayableMissing(false)
     }
-    stepperForm.setFieldsValue({
-      taxId:           vendorDefaultTaxId,
-      paymentTerms:    vendorPaymentTerms,
-      accountingDate:  row.fechaEmision ? dayjs(row.fechaEmision) : dayjs(),
-      concepto:        autoConcepto,
-      accountId:       vendorExpenseAccountId,
-    })
+
+    // Valores base desde el maestro del proveedor
+    const baseVals: Record<string, any> = {
+      invoiceType:    'goods',
+      taxId:          vendorDefaultTaxId,
+      paymentTerms:   vendorPaymentTerms,
+      accountingDate: row.fechaEmision ? dayjs(row.fechaEmision) : dayjs(),
+      concepto:       autoConcepto,
+      accountId:      vendorExpenseAccountId,
+    }
+
+    // Prefs guardadas de sesiones anteriores sobreescriben el maestro (más específicas)
+    if (row.vendorId) {
+      try {
+        const raw = localStorage.getItem(`dte_compras_prefs_${row.vendorId}`)
+        if (raw) {
+          const saved = JSON.parse(raw)
+          if (saved.accountId)   baseVals.accountId   = saved.accountId
+          if (saved.taxId)       baseVals.taxId        = saved.taxId
+          if (saved.invoiceType) baseVals.invoiceType  = saved.invoiceType
+          if (saved.defaultUnit) baseVals.defaultUnit  = saved.defaultUnit
+          if (saved.idpType)     baseVals.idpType      = saved.idpType
+        }
+      } catch { /* silent */ }
+    }
+
+    stepperForm.setFieldsValue(baseVals)
     stepperVendorForm.setFieldsValue({ name: row.nombreEmisor ?? '', paymentTerms: 'net_30' })
   }
 
@@ -668,7 +693,7 @@ export default function DteSatPage() {
       // 1. Preferencias guardadas de sesiones anteriores (más recientes)
       if (d.vendorId) {
         try {
-          const raw = localStorage.getItem(`dte_prefs_${d.vendorId}`)
+          const raw = localStorage.getItem(`dte_compras_prefs_${d.vendorId}`)
           if (raw) { const p = JSON.parse(raw); accountId = p.accountId; taxId = p.taxId }
         } catch {}
       }
@@ -740,7 +765,7 @@ export default function DteSatPage() {
             ? row.dteItems!.map((item, idx) => ({ index: idx, accountId: item.accountId ?? row.accountId ?? '' }))
             : undefined,
         })
-        if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId })
+        if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId, invoiceType: row.invoiceType, defaultUnit: row.defaultUnit, idpType: row.idpType })
         setBatchRows(prev => prev.map(r => r.id === row.id
           ? { ...r, status: 'ok', result: result.invoice?.invoiceNumber ?? 'OK' }
           : r))
