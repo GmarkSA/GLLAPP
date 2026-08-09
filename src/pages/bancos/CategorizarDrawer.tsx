@@ -55,6 +55,7 @@ export default function CategorizarDrawer({
   const [jeEditDate, setJeEditDate]           = useState('')
   const [jeEditRate, setJeEditRate]           = useState<number>(1)
   const [savingJE, setSavingJE]               = useState(false)
+  const [manualNote, setManualNote]           = useState('')
 
   // ── Cola multi-factura ──────────────────────────────────────────────────────
   const [selectedInvoices, setSelectedInvoices] = useState<InvoiceItem[]>([])
@@ -89,6 +90,7 @@ export default function CategorizarDrawer({
     setCustomers([])
     setSelectedInvoices([])
     setSelectedBills([])
+    setManualNote('')
     fetchMatches('')
     if (account?.currency && account.currency !== 'GTQ') {
       const txDate = String(transaction.transactionDate || '').split('T')[0]
@@ -314,20 +316,21 @@ export default function CategorizarDrawer({
       let journalLines: JournalLine[] = []
       let jeId = ''; let jeNumber = ''
       try {
+        const desc = manualNote.trim() || transaction.description || 'Categorización bancaria'
         const lines = isCredit
           ? [
-              { accountId: bankId, accountCode: bankCode, accountName: bankName, debit: amountGTQ, credit: 0, description: transaction.description, sortOrder: 1 },
-              { accountId: manualAccountId, accountCode: glCode, accountName: glName, debit: 0, credit: amountGTQ, description: transaction.description, sortOrder: 2 },
+              { accountId: bankId, accountCode: bankCode, accountName: bankName, debit: amountGTQ, credit: 0, description: desc, sortOrder: 1 },
+              { accountId: manualAccountId, accountCode: glCode, accountName: glName, debit: 0, credit: amountGTQ, description: desc, sortOrder: 2 },
             ]
           : [
-              { accountId: manualAccountId, accountCode: glCode, accountName: glName, debit: amountGTQ, credit: 0, description: transaction.description, sortOrder: 1 },
-              { accountId: bankId, accountCode: bankCode, accountName: bankName, debit: 0, credit: amountGTQ, description: transaction.description, sortOrder: 2 },
+              { accountId: manualAccountId, accountCode: glCode, accountName: glName, debit: amountGTQ, credit: 0, description: desc, sortOrder: 1 },
+              { accountId: bankId, accountCode: bankCode, accountName: bankName, debit: 0, credit: amountGTQ, description: desc, sortOrder: 2 },
             ]
 
         const asiento = await createAsiento({
           lines,
           entryDate:          txDate,
-          description:        transaction.description || 'Categorización bancaria',
+          description:        desc,
           reference:          transaction.reference || undefined,
           exchangeRate:       isForeign ? exchangeRate : 1,
           sourceDocumentId:   transaction.id,
@@ -848,8 +851,15 @@ export default function CategorizarDrawer({
             <AccountSelect filter={{}} placeholder="Selecciona cuenta contable..."
               value={manualAccountId} onChange={setManualAccountId}
               onChangeAccount={setManualAccount} size="small" />
+            <Input.TextArea
+              rows={2}
+              size="small"
+              placeholder="Descripción / concepto (opcional — ej. Comisión bancaria julio)"
+              value={manualNote}
+              onChange={e => setManualNote(e.target.value)}
+            />
             <Button type="primary" block disabled={!manualAccountId} loading={savingManual}
-              style={{ background: NAVY }} onClick={applyManual}>
+              style={{ background: NAVY, color: 'white' }} onClick={applyManual}>
               Categorizar con cuenta seleccionada
             </Button>
           </div>
