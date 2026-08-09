@@ -335,7 +335,12 @@ export const marcarIvaPresentada = (id: string) =>
 
 export const actualizarDeclaracionIva = (
   id: string,
-  dto: { ivaDebitoFiscal?: number; ivaCreditoFiscal?: number; retencionIva?: number; baseVentas?: number; baseCompras?: number },
+  dto: {
+    ivaDebitoFiscal?: number; ivaCreditoFiscal?: number
+    retencionIva?: number; baseVentas?: number; baseCompras?: number
+    ventasDesglose?: Record<string, unknown>
+    comprasDesglose?: Record<string, unknown>
+  },
 ) =>
   api.patch(`${BASE}/impuestos/declaracion-iva/${id}`, dto).then(unwrap) as Promise<DeclaracionIva>
 
