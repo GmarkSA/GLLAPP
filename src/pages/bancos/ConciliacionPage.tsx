@@ -521,34 +521,38 @@ export default function ConciliacionPage() {
             </>
           )}
           <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>Actualizar</Button>
-          <Button icon={<HistoryOutlined />} onClick={() => setShowHistory(true)}>
-            Historial ({periods.length})
-          </Button>
-          <Button icon={<LockOutlined />} onClick={openCloseModal}>
-            Cerrar período
-          </Button>
-          <Button icon={<PrinterOutlined />} onClick={() => {
-            const lastClosed = [...periods]
-              .filter(p => p.status === 'closed' || p.status === 'approved')
-              .sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month)[0]
-            const month = lastClosed ? lastClosed.month
-              : account.lastStatementDate ? dayjs(account.lastStatementDate).month() + 1
-              : dayjs().month() + 1
-            const year  = lastClosed ? lastClosed.year
-              : account.lastStatementDate ? dayjs(account.lastStatementDate).year()
-              : dayjs().year()
-            window.open(`/bancos/${account.id}/conciliacion/imprimir?month=${month}&year=${year}`, '_blank')
-          }}>
-            Imprimir / PDF
-          </Button>
-          <Button icon={<MailOutlined />} onClick={() => {
-            const defaultMonth = account?.lastStatementDate ? dayjs(account.lastStatementDate).month() + 1 : dayjs().month() + 1
-            const defaultYear  = account?.lastStatementDate ? dayjs(account.lastStatementDate).year() : dayjs().year()
-            setEmailMes(defaultMonth); setEmailAnio(defaultYear)
-            setShowEmailModal(true)
-          }}>
-            Enviar por correo
-          </Button>
+          {!isSessionMode && (
+            <>
+              <Button icon={<HistoryOutlined />} onClick={() => setShowHistory(true)}>
+                Historial ({periods.length})
+              </Button>
+              <Button icon={<LockOutlined />} onClick={openCloseModal}>
+                Cerrar período
+              </Button>
+              <Button icon={<PrinterOutlined />} onClick={() => {
+                const lastClosed = [...periods]
+                  .filter(p => p.status === 'closed' || p.status === 'approved')
+                  .sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month)[0]
+                const month = lastClosed ? lastClosed.month
+                  : account.lastStatementDate ? dayjs(account.lastStatementDate).month() + 1
+                  : dayjs().month() + 1
+                const year  = lastClosed ? lastClosed.year
+                  : account.lastStatementDate ? dayjs(account.lastStatementDate).year()
+                  : dayjs().year()
+                window.open(`/bancos/${account.id}/conciliacion/imprimir?month=${month}&year=${year}`, '_blank')
+              }}>
+                Imprimir / PDF
+              </Button>
+              <Button icon={<MailOutlined />} onClick={() => {
+                const defaultMonth = account?.lastStatementDate ? dayjs(account.lastStatementDate).month() + 1 : dayjs().month() + 1
+                const defaultYear  = account?.lastStatementDate ? dayjs(account.lastStatementDate).year() : dayjs().year()
+                setEmailMes(defaultMonth); setEmailAnio(defaultYear)
+                setShowEmailModal(true)
+              }}>
+                Enviar por correo
+              </Button>
+            </>
+          )}
           <Button type="primary" icon={<RobotOutlined />} loading={matching} style={{ background: NAVY }} onClick={handleAutoMatch}>
             Buscar coincidencias
           </Button>
