@@ -472,13 +472,14 @@ export default function ApAgingPage() {
             {showAdvances ? 'Ocultar anticipos' : 'Incluir anticipos'}
           </Button>
           {data && (
-            <Button icon={<FileExcelOutlined />} onClick={handleExcel} style={{ color: '#2ea172', borderColor: '#2ea172' }}>
-              Excel
+            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
+              Actualizar
             </Button>
           )}
           {data && (
-            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-              Actualizar
+            <Button icon={<FileExcelOutlined />} onClick={handleExcel}
+              style={{ background: '#217346', borderColor: '#217346', color: '#fff' }}>
+              Excel
             </Button>
           )}
         </Space>
@@ -504,7 +505,7 @@ export default function ApAgingPage() {
           </div>
 
           {/* KPI Cards — clickeables para ordenar y resaltar columna */}
-          <div style={{ display: 'grid', gridTemplateColumns: kpiGridCols, gap: 8, marginBottom: 14, marginTop: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: kpiGridCols, gap: 8, marginBottom: 16, marginTop: 8 }}>
             {BUCKET_KEYS.map(key => (
               <Card
                 key={key}
@@ -519,23 +520,23 @@ export default function ApAgingPage() {
                 onClick={() => handleKpiClick(key)}
               >
                 <Statistic
-                  title={<span style={{ fontSize: 10, color: BUCKET_COLORS[key] }}>{BUCKET_LABELS[key]}</span>}
+                  title={<span style={{ fontSize: 11, color: BUCKET_COLORS[key] }}>{BUCKET_LABELS[key]}</span>}
                   value={data.buckets[key].total}
                   prefix="Q"
                   precision={2}
-                  valueStyle={{ fontSize: 13, color: BUCKET_COLORS[key], fontWeight: 600 }}
+                  valueStyle={{ fontSize: showAdvances ? 14 : 16, color: BUCKET_COLORS[key] }}
                 />
                 <Text style={{ fontSize: 10, color: '#9aa1ab' }}>{data.buckets[key].count} fact.</Text>
               </Card>
             ))}
 
-            <Card size="small" style={{ textAlign: 'center', background: '#1B3A6B', borderColor: '#1B3A6B' }}>
+            <Card size="small" style={{ textAlign: 'center', background: '#1faec2', borderColor: '#1faec2' }}>
               <Statistic
-                title={<span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>TOTAL CxP</span>}
+                title={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>TOTAL CxP</span>}
                 value={data.grandTotal}
                 prefix="Q"
                 precision={2}
-                valueStyle={{ fontSize: 13, color: '#fff', fontWeight: 700 }}
+                valueStyle={{ fontSize: showAdvances ? 14 : 16, color: '#fff', fontWeight: 700 }}
               />
             </Card>
 
@@ -543,11 +544,11 @@ export default function ApAgingPage() {
               <>
                 <Card size="small" style={{ textAlign: 'center', background: '#e8f5ef', borderColor: '#2ea17244' }}>
                   <Statistic
-                    title={<span style={{ fontSize: 10, color: '#2ea172' }}>Anticipos</span>}
+                    title={<span style={{ fontSize: 11, color: '#2ea172' }}>Anticipos</span>}
                     value={data.totalAdvances ?? 0}
                     prefix="Q"
                     precision={2}
-                    valueStyle={{ fontSize: 13, color: '#2ea172', fontWeight: 600 }}
+                    valueStyle={{ fontSize: 14, color: '#2ea172', fontWeight: 700 }}
                   />
                 </Card>
                 <Card
@@ -559,12 +560,12 @@ export default function ApAgingPage() {
                   }}
                 >
                   <Statistic
-                    title={<span style={{ fontSize: 10, color: '#6b7280' }}>Neto CxP</span>}
+                    title={<span style={{ fontSize: 11, color: '#6b7280' }}>Neto CxP</span>}
                     value={Math.abs(data.netTotal ?? data.grandTotal)}
                     prefix={(data.netTotal ?? data.grandTotal) < 0 ? '(A fav) Q' : 'Q'}
                     precision={2}
                     valueStyle={{
-                      fontSize: 13, fontWeight: 700,
+                      fontSize: 14, fontWeight: 700,
                       color: (data.netTotal ?? data.grandTotal) <= 0 ? '#2ea172' : '#e5484d',
                     }}
                   />
