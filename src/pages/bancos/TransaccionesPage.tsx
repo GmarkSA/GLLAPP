@@ -57,7 +57,9 @@ import {
   getBankAccount,
   getTransactions,
   importStatement,
+  approveReconciliationPeriod,
   listReconciliationPeriods,
+  reabrirReconciliationPeriod,
   saveReconciliationPeriod,
   sendEmailConciliacion,
   updateTransaction,
@@ -1088,7 +1090,7 @@ export default function TransaccionesPage() {
         open={showHistorialTx}
         onCancel={() => setShowHistorialTx(false)}
         footer={null}
-        width={680}
+        width={820}
       >
         {periods.length === 0 ? (
           <Empty description="Sin períodos guardados aún" />
@@ -1099,15 +1101,64 @@ export default function TransaccionesPage() {
             rowKey="id"
             pagination={false}
             columns={[
-              { title: 'Período', render: (_, r) => `${mesesTx[r.month - 1]} ${r.year}`, width: 130 },
-              { title: 'Saldo banco', dataIndex: 'saldoBanco', align: 'right', width: 140, render: v => moneyFmt(Number(v)) },
-              { title: 'Sin conciliar', dataIndex: 'diferencia', align: 'right', width: 130, render: v => moneyFmt(Number(v)) },
-              { title: 'Estado', dataIndex: 'status', width: 100, render: v => (
+              { title: 'Período', render: (_, r) => `${mesesTx[r.month - 1]} ${r.year}`, width: 120 },
+              { title: 'Saldo banco', dataIndex: 'saldoBanco', align: 'right', width: 130, render: v => moneyFmt(Number(v)) },
+              { title: 'Sin conciliar', dataIndex: 'diferencia', align: 'right', width: 120, render: v => (
+                <span style={{ color: Number(v) < 0.01 ? '#2ea172' : '#e5484d' }}>{moneyFmt(Number(v))}</span>
+              )},
+              { title: 'Estado', dataIndex: 'status', width: 95, render: v => (
                 <Tag color={v === 'approved' ? '#2ea172' : v === 'closed' ? NAVY : '#ff7f00'}>
                   {v === 'approved' ? 'Aprobado' : v === 'closed' ? 'Cerrado' : 'Borrador'}
                 </Tag>
               )},
-              { title: 'Cerrado por', dataIndex: 'closedByName', render: v => v || '—' },
+              { title: 'Usuario', width: 140, render: (_, r) => (
+                <span style={{ fontSize: 12, color: '#6b7280' }}>
+                  {r.approvedByName || r.closedByName || '—'}
+                </span>
+              )},
+              {
+                title: 'Acciones', key: 'acciones', width: 180,
+                render: (_, r) => (
+                  <Space size={4}>
+                    {r.status === 'closed' && (
+                      <Tooltip title="Aprobar y bloquear el período">
+                        <Button
+                          size="small"
+                          type="primary"
+                          style={{ background: '#2ea172', borderColor: '#2ea172', fontSize: 11 }}
+                          onClick={async () => {
+                            try {
+                              const updated = await approveReconciliationPeriod(id!, r.id)
+                              setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
+                              message.success(`Período ${mesesTx[r.month - 1]} ${r.year} aprobado`)
+                            } catch (e: any) { message.error(e?.response?.data?.message || 'Error al aprobar') }
+                          }}
+                        >
+                          Aprobar
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {(r.status === 'closed' || r.status === 'approved') && (
+                      <Tooltip title={r.status === 'approved' ? 'Revertir a Cerrado para re-editar' : 'Reabrir para re-conciliar'}>
+                        <Button
+                          size="small"
+                          danger={r.status === 'approved'}
+                          style={{ fontSize: 11 }}
+                          onClick={async () => {
+                            try {
+                              const updated = await reabrirReconciliationPeriod(id!, r.id)
+                              setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
+                              message.success(`Período ${mesesTx[r.month - 1]} ${r.year} reabierto`)
+                            } catch (e: any) { message.error(e?.response?.data?.message || 'Error al reabrir') }
+                          }}
+                        >
+                          {r.status === 'approved' ? 'Habilitar' : 'Reabrir'}
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </Space>
+                ),
+              },
             ]}
           />
         )}
