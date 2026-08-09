@@ -47,6 +47,7 @@ const FIELD_MAP: Record<string, string> = {
   importacion:          'importacion',
   pequenoContribuyente: 'pequenoContribuyente',
   exento:               'exento',
+  activosFijos:         'compraActivosFijos',
 }
 
 // Tipo de documento interno → código SAT DTE
@@ -54,6 +55,7 @@ const TIPO_DOC_SAT: Record<string, string> = {
   goods:          'FACT',
   services:       'FACT',
   fuel:           'FACT',
+  fixed_asset:    'FACT',
   special:        'FE',
   reimbursement:  'FACT',
   exempt:         'FACT',
@@ -69,6 +71,7 @@ const CATEGORIA_COLOR: Record<string, string> = {
   importacion:          '#ff7f00',
   pequenoContribuyente: '#059669',
   exento:               '#6b7280',
+  activosFijos:         '#7c3aed',
 }
 
 const ROWS_PER_PAGE = 20
