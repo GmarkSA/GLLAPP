@@ -157,3 +157,23 @@ export const importSaldosInicialesInventario = (dto: {
   defaultWarehouseId?: string
   items: SaldoInicialInventarioItem[]
 }) => api.post('/inventario/ajustes/saldos-iniciales', dto).then(unwrap) as Promise<SaldoInicialInventarioResult>
+
+export interface KardexMovimiento {
+  date:          string
+  documento:     string
+  tipo:          string
+  descripcion:   string
+  quantity:      number
+  unitCost:      number
+  totalCost:     number
+  previousStock: number
+  newStock:      number
+}
+
+export interface KardexResult {
+  product:     Product
+  movimientos: KardexMovimiento[]
+}
+
+export const getKardex = (productId: string, params?: { desde?: string; hasta?: string }) =>
+  api.get(`/inventario/articulos/${productId}/kardex`, { params }).then(unwrap) as Promise<KardexResult>
