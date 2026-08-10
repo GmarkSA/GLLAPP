@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getApiError } from '../../../api/axios'
 import {
   Button, Typography, Tag, Table, Divider, Spin, message,
-  Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space, Checkbox,
+  Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space, Checkbox, Popover,
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, CheckOutlined, DollarOutlined,
@@ -63,6 +63,7 @@ export default function FacturaProveedorDetallePage() {
   const [editForm]  = Form.useForm()
   const [inlineEdit,  setInlineEdit]  = useState(false)
   const [inlineSaving, setInlineSaving] = useState(false)
+  const [reclasificando, setReclasificando] = useState(false)
   const [editedItems,  setEditedItems]  = useState<BillItem[]>([])
   const [taxOptions,       setTaxOptions]       = useState<Tax[]>([])
   const [editIsrEnabled,   setEditIsrEnabled]   = useState(false)
@@ -779,7 +780,28 @@ export default function FacturaProveedorDetallePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '10px 0', fontSize: 13 }}>
             <Text type="secondary">N° interno</Text>
             <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{bill.invoiceNumber}</Text>
-            <Text type="secondary">Tipo</Text><Text>{typeCfg.label}</Text>
+            <Text type="secondary">Tipo</Text>
+            <Select
+              size="small"
+              variant="borderless"
+              value={bill.invoiceType}
+              loading={reclasificando}
+              style={{ width: 180, marginLeft: -8 }}
+              options={Object.entries(BILL_TYPE_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))}
+              onChange={async (val) => {
+                if (!bill || val === bill.invoiceType) return
+                setReclasificando(true)
+                try {
+                  await updateBill(bill.id, { invoiceType: val as any })
+                  setBill({ ...bill, invoiceType: val as any })
+                  message.success('Tipo actualizado')
+                } catch {
+                  message.error('Error al actualizar')
+                } finally {
+                  setReclasificando(false)
+                }
+              }}
+            />
             <Text type="secondary">Moneda</Text><Text>{bill.currency}{bill.currency !== 'GTQ' && ` (TC: ${Number(bill.exchangeRate).toFixed(6)})`}</Text>
             {bill.accountingDate && <><Text type="secondary">Fecha contabilización</Text><Text>{dayjs(bill.accountingDate).format('DD/MM/YYYY')}</Text></>}
             {bill.paymentTerms && <><Text type="secondary">Términos de pago</Text><Text>{bill.paymentTerms === 'immediate' ? 'Contado' : bill.paymentTerms}</Text></>}
