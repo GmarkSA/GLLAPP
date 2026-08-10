@@ -107,6 +107,8 @@ const ActivoFijoDetallePage      = lazy(() => import('./pages/contabilidad/activ
 const ClasesActivoFijoPage       = lazy(() => import('./pages/contabilidad/activos-fijos/ClasesActivoFijoPage'))
 const ReporteActivosFijosPage    = lazy(() => import('./pages/reportes/ReporteActivosFijosPage'))
 const ReporteInventarioPage      = lazy(() => import('./pages/reportes/ReporteInventarioPage'))
+const IntegracionesContablesPage = lazy(() => import('./pages/reportes/IntegracionesContablesPage'))
+const IntegracionesImprimirPage  = lazy(() => import('./pages/reportes/IntegracionesImprimirPage'))
 // Diarios
 const DiariosManualesPage        = lazy(() => import('./pages/contabilidad/diarios-manuales/DiariosManualesPage'))
 const DiarioManualFormPage       = lazy(() => import('./pages/contabilidad/diarios-manuales/DiarioManualFormPage'))
@@ -226,6 +228,7 @@ export default function App() {
         <Route path="/bancos/pagos-realizados/:id/comprobante"  element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
         <Route path="/bancos/cheques/imprimir-lote"             element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
         <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
+        <Route path="/reportes/integraciones/:anio/:mes/imprimir" element={<PrivateRoute><IntegracionesImprimirPage /></PrivateRoute>} />
 
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
@@ -352,6 +355,7 @@ export default function App() {
             <Route path="centros-beneficio"          element={<RentabilidadCentrosBeneficioPage />} />
             <Route path="centros-costo"              element={<EjecucionCentrosCostoPage />} />
             <Route path="declaracion-iva"            element={<DeclaracionIvaPage />} />
+            <Route path="integraciones-contables"    element={<IntegracionesContablesPage />} />
           </Route>
 
           <Route path="planillas/corridas"                           element={<PeriodosPlanillaPage />} />
