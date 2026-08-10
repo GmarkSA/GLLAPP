@@ -157,12 +157,10 @@ function ActivoFijoPanel({ data }: { data: ActivoFijoEspecifico }) {
 // ─── Panel de detalle de cuenta ──────────────────────────────────────────────
 
 function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: number; anio: number }) {
-  const { cuenta, integrationType, lineas, monthlyHistory, especifico, saldoFinal } = detalle
+  const { cuenta, integrationType, especifico, saldoFinal } = detalle
   const cfg = TYPE_LABEL[integrationType]
 
   const printUrl = `/reportes/integraciones/${anio}/${mes}/imprimir?accountId=${cuenta.id}`
-
-  const lineTotal = lineas.reduce((s, l) => ({ debe: s.debe + l.debe, haber: s.haber + l.haber }), { debe: 0, haber: 0 })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -183,71 +181,6 @@ function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: num
             Imprimir
           </Button>
         </div>
-      </div>
-
-      <Divider style={{ margin: '4px 0' }} />
-
-      {/* Historial mensual */}
-      <div>
-        <Text strong style={{ fontSize: 12 }}>Historial mensual (últimos 12 meses)</Text>
-        <div style={{ display: 'flex', gap: 6, marginTop: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          {monthlyHistory.map(h => (
-            <div
-              key={h.mes}
-              style={{
-                minWidth: 80, padding: '6px 8px', borderRadius: 6, background: '#f8fafc',
-                border: '1px solid #e2e8f0', textAlign: 'center', flexShrink: 0,
-              }}
-            >
-              <div style={{ fontSize: 10, color: '#9aa1ab', fontWeight: 600 }}>
-                {dayjs(h.mes).format('MMM YY').toUpperCase()}
-              </div>
-              <div style={{ fontSize: 11, color: '#1B3A6B', fontWeight: 700 }}>
-                {Q(h.totalDebe - h.totalHaber)}
-              </div>
-            </div>
-          ))}
-          {monthlyHistory.length === 0 && (
-            <Text type="secondary" style={{ fontSize: 12 }}>Sin movimientos anteriores</Text>
-          )}
-        </div>
-      </div>
-
-      <Divider style={{ margin: '4px 0' }} />
-
-      {/* Líneas del mes */}
-      <div>
-        <Text strong style={{ fontSize: 12 }}>
-          Movimientos del mes — {MESES[mes - 1]} {anio}
-        </Text>
-        <Table
-          size="small"
-          style={{ marginTop: 8 }}
-          dataSource={lineas}
-          rowKey={(_, i) => String(i)}
-          pagination={false}
-          scroll={{ y: 180 }}
-          summary={() => (
-            <Table.Summary.Row style={{ background: '#f8fafc', fontWeight: 600 }}>
-              <Table.Summary.Cell index={0} colSpan={3}>Total</Table.Summary.Cell>
-              <Table.Summary.Cell index={3} align="right">{Q(lineTotal.debe)}</Table.Summary.Cell>
-              <Table.Summary.Cell index={4} align="right">{Q(lineTotal.haber)}</Table.Summary.Cell>
-            </Table.Summary.Row>
-          )}
-          columns={[
-            { title: 'Fecha',   dataIndex: 'fecha',        width: 90,  render: d => dayjs(d).format('DD/MM/YYYY') },
-            { title: 'Póliza',  dataIndex: 'codigoPoliza', width: 120 },
-            { title: 'Glosa',   dataIndex: 'glosa',        ellipsis: true,
-              render: (g, r) => g || r.descripcion },
-            { title: 'Debe',    dataIndex: 'debe',         width: 110, align: 'right',
-              render: v => v > 0 ? Q(v) : '' },
-            { title: 'Haber',   dataIndex: 'haber',        width: 110, align: 'right',
-              render: v => v > 0 ? Q(v) : '' },
-          ]}
-        />
-        {lineas.length === 0 && (
-          <Empty description="Sin movimientos en el mes" style={{ marginTop: 8 }} />
-        )}
       </div>
 
       {/* Detalle específico */}
