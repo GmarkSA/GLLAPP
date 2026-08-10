@@ -325,7 +325,7 @@ export default function RentabilidadCentrosBeneficioPage() {
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/reportes')} style={{ marginTop: 2 }} />
           <PieChartOutlined style={{ fontSize: 22, color: '#1faec2', marginTop: 4 }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#0a0a0a' }}>Rentabilidad por Centro de Beneficio</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#0a0a0a' }}>Rentabilidad por División</div>
             <Text type="secondary" style={{ fontSize: 12 }}>Estado de resultados analítico por línea de negocio</Text>
           </div>
         </Space>
@@ -361,7 +361,7 @@ export default function RentabilidadCentrosBeneficioPage() {
 
       <Spin spinning={loading}>
         {sinDatos ? (
-          <Empty description="No hay movimientos con centros de beneficio en el período. Asigna centros de beneficio en las líneas de tus documentos y pólizas." style={{ padding: 48 }} />
+          <Empty description="No hay movimientos con División en el período. Asigna una División en las líneas de tus documentos y pólizas." style={{ padding: 48 }} />
         ) : data && (
           <>
             {/* KPIs */}
@@ -416,7 +416,7 @@ export default function RentabilidadCentrosBeneficioPage() {
 
             {/* Matriz P&L */}
             <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
-              title={<Text strong style={{ fontSize: 13 }}>Estado de resultados por centro de beneficio</Text>}
+              title={<Text strong style={{ fontSize: 13 }}>Estado de resultados por División</Text>}
               extra={<Text type="secondary" style={{ fontSize: 11 }}>Expande una sección para ver sus cuentas · clic en un monto para ver movimientos</Text>}>
               <Table
                 size="small" dataSource={filas} columns={tableColumns} rowKey="key"
