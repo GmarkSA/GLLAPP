@@ -6,8 +6,17 @@ import {
 import {
   CalculatorOutlined, FileProtectOutlined, CheckCircleOutlined,
   EditOutlined, SaveOutlined, CloseOutlined, FileDoneOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
+import dayjs, { type Dayjs } from 'dayjs'
+
+const addBusinessDays = (date: Dayjs, n: number): Dayjs => {
+  let count = 0; let d = date
+  while (count < n) { d = d.add(1, 'day'); if (d.day() !== 0 && d.day() !== 6) count++ }
+  return d
+}
+const businessDaysForMonth = (mes: number) => (mes === 7 ? 20 : 30)
 import { useCompanyStore } from '../../store/companyStore'
 import {
   type DeclaracionIva,
@@ -64,6 +73,7 @@ const toEdit = (d: DeclaracionIva): Edit2046 => {
 
 export default function Declaracion2046() {
   const now = dayjs()
+  const navigate = useNavigate()
   const activeCompany = useCompanyStore(s => s.activeCompany)
 
   const [mes,  setMes]  = useState<number>(now.month() + 1)
@@ -168,7 +178,10 @@ export default function Declaracion2046() {
 
   const mesNombre   = MESES.find(m => m.value === mes)?.label ?? ''
   const anioOptions = Array.from({ length: 5 }, (_, i) => now.year() - i)
-  const fechaVenc   = dayjs().year(anio).month(mes - 1).add(1, 'month').startOf('month').format('DD/MM/YYYY')
+  const fechaVenc   = addBusinessDays(
+    dayjs(`${anio}-${String(mes).padStart(2, '0')}-01`).endOf('month'),
+    businessDaysForMonth(mes),
+  ).format('DD/MM/YYYY')
 
   const editMark = editing
     ? <span style={{ fontSize: 10, color: '#d97706', marginLeft: 6 }}>▼</span>
@@ -185,6 +198,10 @@ export default function Declaracion2046() {
 
   return (
     <div style={{ padding: 24 }}>
+      <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => navigate('/reportes')}
+        style={{ marginBottom: 8 }}>
+        Reportes
+      </Button>
       <Title level={4} style={{ marginBottom: 0 }}>Declaración IVA — SAT Formulario 2046</Title>
       <Text type="secondary">IVA Pequeño Contribuyente · Régimen de Pequeño Contribuyente · Declaración jurada simplificada mensual (5%)</Text>
       <Divider style={{ margin: '12px 0' }} />

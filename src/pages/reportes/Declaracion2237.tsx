@@ -6,8 +6,10 @@ import {
 import {
   CalculatorOutlined, FileProtectOutlined, CheckCircleOutlined,
   EditOutlined, SaveOutlined, CloseOutlined, FileDoneOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useCompanyStore } from '../../store/companyStore'
 import {
   type DeclaracionIva,
@@ -50,6 +52,14 @@ const MESES = [
 const r2  = (n: number) => Math.round(n * 100) / 100
 const fmt = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+const addBusinessDays = (date: Dayjs, n: number): Dayjs => {
+  let count = 0; let d = date
+  while (count < n) { d = d.add(1, 'day'); if (d.day() !== 0 && d.day() !== 6) count++ }
+  return d
+}
+// Julio tiene plazo reducido de 20 días hábiles; el resto 30 (SAT Guatemala)
+const businessDaysForMonth = (mes: number) => (mes === 7 ? 20 : 30)
+
 // ─── Tipos de desglose ────────────────────────────────────────────────────────
 interface CatBI { base: number; iva: number }
 interface CatB  { base: number }
@@ -80,6 +90,29 @@ interface EditCompras {
 }
 
 interface EditValues { ventas: EditVentas; compras: EditCompras }
+
+interface CountPair { emitidas: number; recibidas: number }
+interface EditCounts {
+  facturas:     CountPair
+  fyduca:       CountPair
+  exencion:     CountPair
+  insumos:      CountPair
+  retencionIva: CountPair
+  especiales:   CountPair
+  notasCredito: CountPair
+  notasDebito:  CountPair
+}
+
+const EMPTY_COUNTS: EditCounts = {
+  facturas:     { emitidas: 0, recibidas: 0 },
+  fyduca:       { emitidas: 0, recibidas: 0 },
+  exencion:     { emitidas: 0, recibidas: 0 },
+  insumos:      { emitidas: 0, recibidas: 0 },
+  retencionIva: { emitidas: 0, recibidas: 0 },
+  especiales:   { emitidas: 0, recibidas: 0 },
+  notasCredito: { emitidas: 0, recibidas: 0 },
+  notasDebito:  { emitidas: 0, recibidas: 0 },
+}
 
 const EMPTY_V: EditVentas = {
   exento:            { base: 0 },
@@ -142,9 +175,22 @@ const snapshotToEdit = (d: DeclaracionIva): EditValues => {
   }
 }
 
+const snapshotToCounts = (d: DeclaracionIva): EditCounts => {
+  const saved = (d.snapshot?.comprasDesglose as any)?.counts9_1 as EditCounts | undefined
+  if (saved) return saved
+  return {
+    ...EMPTY_COUNTS,
+    facturas: {
+      emitidas:  d.snapshot?.ventas?.count  ?? 0,
+      recibidas: d.snapshot?.compras?.count ?? 0,
+    },
+  }
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Declaracion2237() {
   const now = dayjs()
+  const navigate = useNavigate()
   const activeCompany = useCompanyStore(s => s.activeCompany)
 
   const [mes,  setMes]  = useState<number>(now.month() + 1)
@@ -156,8 +202,12 @@ export default function Declaracion2237() {
   const [saveLoading, setSaveLoading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [ev, setEv] = useState<EditValues>({ ventas: EMPTY_V, compras: EMPTY_C })
+  const [ec, setEc] = useState<EditCounts>(EMPTY_COUNTS)
 
-  const syncEdit = useCallback((d: DeclaracionIva) => setEv(snapshotToEdit(d)), [])
+  const syncEdit = useCallback((d: DeclaracionIva) => {
+    setEv(snapshotToEdit(d))
+    setEc(snapshotToCounts(d))
+  }, [])
 
   const updateDecl = (result: DeclaracionIva) => {
     setDecl(result); syncEdit(result)
@@ -210,7 +260,7 @@ export default function Declaracion2237() {
         ivaDebitoFiscal, ivaCreditoFiscal, baseVentas, baseCompras,
         retencionIva: c.retencionIva,
         ventasDesglose:  v as unknown as Record<string, unknown>,
-        comprasDesglose: { ...c } as unknown as Record<string, unknown>,
+        comprasDesglose: { ...c, counts9_1: ec } as unknown as Record<string, unknown>,
       })
       updateDecl(result); setEditing(false)
       message.success(result.polizaId ? 'Valores actualizados y póliza regenerada' : 'Valores actualizados')
@@ -254,7 +304,10 @@ export default function Declaracion2237() {
   const snapshot    = decl?.snapshot ?? {}
   const mesNombre   = MESES.find(m => m.value === mes)?.label ?? ''
   const anioOptions = Array.from({ length: 5 }, (_, i) => now.year() - i)
-  const fechaVenc   = dayjs().year(anio).month(mes - 1).add(1, 'month').startOf('month').format('DD/MM/YYYY')
+  const fechaVenc   = addBusinessDays(
+    dayjs(`${anio}-${String(mes).padStart(2, '0')}-01`).endOf('month'),
+    businessDaysForMonth(mes),
+  ).format('DD/MM/YYYY')
 
   const editMark = editing ? <span style={{ fontSize: 10, color: '#d97706', marginLeft: 6 }}>▼</span> : null
 
@@ -272,6 +325,30 @@ export default function Declaracion2237() {
   const ZRow = ({ label }: { label: string }) => (
     <tr><td style={CCELL}>{label}</td><td style={NUM}></td><td style={NUM}></td></tr>
   )
+
+  // InputNumber entero para cantidades de operaciones
+  const NIcount = ({ val, onChange }: { val: number; onChange: (v: number) => void }) =>
+    editing ? (
+      <InputNumber size="small" value={val} onChange={nv => onChange(nv ?? 0)}
+        min={0} precision={0} controls={false}
+        style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, textAlign: 'center' }} />
+    ) : (
+      <span>{val !== 0 ? val : ''}</span>
+    )
+
+  // Fila de conteo (sección 9.1) con emitidas y recibidas
+  const CRow = ({ label, em, onEm, re, onRe }: {
+    label: string; em: number; onEm: (v: number) => void; re: number; onRe: (v: number) => void
+  }) => (
+    <tr>
+      <td style={editing ? ECELL : CELL}>{label}{editing ? editMark : null}</td>
+      <td style={{ ...(editing ? ENUM : NUM), textAlign: 'center' }}><NIcount val={em} onChange={onEm} /></td>
+      <td style={{ ...(editing ? ENUM : NUM), textAlign: 'center' }}><NIcount val={re} onChange={onRe} /></td>
+    </tr>
+  )
+
+  const setCount = (key: keyof EditCounts, field: 'emitidas' | 'recibidas', val: number) =>
+    setEc(p => ({ ...p, [key]: { ...p[key], [field]: val } }))
 
   // Fila editable: BASE + IVA opcional; taxCode es informativo
   const ERow = ({ label, taxCode, baseVal, onBase, ivaVal, onIva }: {
@@ -300,6 +377,10 @@ export default function Declaracion2237() {
 
   return (
     <div style={{ padding: 24 }}>
+      <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => navigate('/reportes')}
+        style={{ marginBottom: 8 }}>
+        Reportes
+      </Button>
       <Title level={4} style={{ marginBottom: 0 }}>Declaración IVA — SAT Formulario 2237</Title>
       <Text type="secondary">Impuesto al Valor Agregado · Régimen General · Declaración jurada mensual</Text>
       <Divider style={{ margin: '12px 0' }} />
@@ -516,46 +597,30 @@ export default function Declaracion2237() {
                   <td style={CHD}>EMITIDAS</td>
                   <td style={CHD}>RECIBIDAS</td>
                 </tr>
-                <tr>
-                  <td style={CELL}>Facturas (incluir las anuladas)</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}>{snapshot?.ventas?.count ?? 0}</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}>{snapshot?.compras?.count ?? 0}</td>
-                </tr>
-                <tr>
-                  <td style={CELL}>Factura y Declaración Única Centroamericana FYDUCA</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                </tr>
-                <tr>
-                  <td style={CELL}>Constancias de exención</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                </tr>
-                <tr>
-                  <td style={CELL}>Constancias de adquisición de insumos de producción local</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                </tr>
-                <tr>
-                  <td style={CELL}>Constancias de retención de IVA</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                </tr>
-                <tr>
-                  <td style={CELL}>Facturas especiales</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                </tr>
-                <tr>
-                  <td style={CELL}>Notas de crédito</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                </tr>
-                <tr>
-                  <td style={CELL}>Notas de débito</td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                  <td style={{ ...NUM, textAlign: 'center' }}></td>
-                </tr>
+                <CRow label="Facturas (incluir las anuladas)"
+                  em={ec.facturas.emitidas}     onEm={v => setCount('facturas', 'emitidas', v)}
+                  re={ec.facturas.recibidas}    onRe={v => setCount('facturas', 'recibidas', v)} />
+                <CRow label="Factura y Declaración Única Centroamericana FYDUCA"
+                  em={ec.fyduca.emitidas}       onEm={v => setCount('fyduca', 'emitidas', v)}
+                  re={ec.fyduca.recibidas}      onRe={v => setCount('fyduca', 'recibidas', v)} />
+                <CRow label="Constancias de exención"
+                  em={ec.exencion.emitidas}     onEm={v => setCount('exencion', 'emitidas', v)}
+                  re={ec.exencion.recibidas}    onRe={v => setCount('exencion', 'recibidas', v)} />
+                <CRow label="Constancias de adquisición de insumos de producción local"
+                  em={ec.insumos.emitidas}      onEm={v => setCount('insumos', 'emitidas', v)}
+                  re={ec.insumos.recibidas}     onRe={v => setCount('insumos', 'recibidas', v)} />
+                <CRow label="Constancias de retención de IVA"
+                  em={ec.retencionIva.emitidas} onEm={v => setCount('retencionIva', 'emitidas', v)}
+                  re={ec.retencionIva.recibidas} onRe={v => setCount('retencionIva', 'recibidas', v)} />
+                <CRow label="Facturas especiales"
+                  em={ec.especiales.emitidas}   onEm={v => setCount('especiales', 'emitidas', v)}
+                  re={ec.especiales.recibidas}  onRe={v => setCount('especiales', 'recibidas', v)} />
+                <CRow label="Notas de crédito"
+                  em={ec.notasCredito.emitidas} onEm={v => setCount('notasCredito', 'emitidas', v)}
+                  re={ec.notasCredito.recibidas} onRe={v => setCount('notasCredito', 'recibidas', v)} />
+                <CRow label="Notas de débito"
+                  em={ec.notasDebito.emitidas}  onEm={v => setCount('notasDebito', 'emitidas', v)}
+                  re={ec.notasDebito.recibidas} onRe={v => setCount('notasDebito', 'recibidas', v)} />
 
                 {/* 9.2 MONTO DE OPERACIONES */}
                 <tr>

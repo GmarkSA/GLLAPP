@@ -291,6 +291,7 @@ export default function ConciliacionPage() {
       message.success(`Período ${meses[closeMes - 1]} ${closeAnio} guardado correctamente`)
       localStorage.removeItem(`conciliacion_${id}`)
       setShowCloseModal(false)
+      navigate(`/bancos/${id}`)
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'No se pudo guardar el período')
     } finally {
