@@ -133,3 +133,26 @@ export const updateVendorBankAccount = (vendorId: string, id: string, dto: Parti
 
 export const deleteVendorBankAccount = (vendorId: string, id: string) =>
   api.delete(`/compras/proveedores/${vendorId}/bank-accounts/${id}`)
+
+export interface BatchImportRow {
+  nombre: string
+  nit?: string
+  email?: string
+  telefono?: string
+  direccion?: string
+  saldo_inicial?: number
+  fecha_saldo_inicial?: string
+  moneda?: string
+}
+
+export interface BatchImportResult {
+  created: number
+  updated: number
+  errors: string[]
+}
+
+export const batchImportClientes = (rows: BatchImportRow[]) =>
+  api.post('/ventas/clientes/batch', { rows }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>
+
+export const batchImportProveedores = (rows: BatchImportRow[]) =>
+  api.post('/compras/proveedores/batch', { rows }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>

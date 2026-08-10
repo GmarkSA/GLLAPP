@@ -15,12 +15,14 @@ import {
   PlusOutlined, DeleteOutlined, StarFilled, CodeOutlined, SyncOutlined,
   CreditCardOutlined, LockOutlined, AuditOutlined, SwapOutlined,
   ThunderboltOutlined, RocketOutlined, ArrowLeftOutlined, SettingOutlined,
+  ImportOutlined,
 } from '@ant-design/icons'
 import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
 import EspacioDesarrolloPage  from './EspacioDesarrolloPage'
 import IntegracionesPage      from './IntegracionesPage'
+import CargasInicialesPage    from './CargasInicialesPage'
 import type { UploadChangeParam } from 'antd/es/upload'
 import {
   getOrganizationProfile,
@@ -44,17 +46,18 @@ const { TextArea } = Input
 
 // ── Sidebar sections (Zoho Books pattern) ──────────────────────────────────
 const sections = [
-  { key: 'setup-guide',     icon: <RocketOutlined />,       label: 'Guía de inicio' },
-  { key: 'organization',    icon: <BankOutlined />,         label: 'Perfil de organización' },
-  { key: 'modules',         icon: <AppstoreOutlined />,     label: 'Módulos del sistema' },
-  { key: 'taxes',           icon: <PercentageOutlined />,   label: 'Impuestos' },
-  { key: 'librosSAT',       icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
-  { key: 'currency',        icon: <DollarOutlined />,       label: 'Monedas' },
-  { key: 'contabilidad',   icon: <AuditOutlined />,         label: 'Contabilidad' },
-  { key: 'users',          icon: <TeamOutlined />,          label: 'Usuarios y roles' },
-  { key: 'subscription',    icon: <CreditCardOutlined />,   label: 'Suscripción y Facturación' },
-  { key: 'integrations',    icon: <ApiOutlined />,          label: 'Integraciones' },
-  { key: 'devspace',        icon: <CodeOutlined />,         label: 'Espacio de desarrollo' },
+  { key: 'setup-guide',       icon: <RocketOutlined />,       label: 'Guía de inicio' },
+  { key: 'organization',      icon: <BankOutlined />,         label: 'Perfil de organización' },
+  { key: 'modules',           icon: <AppstoreOutlined />,     label: 'Módulos del sistema' },
+  { key: 'taxes',             icon: <PercentageOutlined />,   label: 'Impuestos' },
+  { key: 'librosSAT',         icon: <FileTextOutlined />,     label: 'Columnas Libros SAT' },
+  { key: 'currency',          icon: <DollarOutlined />,       label: 'Monedas' },
+  { key: 'contabilidad',      icon: <AuditOutlined />,        label: 'Contabilidad' },
+  { key: 'cargas-iniciales',  icon: <ImportOutlined />,       label: 'Cargas Iniciales' },
+  { key: 'users',             icon: <TeamOutlined />,         label: 'Usuarios y roles' },
+  { key: 'subscription',      icon: <CreditCardOutlined />,   label: 'Suscripción y Facturación' },
+  { key: 'integrations',      icon: <ApiOutlined />,          label: 'Integraciones' },
+  { key: 'devspace',          icon: <CodeOutlined />,         label: 'Espacio de desarrollo' },
 ]
 
 const COUNTRIES = [
@@ -1838,6 +1841,8 @@ export default function ConfiguracionPage() {
       case 'subscription':
         navigate('/configuracion/suscripcion')
         return null
+      case 'cargas-iniciales':
+        return <CargasInicialesPage />
       case 'integrations':
         return <IntegracionesPage />
       case 'devspace':
