@@ -251,8 +251,9 @@ export interface LibroComprasRow {
   importacion:          number
   pequenoContribuyente: number
   exento:               number
-  // Impuestos
+  // Impuestos adicionales (no forman parte de la base IVA)
   idp:                  number
+  turismo:              number
   iva:                  number
   total:                number
   retencionIsr:         number
@@ -279,7 +280,7 @@ export interface LibroComprasReport {
   totals:             {
     compraBienes: number; compraServicios: number; compraCombustibles: number
     importacion: number; pequenoContribuyente: number; exento: number
-    idp: number; iva: number; total: number; retencionIsr: number; retencionIva: number
+    idp: number; turismo: number; iva: number; total: number; retencionIsr: number; retencionIva: number
   }
   resumenCategoria:   LibroComprasResumenCategoria[]
   count:              number
