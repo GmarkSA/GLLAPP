@@ -137,3 +137,23 @@ export const ITEM_CATEGORY_CONFIG: Record<ItemCategory, { label: string; color: 
 }
 
 export const UNITS = ['und', 'caja', 'kg', 'g', 'lb', 'lt', 'ml', 'mt', 'cm', 'hr', 'día', 'par', 'docena', 'resma', 'rollo']
+
+export interface SaldoInicialInventarioItem {
+  sku?: string
+  productId?: string
+  quantity: number
+  unitCost: number
+  warehouseId?: string
+}
+
+export interface SaldoInicialInventarioResult {
+  ajusteId: string
+  created:  number
+  errors:   string[]
+}
+
+export const importSaldosInicialesInventario = (dto: {
+  fecha: string
+  defaultWarehouseId?: string
+  items: SaldoInicialInventarioItem[]
+}) => api.post('/inventario/ajustes/saldos-iniciales', dto).then(unwrap) as Promise<SaldoInicialInventarioResult>
