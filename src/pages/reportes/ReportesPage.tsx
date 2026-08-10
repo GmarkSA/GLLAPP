@@ -73,6 +73,13 @@ const GROUPS: ReportGroup[] = [
       { key: 'declaracion-iva', icon: <FileProtectOutlined />, title: 'Declaración IVA', desc: 'Cierre mensual: débito fiscal, crédito fiscal y póliza de regularización SAT-2237.', path: '/reportes/declaracion-iva', color: '#1B3A6B' },
     ],
   },
+  {
+    id: 'inventario',
+    label: 'Inventario',
+    reports: [
+      { key: 'inventario', icon: <PieChartOutlined />, title: 'Inventario', desc: 'Valorización por costo promedio ponderado y kardex de movimientos por artículo.', path: '/reportes/inventario', color: '#2ea172' },
+    ],
+  },
 ]
 
 function ReportCard({ report, onClick }: { report: ReportCard; onClick: () => void }) {
