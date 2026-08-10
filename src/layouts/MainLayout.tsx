@@ -210,11 +210,14 @@ export default function MainLayout() {
 
   // ── Filtrado del menú ─────────────────────────────────────────────────────
   // Paso 1: filtrar por módulos habilitados en la empresa activa
+  // activos-fijos y financiero son sub-grupos de contabilidad: se muestran si contabilidad está activa
+  const resolveModuleKey = (key: string) =>
+    key === 'activos-fijos' || key === 'financiero' ? 'contabilidad' : key
+
   const filteredMenuItems = menuItems.filter(item => {
     const alwaysVisible = ['/dashboard', '/admin/platform']
     if (alwaysVisible.includes(item.key)) return true
-    // Normaliza /pos → pos, /proyectos → proyectos para comparar con enabledModules
-    const moduleKey = item.key.startsWith('/') ? item.key.slice(1) : item.key
+    const moduleKey = resolveModuleKey(item.key.startsWith('/') ? item.key.slice(1) : item.key)
     return isModuleEnabled(moduleKey)
   })
 
@@ -237,7 +240,7 @@ export default function MainLayout() {
   const visibleMenuItems = filteredMenuItems.filter(item => {
     if (item.key === '/dashboard')      return true
     if (item.key === '/admin/platform') return !!user?.isSuperAdmin
-    return canSeeModule(item.key)
+    return canSeeModule(resolveModuleKey(item.key))
   })
 
   const userMenu = {
