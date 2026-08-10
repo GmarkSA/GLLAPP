@@ -56,6 +56,7 @@ const BILL_TYPES: { value: BillType; label: string }[] = [
   { value: 'services',       label: BILL_TYPE_CONFIG.services.label       },
   { value: 'special',        label: BILL_TYPE_CONFIG.special.label        },
   { value: 'fuel',           label: BILL_TYPE_CONFIG.fuel.label           },
+  { value: 'fixed_asset',    label: BILL_TYPE_CONFIG.fixed_asset.label    },
   { value: 'exempt',         label: BILL_TYPE_CONFIG.exempt.label         },
   { value: 'donation',       label: BILL_TYPE_CONFIG.donation.label       },
   { value: 'small_taxpayer', label: BILL_TYPE_CONFIG.small_taxpayer.label },
