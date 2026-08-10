@@ -6,6 +6,7 @@ import {
   FileTextOutlined, BookOutlined, ShopOutlined,
   PieChartOutlined, DashboardOutlined, TeamOutlined,
   WalletOutlined, BankOutlined, FileProtectOutlined,
+  ReconciliationOutlined,
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
@@ -78,6 +79,13 @@ const GROUPS: ReportGroup[] = [
     label: 'Inventario',
     reports: [
       { key: 'inventario', icon: <PieChartOutlined />, title: 'Inventario', desc: 'Valorización por costo promedio ponderado y kardex de movimientos por artículo.', path: '/reportes/inventario', color: '#2ea172' },
+    ],
+  },
+  {
+    id: 'cierre',
+    label: 'Cierre Contable',
+    reports: [
+      { key: 'integraciones-contables', icon: <ReconciliationOutlined />, title: 'Integraciones Contables', desc: 'Paquete de cierre mensual — integración y conciliación de saldos por cuenta contable.', path: '/reportes/integraciones-contables', color: '#1B3A6B' },
     ],
   },
 ]
