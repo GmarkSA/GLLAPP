@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import {
   Typography, Button, Upload, Table, message, DatePicker, InputNumber,
-  Alert, Collapse, Tag, Space, Spin, Popconfirm, Steps, Empty,
+  Alert, Collapse, Tag, Space, Spin, Popconfirm, Steps, Empty, Select,
 } from 'antd'
 import {
   DownloadOutlined, UploadOutlined, CheckCircleOutlined,
@@ -12,6 +12,8 @@ import dayjs, { type Dayjs } from 'dayjs'
 import type { ColumnType } from 'antd/es/table'
 import { batchImportClientes, batchImportProveedores, type BatchImportRow } from '../../api/contactos'
 import { getAccounts, setSaldosApertura, type Account, type SaldoAperturaLinea } from '../../api/catalogo'
+import { getProducts, importSaldosInicialesInventario, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
+import { getAlmacenes, type Almacen } from '../../api/expedientes'
 
 const { Title, Text } = Typography
 const { Panel } = Collapse
@@ -172,7 +174,7 @@ function EntityImportSection({
                   <div style={{ marginTop: 8 }}>
                     <Text type="danger"><WarningOutlined /> {state.result.errors.length} errores:</Text>
                     <ul style={{ margin: '4px 0 0 0', paddingLeft: 20 }}>
-                      {state.result.errors.map((e, i) => <li key={i} style={{ fontSize: 12 }}>{e}</li>)}
+                      {state.result.errors.map((err: string, i: number) => <li key={i} style={{ fontSize: 12 }}>{err}</li>)}
                     </ul>
                   </div>
                 )}
@@ -387,6 +389,225 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
   )
 }
 
+// ─── Inventario saldos iniciales section ─────────────────────────────────────
+
+const INV_HEADERS = ['sku', 'nombre', 'cantidad', 'costo_unitario']
+const INV_SAMPLE  = ['"ART-001"', '"Cemento gris 50kg"', '"100"', '"85.00"']
+
+interface InvRow { sku: string; nombre: string; quantity: number; unitCost: number; productId?: string }
+interface InvStep { step: number; rows: InvRow[]; result?: SaldoInicialInventarioResult }
+
+function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null }) {
+  const [almacenes,      setAlmacenes]      = useState<Almacen[]>([])
+  const [warehouseId,    setWarehouseId]    = useState<string | undefined>()
+  const [products,       setProducts]       = useState<Product[]>([])
+  const [state,          setState]          = useState<InvStep>({ step: 0, rows: [] })
+  const [loading,        setLoading]        = useState(false)
+  const [dataLoading,    setDataLoading]    = useState(false)
+  const loaded = useRef(false)
+
+  const loadData = useCallback(async () => {
+    if (loaded.current) return
+    setDataLoading(true)
+    try {
+      const [alms, prods] = await Promise.all([
+        getAlmacenes(),
+        getProducts({ limit: 500 }).then((r: any) => r.data ?? r),
+      ])
+      setAlmacenes(Array.isArray(alms) ? alms : [])
+      setProducts(Array.isArray(prods) ? prods : [])
+      loaded.current = true
+    } catch {
+      message.error('Error cargando datos de inventario')
+    } finally {
+      setDataLoading(false)
+    }
+  }, [])
+
+  const handleFile = async (file: File) => {
+    await loadData()
+    const text   = await file.text()
+    const parsed = parseCsvText(text)
+    if (!parsed.length) { message.error('El archivo no contiene datos válidos'); return false }
+
+    const rows: InvRow[] = parsed.map(r => {
+      const sku      = r.sku || r.SKU || r.codigo || ''
+      const found    = products.find(p => p.sku === sku)
+      return {
+        sku,
+        nombre:   r.nombre || r.name || found?.name || sku,
+        quantity: Number(r.cantidad || r.quantity || 0),
+        unitCost: Number(r.costo_unitario || r.unitCost || r.costo || 0),
+        productId: found?.id,
+      }
+    }).filter(r => r.sku && r.quantity > 0)
+
+    setState({ step: 1, rows })
+    return false
+  }
+
+  const handleImport = async () => {
+    if (!fechaMigracion) { message.error('Selecciona la fecha de migración'); return }
+    setLoading(true)
+    try {
+      const items: SaldoInicialInventarioItem[] = state.rows.map(r => ({
+        sku:         r.sku,
+        productId:   r.productId,
+        quantity:    r.quantity,
+        unitCost:    r.unitCost,
+        warehouseId: warehouseId,
+      }))
+      const result = await importSaldosInicialesInventario({
+        fecha: fechaMigracion.format('YYYY-MM-DD'),
+        defaultWarehouseId: warehouseId,
+        items,
+      })
+      setState(s => ({ ...s, step: 2, result }))
+      message.success(`Saldos de inventario cargados: ${result.created} artículos`)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al importar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const previewCols: ColumnType<InvRow>[] = [
+    { title: 'SKU',           dataIndex: 'sku',      width: 110 },
+    { title: 'Nombre',        dataIndex: 'nombre',   ellipsis: true },
+    { title: 'Encontrado',    dataIndex: 'productId', width: 100,
+      render: (v?: string) => v
+        ? <Tag color="success">✓ Existe</Tag>
+        : <Tag color="error">No encontrado</Tag> },
+    { title: 'Cantidad',  dataIndex: 'quantity',  width: 100, align: 'right' as const,
+      render: (v: number) => v.toLocaleString('es-GT') },
+    { title: 'Costo Unit.', dataIndex: 'unitCost', width: 110, align: 'right' as const,
+      render: (v: number) => `Q ${Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` },
+    { title: 'Total', width: 120, align: 'right' as const,
+      render: (_: any, r: InvRow) => `Q ${(r.quantity * r.unitCost).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` },
+  ]
+
+  const totalValor = state.rows.reduce((s, r) => s + r.quantity * r.unitCost, 0)
+  const notFound   = state.rows.filter(r => !r.productId).length
+
+  return (
+    <div style={{ padding: '12px 0' }}>
+      <Steps size="small" current={state.step} style={{ marginBottom: 20 }} items={[
+        { title: 'Subir CSV' },
+        { title: 'Revisar' },
+        { title: 'Completado' },
+      ]} />
+
+      {state.step === 0 && (
+        <Spin spinning={dataLoading}>
+          <div style={{ marginBottom: 14 }}>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Almacén destino</Text>
+            <Select
+              placeholder="Selecciona almacén (opcional)"
+              style={{ width: 280 }}
+              allowClear
+              value={warehouseId}
+              onChange={setWarehouseId}
+              onFocus={loadData}
+              options={almacenes.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+            />
+          </div>
+          <Space>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={() => downloadCsv('plantilla_inventario.csv', INV_HEADERS, INV_SAMPLE)}
+            >
+              Descargar plantilla CSV
+            </Button>
+            <Upload accept=".csv" showUploadList={false} beforeUpload={handleFile}>
+              <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
+                Subir archivo CSV
+              </Button>
+            </Upload>
+          </Space>
+          <div style={{ marginTop: 12 }}>
+            <Alert
+              type="info" showIcon
+              message="Formato del CSV"
+              description={
+                <div style={{ fontSize: 12 }}>
+                  Columnas requeridas: <code>sku, nombre, cantidad, costo_unitario</code><br />
+                  El SKU debe coincidir exactamente con el código del artículo en el sistema.
+                </div>
+              }
+            />
+          </div>
+        </Spin>
+      )}
+
+      {state.step === 1 && (
+        <div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <Space>
+              <Text strong>{state.rows.length} artículos</Text>
+              {notFound > 0 && <Tag color="orange">⚠ {notFound} SKU no encontrados (serán omitidos)</Tag>}
+              <Tag color="blue">Valor total: Q {totalValor.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Tag>
+            </Space>
+            <Space>
+              <Button onClick={() => setState({ step: 0, rows: [] })}>Cancelar</Button>
+              <Popconfirm
+                title={`¿Cargar saldos iniciales de ${state.rows.length} artículos?`}
+                description="Se creará un ajuste tipo 'apertura' y se actualizará el stock de cada artículo."
+                onConfirm={handleImport}
+                okText="Importar"
+                okButtonProps={{ style: { background: '#1B3A6B' } }}
+              >
+                <Button type="primary" icon={<ArrowRightOutlined />} loading={loading}
+                  style={{ background: '#1B3A6B' }}>
+                  Confirmar carga
+                </Button>
+              </Popconfirm>
+            </Space>
+          </div>
+          <Table
+            dataSource={state.rows}
+            columns={previewCols}
+            rowKey={(_, i) => String(i)}
+            size="small"
+            pagination={{ pageSize: 10 }}
+            scroll={{ x: 700 }}
+            rowClassName={r => !r.productId ? 'ant-table-row-danger' : ''}
+          />
+        </div>
+      )}
+
+      {state.step === 2 && state.result && (
+        <div>
+          <Alert
+            type="success" showIcon icon={<CheckCircleOutlined />}
+            message="Saldos iniciales de inventario cargados"
+            description={
+              <div>
+                <div>✅ Artículos actualizados: <strong>{state.result.created}</strong></div>
+                <div>📋 Ajuste creado (ID: <code>{state.result.ajusteId.slice(0, 8)}…</code>)</div>
+                {state.result.errors.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="danger"><WarningOutlined /> {state.result.errors.length} errores:</Text>
+                    <ul style={{ margin: '4px 0 0 0', paddingLeft: 20 }}>
+                      {state.result.errors.map((e: string, i: number) => <li key={i} style={{ fontSize: 12 }}>{e}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    El ajuste está disponible en Inventario → Ajustes (tipo: Apertura)
+                  </Text>
+                </div>
+              </div>
+            }
+            style={{ marginBottom: 12 }}
+          />
+          <Button onClick={() => setState({ step: 0, rows: [] })}>Nueva carga</Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CargasInicialesPage() {
@@ -515,16 +736,7 @@ export default function CargasInicialesPage() {
                 <Tag color="green">Saldos iniciales</Tag>
               </Space>
             ),
-            children: (
-              <div style={{ padding: '12px 0' }}>
-                <Alert
-                  type="warning"
-                  showIcon
-                  message="Próximamente"
-                  description="La carga masiva de inventario (cantidades y costos iniciales por almacén) estará disponible en la próxima versión."
-                />
-              </div>
-            ),
+            children: <InventarioSection fechaMigracion={fechaMigracion} />,
           },
         ]}
       />
