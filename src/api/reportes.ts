@@ -334,6 +334,9 @@ export const generarPolizaBorradorIva = (id: string) =>
 export const marcarIvaPresentada = (id: string) =>
   api.post(`${BASE}/impuestos/declaracion-iva/${id}/marcar-presentada`).then(unwrap) as Promise<DeclaracionIva>
 
+export const sincronizarEstadoIva = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-iva/${id}/sincronizar`).then(unwrap) as Promise<DeclaracionIva>
+
 export const actualizarDeclaracionIva = (
   id: string,
   dto: {
