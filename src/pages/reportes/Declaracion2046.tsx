@@ -22,6 +22,7 @@ import {
   type DeclaracionIva,
   getDeclaracionesIva, generarBorradorIva,
   generarPolizaBorradorIva, marcarIvaPresentada, actualizarDeclaracionIva,
+  sincronizarEstadoIva,
 } from '../../api/reportes'
 
 const { Title, Text } = Typography
@@ -112,6 +113,14 @@ export default function Declaracion2046() {
       .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!decl || decl.status !== 'poliza_generada' || !decl.polizaId) return
+    sincronizarEstadoIva(decl.id).then(updated => {
+      if (updated.status !== decl.status) updateDecl(updated)
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decl?.id, decl?.status])
 
   const handleCalcular = async () => {
     setCalcLoading(true)
