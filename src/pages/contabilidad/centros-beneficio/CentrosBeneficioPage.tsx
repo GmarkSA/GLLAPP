@@ -46,10 +46,10 @@ export default function CentrosBeneficioPage() {
     try {
       if (editing) {
         await actualizarCentroBeneficio(editing.id, vals)
-        message.success('Centro de beneficio actualizado')
+        message.success('División actualizada')
       } else {
         await crearCentroBeneficio(vals)
-        message.success('Centro de beneficio creado')
+        message.success('División creada')
       }
       setModal(false)
       load()
@@ -61,7 +61,7 @@ export default function CentrosBeneficioPage() {
   const handleBloquear = async (id: string, activo: boolean) => {
     try {
       await actualizarCentroBeneficio(id, { activo: !activo })
-      message.success(activo ? 'Centro de beneficio bloqueado' : 'Centro de beneficio desbloqueado')
+      message.success(activo ? 'División bloqueada' : 'División desbloqueada')
       load()
     } catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
   }
@@ -85,7 +85,7 @@ export default function CentrosBeneficioPage() {
         <Space size={4}>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
           <Popconfirm
-            title={r.activo ? '¿Bloquear este centro de beneficio?' : '¿Desbloquear este centro de beneficio?'}
+            title={r.activo ? '¿Bloquear esta División?' : '¿Desbloquear esta División?'}
             onConfirm={() => handleBloquear(r.id, r.activo)}
           >
             <Button
@@ -105,7 +105,7 @@ export default function CentrosBeneficioPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Centros de Beneficio / Líneas de Negocio</Title>
+        <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>División / Líneas de Negocio</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openNew}
           style={{ background: '#1faec2' }}>Nueva</Button>
       </div>
@@ -117,7 +117,7 @@ export default function CentrosBeneficioPage() {
       />
 
       <Modal
-        title={editing ? 'Editar Centro de Beneficio' : 'Nuevo Centro de Beneficio'}
+        title={editing ? 'Editar División' : 'Nueva División'}
         open={modal} onCancel={() => setModal(false)}
         onOk={handleSave} okText="Guardar" confirmLoading={saving}
         okButtonProps={{ style: { background: '#1faec2' } }}

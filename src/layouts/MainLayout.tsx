@@ -7,7 +7,7 @@ import {
   ProjectOutlined, AuditOutlined, InboxOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined,
   TabletOutlined, SearchOutlined, GlobalOutlined,
-  TeamOutlined,
+  TeamOutlined, HomeOutlined, FundOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -39,7 +39,7 @@ function formatOrgId(company: Company): string {
 const FULL_ACCESS_ROLES = new Set(['superadmin', 'admin'])
 
 const ROLE_MODULES: Record<string, Set<string>> = {
-  contador:   new Set(['contabilidad', 'bancos', 'compras', 'reportes', 'configuracion']),
+  contador:   new Set(['contabilidad', 'activos-fijos', 'financiero', 'bancos', 'compras', 'reportes', 'configuracion']),
   ventas:     new Set(['ventas', 'inventario', 'reportes', 'configuracion']),
   compras:    new Set(['compras', 'inventario', 'bancos', 'reportes', 'configuracion']),
   planillas:  new Set(['planillas', 'reportes', 'configuracion']),
@@ -66,6 +66,11 @@ const getOpenKey = (pathname: string): string[] => {
   if (pathname.startsWith('/ventas'))        return ['ventas']
   if (pathname.startsWith('/compras'))       return ['compras']
   if (pathname.startsWith('/bancos'))        return ['bancos']
+  if (pathname.startsWith('/contabilidad/activos') ||
+      pathname.startsWith('/contabilidad/clases-activo')) return ['activos-fijos']
+  if (pathname.startsWith('/contabilidad/presupuesto')  ||
+      pathname.startsWith('/contabilidad/centros')       ||
+      pathname.startsWith('/contabilidad/centros-beneficio')) return ['financiero']
   if (pathname.startsWith('/contabilidad'))  return ['contabilidad']
   if (pathname.startsWith('/inventario'))    return ['inventario']
   if (pathname.startsWith('/planillas'))     return ['planillas']
@@ -99,17 +104,21 @@ const menuItems = [
     { key: '/bancos/pagos-realizados/lote',  label: 'Emisión lote de cheques' },
     { key: '/bancos/config-pagos',            label: 'Config. cheques y ACH' },
   ]},
-  { key: 'contabilidad',     icon: <AuditOutlined />,        label: 'Contabilidad', children: [
-    { key: '/contabilidad/catalogo',             label: 'Catálogo de cuentas' },
-    { key: '/contabilidad/diarios-manuales',     label: 'Diarios manuales' },
-    { key: '/contabilidad/diarios-recurrentes',  label: 'Diarios recurrentes' },
-    { key: '/contabilidad/activos-fijos',        label: 'Activos fijos' },
-    { key: '/contabilidad/clases-activo-fijo',   label: 'Clases de activo fijo' },
-    { key: '/contabilidad/presupuesto',          label: 'Presupuestos' },
-    { key: '/contabilidad/ajuste-moneda',        label: 'Ajustes de moneda' },
-    { key: '/contabilidad/bloqueo-transacciones', label: 'Bloqueo de transacc...' },
-    { key: '/contabilidad/centros-costo',        label: 'Centros de costo' },
-    { key: '/contabilidad/centros-beneficio',    label: 'Centros de beneficio' },
+  { key: 'contabilidad',  icon: <AuditOutlined />, label: 'Contabilidad', children: [
+    { key: '/contabilidad/catalogo',              label: 'Catálogo de cuentas' },
+    { key: '/contabilidad/diarios-manuales',      label: 'Diarios manuales' },
+    { key: '/contabilidad/diarios-recurrentes',   label: 'Diarios recurrentes' },
+    { key: '/contabilidad/ajuste-moneda',         label: 'Ajustes de moneda' },
+    { key: '/contabilidad/bloqueo-transacciones', label: 'Bloqueo de transacciones' },
+  ]},
+  { key: 'activos-fijos', icon: <HomeOutlined />, label: 'Activos Fijos', children: [
+    { key: '/contabilidad/activos-fijos',       label: 'Activos fijos' },
+    { key: '/contabilidad/clases-activo-fijo',  label: 'Clases de activo fijo' },
+  ]},
+  { key: 'financiero',    icon: <FundOutlined />, label: 'Financiero', children: [
+    { key: '/contabilidad/presupuesto',         label: 'Presupuestos' },
+    { key: '/contabilidad/centros-costo',       label: 'Centros de costo' },
+    { key: '/contabilidad/centros-beneficio',   label: 'División' },
   ]},
   { key: 'inventario',       icon: <InboxOutlined />,        label: 'Inventario', children: [
     { key: '/inventario',                label: 'Artículos' },
