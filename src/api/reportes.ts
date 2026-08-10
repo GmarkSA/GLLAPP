@@ -7,13 +7,14 @@ const BASE = '/reportes'
 // ─── Empresa / Encabezado de reportes ─────────────────────────────────────────
 
 export interface EmpresaInfo {
-  company_name: string
-  legal_name:   string
-  tax_id:       string
-  address:      string
-  phone:        string
-  email:        string
-  currency:     string
+  company_name:        string
+  legal_name:          string
+  tax_id:              string
+  address:             string
+  phone:               string
+  email:               string
+  currency:            string
+  fiscal_regime_code?: string
 }
 
 export const getEmpresaInfo = () =>
