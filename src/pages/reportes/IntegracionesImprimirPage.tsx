@@ -28,8 +28,15 @@ const TYPE_LABEL: Record<IntegrationType, string> = {
   generico:    'General',
 }
 
-// Landscape for wide tables (cxc, cxp, banco txns), portrait otherwise
-const LANDSCAPE_TYPES: IntegrationType[] = ['banco', 'cxc', 'cxp']
+// Only banco is landscape; cxc/cxp use portrait (carta) with pagination
+const LANDSCAPE_TYPES: IntegrationType[] = ['banco']
+const LINES_PER_PAGE = 20
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
 
 // ─── Estilos base ─────────────────────────────────────────────────────────────
 
@@ -170,6 +177,94 @@ function PartidaTable({ partidas, titulo }: { partidas: CxcEspecifico['partidas'
         </tr>
       </tbody>
     </table>
+  )
+}
+
+function PartidaPages({
+  partidas, titulo, tipoLabel, total,
+  empresa, mesLabel, cuenta, integrationType,
+}: {
+  partidas: CxcEspecifico['partidas']
+  titulo: string
+  tipoLabel: string
+  total: number
+  empresa: string
+  mesLabel: string
+  cuenta: DetalleResult['cuenta']
+  integrationType: IntegrationType
+}) {
+  const pages = chunk(partidas, LINES_PER_PAGE)
+  if (!pages.length) pages.push([])
+
+  return (
+    <>
+      {pages.map((rows, ci) => (
+        <div className="sheet" key={ci}>
+          <div className="sheet-header">
+            <h2>{empresa}</h2>
+            <div className="sub">Integración Contable — {mesLabel}</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: '#1B3A6B', fontWeight: 700 }}>
+              {cuenta.code} &nbsp;·&nbsp; {cuenta.name}
+            </div>
+            <div style={{ fontSize: 10, color: '#6b7280' }}>
+              {cuenta.balanceType} &nbsp;·&nbsp; {tipoLabel}
+              {pages.length > 1 ? ` — Pág. ${ci + 1}/${pages.length}` : ''}
+            </div>
+          </div>
+
+          {ci === 0 && (
+            <div className="kv-grid">
+              <div className="kv"><div className="label">Saldo al cierre</div><div className="value">{Q(total)}</div></div>
+              <div className="kv"><div className="label">Período</div><div className="value">{mesLabel}</div></div>
+              <div className="kv"><div className="label">Tipo</div><div className="value">{tipoLabel}</div></div>
+              <div className="kv"><div className="label">Cuenta</div><div className="value">{cuenta.code}</div></div>
+            </div>
+          )}
+
+          <div className="section-title">
+            Partidas abiertas {tipoLabel}{ci > 0 ? ' (cont.)' : ''} — Saldo: {Q(total)}
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th style={{ width: 110 }}>{titulo}</th>
+                <th style={{ width: 80 }}>Fecha</th>
+                <th style={{ width: 80 }}>Vencimiento</th>
+                <th className="right" style={{ width: 100 }}>Total</th>
+                <th className="right" style={{ width: 100 }}>Saldo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p, i) => (
+                <tr key={i}>
+                  <td>{p.nombre}</td>
+                  <td>{p.numero}</td>
+                  <td>{p.fecha ? dayjs(p.fecha).format('DD/MM/YYYY') : '—'}</td>
+                  <td>{p.vencimiento ? dayjs(p.vencimiento).format('DD/MM/YYYY') : '—'}</td>
+                  <td className="right">{Q(p.total)}</td>
+                  <td className="right" style={{ fontWeight: 700 }}>{Q(p.saldo)}</td>
+                </tr>
+              ))}
+              {ci === pages.length - 1 && (
+                <tr className="total-row">
+                  <td colSpan={5}>Total</td>
+                  <td className="right">{Q(total)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {ci === pages.length - 1 && (
+            <div className="signature-block">
+              <div className="sig-line">Preparado por</div>
+              <div className="sig-line">Revisado por</div>
+              <div className="sig-line">Autorizado por</div>
+            </div>
+          )}
+        </div>
+      ))}
+    </>
   )
 }
 
@@ -448,9 +543,25 @@ export default function IntegracionesImprimirPage() {
   return (
     <>
       <style>{styles + pageStyles}</style>
-      {detalles.map((d, i) => (
-        <Sheet key={i} detalle={d} empresa={empresa} mesLabel={mesLabel} />
-      ))}
+      {detalles.map((d, i) => {
+        if ((d.integrationType === 'cxp' || d.integrationType === 'cxc') && d.especifico) {
+          const esp = d.especifico as CxpEspecifico | CxcEspecifico
+          return (
+            <PartidaPages
+              key={i}
+              partidas={esp.partidas}
+              titulo="No. Factura"
+              tipoLabel={TYPE_LABEL[d.integrationType]}
+              total={esp.total}
+              empresa={empresa}
+              mesLabel={mesLabel}
+              cuenta={d.cuenta}
+              integrationType={d.integrationType}
+            />
+          )
+        }
+        return <Sheet key={i} detalle={d} empresa={empresa} mesLabel={mesLabel} />
+      })}
     </>
   )
 }
