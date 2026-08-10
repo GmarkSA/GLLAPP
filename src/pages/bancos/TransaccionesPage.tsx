@@ -667,6 +667,19 @@ export default function TransaccionesPage() {
     listReconciliationPeriods(id).then(setPeriods).catch(() => null)
   }, [id, activeSession])
 
+  // Si el período ya fue cerrado/aprobado, limpiar la sesión activa
+  useEffect(() => {
+    if (!activeSession || periods.length === 0) return
+    const already = periods.find(
+      p => p.month === activeSession.month && p.year === activeSession.year &&
+           (p.status === 'closed' || p.status === 'approved'),
+    )
+    if (already) {
+      localStorage.removeItem(`conciliacion_${id}`)
+      setActiveSession(null)
+    }
+  }, [periods, activeSession, id])
+
   const handleCerrarPeriodTx = async () => {
     if (!id || !activeSession || cerrarSaldo == null || !account) return
     setSavingPeriodTx(true)
