@@ -2317,7 +2317,8 @@ export default function DteSatPage() {
       <Modal
         open={bulkVendorOpen}
         title={<Space><TeamOutlined /><span>Registro masivo de proveedores — {bulkVendorRows.length} nuevo{bulkVendorRows.length !== 1 ? 's' : ''}</span></Space>}
-        width={1180}
+        width="95vw"
+        style={{ maxWidth: 1500 }}
         onCancel={() => !bulkVendorRunning && setBulkVendorOpen(false)}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2397,11 +2398,11 @@ export default function DteSatPage() {
           scroll={{ x: 1020, y: 300 }}
           columns={[
             {
-              title: 'NIT Emisor', dataIndex: 'nitEmisor', width: 100, fixed: 'left',
+              title: 'NIT Emisor', dataIndex: 'nitEmisor', width: 110, fixed: 'left',
               render: (nit: string) => <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{nit}</Tag>,
             },
             {
-              title: 'Nombre del proveedor', dataIndex: 'name', width: 260,
+              title: 'Nombre del proveedor', dataIndex: 'name', width: 300,
               render: (name: string, row: BulkVendorRow) => (
                 <Input size="small" value={name} disabled={row.status === 'ok' || bulkVendorRunning}
                   onChange={e => setBulkVendorRows(prev => prev.map(r =>
@@ -2410,7 +2411,7 @@ export default function DteSatPage() {
               ),
             },
             {
-              title: 'Cuenta CxP', dataIndex: 'payableAccountId', width: 190,
+              title: 'Cuenta CxP', dataIndex: 'payableAccountId', width: 240,
               render: (val: string | undefined, row: BulkVendorRow) => (
                 <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="2101 — Prov."
                   value={val} disabled={row.status === 'ok' || bulkVendorRunning}
@@ -2423,7 +2424,7 @@ export default function DteSatPage() {
               ),
             },
             {
-              title: 'Cuenta gasto', dataIndex: 'expenseAccountId', width: 190,
+              title: 'Cuenta gasto', dataIndex: 'expenseAccountId', width: 240,
               render: (val: string | undefined, row: BulkVendorRow) => (
                 <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="Gasto..."
                   value={val} disabled={row.status === 'ok' || bulkVendorRunning}
@@ -2436,7 +2437,7 @@ export default function DteSatPage() {
               ),
             },
             {
-              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 170,
+              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 210,
               render: (val: string | undefined, row: BulkVendorRow) => (
                 <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="RG-C01..."
                   value={val} disabled={row.status === 'ok' || bulkVendorRunning}
