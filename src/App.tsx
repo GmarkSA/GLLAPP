@@ -32,6 +32,7 @@ const OnboardingWizardPage   = lazy(() => import('./pages/onboarding/OnboardingW
 const SetupGuidePage         = lazy(() => import('./pages/onboarding/SetupGuidePage'))
 const OnboardingRapidoPage   = lazy(() => import('./pages/onboarding/OnboardingRapidoPage'))
 const SubscriptionPage       = lazy(() => import('./pages/billing/SubscriptionPage'))
+const CargasInicialesPage    = lazy(() => import('./pages/configuracion/CargasInicialesPage'))
 
 // Ventas
 const ClientesPage           = lazy(() => import('./pages/ventas/clientes/ClientesPage'))
@@ -394,6 +395,7 @@ export default function App() {
           <Route path="onboarding/setup"                                       element={<SetupGuidePage />} />
           <Route path="onboarding/rapido"                                      element={<OnboardingRapidoPage />} />
           <Route path="configuracion/suscripcion"                              element={<SubscriptionPage />} />
+          <Route path="configuracion/cargas-iniciales"                        element={<CargasInicialesPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
