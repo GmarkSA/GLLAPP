@@ -152,6 +152,7 @@ export default function DteSatPage() {
   interface BulkVendorRow {
     dteId: string; nitEmisor: string; name: string
     payableAccountId?: string; paymentTerms: string
+    expenseAccountId?: string; defaultPurchaseTaxId?: string
     status: 'pending' | 'processing' | 'ok' | 'error'
     errorMsg?: string; dteCount: number
   }
@@ -160,6 +161,8 @@ export default function DteSatPage() {
   const [bulkVendorRunning, setBulkVendorRunning] = useState(false)
   const [bulkCommonPayable, setBulkCommonPayable] = useState<string | undefined>()
   const [bulkCommonTerms,   setBulkCommonTerms]   = useState('net_30')
+  const [bulkCommonExpense, setBulkCommonExpense] = useState<string | undefined>()
+  const [bulkCommonTax,     setBulkCommonTax]     = useState<string | undefined>()
 
   const isBatchable = (dte: SatDte) =>
     dte.status === 'ready' &&
@@ -802,17 +805,21 @@ export default function DteSatPage() {
       byNit.get(nit)!.push(d)
     }
     const rows: BulkVendorRow[] = Array.from(byNit.entries()).map(([nit, dtes]) => ({
-      dteId:            dtes[0].id,
-      nitEmisor:        nit,
-      name:             dtes[0].nombreEmisor ?? '',
-      payableAccountId: undefined,
-      paymentTerms:     'net_30',
-      status:           'pending' as const,
-      dteCount:         dtes.length,
+      dteId:                dtes[0].id,
+      nitEmisor:            nit,
+      name:                 dtes[0].nombreEmisor ?? '',
+      payableAccountId:     undefined,
+      paymentTerms:         'net_30',
+      expenseAccountId:     undefined,
+      defaultPurchaseTaxId: undefined,
+      status:               'pending' as const,
+      dteCount:             dtes.length,
     }))
     setBulkVendorRows(rows)
     setBulkCommonPayable(undefined)
     setBulkCommonTerms('net_30')
+    setBulkCommonExpense(undefined)
+    setBulkCommonTax(undefined)
     setBulkVendorOpen(true)
   }
 
@@ -823,9 +830,11 @@ export default function DteSatPage() {
       setBulkVendorRows(prev => prev.map(r => r.dteId === row.dteId ? { ...r, status: 'processing' } : r))
       try {
         await createSatDteVendor(row.dteId, {
-          name:             row.name || undefined,
-          payableAccountId: row.payableAccountId,
-          paymentTerms:     row.paymentTerms,
+          name:                 row.name || undefined,
+          payableAccountId:     row.payableAccountId,
+          paymentTerms:         row.paymentTerms,
+          expenseAccountId:     row.expenseAccountId,
+          defaultPurchaseTaxId: row.defaultPurchaseTaxId,
         })
         // Vincular automáticamente los demás DTEs del mismo NIT
         const sameNitOthers = documents.filter(d =>
@@ -2308,7 +2317,7 @@ export default function DteSatPage() {
       <Modal
         open={bulkVendorOpen}
         title={<Space><TeamOutlined /><span>Registro masivo de proveedores — {bulkVendorRows.length} nuevo{bulkVendorRows.length !== 1 ? 's' : ''}</span></Space>}
-        width={860}
+        width={1100}
         onCancel={() => !bulkVendorRunning && setBulkVendorOpen(false)}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2334,26 +2343,45 @@ export default function DteSatPage() {
         {/* Config común */}
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
           <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 10 }}>Configuración común (se aplica a todos)</Text>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px auto', gap: 12, alignItems: 'flex-end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 180px', gap: '8px 12px', marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Cuenta por pagar (CxP) <span style={{ color: '#ef4444' }}>*</span></div>
-              <Select
-                showSearch allowClear size="small" style={{ width: '100%' }}
-                placeholder="2101 — Proveedores"
-                value={bulkCommonPayable}
-                onChange={setBulkCommonPayable}
+              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="2101 — Proveedores"
+                value={bulkCommonPayable} onChange={setBulkCommonPayable}
                 filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                 options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('2'))
-                  .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
-              />
+                  .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Cuenta de gasto</div>
+              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="Busca por código o nombre"
+                value={bulkCommonExpense} onChange={setBulkCommonExpense}
+                filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={accounts.filter(a => !a.isHeader && a.isActive)
+                  .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Impuesto IVA</div>
+              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="IVA12 — Tasa general 12%"
+                value={bulkCommonTax} onChange={setBulkCommonTax}
+                filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
             </div>
             <div>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Condiciones de pago</div>
               <Select size="small" style={{ width: '100%' }} value={bulkCommonTerms} onChange={setBulkCommonTerms}
                 options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
             </div>
-            <Button size="small" onClick={() => setBulkVendorRows(prev => prev.map(r =>
-              r.status !== 'ok' ? { ...r, payableAccountId: bulkCommonPayable, paymentTerms: bulkCommonTerms } : r
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <Button size="small" type="default" onClick={() => setBulkVendorRows(prev => prev.map(r =>
+              r.status !== 'ok' ? {
+                ...r,
+                payableAccountId:     bulkCommonPayable,
+                expenseAccountId:     bulkCommonExpense,
+                defaultPurchaseTaxId: bulkCommonTax,
+                paymentTerms:         bulkCommonTerms,
+              } : r
             ))}>
               Aplicar a todos
             </Button>
@@ -2366,46 +2394,65 @@ export default function DteSatPage() {
           pagination={false}
           rowKey="dteId"
           dataSource={bulkVendorRows}
-          scroll={{ y: 340 }}
+          scroll={{ x: 1020, y: 300 }}
           columns={[
             {
-              title: 'NIT Emisor', dataIndex: 'nitEmisor', width: 110,
+              title: 'NIT Emisor', dataIndex: 'nitEmisor', width: 100, fixed: 'left',
               render: (nit: string) => <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{nit}</Tag>,
             },
             {
-              title: 'Nombre del proveedor', dataIndex: 'name', width: 220,
+              title: 'Nombre del proveedor', dataIndex: 'name', width: 200,
               render: (name: string, row: BulkVendorRow) => (
-                <Input
-                  size="small" value={name} disabled={row.status === 'ok' || bulkVendorRunning}
+                <Input size="small" value={name} disabled={row.status === 'ok' || bulkVendorRunning}
                   onChange={e => setBulkVendorRows(prev => prev.map(r =>
                     r.dteId === row.dteId ? { ...r, name: e.target.value } : r
-                  ))}
-                />
+                  ))} />
               ),
             },
             {
-              title: 'Cuenta CxP', dataIndex: 'payableAccountId', width: 210,
+              title: 'Cuenta CxP', dataIndex: 'payableAccountId', width: 190,
               render: (val: string | undefined, row: BulkVendorRow) => (
-                <Select
-                  showSearch allowClear size="small" style={{ width: '100%' }}
-                  placeholder="2101 — Proveedores"
-                  value={val}
-                  disabled={row.status === 'ok' || bulkVendorRunning}
+                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="2101 — Prov."
+                  value={val} disabled={row.status === 'ok' || bulkVendorRunning}
                   onChange={v => setBulkVendorRows(prev => prev.map(r =>
                     r.dteId === row.dteId ? { ...r, payableAccountId: v } : r
                   ))}
                   filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                   options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('2'))
-                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
-                />
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
               ),
             },
             {
-              title: 'DTEs', dataIndex: 'dteCount', width: 55, align: 'center',
+              title: 'Cuenta gasto', dataIndex: 'expenseAccountId', width: 190,
+              render: (val: string | undefined, row: BulkVendorRow) => (
+                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="Gasto..."
+                  value={val} disabled={row.status === 'ok' || bulkVendorRunning}
+                  onChange={v => setBulkVendorRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, expenseAccountId: v } : r
+                  ))}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={accounts.filter(a => !a.isHeader && a.isActive)
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+              ),
+            },
+            {
+              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 160,
+              render: (val: string | undefined, row: BulkVendorRow) => (
+                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="IVA12..."
+                  value={val} disabled={row.status === 'ok' || bulkVendorRunning}
+                  onChange={v => setBulkVendorRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, defaultPurchaseTaxId: v } : r
+                  ))}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
+              ),
+            },
+            {
+              title: 'DTEs', dataIndex: 'dteCount', width: 50, align: 'center',
               render: (n: number) => <Badge count={n} color="#6b7280" />,
             },
             {
-              title: 'Estado', dataIndex: 'status', width: 120,
+              title: 'Estado', dataIndex: 'status', width: 115, fixed: 'right',
               render: (status: BulkVendorRow['status'], row: BulkVendorRow) => {
                 if (status === 'ok')         return <Tag color="green" icon={<CheckCircleOutlined />}>Registrado</Tag>
                 if (status === 'processing') return <Tag color="blue" icon={<Spin size="small" />}>Procesando</Tag>
