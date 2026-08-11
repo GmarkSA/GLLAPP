@@ -215,6 +215,41 @@ function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: num
   )
 }
 
+// ─── Chip de cuenta (barra horizontal) ───────────────────────────────────────
+
+function AccountChip({
+  acc, isActive, onClick,
+}: { acc: AccountIntegracion; isActive: boolean; onClick: () => void }) {
+  const cfg = TYPE_LABEL[acc.integrationType]
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        flexShrink: 0,
+        cursor: 'pointer',
+        padding: '6px 12px',
+        borderRadius: 6,
+        border: isActive ? `2px solid #1B3A6B` : '2px solid #e2e8f0',
+        background: isActive ? '#eff6ff' : '#fff',
+        transition: 'all 0.12s',
+        minWidth: 130,
+        maxWidth: 180,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginBottom: 2 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.01em' }}>{acc.code}</span>
+        <Tag color={cfg.color} style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '16px' }}>{cfg.label}</Tag>
+      </div>
+      <div style={{ fontSize: 10, color: '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
+        {acc.name}
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#1B3A6B' : '#374151' }}>
+        {Q(acc.balance)}
+      </div>
+    </div>
+  )
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function IntegracionesContablesPage() {
@@ -264,7 +299,7 @@ export default function IntegracionesContablesPage() {
   const anioOptions = Array.from({ length: 6 }, (_, i) => ({ value: now.year() - i, label: String(now.year() - i) }))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Encabezado */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div>
@@ -303,77 +338,47 @@ export default function IntegracionesContablesPage() {
         </div>
       </div>
 
-      {/* Layout: lista cuentas | panel detalle */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}>
-        {/* Lista de cuentas */}
-        <div style={{ background: '#fff', border: '1px solid rgba(10,10,10,0.07)', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-            <Text strong style={{ fontSize: 12 }}>
-              Cuentas con saldo — {MESES[mes - 1]} {anio}
+      {/* Barra horizontal de cuentas */}
+      <div style={{ background: '#fff', border: '1px solid rgba(10,10,10,0.07)', borderRadius: 8, padding: '10px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Text strong style={{ fontSize: 12, flexShrink: 0 }}>
+            Cuentas con saldo — {MESES[mes - 1]} {anio}
+          </Text>
+          {!loading && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {accounts.length} cuenta{accounts.length !== 1 ? 's' : ''}
             </Text>
-            {!loading && (
-              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                {accounts.length} cuenta{accounts.length !== 1 ? 's' : ''}
-              </Text>
-            )}
+          )}
+        </div>
+        {loading ? (
+          <div style={{ padding: '8px 0' }}><Spin size="small" /></div>
+        ) : accounts.length === 0 ? (
+          <Empty description="Sin cuentas con saldo" style={{ padding: 12 }} />
+        ) : (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+            {accounts.map(acc => (
+              <AccountChip
+                key={acc.id}
+                acc={acc}
+                isActive={selected?.id === acc.id}
+                onClick={() => handleSelect(acc)}
+              />
+            ))}
           </div>
-          {loading ? (
-            <div style={{ padding: 32, textAlign: 'center' }}><Spin /></div>
-          ) : accounts.length === 0 ? (
-            <Empty description="Sin cuentas con saldo" style={{ padding: 24 }} />
-          ) : (
-            <div style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}>
-              {accounts.map(acc => {
-                const cfg = TYPE_LABEL[acc.integrationType]
-                const isActive = selected?.id === acc.id
-                return (
-                  <div
-                    key={acc.id}
-                    onClick={() => handleSelect(acc)}
-                    style={{
-                      padding: '8px 14px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid rgba(10,10,10,0.05)',
-                      background: isActive ? '#eff6ff' : 'transparent',
-                      borderLeft: isActive ? `3px solid #1B3A6B` : '3px solid transparent',
-                      transition: 'all 0.12s',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0a0a0a' }}>
-                          {acc.code}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {acc.name}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <Tag color={cfg.color} style={{ fontSize: 10, margin: 0, marginBottom: 2 }}>{cfg.label}</Tag>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', whiteSpace: 'nowrap' }}>
-                          {Q(acc.balance)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        )}
+      </div>
 
-        {/* Panel de detalle */}
-        <div style={{ background: '#fff', border: '1px solid rgba(10,10,10,0.07)', borderRadius: 8, padding: 20, minHeight: 400 }}>
-          {!selected && !loading && (
-            <Empty description="Selecciona una cuenta para ver el detalle" style={{ marginTop: 80 }} />
-          )}
-          {selected && detLoading && (
-            <div style={{ textAlign: 'center', paddingTop: 80 }}><Spin tip="Cargando detalle..." /></div>
-          )}
-          {selected && !detLoading && detalle && (
-            <DetallePanel detalle={detalle} mes={mes} anio={anio} />
-          )}
-        </div>
+      {/* Panel de detalle — ancho completo */}
+      <div style={{ background: '#fff', border: '1px solid rgba(10,10,10,0.07)', borderRadius: 8, padding: 20, minHeight: 380 }}>
+        {!selected && !loading && (
+          <Empty description="Selecciona una cuenta para ver el detalle" style={{ marginTop: 60 }} />
+        )}
+        {selected && detLoading && (
+          <div style={{ textAlign: 'center', paddingTop: 60 }}><Spin tip="Cargando detalle..." /></div>
+        )}
+        {selected && !detLoading && detalle && (
+          <DetallePanel detalle={detalle} mes={mes} anio={anio} />
+        )}
       </div>
     </div>
   )
