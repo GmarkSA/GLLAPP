@@ -706,11 +706,17 @@ export default function DteSatPage() {
       let accountId: string | undefined
       let taxId: string | undefined
       let paymentTerms: string | undefined
+      let savedInvoiceType: string | undefined
+      let savedDefaultUnit: string | undefined
       // 1. Preferencias guardadas de sesiones anteriores (más recientes)
       if (d.vendorId) {
         try {
           const raw = localStorage.getItem(`dte_compras_prefs_${d.vendorId}`)
-          if (raw) { const p = JSON.parse(raw); accountId = p.accountId; taxId = p.taxId }
+          if (raw) {
+            const p = JSON.parse(raw)
+            accountId = p.accountId; taxId = p.taxId
+            savedInvoiceType = p.invoiceType; savedDefaultUnit = p.defaultUnit
+          }
         } catch {}
       }
       // 2. Datos maestros del proveedor como fallback
@@ -730,6 +736,11 @@ export default function DteSatPage() {
         accountId,
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : undefined,
       }))
+      // Auto-detect tipo factura y unidad desde los items del DTE (bien_o_servicio / unidad_medida)
+      const firstItem = (d.items as any[])?.[0]
+      const autoInvoiceType = savedInvoiceType
+        ?? ((firstItem?.bien_o_servicio === 'S') ? 'services' : 'goods')
+      const autoDefaultUnit = savedDefaultUnit ?? firstItem?.unidad_medida ?? undefined
       rows.push({
         id: d.id,
         label: `${d.nombreEmisor ?? 'Sin nombre'} · ${d.serie ?? '—'}/${d.numeroDte ?? '—'}`,
@@ -742,7 +753,8 @@ export default function DteSatPage() {
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
         taxId,
         taxLabel: taxObj ? `${taxObj.code} (${Number(taxObj.rate)}%)` : undefined,
-        invoiceType: 'goods',
+        invoiceType: autoInvoiceType,
+        defaultUnit: autoDefaultUnit,
         idpAccountId: idpAcc?.id,
         ocType: 'direct',
         paymentTerms: paymentTerms ?? 'immediate',
