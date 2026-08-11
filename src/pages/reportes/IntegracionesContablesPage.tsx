@@ -55,7 +55,8 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
   }
   const totDebe  = lineas.reduce((s, l) => s + l.debe,  0)
   const totHaber = lineas.reduce((s, l) => s + l.haber, 0)
-  const isRes    = integrationType === 'resultado' || integrationType === 'activo_fijo'
+  const isRes = integrationType === 'resultado'
+  const isAF  = integrationType === 'activo_fijo'
 
   const rDebe  = (v: number) => v > 0
     ? <span style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Q(v)}</span>
@@ -64,7 +65,17 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
     ? <span style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Q(v)}</span>
     : <Text type="secondary">—</Text>
 
-  const cols = isRes ? [
+  const cols = isAF ? [
+    { title: 'Fecha',      dataIndex: 'fecha',        width: 100, render: (v: string) => fmtDate(v) },
+    { title: 'No. Factura', key: 'fact',              width: 120,
+      render: (_: any, r: LineaPoliza) => r.numeroFactura || r.referencia || r.codigoPoliza },
+    { title: 'Proveedor',  key: 'prov',               width: 200, ellipsis: true,
+      render: (_: any, r: LineaPoliza) => r.vendorName || r.descripcion },
+    { title: 'Concepto',   key: 'concepto',           ellipsis: true,
+      render: (_: any, r: LineaPoliza) => r.glosa || r.descripcion },
+    { title: 'Debe',       dataIndex: 'debe',         width: 115, align: 'right' as const, render: rDebe },
+    { title: 'Haber',      dataIndex: 'haber',        width: 115, align: 'right' as const, render: rHaber },
+  ] : isRes ? [
     { title: 'Fecha',       dataIndex: 'fecha',        width: 100, render: (v: string) => fmtDate(v) },
     { title: 'No. Factura', key: 'fact',               width: 120,
       render: (_: any, r: LineaPoliza) => r.numeroFactura || r.referencia || r.codigoPoliza },
@@ -87,7 +98,7 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
     { title: 'Haber',       dataIndex: 'haber',        width: 115, align: 'right' as const, render: rHaber },
   ]
 
-  const span = isRes ? 4 : 3
+  const span = isAF ? 4 : isRes ? 4 : 3
 
   return (
     <Table

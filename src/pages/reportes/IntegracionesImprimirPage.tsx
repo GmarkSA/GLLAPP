@@ -42,7 +42,7 @@ const TYPE_TITULO: Record<IntegrationType, string> = {
 
 // Only banco is landscape; cxc/cxp use portrait (carta) with pagination
 const LANDSCAPE_TYPES: IntegrationType[] = ['banco']
-const LINES_PER_PAGE = 30
+const LINES_PER_PAGE = 35
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = []
@@ -162,13 +162,21 @@ function LineasTable({ lineas, integrationType }: { lineas: LineaPoliza[]; integ
   if (!lineas.length) return <p style={{ fontSize: 10, color: '#9aa1ab' }}>Sin movimientos en el mes.</p>
   const totDebe  = lineas.reduce((s, l) => s + l.debe,  0)
   const totHaber = lineas.reduce((s, l) => s + l.haber, 0)
-  const isRes = integrationType === 'resultado' || integrationType === 'activo_fijo'
+  const isRes = integrationType === 'resultado'
+  const isAF  = integrationType === 'activo_fijo'
+  const colSpanTot = (isRes || isAF) ? (isAF ? 5 : 4) : 3
   return (
     <table>
       <thead>
         <tr>
           <th style={{ width: 72 }}>Fecha</th>
-          {isRes ? (
+          {isAF ? (
+            <>
+              <th style={{ width: 90 }}>No. Factura</th>
+              <th style={{ width: 140 }}>Proveedor</th>
+              <th>Concepto</th>
+            </>
+          ) : isRes ? (
             <>
               <th style={{ width: 95 }}>No. Factura</th>
               <th>Proveedor</th>
@@ -188,7 +196,13 @@ function LineasTable({ lineas, integrationType }: { lineas: LineaPoliza[]; integ
         {lineas.map((l, i) => (
           <tr key={i}>
             <td>{dayjs(l.fecha).format('DD/MM/YYYY')}</td>
-            {isRes ? (
+            {isAF ? (
+              <>
+                <td>{l.numeroFactura || l.referencia || l.codigoPoliza}</td>
+                <td>{l.vendorName || l.descripcion}</td>
+                <td>{l.glosa || l.descripcion}</td>
+              </>
+            ) : isRes ? (
               <>
                 <td>{l.numeroFactura || l.referencia || l.codigoPoliza}</td>
                 <td>{l.vendorName || l.descripcion}</td>
@@ -209,7 +223,7 @@ function LineasTable({ lineas, integrationType }: { lineas: LineaPoliza[]; integ
           </tr>
         ))}
         <tr className="total-row">
-          <td colSpan={isRes ? 4 : 3}>Total</td>
+          <td colSpan={colSpanTot}>Total</td>
           <td className="right">{Q(totDebe)}</td>
           <td className="right">{Q(totHaber)}</td>
         </tr>
