@@ -77,6 +77,7 @@ import {
   type TransactionStatus,
   type TransactionType,
 } from '../../api/bancos'
+import { getApiError } from '../../api/axios'
 import { accountTypeIcon, formGrid, moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
 
 const { Title, Text } = Typography
@@ -718,7 +719,7 @@ export default function TransaccionesPage() {
       setShowCerrarTx(false)
       listReconciliationPeriods(id).then(setPeriods).catch(() => null)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo cerrar el período')
+      message.error(getApiError(e, 'No se pudo cerrar el período'))
     } finally {
       setSavingPeriodTx(false)
     }
@@ -736,7 +737,7 @@ export default function TransaccionesPage() {
       if (res.sent) { message.success(`Correo enviado a ${emailToTx}`); setShowEmailTx(false) }
       else message.warning('El servidor de correo no está configurado.')
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo enviar el correo')
+      message.error(getApiError(e, 'No se pudo enviar el correo'))
     } finally {
       setSendingEmailTx(false)
     }
@@ -867,7 +868,7 @@ export default function TransaccionesPage() {
       message.success('Movimiento eliminado')
       loadTransactions()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo eliminar el movimiento')
+      message.error(getApiError(e, 'No se pudo eliminar el movimiento'))
     }
   }
 
@@ -1287,7 +1288,7 @@ export default function TransaccionesPage() {
                               const updated = await approveReconciliationPeriod(id!, r.id)
                               setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
                               message.success(`Período ${mesesTx[r.month - 1]} ${r.year} aprobado`)
-                            } catch (e: any) { message.error(e?.response?.data?.message || 'Error al aprobar') }
+                            } catch (e: any) { message.error(getApiError(e, 'Error al aprobar')) }
                           }}
                         >
                           Aprobar
@@ -1323,7 +1324,7 @@ export default function TransaccionesPage() {
                               const updated = await reabrirReconciliationPeriod(id!, r.id)
                               setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
                               message.success(`Período ${mesesTx[r.month - 1]} ${r.year} reabierto`)
-                            } catch (e: any) { message.error(e?.response?.data?.message || 'Error al reabrir') }
+                            } catch (e: any) { message.error(getApiError(e, 'Error al reabrir')) }
                           }}
                         >
                           {r.status === 'approved' ? 'Habilitar' : 'Reabrir'}
