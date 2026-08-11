@@ -78,27 +78,6 @@ const styles = `
   .doc-header-empresa { }
   .doc-header-empresa .co-name { font-size: 13px; font-weight: 700; color: #1B3A6B; }
   .doc-header-empresa .co-sub  { font-size: 9px; color: #6b7280; margin-top: 1px; }
-  .doc-header-right { text-align: right; flex-shrink: 0; }
-  .doc-header-right .doc-title {
-    font-size: 13px; font-weight: 700; color: #1B3A6B; letter-spacing: -0.01em;
-  }
-  .doc-header-right .doc-subtitulo {
-    font-size: 11px; font-weight: 600; color: #374151; margin-top: 2px;
-  }
-  .doc-header-right .doc-meta  { font-size: 9px; color: #6b7280; margin-top: 2px; }
-  .doc-header-right .doc-badges {
-    display: flex; justify-content: flex-end; gap: 4px; margin-top: 5px; align-items: center;
-  }
-  .doc-header-right .doc-moneda {
-    display: inline-block; font-size: 9px; font-weight: 700;
-    background: #eff6ff; color: #1B3A6B; border: 1px solid #bfdbfe;
-    border-radius: 3px; padding: 1px 5px;
-  }
-  .doc-header-right .doc-periodo {
-    display: inline-block; font-size: 9px; font-weight: 600;
-    background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;
-    border-radius: 3px; padding: 1px 5px;
-  }
 
   .sheet-subheader { margin-bottom: 10px; }
   .sheet-subheader .acct { font-size: 12px; font-weight: 700; color: #0a0a0a; }
@@ -159,16 +138,7 @@ const styles = `
 
 // ─── Encabezado empresa (reutilizable en cada hoja) ──────────────────────────
 
-function DocHeader({
-  org, titulo, subtitulo, periodo, fechaCorte, moneda = 'GTQ',
-}: {
-  org: OrganizationProfile | null
-  titulo: string        // e.g. "Cuentas por Pagar — Antigüedad de Saldos"
-  subtitulo?: string    // e.g. "211001 · Proveedores Nacionales"
-  periodo?: string      // e.g. "Julio 2025"
-  fechaCorte: string    // e.g. "31 de Julio de 2025"
-  moneda?: string
-}) {
+function DocHeader({ org }: { org: OrganizationProfile | null }) {
   const name = org?.legalName || org?.name || 'Mi Empresa'
   return (
     <div className="doc-header">
@@ -180,15 +150,6 @@ function DocHeader({
           <div className="co-name">{name}</div>
           {org?.taxId   && <div className="co-sub">NIT: {org.taxId}</div>}
           {org?.address && <div className="co-sub">{org.address}{org.city ? `, ${org.city}` : ''}</div>}
-        </div>
-      </div>
-      <div className="doc-header-right">
-        <div className="doc-title">{titulo}</div>
-        {subtitulo && <div className="doc-subtitulo">{subtitulo}</div>}
-        <div className="doc-meta">Al {fechaCorte}</div>
-        <div className="doc-badges">
-          {periodo && <span className="doc-periodo">Período: {periodo}</span>}
-          <span className="doc-moneda">{moneda}</span>
         </div>
       </div>
     </div>
@@ -309,13 +270,7 @@ function PartidaPages({
     <>
       {pages.map((rows, ci) => (
         <div className="sheet" key={ci}>
-          <DocHeader
-            org={org}
-            titulo={TYPE_TITULO[integrationType]}
-            subtitulo={`${cuenta.code} — ${cuenta.name}`}
-            periodo={periodo}
-            fechaCorte={fechaCorte}
-          />
+          <DocHeader org={org} />
 
           <div className="sheet-subheader">
             <div className="acct">{cuenta.code} &nbsp;·&nbsp; {cuenta.name}</div>
@@ -384,13 +339,7 @@ function Sheet({
 
   return (
     <div className="sheet">
-      <DocHeader
-        org={org}
-        titulo={TYPE_TITULO[integrationType]}
-        subtitulo={`${cuenta.code} — ${cuenta.name}`}
-        periodo={periodo}
-        fechaCorte={fechaCorte}
-      />
+      <DocHeader org={org} />
 
       <div className="sheet-subheader">
         <div className="acct">{cuenta.code} &nbsp;·&nbsp; {cuenta.name}</div>
