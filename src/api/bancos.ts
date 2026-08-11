@@ -66,6 +66,7 @@ export interface BankTransaction {
   accountName?: string
   sourceDocumentType?: string
   sourceDocumentId?: string
+  rawData?: { matchLabel?: string; matchType?: 'invoice' | 'bill'; [key: string]: any }
   importedAt: string
 }
 

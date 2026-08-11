@@ -50,6 +50,9 @@ import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
 import AccountSelect from '../../components/AccountSelect'
 import { useCompanyStore } from '../../store/companyStore'
 import CategorizarDrawer from './CategorizarDrawer'
+import { getInvoice } from '../../api/facturas'
+import { getBill, recordBillPayment } from '../../api/compras'
+import { createPagoRecibido } from '../../api/pagos-recibidos'
 import { getAsiento, updateAsiento, postAsiento, voidAsiento, type AsientoDetalle } from '../../api/asientos'
 import {
   ACCOUNT_TYPE_CONFIG,
@@ -639,6 +642,7 @@ export default function TransaccionesPage() {
   const [conciliarMes,  setConciliarMes]   = useState<number>(dayjs().month() + 1)
   const [conciliarAnio, setConciliarAnio]  = useState<number>(dayjs().year())
   const [matching,      setMatching]       = useState(false)
+  const [bulkApplying,  setBulkApplying]   = useState(false)
   const [conciliarSaldo, setConciliarSaldo] = useState<number | null>(null)
   const readSession = (accountId: string | undefined) => {
     if (!accountId) return null
@@ -775,6 +779,52 @@ export default function TransaccionesPage() {
 
   useEffect(() => { loadTransactions() }, [loadTransactions])
 
+  const handleBulkApply = async () => {
+    if (!id || !account) return
+    const matched = transactions.filter(t => t.status === 'matched' && t.matchedInvoiceId)
+    if (!matched.length) { message.warning('No hay coincidencias para categorizar'); return }
+    setBulkApplying(true)
+    let success = 0; let errors = 0
+    const txDate = (tx: BankTransaction) => String(tx.transactionDate || '').split('T')[0]
+    for (const tx of matched) {
+      try {
+        if (tx.type === 'credit') {
+          const inv = await getInvoice(tx.matchedInvoiceId!) as any
+          await createPagoRecibido({
+            customerId:        inv.customerId,
+            invoiceId:         tx.matchedInvoiceId!,
+            paymentDate:       txDate(tx),
+            amount:            Number(tx.amount),
+            mode:              'bank_transfer',
+            reference:         tx.reference || undefined,
+            bankAccountId:     account.id,
+            bankTransactionId: tx.id,
+            currency:          account.currency,
+            exchangeRate:      1,
+          })
+        } else {
+          await recordBillPayment(tx.matchedInvoiceId!, {
+            amount:        Number(tx.amount),
+            currency:      account.currency,
+            exchangeRate:  1,
+            paymentDate:   txDate(tx),
+            mode:          'bank_transfer',
+            reference:     tx.reference || undefined,
+            bankAccountId: account.id,
+          })
+          await updateTransaction(id, tx.id, { status: 'categorized', sourceDocumentId: tx.matchedInvoiceId, sourceDocumentType: 'bill' } as any)
+        }
+        success++
+      } catch {
+        errors++
+      }
+    }
+    setBulkApplying(false)
+    if (success) message.success(`${success} transacción${success !== 1 ? 'es' : ''} categorizad${success !== 1 ? 'as' : 'a'} correctamente`)
+    if (errors) message.warning(`${errors} no se pudieron categorizar — ábrelas individualmente`)
+    loadTransactions()
+  }
+
   const handleAutoMatch = async () => {
     if (!id) return
     setMatching(true)
@@ -836,7 +886,7 @@ export default function TransaccionesPage() {
           {row.reference && <div style={{ fontSize: 12, color: '#6b7280' }}>Ref. {row.reference}</div>}
           {row.status === 'matched' && (
             <Tag color="geekblue" icon={<BulbOutlined />} style={{ fontSize: 10, marginTop: 2, padding: '0 5px' }}>
-              Coincidencia detectada
+              {row.rawData?.matchLabel ?? 'Coincidencia detectada'}
             </Tag>
           )}
         </div>
@@ -1078,6 +1128,21 @@ export default function TransaccionesPage() {
             style={{ borderColor: '#4d7cfe', color: '#4d7cfe' }}>
             Buscar coincidencias
           </Button>
+          {summary.matched > 0 && (
+            <Popconfirm
+              title={`Categorizar ${summary.matched} coincidencia${summary.matched !== 1 ? 's' : ''}`}
+              description={`Se aplicarán pagos automáticamente para las ${summary.matched} transacciones con coincidencia detectada. ¿Continuar?`}
+              onConfirm={handleBulkApply}
+              okText="Categorizar todas"
+              cancelText="Cancelar"
+              okButtonProps={{ style: { background: NAVY } }}
+            >
+              <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={bulkApplying}
+                style={{ background: '#2ea172', borderColor: '#2ea172' }}>
+                Categorizar {summary.matched} coincidencia{summary.matched !== 1 ? 's' : ''}
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       </Card>
 
