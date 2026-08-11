@@ -2317,7 +2317,7 @@ export default function DteSatPage() {
       <Modal
         open={bulkVendorOpen}
         title={<Space><TeamOutlined /><span>Registro masivo de proveedores — {bulkVendorRows.length} nuevo{bulkVendorRows.length !== 1 ? 's' : ''}</span></Space>}
-        width={1100}
+        width={1180}
         onCancel={() => !bulkVendorRunning && setBulkVendorOpen(false)}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2357,7 +2357,7 @@ export default function DteSatPage() {
               <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="Busca por código o nombre"
                 value={bulkCommonExpense} onChange={setBulkCommonExpense}
                 filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={accounts.filter(a => !a.isHeader && a.isActive)
+                options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('5') || a.code?.startsWith('6')))
                   .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
             </div>
             <div>
@@ -2365,7 +2365,7 @@ export default function DteSatPage() {
               <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="IVA12 — Tasa general 12%"
                 value={bulkCommonTax} onChange={setBulkCommonTax}
                 filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
+                options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
             </div>
             <div>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Condiciones de pago</div>
@@ -2401,7 +2401,7 @@ export default function DteSatPage() {
               render: (nit: string) => <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{nit}</Tag>,
             },
             {
-              title: 'Nombre del proveedor', dataIndex: 'name', width: 200,
+              title: 'Nombre del proveedor', dataIndex: 'name', width: 260,
               render: (name: string, row: BulkVendorRow) => (
                 <Input size="small" value={name} disabled={row.status === 'ok' || bulkVendorRunning}
                   onChange={e => setBulkVendorRows(prev => prev.map(r =>
@@ -2431,20 +2431,20 @@ export default function DteSatPage() {
                     r.dteId === row.dteId ? { ...r, expenseAccountId: v } : r
                   ))}
                   filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                  options={accounts.filter(a => !a.isHeader && a.isActive)
+                  options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('5') || a.code?.startsWith('6')))
                     .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
               ),
             },
             {
-              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 160,
+              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 170,
               render: (val: string | undefined, row: BulkVendorRow) => (
-                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="IVA12..."
+                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="RG-C01..."
                   value={val} disabled={row.status === 'ok' || bulkVendorRunning}
                   onChange={v => setBulkVendorRows(prev => prev.map(r =>
                     r.dteId === row.dteId ? { ...r, defaultPurchaseTaxId: v } : r
                   ))}
                   filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                  options={taxes.map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
+                  options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
               ),
             },
             {
