@@ -133,3 +133,44 @@ export const simulateSubscription = (plan: string): Promise<{ success: boolean; 
 
 export const deletePayment = (id: string): Promise<{ deleted: boolean }> =>
   api.delete(`/billing/payment/${id}`).then(unwrap)
+
+// ── Admin billing API (solo SuperAdmin) ──────────────────────────────────────
+
+export interface TenantBillingPayment {
+  id: string
+  result: PaymentResult
+  amount: number
+  currency: string
+  plan: string
+  qpayproTransactionId?: string
+  qpayproResponseCode?: string
+  qpayproResponseMessage?: string
+  cardLast4?: string
+  cardBrand?: string
+  chargedAt: string
+  felUuid?: string
+  felSerie?: string
+  felNumero?: string
+  felInvoiceUrl?: string
+  felStatus?: string
+}
+
+export interface TenantBillingInfo {
+  subscription: SubscriptionInfo | null
+  payments: TenantBillingPayment[]
+  customMonthlyPriceUSD: number | null
+  trialEndsAt: string | null
+  trialDaysLeft: number | null
+}
+
+export const adminActivateTrial = (tenantId: string, days = 30): Promise<{ trialEndsAt: string; daysLeft: number }> =>
+  api.post(`/admin/tenants/${tenantId}/trial`, { days }).then(unwrap)
+
+export const adminSetBillingConfig = (tenantId: string, dto: { customMonthlyPriceUSD?: number | null }): Promise<{ updated: boolean }> =>
+  api.patch(`/admin/tenants/${tenantId}/billing-config`, dto).then(unwrap)
+
+export const adminGetTenantBilling = (tenantId: string): Promise<TenantBillingInfo> =>
+  api.get(`/admin/tenants/${tenantId}/billing`).then(unwrap)
+
+export const adminRequestInvoiceForTenant = (paymentId: string, dto: RequestInvoiceDto): Promise<BillingFelResult> =>
+  api.post(`/billing/admin/payments/${paymentId}/invoice`, dto).then(unwrap)
