@@ -691,8 +691,45 @@ export default function SubscriptionPage() {
     return <Spin spinning style={{ display: 'block', margin: '80px auto' }} />
   }
 
+  const isInTrial = state?.tenant?.status === 'trial'
+  const trialDaysLeft = state?.tenant?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(state.tenant.trialEndsAt).getTime() - Date.now()) / 86400000))
+    : null
+  const trialColor = trialDaysLeft === null ? 'warning'
+    : trialDaysLeft <= 7 ? 'error'
+    : trialDaysLeft <= 15 ? 'warning'
+    : 'info'
+
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      {/* Banner de trial */}
+      {isInTrial && (
+        <Alert
+          type={trialColor as any}
+          showIcon
+          icon={<ClockCircleOutlined />}
+          style={{ marginBottom: 20, borderRadius: 10 }}
+          message={
+            trialDaysLeft === null
+              ? 'Estás en período de trial — activa tu suscripción para continuar usando todas las funcionalidades'
+              : trialDaysLeft > 0
+              ? (
+                <span>
+                  <strong>Trial activo:</strong> te quedan{' '}
+                  <strong style={{ fontSize: 16 }}>{trialDaysLeft} día{trialDaysLeft !== 1 ? 's' : ''}</strong>
+                  {' '}de prueba gratuita
+                </span>
+              )
+              : <strong>Tu período de trial ha vencido — activa tu suscripción para seguir usando el sistema</strong>
+          }
+          description={
+            trialDaysLeft !== null && trialDaysLeft <= 15
+              ? 'Suscríbete ahora para no perder acceso a tus datos. El proceso toma menos de 2 minutos.'
+              : 'Explora todos los planes disponibles y elige el que mejor se adapta a tu empresa.'
+          }
+        />
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Suscripción y Facturación</Title>
