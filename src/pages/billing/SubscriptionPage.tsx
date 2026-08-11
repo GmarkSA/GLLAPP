@@ -608,11 +608,6 @@ export default function SubscriptionPage() {
   const [changingPlan, setChangingPlan] = useState(false)
   const [rateInfo, setRateInfo]     = useState<{ rate: number; updatedAt?: string; updatedBy?: string }>({ rate: 7.7 })
 
-  // Modal FEL post-pago
-  const [felOpen,       setFelOpen]       = useState(false)
-  const [felPaymentId,  setFelPaymentId]  = useState<string>('')
-  const [felPlanName,   setFelPlanName]   = useState<string>('')
-  const [felAmount,     setFelAmount]     = useState<number>(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -649,14 +644,6 @@ export default function SubscriptionPage() {
     }
   }
 
-  const openFelModal = (result: PaymentResponse, planName: string) => {
-    if (!result.paymentId || !result.amountCharged) return
-    setFelPaymentId(result.paymentId)
-    setFelPlanName(planName)
-    setFelAmount(result.amountCharged)
-    setFelOpen(true)
-  }
-
   const handleChangePlanConfirm = async () => {
     if (!selectedPlan) return
     setChangingPlan(true)
@@ -665,7 +652,6 @@ export default function SubscriptionPage() {
       message.success(result.message)
       setModalOpen(false)
       await load()
-      if (Number(selectedPlan.priceMonthly) > 0) openFelModal(result, selectedPlan.displayName)
     } catch (e: any) {
       message.error(billingErrorMsg(e, 'Error al cambiar de plan'), 6)
     } finally {
@@ -816,10 +802,9 @@ export default function SubscriptionPage() {
             plan={selectedPlan}
             currency={currency}
             exchangeRate={exchangeRate}
-            onSuccess={async (result) => {
+            onSuccess={async () => {
               setModalOpen(false)
               await load()
-              if (Number(selectedPlan.priceMonthly) > 0) openFelModal(result, selectedPlan.displayName)
             }}
             onCancel={() => { setModalOpen(false); setSelectedPlan(null) }}
           />
@@ -865,17 +850,6 @@ export default function SubscriptionPage() {
         </Space>
       </div>
 
-      {/* Modal FEL — se abre automáticamente después de cada pago aprobado */}
-      {felPaymentId && (
-        <BillingFelModal
-          open={felOpen}
-          paymentId={felPaymentId}
-          currency={currency}
-          amount={felAmount}
-          planName={felPlanName}
-          onClose={() => setFelOpen(false)}
-        />
-      )}
     </div>
   )
 }
