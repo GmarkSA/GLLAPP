@@ -866,8 +866,8 @@ export default function TransaccionesPage() {
       await deleteTransaction(id!, txId)
       message.success('Movimiento eliminado')
       loadTransactions()
-    } catch {
-      message.error('No se pudo eliminar')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo eliminar el movimiento')
     }
   }
 
