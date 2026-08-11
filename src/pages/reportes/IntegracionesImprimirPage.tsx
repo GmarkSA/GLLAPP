@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import {
   getCierreIntegraciones, getDetalleIntegracion,
 } from '../../api/integraciones'
+import { getOrganizationProfile, type OrganizationProfile } from '../../api/configuracion'
 import type {
   DetalleResult, IntegrationType,
   BancoEspecifico, CxcEspecifico, CxpEspecifico,
@@ -51,9 +52,33 @@ const styles = `
   }
   .sheet:last-child { page-break-after: avoid; break-after: avoid; }
 
-  .sheet-header { margin-bottom: 14px; }
-  .sheet-header h2 { font-size: 14px; font-weight: 700; color: #1B3A6B; margin-bottom: 2px; }
-  .sheet-header .sub { font-size: 11px; color: #6b7280; }
+  /* ── Encabezado empresa ── */
+  .doc-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #1B3A6B;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    gap: 16px;
+  }
+  .doc-header-left { display: flex; align-items: flex-start; gap: 12px; }
+  .doc-header-logo { max-height: 52px; max-width: 140px; object-fit: contain; }
+  .doc-header-empresa { }
+  .doc-header-empresa .co-name { font-size: 14px; font-weight: 700; color: #1B3A6B; }
+  .doc-header-empresa .co-sub  { font-size: 9px; color: #6b7280; margin-top: 1px; }
+  .doc-header-right { text-align: right; flex-shrink: 0; }
+  .doc-header-right .doc-title { font-size: 11px; font-weight: 700; color: #1B3A6B; }
+  .doc-header-right .doc-meta  { font-size: 10px; color: #4b5563; margin-top: 2px; }
+  .doc-header-right .doc-moneda {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    background: #eff6ff; color: #1B3A6B; border: 1px solid #bfdbfe;
+    border-radius: 4px; padding: 1px 6px; margin-top: 4px;
+  }
+
+  .sheet-subheader { margin-bottom: 10px; }
+  .sheet-subheader .acct { font-size: 12px; font-weight: 700; color: #0a0a0a; }
+  .sheet-subheader .acct-sub { font-size: 10px; color: #6b7280; }
 
   .section-title {
     font-size: 10px; font-weight: 700; text-transform: uppercase;
@@ -102,11 +127,45 @@ const styles = `
   }
 
   @media print {
-    @page { margin: 12mm; }
+    @page { margin: 12mm; size: letter portrait; }
     .no-print { display: none !important; }
     .sheet { padding: 0; }
   }
 `
+
+// ─── Encabezado empresa (reutilizable en cada hoja) ──────────────────────────
+
+function DocHeader({
+  org, titulo, subtitulo, fechaCorte, moneda = 'GTQ',
+}: {
+  org: OrganizationProfile | null
+  titulo: string
+  subtitulo?: string
+  fechaCorte: string
+  moneda?: string
+}) {
+  const name = org?.legalName || org?.name || 'Mi Empresa'
+  return (
+    <div className="doc-header">
+      <div className="doc-header-left">
+        {org?.logoUrl && (
+          <img src={org.logoUrl} alt="logo" className="doc-header-logo" />
+        )}
+        <div className="doc-header-empresa">
+          <div className="co-name">{name}</div>
+          {org?.taxId   && <div className="co-sub">NIT: {org.taxId}</div>}
+          {org?.address && <div className="co-sub">{org.address}{org.city ? `, ${org.city}` : ''}</div>}
+        </div>
+      </div>
+      <div className="doc-header-right">
+        <div className="doc-title">{titulo}</div>
+        {subtitulo && <div className="doc-meta">{subtitulo}</div>}
+        <div className="doc-meta">Al {fechaCorte}</div>
+        <div className="doc-moneda">{moneda}</div>
+      </div>
+    </div>
+  )
+}
 
 // ─── Componentes de impresión ─────────────────────────────────────────────────
 
@@ -182,14 +241,14 @@ function PartidaTable({ partidas, titulo }: { partidas: CxcEspecifico['partidas'
 
 function PartidaPages({
   partidas, titulo, tipoLabel, total,
-  empresa, mesLabel, cuenta, integrationType,
+  org, fechaCorte, cuenta, integrationType,
 }: {
   partidas: CxcEspecifico['partidas']
   titulo: string
   tipoLabel: string
   total: number
-  empresa: string
-  mesLabel: string
+  org: OrganizationProfile | null
+  fechaCorte: string
   cuenta: DetalleResult['cuenta']
   integrationType: IntegrationType
 }) {
@@ -200,13 +259,16 @@ function PartidaPages({
     <>
       {pages.map((rows, ci) => (
         <div className="sheet" key={ci}>
-          <div className="sheet-header">
-            <h2>{empresa}</h2>
-            <div className="sub">Integración Contable — {mesLabel}</div>
-            <div style={{ marginTop: 6, fontSize: 11, color: '#1B3A6B', fontWeight: 700 }}>
-              {cuenta.code} &nbsp;·&nbsp; {cuenta.name}
-            </div>
-            <div style={{ fontSize: 10, color: '#6b7280' }}>
+          <DocHeader
+            org={org}
+            titulo={`Integración Contable — ${tipoLabel}`}
+            subtitulo={`${cuenta.code} · ${cuenta.name}`}
+            fechaCorte={fechaCorte}
+          />
+
+          <div className="sheet-subheader">
+            <div className="acct">{cuenta.code} &nbsp;·&nbsp; {cuenta.name}</div>
+            <div className="acct-sub">
               {cuenta.balanceType} &nbsp;·&nbsp; {tipoLabel}
               {pages.length > 1 ? ` — Pág. ${ci + 1}/${pages.length}` : ''}
             </div>
@@ -215,7 +277,7 @@ function PartidaPages({
           {ci === 0 && (
             <div className="kv-grid">
               <div className="kv"><div className="label">Saldo al cierre</div><div className="value">{Q(total)}</div></div>
-              <div className="kv"><div className="label">Período</div><div className="value">{mesLabel}</div></div>
+              <div className="kv"><div className="label">Fecha corte</div><div className="value">Al {fechaCorte}</div></div>
               <div className="kv"><div className="label">Tipo</div><div className="value">{tipoLabel}</div></div>
               <div className="kv"><div className="label">Cuenta</div><div className="value">{cuenta.code}</div></div>
             </div>
@@ -268,25 +330,29 @@ function PartidaPages({
   )
 }
 
-function Sheet({ detalle, empresa, mesLabel }: { detalle: DetalleResult; empresa: string; mesLabel: string }) {
+function Sheet({
+  detalle, org, fechaCorte,
+}: { detalle: DetalleResult; org: OrganizationProfile | null; fechaCorte: string }) {
   const { cuenta, integrationType, saldoFinal, monthlyHistory, lineas, especifico } = detalle
 
   return (
     <div className="sheet">
-      {/* Encabezado */}
-      <div className="sheet-header">
-        <h2>{empresa}</h2>
-        <div className="sub">Integración Contable — {mesLabel}</div>
-        <div style={{ marginTop: 6, fontSize: 11, color: '#1B3A6B', fontWeight: 700 }}>
-          {cuenta.code} &nbsp;·&nbsp; {cuenta.name}
-        </div>
-        <div style={{ fontSize: 10, color: '#6b7280' }}>{cuenta.balanceType} &nbsp;·&nbsp; {TYPE_LABEL[integrationType]}</div>
+      <DocHeader
+        org={org}
+        titulo={`Integración Contable — ${TYPE_LABEL[integrationType]}`}
+        subtitulo={`${cuenta.code} · ${cuenta.name}`}
+        fechaCorte={fechaCorte}
+      />
+
+      <div className="sheet-subheader">
+        <div className="acct">{cuenta.code} &nbsp;·&nbsp; {cuenta.name}</div>
+        <div className="acct-sub">{cuenta.balanceType} &nbsp;·&nbsp; {TYPE_LABEL[integrationType]}</div>
       </div>
 
       {/* KPIs */}
       <div className="kv-grid">
         <div className="kv"><div className="label">Saldo al cierre</div><div className="value">{Q(saldoFinal)}</div></div>
-        <div className="kv"><div className="label">Período</div><div className="value">{mesLabel}</div></div>
+        <div className="kv"><div className="label">Fecha corte</div><div className="value">Al {fechaCorte}</div></div>
         <div className="kv"><div className="label">Tipo integración</div><div className="value">{TYPE_LABEL[integrationType]}</div></div>
         <div className="kv"><div className="label">Cuenta</div><div className="value">{cuenta.code}</div></div>
       </div>
@@ -479,11 +545,18 @@ export default function IntegracionesImprimirPage() {
 
   const [detalles, setDetalles] = useState<DetalleResult[]>([])
   const [loading, setLoading]   = useState(true)
-  const [empresa, setEmpresa]   = useState('GLL Consulting')
+  const [org, setOrg]           = useState<OrganizationProfile | null>(null)
 
   const mesNum  = Number(mes)
   const anioNum = Number(anio)
-  const mesLabel = `${MESES[mesNum - 1]} ${anioNum}`
+
+  // Último día del mes seleccionado: "31 de Julio de 2025"
+  const lastDay   = dayjs(new Date(anioNum, mesNum, 0)).date()
+  const fechaCorte = `${lastDay} de ${MESES[mesNum - 1]} de ${anioNum}`
+
+  useEffect(() => {
+    getOrganizationProfile().then(setOrg).catch(() => null)
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -515,22 +588,16 @@ export default function IntegracionesImprimirPage() {
     }
   }, [loading, detalles])
 
-  // Detect empresa from first sheet
-  useEffect(() => {
-    const stored = localStorage.getItem('tenantName')
-    if (stored) setEmpresa(stored)
-  }, [])
-
-  // CSS @page orientation per sheet type
+  // CSS @page — carta portrait para todas
   const landscapeSheets = detalles.filter(d => LANDSCAPE_TYPES.includes(d.integrationType))
   const hasLandscape = landscapeSheets.length > 0
   const hasPortrait  = detalles.some(d => !LANDSCAPE_TYPES.includes(d.integrationType))
 
   const pageStyles = hasLandscape && hasPortrait
-    ? `@page { margin: 10mm; }`
+    ? `@page { margin: 12mm; size: letter; }`
     : hasLandscape
-      ? `@page { margin: 10mm; size: landscape; }`
-      : `@page { margin: 12mm; size: portrait; }`
+      ? `@page { margin: 10mm; size: letter landscape; }`
+      : `@page { margin: 12mm; size: letter portrait; }`
 
   if (loading) {
     return (
@@ -553,14 +620,14 @@ export default function IntegracionesImprimirPage() {
               titulo="No. Factura"
               tipoLabel={TYPE_LABEL[d.integrationType]}
               total={esp.total}
-              empresa={empresa}
-              mesLabel={mesLabel}
+              org={org}
+              fechaCorte={fechaCorte}
               cuenta={d.cuenta}
               integrationType={d.integrationType}
             />
           )
         }
-        return <Sheet key={i} detalle={d} empresa={empresa} mesLabel={mesLabel} />
+        return <Sheet key={i} detalle={d} org={org} fechaCorte={fechaCorte} />
       })}
     </>
   )
