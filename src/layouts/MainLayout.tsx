@@ -421,7 +421,7 @@ export default function MainLayout() {
                   color={trialDaysLeft <= 7 ? 'red' : trialDaysLeft <= 15 ? 'orange' : 'geekblue'}
                   icon={<ClockCircleOutlined />}
                   style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
-                  onClick={() => navigate('/suscripcion')}
+                  onClick={() => navigate('/configuracion/suscripcion')}
                 >
                   {trialDaysLeft > 0
                     ? `Prueba gratis — ${trialDaysLeft} día${trialDaysLeft !== 1 ? 's' : ''}`
