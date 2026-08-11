@@ -426,7 +426,8 @@ function ImportModal({ open, account, onClose, onSaved }: {
     setSaving(true)
     try {
       const res = await importStatement(account.id, { rows })
-      message.success(`Importadas: ${res.imported} - Duplicadas/omitidas: ${res.skipped}`)
+      const periodMsg = (res as any).periodLocked > 0 ? ` · ${(res as any).periodLocked} bloqueadas (período cerrado)` : ''
+      message.success(`Importadas: ${res.imported} · Duplicadas/omitidas: ${res.skipped}${periodMsg}`)
       setRows([])
       setRawMatrix(null)
       onSaved()
