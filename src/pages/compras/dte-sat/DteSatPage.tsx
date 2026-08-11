@@ -121,7 +121,7 @@ export default function DteSatPage() {
   const [accountMode, setAccountMode] = useState<'expense' | 'asset' | 'all'>('expense')
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
-  type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'error'
+  type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'skipped' | 'error'
   interface BatchLineItem {
     descripcion?: string; description?: string
     cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string
@@ -798,8 +798,10 @@ export default function DteSatPage() {
           ? { ...r, status: 'ok', result: result.invoice?.invoiceNumber ?? 'OK' }
           : r))
       } catch (err) {
+        const errMsg = getErrorMessage(err, 'Error al registrar')
+        const alreadyExists = errMsg.includes('Ya existe una factura')
         setBatchRows(prev => prev.map(r => r.id === row.id
-          ? { ...r, status: 'error', error: getErrorMessage(err, 'Error al registrar') }
+          ? { ...r, status: alreadyExists ? 'skipped' : 'error', error: alreadyExists ? 'Esta factura ya estaba registrada' : errMsg }
           : r))
       }
     }
@@ -1744,7 +1746,7 @@ export default function DteSatPage() {
       {(() => {
         const expenseAccounts = accounts.filter(a => !a.isHeader && a.isActive &&
           (a.code?.startsWith('6') || (a as any).type === 'expense'))
-        const allDone = batchRows.length > 0 && batchRows.every(r => r.status === 'ok' || r.status === 'error' || r.missing)
+        const allDone = batchRows.length > 0 && batchRows.every(r => r.status === 'ok' || r.status === 'skipped' || r.status === 'error' || r.missing)
         const canProcess = !batchRunning && batchRows.some(r => !r.missing && r.accountId && r.status === 'pending')
         return (
         <Modal
@@ -1902,6 +1904,7 @@ export default function DteSatPage() {
                             {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
                             {row.status === 'processing'              && <Tag color="processing" style={{ fontSize: 10 }}>Procesando…</Tag>}
                             {row.status === 'ok'                      && <Tag color="success" style={{ fontSize: 10 }}>✓ {row.result}</Tag>}
+                            {row.status === 'skipped'                 && <Tooltip title={row.error}><Tag color="orange" style={{ fontSize: 10 }}>↓ Ya registrada</Tag></Tooltip>}
                             {row.status === 'error'                   && <Tooltip title={row.error}><Tag color="error" style={{ fontSize: 10 }}>✗ Error</Tag></Tooltip>}
                           </td>
                         </tr>
@@ -1962,6 +1965,7 @@ export default function DteSatPage() {
                   {allDone && (
                     <Text style={{ fontSize: 12, color: '#2ea172' }}>
                       ✓ {batchRows.filter(r => r.status === 'ok').length} registrado{batchRows.filter(r => r.status === 'ok').length !== 1 ? 's' : ''}
+                      {batchRows.some(r => r.status === 'skipped') && <span style={{ color: '#ff7f00' }}> · {batchRows.filter(r => r.status === 'skipped').length} ya registrada{batchRows.filter(r => r.status === 'skipped').length !== 1 ? 's' : ''} (omitida{batchRows.filter(r => r.status === 'skipped').length !== 1 ? 's' : ''})</span>}
                       {batchRows.some(r => r.status === 'error') && <span style={{ color: '#e5484d' }}> · {batchRows.filter(r => r.status === 'error').length} con error</span>}
                     </Text>
                   )}
