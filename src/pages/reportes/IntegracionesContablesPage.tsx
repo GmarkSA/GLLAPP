@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Select, Table, Tag, Spin, Empty, Button, Typography, Statistic, Divider,
-  Alert, Tooltip,
+  Alert, Tooltip, message,
 } from 'antd'
 import { PrinterOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -348,7 +348,9 @@ export default function IntegracionesContablesPage() {
     try {
       const res = await getCierreIntegraciones(mes, anio)
       setAccounts(res.accounts)
-    } catch {
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al cargar integraciones')
       setAccounts([])
     } finally {
       setLoading(false)
@@ -364,7 +366,9 @@ export default function IntegracionesContablesPage() {
     try {
       const res = await getDetalleIntegracion(acc.id, mes, anio)
       setDetalle(res)
-    } catch {
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al cargar detalle de cuenta')
       setDetalle(null)
     } finally {
       setDetLoading(false)
