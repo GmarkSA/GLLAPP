@@ -162,7 +162,7 @@ function LineasTable({ lineas, integrationType }: { lineas: LineaPoliza[]; integ
   if (!lineas.length) return <p style={{ fontSize: 10, color: '#9aa1ab' }}>Sin movimientos en el mes.</p>
   const totDebe  = lineas.reduce((s, l) => s + l.debe,  0)
   const totHaber = lineas.reduce((s, l) => s + l.haber, 0)
-  const isRes = integrationType === 'resultado'
+  const isRes = integrationType === 'resultado' || integrationType === 'activo_fijo'
   return (
     <table>
       <thead>

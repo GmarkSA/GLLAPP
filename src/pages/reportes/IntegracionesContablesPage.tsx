@@ -55,7 +55,7 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
   }
   const totDebe  = lineas.reduce((s, l) => s + l.debe,  0)
   const totHaber = lineas.reduce((s, l) => s + l.haber, 0)
-  const isRes    = integrationType === 'resultado'
+  const isRes    = integrationType === 'resultado' || integrationType === 'activo_fijo'
 
   const rDebe  = (v: number) => v > 0
     ? <span style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Q(v)}</span>
