@@ -661,13 +661,15 @@ export default function TransaccionesPage() {
   // Actualizar sesión activa al volver desde otra página (el componente se remonta)
   useEffect(() => { setActiveSession(readSession(id)) }, [id])
 
-  // Cargar períodos históricos cuando hay sesión activa
+  // Cargar períodos SIEMPRE al montar (no solo cuando hay sesión)
+  // Esto garantiza que el auto-clear se dispare aunque la sesión haya sido cerrada
+  // desde ConciliacionPage o desde otro dispositivo
   useEffect(() => {
-    if (!id || !activeSession) return
+    if (!id) return
     listReconciliationPeriods(id).then(setPeriods).catch(() => null)
-  }, [id, activeSession])
+  }, [id])
 
-  // Si el período ya fue cerrado/aprobado, limpiar la sesión activa
+  // Si el período ya fue cerrado/aprobado, limpiar la sesión activa automáticamente
   useEffect(() => {
     if (!activeSession || periods.length === 0) return
     const already = periods.find(
