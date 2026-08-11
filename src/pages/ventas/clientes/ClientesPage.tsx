@@ -98,7 +98,7 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
             >
               {!r.name ? 'C' : r.name[0]}
             </Avatar>
-            <div>
+            <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/ventas/clientes/${r.id}`)}>
               <div style={{ fontWeight: 600, fontSize: 13, color: '#1faec2', lineHeight: 1.3 }}>{r.name}</div>
               {r.legalName && r.legalName !== r.name && (
                 <Text type="secondary" style={{ fontSize: 11 }}>{r.legalName}</Text>
