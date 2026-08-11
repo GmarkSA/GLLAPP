@@ -80,7 +80,7 @@ const fmtQ = (n: number) =>
   `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 // ── Definiciones de columna ───────────────────────────────────────────────────
-function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
+function buildColDef(key: string, navigate: (p: string) => void): ColumnsType<Vendor>[number] | null {
   const base = { key }
   switch (key) {
     case 'nombre':
@@ -97,7 +97,7 @@ function buildColDef(key: string): ColumnsType<Vendor>[number] | null {
             >
               {!r.name ? 'P' : r.name[0]}
             </Avatar>
-            <div>
+            <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/compras/proveedores/${r.id}`)}>
               <div style={{ fontWeight: 600, fontSize: 13, color: '#1faec2', lineHeight: 1.3 }}>{r.name}</div>
               {r.legalName && r.legalName !== r.name && (
                 <Text type="secondary" style={{ fontSize: 11 }}>{r.legalName}</Text>
@@ -228,7 +228,7 @@ export default function ProveedoresPage() {
     ...[...colConfig]
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .filter(c => c.visible)
-      .map(c => buildColDef(c.key))
+      .map(c => buildColDef(c.key, navigate))
       .filter((c): c is ColumnsType<Vendor>[number] => c !== null),
     {
       key: '_actions',
