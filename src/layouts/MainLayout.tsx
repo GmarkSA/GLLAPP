@@ -7,7 +7,7 @@ import {
   ProjectOutlined, AuditOutlined, InboxOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined,
   TabletOutlined, SearchOutlined, GlobalOutlined,
-  TeamOutlined, HomeOutlined, FundOutlined,
+  TeamOutlined, HomeOutlined, FundOutlined, ClockCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -416,13 +416,16 @@ export default function MainLayout() {
               </Tooltip>
             )}
             {trialDaysLeft !== null && (
-              <Tooltip title="Estás en período de prueba — haz clic para actualizar tu suscripción">
+              <Tooltip title={trialDaysLeft > 0 ? 'Haz clic para actualizar tu suscripción' : 'Tu período de prueba ha terminado'}>
                 <Tag
-                  color={trialDaysLeft <= 7 ? 'red' : trialDaysLeft <= 15 ? 'orange' : 'blue'}
-                  style={{ cursor: 'pointer', fontSize: 11, fontWeight: 600, margin: 0 }}
+                  color={trialDaysLeft <= 7 ? 'red' : trialDaysLeft <= 15 ? 'orange' : 'geekblue'}
+                  icon={<ClockCircleOutlined />}
+                  style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
                   onClick={() => navigate('/suscripcion')}
                 >
-                  {trialDaysLeft > 0 ? `Trial: ${trialDaysLeft}d restantes` : 'Trial vencido'}
+                  {trialDaysLeft > 0
+                    ? `Prueba gratis — ${trialDaysLeft} día${trialDaysLeft !== 1 ? 's' : ''}`
+                    : 'Prueba vencida — Activar plan'}
                 </Tag>
               </Tooltip>
             )}
