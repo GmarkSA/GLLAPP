@@ -12,7 +12,7 @@ import {
 import dayjs from 'dayjs'
 import {
   createAsiento, getAsiento, updateAsiento, postAsiento,
-  voidAsiento, reverseAsiento, type AsientoDetalle,
+  voidAsiento, reverseAsiento, corregirAsiento, type AsientoDetalle,
 } from '../../../api/asientos'
 import { getAccounts, getAccountGroups, type Account } from '../../../api/catalogo'
 import { getTaxes, type Tax } from '../../../api/impuestos'
@@ -95,8 +95,9 @@ export default function DiarioManualFormPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [vendors,  setVendors]   = useState<Vendor[]>([])
   const [assets,   setAssets]    = useState<ActivoFijo[]>([])
-  const [saving,   setSaving]    = useState(false)
-  const [acting,   setActing]    = useState(false)
+  const [saving,        setSaving]        = useState(false)
+  const [acting,        setActing]        = useState(false)
+  const [correctionMode, setCorrectionMode] = useState(false)
   const [currency, setCurrency]  = useState('GTQ')
   const [centrosCosto, centrosBeneficio] = useCentrosOptions()
   const [loadingRate, setLoadingRate] = useState(false)
@@ -108,7 +109,9 @@ export default function DiarioManualFormPage() {
   const totalDebit  = lines.reduce((s, l) => s + (l.debit  ?? 0), 0)
   const totalCredit = lines.reduce((s, l) => s + (l.credit ?? 0), 0)
   const diferencia  = totalDebit - totalCredit
-  const isReadonly  = asiento?.status === 'POSTED' || asiento?.status === 'VOID'
+  const isPosted    = asiento?.status === 'posted'
+  const isVoid      = asiento?.status === 'void'
+  const isReadonly  = (isPosted && !correctionMode) || isVoid
 
   const loadMeta = useCallback(async () => {
     const [all, grps, custs, vends, af, txs] = await Promise.allSettled([
@@ -271,6 +274,16 @@ export default function DiarioManualFormPage() {
         })
         message.success(autoPost ? 'Asiento publicado y contabilizado' : 'Borrador guardado')
         navigate(`/contabilidad/diarios-manuales/${created.id}`, { replace: true, state: null })
+      } else if (correctionMode) {
+        const corrected = await corregirAsiento(id!, {
+          entryDate:   vals.entryDate?.format('YYYY-MM-DD'),
+          description: vals.description,
+          reference:   vals.reference,
+          lines:       buildLines(),
+        })
+        message.success('Póliza corregida y publicada. Se creó el asiento ' + corrected.entryNumber)
+        setCorrectionMode(false)
+        navigate(`/contabilidad/diarios-manuales/${corrected.id}`, { replace: true, state: null })
       } else {
         await updateAsiento(id!, {
           entryDate:   vals.entryDate?.format('YYYY-MM-DD'),
@@ -576,41 +589,56 @@ export default function DiarioManualFormPage() {
           {!isReadonly && (
             <>
               <Button type="primary" icon={<CheckCircleOutlined />}
-                style={{ background: '#1faec2' }} loading={saving}
+                style={{ background: correctionMode ? '#f59e0b' : '#1faec2' }} loading={saving}
                 disabled={Math.abs(diferencia) > 0.01}
                 onClick={() => handleSave(true)}>
-                Guardar y publicar
+                {correctionMode ? 'Guardar corrección' : 'Guardar y publicar'}
               </Button>
-              <Button icon={<SaveOutlined />} loading={saving} onClick={() => handleSave(false)}>
-                Guardar como borrador
-              </Button>
+              {!correctionMode && (
+                <Button icon={<SaveOutlined />} loading={saving} onClick={() => handleSave(false)}>
+                  Guardar como borrador
+                </Button>
+              )}
+              {correctionMode && (
+                <Button onClick={() => { setCorrectionMode(false); loadAsiento() }}>
+                  Cancelar corrección
+                </Button>
+              )}
             </>
           )}
-          {asiento && <Button icon={<CopyOutlined />}
+          {isPosted && !correctionMode && (
+            <Tooltip title="Editar cuentas o montos: anula esta póliza y crea una corregida publicada">
+              <Button icon={<ReloadOutlined />}
+                onClick={() => setCorrectionMode(true)}>
+                Corregir póliza
+              </Button>
+            </Tooltip>
+          )}
+          {asiento && !correctionMode && <Button icon={<CopyOutlined />}
             onClick={() => navigate('/contabilidad/diarios-manuales/nuevo', { state: { clonarDe: asiento } })}>
             Clonar
           </Button>}
-          {asiento && <Tooltip title="Crear plantilla recurrente a partir de este asiento">
+          {asiento && !correctionMode && <Tooltip title="Crear plantilla recurrente a partir de este asiento">
             <Button icon={<RetweetOutlined />}
               onClick={() => navigate('/contabilidad/diarios-recurrentes/nueva', { state: { desdeDiario: asiento } })}>
               Hacer recurrente
             </Button>
           </Tooltip>}
-          {asiento?.status === 'POSTED' && (
+          {isPosted && !correctionMode && (
             <Popconfirm title="¿Crear asiento de reversión? Se generará un borrador con débitos y créditos invertidos."
               okText="Revertir"
               onConfirm={() => actFn(() => reverseAsiento(id!), 'Reversión creada como borrador')}>
               <Button icon={<RollbackOutlined />} loading={acting}>Revertir</Button>
             </Popconfirm>
           )}
-          {asiento?.status === 'POSTED' && (
+          {isPosted && !correctionMode && (
             <Popconfirm title="¿Anular este asiento? Esta acción no puede deshacerse."
               okText="Anular" okButtonProps={{ danger: true }}
               onConfirm={() => actFn(() => voidAsiento(id!), 'Asiento anulado')}>
               <Button danger icon={<StopOutlined />} loading={acting}>Anular</Button>
             </Popconfirm>
           )}
-          <Button onClick={() => navigate('/contabilidad/diarios-manuales')}>Cancelar</Button>
+          {!correctionMode && <Button onClick={() => navigate('/contabilidad/diarios-manuales')}>Cancelar</Button>}
         </Space>
       </Form>
     </div>
