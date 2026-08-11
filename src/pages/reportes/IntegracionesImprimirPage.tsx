@@ -29,6 +29,17 @@ const TYPE_LABEL: Record<IntegrationType, string> = {
   generico:    'General',
 }
 
+// Título descriptivo en cada hoja impresa
+const TYPE_TITULO: Record<IntegrationType, string> = {
+  banco:       'Conciliación Bancaria',
+  cxc:         'Cuentas por Cobrar — Antigüedad de Saldos',
+  cxp:         'Cuentas por Pagar — Antigüedad de Saldos',
+  inventario:  'Valorización de Inventarios',
+  activo_fijo: 'Registro de Activos Fijos',
+  resultado:   'Estado de Resultados',
+  generico:    'Libro Mayor',
+}
+
 // Only banco is landscape; cxc/cxp use portrait (carta) with pagination
 const LANDSCAPE_TYPES: IntegrationType[] = ['banco']
 const LINES_PER_PAGE = 20
@@ -65,15 +76,28 @@ const styles = `
   .doc-header-left { display: flex; align-items: flex-start; gap: 12px; }
   .doc-header-logo { max-height: 52px; max-width: 140px; object-fit: contain; }
   .doc-header-empresa { }
-  .doc-header-empresa .co-name { font-size: 14px; font-weight: 700; color: #1B3A6B; }
+  .doc-header-empresa .co-name { font-size: 13px; font-weight: 700; color: #1B3A6B; }
   .doc-header-empresa .co-sub  { font-size: 9px; color: #6b7280; margin-top: 1px; }
   .doc-header-right { text-align: right; flex-shrink: 0; }
-  .doc-header-right .doc-title { font-size: 11px; font-weight: 700; color: #1B3A6B; }
-  .doc-header-right .doc-meta  { font-size: 10px; color: #4b5563; margin-top: 2px; }
+  .doc-header-right .doc-title {
+    font-size: 13px; font-weight: 700; color: #1B3A6B; letter-spacing: -0.01em;
+  }
+  .doc-header-right .doc-subtitulo {
+    font-size: 11px; font-weight: 600; color: #374151; margin-top: 2px;
+  }
+  .doc-header-right .doc-meta  { font-size: 9px; color: #6b7280; margin-top: 2px; }
+  .doc-header-right .doc-badges {
+    display: flex; justify-content: flex-end; gap: 4px; margin-top: 5px; align-items: center;
+  }
   .doc-header-right .doc-moneda {
-    display: inline-block; font-size: 10px; font-weight: 700;
+    display: inline-block; font-size: 9px; font-weight: 700;
     background: #eff6ff; color: #1B3A6B; border: 1px solid #bfdbfe;
-    border-radius: 4px; padding: 1px 6px; margin-top: 4px;
+    border-radius: 3px; padding: 1px 5px;
+  }
+  .doc-header-right .doc-periodo {
+    display: inline-block; font-size: 9px; font-weight: 600;
+    background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;
+    border-radius: 3px; padding: 1px 5px;
   }
 
   .sheet-subheader { margin-bottom: 10px; }
@@ -136,12 +160,13 @@ const styles = `
 // ─── Encabezado empresa (reutilizable en cada hoja) ──────────────────────────
 
 function DocHeader({
-  org, titulo, subtitulo, fechaCorte, moneda = 'GTQ',
+  org, titulo, subtitulo, periodo, fechaCorte, moneda = 'GTQ',
 }: {
   org: OrganizationProfile | null
-  titulo: string
-  subtitulo?: string
-  fechaCorte: string
+  titulo: string        // e.g. "Cuentas por Pagar — Antigüedad de Saldos"
+  subtitulo?: string    // e.g. "211001 · Proveedores Nacionales"
+  periodo?: string      // e.g. "Julio 2025"
+  fechaCorte: string    // e.g. "31 de Julio de 2025"
   moneda?: string
 }) {
   const name = org?.legalName || org?.name || 'Mi Empresa'
@@ -159,9 +184,12 @@ function DocHeader({
       </div>
       <div className="doc-header-right">
         <div className="doc-title">{titulo}</div>
-        {subtitulo && <div className="doc-meta">{subtitulo}</div>}
+        {subtitulo && <div className="doc-subtitulo">{subtitulo}</div>}
         <div className="doc-meta">Al {fechaCorte}</div>
-        <div className="doc-moneda">{moneda}</div>
+        <div className="doc-badges">
+          {periodo && <span className="doc-periodo">Período: {periodo}</span>}
+          <span className="doc-moneda">{moneda}</span>
+        </div>
       </div>
     </div>
   )
@@ -241,7 +269,7 @@ function PartidaTable({ partidas, titulo }: { partidas: CxcEspecifico['partidas'
 
 function PartidaPages({
   partidas, titulo, tipoLabel, total,
-  org, fechaCorte, cuenta, integrationType,
+  org, fechaCorte, periodo, cuenta, integrationType,
 }: {
   partidas: CxcEspecifico['partidas']
   titulo: string
@@ -249,6 +277,7 @@ function PartidaPages({
   total: number
   org: OrganizationProfile | null
   fechaCorte: string
+  periodo: string
   cuenta: DetalleResult['cuenta']
   integrationType: IntegrationType
 }) {
@@ -261,8 +290,9 @@ function PartidaPages({
         <div className="sheet" key={ci}>
           <DocHeader
             org={org}
-            titulo={`Integración Contable — ${tipoLabel}`}
-            subtitulo={`${cuenta.code} · ${cuenta.name}`}
+            titulo={TYPE_TITULO[integrationType]}
+            subtitulo={`${cuenta.code} — ${cuenta.name}`}
+            periodo={periodo}
             fechaCorte={fechaCorte}
           />
 
@@ -277,8 +307,8 @@ function PartidaPages({
           {ci === 0 && (
             <div className="kv-grid">
               <div className="kv"><div className="label">Saldo al cierre</div><div className="value">{Q(total)}</div></div>
-              <div className="kv"><div className="label">Fecha corte</div><div className="value">Al {fechaCorte}</div></div>
-              <div className="kv"><div className="label">Tipo</div><div className="value">{tipoLabel}</div></div>
+              <div className="kv"><div className="label">Fecha de corte</div><div className="value">Al {fechaCorte}</div></div>
+              <div className="kv"><div className="label">Período</div><div className="value">{periodo}</div></div>
               <div className="kv"><div className="label">Cuenta</div><div className="value">{cuenta.code}</div></div>
             </div>
           )}
@@ -331,16 +361,17 @@ function PartidaPages({
 }
 
 function Sheet({
-  detalle, org, fechaCorte,
-}: { detalle: DetalleResult; org: OrganizationProfile | null; fechaCorte: string }) {
+  detalle, org, fechaCorte, periodo,
+}: { detalle: DetalleResult; org: OrganizationProfile | null; fechaCorte: string; periodo: string }) {
   const { cuenta, integrationType, saldoFinal, monthlyHistory, lineas, especifico } = detalle
 
   return (
     <div className="sheet">
       <DocHeader
         org={org}
-        titulo={`Integración Contable — ${TYPE_LABEL[integrationType]}`}
-        subtitulo={`${cuenta.code} · ${cuenta.name}`}
+        titulo={TYPE_TITULO[integrationType]}
+        subtitulo={`${cuenta.code} — ${cuenta.name}`}
+        periodo={periodo}
         fechaCorte={fechaCorte}
       />
 
@@ -352,8 +383,8 @@ function Sheet({
       {/* KPIs */}
       <div className="kv-grid">
         <div className="kv"><div className="label">Saldo al cierre</div><div className="value">{Q(saldoFinal)}</div></div>
-        <div className="kv"><div className="label">Fecha corte</div><div className="value">Al {fechaCorte}</div></div>
-        <div className="kv"><div className="label">Tipo integración</div><div className="value">{TYPE_LABEL[integrationType]}</div></div>
+        <div className="kv"><div className="label">Fecha de corte</div><div className="value">Al {fechaCorte}</div></div>
+        <div className="kv"><div className="label">Período</div><div className="value">{periodo}</div></div>
         <div className="kv"><div className="label">Cuenta</div><div className="value">{cuenta.code}</div></div>
       </div>
 
@@ -551,8 +582,9 @@ export default function IntegracionesImprimirPage() {
   const anioNum = Number(anio)
 
   // Último día del mes seleccionado: "31 de Julio de 2025"
-  const lastDay   = dayjs(new Date(anioNum, mesNum, 0)).date()
+  const lastDay    = dayjs(new Date(anioNum, mesNum, 0)).date()
   const fechaCorte = `${lastDay} de ${MESES[mesNum - 1]} de ${anioNum}`
+  const periodo    = `${MESES[mesNum - 1]} ${anioNum}`
 
   useEffect(() => {
     getOrganizationProfile().then(setOrg).catch(() => null)
@@ -622,12 +654,13 @@ export default function IntegracionesImprimirPage() {
               total={esp.total}
               org={org}
               fechaCorte={fechaCorte}
+              periodo={periodo}
               cuenta={d.cuenta}
               integrationType={d.integrationType}
             />
           )
         }
-        return <Sheet key={i} detalle={d} org={org} fechaCorte={fechaCorte} />
+        return <Sheet key={i} detalle={d} org={org} fechaCorte={fechaCorte} periodo={periodo} />
       })}
     </>
   )
