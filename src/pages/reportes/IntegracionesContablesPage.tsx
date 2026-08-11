@@ -113,14 +113,14 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
 
 // ─── Paneles específicos por tipo ─────────────────────────────────────────────
 
-function BancoPanel({ data }: { data: BancoEspecifico }) {
+function BancoPanel({ data, saldoGl }: { data: BancoEspecifico; saldoGl: number }) {
   const ba = data.bankAccount
   const r  = data.reconciliation
   type KV = { lbl: string; val: string; color?: string }
   const kvs: KV[] = [
     { lbl: 'Banco',         val: ba.bankName },
     { lbl: 'No. Cuenta',    val: ba.accountNumber },
-    { lbl: 'Saldo Sistema', val: Q(ba.currentBalance), color: '#1B3A6B' },
+    { lbl: 'Saldo Sistema', val: Q(saldoGl), color: '#1B3A6B' },
     ...(r ? [
       { lbl: 'Saldo Banco', val: Q(r.saldoBanco) },
       { lbl: 'Diferencia',  val: Q(r.diferencia),
@@ -303,7 +303,7 @@ function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: num
       {/* Sección específica por tipo */}
       {hasEspecifico && (
         <div>
-          {integrationType === 'banco' && <BancoPanel data={especifico as BancoEspecifico} />}
+          {integrationType === 'banco' && <BancoPanel data={especifico as BancoEspecifico} saldoGl={saldoFinal} />}
           {integrationType === 'cxc' && (
             <PartidaTable partidas={(especifico as CxcEspecifico).partidas} tipo="cxc" />
           )}
