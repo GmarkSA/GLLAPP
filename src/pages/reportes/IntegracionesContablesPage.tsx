@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Select, Table, Tag, Spin, Empty, Button, Typography, Divider,
   Alert, Tooltip, message,
 } from 'antd'
-import { PrinterOutlined } from '@ant-design/icons'
+import { PrinterOutlined, ArrowLeftOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getCierreIntegraciones, getDetalleIntegracion,
@@ -94,7 +95,7 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
       dataSource={lineas}
       rowKey={(_, i) => String(i)}
       pagination={false}
-      scroll={{ x: 'max-content', y: 280 }}
+      scroll={{ x: 'max-content' }}
       summary={() => (
         <Table.Summary.Row>
           <Table.Summary.Cell index={0} colSpan={span}><Text strong>Total</Text></Table.Summary.Cell>
@@ -366,6 +367,8 @@ function AccountChip({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function IntegracionesContablesPage() {
+  const navigate = useNavigate()
+  const chipsRef = useRef<HTMLDivElement>(null)
   const [mes, setMes]           = useState(now.month() + 1)
   const [anio, setAnio]         = useState(now.year())
   const [loading, setLoading]   = useState(false)
@@ -373,6 +376,10 @@ export default function IntegracionesContablesPage() {
   const [selected, setSelected] = useState<AccountIntegracion | null>(null)
   const [detalle, setDetalle]   = useState<DetalleResult | null>(null)
   const [detLoading, setDetLoading] = useState(false)
+
+  const scrollChips = (dir: 'left' | 'right') => {
+    if (chipsRef.current) chipsRef.current.scrollBy({ left: dir === 'left' ? -260 : 260, behavior: 'smooth' })
+  }
 
   const loadCierre = useCallback(async () => {
     setLoading(true)
@@ -419,11 +426,20 @@ export default function IntegracionesContablesPage() {
     <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Encabezado */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Integraciones Contables</Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Cierre mensual — conciliación de saldos por cuenta
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            size="small"
+            type="text"
+            onClick={() => navigate('/reportes')}
+            style={{ color: '#6b7280' }}
+          />
+          <div>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Integraciones Contables</Title>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Cierre mensual — conciliación de saldos por cuenta
+            </Text>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Select
@@ -472,15 +488,31 @@ export default function IntegracionesContablesPage() {
         ) : accounts.length === 0 ? (
           <Empty description="Sin cuentas con saldo" style={{ padding: 12 }} />
         ) : (
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-            {accounts.map(acc => (
-              <AccountChip
-                key={acc.id}
-                acc={acc}
-                isActive={selected?.id === acc.id}
-                onClick={() => handleSelect(acc)}
-              />
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Button
+              icon={<LeftOutlined />}
+              size="small"
+              type="text"
+              onClick={() => scrollChips('left')}
+              style={{ flexShrink: 0, color: '#9aa1ab' }}
+            />
+            <div ref={chipsRef} style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, flex: 1, scrollbarWidth: 'none' }}>
+              {accounts.map(acc => (
+                <AccountChip
+                  key={acc.id}
+                  acc={acc}
+                  isActive={selected?.id === acc.id}
+                  onClick={() => handleSelect(acc)}
+                />
+              ))}
+            </div>
+            <Button
+              icon={<RightOutlined />}
+              size="small"
+              type="text"
+              onClick={() => scrollChips('right')}
+              style={{ flexShrink: 0, color: '#9aa1ab' }}
+            />
           </div>
         )}
       </div>
