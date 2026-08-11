@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag, Alert } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
   BankOutlined, BarChartOutlined, SettingOutlined,
@@ -415,6 +415,17 @@ export default function MainLayout() {
                 </Tag>
               </Tooltip>
             )}
+            {trialDaysLeft !== null && (
+              <Tooltip title="Estás en período de prueba — haz clic para actualizar tu suscripción">
+                <Tag
+                  color={trialDaysLeft <= 7 ? 'red' : trialDaysLeft <= 15 ? 'orange' : 'blue'}
+                  style={{ cursor: 'pointer', fontSize: 11, fontWeight: 600, margin: 0 }}
+                  onClick={() => navigate('/suscripcion')}
+                >
+                  {trialDaysLeft > 0 ? `Trial: ${trialDaysLeft}d restantes` : 'Trial vencido'}
+                </Tag>
+              </Tooltip>
+            )}
           </Space>
 
           {/* Right */}
@@ -492,21 +503,6 @@ export default function MainLayout() {
 
         {/* Breadcrumb enterprise */}
         <EnterpriseBreadcrumb />
-
-        {/* Banner de prueba */}
-        {trialDaysLeft !== null && (
-          <Alert
-            type={trialDaysLeft <= 7 ? 'error' : trialDaysLeft <= 15 ? 'warning' : 'info'}
-            banner
-            showIcon
-            message={
-              trialDaysLeft > 0
-                ? <>Estás en período de prueba — te quedan <strong>{trialDaysLeft} día{trialDaysLeft !== 1 ? 's' : ''}</strong>. <a href="/suscripcion" style={{ fontWeight: 600 }}>Actualiza tu suscripción</a></>
-                : <>Tu período de prueba ha terminado. <a href="/suscripcion" style={{ fontWeight: 600 }}>Actualiza tu suscripción para continuar</a></>
-            }
-            style={{ borderRadius: 0 }}
-          />
-        )}
 
         {/* Contenido con transición */}
         <Content style={{ padding: 24, minHeight: 'calc(100vh - 60px)' }} onClick={() => setCollapsed(true)}>
