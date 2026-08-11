@@ -623,6 +623,7 @@ export default function DteSatVentasPage() {
       title: 'Fecha',
       dataIndex: 'fechaEmision',
       width: 95,
+      defaultSortOrder: 'descend' as const,
       sorter: (a, b) => String(a.fechaEmision ?? '').localeCompare(String(b.fechaEmision ?? '')),
       render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v ? String(v).substring(0, 10) : '—'}</Text>,
     },

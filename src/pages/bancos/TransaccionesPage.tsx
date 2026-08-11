@@ -877,7 +877,7 @@ export default function TransaccionesPage() {
       dataIndex: 'transactionDate',
       width: 100,
       fixed: 'left',
-      defaultSortOrder: 'ascend',
+      defaultSortOrder: 'descend',
       sorter: (a, b) => String(a.transactionDate).localeCompare(String(b.transactionDate)),
       render: fmtDate,
     },

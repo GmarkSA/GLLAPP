@@ -883,6 +883,7 @@ export default function DteSatPage() {
       title: 'Fecha',
       dataIndex: 'fechaEmision',
       width: 95,
+      defaultSortOrder: 'descend' as const,
       sorter: (a, b) => (a.fechaEmision ?? '').localeCompare(b.fechaEmision ?? ''),
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
     },

@@ -136,6 +136,7 @@ function buildColDef(
         } }
     case 'invoiceDate':
       return { ...base, title: 'Fecha Factura', dataIndex: 'invoiceDate', width: 105,
+        defaultSortOrder: 'descend' as const,
         sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.invoiceDate ?? '').localeCompare(b.invoiceDate ?? ''),
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
     case 'accountingDate':
