@@ -71,12 +71,16 @@ export interface CierreResult {
 }
 
 export interface LineaPoliza {
-  fecha:        string
-  codigoPoliza: string
-  descripcion:  string
-  glosa:        string
-  debe:         number
-  haber:        number
+  fecha:          string
+  codigoPoliza:   string
+  descripcion:    string
+  glosa:          string
+  debe:           number
+  haber:          number
+  referencia?:    string
+  vendorName?:    string
+  serieFactura?:  string
+  numeroFactura?: string
 }
 
 export interface MesHistorial {
