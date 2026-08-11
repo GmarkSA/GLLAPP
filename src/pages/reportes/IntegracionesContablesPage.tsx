@@ -11,7 +11,7 @@ import {
 import type {
   AccountIntegracion, DetalleResult, IntegrationType,
   BancoEspecifico, CxcEspecifico, CxpEspecifico,
-  InventarioEspecifico, ActivoFijoEspecifico,
+  InventarioEspecifico, ActivoFijoEspecifico, LineaPoliza,
 } from '../../api/integraciones'
 
 const { Title, Text } = Typography
@@ -28,6 +28,16 @@ const TYPE_LABEL: Record<IntegrationType, { label: string; color: string }> = {
   generico:    { label: 'General',      color: '#9aa1ab' },
 }
 
+const TYPE_TITULO: Record<IntegrationType, string> = {
+  banco:       'Conciliación Bancaria',
+  cxc:         'Cuentas por Cobrar — Saldos al Corte',
+  cxp:         'Cuentas por Pagar — Saldos al Corte',
+  inventario:  'Valorización de Inventarios',
+  activo_fijo: 'Registro de Activos Fijos',
+  resultado:   'Estado de Resultados — Movimientos del Período',
+  generico:    'Libro Mayor — Movimientos del Período',
+}
+
 const MESES = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
@@ -35,7 +45,54 @@ const MESES = [
 
 const now = dayjs()
 
-// ─── Detalle específico por tipo ─────────────────────────────────────────────
+// ─── Tabla de movimientos (lineas) ────────────────────────────────────────────
+
+function MovimientosTable({ lineas }: { lineas: LineaPoliza[] }) {
+  if (!lineas.length) {
+    return <Alert type="info" message="Sin movimientos contables en el período" showIcon style={{ fontSize: 12 }} />
+  }
+  const totDebe  = lineas.reduce((s, l) => s + l.debe,  0)
+  const totHaber = lineas.reduce((s, l) => s + l.haber, 0)
+  return (
+    <Table
+      size="small"
+      dataSource={lineas}
+      rowKey={(_, i) => String(i)}
+      pagination={false}
+      scroll={{ y: 280 }}
+      summary={() => (
+        <Table.Summary.Row>
+          <Table.Summary.Cell index={0} colSpan={3}>
+            <Text strong>Total</Text>
+          </Table.Summary.Cell>
+          <Table.Summary.Cell index={3} align="right">
+            <Text strong style={{ color: '#e5484d' }}>{Q(totDebe)}</Text>
+          </Table.Summary.Cell>
+          <Table.Summary.Cell index={4} align="right">
+            <Text strong style={{ color: '#2ea172' }}>{Q(totHaber)}</Text>
+          </Table.Summary.Cell>
+        </Table.Summary.Row>
+      )}
+      columns={[
+        { title: 'Fecha',       dataIndex: 'fecha',       width: 95,
+          render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+        { title: 'Póliza',     dataIndex: 'codigoPoliza', width: 110 },
+        { title: 'Descripción', key: 'desc', ellipsis: true,
+          render: (_: any, r: LineaPoliza) => r.glosa || r.descripcion },
+        { title: 'Debe',       dataIndex: 'debe',  width: 120, align: 'right',
+          render: (v: number) => v > 0
+            ? <Text style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{Q(v)}</Text>
+            : <Text type="secondary">—</Text> },
+        { title: 'Haber',      dataIndex: 'haber', width: 120, align: 'right',
+          render: (v: number) => v > 0
+            ? <Text style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{Q(v)}</Text>
+            : <Text type="secondary">—</Text> },
+      ]}
+    />
+  )
+}
+
+// ─── Paneles específicos por tipo ─────────────────────────────────────────────
 
 function BancoPanel({ data }: { data: BancoEspecifico }) {
   const ba = data.bankAccount
@@ -43,17 +100,18 @@ function BancoPanel({ data }: { data: BancoEspecifico }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-        <Statistic title="Banco" value={ba.bankName} valueStyle={{ fontSize: 14 }} />
-        <Statistic title="No. Cuenta" value={ba.accountNumber} valueStyle={{ fontSize: 14 }} />
-        <Statistic title="Saldo Sistema" value={Q(ba.currentBalance)} valueStyle={{ fontSize: 14, color: '#1B3A6B' }} />
+        <Statistic title="Banco"        value={ba.bankName}       valueStyle={{ fontSize: 14 }} />
+        <Statistic title="No. Cuenta"   value={ba.accountNumber}  valueStyle={{ fontSize: 14 }} />
+        <Statistic title="Saldo Sistema" value={Q(ba.currentBalance)}
+          valueStyle={{ fontSize: 14, color: '#1B3A6B' }} />
       </div>
       {r && (
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
           <Text strong style={{ fontSize: 12 }}>Conciliación Bancaria — {MESES[r.month - 1]} {r.year}</Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
-            <Statistic title="Saldo Banco" value={Q(r.saldoBanco)} valueStyle={{ fontSize: 13 }} />
+            <Statistic title="Saldo Banco"   value={Q(r.saldoBanco)}   valueStyle={{ fontSize: 13 }} />
             <Statistic title="Saldo Sistema" value={Q(r.saldoSistema)} valueStyle={{ fontSize: 13 }} />
-            <Statistic title="Diferencia" value={Q(r.diferencia)}
+            <Statistic title="Diferencia"    value={Q(r.diferencia)}
               valueStyle={{ fontSize: 13, color: Math.abs(r.diferencia) < 0.01 ? '#2ea172' : '#e5484d' }} />
           </div>
           {r.notes && <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>{r.notes}</Text>}
@@ -66,14 +124,16 @@ function BancoPanel({ data }: { data: BancoEspecifico }) {
         rowKey={(_, i) => String(i)}
         pagination={false}
         scroll={{ y: 220 }}
+        locale={{ emptyText: 'Sin movimientos bancarios en el período' }}
         columns={[
-          { title: 'Fecha',       dataIndex: 'date',           width: 90,  render: d => dayjs(d).format('DD/MM/YYYY') },
+          { title: 'Fecha',       dataIndex: 'date',           width: 90,
+            render: (d: string) => dayjs(d).format('DD/MM/YYYY') },
           { title: 'Descripción', dataIndex: 'description',    ellipsis: true },
-          { title: 'Ref',         dataIndex: 'reference',      width: 90,  ellipsis: true },
+          { title: 'Ref',         dataIndex: 'reference',      width: 90, ellipsis: true },
           { title: 'Tipo',        dataIndex: 'type',           width: 80,
-            render: t => <Tag style={{ fontSize: 11 }}>{t}</Tag> },
+            render: (t: string) => <Tag style={{ fontSize: 11 }}>{t}</Tag> },
           { title: 'Monto',       dataIndex: 'amount',         width: 110, align: 'right',
-            render: v => <span style={{ color: v >= 0 ? '#2ea172' : '#e5484d' }}>{Q(v)}</span> },
+            render: (v: number) => <span style={{ color: v >= 0 ? '#2ea172' : '#e5484d' }}>{Q(v)}</span> },
           { title: 'Saldo',       dataIndex: 'runningBalance', width: 110, align: 'right', render: Q },
         ]}
       />
@@ -89,14 +149,17 @@ function PartidaTable({ partidas, titulo }: { partidas: Array<any>; titulo: stri
       rowKey={(_, i) => String(i)}
       pagination={false}
       scroll={{ y: 260 }}
+      locale={{ emptyText: 'Sin partidas abiertas' }}
       columns={[
-        { title: 'Nombre',       dataIndex: 'nombre',      ellipsis: true },
-        { title: titulo,         dataIndex: 'numero',      width: 120 },
-        { title: 'Fecha',        dataIndex: 'fecha',       width: 90,  render: d => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
-        { title: 'Vencimiento',  dataIndex: 'vencimiento', width: 90,  render: d => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
-        { title: 'Total',        dataIndex: 'total',       width: 110, align: 'right', render: Q },
-        { title: 'Saldo',        dataIndex: 'saldo',       width: 110, align: 'right',
-          render: v => <Text strong style={{ color: '#e5484d' }}>{Q(v)}</Text> },
+        { title: 'Nombre',      dataIndex: 'nombre',      ellipsis: true },
+        { title: titulo,        dataIndex: 'numero',      width: 120 },
+        { title: 'Fecha',       dataIndex: 'fecha',       width: 90,
+          render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
+        { title: 'Vencimiento', dataIndex: 'vencimiento', width: 90,
+          render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
+        { title: 'Total',       dataIndex: 'total',       width: 110, align: 'right', render: Q },
+        { title: 'Saldo',       dataIndex: 'saldo',       width: 110, align: 'right',
+          render: (v: number) => <Text strong style={{ color: '#e5484d' }}>{Q(v)}</Text> },
       ]}
     />
   )
@@ -106,7 +169,8 @@ function InventarioPanel({ data }: { data: InventarioEspecifico }) {
   return (
     <div>
       <div style={{ marginBottom: 8 }}>
-        <Statistic title="Valor total inventario" value={Q(data.totalValor)} valueStyle={{ fontSize: 14, color: '#2ea172' }} />
+        <Statistic title="Valor total inventario" value={Q(data.totalValor)}
+          valueStyle={{ fontSize: 14, color: '#2ea172' }} />
       </div>
       <Table
         size="small"
@@ -120,7 +184,7 @@ function InventarioPanel({ data }: { data: InventarioEspecifico }) {
           { title: 'Stock',       dataIndex: 'stock',         width: 80, align: 'right' },
           { title: 'Costo Prom.', dataIndex: 'costoPromedio', width: 110, align: 'right', render: Q },
           { title: 'Valor Total', dataIndex: 'valorTotal',    width: 110, align: 'right',
-            render: v => <Text strong>{Q(v)}</Text> },
+            render: (v: number) => <Text strong>{Q(v)}</Text> },
         ]}
       />
     </div>
@@ -131,7 +195,8 @@ function ActivoFijoPanel({ data }: { data: ActivoFijoEspecifico }) {
   return (
     <div>
       <div style={{ marginBottom: 8 }}>
-        <Statistic title="Valor en libros total" value={Q(data.totalValorLibros)} valueStyle={{ fontSize: 14, color: '#1B3A6B' }} />
+        <Statistic title="Valor en libros total" value={Q(data.totalValorLibros)}
+          valueStyle={{ fontSize: 14, color: '#1B3A6B' }} />
       </div>
       <Table
         size="small"
@@ -140,14 +205,15 @@ function ActivoFijoPanel({ data }: { data: ActivoFijoEspecifico }) {
         pagination={false}
         scroll={{ y: 260 }}
         columns={[
-          { title: 'Código',      dataIndex: 'codigo',          width: 90 },
-          { title: 'Activo',      dataIndex: 'name',            ellipsis: true },
-          { title: 'Adquisición', dataIndex: 'fechaAdquisicion', width: 100, render: d => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
-          { title: 'Costo Orig.', dataIndex: 'costoOriginal',   width: 110, align: 'right', render: Q },
-          { title: 'Dep. Acum.',  dataIndex: 'depAcumulada',    width: 110, align: 'right',
-            render: v => <span style={{ color: '#e5484d' }}>{Q(v)}</span> },
-          { title: 'Valor Libros', dataIndex: 'valorLibros',    width: 110, align: 'right',
-            render: v => <Text strong style={{ color: '#1B3A6B' }}>{Q(v)}</Text> },
+          { title: 'Código',       dataIndex: 'codigo',           width: 90 },
+          { title: 'Activo',       dataIndex: 'name',             ellipsis: true },
+          { title: 'Adquisición',  dataIndex: 'fechaAdquisicion', width: 100,
+            render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
+          { title: 'Costo Orig.',  dataIndex: 'costoOriginal',    width: 110, align: 'right', render: Q },
+          { title: 'Dep. Acum.',   dataIndex: 'depAcumulada',     width: 110, align: 'right',
+            render: (v: number) => <span style={{ color: '#e5484d' }}>{Q(v)}</span> },
+          { title: 'Valor Libros', dataIndex: 'valorLibros',      width: 110, align: 'right',
+            render: (v: number) => <Text strong style={{ color: '#1B3A6B' }}>{Q(v)}</Text> },
         ]}
       />
     </div>
@@ -157,22 +223,30 @@ function ActivoFijoPanel({ data }: { data: ActivoFijoEspecifico }) {
 // ─── Panel de detalle de cuenta ──────────────────────────────────────────────
 
 function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: number; anio: number }) {
-  const { cuenta, integrationType, especifico, saldoFinal } = detalle
+  const { cuenta, integrationType, especifico, saldoFinal, lineas } = detalle
   const cfg = TYPE_LABEL[integrationType]
 
   const printUrl = `/reportes/integraciones/${anio}/${mes}/imprimir?accountId=${cuenta.id}`
 
+  // Tipos que tienen su propia tabla específica
+  const hasEspecifico = especifico !== null
+  // Tipos que muestran movimientos del libro mayor como sección principal
+  const showLineas = ['generico', 'resultado'].includes(integrationType) || !hasEspecifico
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header cuenta */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <Tag color={cfg.color} style={{ marginBottom: 4 }}>{cfg.label}</Tag>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#0a0a0a' }}>{cuenta.code} — {cuenta.name}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0a0a0a' }}>
+            {cuenta.code} — {cuenta.name}
+          </div>
           <Text type="secondary" style={{ fontSize: 12 }}>{cuenta.balanceType}</Text>
+          <div style={{ marginTop: 4, fontSize: 11, color: '#6b7280' }}>{TYPE_TITULO[integrationType]}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Statistic title="Saldo" value={Q(saldoFinal)} valueStyle={{ fontSize: 14, color: '#1B3A6B' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <Statistic title="Saldo al corte" value={Q(saldoFinal)} valueStyle={{ fontSize: 14, color: '#1B3A6B' }} />
           <Button
             size="small"
             icon={<PrinterOutlined />}
@@ -183,33 +257,39 @@ function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: num
         </div>
       </div>
 
-      {/* Detalle específico */}
-      {especifico && (
-        <>
-          <Divider style={{ margin: '4px 0' }} />
-          <div>
-            <Text strong style={{ fontSize: 12 }}>Integración — {cfg.label}</Text>
-            <div style={{ marginTop: 8 }}>
-              {integrationType === 'banco' && <BancoPanel data={especifico as BancoEspecifico} />}
-              {integrationType === 'cxc'   && (
-                <>
-                  <Statistic title="Saldo CxC al corte" value={Q((especifico as CxcEspecifico).total)}
-                    valueStyle={{ fontSize: 14, color: '#1faec2', marginBottom: 8 }} />
-                  <PartidaTable partidas={(especifico as CxcEspecifico).partidas} titulo="No. Factura" />
-                </>
-              )}
-              {integrationType === 'cxp'   && (
-                <>
-                  <Statistic title="Saldo CxP al corte" value={Q((especifico as CxpEspecifico).total)}
-                    valueStyle={{ fontSize: 14, color: '#f59e0b', marginBottom: 8 }} />
-                  <PartidaTable partidas={(especifico as CxpEspecifico).partidas} titulo="No. Factura" />
-                </>
-              )}
-              {integrationType === 'inventario'  && <InventarioPanel data={especifico as InventarioEspecifico} />}
-              {integrationType === 'activo_fijo' && <ActivoFijoPanel data={especifico as ActivoFijoEspecifico} />}
-            </div>
-          </div>
-        </>
+      <Divider style={{ margin: '0' }} />
+
+      {/* Sección específica por tipo */}
+      {hasEspecifico && (
+        <div>
+          {integrationType === 'banco' && <BancoPanel data={especifico as BancoEspecifico} />}
+          {integrationType === 'cxc' && (
+            <>
+              <Statistic title="Saldo CxC al corte" value={Q((especifico as CxcEspecifico).total)}
+                valueStyle={{ fontSize: 14, color: '#1faec2', marginBottom: 8 }} />
+              <PartidaTable partidas={(especifico as CxcEspecifico).partidas} titulo="No. Factura" />
+            </>
+          )}
+          {integrationType === 'cxp' && (
+            <>
+              <Statistic title="Saldo CxP al corte" value={Q((especifico as CxpEspecifico).total)}
+                valueStyle={{ fontSize: 14, color: '#f59e0b', marginBottom: 8 }} />
+              <PartidaTable partidas={(especifico as CxpEspecifico).partidas} titulo="No. Factura" />
+            </>
+          )}
+          {integrationType === 'inventario'  && <InventarioPanel  data={especifico as InventarioEspecifico} />}
+          {integrationType === 'activo_fijo' && <ActivoFijoPanel  data={especifico as ActivoFijoEspecifico} />}
+        </div>
+      )}
+
+      {/* Movimientos del libro mayor — para generico/resultado o cuando no hay especifico */}
+      {showLineas && (
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+            Movimientos del período — {MESES[mes - 1]} {anio}
+          </Text>
+          <MovimientosTable lineas={lineas} />
+        </div>
       )}
     </div>
   )
