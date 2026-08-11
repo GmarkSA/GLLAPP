@@ -178,7 +178,7 @@ function PartidaTable({ partidas, tipo }: { partidas: Array<any>; tipo: 'cxc' | 
       dataSource={partidas}
       rowKey={(_, i) => String(i)}
       pagination={false}
-      scroll={{ x: 'max-content', y: 380 }}
+      scroll={{ x: 'max-content' }}
       locale={{ emptyText: 'Sin partidas abiertas' }}
       summary={() => (
         <Table.Summary.Row>

@@ -42,7 +42,7 @@ const TYPE_TITULO: Record<IntegrationType, string> = {
 
 // Only banco is landscape; cxc/cxp use portrait (carta) with pagination
 const LANDSCAPE_TYPES: IntegrationType[] = ['banco']
-const LINES_PER_PAGE = 20
+const LINES_PER_PAGE = 30
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = []
