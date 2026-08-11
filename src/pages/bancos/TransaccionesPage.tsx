@@ -62,6 +62,7 @@ import {
   deleteTransaction,
   getBankAccount,
   getTransactions,
+  getReconciliationSummary,
   importStatement,
   approveReconciliationPeriod,
   listReconciliationPeriods,
@@ -643,6 +644,7 @@ export default function TransaccionesPage() {
   const [conciliarAnio, setConciliarAnio]  = useState<number>(dayjs().year())
   const [matching,      setMatching]       = useState(false)
   const [bulkApplying,  setBulkApplying]   = useState(false)
+  const [acctSummary,   setAcctSummary]    = useState<{ pending: number; matched: number; categorized: number; reconciled: number } | null>(null)
   const [conciliarSaldo, setConciliarSaldo] = useState<number | null>(null)
   const readSession = (accountId: string | undefined) => {
     if (!accountId) return null
@@ -754,7 +756,7 @@ export default function TransaccionesPage() {
     if (!id) return
     setLoading(true)
     try {
-      const [res, acc] = await Promise.all([
+      const [res, acc, sum] = await Promise.all([
         getTransactions(id, {
           page,
           limit: 50,
@@ -765,10 +767,12 @@ export default function TransaccionesPage() {
           toDate: dates?.[1]?.format('YYYY-MM-DD'),
         }),
         getBankAccount(id),
+        getReconciliationSummary(id).catch(() => null),
       ])
       setTransactions(Array.isArray(res.data) ? res.data : [])
       setTotal(res.total || 0)
       setAccount(acc)
+      if (sum) setAcctSummary({ pending: sum.pending ?? 0, matched: sum.matched ?? 0, categorized: sum.categorized ?? 0, reconciled: sum.reconciled ?? 0 })
     } catch {
       setTransactions([])
       setTotal(0)
@@ -844,10 +848,11 @@ export default function TransaccionesPage() {
   const summary = useMemo(() => {
     const incoming = transactions.filter(t => t.type === 'credit').reduce((s, t) => s + Number(t.amount || 0), 0)
     const outgoing = transactions.filter(t => t.type === 'debit').reduce((s, t) => s + Number(t.amount || 0), 0)
-    const pending  = transactions.filter(t => t.status === 'pending').length
-    const matched  = transactions.filter(t => t.status === 'matched').length
+    // Usar conteos reales de la API (toda la cuenta, no solo la página visible)
+    const pending = acctSummary?.pending ?? transactions.filter(t => t.status === 'pending').length
+    const matched = acctSummary?.matched ?? transactions.filter(t => t.status === 'matched').length
     return { incoming, outgoing, pending, matched }
-  }, [transactions])
+  }, [transactions, acctSummary])
 
   const fmtDate = (d: string) => {
     const s = String(d || '').split('T')[0]
