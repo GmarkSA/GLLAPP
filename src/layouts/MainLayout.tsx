@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag, Alert } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
   BankOutlined, BarChartOutlined, SettingOutlined,
@@ -22,6 +22,7 @@ import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 import GlobalSearchModal from '../components/GlobalSearch/GlobalSearchModal'
 import NotificationsDrawer, { useAlertCount } from '../components/NotificationsDrawer'
+import { getBillingState } from '../api/billing'
 
 const { Header, Sider, Content } = Layout
 
@@ -155,7 +156,19 @@ export default function MainLayout() {
   const [collapsed,      setCollapsed]      = useState(true)
   const [searchOpen,     setSearchOpen]     = useState(false)
   const [notifOpen,      setNotifOpen]      = useState(false)
+  const [trialDaysLeft,  setTrialDaysLeft]  = useState<number | null>(null)
   const alertCount = useAlertCount()
+
+  useEffect(() => {
+    getBillingState().then(data => {
+      if (data?.tenant?.status === 'trial' && data.tenant.trialEndsAt) {
+        const days = Math.max(0, Math.ceil(
+          (new Date(data.tenant.trialEndsAt).getTime() - Date.now()) / 86400000
+        ))
+        setTrialDaysLeft(days)
+      }
+    }).catch(() => {/* no bloqueante */})
+  }, [])
 
   // ── Impersonación de tenant ──────────────────────────────────────────────
   const impersonationTenantName = sessionStorage.getItem('impersonationTenantName')
@@ -479,6 +492,21 @@ export default function MainLayout() {
 
         {/* Breadcrumb enterprise */}
         <EnterpriseBreadcrumb />
+
+        {/* Banner de prueba */}
+        {trialDaysLeft !== null && (
+          <Alert
+            type={trialDaysLeft <= 7 ? 'error' : trialDaysLeft <= 15 ? 'warning' : 'info'}
+            banner
+            showIcon
+            message={
+              trialDaysLeft > 0
+                ? <>Estás en período de prueba — te quedan <strong>{trialDaysLeft} día{trialDaysLeft !== 1 ? 's' : ''}</strong>. <a href="/suscripcion" style={{ fontWeight: 600 }}>Actualiza tu suscripción</a></>
+                : <>Tu período de prueba ha terminado. <a href="/suscripcion" style={{ fontWeight: 600 }}>Actualiza tu suscripción para continuar</a></>
+            }
+            style={{ borderRadius: 0 }}
+          />
+        )}
 
         {/* Contenido con transición */}
         <Content style={{ padding: 24, minHeight: 'calc(100vh - 60px)' }} onClick={() => setCollapsed(true)}>
