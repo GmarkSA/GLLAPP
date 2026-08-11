@@ -791,6 +791,7 @@ export default function TransaccionesPage() {
     if (!matched.length) { message.warning('No hay coincidencias para categorizar'); return }
     setBulkApplying(true)
     let success = 0; let errors = 0
+    let firstErrorMsg: string | null = null
     const txDate = (tx: BankTransaction) => String(tx.transactionDate || '').split('T')[0]
     for (const tx of matched) {
       try {
@@ -821,13 +822,17 @@ export default function TransaccionesPage() {
           await updateTransaction(id, tx.id, { status: 'categorized', sourceDocumentId: tx.matchedInvoiceId, sourceDocumentType: 'bill' } as any)
         }
         success++
-      } catch {
+      } catch (e) {
         errors++
+        if (!firstErrorMsg) firstErrorMsg = getApiError(e, '')
       }
     }
     setBulkApplying(false)
     if (success) message.success(`${success} transacción${success !== 1 ? 'es' : ''} categorizad${success !== 1 ? 'as' : 'a'} correctamente`)
-    if (errors) message.warning(`${errors} no se pudieron categorizar — ábrelas individualmente`)
+    if (errors) {
+      const detail = firstErrorMsg || 'ábrelas individualmente para ver el detalle'
+      message.warning(`${errors} no se pudieron categorizar — ${detail}`)
+    }
     loadTransactions()
   }
 
