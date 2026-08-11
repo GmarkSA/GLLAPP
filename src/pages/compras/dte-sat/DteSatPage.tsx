@@ -2237,7 +2237,7 @@ export default function DteSatPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
                         onClick={() => setStatusFilter('ready')}>
                         <CheckCircleOutlined style={{ color: '#2ea172' }} />
-                        <span><strong>{stats.ready.count}</strong> listos — haz clic aquí, selecciona y <strong>Registra</strong></span>
+                        <span><strong>{stats.ready.count} facturas listas</strong> — Registrar en lote</span>
                       </div>
                     )}
                   </Space>

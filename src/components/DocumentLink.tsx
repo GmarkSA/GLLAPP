@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Tooltip, message } from 'antd'
+import { Button, message } from 'antd'
 import { FilePdfOutlined, FileTextOutlined, DownloadOutlined, LoadingOutlined } from '@ant-design/icons'
 import { requestDownloadUrl, type FelDocType } from '../api/storage'
 
@@ -53,33 +53,29 @@ export default function DocumentLink({
 
   if (!showDownload) {
     return (
-      <Tooltip title={documentKey}>
-        <Button
-          size="small"
-          type="link"
-          icon={icon}
-          loading={loading}
-          onClick={handleClick}
-          style={{ padding: 0, fontSize: 12 }}
-        >
-          {displayLabel} ↗
-        </Button>
-      </Tooltip>
-    )
-  }
-
-  return (
-    <Tooltip title={documentKey}>
       <Button
         size="small"
         type="link"
         icon={icon}
         loading={loading}
         onClick={handleClick}
-        style={{ padding: 0, fontSize: 12, fontWeight: docType?.includes('pdf') ? 600 : undefined }}
+        style={{ padding: 0, fontSize: 12 }}
       >
         {displayLabel} ↗
       </Button>
-    </Tooltip>
+    )
+  }
+
+  return (
+    <Button
+      size="small"
+      type="link"
+      icon={icon}
+      loading={loading}
+      onClick={handleClick}
+      style={{ padding: 0, fontSize: 12, fontWeight: docType?.includes('pdf') ? 600 : undefined }}
+    >
+      {displayLabel} ↗
+    </Button>
   )
 }
