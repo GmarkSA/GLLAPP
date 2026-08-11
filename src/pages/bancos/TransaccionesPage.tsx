@@ -1294,6 +1294,24 @@ export default function TransaccionesPage() {
                         </Button>
                       </Tooltip>
                     )}
+                    {r.status === 'draft' && (
+                      <Tooltip title="Continuar conciliando este período">
+                        <Button
+                          size="small"
+                          type="primary"
+                          style={{ background: NAVY, borderColor: NAVY, fontSize: 11 }}
+                          onClick={() => {
+                            const session = { month: r.month, year: r.year, saldo: Number(r.saldoBanco) }
+                            localStorage.setItem(`conciliacion_${account!.id}`, JSON.stringify(session))
+                            setActiveSession(session)
+                            setShowHistorialTx(false)
+                            navigate(`/bancos/${account!.id}/conciliacion?month=${r.month}&year=${r.year}&refSaldo=${r.saldoBanco}`)
+                          }}
+                        >
+                          Continuar
+                        </Button>
+                      </Tooltip>
+                    )}
                     {(r.status === 'closed' || r.status === 'approved') && (
                       <Tooltip title={r.status === 'approved' ? 'Revertir a Cerrado para re-editar' : 'Reabrir para re-conciliar'}>
                         <Button
