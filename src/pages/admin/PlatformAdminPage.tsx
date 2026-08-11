@@ -8,14 +8,18 @@ import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
   EyeOutlined, RocketOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
-  StarFilled, StarOutlined,
+  StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import type { Company } from '../../store/authStore'
 import { useNavigate } from 'react-router-dom'
-import { getGtqExchangeRate, setGtqExchangeRate } from '../../api/billing'
+import {
+  getGtqExchangeRate, setGtqExchangeRate,
+  adminActivateTrial, adminSetBillingConfig, adminGetTenantBilling, adminRequestInvoiceForTenant,
+  type TenantBillingInfo, type TenantBillingPayment,
+} from '../../api/billing'
 import { companiesApi } from '../../api/companies'
 import { platformTemplatesApi, type PlatformTemplate } from '../../api/platformTemplates'
 
@@ -163,6 +167,7 @@ interface TenantSummary {
   id: string; name: string; legalName?: string; taxId?: string
   plan?: string; status?: string; companiesCount?: number
   usersCount?: number; createdAt?: string; trialEndsAt?: string
+  trialDaysLeft?: number; customMonthlyPriceUSD?: number
 }
 interface PlatformStats {
   totalTenants: number; active: number; trial: number; suspended: number
@@ -404,6 +409,19 @@ export default function PlatformAdminPage() {
   const [userToAssign, setUserToAssign]             = useState<string | null>(null)
   const [savingAssign, setSavingAssign]             = useState(false)
 
+  // Billing modal per tenant
+  const [billingModalOpen, setBillingModalOpen]   = useState(false)
+  const [billingTenant, setBillingTenant]         = useState<TenantSummary | null>(null)
+  const [billingInfo, setBillingInfo]             = useState<TenantBillingInfo | null>(null)
+  const [billingLoading, setBillingLoading]       = useState(false)
+  const [trialActivating, setTrialActivating]     = useState(false)
+  const [customPrice, setCustomPrice]             = useState<number | null>(null)
+  const [savingPrice, setSavingPrice]             = useState(false)
+  const [felModalOpen, setFelModalOpen]           = useState(false)
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
+  const [felForm]                                 = Form.useForm()
+  const [emittingFel, setEmittingFel]             = useState(false)
+
 
   useEffect(() => {
     if (user && !user.isSuperAdmin) {
@@ -411,6 +429,67 @@ export default function PlatformAdminPage() {
       message.warning('Acceso restringido a Super Admin')
     }
   }, [user, navigate])
+
+  const openBillingModal = async (tenant: TenantSummary) => {
+    setBillingTenant(tenant); setBillingModalOpen(true); setBillingLoading(true); setBillingInfo(null)
+    try {
+      const info = await adminGetTenantBilling(tenant.id)
+      setBillingInfo(info)
+      setCustomPrice(info.customMonthlyPriceUSD)
+    } catch { message.error('Error al cargar facturación') }
+    finally { setBillingLoading(false) }
+  }
+
+  const handleActivateTrial = async (days: number) => {
+    if (!billingTenant) return
+    setTrialActivating(true)
+    try {
+      await adminActivateTrial(billingTenant.id, days)
+      message.success(`Trial de ${days} días activado para ${billingTenant.name}`)
+      await loadTenants()
+      const info = await adminGetTenantBilling(billingTenant.id)
+      setBillingInfo(info)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al activar trial')
+    } finally { setTrialActivating(false) }
+  }
+
+  const handleSavePrice = async (priceToSave: number | null) => {
+    if (!billingTenant) return
+    setSavingPrice(true)
+    try {
+      await adminSetBillingConfig(billingTenant.id, { customMonthlyPriceUSD: priceToSave })
+      setCustomPrice(priceToSave)
+      message.success(priceToSave == null ? 'Precio restablecido al del plan' : `Precio personalizado guardado: $${priceToSave}/mes`)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar precio')
+    } finally { setSavingPrice(false) }
+  }
+
+  const handleEmitFel = async (values: any) => {
+    if (!selectedPaymentId || !billingTenant) return
+    setEmittingFel(true)
+    try {
+      const result = await adminRequestInvoiceForTenant(selectedPaymentId, {
+        subscriptionPaymentId: selectedPaymentId,
+        customerTaxId: values.customerTaxId,
+        customerName: values.customerName,
+        customerEmail: values.customerEmail,
+        currency: values.currency,
+      })
+      if (result.success) {
+        message.success(`FEL emitida: ${result.felSerie}-${result.felNumero}`)
+        setFelModalOpen(false)
+        felForm.resetFields()
+        const info = await adminGetTenantBilling(billingTenant.id)
+        setBillingInfo(info)
+      } else {
+        message.error(`Error FEL: ${result.message}`)
+      }
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al emitir FEL')
+    } finally { setEmittingFel(false) }
+  }
 
   const loadTenants = useCallback(async () => {
     setLoading(true)
@@ -680,13 +759,26 @@ export default function PlatformAdminPage() {
     },
     {
       title: 'Estado',
-      dataIndex: 'status', width: 110,
-      render: (v?: string) => <Badge status={STATUS_COLOR[v ?? ''] ?? 'default'} text={v ?? '—'} />,
+      dataIndex: 'status', width: 140,
+      render: (v?: string, r?: TenantSummary) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Badge status={STATUS_COLOR[v ?? ''] ?? 'default'} text={v ?? '—'} />
+          {v === 'trial' && r?.trialDaysLeft !== undefined && (
+            <Tag
+              color={!r.trialDaysLeft ? 'red' : r.trialDaysLeft <= 7 ? 'orange' : 'blue'}
+              style={{ fontSize: 11, marginLeft: 0, width: 'fit-content' }}
+              icon={<ClockCircleOutlined />}
+            >
+              {r.trialDaysLeft > 0 ? `${r.trialDaysLeft} días` : 'Vencido'}
+            </Tag>
+          )}
+        </div>
+      ),
     },
     { title: 'Empresas', dataIndex: 'companiesCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     {
-      title: '', width: 150,
+      title: '', width: 175,
       render: (_, r) => (
         <Space size={4}>
           <Button
@@ -701,6 +793,15 @@ export default function PlatformAdminPage() {
             Acceder
           </Button>
           <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} title="Ver detalle" />
+          <Tooltip title="Facturación y trial">
+            <Button
+              size="small"
+              icon={<DollarOutlined />}
+              onClick={() => openBillingModal(r)}
+              style={{ color: '#2ea172', borderColor: '#2ea172' }}
+              title="Facturación y trial"
+            />
+          </Tooltip>
           <Popconfirm
             title={r.status === 'suspended' ? '¿Activar tenant?' : '¿Suspender tenant por falta de pago?'}
             onConfirm={() => handleTenantStatus(r.id, r.status === 'suspended' ? 'active' : 'suspended')}
@@ -1001,6 +1102,192 @@ export default function PlatformAdminPage() {
             </>
           )
         }
+      </Modal>
+
+      {/* Modal facturación por tenant */}
+      <Modal
+        title={<Space><DollarOutlined style={{ color: '#2ea172' }} />Facturación — {billingTenant?.name}</Space>}
+        open={billingModalOpen}
+        onCancel={() => { setBillingModalOpen(false); setBillingTenant(null); setBillingInfo(null) }}
+        footer={<Button onClick={() => { setBillingModalOpen(false); setBillingTenant(null); setBillingInfo(null) }}>Cerrar</Button>}
+        width={960}
+      >
+        {billingLoading
+          ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+          : billingInfo && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Trial */}
+              <Card size="small" title={<Space><ClockCircleOutlined style={{ color: '#f59e0b' }} /><span style={{ color: '#f59e0b', fontWeight: 600 }}>Trial de uso</span></Space>}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
+                  <Statistic
+                    title="Días restantes"
+                    value={billingInfo.trialDaysLeft ?? '—'}
+                    suffix={billingInfo.trialDaysLeft !== null ? 'días' : ''}
+                    valueStyle={{
+                      color: billingInfo.trialDaysLeft === null ? '#aaa'
+                        : billingInfo.trialDaysLeft <= 7 ? '#e5484d'
+                        : billingInfo.trialDaysLeft <= 15 ? '#f59e0b' : '#2ea172',
+                      fontSize: 28,
+                    }}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <Space>
+                      <Button type="primary" loading={trialActivating} onClick={() => handleActivateTrial(30)}
+                        style={{ background: '#f59e0b', borderColor: '#f59e0b' }} icon={<PlayCircleOutlined />}>
+                        Activar 30 días
+                      </Button>
+                      <Button loading={trialActivating} onClick={() => handleActivateTrial(15)} icon={<PlayCircleOutlined />}>
+                        Extender 15 días
+                      </Button>
+                      <Button loading={trialActivating} onClick={() => handleActivateTrial(7)}>
+                        +7 días
+                      </Button>
+                    </Space>
+                    {billingInfo.trialEndsAt && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Vence: {new Date(billingInfo.trialEndsAt).toLocaleDateString('es-GT', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </Text>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Precio personalizado */}
+              <Card size="small" title={<Space><DollarOutlined style={{ color: '#1faec2' }} /><span style={{ color: '#1faec2', fontWeight: 600 }}>Precio mensual personalizado</span></Space>}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+                  Precio negociado para este cliente. Reemplaza el precio del plan. Dejar vacío para usar precio del plan.
+                </Text>
+                <Space>
+                  <InputNumber
+                    value={customPrice}
+                    onChange={v => setCustomPrice(v)}
+                    min={0} step={1} precision={2}
+                    prefix="$" addonAfter="USD/mes"
+                    style={{ width: 220 }}
+                    placeholder={`Precio del plan`}
+                  />
+                  <Button type="primary" loading={savingPrice} onClick={() => handleSavePrice(customPrice)}
+                    style={{ background: '#1faec2' }}>
+                    Guardar
+                  </Button>
+                  {customPrice !== null && (
+                    <Button loading={savingPrice} onClick={() => handleSavePrice(null)}>
+                      Usar precio del plan
+                    </Button>
+                  )}
+                </Space>
+              </Card>
+
+              {/* Suscripción activa */}
+              {billingInfo.subscription && (
+                <Card size="small" title="Suscripción activa">
+                  <Descriptions size="small" column={3}>
+                    <Descriptions.Item label="Plan"><Tag color="#1faec2">{billingInfo.subscription.plan}</Tag></Descriptions.Item>
+                    <Descriptions.Item label="Estado"><Badge status={billingInfo.subscription.status === 'active' ? 'success' : 'warning'} text={billingInfo.subscription.status} /></Descriptions.Item>
+                    <Descriptions.Item label="Monto mensual">
+                      {billingInfo.subscription.billingCurrency} {Number(billingInfo.subscription.billingAmountLocal || billingInfo.subscription.monthlyPrice).toFixed(2)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Próximo cobro">
+                      {billingInfo.subscription.nextChargeAt ? new Date(billingInfo.subscription.nextChargeAt).toLocaleDateString('es-GT') : '—'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Tarjeta">
+                      {billingInfo.subscription.qpayproCardLast4
+                        ? `${billingInfo.subscription.qpayproCardBrand} ••••${billingInfo.subscription.qpayproCardLast4}`
+                        : '—'}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Card>
+              )}
+
+              {/* Historial de cobros */}
+              <Card size="small" title={<Space><FileTextOutlined />Historial de cobros ({billingInfo.payments.length})</Space>}>
+                <Table<TenantBillingPayment>
+                  rowKey="id"
+                  dataSource={billingInfo.payments}
+                  size="small"
+                  pagination={{ pageSize: 8, size: 'small' }}
+                  locale={{ emptyText: 'Sin pagos registrados' }}
+                  columns={[
+                    {
+                      title: 'Fecha', dataIndex: 'chargedAt', width: 100,
+                      render: (v: string) => new Date(v).toLocaleDateString('es-GT'),
+                    },
+                    { title: 'Plan', dataIndex: 'plan', width: 120 },
+                    {
+                      title: 'Monto', width: 110,
+                      render: (_, p) => `${p.currency} ${Number(p.amount).toFixed(2)}`,
+                    },
+                    {
+                      title: 'Estado', dataIndex: 'result', width: 90,
+                      render: (v: string) => (
+                        <Tag color={v === 'approved' ? 'success' : v === 'declined' ? 'error' : 'default'}>{v}</Tag>
+                      ),
+                    },
+                    {
+                      title: 'No. Trans.', dataIndex: 'qpayproTransactionId', width: 120,
+                      render: (v?: string) => v ? <Text code style={{ fontSize: 11 }}>{v.slice(0, 12)}</Text> : <Text type="secondary">—</Text>,
+                    },
+                    {
+                      title: 'FEL', width: 140,
+                      render: (_, p) => p.felUuid ? (
+                        <Space size={4}>
+                          <Tag color="success" style={{ fontSize: 11 }}>{p.felSerie}-{p.felNumero}</Tag>
+                          {p.felInvoiceUrl && (
+                            <Button size="small" href={p.felInvoiceUrl} target="_blank" icon={<FileTextOutlined />} />
+                          )}
+                        </Space>
+                      ) : p.result === 'approved' ? (
+                        <Button
+                          size="small" type="primary"
+                          style={{ background: '#2ea172', borderColor: '#2ea172', fontSize: 11 }}
+                          onClick={() => {
+                            setSelectedPaymentId(p.id)
+                            felForm.resetFields()
+                            setFelModalOpen(true)
+                          }}
+                        >
+                          Emitir FEL
+                        </Button>
+                      ) : <Text type="secondary">—</Text>,
+                    },
+                  ]}
+                />
+              </Card>
+            </div>
+          )
+        }
+      </Modal>
+
+      {/* Modal emitir FEL */}
+      <Modal
+        title={<Space><FileTextOutlined style={{ color: '#2ea172' }} />Emitir Factura Electrónica (FEL)</Space>}
+        open={felModalOpen}
+        onCancel={() => { setFelModalOpen(false); felForm.resetFields() }}
+        onOk={() => felForm.submit()}
+        confirmLoading={emittingFel}
+        okText="Emitir FEL"
+        okButtonProps={{ style: { background: '#2ea172' } }}
+        width={520}
+      >
+        <Form form={felForm} layout="vertical" onFinish={handleEmitFel} style={{ marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="customerTaxId" label="NIT del receptor" rules={[{ required: true, message: 'Requerido' }]}>
+              <Input placeholder="1234567-8 o CF" />
+            </Form.Item>
+            <Form.Item name="currency" label="Moneda" initialValue="GTQ">
+              <Select options={[
+                { value: 'GTQ', label: 'GTQ — Quetzales' },
+                { value: 'USD', label: 'USD — Dólares' },
+              ]} />
+            </Form.Item>
+          </div>
+          <Form.Item name="customerName" label="Nombre del receptor" rules={[{ required: true, message: 'Requerido' }]}>
+            <Input placeholder="EMPRESA S.A." />
+          </Form.Item>
+          <Form.Item name="customerEmail" label="Email (opcional — se envía copia de FEL)" style={{ marginBottom: 0 }}>
+            <Input placeholder="facturacion@empresa.com" />
+          </Form.Item>
+        </Form>
       </Modal>
 
       {/* Modal crear / editar plan */}
