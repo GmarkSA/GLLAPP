@@ -68,7 +68,9 @@ export default function PagosRealizadosPage() {
       const res = await getPagosRealizados({ page, limit: 50, search: search || undefined, status, mode })
       setData(res.data)
       setTotal(res.total)
-    } catch {
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al cargar pagos realizados')
       setData([])
     } finally {
       setLoading(false)
