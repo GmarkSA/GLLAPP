@@ -937,12 +937,29 @@ export default function PlatformAdminPage() {
                           <Text>{plan.maxUsers >= 999 ? 'Usuarios ilimitados' : `${plan.maxUsers} usuario${plan.maxUsers !== 1 ? 's' : ''}`}</Text>
                         </Space>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {(plan.features || []).map((f, i) => (
-                          <div key={i} style={{ fontSize: 12, color: '#555' }}>
-                            <CheckCircleOutlined style={{ color: '#2ea172', marginRight: 6 }} />{f}
-                          </div>
-                        ))}
+                      <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 10, maxHeight: 340, overflowY: 'auto', paddingRight: 4 }}>
+                        {(plan.features || []).length === 0 && (
+                          <div style={{ color: '#9ca3af', fontSize: 12, fontStyle: 'italic' }}>Sin características definidas</div>
+                        )}
+                        {(plan.features || []).map((f, i) =>
+                          f.startsWith('###') ? (
+                            <div key={i} style={{
+                              fontSize: 10.5, fontWeight: 700, color: '#1B3A6B',
+                              textTransform: 'uppercase', letterSpacing: 0.6,
+                              marginTop: i > 0 ? 12 : 0, marginBottom: 4,
+                            }}>
+                              {f.replace(/^###\s*/, '')}
+                            </div>
+                          ) : (
+                            <div key={i} style={{
+                              display: 'flex', alignItems: 'flex-start', gap: 7,
+                              fontSize: 12.5, color: '#374151', padding: '3px 0',
+                            }}>
+                              <CheckCircleOutlined style={{ color: '#2ea172', marginTop: 2, flexShrink: 0 }} />
+                              <span>{f}</span>
+                            </div>
+                          )
+                        )}
                       </div>
                       <div style={{ marginTop: 12, color: '#6b7280', fontSize: 11 }}>
                         {tenants.filter(t => (t.plan ?? 'basic') === plan.plan).length} tenant(s) en este plan
@@ -1327,8 +1344,15 @@ export default function PlatformAdminPage() {
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
-          <Form.Item name="featuresText" label="Características (una por línea)">
-            <Input.TextArea rows={5} placeholder="1 empresa&#10;5 usuarios&#10;Soporte email" />
+          <Form.Item
+            name="featuresText"
+            label="Características (una por línea — usa ### para secciones)"
+            extra={<span style={{ fontSize: 11, color: '#9ca3af' }}>Ej: <code>### Facturación</code> crea un encabezado de sección</span>}
+          >
+            <Input.TextArea
+              rows={12}
+              placeholder={"### Facturación\nGestión hasta 5,000 facturas\nFacturación recurrente\n\n### Usuarios\nInvitar 3 usuarios\nSoporte email"}
+            />
           </Form.Item>
         </Form>
       </Modal>
