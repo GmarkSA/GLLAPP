@@ -535,11 +535,12 @@ export default function DteSatVentasPage() {
     for (const d of selected) {
       let accountId: string | undefined
       let taxId: string | undefined
+      let savedDefaultUnit: string | undefined
       // 1. Preferencias guardadas
       if (d.customerId) {
         try {
           const raw = localStorage.getItem(`dte_prefs_${d.customerId}`)
-          if (raw) { const p = JSON.parse(raw); accountId = p.accountId; taxId = p.taxId }
+          if (raw) { const p = JSON.parse(raw); accountId = p.accountId; taxId = p.taxId; savedDefaultUnit = p.defaultUnit }
         } catch {}
       }
       // 2. Datos maestros del cliente como fallback
@@ -559,7 +560,7 @@ export default function DteSatVentasPage() {
       // Unidad: detectar del primer ítem del DTE (SAT trae bien/servicio + unidad) para agilizar.
       const firstItem = (d.items as any[] | undefined)?.[0]
       const rawUnit = firstItem?.unidad_medida ?? firstItem?.UnidadMedida ?? firstItem?.unidad ?? firstItem?.unit
-      const detectedUnit = rawUnit ? unidades.find(u => u.code === String(rawUnit).toUpperCase())?.code : undefined
+      const detectedUnit = savedDefaultUnit ?? (rawUnit ? unidades.find(u => u.code === String(rawUnit).toUpperCase())?.code : undefined)
       rows.push({
         id: d.id,
         label: `${d.nombreReceptor ?? d.nitReceptor ?? '—'} · ${d.serie}/${d.numeroDte}`,
@@ -1559,7 +1560,7 @@ export default function DteSatVentasPage() {
                         onClick={() => setStatusFilter('ready')}
                       >
                         <CheckCircleOutlined style={{ color: '#2ea172' }} />
-                        <span><strong>{stats.ready.count}</strong> listos — haz clic aquí, selecciona y <strong>Registra</strong></span>
+                        <span><strong>{stats.ready.count} facturas listas</strong> — Registrar en lote</span>
                       </div>
                     )}
                   </Space>
