@@ -122,5 +122,10 @@ export const deleteAsiento = (id: string) =>
 export const voidAsiento = (id: string) =>
   api.post(`/contabilidad/asientos/${id}/anular`).then(unwrap) as Promise<AsientoDetalle>
 
+export const corregirAsiento = (
+  id: string,
+  dto: { entryDate?: string; description?: string; reference?: string; lines: AsientoLine[] },
+) => api.post(`/contabilidad/asientos/${id}/corregir`, dto).then(unwrap) as Promise<AsientoDetalle>
+
 export const resetToDraftAsiento = (id: string) =>
   api.post(`/contabilidad/asientos/${id}/borrador`).then(unwrap) as Promise<AsientoDetalle>
