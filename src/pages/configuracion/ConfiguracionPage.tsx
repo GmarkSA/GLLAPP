@@ -22,7 +22,6 @@ import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
 import EspacioDesarrolloPage  from './EspacioDesarrolloPage'
 import IntegracionesPage      from './IntegracionesPage'
-import CargasInicialesPage    from './CargasInicialesPage'
 import type { UploadChangeParam } from 'antd/es/upload'
 import {
   getOrganizationProfile,
@@ -1721,9 +1720,10 @@ const HUB_GROUPS = [
         desc: 'Cuentas por defecto, dimensiones e impuestos especiales.',
         icon: 'audit',
         links: [
-          { label: 'Cuentas por defecto',    sectionKey: 'contabilidad' },
-          { label: 'Dimensiones analíticas', sectionKey: 'contabilidad' },
-          { label: 'Impuestos especiales',   sectionKey: 'contabilidad' },
+          { label: 'Cuentas por defecto',    sectionKey: 'contabilidad'                    },
+          { label: 'Dimensiones analíticas', sectionKey: 'contabilidad'                    },
+          { label: 'Impuestos especiales',   sectionKey: 'contabilidad'                    },
+          { label: 'Cargas iniciales',        sectionKey: '/configuracion/cargas-iniciales' },
         ],
       },
       {
@@ -1842,7 +1842,8 @@ export default function ConfiguracionPage() {
         navigate('/configuracion/suscripcion')
         return null
       case 'cargas-iniciales':
-        return <CargasInicialesPage />
+        navigate('/configuracion/cargas-iniciales')
+        return null
       case 'integrations':
         return <IntegracionesPage />
       case 'devspace':
