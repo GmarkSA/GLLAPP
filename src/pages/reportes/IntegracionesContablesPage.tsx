@@ -47,12 +47,48 @@ const now = dayjs()
 
 // ─── Tabla de movimientos (lineas) ────────────────────────────────────────────
 
-function MovimientosTable({ lineas }: { lineas: LineaPoliza[] }) {
+function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; integrationType?: IntegrationType }) {
   if (!lineas.length) {
     return <Alert type="info" message="Sin movimientos contables en el período" showIcon style={{ fontSize: 12 }} />
   }
-  const totDebe  = lineas.reduce((s, l) => s + l.debe,  0)
-  const totHaber = lineas.reduce((s, l) => s + l.haber, 0)
+  const totDebe   = lineas.reduce((s, l) => s + l.debe,  0)
+  const totHaber  = lineas.reduce((s, l) => s + l.haber, 0)
+  const isRes     = integrationType === 'resultado'
+
+  const rDebe  = (v: number) => v > 0
+    ? <Text style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{Q(v)}</Text>
+    : <Text type="secondary">—</Text>
+  const rHaber = (v: number) => v > 0
+    ? <Text style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{Q(v)}</Text>
+    : <Text type="secondary">—</Text>
+
+  const cols = isRes ? [
+    { title: 'Fecha',       dataIndex: 'fecha',       width: 90,
+      render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'No. Factura', key: 'fact',              width: 120,
+      render: (_: any, r: LineaPoliza) => r.numeroFactura || r.referencia || r.codigoPoliza },
+    { title: 'Proveedor',   key: 'prov',              ellipsis: true,
+      render: (_: any, r: LineaPoliza) => r.vendorName || r.descripcion },
+    { title: 'Serie',       dataIndex: 'serieFactura', width: 58 },
+    { title: 'Debe',        dataIndex: 'debe',         width: 120, align: 'right' as const, render: rDebe },
+    { title: 'Haber',       dataIndex: 'haber',        width: 120, align: 'right' as const, render: rHaber },
+  ] : [
+    { title: 'Fecha',       dataIndex: 'fecha',        width: 90,
+      render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+    { title: 'Póliza',      dataIndex: 'codigoPoliza', width: 110 },
+    { title: 'Descripción', key: 'desc',               ellipsis: true,
+      render: (_: any, r: LineaPoliza) => {
+        const g = r.glosa; const d = r.descripcion
+        if (g && d && g !== d)
+          return <span>{g} <Text type="secondary" style={{ fontSize: 10 }}>· {d}</Text></span>
+        return g || d
+      } },
+    { title: 'Debe',        dataIndex: 'debe',         width: 120, align: 'right' as const, render: rDebe },
+    { title: 'Haber',       dataIndex: 'haber',        width: 120, align: 'right' as const, render: rHaber },
+  ]
+
+  const span = isRes ? 4 : 3
+
   return (
     <Table
       size="small"
@@ -62,32 +98,16 @@ function MovimientosTable({ lineas }: { lineas: LineaPoliza[] }) {
       scroll={{ y: 280 }}
       summary={() => (
         <Table.Summary.Row>
-          <Table.Summary.Cell index={0} colSpan={3}>
-            <Text strong>Total</Text>
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={3} align="right">
+          <Table.Summary.Cell index={0} colSpan={span}><Text strong>Total</Text></Table.Summary.Cell>
+          <Table.Summary.Cell index={span} align="right">
             <Text strong style={{ color: '#e5484d' }}>{Q(totDebe)}</Text>
           </Table.Summary.Cell>
-          <Table.Summary.Cell index={4} align="right">
+          <Table.Summary.Cell index={span + 1} align="right">
             <Text strong style={{ color: '#2ea172' }}>{Q(totHaber)}</Text>
           </Table.Summary.Cell>
         </Table.Summary.Row>
       )}
-      columns={[
-        { title: 'Fecha',       dataIndex: 'fecha',       width: 95,
-          render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
-        { title: 'Póliza',     dataIndex: 'codigoPoliza', width: 110 },
-        { title: 'Descripción', key: 'desc', ellipsis: true,
-          render: (_: any, r: LineaPoliza) => r.glosa || r.descripcion },
-        { title: 'Debe',       dataIndex: 'debe',  width: 120, align: 'right',
-          render: (v: number) => v > 0
-            ? <Text style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{Q(v)}</Text>
-            : <Text type="secondary">—</Text> },
-        { title: 'Haber',      dataIndex: 'haber', width: 120, align: 'right',
-          render: (v: number) => v > 0
-            ? <Text style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{Q(v)}</Text>
-            : <Text type="secondary">—</Text> },
-      ]}
+      columns={cols}
     />
   )
 }
@@ -97,27 +117,33 @@ function MovimientosTable({ lineas }: { lineas: LineaPoliza[] }) {
 function BancoPanel({ data }: { data: BancoEspecifico }) {
   const ba = data.bankAccount
   const r  = data.reconciliation
+  type KV = { lbl: string; val: string; color?: string }
+  const kvs: KV[] = [
+    { lbl: 'Banco',         val: ba.bankName },
+    { lbl: 'No. Cuenta',    val: ba.accountNumber },
+    { lbl: 'Saldo Sistema', val: Q(ba.currentBalance), color: '#1B3A6B' },
+    ...(r ? [
+      { lbl: 'Saldo Banco',  val: Q(r.saldoBanco) },
+      { lbl: 'Diferencia',   val: Q(r.diferencia),
+        color: Math.abs(r.diferencia) < 0.01 ? '#2ea172' : '#e5484d' },
+      ...(r.notes ? [{ lbl: 'Notas', val: r.notes }] : []),
+    ] : []),
+  ]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-        <Statistic title="Banco"        value={ba.bankName}       valueStyle={{ fontSize: 14 }} />
-        <Statistic title="No. Cuenta"   value={ba.accountNumber}  valueStyle={{ fontSize: 14 }} />
-        <Statistic title="Saldo Sistema" value={Q(ba.currentBalance)}
-          valueStyle={{ fontSize: 14, color: '#1B3A6B' }} />
-      </div>
-      {r && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
-          <Text strong style={{ fontSize: 12 }}>Conciliación Bancaria — {MESES[r.month - 1]} {r.year}</Text>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
-            <Statistic title="Saldo Banco"   value={Q(r.saldoBanco)}   valueStyle={{ fontSize: 13 }} />
-            <Statistic title="Saldo Sistema" value={Q(r.saldoSistema)} valueStyle={{ fontSize: 13 }} />
-            <Statistic title="Diferencia"    value={Q(r.diferencia)}
-              valueStyle={{ fontSize: 13, color: Math.abs(r.diferencia) < 0.01 ? '#2ea172' : '#e5484d' }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end',
+        padding: '8px 14px', background: '#f8fafc',
+        border: '1px solid #e2e8f0', borderRadius: 6,
+      }}>
+        {kvs.map(({ lbl, val, color }) => (
+          <div key={lbl}>
+            <div style={{ fontSize: 9, color: '#9aa1ab', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{lbl}</div>
+            <div style={{ fontSize: 13, fontWeight: color ? 700 : 400, color: color || '#0a0a0a', marginTop: 1 }}>{val}</div>
           </div>
-          {r.notes && <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>{r.notes}</Text>}
-        </div>
-      )}
-      {!r && <Alert type="info" message="Sin conciliación registrada para este mes" showIcon style={{ fontSize: 12 }} />}
+        ))}
+        {!r && <Text type="secondary" style={{ fontSize: 11 }}>Sin conciliación registrada</Text>}
+      </div>
       <Table
         size="small"
         dataSource={data.transactions}
@@ -132,9 +158,9 @@ function BancoPanel({ data }: { data: BancoEspecifico }) {
           { title: 'Ref',         dataIndex: 'reference',      width: 90, ellipsis: true },
           { title: 'Tipo',        dataIndex: 'type',           width: 80,
             render: (t: string) => <Tag style={{ fontSize: 11 }}>{t}</Tag> },
-          { title: 'Monto',       dataIndex: 'amount',         width: 110, align: 'right',
+          { title: 'Monto',       dataIndex: 'amount',         width: 110, align: 'right' as const,
             render: (v: number) => <span style={{ color: v >= 0 ? '#2ea172' : '#e5484d' }}>{Q(v)}</span> },
-          { title: 'Saldo',       dataIndex: 'runningBalance', width: 110, align: 'right', render: Q },
+          { title: 'Saldo',       dataIndex: 'runningBalance', width: 110, align: 'right' as const, render: Q },
         ]}
       />
     </div>
@@ -142,23 +168,29 @@ function BancoPanel({ data }: { data: BancoEspecifico }) {
 }
 
 function PartidaTable({ partidas, titulo }: { partidas: Array<any>; titulo: string }) {
+  const totSaldo = partidas.reduce((s: number, p: any) => s + (p.saldo ?? 0), 0)
   return (
     <Table
       size="small"
       dataSource={partidas}
       rowKey={(_, i) => String(i)}
       pagination={false}
-      scroll={{ y: 260 }}
+      scroll={{ y: 380 }}
       locale={{ emptyText: 'Sin partidas abiertas' }}
+      summary={() => (
+        <Table.Summary.Row>
+          <Table.Summary.Cell index={0} colSpan={3}><Text strong>Total</Text></Table.Summary.Cell>
+          <Table.Summary.Cell index={3} align="right">
+            <Text strong style={{ color: '#e5484d' }}>{Q(totSaldo)}</Text>
+          </Table.Summary.Cell>
+        </Table.Summary.Row>
+      )}
       columns={[
-        { title: 'Nombre',      dataIndex: 'nombre',      ellipsis: true },
-        { title: titulo,        dataIndex: 'numero',      width: 120 },
-        { title: 'Fecha',       dataIndex: 'fecha',       width: 90,
-          render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
-        { title: 'Vencimiento', dataIndex: 'vencimiento', width: 90,
-          render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '—' },
-        { title: 'Total',       dataIndex: 'total',       width: 110, align: 'right', render: Q },
-        { title: 'Saldo',       dataIndex: 'saldo',       width: 110, align: 'right',
+        { title: 'Nombre',  dataIndex: 'nombre', ellipsis: true },
+        { title: titulo,    dataIndex: 'numero', width: 110 },
+        { title: 'Fecha',   dataIndex: 'fecha',  width: 80,
+          render: (d: string) => d ? dayjs(d).format('DD/MM/YY') : '—' },
+        { title: 'Saldo',   dataIndex: 'saldo',  width: 110, align: 'right' as const,
           render: (v: number) => <Text strong style={{ color: '#e5484d' }}>{Q(v)}</Text> },
       ]}
     />
@@ -288,7 +320,7 @@ function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: num
           <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
             Movimientos del período — {MESES[mes - 1]} {anio}
           </Text>
-          <MovimientosTable lineas={lineas} />
+          <MovimientosTable lineas={lineas} integrationType={integrationType} />
         </div>
       )}
     </div>

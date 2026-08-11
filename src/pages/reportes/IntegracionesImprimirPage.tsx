@@ -7,7 +7,7 @@ import {
 } from '../../api/integraciones'
 import { getOrganizationProfile, type OrganizationProfile } from '../../api/configuracion'
 import type {
-  DetalleResult, IntegrationType,
+  DetalleResult, IntegrationType, LineaPoliza,
   BancoEspecifico, CxcEspecifico, CxpEspecifico,
   InventarioEspecifico, ActivoFijoEspecifico,
 } from '../../api/integraciones'
@@ -197,33 +197,58 @@ function DocHeader({
 
 // ─── Componentes de impresión ─────────────────────────────────────────────────
 
-function LineasTable({ lineas }: { lineas: DetalleResult['lineas'] }) {
+function LineasTable({ lineas, integrationType }: { lineas: LineaPoliza[]; integrationType?: IntegrationType }) {
   if (!lineas.length) return <p style={{ fontSize: 10, color: '#9aa1ab' }}>Sin movimientos en el mes.</p>
   const totDebe  = lineas.reduce((s, l) => s + l.debe,  0)
   const totHaber = lineas.reduce((s, l) => s + l.haber, 0)
+  const isRes = integrationType === 'resultado'
   return (
     <table>
       <thead>
         <tr>
-          <th style={{ width: 75 }}>Fecha</th>
-          <th style={{ width: 100 }}>Póliza</th>
-          <th>Glosa / Descripción</th>
-          <th className="right" style={{ width: 100 }}>Debe</th>
-          <th className="right" style={{ width: 100 }}>Haber</th>
+          <th style={{ width: 72 }}>Fecha</th>
+          {isRes ? (
+            <>
+              <th style={{ width: 95 }}>No. Factura</th>
+              <th>Proveedor</th>
+              <th style={{ width: 50 }}>Serie</th>
+            </>
+          ) : (
+            <>
+              <th style={{ width: 95 }}>Póliza</th>
+              <th>Glosa / Descripción</th>
+            </>
+          )}
+          <th className="right" style={{ width: 95 }}>Debe</th>
+          <th className="right" style={{ width: 95 }}>Haber</th>
         </tr>
       </thead>
       <tbody>
         {lineas.map((l, i) => (
           <tr key={i}>
             <td>{dayjs(l.fecha).format('DD/MM/YYYY')}</td>
-            <td>{l.codigoPoliza}</td>
-            <td>{l.glosa || l.descripcion}</td>
+            {isRes ? (
+              <>
+                <td>{l.numeroFactura || l.referencia || l.codigoPoliza}</td>
+                <td>{l.vendorName || l.descripcion}</td>
+                <td>{l.serieFactura || ''}</td>
+              </>
+            ) : (
+              <>
+                <td>{l.codigoPoliza}</td>
+                <td>
+                  {l.glosa && l.descripcion && l.glosa !== l.descripcion
+                    ? `${l.glosa} · ${l.descripcion}`
+                    : l.glosa || l.descripcion}
+                </td>
+              </>
+            )}
             <td className="right">{l.debe > 0 ? Q(l.debe) : ''}</td>
             <td className="right">{l.haber > 0 ? Q(l.haber) : ''}</td>
           </tr>
         ))}
         <tr className="total-row">
-          <td colSpan={3}>Total</td>
+          <td colSpan={isRes ? 4 : 3}>Total</td>
           <td className="right">{Q(totDebe)}</td>
           <td className="right">{Q(totHaber)}</td>
         </tr>
@@ -241,9 +266,7 @@ function PartidaTable({ partidas, titulo }: { partidas: CxcEspecifico['partidas'
         <tr>
           <th>Nombre</th>
           <th style={{ width: 110 }}>{titulo}</th>
-          <th style={{ width: 80 }}>Fecha</th>
-          <th style={{ width: 80 }}>Vencimiento</th>
-          <th className="right" style={{ width: 100 }}>Total</th>
+          <th style={{ width: 72 }}>Fecha</th>
           <th className="right" style={{ width: 100 }}>Saldo</th>
         </tr>
       </thead>
@@ -252,14 +275,12 @@ function PartidaTable({ partidas, titulo }: { partidas: CxcEspecifico['partidas'
           <tr key={i}>
             <td>{p.nombre}</td>
             <td>{p.numero}</td>
-            <td>{p.fecha ? dayjs(p.fecha).format('DD/MM/YYYY') : '—'}</td>
-            <td>{p.vencimiento ? dayjs(p.vencimiento).format('DD/MM/YYYY') : '—'}</td>
-            <td className="right">{Q(p.total)}</td>
+            <td>{p.fecha ? dayjs(p.fecha).format('DD/MM/YY') : '—'}</td>
             <td className="right" style={{ fontWeight: 700 }}>{Q(p.saldo)}</td>
           </tr>
         ))}
         <tr className="total-row">
-          <td colSpan={5}>Total</td>
+          <td colSpan={3}>Total</td>
           <td className="right">{Q(totSaldo)}</td>
         </tr>
       </tbody>
@@ -321,9 +342,7 @@ function PartidaPages({
               <tr>
                 <th>Nombre</th>
                 <th style={{ width: 110 }}>{titulo}</th>
-                <th style={{ width: 80 }}>Fecha</th>
-                <th style={{ width: 80 }}>Vencimiento</th>
-                <th className="right" style={{ width: 100 }}>Total</th>
+                <th style={{ width: 72 }}>Fecha</th>
                 <th className="right" style={{ width: 100 }}>Saldo</th>
               </tr>
             </thead>
@@ -332,15 +351,13 @@ function PartidaPages({
                 <tr key={i}>
                   <td>{p.nombre}</td>
                   <td>{p.numero}</td>
-                  <td>{p.fecha ? dayjs(p.fecha).format('DD/MM/YYYY') : '—'}</td>
-                  <td>{p.vencimiento ? dayjs(p.vencimiento).format('DD/MM/YYYY') : '—'}</td>
-                  <td className="right">{Q(p.total)}</td>
+                  <td>{p.fecha ? dayjs(p.fecha).format('DD/MM/YY') : '—'}</td>
                   <td className="right" style={{ fontWeight: 700 }}>{Q(p.saldo)}</td>
                 </tr>
               ))}
               {ci === pages.length - 1 && (
                 <tr className="total-row">
-                  <td colSpan={5}>Total</td>
+                  <td colSpan={3}>Total</td>
                   <td className="right">{Q(total)}</td>
                 </tr>
               )}
@@ -405,43 +422,46 @@ function Sheet({
 
       {/* Movimientos del mes */}
       <div className="section-title">Movimientos del período</div>
-      <LineasTable lineas={lineas} />
+      <LineasTable lineas={lineas} integrationType={integrationType} />
 
       {/* Sección específica por tipo */}
       {especifico && (
         <>
           {integrationType === 'banco' && (() => {
             const b = especifico as BancoEspecifico
+            const rc = b.reconciliation
             return (
               <>
-                <div className="section-title">Banco — {b.bankAccount.bankName} · {b.bankAccount.accountNumber}</div>
-                {b.reconciliation && (
-                  <div className="recon-box">
-                    <div className="rb-title">
-                      Conciliación — {MESES[(b.reconciliation.month ?? 1) - 1]} {b.reconciliation.year}
-                      &nbsp;·&nbsp; Estado: {b.reconciliation.status}
+                {/* Fila única de info banco */}
+                <div className="section-title">Conciliación Bancaria</div>
+                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', padding: '6px 0 10px', borderBottom: '1px solid #e2e8f0', marginBottom: 8 }}>
+                  {[
+                    { lbl: 'Banco',         val: b.bankAccount.bankName },
+                    { lbl: 'No. Cuenta',    val: b.bankAccount.accountNumber },
+                    { lbl: 'Saldo Sistema', val: Q(b.bankAccount.currentBalance), color: '#1B3A6B' },
+                    ...(rc ? [
+                      { lbl: 'Saldo Banco', val: Q(rc.saldoBanco) },
+                      { lbl: 'Diferencia',  val: Q(rc.diferencia),
+                        color: Math.abs(rc.diferencia) < 0.01 ? '#2ea172' : '#e5484d' },
+                      ...(rc.notes ? [{ lbl: 'Notas', val: rc.notes }] : []),
+                    ] : []),
+                  ].map(({ lbl, val, color }) => (
+                    <div key={lbl}>
+                      <div style={{ fontSize: 8, color: '#9aa1ab', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{lbl}</div>
+                      <div style={{ fontSize: 11, fontWeight: color ? 700 : 400, color: color || '#0a0a0a', marginTop: 1 }}>{val}</div>
                     </div>
-                    <div className="recon-grid">
-                      <div className="kv"><div className="label">Saldo Banco</div><div className="value">{Q(b.reconciliation.saldoBanco)}</div></div>
-                      <div className="kv"><div className="label">Saldo Sistema</div><div className="value">{Q(b.reconciliation.saldoSistema)}</div></div>
-                      <div className="kv">
-                        <div className="label">Diferencia</div>
-                        <div className="value" style={{ color: Math.abs(b.reconciliation.diferencia) < 0.01 ? '#2ea172' : '#e5484d' }}>
-                          {Q(b.reconciliation.diferencia)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  ))}
+                </div>
+                {/* Movimientos bancarios */}
                 <table>
                   <thead>
                     <tr>
-                      <th style={{ width: 75 }}>Fecha</th>
+                      <th style={{ width: 72 }}>Fecha</th>
                       <th>Descripción</th>
-                      <th style={{ width: 90 }}>Ref</th>
-                      <th style={{ width: 70 }}>Tipo</th>
-                      <th className="right" style={{ width: 100 }}>Monto</th>
-                      <th className="right" style={{ width: 100 }}>Saldo</th>
+                      <th style={{ width: 85 }}>Ref</th>
+                      <th style={{ width: 65 }}>Tipo</th>
+                      <th className="right" style={{ width: 95 }}>Monto</th>
+                      <th className="right" style={{ width: 95 }}>Saldo</th>
                     </tr>
                   </thead>
                   <tbody>
