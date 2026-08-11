@@ -24,6 +24,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined,
+  BulbOutlined,
   CheckCircleOutlined,
   CloseOutlined,
   ControlOutlined,
@@ -37,6 +38,7 @@ import {
   PrinterOutlined,
   PlusOutlined,
   ReloadOutlined,
+  RobotOutlined,
   RollbackOutlined,
   SyncOutlined,
   TagsOutlined,
@@ -53,6 +55,7 @@ import {
   ACCOUNT_TYPE_CONFIG,
   TRANSACTION_STATUS_CONFIG,
   addTransaction,
+  autoMatchReconciliation,
   deleteTransaction,
   getBankAccount,
   getTransactions,
@@ -635,6 +638,7 @@ export default function TransaccionesPage() {
   const [conciliarOpen, setConciliarOpen]  = useState(false)
   const [conciliarMes,  setConciliarMes]   = useState<number>(dayjs().month() + 1)
   const [conciliarAnio, setConciliarAnio]  = useState<number>(dayjs().year())
+  const [matching,      setMatching]       = useState(false)
   const [conciliarSaldo, setConciliarSaldo] = useState<number | null>(null)
   const readSession = (accountId: string | undefined) => {
     if (!accountId) return null
@@ -771,11 +775,28 @@ export default function TransaccionesPage() {
 
   useEffect(() => { loadTransactions() }, [loadTransactions])
 
+  const handleAutoMatch = async () => {
+    if (!id) return
+    setMatching(true)
+    try {
+      const res = await autoMatchReconciliation(id)
+      message.success(res.matched > 0
+        ? `${res.matched} coincidencia${res.matched !== 1 ? 's' : ''} detectada${res.matched !== 1 ? 's' : ''} — filtra "Con coincidencia" para verlas`
+        : 'No se encontraron nuevas coincidencias exactas')
+      loadTransactions()
+    } catch {
+      message.error('No se pudieron buscar coincidencias')
+    } finally {
+      setMatching(false)
+    }
+  }
+
   const summary = useMemo(() => {
     const incoming = transactions.filter(t => t.type === 'credit').reduce((s, t) => s + Number(t.amount || 0), 0)
     const outgoing = transactions.filter(t => t.type === 'debit').reduce((s, t) => s + Number(t.amount || 0), 0)
-    const pending = transactions.filter(t => t.status === 'pending').length
-    return { incoming, outgoing, pending }
+    const pending  = transactions.filter(t => t.status === 'pending').length
+    const matched  = transactions.filter(t => t.status === 'matched').length
+    return { incoming, outgoing, pending, matched }
   }, [transactions])
 
   const fmtDate = (d: string) => {
@@ -813,6 +834,11 @@ export default function TransaccionesPage() {
         <div>
           <Text strong>{v}</Text>
           {row.reference && <div style={{ fontSize: 12, color: '#6b7280' }}>Ref. {row.reference}</div>}
+          {row.status === 'matched' && (
+            <Tag color="geekblue" icon={<BulbOutlined />} style={{ fontSize: 10, marginTop: 2, padding: '0 5px' }}>
+              Coincidencia detectada
+            </Tag>
+          )}
         </div>
       ),
     },
@@ -1020,6 +1046,22 @@ export default function TransaccionesPage() {
         <Card size="small" style={panelStyle}><Statistic title="Ingresos filtrados" value={summary.incoming} formatter={v => moneyFmt(Number(v), account.currency)} valueStyle={{ color: '#2ea172', fontSize: 18 }} /></Card>
         <Card size="small" style={panelStyle}><Statistic title="Egresos filtrados" value={summary.outgoing} formatter={v => moneyFmt(Number(v), account.currency)} valueStyle={{ color: '#e5484d', fontSize: 18 }} /></Card>
         <Card size="small" style={panelStyle}><Statistic title="Pendientes" value={summary.pending} valueStyle={{ color: summary.pending ? '#ff7f00' : '#2ea172', fontSize: 18 }} /></Card>
+        <Card
+          size="small"
+          style={{ ...panelStyle, cursor: 'pointer', border: status === 'matched' ? `2px solid ${NAVY}` : undefined }}
+          onClick={() => { setStatus(status === 'matched' ? undefined : 'matched'); setPage(1) }}
+        >
+          <Statistic
+            title={
+              <Space size={4}>
+                <BulbOutlined style={{ color: summary.matched ? '#4d7cfe' : '#9ca3af' }} />
+                <span>Con coincidencia{status === 'matched' && <Tag color={NAVY} style={{ marginLeft: 6, fontSize: 10 }}>Activo</Tag>}</span>
+              </Space>
+            }
+            value={summary.matched}
+            valueStyle={{ color: summary.matched ? '#4d7cfe' : '#9ca3af', fontSize: 18 }}
+          />
+        </Card>
       </div>
 
       <Card size="small" style={{ ...panelStyle, marginBottom: 12 }}>
@@ -1032,6 +1074,10 @@ export default function TransaccionesPage() {
           ]} />
           <Select allowClear size="small" placeholder="Estado" value={status} onChange={v => { setStatus(v); setPage(1) }} style={{ width: 170 }} options={Object.entries(TRANSACTION_STATUS_CONFIG).map(([value, cfg]) => ({ value, label: cfg.label }))} />
           <Button size="small" icon={<ReloadOutlined />} loading={loading} onClick={loadTransactions}>Actualizar</Button>
+          <Button size="small" icon={<RobotOutlined />} loading={matching} onClick={handleAutoMatch}
+            style={{ borderColor: '#4d7cfe', color: '#4d7cfe' }}>
+            Buscar coincidencias
+          </Button>
         </Space>
       </Card>
 
