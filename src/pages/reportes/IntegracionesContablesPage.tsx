@@ -420,7 +420,7 @@ export default function IntegracionesContablesPage() {
     window.open(`/reportes/integraciones/${anio}/${mes}/imprimir?todos=1&ids=${ids}`, '_blank', 'width=900,height=700')
   }
 
-  const anioOptions = Array.from({ length: 6 }, (_, i) => ({ value: now.year() - i, label: String(now.year() - i) }))
+  const anioOptions = Array.from({ length: 7 }, (_, i) => ({ value: now.year() - i, label: String(now.year() - i) }))
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
