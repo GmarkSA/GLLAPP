@@ -8,7 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, EyeOutlined, FileTextOutlined, ReloadOutlined, RollbackOutlined,
-  SearchOutlined, StopOutlined, SyncOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
+  SearchOutlined, StopOutlined, SyncOutlined, TeamOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import dayjs, { Dayjs } from 'dayjs'
@@ -147,6 +147,19 @@ export default function DteSatPage() {
   const [batchRunning, setBatchRunning] = useState(false)
   const [batchLoading, setBatchLoading] = useState(false)
   const [selectedIds,  setSelectedIds]  = useState<string[]>([])
+
+  // ── Bulk Vendor Registration ────────────────────────────────────────────────
+  interface BulkVendorRow {
+    dteId: string; nitEmisor: string; name: string
+    payableAccountId?: string; paymentTerms: string
+    status: 'pending' | 'processing' | 'ok' | 'error'
+    errorMsg?: string; dteCount: number
+  }
+  const [bulkVendorOpen,    setBulkVendorOpen]    = useState(false)
+  const [bulkVendorRows,    setBulkVendorRows]    = useState<BulkVendorRow[]>([])
+  const [bulkVendorRunning, setBulkVendorRunning] = useState(false)
+  const [bulkCommonPayable, setBulkCommonPayable] = useState<string | undefined>()
+  const [bulkCommonTerms,   setBulkCommonTerms]   = useState('net_30')
 
   const isBatchable = (dte: SatDte) =>
     dte.status === 'ready' &&
@@ -777,6 +790,58 @@ export default function DteSatPage() {
     }
     setBatchRunning(false)
     setSelectedIds([])
+    await load(true)
+  }
+
+  const openBulkVendorModal = () => {
+    const pendingDtes = documents.filter(d => d.status === 'pending')
+    const byNit = new Map<string, SatDte[]>()
+    for (const d of pendingDtes) {
+      const nit = d.nitEmisor ?? 'CF'
+      if (!byNit.has(nit)) byNit.set(nit, [])
+      byNit.get(nit)!.push(d)
+    }
+    const rows: BulkVendorRow[] = Array.from(byNit.entries()).map(([nit, dtes]) => ({
+      dteId:            dtes[0].id,
+      nitEmisor:        nit,
+      name:             dtes[0].nombreEmisor ?? '',
+      payableAccountId: undefined,
+      paymentTerms:     'net_30',
+      status:           'pending' as const,
+      dteCount:         dtes.length,
+    }))
+    setBulkVendorRows(rows)
+    setBulkCommonPayable(undefined)
+    setBulkCommonTerms('net_30')
+    setBulkVendorOpen(true)
+  }
+
+  const handleBulkVendorPost = async () => {
+    setBulkVendorRunning(true)
+    for (const row of bulkVendorRows) {
+      if (row.status === 'ok') continue
+      setBulkVendorRows(prev => prev.map(r => r.dteId === row.dteId ? { ...r, status: 'processing' } : r))
+      try {
+        await createSatDteVendor(row.dteId, {
+          name:             row.name || undefined,
+          payableAccountId: row.payableAccountId,
+          paymentTerms:     row.paymentTerms,
+        })
+        // Vincular automáticamente los demás DTEs del mismo NIT
+        const sameNitOthers = documents.filter(d =>
+          d.nitEmisor === row.nitEmisor && d.id !== row.dteId && d.status === 'pending'
+        )
+        for (const dte of sameNitOthers) {
+          try { await resolveSatDteVendor(dte.id) } catch { /* silencioso */ }
+        }
+        setBulkVendorRows(prev => prev.map(r => r.dteId === row.dteId ? { ...r, status: 'ok' } : r))
+      } catch (err: unknown) {
+        setBulkVendorRows(prev => prev.map(r =>
+          r.dteId === row.dteId ? { ...r, status: 'error', errorMsg: getErrorMessage(err, 'Error al crear proveedor') } : r
+        ))
+      }
+    }
+    setBulkVendorRunning(false)
     await load(true)
   }
 
@@ -2152,6 +2217,13 @@ export default function DteSatPage() {
                         {stats[key]?.count ? ` (${stats[key].count})` : ''}
                       </Button>
                     ))}
+                    {stats.pending?.count > 0 && !statusFilter && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#92400e', cursor: 'pointer' }}
+                        onClick={openBulkVendorModal}>
+                        <WarningOutlined style={{ color: '#f59e0b' }} />
+                        <span><strong>{stats.pending.count}</strong> prov. pendientes — <strong>Registrar en lote</strong></span>
+                      </div>
+                    )}
                     {stats.ready?.count > 0 && !statusFilter && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
                         onClick={() => setStatusFilter('ready')}>
@@ -2231,6 +2303,119 @@ export default function DteSatPage() {
           },
         ]}
       />
+
+      {/* ── Modal Registro Masivo de Proveedores ─────────────────────────── */}
+      <Modal
+        open={bulkVendorOpen}
+        title={<Space><TeamOutlined /><span>Registro masivo de proveedores — {bulkVendorRows.length} nuevo{bulkVendorRows.length !== 1 ? 's' : ''}</span></Space>}
+        width={860}
+        onCancel={() => !bulkVendorRunning && setBulkVendorOpen(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {bulkVendorRows.filter(r => r.status === 'ok').length}/{bulkVendorRows.length} registrados
+            </Text>
+            <Space>
+              <Button onClick={() => setBulkVendorOpen(false)} disabled={bulkVendorRunning}>Cancelar</Button>
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                loading={bulkVendorRunning}
+                disabled={bulkVendorRunning || bulkVendorRows.every(r => r.status === 'ok')}
+                onClick={handleBulkVendorPost}
+                style={{ background: '#1B3A6B' }}
+              >
+                Registrar todos
+              </Button>
+            </Space>
+          </div>
+        }
+      >
+        {/* Config común */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+          <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 10 }}>Configuración común (se aplica a todos)</Text>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px auto', gap: 12, alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Cuenta por pagar (CxP) <span style={{ color: '#ef4444' }}>*</span></div>
+              <Select
+                showSearch allowClear size="small" style={{ width: '100%' }}
+                placeholder="2101 — Proveedores"
+                value={bulkCommonPayable}
+                onChange={setBulkCommonPayable}
+                filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('2'))
+                  .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Condiciones de pago</div>
+              <Select size="small" style={{ width: '100%' }} value={bulkCommonTerms} onChange={setBulkCommonTerms}
+                options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
+            </div>
+            <Button size="small" onClick={() => setBulkVendorRows(prev => prev.map(r =>
+              r.status !== 'ok' ? { ...r, payableAccountId: bulkCommonPayable, paymentTerms: bulkCommonTerms } : r
+            ))}>
+              Aplicar a todos
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabla de proveedores */}
+        <Table<BulkVendorRow>
+          size="small"
+          pagination={false}
+          rowKey="dteId"
+          dataSource={bulkVendorRows}
+          scroll={{ y: 340 }}
+          columns={[
+            {
+              title: 'NIT Emisor', dataIndex: 'nitEmisor', width: 110,
+              render: (nit: string) => <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{nit}</Tag>,
+            },
+            {
+              title: 'Nombre del proveedor', dataIndex: 'name', width: 220,
+              render: (name: string, row: BulkVendorRow) => (
+                <Input
+                  size="small" value={name} disabled={row.status === 'ok' || bulkVendorRunning}
+                  onChange={e => setBulkVendorRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, name: e.target.value } : r
+                  ))}
+                />
+              ),
+            },
+            {
+              title: 'Cuenta CxP', dataIndex: 'payableAccountId', width: 210,
+              render: (val: string | undefined, row: BulkVendorRow) => (
+                <Select
+                  showSearch allowClear size="small" style={{ width: '100%' }}
+                  placeholder="2101 — Proveedores"
+                  value={val}
+                  disabled={row.status === 'ok' || bulkVendorRunning}
+                  onChange={v => setBulkVendorRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, payableAccountId: v } : r
+                  ))}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('2'))
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                />
+              ),
+            },
+            {
+              title: 'DTEs', dataIndex: 'dteCount', width: 55, align: 'center',
+              render: (n: number) => <Badge count={n} color="#6b7280" />,
+            },
+            {
+              title: 'Estado', dataIndex: 'status', width: 120,
+              render: (status: BulkVendorRow['status'], row: BulkVendorRow) => {
+                if (status === 'ok')         return <Tag color="green" icon={<CheckCircleOutlined />}>Registrado</Tag>
+                if (status === 'processing') return <Tag color="blue" icon={<Spin size="small" />}>Procesando</Tag>
+                if (status === 'error')      return <Tooltip title={row.errorMsg}><Tag color="red" icon={<WarningOutlined />}>Error</Tag></Tooltip>
+                return <Tag color="gold" icon={<WarningOutlined />}>Pendiente</Tag>
+              },
+            },
+          ]}
+        />
+      </Modal>
     </Space>
   )
 }
