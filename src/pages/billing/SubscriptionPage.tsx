@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Alert, Badge, Button, Card, Col, Divider, Form, Input, Modal,
-  Popconfirm, Row, Select, Space, Spin, Table, Tag,
+  Popconfirm, Progress, Row, Select, Space, Spin, Table, Tag,
   Tooltip, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -678,42 +678,86 @@ export default function SubscriptionPage() {
   }
 
   const isInTrial = state?.tenant?.status === 'trial'
-  const trialDaysLeft = state?.tenant?.trialEndsAt
-    ? Math.max(0, Math.ceil((new Date(state.tenant.trialEndsAt).getTime() - Date.now()) / 86400000))
+  const trialEndsAt = state?.tenant?.trialEndsAt ? new Date(state.tenant.trialEndsAt) : null
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
     : null
+  // Inferir fecha de inicio: trialEndsAt - 30 días
+  const trialStartedAt = trialEndsAt ? new Date(trialEndsAt.getTime() - 30 * 24 * 60 * 60 * 1000) : null
+  const trialDaysElapsed = trialStartedAt
+    ? Math.min(30, Math.max(0, Math.floor((Date.now() - trialStartedAt.getTime()) / 86400000)))
+    : null
+  const trialProgressPct = trialDaysElapsed !== null ? Math.round((trialDaysElapsed / 30) * 100) : 0
   const trialColor = trialDaysLeft === null ? 'warning'
     : trialDaysLeft <= 7 ? 'error'
     : trialDaysLeft <= 15 ? 'warning'
     : 'info'
+  const fmtDate = (d: Date) => d.toLocaleDateString('es-GT', { day: '2-digit', month: 'long', year: 'numeric' })
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Banner de trial */}
       {isInTrial && (
-        <Alert
-          type={trialColor as any}
-          showIcon
-          icon={<ClockCircleOutlined />}
-          style={{ marginBottom: 20, borderRadius: 10 }}
-          message={
-            trialDaysLeft === null
-              ? 'Estás en período de trial — activa tu suscripción para continuar usando todas las funcionalidades'
-              : trialDaysLeft > 0
-              ? (
-                <span>
-                  <strong>Trial activo:</strong> te quedan{' '}
-                  <strong style={{ fontSize: 16 }}>{trialDaysLeft} día{trialDaysLeft !== 1 ? 's' : ''}</strong>
-                  {' '}de prueba gratuita
-                </span>
-              )
-              : <strong>Tu período de trial ha vencido — activa tu suscripción para seguir usando el sistema</strong>
-          }
-          description={
-            trialDaysLeft !== null && trialDaysLeft <= 15
-              ? 'Suscríbete ahora para no perder acceso a tus datos. El proceso toma menos de 2 minutos.'
-              : 'Explora todos los planes disponibles y elige el que mejor se adapta a tu empresa.'
-          }
-        />
+        <Card
+          style={{
+            marginBottom: 20, borderRadius: 10,
+            borderColor: trialDaysLeft !== null && trialDaysLeft <= 7 ? '#ff4d4f'
+              : trialDaysLeft !== null && trialDaysLeft <= 15 ? '#faad14' : '#1677ff',
+            background: trialDaysLeft !== null && trialDaysLeft <= 7 ? '#fff1f0'
+              : trialDaysLeft !== null && trialDaysLeft <= 15 ? '#fffbe6' : '#e6f4ff',
+          }}
+          bodyStyle={{ padding: '16px 20px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <ClockCircleOutlined style={{
+              fontSize: 24, marginTop: 2,
+              color: trialDaysLeft !== null && trialDaysLeft <= 7 ? '#cf1322'
+                : trialDaysLeft !== null && trialDaysLeft <= 15 ? '#d46b08' : '#1677ff',
+            }} />
+            <div style={{ flex: 1 }}>
+              {trialDaysLeft !== null && trialDaysLeft > 0 ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15 }}>
+                      Período de prueba gratuita —{' '}
+                      <span style={{
+                        fontSize: 20,
+                        color: trialDaysLeft <= 7 ? '#cf1322' : trialDaysLeft <= 15 ? '#d46b08' : '#1677ff',
+                      }}>
+                        {trialDaysLeft} día{trialDaysLeft !== 1 ? 's' : ''}
+                      </span>
+                      {' '}restantes
+                    </span>
+                    <Tag color={trialDaysLeft <= 7 ? 'red' : trialDaysLeft <= 15 ? 'orange' : 'blue'}>
+                      Día {trialDaysElapsed} de 30
+                    </Tag>
+                  </div>
+                  <Progress
+                    percent={trialProgressPct}
+                    strokeColor={trialDaysLeft <= 7 ? '#ff4d4f' : trialDaysLeft <= 15 ? '#faad14' : '#1677ff'}
+                    trailColor="rgba(0,0,0,0.06)"
+                    showInfo={false}
+                    size="small"
+                    style={{ marginBottom: 6 }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280' }}>
+                    <span>Activado: {trialStartedAt ? fmtDate(trialStartedAt) : '—'}</span>
+                    <span>Vence: {trialEndsAt ? fmtDate(trialEndsAt) : '—'}</span>
+                  </div>
+                  {trialDaysLeft <= 15 && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: trialDaysLeft <= 7 ? '#cf1322' : '#d46b08' }}>
+                      Suscríbete ahora para no perder acceso a tus datos. El proceso toma menos de 2 minutos.
+                    </div>
+                  )}
+                </>
+              ) : (
+                <strong style={{ color: '#cf1322' }}>
+                  Tu período de prueba ha vencido — activa tu suscripción para seguir usando el sistema
+                </strong>
+              )}
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* Header */}
