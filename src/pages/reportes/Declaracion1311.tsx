@@ -105,14 +105,37 @@ export default function Declaracion1311Page() {
   const [liveIncentivos,   setLiveIncentivos]   = useState(0)
   const [liveNumResolucion,setLiveNumResolucion] = useState('')
 
-  const cargarLista = useCallback(async () => {
+  const cargarLista = useCallback(async (syncSelected?: DeclaracionIsr) => {
     setLoading(true)
-    try { setLista(await getDeclaracionesIsr()) }
+    try {
+      const lista = await getDeclaracionesIsr()
+      setLista(lista)
+      // Auto-sincronizar la declaración visible si está en poliza_generada
+      const toSync = syncSelected ?? null
+      if (toSync && toSync.status === 'poliza_generada') {
+        try {
+          const updated = await sincronizarEstadoIsr(toSync.id)
+          if (updated.status !== toSync.status) {
+            setSelected(updated)
+            syncEdit(updated)
+            const updated2 = await getDeclaracionesIsr()
+            setLista(updated2)
+          }
+        } catch { /* silencioso */ }
+      }
+    }
     catch { setLista([]) }
     finally { setLoading(false) }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { cargarLista() }, [cargarLista])
+
+  // Re-sincronizar automáticamente al hacer visible la página
+  useEffect(() => {
+    const onFocus = () => { if (selected?.status === 'poliza_generada') cargarLista(selected) }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [selected, cargarLista])
 
   const syncEdit = (d: DeclaracionIsr) => {
     setLiveRenta(r2(Number(d.rentaActividadesLucrativas ?? 0)))
