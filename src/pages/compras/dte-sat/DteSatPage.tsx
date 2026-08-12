@@ -2414,10 +2414,10 @@ export default function DteSatPage() {
         {/* Tabla de proveedores */}
         <Table<BulkVendorRow>
           size="small"
-          pagination={false}
+          pagination={{ pageSize: 20, hideOnSinglePage: true, size: 'small' }}
           rowKey="dteId"
           dataSource={bulkVendorRows}
-          scroll={{ x: 1020, y: 300 }}
+          scroll={{ x: 1020 }}
           columns={[
             {
               title: 'NIT Emisor', dataIndex: 'nitEmisor', width: 110, fixed: 'left',
