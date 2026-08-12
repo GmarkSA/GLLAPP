@@ -157,15 +157,18 @@ export default function MainLayout() {
   const [searchOpen,     setSearchOpen]     = useState(false)
   const [notifOpen,      setNotifOpen]      = useState(false)
   const [trialDaysLeft,  setTrialDaysLeft]  = useState<number | null>(null)
+  const [trialEndsAt,    setTrialEndsAt]    = useState<string | null>(null)
   const alertCount = useAlertCount()
 
   useEffect(() => {
     getBillingState().then(data => {
       if (data?.tenant?.status === 'trial' && data.tenant.trialEndsAt) {
+        const endsAt = new Date(data.tenant.trialEndsAt)
         const days = Math.max(0, Math.ceil(
-          (new Date(data.tenant.trialEndsAt).getTime() - Date.now()) / 86400000
+          (endsAt.getTime() - Date.now()) / 86400000
         ))
         setTrialDaysLeft(days)
+        setTrialEndsAt(data.tenant.trialEndsAt)
       }
     }).catch(() => {/* no bloqueante */})
   }, [])
@@ -415,20 +418,31 @@ export default function MainLayout() {
                 </Tag>
               </Tooltip>
             )}
-            {trialDaysLeft !== null && (
-              <Tooltip title={trialDaysLeft > 0 ? 'Haz clic para actualizar tu suscripción' : 'Tu período de prueba ha terminado'}>
-                <Tag
-                  color={trialDaysLeft <= 7 ? 'red' : trialDaysLeft <= 15 ? 'orange' : 'geekblue'}
-                  icon={<ClockCircleOutlined />}
-                  style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
-                  onClick={() => navigate('/configuracion/suscripcion')}
-                >
-                  {trialDaysLeft > 0
-                    ? `Prueba gratis — ${trialDaysLeft} día${trialDaysLeft !== 1 ? 's' : ''}`
-                    : 'Prueba vencida — Activar plan'}
-                </Tag>
-              </Tooltip>
-            )}
+            {trialDaysLeft !== null && (() => {
+              const fmtDate = (iso: string) => {
+                const d = new Date(iso)
+                return d.toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+              }
+              const tooltipText = trialDaysLeft <= 0
+                ? 'Tu período de prueba ha terminado. Activa tu suscripción para continuar.'
+                : trialEndsAt
+                  ? `Período de prueba gratuita — vence el ${fmtDate(trialEndsAt)}. Haz clic para activar tu suscripción.`
+                  : 'Haz clic para actualizar tu suscripción'
+              return (
+                <Tooltip title={tooltipText}>
+                  <Tag
+                    color={trialDaysLeft <= 7 ? 'red' : trialDaysLeft <= 15 ? 'orange' : 'geekblue'}
+                    icon={<ClockCircleOutlined />}
+                    style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
+                    onClick={() => navigate('/configuracion/suscripcion')}
+                  >
+                    {trialDaysLeft > 0
+                      ? `Prueba gratis — ${trialDaysLeft} día${trialDaysLeft !== 1 ? 's' : ''}`
+                      : 'Prueba vencida — Activar plan'}
+                  </Tag>
+                </Tooltip>
+              )
+            })()}
           </Space>
 
           {/* Right */}
