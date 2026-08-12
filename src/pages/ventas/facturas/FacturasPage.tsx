@@ -211,7 +211,7 @@ export default function FacturasPage() {
   const [debouncedSearch, setDebounced] = useState('')
   const [total, setTotal]               = useState(0)
   const [page, setPage]                 = useState(1)
-  const [pageSize, setPageSize]         = useState(100)
+  const [pageSize, setPageSize]         = useState(200)
   const [statusTab, setStatusTab]       = useState('all')
   const [dateRange, setDateRange]       = useState<[string, string] | null>(null)
 
@@ -247,7 +247,7 @@ export default function FacturasPage() {
       if (dateRange) { params.fromDate = dateRange[0]; params.toDate = dateRange[1] }
       const res = await getInvoices(params)
       setInvoices(res.data ?? [])
-      setTotal(res.total ?? 0)
+      setTotal((res as any)?.meta?.total ?? res.total ?? 0)
     } catch {
       message.error('Error cargando facturas')
       setInvoices([]); setTotal(0)
@@ -499,7 +499,7 @@ export default function FacturasPage() {
             getCheckboxProps: (r) => ({ disabled: r.status === 'voided' || r.status === 'written_off' }),
           }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/facturas/${r.id}`) })}
-          pagination={{ total, current: page, pageSize, onChange: (p, ps) => { setPage(p); setPageSize(ps) }, showTotal: (t) => `${t} facturas`, showSizeChanger: true, pageSizeOptions: ['50', '100', '200'] }}
+          pagination={{ total, current: page, pageSize, onChange: (p, ps) => { setPage(p); setPageSize(ps) }, showTotal: (t) => `${t} facturas`, showSizeChanger: true, pageSizeOptions: ['100', '200', '500'] }}
           locale={{ emptyText: 'Sin facturas' }}
         />
       </Card>

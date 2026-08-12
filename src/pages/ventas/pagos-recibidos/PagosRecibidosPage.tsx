@@ -170,9 +170,9 @@ export default function PagosRecibidosPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getPagosRecibidos({ page, limit: 20, search: search || undefined, fromDate, toDate })
+      const res = await getPagosRecibidos({ page, limit: 200, search: search || undefined, fromDate, toDate })
       setData(res.data ?? [])
-      setTotal(res.total ?? 0)
+      setTotal((res as any)?.meta?.total ?? res.total ?? 0)
     } catch { setData([]); setTotal(0) }
     finally { setLoading(false) }
   }, [page, search, fromDate, toDate])
