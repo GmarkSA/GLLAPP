@@ -1461,11 +1461,20 @@ export default function DteSatPage() {
                       rules={[{ required: true, message: 'Describe qué se está comprando' }]}>
                       <Input.TextArea rows={2} placeholder="Ej: Alimentos para cafetería — Abril 2026" />
                     </Form.Item>
+                    {isNC && (
+                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#1e40af' }}>
+                        Esta N/C <strong>restará del Crédito Fiscal</strong> según el IVA seleccionado. Elige el sub-tipo para que el Libro de Compras la clasifique correctamente.
+                      </div>
+                    )}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                       <div>
-                        <Form.Item name="invoiceType" label="Tipo de factura" style={{ marginBottom: 6 }}>
+                        <Form.Item name="invoiceType" label={isNC ? 'Sub-tipo de N/C' : 'Tipo de factura'} style={{ marginBottom: 6 }}>
                           <Select
-                            options={[
+                            options={isNC ? [
+                              { value: 'goods',    label: 'N/C — Bienes' },
+                              { value: 'services', label: 'N/C — Servicios' },
+                              { value: 'fuel',     label: 'N/C — Combustible' },
+                            ] : [
                               { value: 'goods',          label: 'Compra de bienes' },
                               { value: 'services',       label: 'Prestación de servicios' },
                               { value: 'fuel',           label: 'Combustible con IDP' },
