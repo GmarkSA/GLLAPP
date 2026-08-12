@@ -453,6 +453,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
       label:       t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}`,
       rate:        t.rate,
       isInclusive: t.isInclusive,
+      name:        t.name,
     }))
 
   const update = (key: string, patch: Partial<LineItem>) =>
@@ -791,10 +792,10 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
               if (v.startsWith('flat:')) {
                 const pct = Number(v.split(':')[1])
                 const matched = taxOptions.find(o => Number(o.rate) === pct)
-                update(row._key, { taxPercent: pct, taxId: matched?.value, taxName: matched?.label?.split(' (')[0], taxInclusive: matched?.isInclusive ?? false })
+                update(row._key, { taxPercent: pct, taxId: matched?.value, taxName: matched?.name, taxInclusive: matched?.isInclusive ?? false })
               } else {
                 const t = taxOptions.find(o => o.value === v)
-                if (t) update(row._key, { taxId: v, taxPercent: Number(t.rate), taxName: t.label.split(' (')[0], taxInclusive: t.isInclusive ?? false })
+                if (t) update(row._key, { taxId: v, taxPercent: Number(t.rate), taxName: t.name, taxInclusive: t.isInclusive ?? false })
               }
             }}
           />
