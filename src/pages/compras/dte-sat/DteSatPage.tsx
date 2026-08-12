@@ -218,7 +218,7 @@ export default function DteSatPage() {
         getSatDteStats(),
       ])
       setDocuments(docsRes.data ?? [])
-      setTotal(docsRes.total ?? 0)
+      setTotal((docsRes as any)?.meta?.total ?? docsRes.total ?? 0)
       setJobs(jobsRes.data ?? [])
       setStats(statsRes ?? {})
     } finally {
