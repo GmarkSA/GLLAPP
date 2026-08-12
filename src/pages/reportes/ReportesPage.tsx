@@ -72,6 +72,7 @@ const GROUPS: ReportGroup[] = [
     label: 'Impuestos',
     reports: [
       { key: 'declaracion-iva', icon: <FileProtectOutlined />, title: 'Declaración IVA', desc: 'Cierre mensual: débito fiscal, crédito fiscal y póliza de regularización SAT-2237.', path: '/reportes/declaracion-iva', color: '#1B3A6B' },
+      { key: 'declaracion-isr', icon: <FileProtectOutlined />, title: 'ISR Opcional Mensual', desc: 'Declaración mensual ISR Opcional Simplificado (SAT-1311). 5%/7% sobre renta imponible.', path: '/reportes/declaracion-isr', color: '#1B3A6B' },
     ],
   },
   {

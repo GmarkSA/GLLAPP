@@ -350,6 +350,61 @@ export const actualizarDeclaracionIva = (
 ) =>
   api.patch(`${BASE}/impuestos/declaracion-iva/${id}`, dto).then(unwrap) as Promise<DeclaracionIva>
 
+// ─── Declaración ISR Opcional Mensual (SAT-1311) ──────────────────────────────
+
+export type DeclaracionIsrStatus = 'borrador' | 'poliza_generada' | 'presentada'
+
+export interface DeclaracionIsr {
+  id:                          string
+  tenantId:                    string
+  companyId:                   string | null
+  mes:                         number
+  anio:                        number
+  status:                      DeclaracionIsrStatus
+  rentaActividadesLucrativas:  number
+  rentasExentas:               number
+  rentaImponible:              number
+  impuestoDeterminado:         number
+  retencionesPeriodo:          number
+  remanenteAnterior:           number
+  saldoAPagar:                 number
+  excedenteParaSiguiente:      number
+  cantidadFacturas:            number
+  polizaId:                    string | null
+  snapshot:                    Record<string, any> | null
+  createdAt:                   string
+  updatedAt:                   string
+}
+
+export const getDeclaracionesIsr = () =>
+  api.get(`${BASE}/impuestos/declaracion-isr`).then(unwrap) as Promise<DeclaracionIsr[]>
+
+export const getDeclaracionIsr = (id: string) =>
+  api.get(`${BASE}/impuestos/declaracion-isr/${id}`).then(unwrap) as Promise<DeclaracionIsr>
+
+export const generarBorradorIsr = (mes: number, anio: number) =>
+  api.post(`${BASE}/impuestos/declaracion-isr/generar-borrador`, {}, { params: { mes, anio } }).then(unwrap) as Promise<DeclaracionIsr>
+
+export const generarPolizaBorradorIsr = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-isr/${id}/poliza-borrador`).then(unwrap) as Promise<DeclaracionIsr>
+
+export const marcarIsrPresentada = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-isr/${id}/marcar-presentada`).then(unwrap) as Promise<DeclaracionIsr>
+
+export const sincronizarEstadoIsr = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-isr/${id}/sincronizar`).then(unwrap) as Promise<DeclaracionIsr>
+
+export const actualizarDeclaracionIsr = (
+  id: string,
+  dto: {
+    rentaActividadesLucrativas?: number
+    rentasExentas?: number
+    retencionesPeriodo?: number
+    remanenteAnterior?: number
+  },
+) =>
+  api.patch(`${BASE}/impuestos/declaracion-isr/${id}`, dto).then(unwrap) as Promise<DeclaracionIsr>
+
 export const exportReporte = (tipo: string, formato: 'excel' | 'pdf', params: Record<string, string>) => {
   const qs = new URLSearchParams(params)
   return api.get(`${BASE}/exportar/${tipo}/${formato}`, {
