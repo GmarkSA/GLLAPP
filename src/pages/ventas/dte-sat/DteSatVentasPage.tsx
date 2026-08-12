@@ -72,6 +72,9 @@ export default function DteSatVentasPage() {
   const [unidades,   setUnidades]   = useState<UnidadMedida[]>([])
   const [search,       setSearch]       = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
+  const [page,         setPage]         = useState(1)
+  const [total,        setTotal]        = useState(0)
+  const PAGE_SIZE = 200
   const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -130,15 +133,17 @@ export default function DteSatVentasPage() {
   }, [])
 
   // ── Cargar documentos / jobs / stats ──────────────────────────────────────
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (pageOverride?: number) => {
     setLoading(true)
+    const currentPage = pageOverride ?? page
     try {
       const [docsRes, jobsRes, statsRes] = await Promise.all([
-        getSatEmitidosDocuments({ page: 1, limit: 200, search: search || undefined, status: statusFilter }),
+        getSatEmitidosDocuments({ page: currentPage, limit: PAGE_SIZE, search: search || undefined, status: statusFilter }),
         getSatEmitidosJobs({ page: 1, limit: 20 }),
         getSatEmitidosStats(),
       ])
       setDocuments(Array.isArray(docsRes) ? docsRes : (docsRes?.data ?? []))
+      setTotal((docsRes as any)?.total ?? 0)
       setJobs(Array.isArray(jobsRes) ? jobsRes : (jobsRes?.data ?? []))
       setStats(statsRes ?? {})
     } catch {
@@ -146,7 +151,7 @@ export default function DteSatVentasPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, statusFilter])
+  }, [search, statusFilter, page])
 
   useEffect(() => { loadAll() }, [loadAll])
 
@@ -1475,7 +1480,7 @@ export default function DteSatVentasPage() {
         }
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading} size="small">Actualizar</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => loadAll()} loading={loading} size="small">Actualizar</Button>
             <Button
               size="small" danger icon={<DeleteOutlined />}
               onClick={() => Modal.confirm({
@@ -1543,18 +1548,18 @@ export default function DteSatVentasPage() {
                       prefix={<SearchOutlined />}
                       placeholder="Buscar UUID, NIT, nombre o No. DTE"
                       value={search}
-                      onChange={e => setSearch(e.target.value)}
+                      onChange={e => { setSearch(e.target.value); setPage(1) }}
                       style={{ width: 300 }}
                       size="small"
                     />
                     <Button size="small" type={!statusFilter ? 'primary' : 'default'}
-                      onClick={() => setStatusFilter(undefined)}>
+                      onClick={() => { setStatusFilter(undefined); setPage(1) }}>
                       Todos
                     </Button>
                     {(Object.entries(statusConfig) as [SatEmitidosStatus, typeof statusConfig[SatEmitidosStatus]][]).map(([key, cfg]) => (
                       <Button key={key} size="small"
                         type={statusFilter === key ? 'primary' : 'default'}
-                        onClick={() => setStatusFilter(statusFilter === key ? undefined : key)}>
+                        onClick={() => { setStatusFilter(statusFilter === key ? undefined : key); setPage(1) }}>
                         {cfg.label}{stats[key]?.count ? ` (${stats[key].count})` : ''}
                       </Button>
                     ))}
@@ -1604,7 +1609,14 @@ export default function DteSatVentasPage() {
                   loading={loading}
                   size="small"
                   scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
-                  pagination={{ pageSize: 200, showTotal: t => `${t} documentos`, showSizeChanger: true }}
+                  pagination={{
+                    current: page,
+                    pageSize: PAGE_SIZE,
+                    total,
+                    showSizeChanger: false,
+                    showTotal: t => `${t} documentos`,
+                    onChange: (p) => setPage(p),
+                  }}
                   rowClassName={r => r.status === 'duplicate' ? 'ant-table-row-duplicate' : ''}
                   rowSelection={{
                     selectedRowKeys: selectedIds,

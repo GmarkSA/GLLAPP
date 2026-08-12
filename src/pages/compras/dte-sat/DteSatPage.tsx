@@ -95,6 +95,9 @@ export default function DteSatPage() {
   const [taxes, setTaxes] = useState<Tax[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const PAGE_SIZE = 200
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [postForm] = Form.useForm()
   const [vendorForm] = Form.useForm()
@@ -205,21 +208,23 @@ export default function DteSatPage() {
 
   // ── Carga principal ────────────────────────────────────────────────────────
 
-  const load = useCallback(async (silent = false) => {
+  const load = useCallback(async (silent = false, pageOverride?: number) => {
     if (!silent) setLoading(true)
+    const currentPage = pageOverride ?? page
     try {
       const [docsRes, jobsRes, statsRes] = await Promise.all([
-        getSatDteDocuments({ limit: 500, search: search || undefined, status: statusFilter }),
+        getSatDteDocuments({ page: currentPage, limit: PAGE_SIZE, search: search || undefined, status: statusFilter }),
         getSatDteJobs({ limit: 10 }),
         getSatDteStats(),
       ])
       setDocuments(docsRes.data ?? [])
+      setTotal(docsRes.total ?? 0)
       setJobs(jobsRes.data ?? [])
       setStats(statsRes ?? {})
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [search, statusFilter])
+  }, [search, statusFilter, page])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
@@ -2223,13 +2228,13 @@ export default function DteSatPage() {
                       prefix={<SearchOutlined />}
                       placeholder="Buscar UUID, NIT, proveedor o DTE"
                       value={search}
-                      onChange={e => setSearch(e.target.value)}
+                      onChange={e => { setSearch(e.target.value); setPage(1) }}
                       style={{ width: 300 }}
                     />
                     <Button
                       size="small"
                       type={!statusFilter ? 'primary' : 'default'}
-                      onClick={() => setStatusFilter(undefined)}
+                      onClick={() => { setStatusFilter(undefined); setPage(1) }}
                     >
                       Todos
                     </Button>
@@ -2238,7 +2243,7 @@ export default function DteSatPage() {
                         key={key}
                         size="small"
                         type={statusFilter === key ? 'primary' : 'default'}
-                        onClick={() => setStatusFilter(key)}
+                        onClick={() => { setStatusFilter(key); setPage(1) }}
                       >
                         {cfg.label}
                         {stats[key]?.count ? ` (${stats[key].count})` : ''}
@@ -2282,9 +2287,12 @@ export default function DteSatPage() {
                   size="small"
                   scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
                   pagination={{
-                    pageSize: 200,
-                    showSizeChanger: true,
+                    current: page,
+                    pageSize: PAGE_SIZE,
+                    total,
+                    showSizeChanger: false,
                     showTotal: t => `${t} documentos`,
+                    onChange: (p) => setPage(p),
                   }}
                   rowClassName={row =>
                     row.status === 'ready' ? 'ant-table-row-ready' :
