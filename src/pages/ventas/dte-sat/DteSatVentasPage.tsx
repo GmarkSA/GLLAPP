@@ -569,7 +569,7 @@ export default function DteSatVentasPage() {
         accountId,
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
         taxId,
-        taxLabel: taxObj ? `${taxObj.code} (${taxObj.rate}%)` : undefined,
+        taxLabel: taxObj ? (taxObj.subtype === 'exempt' ? `Exento — ${taxObj.name}` : `${Number(taxObj.rate)}% — ${taxObj.name}`) : undefined,
         defaultUnit: detectedUnit,
         // Fecha contable = fecha de emisión de la factura (no la de hoy).
         accountingDate: d.fechaEmision ? dayjs(d.fechaEmision) : dayjs(),
@@ -1071,7 +1071,7 @@ export default function DteSatVentasPage() {
                             <Select
                               allowClear
                               placeholder="Selecciona impuesto IVA"
-                              options={taxes.map(t => ({ value: t.code, label: `${t.code} — ${t.name}` }))}
+                              options={taxes.map(t => ({ value: t.code, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))}
                             />
                           </Form.Item>
                           <Button type="primary" icon={<UserAddOutlined />} loading={stepperLoading}
@@ -1142,7 +1142,7 @@ export default function DteSatVentasPage() {
                     <Col span={10}>
                       <Form.Item label="Impuesto" name="taxId">
                         <Select allowClear placeholder="IVA 12%..."
-                          options={taxes.map(t => ({ value: t.id, label: t.name }))} />
+                          options={taxes.map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
                       </Form.Item>
                     </Col>
                   </Row>

@@ -350,7 +350,7 @@ export default function FacturaProveedorDetallePage() {
               onChange={val => updateItemTax(idx, val)}
               options={taxOptions
                 .filter(t => ['purchases', 'both'].includes(t.applicability))
-                .map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))}
+                .map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))}
             />
           )
         }
