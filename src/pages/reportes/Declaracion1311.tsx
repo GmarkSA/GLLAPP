@@ -280,7 +280,7 @@ export default function Declaracion1311Page() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 16 }}>
         {/* ── Panel izquierdo ─────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Card size="small" style={{ borderRadius: 8 }}>
@@ -315,9 +315,9 @@ export default function Declaracion1311Page() {
                       background: selected?.id === r.id ? '#e6f4ff' : 'transparent',
                       border: selected?.id === r.id ? '1px solid #91caff' : '1px solid transparent',
                     }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <Text strong style={{ fontSize: 12 }}>{mesLabel(r.mes)} {r.anio}</Text>
-                      <Tag color={STATUS_TAG[r.status]?.color ?? 'default'} style={{ fontSize: 10, margin: 0 }}>
+                      <Tag color={STATUS_TAG[r.status]?.color ?? 'default'} style={{ fontSize: 10, margin: '0 0 0 4px', flexShrink: 0 }}>
                         {STATUS_TAG[r.status]?.label ?? r.status}
                       </Tag>
                     </div>
