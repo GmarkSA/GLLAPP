@@ -450,7 +450,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
     })
     .map(t => ({
       value:       t.id,
-      label:       `${t.name} (${Number(t.rate)}%)`,
+      label:       t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}`,
       rate:        t.rate,
       isInclusive: t.isInclusive,
     }))

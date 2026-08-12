@@ -752,7 +752,7 @@ export default function DteSatPage() {
         accountId,
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
         taxId,
-        taxLabel: taxObj ? `${taxObj.code} (${Number(taxObj.rate)}%)` : undefined,
+        taxLabel: taxObj ? (taxObj.subtype === 'exempt' ? `Exento — ${taxObj.name}` : `${Number(taxObj.rate)}% — ${taxObj.name}`) : undefined,
         invoiceType: autoInvoiceType,
         defaultUnit: autoDefaultUnit,
         idpAccountId: idpAcc?.id,
@@ -1357,8 +1357,8 @@ export default function DteSatPage() {
                           </Form.Item>
                           <Form.Item name="defaultPurchaseTaxId" label="Impuesto IVA" style={{ marginBottom: 8 }}
                             tooltip="Impuesto predeterminado al registrar facturas de este proveedor">
-                            <Select showSearch allowClear placeholder="IVA12 — Tasa general 12%"
-                              options={taxes.filter(t => !t.isWithholding).map(t => ({ value: t.id, label: `${t.code} — ${t.name} (${Number(t.rate)}%)` }))} />
+                            <Select showSearch allowClear placeholder="12% — Tasa general 12%"
+                              options={taxes.filter(t => !t.isWithholding).map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
                           </Form.Item>
                         </div>
                         <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1faec2' }}>
@@ -1508,7 +1508,7 @@ export default function DteSatPage() {
                         rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}>
                         <Select
                           placeholder="Selecciona el impuesto (IVA)"
-                          options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${Number(t.rate)}%)` : `${t.code} — ${t.name}` }))}
+                          options={taxes.map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))}
                         />
                       </Form.Item>
                     </div>
@@ -2105,7 +2105,7 @@ export default function DteSatPage() {
                   rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}
                 >
                   <Select
-                    options={taxes.map(t => ({ value: t.id, label: Number(t.rate) > 0 ? `${t.code} — ${t.name} (${t.rate}%)` : `${t.code} — ${t.name}` }))}
+                    options={taxes.map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))}
                     placeholder="Selecciona el impuesto (IVA)"
                   />
                 </Form.Item>

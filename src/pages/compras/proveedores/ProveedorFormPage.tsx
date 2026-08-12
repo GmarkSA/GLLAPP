@@ -741,7 +741,7 @@ export default function ProveedorFormPage() {
                                 .filter(t => t.isActive && !t.isWithholding && (t.applicability === 'purchases' || t.applicability === 'both'))
                                 .map((t: Tax) => ({
                                   value: t.id,
-                                  label: `${t.name} (${Number(t.rate)}%)`,
+                                  label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}`,
                                 }))}
                             />
                           </Form.Item>

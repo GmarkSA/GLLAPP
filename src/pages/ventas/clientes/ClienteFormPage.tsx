@@ -511,10 +511,7 @@ export default function ClienteFormPage() {
                               {ivaTaxes.length > 0
                                 ? ivaTaxes.map(t => (
                                   <Option key={t.code} value={t.code}>
-                                    <Space>
-                                      <Tag color="#1faec2">{t.code}</Tag>
-                                      {t.name}
-                                    </Space>
+                                    {t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}`}
                                   </Option>
                                 ))
                                 : <Option disabled value="">Sin impuestos — configúralos en Configuración → Impuestos</Option>
