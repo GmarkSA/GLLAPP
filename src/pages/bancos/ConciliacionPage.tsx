@@ -176,6 +176,20 @@ export default function ConciliacionPage() {
   }
 
   const sessionColumns: ColumnsType<BankTransaction> = [
+    {
+      title: 'Estado', dataIndex: 'status', width: 130,
+      filters: [
+        { text: 'Pendiente',        value: 'pending' },
+        { text: 'Con coincidencia', value: 'matched' },
+        { text: 'Categorizada',     value: 'categorized' },
+        { text: 'Conciliada',       value: 'reconciled' },
+      ],
+      onFilter: (value, record) => record.status === value,
+      render: v => {
+        const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
+        return <Tag color={cfg.color}>{cfg.label}</Tag>
+      },
+    },
     { title: 'Fecha', dataIndex: 'transactionDate', width: 100, render: v => dayjs(v).format('DD/MM/YYYY') },
     {
       title: 'Descripcion', dataIndex: 'description', ellipsis: true,
@@ -200,20 +214,6 @@ export default function ConciliacionPage() {
       render: (v, row) => row.accountName
         ? <Text style={{ fontSize: 12, color: '#374151' }}>{row.accountName}</Text>
         : <Text type="secondary" style={{ fontSize: 12 }}>Sin categorizar</Text>,
-    },
-    {
-      title: 'Estado', dataIndex: 'status', width: 120,
-      filters: [
-        { text: 'Pendiente',       value: 'pending' },
-        { text: 'Con coincidencia', value: 'matched' },
-        { text: 'Categorizada',    value: 'categorized' },
-        { text: 'Conciliada',      value: 'reconciled' },
-      ],
-      onFilter: (value, record) => record.status === value,
-      render: v => {
-        const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
-        return <Tag color={cfg.color}>{cfg.label}</Tag>
-      },
     },
   ]
 
