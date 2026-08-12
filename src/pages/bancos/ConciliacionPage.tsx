@@ -203,6 +203,13 @@ export default function ConciliacionPage() {
     },
     {
       title: 'Estado', dataIndex: 'status', width: 120,
+      filters: [
+        { text: 'Pendiente',       value: 'pending' },
+        { text: 'Con coincidencia', value: 'matched' },
+        { text: 'Categorizada',    value: 'categorized' },
+        { text: 'Conciliada',      value: 'reconciled' },
+      ],
+      onFilter: (value, record) => record.status === value,
       render: v => {
         const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
         return <Tag color={cfg.color}>{cfg.label}</Tag>
