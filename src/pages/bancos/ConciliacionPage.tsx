@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Empty, Input, InputNumber, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, LockOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SafetyOutlined, SearchOutlined, SendOutlined, SyncOutlined, UnlockOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SearchOutlined, SendOutlined, SyncOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   autoMatchReconciliation,
@@ -12,8 +12,6 @@ import {
   getReconciliationSummary,
   listReconciliationPeriods,
   saveReconciliationPeriod,
-  approveReconciliationPeriod,
-  reabrirReconciliationPeriod,
   reconcileTransaction,
   unreconcileTransaction,
   sendEmailConciliacion,
@@ -130,16 +128,6 @@ export default function ConciliacionPage() {
     difference: account?.bankBalance == null ? null : Number(account.bankBalance) - Number(account.currentBalance),
   }), [account, summary])
 
-  // Conjunto de "año-mes" cuyos períodos están aprobados → transacciones bloqueadas
-  const approvedKeys = useMemo(
-    () => new Set(periods.filter(p => p.status === 'approved').map(p => `${p.year}-${p.month}`)),
-    [periods],
-  )
-  const isTxLocked = (tx: BankTransaction) => {
-    const d = dayjs(tx.transactionDate)
-    return approvedKeys.has(`${d.year()}-${d.month() + 1}`)
-  }
-
   const isSessionMode = !!(urlMonth && urlYear && urlSaldo != null)
 
   // Transacciones del período de sesión visibles en modo conciliacion (excluye anuladas/excluidas)
@@ -221,7 +209,7 @@ export default function ConciliacionPage() {
     selectedRowKeys: selectedTxIds,
     onChange: (keys: React.Key[]) => setSelectedTxIds(keys),
     getCheckboxProps: (row: BankTransaction) => ({
-      disabled: row.status === 'reconciled' || isTxLocked(row),
+      disabled: row.status === 'reconciled',
     }),
   }
 
@@ -444,13 +432,6 @@ export default function ConciliacionPage() {
       width: 150,
       fixed: 'right',
       render: (_, row) => {
-        if (isTxLocked(row)) {
-          return (
-            <Tooltip title="Período aprobado — usa 'Habilitar conciliación' en el Historial para editar">
-              <LockOutlined style={{ color: '#9ca3af', fontSize: 16 }} />
-            </Tooltip>
-          )
-        }
         if (row.status === 'reconciled') {
           return (
             <Button size="small" danger icon={<RollbackOutlined />} onClick={() => handleUnreconcile(row)}>
@@ -534,8 +515,8 @@ export default function ConciliacionPage() {
               <Button icon={<HistoryOutlined />} onClick={() => setShowHistory(true)}>
                 Historial ({periods.length})
               </Button>
-              <Button icon={<LockOutlined />} onClick={openCloseModal}>
-                Cerrar período
+              <Button icon={<HistoryOutlined />} onClick={openCloseModal}>
+                Guardar cierre
               </Button>
               <Button icon={<PrinterOutlined />} onClick={() => {
                 const lastClosed = [...periods]
@@ -723,17 +704,17 @@ export default function ConciliacionPage() {
 
       {/* ── Modal cerrar período ────────────────────────────────────────────── */}
       <Modal
-        title={<><LockOutlined /> Cerrar período de conciliación</>}
+        title={<><HistoryOutlined /> Guardar cierre de conciliación</>}
         open={showCloseModal}
         onCancel={() => setShowCloseModal(false)}
-        okText="Guardar período"
+        okText="Guardar cierre"
         okButtonProps={{ style: { background: NAVY }, loading: savingPeriod }}
         onOk={handleSavePeriod}
         width={440}
       >
         <Alert
           type="info" showIcon
-          message="Se guardará una instantánea del estado actual de conciliación para la cuenta seleccionada. Podrás reimprimirla en cualquier momento."
+          message="Se guardará el saldo del estado de cuenta para generar el PDF de conciliación. Las transacciones pueden seguir editándose en cualquier momento."
           style={{ marginBottom: 18 }}
         />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -926,42 +907,6 @@ export default function ConciliacionPage() {
                       <Button size="small" icon={<PrinterOutlined />}
                         onClick={() => window.open(`/bancos/${account.id}/conciliacion/imprimir?month=${r.month}&year=${r.year}`, '_blank')} />
                     </Tooltip>
-                    {r.status === 'closed' && (
-                      <Tooltip title="Aprobar período">
-                        <Button size="small" icon={<SafetyOutlined />} style={{ color: '#2ea172', borderColor: '#2ea172' }}
-                          onClick={() => {
-                            Modal.confirm({
-                              title: 'Aprobar período',
-                              content: 'Marcar este período como revisado y aprobado.',
-                              okText: 'Aprobar',
-                              okButtonProps: { style: { background: '#2ea172', borderColor: '#2ea172' } },
-                              onOk: async () => {
-                                const updated = await approveReconciliationPeriod(account.id, r.id)
-                                setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
-                                message.success('Período aprobado')
-                              },
-                            })
-                          }} />
-                      </Tooltip>
-                    )}
-                    {r.status === 'approved' && (
-                      <Tooltip title="Habilitar conciliación (revertir a Cerrado para editar)">
-                        <Button size="small" icon={<UnlockOutlined />} style={{ color: '#d97706', borderColor: '#d97706' }}
-                          onClick={() => {
-                            Modal.confirm({
-                              title: 'Habilitar conciliación',
-                              content: `El período ${meses[r.month - 1]} ${r.year} volverá a estado Cerrado. Las transacciones de ese mes quedarán desbloqueadas para edición.`,
-                              okText: 'Habilitar',
-                              okButtonProps: { style: { background: '#d97706', borderColor: '#d97706' } },
-                              onOk: async () => {
-                                const updated = await reabrirReconciliationPeriod(account.id, r.id)
-                                setPeriods(prev => prev.map(p => p.id === r.id ? updated : p))
-                                message.success(`Conciliación de ${meses[r.month - 1]} ${r.year} habilitada para edición`)
-                              },
-                            })
-                          }} />
-                      </Tooltip>
-                    )}
                   </Space>
                 ),
               },
