@@ -204,10 +204,12 @@ export default function Declaracion2237() {
   const [editing, setEditing] = useState(false)
   const [ev, setEv] = useState<EditValues>({ ventas: EMPTY_V, compras: EMPTY_C })
   const [ec, setEc] = useState<EditCounts>(EMPTY_COUNTS)
+  const [remanente, setRemanente] = useState(0)
 
   const syncEdit = useCallback((d: DeclaracionIva) => {
     setEv(snapshotToEdit(d))
     setEc(snapshotToCounts(d))
+    setRemanente(r2(Number(d.remanentePeriodoAnterior ?? d.snapshot?.remanentePeriodoAnterior ?? 0)))
   }, [])
 
   const updateDecl = (result: DeclaracionIva) => {
@@ -269,6 +271,7 @@ export default function Declaracion2237() {
       const result = await actualizarDeclaracionIva(decl.id, {
         ivaDebitoFiscal, ivaCreditoFiscal, baseVentas, baseCompras,
         retencionIva: c.retencionIva,
+        remanentePeriodoAnterior: remanente,
         ventasDesglose:  v as unknown as Record<string, unknown>,
         comprasDesglose: { ...c, counts9_1: ec } as unknown as Record<string, unknown>,
       })
@@ -308,7 +311,7 @@ export default function Declaracion2237() {
   const liveCredito = r2(c.vehiculosNuevos.iva + c.combustibles.iva + c.bienes.iva + c.servicios.iva + c.fyduca.iva + c.importacion.iva + c.activosFijos.iva + c.activosFijosImportados.iva)
   const liveBaseC   = r2(c.medicamentos.base + c.pequenoContribuyente.base + c.vehiculosAntiguos.base + c.vehiculosNuevos.base + c.exento.base + c.combustibles.base + c.bienes.base + c.servicios.base + c.fyduca.base + c.importacion.base + c.activosFijos.base + c.activosFijosImportados.base)
   const liveRet     = c.retencionIva
-  const liveNeto    = liveDebito - liveCredito
+  const liveNeto    = liveDebito - liveCredito - remanente
   const livePagar   = Math.max(0, liveNeto) - liveRet
 
   const snapshot    = decl?.snapshot ?? {}
@@ -534,11 +537,19 @@ export default function Declaracion2237() {
                   baseVal={c.activosFijosImportados.base} onBase={val => setC('activosFijosImportados', 'base', val)}
                   ivaVal={c.activosFijosImportados.iva}   onIva={val  => setC('activosFijosImportados', 'iva',  val)} />
                 <ZRow label="IVA conforme constancias de exención recibidas" />
-                <ZRow label="Remanente de crédito fiscal del período anterior" />
+                <tr>
+                  <td style={editing ? ECELL : CELL}>
+                    Remanente de crédito fiscal del período anterior{editMark}
+                  </td>
+                  <td style={NUM}></td>
+                  <td style={editing ? ENUM : NUM}>
+                    <NI val={remanente} onChange={setRemanente} />
+                  </td>
+                </tr>
                 <tr>
                   <td style={SUB}>Sumatoria BASE y CRÉDITOS</td>
                   <td style={SNUM}>{fmt(liveBaseC)}</td>
-                  <td style={SNUM}>{fmt(liveCredito)}</td>
+                  <td style={SNUM}>{fmt(liveCredito + remanente)}</td>
                 </tr>
 
                 {/* 7. DETERMINACIÓN */}
