@@ -2459,7 +2459,7 @@ export default function DteSatPage() {
               ),
             },
             {
-              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 210,
+              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 260,
               render: (val: string | undefined, row: BulkVendorRow) => (
                 <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="RG-C01..."
                   value={val} disabled={row.status === 'ok' || bulkVendorRunning}
