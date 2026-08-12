@@ -209,7 +209,7 @@ export default function DteSatPage() {
     if (!silent) setLoading(true)
     try {
       const [docsRes, jobsRes, statsRes] = await Promise.all([
-        getSatDteDocuments({ limit: 50, search: search || undefined, status: statusFilter }),
+        getSatDteDocuments({ limit: 500, search: search || undefined, status: statusFilter }),
         getSatDteJobs({ limit: 10 }),
         getSatDteStats(),
       ])
@@ -915,11 +915,11 @@ export default function DteSatPage() {
     {
       title: 'UUID',
       dataIndex: 'uuid',
-      width: 280,
+      width: 320,
       render: (v: string) => (
         <Tooltip title={v}>
           <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', cursor: 'default' }}>
-            {v?.slice(0, 26)}…
+            {v?.slice(0, 30)}…
           </Text>
         </Tooltip>
       ),

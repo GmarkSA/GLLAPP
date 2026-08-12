@@ -645,11 +645,11 @@ export default function DteSatVentasPage() {
     {
       title: 'UUID',
       dataIndex: 'uuid',
-      width: 280,
+      width: 320,
       render: (v: string) => (
         <Tooltip title={v}>
           <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', cursor: 'default' }}>
-            {v?.slice(0, 26)}…
+            {v?.slice(0, 30)}…
           </Text>
         </Tooltip>
       ),
