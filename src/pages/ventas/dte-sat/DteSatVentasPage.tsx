@@ -645,11 +645,11 @@ export default function DteSatVentasPage() {
     {
       title: 'UUID',
       dataIndex: 'uuid',
-      width: 130,
+      width: 280,
       render: (v: string) => (
         <Tooltip title={v}>
           <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', cursor: 'default' }}>
-            {v?.slice(0, 12)}…
+            {v?.slice(0, 26)}…
           </Text>
         </Tooltip>
       ),
@@ -1604,7 +1604,7 @@ export default function DteSatVentasPage() {
                   loading={loading}
                   size="small"
                   scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
-                  pagination={{ pageSize: 50, showTotal: t => `${t} documentos`, showSizeChanger: false }}
+                  pagination={{ pageSize: 200, showTotal: t => `${t} documentos`, showSizeChanger: true }}
                   rowClassName={r => r.status === 'duplicate' ? 'ant-table-row-duplicate' : ''}
                   rowSelection={{
                     selectedRowKeys: selectedIds,

@@ -915,11 +915,11 @@ export default function DteSatPage() {
     {
       title: 'UUID',
       dataIndex: 'uuid',
-      width: 160,
+      width: 280,
       render: (v: string) => (
         <Tooltip title={v}>
           <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', cursor: 'default' }}>
-            {v?.slice(0, 14)}…
+            {v?.slice(0, 26)}…
           </Text>
         </Tooltip>
       ),
@@ -2282,7 +2282,7 @@ export default function DteSatPage() {
                   size="small"
                   scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
                   pagination={{
-                    pageSize: 15,
+                    pageSize: 200,
                     showSizeChanger: true,
                     showTotal: t => `${t} documentos`,
                   }}
