@@ -1134,8 +1134,8 @@ export default function TransaccionesPage() {
             { value: 'credit', label: 'Ingresos' },
             { value: 'debit', label: 'Egresos' },
           ]} />
-          <Select allowClear size="small" placeholder="Estado" value={status} onChange={v => { setStatus(v); setPage(1) }} style={{ width: 170 }} options={Object.entries(TRANSACTION_STATUS_CONFIG).map(([value, cfg]) => ({ value, label: cfg.label }))} />
           <Button size="small" icon={<ReloadOutlined />} loading={loading} onClick={loadTransactions}>Actualizar</Button>
+          <Select allowClear size="small" placeholder="Estado" value={status} onChange={v => { setStatus(v); setPage(1) }} style={{ width: 170 }} options={Object.entries(TRANSACTION_STATUS_CONFIG).map(([value, cfg]) => ({ value, label: cfg.label }))} />
           <Button size="small" icon={<RobotOutlined />} loading={matching} onClick={handleAutoMatch}
             style={{ borderColor: '#4d7cfe', color: '#4d7cfe' }}>
             Buscar coincidencias
