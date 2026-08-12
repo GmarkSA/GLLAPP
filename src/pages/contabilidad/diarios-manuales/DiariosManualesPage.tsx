@@ -45,7 +45,7 @@ export default function DiariosManualesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params: GetAsientosParams = { page, limit: 50, soloManuales: true }
+      const params: GetAsientosParams = { page, limit: 200, soloManuales: true }
       if (search)       params.search     = search
       if (filtroEstado) params.estado     = filtroEstado
       if (filtroTipo)   params.tipo       = filtroTipo
@@ -53,7 +53,7 @@ export default function DiariosManualesPage() {
       if (rango?.[1])   params.fechaHasta = rango[1].format('YYYY-MM-DD')
       const res = await getAsientos(params)
       setData(res.data)
-      setTotal(res.total)
+      setTotal((res as any)?.meta?.total ?? res.total ?? 0)
     } catch { setData([]) }
     finally { setLoading(false) }
   }, [page, search, filtroEstado, filtroTipo, rango])
@@ -255,7 +255,7 @@ export default function DiariosManualesPage() {
         loading={loading} size="small"
         onRow={r => ({ onDoubleClick: () => navigate(`/contabilidad/diarios-manuales/${r.id}`) })}
         pagination={{
-          current: page, pageSize: 50, total,
+          current: page, pageSize: 200, total,
           onChange: p => setPage(p),
           showTotal: t => `${t} registros`,
         }}
