@@ -65,9 +65,9 @@ export default function PagosRealizadosPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getPagosRealizados({ page, limit: 50, search: search || undefined, status, mode })
+      const res = await getPagosRealizados({ page, limit: 200, search: search || undefined, status, mode })
       setData(res.data)
-      setTotal(res.total)
+      setTotal((res as any)?.meta?.total ?? res.total ?? 0)
     } catch (e: any) {
       const d = e?.response?.data
       message.error(d?.error?.message || d?.message || 'Error al cargar pagos realizados')
@@ -354,7 +354,7 @@ export default function PagosRealizadosPage() {
             pagination={{
               total,
               current: page,
-              pageSize: 50,
+              pageSize: 200,
               onChange: setPage,
               showTotal: t => `${t} pagos`,
               showSizeChanger: false,

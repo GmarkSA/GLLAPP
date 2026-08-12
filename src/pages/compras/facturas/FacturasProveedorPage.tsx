@@ -262,7 +262,7 @@ export default function FacturasProveedorPage() {
   const [debouncedSearch, setDebounced] = useState('')
   const [total, setTotal]             = useState(0)
   const [page, setPage]               = useState(1)
-  const [pageSize, setPageSize]       = useState(100)
+  const [pageSize, setPageSize]       = useState(200)
   const [statusTab, setStatusTab]     = useState('all')
 
   // Column config
@@ -291,7 +291,7 @@ export default function FacturasProveedorPage() {
       if (statusTab !== 'all') params.status = statusTab
       const res = await getBills(params)
       setBills(res.data ?? [])
-      setTotal(res.total ?? 0)
+      setTotal((res as any)?.meta?.total ?? res.total ?? 0)
     } catch {
       message.error('Error cargando facturas de proveedor')
       setBills([]); setTotal(0)

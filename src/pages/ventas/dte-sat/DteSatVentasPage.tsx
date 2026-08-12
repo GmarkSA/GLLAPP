@@ -143,7 +143,7 @@ export default function DteSatVentasPage() {
         getSatEmitidosStats(),
       ])
       setDocuments(Array.isArray(docsRes) ? docsRes : (docsRes?.data ?? []))
-      setTotal((docsRes as any)?.total ?? 0)
+      setTotal((docsRes as any)?.meta?.total ?? (docsRes as any)?.total ?? 0)
       setJobs(Array.isArray(jobsRes) ? jobsRes : (jobsRes?.data ?? []))
       setStats(statsRes ?? {})
     } catch {
