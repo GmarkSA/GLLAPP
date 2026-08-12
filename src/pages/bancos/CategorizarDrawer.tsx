@@ -11,7 +11,15 @@ import { getCustomers, type Customer } from '../../api/contactos'
 import { createPagoRecibido, getPagoRecibido, reprocessPagoJournal } from '../../api/pagos-recibidos'
 import { createAsiento, updateAsiento } from '../../api/asientos'
 import { getExchangeRateForDate } from '../../api/monedas'
+import { getApiError } from '../../api/axios'
 import { moneyFmt, NAVY } from './bancosShared'
+
+// Si el backend indica período bloqueado, muestra mensaje claro en lugar del técnico
+function periodMsg(e: unknown, fallback: string): string {
+  const raw = getApiError(e, fallback)
+  const m = raw.match(/El período de (.+?) está bloqueado/i)
+  return m ? `Período cerrado — ${m[1]}. Ve a Bloqueo de transacciones para habilitarlo.` : raw
+}
 
 const { Text, Title } = Typography
 
@@ -225,8 +233,8 @@ export default function CategorizarDrawer({
 
       message.success(`${selectedInvoices.length} cobro(s) aplicado(s)`)
       setResultado({ titulo: `Cobros aplicados — ${refs.join(', ')}`, journalLines: allLines })
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo aplicar uno o más cobros')
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo aplicar uno o más cobros'))
     } finally {
       setApplying(false)
     }
@@ -289,8 +297,8 @@ export default function CategorizarDrawer({
 
       message.success(`${selectedBills.length} pago(s) aplicado(s)`)
       setResultado({ titulo: `Pagos a proveedor — ${refs.join(', ')}`, journalLines: allLines })
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo registrar uno o más pagos')
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo registrar uno o más pagos'))
     } finally {
       setApplying(false)
     }
@@ -361,8 +369,8 @@ export default function CategorizarDrawer({
         journalEntryNumber: jeNumber || undefined,
         journalLines,
       })
-    } catch {
-      message.error('No se pudo categorizar')
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo categorizar'))
     } finally {
       setSavingManual(false)
     }
@@ -426,9 +434,8 @@ export default function CategorizarDrawer({
 
       message.success(`Anticipo registrado — ${advance.advanceNumber}`)
       setResultado({ titulo: `Anticipo a proveedor — ${advance.advanceNumber}`, journalLines })
-    } catch (e: any) {
-      const raw = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'No se pudo registrar el anticipo'
-      message.error(Array.isArray(raw) ? raw.join(', ') : typeof raw === 'string' ? raw : 'No se pudo registrar el anticipo')
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo registrar el anticipo'))
     } finally {
       setSavingAdvance(false)
     }
@@ -465,8 +472,8 @@ export default function CategorizarDrawer({
 
       message.success(`Anticipo registrado — ${advance.invoiceNumber}`)
       setResultado({ titulo: `Anticipo de cliente — ${advance.invoiceNumber}${selectedCustomerName ? ` (${selectedCustomerName})` : ''}`, journalLines })
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo registrar el anticipo')
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo registrar el anticipo'))
     } finally {
       setSavingAdvance(false)
     }
