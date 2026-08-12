@@ -2385,10 +2385,10 @@ export default function DteSatPage() {
             </div>
             <div>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Impuesto IVA</div>
-              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="IVA12 — Tasa general 12%"
+              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="12% — Tasa general 12%"
                 value={bulkCommonTax} onChange={setBulkCommonTax}
                 filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
+                options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
             </div>
             <div>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Condiciones de pago</div>
@@ -2467,7 +2467,7 @@ export default function DteSatPage() {
                     r.dteId === row.dteId ? { ...r, defaultPurchaseTaxId: v } : r
                   ))}
                   filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                  options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: `${t.code} — ${t.name}` }))} />
+                  options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
               ),
             },
             {
