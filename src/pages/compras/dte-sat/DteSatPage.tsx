@@ -696,8 +696,8 @@ export default function DteSatPage() {
   }
 
   // ── Registro masivo ────────────────────────────────────────────────────────
-  const openBatchModal = async () => {
-    const dtes = documents.filter(d => selectedIds.includes(d.id) && isBatchable(d))
+  const openBatchModal = async (overrideDtes?: SatDte[]) => {
+    const dtes = overrideDtes ?? documents.filter(d => selectedIds.includes(d.id) && isBatchable(d))
     if (!dtes.length) { message.warning('Selecciona al menos un DTE listo para procesar'); return }
     setBatchLoading(true)
     setBatchOpen(true)
@@ -810,8 +810,9 @@ export default function DteSatPage() {
     await load(true)
   }
 
-  const openBulkVendorModal = () => {
-    const pendingDtes = documents.filter(d => d.status === 'pending')
+  const openBulkVendorModal = async () => {
+    const res = await getSatDteDocuments({ status: 'pending', limit: 500 })
+    const pendingDtes = res.data ?? []
     const byNit = new Map<string, SatDte[]>()
     for (const d of pendingDtes) {
       const nit = d.nitEmisor ?? 'CF'
@@ -2252,7 +2253,11 @@ export default function DteSatPage() {
                     )}
                     {stats.ready?.count > 0 && !statusFilter && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
-                        onClick={() => setStatusFilter('ready')}>
+                        onClick={async () => {
+                          const res = await getSatDteDocuments({ status: 'ready', limit: 500 })
+                          const allReady = (res.data ?? []).filter(isBatchable)
+                          openBatchModal(allReady)
+                        }}>
                         <CheckCircleOutlined style={{ color: '#2ea172' }} />
                         <span><strong>{stats.ready.count} facturas listas</strong> — Registrar en lote</span>
                       </div>
@@ -2263,7 +2268,7 @@ export default function DteSatPage() {
                       type="primary"
                       icon={<ThunderboltOutlined />}
                       style={{ background: '#2ea172', flexShrink: 0 }}
-                      onClick={openBatchModal}
+                      onClick={() => openBatchModal()}
                     >
                       Registrar {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}
                     </Button>
