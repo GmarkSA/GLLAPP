@@ -105,34 +105,46 @@ export default function Declaracion1311Page() {
   const [liveIncentivos,   setLiveIncentivos]   = useState(0)
   const [liveNumResolucion,setLiveNumResolucion] = useState('')
 
-  const cargarLista = useCallback(async (syncSelected?: DeclaracionIsr) => {
+  const syncIfPosted = useCallback(async (decl: DeclaracionIsr, lista: DeclaracionIsr[]) => {
+    if (decl.status !== 'poliza_generada') return lista
+    try {
+      const updated = await sincronizarEstadoIsr(decl.id)
+      if (updated.status !== decl.status) {
+        setSelected(updated)
+        syncEdit(updated)
+        return lista.map(d => d.id === updated.id ? updated : d)
+      }
+    } catch { /* silencioso */ }
+    return lista
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cargarLista = useCallback(async (selectedDecl?: DeclaracionIsr | null) => {
     setLoading(true)
     try {
-      const lista = await getDeclaracionesIsr()
+      let lista = await getDeclaracionesIsr()
+      // Auto-sincronizar cualquier póliza_generada de la lista contra el estado del diario
+      const pendientes = lista.filter(d => d.status === 'poliza_generada')
+      for (const d of pendientes) {
+        lista = await syncIfPosted(d, lista)
+      }
       setLista(lista)
-      // Auto-sincronizar la declaración visible si está en poliza_generada
-      const toSync = syncSelected ?? null
-      if (toSync && toSync.status === 'poliza_generada') {
-        try {
-          const updated = await sincronizarEstadoIsr(toSync.id)
-          if (updated.status !== toSync.status) {
-            setSelected(updated)
-            syncEdit(updated)
-            const updated2 = await getDeclaracionesIsr()
-            setLista(updated2)
-          }
-        } catch { /* silencioso */ }
+      // Si hay una seleccionada que fue sincronizada, actualizarla
+      if (selectedDecl) {
+        const fresh = lista.find(d => d.id === selectedDecl.id)
+        if (fresh && fresh.status !== selectedDecl.status) {
+          setSelected(fresh); syncEdit(fresh)
+        }
       }
     }
     catch { setLista([]) }
     finally { setLoading(false) }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [syncIfPosted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { cargarLista() }, [cargarLista])
 
-  // Re-sincronizar automáticamente al hacer visible la página
+  // Re-sincronizar al volver el foco (usuario regresa de Diarios Manuales)
   useEffect(() => {
-    const onFocus = () => { if (selected?.status === 'poliza_generada') cargarLista(selected) }
+    const onFocus = () => cargarLista(selected)
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [selected, cargarLista])
