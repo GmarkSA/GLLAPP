@@ -370,7 +370,7 @@ export default function PagosRealizadosPage() {
         onCancel={() => { setDetail(null); setJeLines([]) }}
         footer={null}
         title={`Pago ${detail?.paymentNumber}`}
-        width={680}
+        width={780}
       >
         {detail && (
           <>
@@ -443,13 +443,13 @@ export default function PagosRealizadosPage() {
                     const hasFx  = rows.some(r => r.accountCode?.startsWith('7') || r.accountCode?.startsWith('5'))
                     return (
                       <Table.Summary.Row>
-                        <Table.Summary.Cell index={0} colSpan={2}>
+                        <Table.Summary.Cell index={0}>
                           {hasFx && <Tag color="#ff7f00">Incluye diferencial cambiario</Tag>}
                         </Table.Summary.Cell>
-                        <Table.Summary.Cell index={2} align="right">
+                        <Table.Summary.Cell index={1} align="right">
                           <Text strong style={{ color: '#e5484d' }}>Q {totalD.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                         </Table.Summary.Cell>
-                        <Table.Summary.Cell index={3} align="right">
+                        <Table.Summary.Cell index={2} align="right">
                           <Text strong style={{ color: '#2ea172' }}>Q {totalC.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                         </Table.Summary.Cell>
                       </Table.Summary.Row>
