@@ -196,6 +196,7 @@ function CardForm({
         expYear:   expYear.trim(),
         ccCvv2:    values.cvv,
         cardType:  detectCardType(rawNum),
+        plan:      plan.plan,
       })
 
       setStep('activando')
@@ -690,7 +691,7 @@ export default function SubscriptionPage() {
 
   const exchangeRate = rateInfo.rate
   const sub = state?.subscription
-  const activePlan = sub && sub.status !== 'cancelled' ? sub.plan : undefined
+  const activePlan = sub?.status === 'active' ? sub.plan : undefined
 
   const handleSelectPlan = (plan: PlanConfig) => {
     if (!sub?.qpayproCardToken && Number(plan.priceMonthly) > 0) {

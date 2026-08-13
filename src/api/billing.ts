@@ -150,6 +150,7 @@ export interface TokenizarTarjetaPayload {
   expYear: string
   ccCvv2: string
   cardType: CardType
+  plan?: string
 }
 
 export interface ActivarCobrosResult {
