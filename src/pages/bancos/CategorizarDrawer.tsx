@@ -6,7 +6,7 @@ import AccountSelect from '../../components/AccountSelect'
 import type { Account } from '../../api/catalogo'
 import { updateTransaction, type BankAccount, type BankTransaction } from '../../api/bancos'
 import { getInvoices, createAnticipo, type Invoice } from '../../api/facturas'
-import { getBills, getJournalEntry, recordBillPayment, getAccountDefaults, createVendorAdvance, getVendors, type PurchaseInvoice, type AccountDefaults, type Vendor } from '../../api/compras'
+import { getBills, getJournalEntry, recordBillPayment, getAccountDefaults, createVendorAdvance, getVendors, getVendorAdvances, voidVendorAdvance, type PurchaseInvoice, type AccountDefaults, type Vendor, type VendorAdvance } from '../../api/compras'
 import { getCustomers, type Customer } from '../../api/contactos'
 import { createPagoRecibido, getPagoRecibido, reprocessPagoJournal } from '../../api/pagos-recibidos'
 import { createAsiento, updateAsiento } from '../../api/asientos'
@@ -58,9 +58,17 @@ export default function CategorizarDrawer({
   const [selectedCustomerName, setSelectedCustomerName] = useState<string | undefined>()
   const [exchangeRate, setExchangeRate]       = useState<number>(1)
   const [resultado, setResultado]             = useState<Resultado | null>(null)
-  const [overpayAmount, setOverpayAmount]     = useState(0)
+  const [showRefundForm, setShowRefundForm]         = useState(false)
+  const [refundAdvances, setRefundAdvances]         = useState<VendorAdvance[]>([])
+  const [refundSearching, setRefundSearching]       = useState(false)
+  const [selectedRefund, setSelectedRefund]         = useState<VendorAdvance | undefined>()
+  const [savingRefund, setSavingRefund]             = useState(false)
+
+  const [overpayAmount, setOverpayAmount]         = useState(0)
   const [overpayVendorId, setOverpayVendorId]     = useState<string | undefined>()
   const [overpayVendorName, setOverpayVendorName] = useState<string | undefined>()
+  const [overpayCustomerId, setOverpayCustomerId]     = useState<string | undefined>()
+  const [overpayCustomerName, setOverpayCustomerName] = useState<string | undefined>()
   const [savingOverpay, setSavingOverpay]     = useState(false)
   const [overpayDone, setOverpayDone]         = useState(false)
   const [accountDefaults, setAccountDefaults] = useState<AccountDefaults>({})
@@ -101,12 +109,17 @@ export default function CategorizarDrawer({
     setSelectedCustomerId(undefined)
     setSelectedCustomerName(undefined)
     setCustomers([])
+    setShowRefundForm(false)
+    setRefundAdvances([])
+    setSelectedRefund(undefined)
     setSelectedInvoices([])
     setSelectedBills([])
     setManualNote('')
     setOverpayAmount(0)
     setOverpayVendorId(undefined)
     setOverpayVendorName(undefined)
+    setOverpayCustomerId(undefined)
+    setOverpayCustomerName(undefined)
     setOverpayDone(false)
     fetchMatches('')
     if (account?.currency && account.currency !== 'GTQ') {
@@ -242,6 +255,14 @@ export default function CategorizarDrawer({
 
       message.success(`${selectedInvoices.length} cobro(s) aplicado(s)`)
       setResultado({ titulo: `Cobros aplicados — ${refs.join(', ')}`, journalLines: allLines })
+
+      // Detectar sobrante: cobro mayor al saldo de la factura
+      if (remaining > 0.005 && selectedInvoices.length > 0) {
+        const firstInv = selectedInvoices[0].invoice
+        setOverpayAmount(remaining)
+        setOverpayCustomerId(firstInv.customerId)
+        setOverpayCustomerName(firstInv.customerName)
+      }
     } catch (e: unknown) {
       message.error(periodMsg(e, 'No se pudo aplicar uno o más cobros'))
     } finally {
@@ -524,6 +545,82 @@ export default function CategorizarDrawer({
     }
   }
 
+  const searchRefundAdvances = async () => {
+    setRefundSearching(true)
+    try {
+      const res = await getVendorAdvances({ status: 'open', limit: 50 })
+      setRefundAdvances(res.data)
+    } catch { setRefundAdvances([]) }
+    finally { setRefundSearching(false) }
+  }
+
+  const applyAsVendorRefund = async () => {
+    if (!selectedRefund || !transaction || !account) return
+    setSavingRefund(true)
+    try {
+      const voided = await voidVendorAdvance(selectedRefund.id)
+
+      await updateTransaction(account.id, transaction.id, {
+        status:             'categorized',
+        sourceDocumentId:   voided.id,
+        sourceDocumentType: 'vendor_advance',
+      } as any)
+
+      let journalLines: JournalLine[] = []
+      if (voided.journalEntryId) {
+        try {
+          const je = await getJournalEntry(voided.journalEntryId)
+          journalLines = (je.lines ?? []).map((l: any) => ({
+            accountCode: l.accountCode || l.account?.code || '',
+            accountName: l.accountName || l.account?.name || '',
+            debe:  Number(l.debit  ?? l.debe  ?? 0),
+            haber: Number(l.credit ?? l.haber ?? 0),
+          }))
+        } catch { /* silent */ }
+      }
+
+      if (journalLines.length === 0) {
+        const amtGTQ = Number(selectedRefund.amount) * (isForeign ? exchangeRate : 1)
+        journalLines = [
+          { accountCode: account.glAccountCode || '', accountName: account.glAccountName || 'Banco', debe: amtGTQ, haber: 0 },
+          { accountCode: selectedRefund.advanceAccountCode || '150001', accountName: selectedRefund.advanceAccountName || 'Anticipos a Proveedores', debe: 0, haber: amtGTQ },
+        ]
+      }
+
+      message.success(`Reembolso aplicado — anticipo ${selectedRefund.advanceNumber} cancelado`)
+      setResultado({
+        titulo: `Reembolso de proveedor — ${selectedRefund.advanceNumber} (${selectedRefund.vendorName})`,
+        journalLines,
+      })
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo aplicar el reembolso'))
+    } finally {
+      setSavingRefund(false)
+    }
+  }
+
+  const applyOverpayAsCustomerAdvance = async () => {
+    if (!overpayCustomerId || !transaction || !account) return
+    setSavingOverpay(true)
+    try {
+      const txDate = String(transaction.transactionDate || '').split('T')[0]
+      const advance = await createAnticipo({
+        customerId:    overpayCustomerId,
+        amount:        overpayAmount,
+        date:          txDate,
+        currency:      account.currency,
+        reference:     transaction.reference || undefined,
+        bankAccountId: account.id,
+      })
+      message.success(`Anticipo registrado — ${advance.invoiceNumber}`)
+      setOverpayDone(true)
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo registrar el anticipo'))
+    } finally {
+      setSavingOverpay(false)
+    }
+  }
+
   const saveJE = async () => {
     if (!resultado?.journalEntryId) return
     setSavingJE(true)
@@ -705,8 +802,8 @@ export default function CategorizarDrawer({
         <div>
           <Alert type="success" showIcon message={resultado.titulo} style={{ marginBottom: 12 }} />
 
-          {/* ── Sobrante: pago mayor al saldo de la factura ─────────────── */}
-          {overpayAmount > 0.005 && !overpayDone && (
+          {/* ── Sobrante proveedor ──────────────────────────────────────── */}
+          {overpayAmount > 0.005 && overpayVendorId && !overpayDone && (
             <Alert
               type="warning" showIcon
               style={{ marginBottom: 12 }}
@@ -724,17 +821,46 @@ export default function CategorizarDrawer({
                     >
                       Registrar {moneyFmt(overpayAmount, account?.currency)} como anticipo
                     </Button>
-                    <Button size="small" onClick={() => setOverpayDone(true)}>
-                      No registrar
-                    </Button>
+                    <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
                   </div>
                 </div>
               }
             />
           )}
-          {overpayAmount > 0.005 && overpayDone && (
+          {overpayAmount > 0.005 && overpayVendorId && overpayDone && (
             <Alert type="success" showIcon style={{ marginBottom: 12 }}
               message={`Diferencia de ${moneyFmt(overpayAmount, account?.currency)} registrada como anticipo a ${overpayVendorName}`}
+            />
+          )}
+
+          {/* ── Sobrante cliente ────────────────────────────────────────── */}
+          {overpayAmount > 0.005 && overpayCustomerId && !overpayDone && (
+            <Alert
+              type="warning" showIcon
+              style={{ marginBottom: 12 }}
+              message={`El cobro excede el saldo de la factura en ${moneyFmt(overpayAmount, account?.currency)}`}
+              description={
+                <div>
+                  <div style={{ marginBottom: 8, fontSize: 12 }}>
+                    ¿Registrar la diferencia como anticipo del cliente <strong>{overpayCustomerName}</strong>?
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="small" type="primary" loading={savingOverpay}
+                      icon={<ClockCircleOutlined />}
+                      style={{ background: '#d46b08', borderColor: '#d46b08' }}
+                      onClick={applyOverpayAsCustomerAdvance}
+                    >
+                      Registrar {moneyFmt(overpayAmount, account?.currency)} como anticipo
+                    </Button>
+                    <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
+                  </div>
+                </div>
+              }
+            />
+          )}
+          {overpayAmount > 0.005 && overpayCustomerId && overpayDone && (
+            <Alert type="success" showIcon style={{ marginBottom: 12 }}
+              message={`Diferencia de ${moneyFmt(overpayAmount, account?.currency)} registrada como anticipo de ${overpayCustomerName}`}
             />
           )}
 
@@ -875,32 +1001,67 @@ export default function CategorizarDrawer({
             <Text type="secondary" style={{ fontSize: 12 }}>o categorizar como</Text>
           </Divider>
 
-          {/* ── Anticipo ───────────────────────────────────────────────── */}
-          {isCredit ? showCustomerForm ? (
-            <div style={{ border: '1px solid #6b7280', borderRadius: 6, padding: 10, marginBottom: 8 }}>
-              <Text strong style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }}>
-                Cliente para el anticipo (cta {accountDefaults.customerAdvanceAccountCode || '2110'})
-              </Text>
-              <Select showSearch allowClear placeholder="Buscar cliente..." size="small"
-                style={{ width: '100%', marginBottom: 8 }} filterOption={false}
-                onSearch={searchCustomers} onFocus={() => searchCustomers('')}
-                loading={customerSearching} value={selectedCustomerId}
-                onChange={(val, opt: any) => { setSelectedCustomerId(val); setSelectedCustomerName(opt?.label ?? '') }}
-                options={customers.map(c => ({ value: c.id, label: c.name }))}
-                notFoundContent={customerSearching ? 'Buscando…' : 'Sin resultados'} />
-              <div style={{ display: 'flex', gap: 6 }}>
-                <Button size="small" type="primary" icon={<ClockCircleOutlined />} loading={savingAdvance}
-                  disabled={!selectedCustomerId} style={{ flex: 1, background: '#6b7280', borderColor: '#6b7280' }}
-                  onClick={applyAsCustomerAdvance}>Registrar anticipo</Button>
-                <Button size="small" onClick={() => { setShowCustomerForm(false); setSelectedCustomerId(undefined); setSelectedCustomerName(undefined) }}>Cancelar</Button>
-              </div>
-            </div>
-          ) : (
-            <Button block icon={<ClockCircleOutlined />} style={{ marginBottom: 8, borderColor: '#6b7280', color: '#6b7280' }}
-              onClick={() => { setShowCustomerForm(true); searchCustomers('') }}>
-              Anticipo de cliente
-              <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>({accountDefaults.customerAdvanceAccountCode || '2110'})</Text>
-            </Button>
+          {/* ── Anticipo / Reembolso ────────────────────────────────────── */}
+          {isCredit ? (
+            <>
+              {/* Anticipo de cliente */}
+              {showCustomerForm ? (
+                <div style={{ border: '1px solid #6b7280', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                  <Text strong style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }}>
+                    Cliente para el anticipo (cta {accountDefaults.customerAdvanceAccountCode || '2110'})
+                  </Text>
+                  <Select showSearch allowClear placeholder="Buscar cliente..." size="small"
+                    style={{ width: '100%', marginBottom: 8 }} filterOption={false}
+                    onSearch={searchCustomers} onFocus={() => searchCustomers('')}
+                    loading={customerSearching} value={selectedCustomerId}
+                    onChange={(val, opt: any) => { setSelectedCustomerId(val); setSelectedCustomerName(opt?.label ?? '') }}
+                    options={customers.map(c => ({ value: c.id, label: c.name }))}
+                    notFoundContent={customerSearching ? 'Buscando…' : 'Sin resultados'} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <Button size="small" type="primary" icon={<ClockCircleOutlined />} loading={savingAdvance}
+                      disabled={!selectedCustomerId} style={{ flex: 1, background: '#6b7280', borderColor: '#6b7280' }}
+                      onClick={applyAsCustomerAdvance}>Registrar anticipo</Button>
+                    <Button size="small" onClick={() => { setShowCustomerForm(false); setSelectedCustomerId(undefined); setSelectedCustomerName(undefined) }}>Cancelar</Button>
+                  </div>
+                </div>
+              ) : (
+                <Button block icon={<ClockCircleOutlined />} style={{ marginBottom: 8, borderColor: '#6b7280', color: '#6b7280' }}
+                  onClick={() => { setShowCustomerForm(true); setShowRefundForm(false); searchCustomers('') }}>
+                  Anticipo de cliente
+                  <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>({accountDefaults.customerAdvanceAccountCode || '2110'})</Text>
+                </Button>
+              )}
+
+              {/* Reembolso de proveedor */}
+              {showRefundForm ? (
+                <div style={{ border: '1px solid #1faec2', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                  <Text strong style={{ fontSize: 12, color: '#1faec2', display: 'block', marginBottom: 6 }}>
+                    Selecciona el anticipo a cancelar
+                  </Text>
+                  <Select allowClear placeholder="Anticipo abierto del proveedor..." size="small"
+                    style={{ width: '100%', marginBottom: 8 }}
+                    loading={refundSearching} value={selectedRefund?.id}
+                    onChange={(val) => setSelectedRefund(refundAdvances.find(a => a.id === val))}
+                    options={refundAdvances.map(a => ({
+                      value: a.id,
+                      label: `${a.advanceNumber} — ${a.vendorName} — ${moneyFmt(Number(a.balance), a.currency)}`,
+                    }))}
+                    notFoundContent={refundSearching ? 'Cargando…' : 'Sin anticipos abiertos'} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={savingRefund}
+                      disabled={!selectedRefund} style={{ flex: 1, background: '#1faec2', borderColor: '#1faec2' }}
+                      onClick={applyAsVendorRefund}>Aplicar reembolso</Button>
+                    <Button size="small" onClick={() => { setShowRefundForm(false); setSelectedRefund(undefined) }}>Cancelar</Button>
+                  </div>
+                </div>
+              ) : (
+                <Button block icon={<LinkOutlined />} style={{ marginBottom: 8, borderColor: '#1faec2', color: '#1faec2' }}
+                  onClick={() => { setShowRefundForm(true); setShowCustomerForm(false); searchRefundAdvances() }}>
+                  Reembolso de proveedor
+                  <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>(cancela anticipo abierto)</Text>
+                </Button>
+              )}
+            </>
           ) : showVendorForm ? (
             <div style={{ border: '1px solid #6b7280', borderRadius: 6, padding: 10, marginBottom: 8 }}>
               <Text strong style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6 }}>
