@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Card, Button, Select, DatePicker, Checkbox, InputNumber, Input,
   Typography, Space, Tag, Alert, Collapse, Table, message,
-  Divider, Form, Radio,
+  Divider, Form, Radio, Tooltip,
 } from 'antd'
-import { PrinterOutlined, ThunderboltOutlined, BankOutlined } from '@ant-design/icons'
+import { PrinterOutlined, ThunderboltOutlined, BankOutlined, SortAscendingOutlined, RocketOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -28,6 +28,11 @@ interface VendorSelection {
   total:      number
 }
 
+interface FlatInvoice extends PendingInvoice {
+  vendorId:   string
+  vendorName: string
+}
+
 export default function EmisionLoteChequesPage() {
   const navigate  = useNavigate()
   const [form]    = Form.useForm()
@@ -38,6 +43,8 @@ export default function EmisionLoteChequesPage() {
   const [loading,      setLoading]      = useState(true)
   const [submitting,   setSubmitting]   = useState(false)
   const [mode,         setMode]         = useState<string>('check')
+  const [sortMode,     setSortMode]     = useState<'vendor' | 'aging'>('vendor')
+  const [totalBudget,  setTotalBudget]  = useState<number | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -49,6 +56,19 @@ export default function EmisionLoteChequesPage() {
     }).catch(() => message.error('Error al cargar facturas pendientes'))
     .finally(() => setLoading(false))
   }, [])
+
+  // Todas las facturas aplanadas ordenadas por antigüedad (vencimiento ASC, sin fecha al final)
+  const allInvoicesFlat = useMemo<FlatInvoice[]>(() => {
+    const flat: FlatInvoice[] = allVendors.flatMap(v =>
+      v.invoices.map(inv => ({ ...inv, vendorId: v.vendorId, vendorName: v.vendorName }))
+    )
+    return flat.sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0
+      if (!a.dueDate) return 1
+      if (!b.dueDate) return -1
+      return dayjs(a.dueDate).diff(dayjs(b.dueDate))
+    })
+  }, [allVendors])
 
   const toggleInvoice = (vendorId: string, vendorName: string, inv: PendingInvoice) => {
     setSelections(prev => {
@@ -89,17 +109,54 @@ export default function EmisionLoteChequesPage() {
     setSelections(prev => { const n = { ...prev }; delete n[vendorId]; return n })
   }
 
+  // Distribuir monto automáticamente en las facturas más antiguas primero
+  const autoApply = () => {
+    if (!totalBudget || totalBudget <= 0) {
+      message.warning('Ingresa un monto disponible para distribuir')
+      return
+    }
+    const r = (n: number) => Math.round(n * 100) / 100
+    let remaining = totalBudget
+    const newSelections: Record<string, VendorSelection> = {}
+
+    for (const inv of allInvoicesFlat) {
+      if (remaining <= 0.005) break
+      const apply = r(Math.min(inv.balance, remaining))
+      if (apply <= 0) continue
+      remaining = r(remaining - apply)
+
+      const exist = newSelections[inv.vendorId] ?? {
+        vendorId:   inv.vendorId,
+        vendorName: inv.vendorName,
+        invoiceIds: [],
+        amounts:    {},
+        total:      0,
+      }
+      exist.invoiceIds = [...exist.invoiceIds, inv.id]
+      exist.amounts    = { ...exist.amounts, [inv.id]: apply }
+      exist.total      = r(exist.total + apply)
+      newSelections[inv.vendorId] = exist
+    }
+
+    setSelections(newSelections)
+    const applied = r(totalBudget - remaining)
+    message.success(
+      `Distribuidos ${fmtQ(applied)} en ${Object.keys(newSelections).length} proveedor(es)` +
+      (remaining > 0.005 ? ` — saldo sin aplicar: ${fmtQ(remaining)}` : '')
+    )
+  }
+
   const selectedVendors = Object.values(selections)
   const totalChecks     = selectedVendors.length
   const grandTotal      = selectedVendors.reduce((s, v) => s + v.total, 0)
 
-  const invoiceColumns = (v: PendingInvoicesByVendor): ColumnsType<PendingInvoice> => [
+  const invoiceColumns = (vendorId: string, vendorName: string): ColumnsType<PendingInvoice> => [
     {
       title: '', key: 'sel', width: 40,
       render: (_, r) => (
         <Checkbox
-          checked={selections[v.vendorId]?.invoiceIds.includes(r.id) ?? false}
-          onChange={() => toggleInvoice(v.vendorId, v.vendorName, r)}
+          checked={selections[vendorId]?.invoiceIds.includes(r.id) ?? false}
+          onChange={() => toggleInvoice(vendorId, vendorName, r)}
         />
       ),
     },
@@ -116,14 +173,54 @@ export default function EmisionLoteChequesPage() {
     {
       title: 'Monto a pagar', key: 'amt', width: 150, align: 'right' as const,
       render: (_, r) => {
-        const sel = selections[v.vendorId]
+        const sel = selections[vendorId]
         if (!sel?.invoiceIds.includes(r.id)) return <Text type="secondary">—</Text>
         return (
           <InputNumber
             size="small" min={0.01} max={r.balance}
             value={sel.amounts[r.id] ?? r.balance}
             precision={2} style={{ width: 120 }}
-            onChange={val => setAmount(v.vendorId, r.id, val, r.balance)}
+            onChange={val => setAmount(vendorId, r.id, val, r.balance)}
+            onClick={e => e.stopPropagation()}
+          />
+        )
+      },
+    },
+  ]
+
+  // Columnas para vista por antigüedad (incluye proveedor)
+  const agingColumns: ColumnsType<FlatInvoice> = [
+    {
+      title: '', key: 'sel', width: 40,
+      render: (_, r) => (
+        <Checkbox
+          checked={selections[r.vendorId]?.invoiceIds.includes(r.id) ?? false}
+          onChange={() => toggleInvoice(r.vendorId, r.vendorName, r)}
+        />
+      ),
+    },
+    { title: 'Vencimiento', dataIndex: 'dueDate', width: 115,
+      render: (d) => {
+        if (!d) return <Text type="secondary">Sin fecha</Text>
+        const days = dayjs(d).diff(dayjs(), 'day')
+        return <Tag color={days < 0 ? '#e5484d' : days <= 7 ? '#ff7f00' : '#2ea172'}>{dayjs(d).format('DD/MM/YYYY')}</Tag>
+      } },
+    { title: 'Proveedor', dataIndex: 'vendorName', ellipsis: true },
+    { title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
+      render: (val) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{val}</Text> },
+    { title: 'Saldo', dataIndex: 'balance', width: 130, align: 'right' as const,
+      render: (val) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(Number(val))}</Text> },
+    {
+      title: 'Monto a pagar', key: 'amt', width: 150, align: 'right' as const,
+      render: (_, r) => {
+        const sel = selections[r.vendorId]
+        if (!sel?.invoiceIds.includes(r.id)) return <Text type="secondary">—</Text>
+        return (
+          <InputNumber
+            size="small" min={0.01} max={r.balance}
+            value={sel.amounts[r.id] ?? r.balance}
+            precision={2} style={{ width: 120 }}
+            onChange={val => setAmount(r.vendorId, r.id, val, r.balance)}
             onClick={e => e.stopPropagation()}
           />
         )
@@ -242,12 +339,85 @@ export default function EmisionLoteChequesPage() {
           </Form.Item>
         </Card>
 
-        {/* Proveedores con facturas pendientes */}
+        {/* Distribución automática por monto */}
+        <Card
+          bordered={false}
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16, background: '#f8fcff' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>Monto disponible para pago</Text>
+              <InputNumber
+                prefix="Q"
+                min={0.01}
+                precision={2}
+                value={totalBudget}
+                onChange={v => setTotalBudget(v)}
+                style={{ width: 180 }}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>Ordenar facturas por</Text>
+              <Select
+                value={sortMode}
+                onChange={v => setSortMode(v)}
+                style={{ width: 200 }}
+                options={[
+                  { value: 'vendor', label: 'Proveedor (agrupado)' },
+                  { value: 'aging',  label: 'Antigüedad (vencimiento ASC)' },
+                ]}
+              />
+            </div>
+            <Tooltip title="Aplica el monto disponible a las facturas más antiguas primero, distribuyendo automáticamente entre proveedores">
+              <Button
+                icon={<RocketOutlined />}
+                onClick={autoApply}
+                style={{ borderColor: '#1faec2', color: '#1faec2' }}
+              >
+                Distribuir automáticamente
+              </Button>
+            </Tooltip>
+            {totalBudget && grandTotal > 0 && (
+              <Tag color={grandTotal > totalBudget ? '#e5484d' : '#2ea172'} style={{ alignSelf: 'center' }}>
+                {grandTotal > totalBudget
+                  ? `Excede en ${fmtQ(grandTotal - totalBudget)}`
+                  : `Disponible: ${fmtQ(totalBudget - grandTotal)}`}
+              </Tag>
+            )}
+          </div>
+        </Card>
+
+        {/* Facturas pendientes */}
         {loading ? (
           <Card loading style={{ borderRadius: 10 }} />
         ) : allVendors.length === 0 ? (
           <Alert type="success" showIcon message="No hay facturas pendientes de pago en ningún proveedor." />
+        ) : sortMode === 'aging' ? (
+          /* Vista plana por antigüedad */
+          <Card
+            bordered={false}
+            title={
+              <Space>
+                <SortAscendingOutlined />
+                <span>Facturas ordenadas por antigüedad — {allInvoicesFlat.length} facturas de {allVendors.length} proveedores</span>
+              </Space>
+            }
+            style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
+          >
+            <Table
+              size="small"
+              columns={agingColumns}
+              dataSource={allInvoicesFlat}
+              rowKey="id"
+              pagination={{ pageSize: 50, showTotal: t => `${t} facturas` }}
+              onRow={(r) => ({ onClick: () => toggleInvoice(r.vendorId, r.vendorName, r), style: { cursor: 'pointer' } })}
+              rowClassName={(r) => selections[r.vendorId]?.invoiceIds.includes(r.id) ? 'ant-table-row-selected' : ''}
+              scroll={{ x: 800 }}
+            />
+          </Card>
         ) : (
+          /* Vista agrupada por proveedor */
           <Collapse
             defaultActiveKey={[]}
             style={{ borderRadius: 10, overflow: 'hidden' }}
@@ -287,7 +457,7 @@ export default function EmisionLoteChequesPage() {
                 >
                   <Table
                     size="small"
-                    columns={invoiceColumns(v)}
+                    columns={invoiceColumns(v.vendorId, v.vendorName)}
                     dataSource={v.invoices}
                     rowKey="id"
                     pagination={false}
