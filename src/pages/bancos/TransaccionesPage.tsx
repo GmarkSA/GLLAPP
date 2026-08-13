@@ -885,7 +885,12 @@ export default function TransaccionesPage() {
       width: 100,
       fixed: 'left',
       defaultSortOrder: 'descend',
-      sorter: (a, b) => String(a.transactionDate).localeCompare(String(b.transactionDate)),
+      // Desempate por importedAt (orden del estado de cuenta) para que los movimientos
+      // del mismo día queden en el mismo orden en que el backend acumuló el saldo.
+      // Sin este desempate, el saldo corriente se muestra desordenado al ordenar ascendente.
+      sorter: (a, b) =>
+        String(a.transactionDate).localeCompare(String(b.transactionDate))
+        || String(a.importedAt || '').localeCompare(String(b.importedAt || '')),
       render: fmtDate,
     },
     {
