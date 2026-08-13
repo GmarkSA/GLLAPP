@@ -1534,6 +1534,7 @@ const ALL_MODULES_CFG = [
 
 function ModulesSection() {
   const activeCompany = useCompanyStore(s => s.activeCompany)
+  const setEnabledModules = useCompanyStore(s => s.setEnabledModules)
   const [enabledMods, setEnabledMods] = useState<string[]>([])
   const [loading,     setLoading]     = useState(true)
   const [saving,      setSaving]      = useState(false)
@@ -1560,6 +1561,9 @@ function ModulesSection() {
       const updated = next.length === ALL_MODULES_CFG.length ? [] : next
       setEnabledMods(updated)
       await companiesApi.updateSettings(activeCompany.id, { enabledModules: updated } as any)
+      // Refrescar el store global para que el menú lateral se actualice al instante,
+      // sin necesidad de recargar ni volver a iniciar sesión.
+      setEnabledModules(updated)
       message.success('Módulo actualizado')
     } catch {
       message.error('No se pudo actualizar')
