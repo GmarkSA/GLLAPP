@@ -6,7 +6,7 @@ import AccountSelect from '../../components/AccountSelect'
 import type { Account } from '../../api/catalogo'
 import { updateTransaction, type BankAccount, type BankTransaction } from '../../api/bancos'
 import { getInvoices, createAnticipo, type Invoice } from '../../api/facturas'
-import { getBills, getJournalEntry, recordBillPayment, getAccountDefaults, createVendorAdvance, getVendors, getVendorAdvances, voidVendorAdvance, type PurchaseInvoice, type AccountDefaults, type Vendor, type VendorAdvance } from '../../api/compras'
+import { getBills, getJournalEntry, recordBillPayment, getAccountDefaults, createVendorAdvance, getVendors, getVendorAdvances, applyVendorAdvanceRefund, type PurchaseInvoice, type AccountDefaults, type Vendor, type VendorAdvance } from '../../api/compras'
 import { getCustomers, type Customer } from '../../api/contactos'
 import { createPagoRecibido, getPagoRecibido, reprocessPagoJournal } from '../../api/pagos-recibidos'
 import { createAsiento, updateAsiento } from '../../api/asientos'
@@ -558,36 +558,27 @@ export default function CategorizarDrawer({
     if (!selectedRefund || !transaction || !account) return
     setSavingRefund(true)
     try {
-      const voided = await voidVendorAdvance(selectedRefund.id, { date: txDate })
+      const result = await applyVendorAdvanceRefund(selectedRefund.id, {
+        bankAccountId: account.id,
+        date:          txDate,
+        reference:     transaction.reference ?? transaction.description ?? undefined,
+      })
 
       await updateTransaction(account.id, transaction.id, {
         status:             'categorized',
-        sourceDocumentId:   voided.id,
-        sourceDocumentType: 'vendor_advance',
+        sourceDocumentId:   result.payment.id,
+        sourceDocumentType: 'vendor_advance_refund',
+        matchedJournalEntryId: result.journalEntry.id,
       } as any)
 
-      let journalLines: JournalLine[] = []
-      if (voided.journalEntryId) {
-        try {
-          const je = await getJournalEntry(voided.journalEntryId)
-          journalLines = (je.lines ?? []).map((l: any) => ({
-            accountCode: l.accountCode || l.account?.code || '',
-            accountName: l.accountName || l.account?.name || '',
-            debe:  Number(l.debit  ?? l.debe  ?? 0),
-            haber: Number(l.credit ?? l.haber ?? 0),
-          }))
-        } catch { /* silent */ }
-      }
+      const journalLines: JournalLine[] = result.journalEntry.lines.map(l => ({
+        accountCode: l.accountCode,
+        accountName: l.accountName,
+        debe:  Number(l.debit),
+        haber: Number(l.credit),
+      }))
 
-      if (journalLines.length === 0) {
-        const amtGTQ = Number(selectedRefund.amount) * (isForeign ? exchangeRate : 1)
-        journalLines = [
-          { accountCode: account.glAccountCode || '', accountName: account.glAccountName || 'Banco', debe: amtGTQ, haber: 0 },
-          { accountCode: selectedRefund.advanceAccountCode || '150001', accountName: selectedRefund.advanceAccountName || 'Anticipos a Proveedores', debe: 0, haber: amtGTQ },
-        ]
-      }
-
-      message.success(`Reembolso aplicado — anticipo ${selectedRefund.advanceNumber} cancelado`)
+      message.success(`Reembolso aplicado — anticipo ${selectedRefund.advanceNumber} cerrado. Pago ${result.payment.paymentNumber} registrado en Pagos a Proveedores.`)
       setResultado({
         titulo: `Reembolso de proveedor — ${selectedRefund.advanceNumber} (${selectedRefund.vendorName})`,
         journalLines,

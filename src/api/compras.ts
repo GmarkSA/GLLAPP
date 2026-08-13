@@ -60,6 +60,15 @@ export const voidVendorAdvance = (id: string, dto?: { date?: string }) =>
 export const unvoidVendorAdvance = (id: string) =>
   api.patch(`/compras/anticipos-proveedor/${id}/unvoid`).then(unwrap) as Promise<VendorAdvance>
 
+export const applyVendorAdvanceRefund = (
+  id: string,
+  dto: { bankAccountId?: string; date?: string; reference?: string; notes?: string },
+) => api.patch(`/compras/anticipos-proveedor/${id}/apply-refund`, dto).then(unwrap) as Promise<{
+  advance: VendorAdvance
+  payment: { id: string; paymentNumber: string }
+  journalEntry: { id: string; entryNumber: string; lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }> }
+}>
+
 export const applyVendorAdvanceToBill = (
   advanceId: string,
   invoiceId: string,
