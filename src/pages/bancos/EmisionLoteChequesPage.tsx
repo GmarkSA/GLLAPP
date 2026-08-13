@@ -334,12 +334,27 @@ export default function EmisionLoteChequesPage() {
               </Form.Item>
             )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'end' }}>
             <Form.Item label="Referencia bancaria" name="reference" style={{ marginBottom: 0 }}>
               <Input placeholder="Ej. 12148396 — número del estado de cuenta" />
             </Form.Item>
             <Form.Item label="Notas generales" name="notes" style={{ marginBottom: 0 }}>
               <Input.TextArea rows={2} placeholder="Observaciones del lote..." />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
+                disabled={totalChecks === 0}
+                icon={<PrinterOutlined />}
+                style={{ background: '#1B3A6B', borderColor: '#1B3A6B', whiteSpace: 'nowrap' }}
+                size="middle"
+              >
+                {totalChecks > 0
+                  ? `Generar ${totalChecks} ${mode === 'check' ? `cheque${totalChecks > 1 ? 's' : ''}` : `pago${totalChecks > 1 ? 's' : ''}`} — ${fmtQ(grandTotal)}`
+                  : 'Generar pagos'}
+              </Button>
             </Form.Item>
           </div>
         </Card>
