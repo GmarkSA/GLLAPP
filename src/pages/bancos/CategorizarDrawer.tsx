@@ -558,7 +558,7 @@ export default function CategorizarDrawer({
     if (!selectedRefund || !transaction || !account) return
     setSavingRefund(true)
     try {
-      const voided = await voidVendorAdvance(selectedRefund.id)
+      const voided = await voidVendorAdvance(selectedRefund.id, { date: txDate })
 
       await updateTransaction(account.id, transaction.id, {
         status:             'categorized',
