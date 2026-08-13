@@ -134,6 +134,36 @@ export const simulateSubscription = (plan: string): Promise<{ success: boolean; 
 export const deletePayment = (id: string): Promise<{ deleted: boolean }> =>
   api.delete(`/billing/payment/${id}`).then(unwrap)
 
+// ── Cobros Automáticos QPayPro ────────────────────────────────────────────────
+
+export interface TokenizarTarjetaPayload {
+  datosCliente: {
+    firstName: string
+    lastName: string
+    email: string
+    telefono: string
+    nit: string
+    ciudad?: string
+  }
+  ccNumber: string
+  expMonth: string
+  expYear: string
+  ccCvv2: string
+  cardType: CardType
+}
+
+export interface ActivarCobrosResult {
+  success: boolean
+  idSuscripcionQpaypro: number
+  message: string
+}
+
+export const tokenizarTarjeta = (dto: TokenizarTarjetaPayload): Promise<{ tokenId: number }> =>
+  api.post('/billing/cobros/tokenizar-tarjeta', dto).then(unwrap)
+
+export const activarCobros = (): Promise<ActivarCobrosResult> =>
+  api.post('/billing/cobros/activar').then(unwrap)
+
 // ── Admin billing API (solo SuperAdmin) ──────────────────────────────────────
 
 export interface TenantBillingPayment {
