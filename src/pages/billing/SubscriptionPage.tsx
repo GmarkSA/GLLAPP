@@ -144,13 +144,15 @@ function PlanCard({
 // ── CardForm ──────────────────────────────────────────────────────────────────
 
 function CardForm({
-  plan, currency, exchangeRate, onSuccess, onCancel,
+  plan, currency, exchangeRate, onSuccess, onCancel, tenantName, tenantEmail,
 }: {
   plan: PlanConfig
   currency: BillingCurrency
   exchangeRate: number
   onSuccess: (result: PaymentResponse) => void
   onCancel: () => void
+  tenantName?: string
+  tenantEmail?: string
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
@@ -159,6 +161,14 @@ function CardForm({
 
   const priceUSD = Number(plan.priceMonthly)
   const displayPrice = currency === 'GTQ' ? priceUSD * exchangeRate : priceUSD
+
+  // Pre-llenar con datos del tenant al montar el formulario
+  useEffect(() => {
+    const prefill: Record<string, string> = {}
+    if (tenantName) prefill.holderName = tenantName.toUpperCase()
+    if (tenantEmail) prefill.email = tenantEmail
+    if (Object.keys(prefill).length) form.setFieldsValue(prefill)
+  }, [tenantName, tenantEmail, form])
 
   const handleSubmit = async () => {
     try {
@@ -889,6 +899,7 @@ export default function SubscriptionPage() {
         onCancel={() => { setModalOpen(false); setSelectedPlan(null) }}
         footer={null}
         destroyOnClose
+        maskClosable={false}
         width={500}
       >
         {selectedPlan && (isNewSubscription || !hasCard) ? (
@@ -896,6 +907,8 @@ export default function SubscriptionPage() {
             plan={selectedPlan}
             currency={currency}
             exchangeRate={exchangeRate}
+            tenantName={state?.tenant?.name}
+            tenantEmail={state?.tenant?.email}
             onSuccess={async () => {
               setModalOpen(false)
               await load()
