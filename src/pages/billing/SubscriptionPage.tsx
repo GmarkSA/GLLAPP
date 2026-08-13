@@ -12,8 +12,9 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getBillingState, subscribePlan, changePlan, getGtqExchangeRate,
+  getBillingState, changePlan, getGtqExchangeRate,
   requestBillingInvoice, deletePayment,
+  tokenizarTarjeta, activarCobros,
   type BillingState, type PlanConfig, type SubscriptionPayment,
   type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
 } from '../../api/billing'
@@ -143,43 +144,73 @@ function PlanCard({
 // ── CardForm ──────────────────────────────────────────────────────────────────
 
 function CardForm({
-  plan, currency, exchangeRate, onSuccess, onCancel,
+  plan, currency, exchangeRate, onSuccess, onCancel, tenantName, tenantEmail,
 }: {
   plan: PlanConfig
   currency: BillingCurrency
   exchangeRate: number
   onSuccess: (result: PaymentResponse) => void
   onCancel: () => void
+  tenantName?: string
+  tenantEmail?: string
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [step, setStep] = useState<'tokenizando' | 'activando' | null>(null)
   const [cardDisplay, setCardDisplay] = useState('')
 
   const priceUSD = Number(plan.priceMonthly)
   const displayPrice = currency === 'GTQ' ? priceUSD * exchangeRate : priceUSD
 
+  // Pre-llenar con datos del tenant al montar el formulario
+  useEffect(() => {
+    const prefill: Record<string, string> = {}
+    if (tenantName) prefill.holderName = tenantName.toUpperCase()
+    if (tenantEmail) prefill.email = tenantEmail
+    if (Object.keys(prefill).length) form.setFieldsValue(prefill)
+  }, [tenantName, tenantEmail, form])
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
       const rawNum = values.ccNumber.replace(/\s/g, '')
-      setSaving(true)
       const [expMonth, expYear] = (values.expiry as string).split('/')
-      const result = await subscribePlan({
-        plan:       plan.plan,
-        currency,
-        ccNumber:   rawNum,
-        expMonth:   expMonth.trim(),
-        expYear:    expYear.trim(),
-        cvv:        values.cvv,
-        cardType:   detectCardType(rawNum),
-        holderName: values.holderName,
+      const nameParts = (values.holderName as string).trim().split(/\s+/)
+      const firstName = nameParts[0] ?? 'Cliente'
+      const lastName  = nameParts.slice(1).join(' ') || '-'
+
+      setSaving(true)
+      setStep('tokenizando')
+
+      await tokenizarTarjeta({
+        datosCliente: {
+          firstName,
+          lastName,
+          email:     values.email,
+          telefono:  values.telefono,
+          nit:       (values.nit || 'CF').trim().toUpperCase(),
+          ciudad:    'Guatemala',
+        },
+        ccNumber:  rawNum,
+        expMonth:  expMonth.trim(),
+        expYear:   expYear.trim(),
+        ccCvv2:    values.cvv,
+        cardType:  detectCardType(rawNum),
       })
-      message.success(`Suscripcion a ${plan.displayName} activada`)
-      onSuccess(result)
+
+      setStep('activando')
+      const result = await activarCobros()
+
+      message.success('¡Cobros automáticos configurados! El primer cobro se procesará en el siguiente ciclo de QPayPro.', 8)
+      onSuccess({ success: true, message: result.message } as PaymentResponse)
     } catch (e: any) {
-      message.error(billingErrorMsg(e, 'El cobro fue rechazado. Verifica los datos de tu tarjeta.'), 6)
+      message.error(
+        billingErrorMsg(e, 'No se pudo configurar la suscripción. Verifica los datos e intenta de nuevo.'),
+        8,
+      )
     } finally {
       setSaving(false)
+      setStep(null)
     }
   }
 
@@ -204,6 +235,25 @@ function CardForm({
       </div>
 
       <Form form={form} layout="vertical" size="middle" autoComplete="on">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+          <Form.Item name="email" label="Correo electrónico"
+            rules={[{ required: true, type: 'email', message: 'Ingresa un correo válido' }]}
+          >
+            <Input autoComplete="email" placeholder="tu@empresa.com" inputMode="email" />
+          </Form.Item>
+          <Form.Item name="telefono" label="Teléfono"
+            rules={[{ required: true, message: 'Requerido' }]}
+          >
+            <Input autoComplete="tel" placeholder="50212345678" inputMode="tel" />
+          </Form.Item>
+        </div>
+
+        <Form.Item name="nit" label="NIT (opcional — usa CF si no aplica)">
+          <Input placeholder="CF" autoComplete="off" style={{ textTransform: 'uppercase' }}
+            onChange={e => form.setFieldValue('nit', e.target.value.toUpperCase())}
+          />
+        </Form.Item>
+
         <Form.Item name="holderName" label="Nombre en la tarjeta"
           rules={[{ required: true, message: 'Ingresa el nombre del titular' }]}
         >
@@ -294,8 +344,14 @@ function CardForm({
         <Alert
           type="info" showIcon icon={<LockOutlined />}
           style={{ fontSize: 12, marginBottom: 16 }}
-          message="Conexion segura con QPayPro Sandbox"
-          description="El cobro se procesa desde la APP contra el ambiente de pruebas de QPayPro."
+          message="Cobros Automáticos QPayPro"
+          description={
+            step === 'tokenizando'
+              ? 'Registrando tarjeta en QPayPro...'
+              : step === 'activando'
+                ? 'Activando suscripción recurrente...'
+                : `Tu tarjeta queda registrada para cobros mensuales de ${money(displayPrice, currency)}. El primer cobro se procesa en el siguiente ciclo de QPayPro.`
+          }
         />
 
         <div style={{ display: 'flex', gap: 10 }}>
@@ -304,7 +360,11 @@ function CardForm({
             style={{ background: '#1faec2', flex: 2 }}
             icon={<LockOutlined />}
           >
-            Pagar {money(displayPrice, currency)} / mes
+            {step === 'tokenizando'
+              ? 'Registrando tarjeta...'
+              : step === 'activando'
+                ? 'Activando suscripción...'
+                : `Configurar cobro ${money(displayPrice, currency)} / mes`}
           </Button>
         </div>
       </Form>
@@ -839,6 +899,7 @@ export default function SubscriptionPage() {
         onCancel={() => { setModalOpen(false); setSelectedPlan(null) }}
         footer={null}
         destroyOnClose
+        maskClosable={false}
         width={500}
       >
         {selectedPlan && (isNewSubscription || !hasCard) ? (
@@ -846,6 +907,8 @@ export default function SubscriptionPage() {
             plan={selectedPlan}
             currency={currency}
             exchangeRate={exchangeRate}
+            tenantName={state?.tenant?.name}
+            tenantEmail={state?.tenant?.email}
             onSuccess={async () => {
               setModalOpen(false)
               await load()
