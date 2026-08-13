@@ -58,6 +58,11 @@ export default function CategorizarDrawer({
   const [selectedCustomerName, setSelectedCustomerName] = useState<string | undefined>()
   const [exchangeRate, setExchangeRate]       = useState<number>(1)
   const [resultado, setResultado]             = useState<Resultado | null>(null)
+  const [overpayAmount, setOverpayAmount]     = useState(0)
+  const [overpayVendorId, setOverpayVendorId]     = useState<string | undefined>()
+  const [overpayVendorName, setOverpayVendorName] = useState<string | undefined>()
+  const [savingOverpay, setSavingOverpay]     = useState(false)
+  const [overpayDone, setOverpayDone]         = useState(false)
   const [accountDefaults, setAccountDefaults] = useState<AccountDefaults>({})
   const [editingJE, setEditingJE]             = useState(false)
   const [jeEditDate, setJeEditDate]           = useState('')
@@ -99,6 +104,10 @@ export default function CategorizarDrawer({
     setSelectedInvoices([])
     setSelectedBills([])
     setManualNote('')
+    setOverpayAmount(0)
+    setOverpayVendorId(undefined)
+    setOverpayVendorName(undefined)
+    setOverpayDone(false)
     fetchMatches('')
     if (account?.currency && account.currency !== 'GTQ') {
       const txDate = String(transaction.transactionDate || '').split('T')[0]
@@ -297,6 +306,14 @@ export default function CategorizarDrawer({
 
       message.success(`${selectedBills.length} pago(s) aplicado(s)`)
       setResultado({ titulo: `Pagos a proveedor — ${refs.join(', ')}`, journalLines: allLines })
+
+      // Detectar sobrante: pago mayor al saldo de la factura
+      if (remaining > 0.005 && selectedBills.length > 0) {
+        const firstBill = selectedBills[0].bill
+        setOverpayAmount(remaining)
+        setOverpayVendorId((firstBill as any).vendorId)
+        setOverpayVendorName(firstBill.vendorName)
+      }
     } catch (e: unknown) {
       message.error(periodMsg(e, 'No se pudo registrar uno o más pagos'))
     } finally {
@@ -479,6 +496,31 @@ export default function CategorizarDrawer({
     }
   }
 
+  const applyOverpayAsAdvance = async () => {
+    if (!overpayVendorId || !transaction || !account) return
+    setSavingOverpay(true)
+    try {
+      const txDate = String(transaction.transactionDate || '').split('T')[0]
+      const advance = await createVendorAdvance({
+        vendorId:           overpayVendorId,
+        vendorName:         overpayVendorName,
+        amount:             overpayAmount,
+        date:               txDate,
+        currency:           account.currency,
+        exchangeRate:       isForeign ? exchangeRate : 1,
+        reference:          transaction.reference || undefined,
+        bankAccountId:      account.id,
+        advanceAccountCode: accountDefaults.vendorAdvanceAccountCode,
+      })
+      message.success(`Anticipo registrado — ${advance.advanceNumber}`)
+      setOverpayDone(true)
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo registrar el anticipo'))
+    } finally {
+      setSavingOverpay(false)
+    }
+  }
+
   const saveJE = async () => {
     if (!resultado?.journalEntryId) return
     setSavingJE(true)
@@ -658,7 +700,40 @@ export default function CategorizarDrawer({
       {/* ── RESULTADO ───────────────────────────────────────────────────── */}
       {resultado ? (
         <div>
-          <Alert type="success" showIcon message={resultado.titulo} style={{ marginBottom: 16 }} />
+          <Alert type="success" showIcon message={resultado.titulo} style={{ marginBottom: 12 }} />
+
+          {/* ── Sobrante: pago mayor al saldo de la factura ─────────────── */}
+          {overpayAmount > 0.005 && !overpayDone && (
+            <Alert
+              type="warning" showIcon
+              style={{ marginBottom: 12 }}
+              message={`El pago excede el saldo de la factura en ${moneyFmt(overpayAmount, account?.currency)}`}
+              description={
+                <div>
+                  <div style={{ marginBottom: 8, fontSize: 12 }}>
+                    ¿Registrar la diferencia como anticipo al proveedor <strong>{overpayVendorName}</strong>?
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="small" type="primary" loading={savingOverpay}
+                      icon={<ClockCircleOutlined />}
+                      style={{ background: '#d46b08', borderColor: '#d46b08' }}
+                      onClick={applyOverpayAsAdvance}
+                    >
+                      Registrar {moneyFmt(overpayAmount, account?.currency)} como anticipo
+                    </Button>
+                    <Button size="small" onClick={() => setOverpayDone(true)}>
+                      No registrar
+                    </Button>
+                  </div>
+                </div>
+              }
+            />
+          )}
+          {overpayAmount > 0.005 && overpayDone && (
+            <Alert type="success" showIcon style={{ marginBottom: 12 }}
+              message={`Diferencia de ${moneyFmt(overpayAmount, account?.currency)} registrada como anticipo a ${overpayVendorName}`}
+            />
+          )}
 
           {resultado.journalLines.length > 0 ? (
             <>
