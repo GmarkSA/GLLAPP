@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
-import { getVendorAdvances, voidVendorAdvance, getJournalEntry, type VendorAdvance } from '../../../api/compras'
+import { getVendorAdvances, voidVendorAdvance, unvoidVendorAdvance, getJournalEntry, type VendorAdvance } from '../../../api/compras'
 
 const { Text, Title } = Typography
 
@@ -35,7 +35,8 @@ export default function AnticiposProveedorPage() {
   const [loading, setLoading] = useState(false)
   const [page,    setPage]    = useState(1)
   const [status,  setStatus]  = useState<string | undefined>()
-  const [voiding,  setVoiding]  = useState<string | null>(null)
+  const [voiding,   setVoiding]   = useState<string | null>(null)
+  const [unvoiding, setUnvoiding] = useState(false)
   const [detail,   setDetail]   = useState<VendorAdvance | null>(null)
   const [jeLines,  setJeLines]  = useState<any[]>([])
   const [jeLoading, setJeLoading] = useState(false)
@@ -66,6 +67,22 @@ export default function AnticiposProveedorPage() {
       message.error(d?.error?.message || d?.message || 'Error al anular')
     } finally {
       setVoiding(null)
+    }
+  }
+
+  const handleUnvoid = async (id: string) => {
+    setUnvoiding(true)
+    try {
+      await unvoidVendorAdvance(id)
+      message.success('Anticipo restaurado a Abierto — póliza de reverso eliminada')
+      setDetail(null)
+      setJeLines([])
+      load()
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al revertir')
+    } finally {
+      setUnvoiding(false)
     }
   }
 
@@ -224,6 +241,24 @@ export default function AnticiposProveedorPage() {
                 </Descriptions.Item>
               )}
             </Descriptions>
+
+            {detail.status === 'voided' && (
+              <Popconfirm
+                title="¿Revertir anulación?"
+                description="Se eliminará la póliza de reverso y el anticipo quedará Abierto nuevamente."
+                okText="Revertir"
+                cancelText="Cancelar"
+                onConfirm={() => handleUnvoid(detail.id)}
+              >
+                <Button
+                  block danger loading={unvoiding}
+                  style={{ marginTop: 12 }}
+                  icon={<StopOutlined />}
+                >
+                  Revertir anulación — restaurar a Abierto
+                </Button>
+              </Popconfirm>
+            )}
 
             <Divider style={{ margin: '14px 0 10px' }} />
             <Text strong style={{ fontSize: 13 }}>Póliza contable</Text>

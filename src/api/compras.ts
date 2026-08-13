@@ -57,6 +57,9 @@ export const getVendorAdvances = (params?: { vendorId?: string; status?: string;
 export const voidVendorAdvance = (id: string, dto?: { date?: string }) =>
   api.patch(`/compras/anticipos-proveedor/${id}/void`, dto ?? {}).then(unwrap) as Promise<VendorAdvance>
 
+export const unvoidVendorAdvance = (id: string) =>
+  api.patch(`/compras/anticipos-proveedor/${id}/unvoid`).then(unwrap) as Promise<VendorAdvance>
+
 export const applyVendorAdvanceToBill = (
   advanceId: string,
   invoiceId: string,
