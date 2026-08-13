@@ -200,7 +200,10 @@ export default function MainLayout() {
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [])
-  const isModuleEnabled  = useCompanyStore(s => s.isModuleEnabled)
+  // Suscripción al valor reactivo enabledModules (no solo a la función isModuleEnabled,
+  // cuya referencia es estable): así el menú lateral se recalcula al instante cuando se
+  // habilitan/deshabilitan módulos desde Configuración, sin recargar ni reiniciar sesión.
+  const enabledModules   = useCompanyStore(s => s.enabledModules)
   const activeCompany    = useCompanyStore(s => s.activeCompany)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
   const hasUpdate = useVersionCheck()
@@ -230,11 +233,19 @@ export default function MainLayout() {
   const resolveModuleKey = (key: string) =>
     key === 'activos-fijos' || key === 'financiero' ? 'contabilidad' : key
 
+  // Mismo criterio que companyStore.isModuleEnabled, pero leyendo enabledModules suscrito
+  // para que el filtrado reaccione en caliente. null/[] = todos habilitados; array = solo esos.
+  const moduleEnabled = (moduleKey: string): boolean => {
+    if (!activeCompany) return false
+    if (!enabledModules || enabledModules.length === 0) return true
+    return enabledModules.includes(moduleKey)
+  }
+
   const filteredMenuItems = menuItems.filter(item => {
     const alwaysVisible = ['/dashboard', '/admin/platform']
     if (alwaysVisible.includes(item.key)) return true
     const moduleKey = resolveModuleKey(item.key.startsWith('/') ? item.key.slice(1) : item.key)
-    return isModuleEnabled(moduleKey)
+    return moduleEnabled(moduleKey)
   })
 
   const handleOpenChange = (keys: string[]) => {

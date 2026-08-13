@@ -22,6 +22,9 @@ interface CompanyStore {
   loadCompanies:     ()                 => Promise<void>
   clearCompany:      ()                 => void
   isModuleEnabled:   (module: string)  => boolean
+  // Refresca los módulos habilitados en caliente (tras editarlos en Configuración)
+  // para que el menú lateral reaccione sin recargar ni volver a iniciar sesión.
+  setEnabledModules: (modules: string[] | null) => void
 }
 
 export const useCompanyStore = create<CompanyStore>()(
@@ -117,6 +120,11 @@ export const useCompanyStore = create<CompanyStore>()(
 
       setActiveBranch: (branch) => {
         set({ activeBranch: branch })
+      },
+
+      setEnabledModules: (modules) => {
+        // Convención del store: null/[] = todos habilitados; array = solo esos.
+        set({ enabledModules: (modules && modules.length > 0) ? modules : null, settingsReady: true })
       },
 
       clearCompany: () => {
