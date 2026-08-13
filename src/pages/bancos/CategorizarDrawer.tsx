@@ -264,7 +264,10 @@ export default function CategorizarDrawer({
         if (bill.journalEntryId) {
           try {
             const billJe  = await getJournalEntry(bill.journalEntryId)
-            const cxpLine = billJe.lines.find(l => l.credit > 0)
+            // Prefer 211xxx (Proveedores) over retention/other credit lines
+            const cxpLine = billJe.lines.find(l => l.credit > 0 && l.accountCode?.startsWith('211'))
+                         || billJe.lines.find(l => l.credit > 0 && l.accountCode?.startsWith('21'))
+                         || billJe.lines.find(l => l.credit > 0)
             if (cxpLine) { cxpCode = cxpLine.accountCode; cxpName = cxpLine.accountName }
           } catch { /* silent */ }
         }

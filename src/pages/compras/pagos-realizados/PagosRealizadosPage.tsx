@@ -424,13 +424,18 @@ export default function PagosRealizadosPage() {
                   pagination={false}
                   style={{ marginTop: 8 }}
                   columns={[
-                    { title: 'Cuenta', dataIndex: 'accountCode', width: 90,
-                      render: (code: string, row: any) => <><Text code style={{ fontSize: 11 }}>{code}</Text> {row.accountName}</> },
-                    { title: 'Descripción', dataIndex: 'description', ellipsis: true },
-                    { title: 'Débito', dataIndex: 'debit', align: 'right', width: 110,
-                      render: (v: number) => v > 0 ? <Text style={{ color: '#e5484d' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
-                    { title: 'Crédito', dataIndex: 'credit', align: 'right', width: 110,
-                      render: (v: number) => v > 0 ? <Text style={{ color: '#2ea172' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : '' },
+                    { title: 'Cuenta', key: 'cuenta',
+                      render: (_: any, row: any) => (
+                        <div>
+                          <Text code style={{ fontSize: 11 }}>{row.accountCode}</Text>
+                          <span style={{ marginLeft: 6, fontSize: 12 }}>{row.accountName}</span>
+                          {row.description && <div style={{ fontSize: 11, color: '#9aa1ab', marginTop: 1 }}>{row.description}</div>}
+                        </div>
+                      ) },
+                    { title: 'Débito', dataIndex: 'debit', align: 'right', width: 120,
+                      render: (v: number) => v > 0 ? <Text style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : <Text type="secondary">—</Text> },
+                    { title: 'Crédito', dataIndex: 'credit', align: 'right', width: 120,
+                      render: (v: number) => v > 0 ? <Text style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text> : <Text type="secondary">—</Text> },
                   ]}
                   summary={(rows) => {
                     const totalD = rows.reduce((s, r) => s + Number(r.debit  ?? 0), 0)

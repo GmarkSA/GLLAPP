@@ -300,6 +300,11 @@ export default function ApAgingPage() {
             {fmt(v)}
           </Text>
           {showAdvances && row.anticipo > 0 && (
+            <Text style={{ fontSize: 10, color: '#ff7f00', fontVariantNumeric: 'tabular-nums', display: 'block' }}>
+              Anticipo: {fmt(row.anticipo)}
+            </Text>
+          )}
+          {showAdvances && row.anticipo > 0 && (
             <Text style={{ fontSize: 10, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>
               Neto: {fmt(row.neto)}
             </Text>
