@@ -196,6 +196,7 @@ function CardForm({
         expYear:   expYear.trim(),
         ccCvv2:    values.cvv,
         cardType:  detectCardType(rawNum),
+        plan:      plan.plan,
       })
 
       setStep('activando')
