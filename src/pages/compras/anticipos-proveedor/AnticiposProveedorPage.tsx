@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Card, Table, Button, Space, Typography, Tag,
-  Select, message, Popconfirm, Tooltip, Modal, Descriptions,
+  Select, message, Popconfirm, Tooltip, Modal, Descriptions, Divider,
 } from 'antd'
 import {
-  ReloadOutlined, StopOutlined, BookOutlined, WalletOutlined,
+  ReloadOutlined, StopOutlined, BookOutlined, WalletOutlined, BankOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
-import { getVendorAdvances, voidVendorAdvance, type VendorAdvance } from '../../../api/compras'
+import { getVendorAdvances, voidVendorAdvance, getJournalEntry, type VendorAdvance } from '../../../api/compras'
 
 const { Text, Title } = Typography
 
@@ -35,8 +35,10 @@ export default function AnticiposProveedorPage() {
   const [loading, setLoading] = useState(false)
   const [page,    setPage]    = useState(1)
   const [status,  setStatus]  = useState<string | undefined>()
-  const [voiding, setVoiding] = useState<string | null>(null)
-  const [detail,  setDetail]  = useState<VendorAdvance | null>(null)
+  const [voiding,  setVoiding]  = useState<string | null>(null)
+  const [detail,   setDetail]   = useState<VendorAdvance | null>(null)
+  const [jeLines,  setJeLines]  = useState<any[]>([])
+  const [jeLoading, setJeLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -101,7 +103,17 @@ export default function AnticiposProveedorPage() {
       render: (_, r) => (
         <Space size={4}>
           <Tooltip title="Ver detalle">
-            <Button size="small" icon={<BookOutlined />} onClick={() => setDetail(r)} />
+            <Button size="small" icon={<BookOutlined />} onClick={() => {
+              setDetail(r)
+              setJeLines([])
+              if (r.journalEntryId) {
+                setJeLoading(true)
+                getJournalEntry(r.journalEntryId)
+                  .then(je => setJeLines(je.lines ?? []))
+                  .catch(() => {})
+                  .finally(() => setJeLoading(false))
+              }
+            }} />
           </Tooltip>
           {r.status !== 'voided' && r.status !== 'applied' && (
             <Popconfirm
@@ -184,29 +196,86 @@ export default function AnticiposProveedorPage() {
 
       <Modal
         open={!!detail}
-        onCancel={() => setDetail(null)}
+        onCancel={() => { setDetail(null); setJeLines([]) }}
         footer={null}
         title={`Anticipo ${detail?.advanceNumber}`}
-        width={520}
+        width={620}
       >
         {detail && (
-          <Descriptions column={2} size="small" bordered style={{ marginTop: 8 }}>
-            <Descriptions.Item label="Proveedor" span={2}>{detail.vendorName ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Fecha">{dayjs(detail.advanceDate).format('DD/MM/YYYY')}</Descriptions.Item>
-            <Descriptions.Item label="Estado">
-              <Tag color={STATUS_COLOR[detail.status]}>{STATUS_LABEL[detail.status]}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Monto">{fmtQ(detail.amount, detail.currency)}</Descriptions.Item>
-            <Descriptions.Item label="Saldo">{fmtQ(detail.balance, detail.currency)}</Descriptions.Item>
-            {detail.advanceAccountCode && (
-              <Descriptions.Item label="Cuenta anticipo" span={2}>
-                {detail.advanceAccountCode} — {detail.advanceAccountName}
+          <>
+            <Descriptions column={2} size="small" bordered style={{ marginTop: 8 }}>
+              <Descriptions.Item label="Proveedor" span={2}>{detail.vendorName ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label="Fecha">{dayjs(detail.advanceDate).format('DD/MM/YYYY')}</Descriptions.Item>
+              <Descriptions.Item label="Estado">
+                <Tag color={STATUS_COLOR[detail.status]}>{STATUS_LABEL[detail.status]}</Tag>
               </Descriptions.Item>
-            )}
-            {detail.reference && (
-              <Descriptions.Item label="Referencia" span={2}>{detail.reference}</Descriptions.Item>
-            )}
-          </Descriptions>
+              <Descriptions.Item label="Monto">{fmtQ(detail.amount, detail.currency)}</Descriptions.Item>
+              <Descriptions.Item label="Saldo">{fmtQ(detail.balance, detail.currency)}</Descriptions.Item>
+              {detail.advanceAccountCode && (
+                <Descriptions.Item label="Cuenta anticipo" span={2}>
+                  <Text code style={{ fontSize: 11 }}>{detail.advanceAccountCode}</Text>
+                  <span style={{ marginLeft: 6 }}>{detail.advanceAccountName}</span>
+                </Descriptions.Item>
+              )}
+              {detail.reference && (
+                <Descriptions.Item label="Ref. bancaria" span={2}>
+                  <BankOutlined style={{ marginRight: 6, color: '#1faec2' }} />
+                  <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{detail.reference}</Text>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+
+            <Divider style={{ margin: '14px 0 10px' }} />
+            <Text strong style={{ fontSize: 13 }}>Póliza contable</Text>
+            <Table
+              size="small"
+              loading={jeLoading}
+              dataSource={jeLines}
+              rowKey={(_, i) => String(i)}
+              pagination={false}
+              style={{ marginTop: 8 }}
+              locale={{ emptyText: 'Sin póliza contable' }}
+              columns={[
+                {
+                  title: 'Cuenta', key: 'cuenta',
+                  render: (_: any, row: any) => (
+                    <div>
+                      <Text code style={{ fontSize: 11 }}>{row.accountCode}</Text>
+                      <span style={{ marginLeft: 6, fontSize: 12 }}>{row.accountName}</span>
+                      {row.description && <div style={{ fontSize: 11, color: '#9aa1ab', marginTop: 1 }}>{row.description}</div>}
+                    </div>
+                  ),
+                },
+                {
+                  title: 'Débito', dataIndex: 'debit', align: 'right' as const, width: 120,
+                  render: (v: number) => v > 0
+                    ? <Text style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                    : <Text type="secondary">—</Text>,
+                },
+                {
+                  title: 'Crédito', dataIndex: 'credit', align: 'right' as const, width: 120,
+                  render: (v: number) => v > 0
+                    ? <Text style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                    : <Text type="secondary">—</Text>,
+                },
+              ]}
+              summary={(rows) => {
+                const totalD = rows.reduce((s, r) => s + Number(r.debit  ?? 0), 0)
+                const totalC = rows.reduce((s, r) => s + Number(r.credit ?? 0), 0)
+                return (
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} />
+                    <Table.Summary.Cell index={1} align="right">
+                      <Text strong style={{ color: '#e5484d' }}>Q {totalD.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={2} align="right">
+                      <Text strong style={{ color: '#2ea172' }}>Q {totalC.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                    </Table.Summary.Cell>
+                  </Table.Summary.Row>
+                )
+              }}
+            />
+          </>
         )}
       </Modal>
 
