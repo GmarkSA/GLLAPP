@@ -334,9 +334,14 @@ export default function EmisionLoteChequesPage() {
               </Form.Item>
             )}
           </div>
-          <Form.Item label="Notas generales" name="notes" style={{ marginBottom: 0 }}>
-            <Input.TextArea rows={2} placeholder="Observaciones del lote..." />
-          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Form.Item label="Referencia bancaria" name="reference" style={{ marginBottom: 0 }}>
+              <Input placeholder="Ej. 12148396 — número del estado de cuenta" />
+            </Form.Item>
+            <Form.Item label="Notas generales" name="notes" style={{ marginBottom: 0 }}>
+              <Input.TextArea rows={2} placeholder="Observaciones del lote..." />
+            </Form.Item>
+          </div>
         </Card>
 
         {/* Distribución automática por monto */}
