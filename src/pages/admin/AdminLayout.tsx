@@ -113,10 +113,12 @@ export default function AdminLayout() {
         {/* Sidebar */}
         <div style={{ width: 200, flexShrink: 0, background: BG_SIDE, borderRight: `1px solid ${BORDER}`, position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', paddingTop: 16 }}>
           <div style={{ padding: '0 16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 700, color: CELESTE }}>
-              <span>⚡</span> Lucía Admin
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 17, fontWeight: 700 }}>
+              <span style={{ fontSize: 18 }}>⚡</span>
+              <span style={{ color: '#f5f7fa' }}>Lucía</span>
+              <span style={{ color: CELESTE }}>Admin</span>
             </div>
-            <div style={{ fontSize: 11, color: TXT_DIM, marginTop: 2 }}>Platform Control Center</div>
+            <div style={{ fontSize: 11, color: '#a3a6b0', marginTop: 2 }}>Platform Control Center</div>
           </div>
           {renderNav(NAV_PRINCIPAL, 'Principal')}
           {renderNav(NAV_CONFIG, 'Configuración')}
