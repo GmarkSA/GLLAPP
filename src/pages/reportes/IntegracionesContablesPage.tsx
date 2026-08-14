@@ -135,8 +135,11 @@ function BancoPanel({ data, saldoGl }: { data: BancoEspecifico; saldoGl: number 
     { lbl: 'Saldo Sistema', val: Q(saldoGl), color: '#1B3A6B' },
     ...(r ? [
       { lbl: 'Saldo Banco', val: Q(r.saldoBanco) },
-      { lbl: 'Diferencia',  val: Q(r.diferencia),
-        color: Math.abs(r.diferencia) < 0.01 ? '#2ea172' : '#e5484d' },
+      // La diferencia de la integración es GL (saldo sistema) vs saldo banco — no el
+      // snapshot de la conciliación (r.diferencia), que compara otros valores y puede
+      // dar 0 aunque el saldo contable no cuadre con el banco.
+      { lbl: 'Diferencia',  val: Q(saldoGl - Number(r.saldoBanco)),
+        color: Math.abs(saldoGl - Number(r.saldoBanco)) < 0.01 ? '#2ea172' : '#e5484d' },
       ...(r.notes ? [{ lbl: 'Notas', val: r.notes }] : []),
     ] : []),
   ]
