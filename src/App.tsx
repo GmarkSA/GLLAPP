@@ -110,6 +110,7 @@ const ClasesActivoFijoPage       = lazy(() => import('./pages/contabilidad/activ
 const ReporteActivosFijosPage    = lazy(() => import('./pages/reportes/ReporteActivosFijosPage'))
 const ReporteInventarioPage      = lazy(() => import('./pages/reportes/ReporteInventarioPage'))
 const IntegracionesContablesPage = lazy(() => import('./pages/reportes/IntegracionesContablesPage'))
+const EstadosFinancierosPage = lazy(() => import('./pages/reportes/EstadosFinancierosPage'))
 const IntegracionesImprimirPage  = lazy(() => import('./pages/reportes/IntegracionesImprimirPage'))
 // Diarios
 const DiariosManualesPage        = lazy(() => import('./pages/contabilidad/diarios-manuales/DiariosManualesPage'))
@@ -359,6 +360,7 @@ export default function App() {
             <Route path="declaracion-iva"            element={<DeclaracionIvaPage />} />
             <Route path="declaracion-isr"            element={<Declaracion1311Page />} />
             <Route path="integraciones-contables"    element={<IntegracionesContablesPage />} />
+            <Route path="estados-financieros"        element={<EstadosFinancierosPage />} />
           </Route>
 
           <Route path="planillas/corridas"                           element={<PeriodosPlanillaPage />} />

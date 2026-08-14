@@ -86,6 +86,7 @@ const GROUPS: ReportGroup[] = [
     id: 'cierre',
     label: 'Cierre Contable',
     reports: [
+      { key: 'estados-financieros', icon: <AuditOutlined />, title: 'Estados Financieros', desc: 'Balance General y Estado de Resultados con drill-down a la integración de cada cuenta.', path: '/reportes/estados-financieros', color: '#1B3A6B' },
       { key: 'integraciones-contables', icon: <ReconciliationOutlined />, title: 'Integraciones Contables', desc: 'Paquete de cierre mensual — integración y conciliación de saldos por cuenta contable.', path: '/reportes/integraciones-contables', color: '#1B3A6B' },
     ],
   },
