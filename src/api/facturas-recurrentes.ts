@@ -63,6 +63,7 @@ export interface CrearFacturaRecurrenteDto {
   emailNotificacion?:          string
   emailAdicionalNotificacion?: string
   observaciones?:              string
+  idSuscripcionQpaypro?:       number
   detalles:                    DetalleFacturaRecurrenteDto[]
 }
 
@@ -98,10 +99,21 @@ export interface FacturaRecurrente {
   emailAdicionalNotificacion:  string | null
   estado:                      EstadoFacturaRecurrente
   observaciones:               string | null
+  idSuscripcionQpaypro:        number | null
   detalles:                    Array<DetalleFacturaRecurrenteDto & { id: string }>
   fechaCreacion:               string
   fechaModificacion:           string
 }
+
+// Suscripciones QPayPro para enlazar la plantilla (solo SuperAdmin)
+export interface QpayproSubscriptionOption {
+  idSuscripcionQpaypro: number
+  tenantName:           string
+  plan:                 string
+  status:               string
+}
+export const listQpayproSubscriptions = () =>
+  api.get('/admin/subscriptions').then(unwrap) as Promise<QpayproSubscriptionOption[]>
 
 export interface HistorialGeneracion {
   id:                  string
