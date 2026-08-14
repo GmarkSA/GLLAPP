@@ -46,7 +46,11 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
     setReconciliando(true)
     try {
       const r: any = await api.post('/billing/admin/reconciliar-cobros').then(x => x.data?.data ?? x.data)
-      message.success(`Reconciliadas ${r?.revisadas ?? 0} suscripción(es) · ${r?.pagosAprobados ?? 0} pago(s) aprobado(s)`)
+      if (r?.pollingError) {
+        message.warning(`QPayPro falló: ${r.pollingError}. Estado: ${r?.pagosAprobados ?? 0} pago(s) aprobado(s).`, 8)
+      } else {
+        message.success(`Reconciliadas ${r?.revisadas ?? 0} suscripción(es) · ${r?.pagosAprobados ?? 0} pago(s) aprobado(s)`)
+      }
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al reconciliar cobros')
     } finally { setReconciliando(false) }
