@@ -80,10 +80,15 @@ export default function ConciliacionImprimirPage() {
   }, [id, month, year])
 
   useEffect(() => {
-    if (!loading && account) {
-      const t = setTimeout(() => window.print(), 800)
-      return () => clearTimeout(t)
-    }
+    if (loading || !account) return
+    let cancelled = false
+    // Disparar el diálogo de impresión apenas la página está lista (fuentes cargadas
+    // + un frame de pintado), en vez de un retardo fijo de 800ms que hacía esperar al usuario.
+    const ready = (document as any).fonts?.ready ?? Promise.resolve()
+    ready.then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!cancelled) window.print()
+    })))
+    return () => { cancelled = true }
   }, [loading, account])
 
   if (loading || !account) {
