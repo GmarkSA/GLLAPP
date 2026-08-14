@@ -492,7 +492,8 @@ export default function DteSatPage() {
     setStepperResult(null)
     setStepperHasTimbre(false)
     setStepperHasTurismo(false)
-    setStepperIsAnulado(false)
+    // Pre-marcar anulada si el portal SAT la reporta anulada → se registrará con Q0.
+    setStepperIsAnulado(!!row.anulado)
     setAccountMode('expense')
 
     // Limpiar completamente el formulario para no heredar campos del DTE anterior
@@ -898,6 +899,11 @@ export default function DteSatPage() {
       render: (_, row) => (
         <div>
           <Text strong style={{ fontSize: 12 }}>{row.nombreEmisor ?? 'Sin nombre'}</Text>
+          {row.anulado && (
+            <Tag color="#e5484d" icon={<WarningOutlined />} style={{ fontSize: 9, marginLeft: 6, padding: '0 5px', lineHeight: '16px' }}>
+              ANULADO
+            </Tag>
+          )}
           <br />
           <Text type="secondary" style={{ fontSize: 11 }}>NIT: {row.nitEmisor ?? '—'}</Text>
         </div>

@@ -509,6 +509,8 @@ export interface SatDte {
   expenseId?: string
   errorMessage?: string
   items?: Array<{ descripcion?: string; description?: string; cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string }>
+  /** Derivado del portal SAT (rawData.tabla_sat.ESTADO): true si la factura está anulada. */
+  anulado?: boolean
   createdAt: string
   updatedAt?: string
 }
