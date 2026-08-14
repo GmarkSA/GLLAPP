@@ -74,8 +74,14 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
     try {
       const r: any = await api.post('/billing/admin/simular-cobro').then(x => x.data?.data ?? x.data)
       const n = r?.simulados ?? 0
-      if (n === 0) message.info('No hay suscripciones en procesando_pago para simular')
-      else message.success(`${n} cobro(s) simulado(s) como aprobados. Ahora dale a "Emitir facturas pendientes ahora".`, 8)
+      const errores: string[] = r?.errores ?? []
+      if (errores.length) {
+        message.error(`Falló la simulación → ${errores.join(' | ')}`, 15)
+      } else if (n === 0) {
+        message.info('No hay suscripciones en procesando_pago para simular')
+      } else {
+        message.success(`${n} cobro(s) simulado(s) como aprobados. Ahora dale a "Emitir facturas pendientes ahora".`, 8)
+      }
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al simular cobro')
     } finally { setSimulando(false) }
