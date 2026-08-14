@@ -429,6 +429,16 @@ function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[
       render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : '—',
     },
     {
+      title: 'Factura (FEL)',
+      render: (_, r) => r.felInvoiceUrl ? (
+        <Button size="small" type="link" style={{ padding: 0 }}
+          icon={<FileTextOutlined />}
+          onClick={() => window.open(r.felInvoiceUrl!, '_blank', 'noopener')}>
+          {r.felSerie ? `${r.felSerie}-${r.felNumero}` : 'Descargar'}
+        </Button>
+      ) : <Text type="secondary">—</Text>,
+    },
+    {
       title: '',
       width: 48,
       render: (_, r) => (
