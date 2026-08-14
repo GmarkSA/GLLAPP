@@ -41,19 +41,44 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
   const [savingAccount, setSavingAccount] = useState<string | null>(null)
   const [emitiendo, setEmitiendo] = useState(false)
   const [reconciliando, setReconciliando] = useState(false)
+  const [simulando, setSimulando] = useState(false)
 
   const handleReconciliar = async () => {
     setReconciliando(true)
     try {
       const r: any = await api.post('/billing/admin/reconciliar-cobros').then(x => x.data?.data ?? x.data)
+      const aprobados = r?.pagosAprobados ?? 0
       if (r?.pollingError) {
-        message.warning(`QPayPro falló: ${r.pollingError}. Estado: ${r?.pagosAprobados ?? 0} pago(s) aprobado(s).`, 8)
+        message.warning(`QPayPro falló: ${r.pollingError}. Estado: ${aprobados} pago(s) aprobado(s).`, 8)
+      } else if (aprobados === 0) {
+        const comps = r?.detalle?.[0]?.comprobantesQpay
+        let extra = ''
+        if (Array.isArray(comps)) {
+          extra = comps.length
+            ? ` QPayPro devolvió ${comps.length} comprobante(s): ${comps.map((c: any) => `status ${c.status}`).join(', ')} (1=aprobado, 3=rechazado).`
+            : ' QPayPro aún no devuelve comprobantes (el cargo no se ha procesado de su lado).'
+        } else if (comps?.error) {
+          extra = ` (error QPayPro: ${comps.error})`
+        }
+        message.info(`0 pagos aprobados.${extra}`, 10)
       } else {
-        message.success(`Reconciliadas ${r?.revisadas ?? 0} suscripción(es) · ${r?.pagosAprobados ?? 0} pago(s) aprobado(s)`)
+        message.success(`Reconciliadas ${r?.revisadas ?? 0} suscripción(es) · ${aprobados} pago(s) aprobado(s)`)
       }
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al reconciliar cobros')
     } finally { setReconciliando(false) }
+  }
+
+  const handleSimularCobro = async () => {
+    setSimulando(true)
+    try {
+      const r: any = await api.post('/billing/admin/simular-cobro').then(x => x.data?.data ?? x.data)
+      const n = r?.simulados ?? 0
+      if (n === 0) message.info('No hay suscripciones en procesando_pago para simular')
+      else message.success(`${n} cobro(s) simulado(s) como aprobados. Ahora dale a "Emitir facturas pendientes ahora".`, 8)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al simular cobro')
+    } finally { setSimulando(false) }
   }
 
   const handleEmitirAhora = async () => {
@@ -256,6 +281,16 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
             <Button icon={<ReloadOutlined />} loading={reconciliando} onClick={handleReconciliar}>
               Reconciliar cobros QPayPro
             </Button>
+            <Popconfirm
+              title="¿Simular un cobro aprobado?"
+              description="Registra un pago 'aprobado' (sin dinero real) para las suscripciones en procesando_pago. Solo para pruebas."
+              okText="Sí, simular"
+              onConfirm={handleSimularCobro}
+            >
+              <Button icon={<ClockCircleOutlined />} loading={simulando} style={{ color: '#b7791f', borderColor: '#e5c07b' }}>
+                Simular cobro aprobado (prueba)
+              </Button>
+            </Popconfirm>
             <Button type="primary" icon={<FileTextOutlined />} loading={emitiendo} onClick={handleEmitirAhora} style={{ background: '#2ea172', borderColor: '#2ea172' }}>
               Emitir facturas pendientes ahora
             </Button>
