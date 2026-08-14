@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Spin, Empty, Tooltip, Typography } from 'antd'
+import { Spin, Empty, Tooltip, Typography, Select } from 'antd'
 import { ArrowRightOutlined, ThunderboltOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useCompanyStore } from '../../store/companyStore'
@@ -187,7 +187,7 @@ function valorRatio(items: RatioItem[] | undefined, needle: string): number | nu
 export default function TableroDueno() {
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const [periodo, setPeriodo] = useState<Periodo>(trimestreActual())
-  const [anio]                = useState<number>(dayjs().year())
+  const [anio, setAnio]       = useState<number>(dayjs().year())
   const [data, setData]       = useState<ExecutiveDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -262,7 +262,7 @@ export default function TableroDueno() {
       {/* Encabezado + selector de período */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
         <Text style={{ fontSize: 18, fontWeight: 500, color: '#0a0a0a' }}>Tablero del dueño</Text>
-        <div style={{ display: 'flex', gap: 5 }}>
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
           {PERIODOS.map(p => {
             const on = p === periodo
             return (
@@ -273,10 +273,20 @@ export default function TableroDueno() {
                   background: on ? '#e6f0ff' : 'transparent',
                   color: on ? '#1677ff' : '#6b7280',
                 }}>
-                {p === 'Año' ? String(anio) : p}
+                {p}
               </button>
             )
           })}
+          <Select
+            size="small"
+            value={anio}
+            onChange={setAnio}
+            style={{ width: 88 }}
+            options={Array.from({ length: 5 }, (_, i) => {
+              const y = dayjs().year() - i
+              return { value: y, label: String(y) }
+            })}
+          />
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#9aa1ab', marginBottom: 16 }}>
