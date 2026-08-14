@@ -42,6 +42,11 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
   const [emitiendo, setEmitiendo] = useState(false)
   const [reconciliando, setReconciliando] = useState(false)
   const [simulando, setSimulando] = useState(false)
+  const [sandbox, setSandbox] = useState(false)
+
+  useEffect(() => {
+    api.get('/billing/admin/sandbox').then(x => setSandbox((x.data?.data ?? x.data)?.sandbox ?? false)).catch(() => setSandbox(false))
+  }, [])
 
   const handleReconciliar = async () => {
     setReconciliando(true)
@@ -290,16 +295,18 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
             <Button icon={<ReloadOutlined />} loading={reconciliando} onClick={handleReconciliar}>
               Reconciliar cobros QPayPro
             </Button>
-            <Popconfirm
-              title="¿Simular un cobro aprobado?"
-              description="Registra un pago 'aprobado' (sin dinero real) para las suscripciones en procesando_pago. Solo para pruebas."
-              okText="Sí, simular"
-              onConfirm={handleSimularCobro}
-            >
-              <Button icon={<ClockCircleOutlined />} loading={simulando} style={{ color: '#b7791f', borderColor: '#e5c07b' }}>
-                Simular cobro aprobado (prueba)
-              </Button>
-            </Popconfirm>
+            {sandbox && (
+              <Popconfirm
+                title="¿Simular un cobro aprobado?"
+                description="Registra un pago 'aprobado' (sin dinero real) para las suscripciones en procesando_pago. Solo para pruebas."
+                okText="Sí, simular"
+                onConfirm={handleSimularCobro}
+              >
+                <Button icon={<ClockCircleOutlined />} loading={simulando} style={{ color: '#b7791f', borderColor: '#e5c07b' }}>
+                  Simular cobro aprobado (prueba)
+                </Button>
+              </Popconfirm>
+            )}
             <Button type="primary" icon={<FileTextOutlined />} loading={emitiendo} onClick={handleEmitirAhora} style={{ background: '#2ea172', borderColor: '#2ea172' }}>
               Emitir facturas pendientes ahora
             </Button>
