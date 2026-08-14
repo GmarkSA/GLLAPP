@@ -14,9 +14,11 @@ import {
 } from '../../../api/facturas'
 import {
   createFacturaRecurrente, updateFacturaRecurrente, getFacturaRecurrente,
-  FRECUENCIA_LABELS,
+  FRECUENCIA_LABELS, listQpayproSubscriptions,
   type CrearFacturaRecurrenteDto, type FrecuenciaRecurrencia, type TipoVigencia,
+  type QpayproSubscriptionOption,
 } from '../../../api/facturas-recurrentes'
+import { useAuthStore } from '../../../store/authStore'
 
 const { Text, Title } = Typography
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -57,6 +59,10 @@ export default function FacturaRecurrenteFormPage() {
   const [notificar,       setNotificar]       = useState(false)
   const [emailCliente,    setEmailCliente]    = useState('')
 
+  // Enlace con suscripción QPayPro — solo lo gestiona el SuperAdmin (Gmark)
+  const isSuperAdmin = useAuthStore(s => s.user?.isSuperAdmin)
+  const [qpayproSubs, setQpayproSubs] = useState<QpayproSubscriptionOption[]>([])
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const fetchCustomers = useCallback((search: string) => {
@@ -92,6 +98,11 @@ export default function FacturaRecurrenteFormPage() {
   }, [fetchCustomers])
 
   useEffect(() => {
+    if (!isSuperAdmin) return
+    listQpayproSubscriptions().then(setQpayproSubs).catch(() => setQpayproSubs([]))
+  }, [isSuperAdmin])
+
+  useEffect(() => {
     if (!isEdit || !id) return
     setLoading(true)
     getFacturaRecurrente(id).then(r => {
@@ -118,6 +129,7 @@ export default function FacturaRecurrenteFormPage() {
         lugarExpedicion:            r.lugarExpedicion,
         nombreConsignatario:        r.nombreConsignatario,
         direccionConsignatario:     r.direccionConsignatario,
+        idSuscripcionQpaypro:       r.idSuscripcionQpaypro ?? undefined,
       })
       setFrecuencia(r.frecuencia)
       setTipoVigencia(r.tipoVigencia)
@@ -189,6 +201,7 @@ export default function FacturaRecurrenteFormPage() {
         emailNotificacion:          vals.notificarClientePorEmail ? (vals.emailNotificacion || undefined) : undefined,
         emailAdicionalNotificacion: vals.notificarClientePorEmail ? (vals.emailAdicionalNotificacion || undefined) : undefined,
         observaciones:              vals.observaciones,
+        idSuscripcionQpaypro:       vals.idSuscripcionQpaypro ?? undefined,
         detalles: items.filter(i => i.description).map((i, idx) => ({
           itemId:              i.productId,
           descripcion:         i.description,
@@ -269,6 +282,24 @@ export default function FacturaRecurrenteFormPage() {
             {moneda === 'USD' && (
               <Form.Item name="tipoCambioReferencia" label="T/C" rules={[{ required: true, message: 'Requerido' }]} style={{ width: 150, marginBottom: 0 }}>
                 <InputNumber min={0.01} step={0.1} precision={6} style={{ width: '100%' }} placeholder="7.7500" controls={false} />
+              </Form.Item>
+            )}
+
+            {isSuperAdmin && (
+              <Form.Item
+                name="idSuscripcionQpaypro"
+                label="Suscripción QPayPro"
+                style={{ width: 320, marginBottom: 0 }}
+                tooltip="Si la enlazas, la factura se emite cuando el cliente paga (no por calendario) y usa el precio del plan."
+              >
+                <Select
+                  allowClear
+                  placeholder="Sin enlace (genera por calendario)"
+                  options={qpayproSubs.map(s => ({
+                    value: s.idSuscripcionQpaypro,
+                    label: `${s.tenantName} · ${s.plan} (${s.status})`,
+                  }))}
+                />
               </Form.Item>
             )}
           </div>
