@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { CheckCircleFilled, PrinterOutlined } from '@ant-design/icons'
-import { getComprobantePago, type ComprobantePago } from '../../api/billing'
+import { getComprobantePago, getMiComprobantePago, type ComprobantePago } from '../../api/billing'
 
 const NAVY = '#1B3A6B'
 
@@ -17,7 +17,7 @@ function fmtMonto(n: number, cur: string): string {
   return `${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`
 }
 
-export default function ComprobantePagoPage() {
+export default function ComprobantePagoPage({ cliente = false }: { cliente?: boolean }) {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<ComprobantePago | null>(null)
   const [loading, setLoading] = useState(true)
@@ -25,11 +25,13 @@ export default function ComprobantePagoPage() {
 
   useEffect(() => {
     if (!id) return
-    getComprobantePago(id)
+    // El cliente consulta su propio voucher (endpoint scoped al tenant); el admin usa el endpoint SuperAdmin.
+    const fetcher = cliente ? getMiComprobantePago : getComprobantePago
+    fetcher(id)
       .then(setData)
       .catch(() => setError('No se pudo cargar el comprobante'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, cliente])
 
   if (loading) return <div style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}><Spin /></div>
   if (error || !data) return <div style={{ padding: 40, color: '#c0392b' }}>{error ?? 'Comprobante no encontrado'}</div>

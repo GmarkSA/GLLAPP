@@ -429,6 +429,16 @@ function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[
       render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : '—',
     },
     {
+      title: 'Voucher',
+      render: (_, r) => r.result === 'approved' ? (
+        <Button size="small" type="link" style={{ padding: 0 }}
+          icon={<CheckCircleOutlined />}
+          onClick={() => window.open(`/configuracion/suscripcion/comprobante/${r.id}`, '_blank', 'noopener')}>
+          Ver voucher
+        </Button>
+      ) : <Text type="secondary">—</Text>,
+    },
+    {
       title: 'Factura (FEL)',
       render: (_, r) => r.felInvoiceUrl ? (
         <Button size="small" type="link" style={{ padding: 0 }}
@@ -471,7 +481,7 @@ function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[
       columns={cols}
       size="small"
       pagination={{ pageSize: 8, size: 'small' }}
-      scroll={{ x: 700 }}
+      scroll={{ x: 820 }}
     />
   )
 }

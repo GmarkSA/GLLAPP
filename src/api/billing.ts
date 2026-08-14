@@ -230,3 +230,7 @@ export interface ComprobantePago {
 }
 export const getComprobantePago = (paymentId: string): Promise<ComprobantePago> =>
   api.get(`/billing/admin/payments/${paymentId}/comprobante`).then(unwrap)
+
+// Voucher del propio cobro (cliente): scoped al tenant del solicitante.
+export const getMiComprobantePago = (paymentId: string): Promise<ComprobantePago> =>
+  api.get(`/billing/payments/${paymentId}/comprobante`).then(unwrap)
