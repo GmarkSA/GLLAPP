@@ -39,6 +39,23 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
   const [accounts, setAccounts]           = useState<Account[]>([])
   const [planAccounts, setPlanAccounts]   = useState<Record<string, string | undefined>>({})
   const [savingAccount, setSavingAccount] = useState<string | null>(null)
+  const [emitiendo, setEmitiendo] = useState(false)
+
+  const handleEmitirAhora = async () => {
+    setEmitiendo(true)
+    try {
+      const r: any = await api.post('/ventas/suscripciones-facturacion/emitir-ahora').then(x => x.data?.data ?? x.data)
+      const emitidas = r?.emitidas ?? 0
+      const fallidas = r?.fallidas ?? 0
+      if (emitidas === 0 && fallidas === 0) {
+        message.info('No hay cobros pendientes por facturar')
+      } else {
+        message.success(`${emitidas} factura(s) emitida(s)${fallidas ? `, ${fallidas} fallida(s)` : ''}`)
+      }
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al emitir facturas')
+    } finally { setEmitiendo(false) }
+  }
 
   useEffect(() => {
     getGtqExchangeRate()
@@ -219,6 +236,15 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           {incomeAccounts.length === 0 && (
             <Text type="secondary" style={{ fontSize: 12 }}>No se cargaron cuentas de ingreso de la nomenclatura.</Text>
           )}
+
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed rgba(10,10,10,0.12)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <Button type="primary" icon={<FileTextOutlined />} loading={emitiendo} onClick={handleEmitirAhora} style={{ background: '#2ea172', borderColor: '#2ea172' }}>
+              Emitir facturas pendientes ahora
+            </Button>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Factura los cobros confirmados que aún no tienen Factura de Venta (respeta el candado de fecha configurado).
+            </Text>
+          </div>
         </Card>
       </Col>
     </Row>
