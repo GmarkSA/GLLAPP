@@ -13,7 +13,7 @@ import {
 import dayjs from 'dayjs'
 import {
   getBillingState, changePlan, getGtqExchangeRate,
-  requestBillingInvoice, deletePayment,
+  requestBillingInvoice, deletePayment, cancelSubscription,
   tokenizarTarjeta, activarCobros,
   type BillingState, type PlanConfig, type SubscriptionPayment,
   type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
@@ -701,6 +701,7 @@ export default function SubscriptionPage() {
   const [selectedPlan, setSelectedPlan] = useState<PlanConfig | null>(null)
   const [modalOpen, setModalOpen]   = useState(false)
   const [changingPlan, setChangingPlan] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [rateInfo, setRateInfo]     = useState<{ rate: number; updatedAt?: string; updatedBy?: string }>({ rate: 7.7 })
 
 
@@ -763,6 +764,19 @@ export default function SubscriptionPage() {
       await load()
     } catch (e: any) {
       message.error(billingErrorMsg(e, 'Error al eliminar'), 4)
+    }
+  }
+
+  const handleCancelSubscription = async () => {
+    setCancelling(true)
+    try {
+      const res = await cancelSubscription()
+      message.success(res.message || 'Suscripción cancelada y datos de tarjeta eliminados.', 6)
+      await load()
+    } catch (e: any) {
+      message.error(billingErrorMsg(e, 'No se pudo cancelar la suscripción'), 6)
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -978,6 +992,41 @@ export default function SubscriptionPage() {
           </div>
         ) : null}
       </Modal>
+
+      {/* Cancelar suscripción — solo si hay una suscripción activa con tarjeta registrada */}
+      {sub && hasCard && sub.status !== 'cancelled' && (
+        <Card
+          style={{ marginTop: 24, borderRadius: 10, borderColor: '#ffccc7', background: '#fff7f6' }}
+          bodyStyle={{ padding: '16px 20px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <WarningOutlined style={{ color: '#cf1322' }} />
+                <Text strong style={{ color: '#cf1322' }}>Cancelar suscripción</Text>
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Se detendrán los cobros automáticos y se eliminarán los datos de tu tarjeta
+                {sub.qpayproCardBrand && sub.qpayproCardLast4
+                  ? ` (${sub.qpayproCardBrand} ••••${sub.qpayproCardLast4})`
+                  : ''} de nuestros servidores. Podrás volver a suscribirte cuando quieras.
+              </Text>
+            </div>
+            <Popconfirm
+              title="Cancelar suscripción"
+              description="Se cancelarán los cobros automáticos y se eliminará tu tarjeta guardada. ¿Deseas continuar?"
+              okText="Sí, cancelar"
+              cancelText="No"
+              okButtonProps={{ danger: true, loading: cancelling }}
+              onConfirm={handleCancelSubscription}
+            >
+              <Button danger loading={cancelling} icon={<WarningOutlined />}>
+                Cancelar suscripción
+              </Button>
+            </Popconfirm>
+          </div>
+        </Card>
+      )}
 
       {/* Aviso de seguridad */}
       <div style={{ textAlign: 'center', marginTop: 20 }}>
