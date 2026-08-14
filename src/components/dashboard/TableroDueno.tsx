@@ -25,21 +25,17 @@ function trimestreActual(): Periodo {
   return (['Q1', 'Q1', 'Q1', 'Q2', 'Q2', 'Q2', 'Q3', 'Q3', 'Q3', 'Q4', 'Q4', 'Q4'][m]) as Periodo
 }
 
+// El período representa el cierre acumulado: flujos del 01-ene al fin del trimestre
+// (convención de Estado de Resultados en Guatemala) y balances al corte (fin del trimestre).
 function rangoDePeriodo(periodo: Periodo, anio: number): { from: string; to: string; etiqueta: string } {
-  const q: Record<Exclude<Periodo, 'Año'>, [number, number]> = {
-    Q1: [0, 2], Q2: [3, 5], Q3: [6, 8], Q4: [9, 11],
-  }
-  if (periodo === 'Año') {
-    return { from: `${anio}-01-01`, to: `${anio}-12-31`, etiqueta: `Año completo ${anio}` }
-  }
-  const [mi, mf] = q[periodo]
-  const from = dayjs(`${anio}-${String(mi + 1).padStart(2, '0')}-01`)
-  const to   = from.endOf('month').add(mf - mi, 'month').endOf('month')
-  return {
-    from: from.format('YYYY-MM-DD'),
-    to:   to.format('YYYY-MM-DD'),
-    etiqueta: `${periodo} ${anio} — ${MESES_CORTOS[mi]} a ${MESES_CORTOS[mf]}`,
-  }
+  const finMes: Record<Periodo, number> = { Q1: 2, Q2: 5, Q3: 8, Q4: 11, 'Año': 11 } // mes final (0-based)
+  const mf   = finMes[periodo]
+  const from = `${anio}-01-01`
+  const to   = dayjs(`${anio}-${String(mf + 1).padStart(2, '0')}-01`).endOf('month').format('YYYY-MM-DD')
+  const etiqueta = periodo === 'Año'
+    ? `Año completo ${anio} — ene a dic`
+    : `Al cierre de ${periodo} ${anio} — ene a ${MESES_CORTOS[mf]}`
+  return { from, to, etiqueta }
 }
 
 // ── Formato ───────────────────────────────────────────────────────────────────
@@ -200,17 +196,22 @@ export default function TableroDueno() {
   const [loading, setLoading] = useState(true)
 
   const { from, to, etiqueta } = useMemo(() => rangoDePeriodo(periodo, anio), [periodo, anio])
+  // Corte = fin del período, pero nunca en el futuro (para el trimestre en curso usa hoy).
+  const corte = useMemo(() => {
+    const hoy = dayjs().format('YYYY-MM-DD')
+    return to > hoy ? hoy : to
+  }, [to])
 
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      setData(await getExecutiveDashboard({ fromDate: from, toDate: to, asOf: to }))
+      setData(await getExecutiveDashboard({ fromDate: from, toDate: corte, asOf: corte }))
     } catch {
       setData(null)
     } finally {
       setLoading(false)
     }
-  }, [from, to])
+  }, [from, corte])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -309,7 +310,7 @@ export default function TableroDueno() {
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#9aa1ab', marginBottom: 16 }}>
-        {nombreEmpresa} &nbsp;·&nbsp; {etiqueta} &nbsp;·&nbsp; Datos al {dayjs().format('DD/MM/YYYY')}
+        {nombreEmpresa} &nbsp;·&nbsp; {etiqueta} &nbsp;·&nbsp; Datos al corte {dayjs(corte).format('DD/MM/YYYY')}
       </div>
 
       {/* FILA 1 — Cobrar lo que le deben */}
