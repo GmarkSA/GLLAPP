@@ -27,9 +27,6 @@ const BankProfilesPage           = lazy(() => import('./pages/configuracion/empr
 const PlantillasImpresionPage    = lazy(() => import('./pages/configuracion/PlantillasImpresionPage'))
 const PlantillasCorreoPage       = lazy(() => import('./pages/configuracion/PlantillasCorreoPage'))
 const PlatformAdminPage          = lazy(() => import('./pages/admin/PlatformAdminPage'))
-const AdminLayout                = lazy(() => import('./pages/admin/AdminLayout'))
-const AdminTenantsPage           = lazy(() => import('./pages/admin/AdminTenantsPage'))
-const AdminPlaceholder           = lazy(() => import('./pages/admin/AdminPlaceholder'))
 const CompanyUsersPage       = lazy(() => import('./pages/configuracion/empresas/CompanyUsersPage'))
 const OnboardingWizardPage   = lazy(() => import('./pages/onboarding/OnboardingWizardPage'))
 const SetupGuidePage         = lazy(() => import('./pages/onboarding/SetupGuidePage'))
@@ -236,19 +233,6 @@ export default function App() {
         <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
         <Route path="/reportes/integraciones/:anio/:mes/imprimir" element={<PrivateRoute><IntegracionesImprimirPage /></PrivateRoute>} />
 
-        {/* Platform Admin — layout propio (dark), fuera del MainLayout de Lucía */}
-        <Route path="/admin" element={<PrivateRoute><AdminRoute><AdminLayout /></AdminRoute></PrivateRoute>}>
-          <Route index element={<Navigate to="/admin/tenants" replace />} />
-          <Route path="tenants"  element={<AdminTenantsPage />} />
-          <Route path="mrr"      element={<AdminPlaceholder titulo="MRR & Facturación" />} />
-          <Route path="errores"  element={<AdminPlaceholder titulo="Errores Operativos" />} />
-          <Route path="planes"   element={<AdminPlaceholder titulo="Planes & Precios" />} />
-          <Route path="soporte"  element={<AdminPlaceholder titulo="Soporte" />} />
-          <Route path="sistema"  element={<AdminPlaceholder titulo="Sistema" />} />
-          {/* Admin clásico (fallback completo: planes, plantillas, facturación) */}
-          <Route path="platform" element={<PlatformAdminPage />} />
-        </Route>
-
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
@@ -409,6 +393,8 @@ export default function App() {
           <Route path="configuracion/empresas/:id"                            element={<EmpresaFormPage />} />
           <Route path="configuracion/empresas/:id/usuarios"                   element={<CompanyUsersPage />} />
           <Route path="configuracion/empresas/:id/sucursales"                 element={<SucursalesPage />} />
+          <Route path="admin"                                                  element={<Navigate to="/admin/platform" replace />} />
+          <Route path="admin/platform"                                         element={<AdminRoute><PlatformAdminPage /></AdminRoute>} />
           <Route path="onboarding"                                             element={<OnboardingWizardPage />} />
           <Route path="onboarding/setup"                                       element={<SetupGuidePage />} />
           <Route path="onboarding/rapido"                                      element={<OnboardingRapidoPage />} />
