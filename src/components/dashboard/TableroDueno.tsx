@@ -183,9 +183,16 @@ function agingSegmentos(section: ExecutiveAgingSection): Segmento[] {
   return AGING_DEFS.map(d => ({ valor: Number(section.buckets?.[d.key] ?? 0), color: d.color, label: d.label }))
 }
 function valorRatio(items: RatioItem[] | undefined, needle: string): number | null {
-  const it = (items ?? []).find(r => r.nombre.toLowerCase().includes(needle))
+  const norm = (x: string) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  const it = (items ?? []).find(r => norm(r.nombre).includes(norm(needle)))
   return it && it.valor != null ? Number(it.valor) : null
 }
+// Deuda/Capital (ideal ≤1.5): ≤1 sano, 1-1.5 atención, >1.5 crítico
+const nivelDeudaCapital = (v: number): Nivel => v > 1.5 ? 'critico' : v >= 1 ? 'atencion' : 'saludable'
+// Cobertura de intereses (ideal ≥3): ≥3 sano, 1.5-3 atención, <1.5 crítico
+const nivelCobertura    = (v: number): Nivel => v >= 3 ? 'saludable' : v >= 1.5 ? 'atencion' : 'critico'
+// Razón de deuda 0-1 (ideal ≤0.6): ≤0.6 sano, 0.6-0.8 atención, >0.8 crítico
+const nivelRazonDeuda   = (v: number): Nivel => v > 0.8 ? 'critico' : v > 0.6 ? 'atencion' : 'saludable'
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function TableroDueno() {
@@ -264,6 +271,14 @@ export default function TableroDueno() {
   const nRoa: Nivel = (hayVentas && roaRaw != null) ? nivelRoa(roa) : 'neutro'
 
   const cajaLiberable = Math.max(0, Number(cxc.overdue) - Number(s.arTotal) * 0.3)
+
+  // Endeudamiento y estructura de capital
+  const deudaCapital = valorRatio(data.ratios?.endeudamiento, 'capital')
+  const coberturaInt = valorRatio(data.ratios?.endeudamiento, 'cobertura')
+  const razonDeuda   = valorRatio(data.ratios?.endeudamiento, 'razon de deuda')
+  const nDeudaCap: Nivel   = deudaCapital != null ? nivelDeudaCapital(deudaCapital) : 'neutro'
+  const nCobertura: Nivel  = coberturaInt != null ? nivelCobertura(coberturaInt) : 'neutro'
+  const nRazonDeuda: Nivel = razonDeuda   != null ? nivelRazonDeuda(razonDeuda)   : 'neutro'
 
   const listaClientes = (top: ExecutiveAgingRow[], kind: 'ar' | 'ap') => (
     <div>
@@ -420,6 +435,31 @@ export default function TableroDueno() {
           accion={hayVentas
             ? (margenOper < 0 ? 'Identifique sus 3 gastos operativos más grandes y evalúe reducirlos para llevar el margen a positivo.' : 'Mantenga el control de gastos para proteger la utilidad.')
             : undefined}
+        />
+      </FilaOKR>
+
+      {/* FILA 5 — Cuidar el nivel de deuda (Endeudamiento y estructura de capital) */}
+      <FilaOKR bg="#04342C" icono="🏛️" titulo="Cuidar el nivel de deuda" meta="Meta: Deuda/Capital < 1.5x">
+        <Metrica label="Deuda / Capital" valor={deudaCapital != null ? `${deudaCapital.toFixed(2)}x` : '—'} sub={nDeudaCap === 'neutro' ? 'Sin datos' : (deudaCapital ?? 0) > 1.5 ? 'Depende mucho de deuda' : (deudaCapital ?? 0) >= 1 ? 'Deuda ≈ capital propio' : 'Se financia sano'} subColor={COLOR_TXT[nDeudaCap]}>
+          <Barra pct={deudaCapital != null ? Math.min(100, (deudaCapital / 2) * 100) : 0} color={COLOR_BAR[nDeudaCap]} />
+          <div style={{ fontSize: 9, color: '#9aa1ab' }}>Meta &lt; 1.5x</div>
+        </Metrica>
+        <Metrica label="Cobertura de intereses" valor={coberturaInt != null ? `${coberturaInt.toFixed(1)}x` : '—'} sub={coberturaInt == null ? 'Sin intereses en el período' : coberturaInt < 1.5 ? 'La utilidad apenas cubre intereses' : 'Cubre los intereses con holgura'} subColor={COLOR_TXT[nCobertura]}>
+          <Barra pct={coberturaInt != null ? Math.min(100, (coberturaInt / 3) * 100) : 0} color={COLOR_BAR[nCobertura]} />
+          <div style={{ fontSize: 9, color: '#9aa1ab' }}>Meta ≥ 3x</div>
+        </Metrica>
+        <Metrica label="Razón de deuda" valor={razonDeuda != null ? pct1(razonDeuda * 100) : '—'} sub={nRazonDeuda === 'neutro' ? 'Sin datos' : (razonDeuda ?? 0) > 0.8 ? 'Activos muy financiados con deuda' : 'Nivel de deuda razonable'} subColor={COLOR_TXT[nRazonDeuda]}>
+          <Barra pct={razonDeuda != null ? Math.min(100, razonDeuda * 100) : 0} color={COLOR_BAR[nRazonDeuda]} />
+          <div style={{ fontSize: 9, color: '#9aa1ab' }}>% de activos con deuda · Meta &lt;60%</div>
+        </Metrica>
+        <RazonFinanciera
+          nivel={nDeudaCap}
+          valor={deudaCapital != null ? `${deudaCapital.toFixed(2)}x` : '—'}
+          nombre="Razón de deuda a capital"
+          porque={deudaCapital != null
+            ? `Por cada Q1.00 que ponen los dueños, la empresa debe Q${deudaCapital.toFixed(2)} a terceros. ${deudaCapital > 1.5 ? 'El negocio depende demasiado de deuda: sube el riesgo y el costo financiero.' : deudaCapital >= 1 ? 'La deuda pesa casi tanto como el capital propio; vigile que no siga subiendo.' : 'La empresa se financia sano, más con capital propio que con deuda.'}`
+            : 'No hay datos de pasivos ni capital en este período para evaluar la estructura de deuda.'}
+          accion={deudaCapital == null ? undefined : deudaCapital > 1.5 ? 'Priorice pagar la deuda más cara y evite nuevos préstamos hasta bajar el apalancamiento.' : 'Mantenga el equilibrio actual entre deuda y capital propio.'}
         />
       </FilaOKR>
 
