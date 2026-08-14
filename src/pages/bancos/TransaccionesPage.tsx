@@ -1140,13 +1140,34 @@ export default function TransaccionesPage() {
             { value: 'debit', label: 'Egresos' },
           ]} />
           <Button size="small" icon={<ReloadOutlined />} loading={loading} onClick={loadTransactions}>Actualizar</Button>
-          <Space.Compact size="small">
-            <Select allowClear placeholder="Estado" value={status} onChange={v => { setStatus(v); setPage(1) }} style={{ width: 160 }} options={Object.entries(TRANSACTION_STATUS_CONFIG).map(([value, cfg]) => ({ value, label: cfg.label }))} />
-            <Button icon={<RobotOutlined />} loading={matching} onClick={handleAutoMatch}
-              style={{ borderColor: '#4d7cfe', color: '#4d7cfe' }}>
-              Buscar coincidencias
-            </Button>
-          </Space.Compact>
+          {/* Estados visibles como chips horizontales para que el usuario vea de un vistazo
+              las acciones/filtros disponibles (antes escondidos en un dropdown). */}
+          <Space size={4} wrap>
+            <Text type="secondary" style={{ fontSize: 12 }}>Estado:</Text>
+            {Object.entries(TRANSACTION_STATUS_CONFIG).map(([value, cfg]) => {
+              const active = status === value
+              const color  = cfg.color === 'default' ? '#8c8c8c' : cfg.color
+              return (
+                <Tag
+                  key={value}
+                  onClick={() => { setStatus(active ? undefined : (value as TransactionStatus)); setPage(1) }}
+                  style={{
+                    cursor: 'pointer', margin: 0, borderRadius: 12, padding: '1px 10px',
+                    fontSize: 12, userSelect: 'none',
+                    border: `1px solid ${active ? color : '#e5e7eb'}`,
+                    background: active ? color : '#fff',
+                    color: active ? '#fff' : '#6b7280',
+                  }}
+                >
+                  {cfg.label}
+                </Tag>
+              )
+            })}
+          </Space>
+          <Button size="small" icon={<RobotOutlined />} loading={matching} onClick={handleAutoMatch}
+            style={{ borderColor: '#4d7cfe', color: '#4d7cfe' }}>
+            Buscar coincidencias
+          </Button>
           {summary.matched > 0 && (
             <Popconfirm
               title={`Categorizar ${summary.matched} coincidencia${summary.matched !== 1 ? 's' : ''}`}
