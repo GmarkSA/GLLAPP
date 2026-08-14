@@ -23,6 +23,7 @@ import {
 } from '../../api/billing'
 import { companiesApi } from '../../api/companies'
 import { platformTemplatesApi, type PlatformTemplate } from '../../api/platformTemplates'
+import { getAccounts, type Account } from '../../api/catalogo'
 
 const { Title, Text } = Typography
 
@@ -35,12 +36,22 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
   const [info, setInfo]       = useState<{ updatedAt?: string; updatedBy?: string }>({})
   const [saving, setSaving]   = useState(false)
   const [loaded, setLoaded]   = useState(false)
+  const [accounts, setAccounts]           = useState<Account[]>([])
+  const [planAccounts, setPlanAccounts]   = useState<Record<string, string | undefined>>({})
+  const [savingAccount, setSavingAccount] = useState<string | null>(null)
 
   useEffect(() => {
     getGtqExchangeRate()
       .then(r => { setRate(r.rate); setInfo({ updatedAt: r.updatedAt, updatedBy: r.updatedBy }); setLoaded(true) })
       .catch(() => setLoaded(true))
   }, [])
+
+  useEffect(() => {
+    getAccounts().then((a: Account[]) => setAccounts(Array.isArray(a) ? a : [])).catch(() => setAccounts([]))
+  }, [])
+  useEffect(() => {
+    setPlanAccounts(Object.fromEntries(plans.map(p => [p.plan, p.incomeAccountId ?? undefined])))
+  }, [plans])
 
   const handleSave = async () => {
     if (!rate || rate <= 0) { message.error('Ingresa un tipo de cambio válido'); return }
@@ -54,6 +65,22 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
       message.error(e?.response?.data?.message ?? 'Error al guardar')
     } finally { setSaving(false) }
   }
+
+  // Cuentas de ingreso (4xx o de balance Acreedor), igual criterio que el LineItemsEditor
+  const incomeAccounts = accounts.filter(a => a.code?.startsWith('4') || a.balanceType === 'Acreedor')
+  const savePlanAccount = async (planKey: string, accountId?: string) => {
+    setSavingAccount(planKey)
+    try {
+      await api.patch(`/admin/plans/${planKey}`, { incomeAccountId: accountId ?? null })
+      setPlanAccounts(prev => ({ ...prev, [planKey]: accountId }))
+      message.success('Cuenta de ingreso actualizada')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar la cuenta')
+    } finally { setSavingAccount(null) }
+  }
+
+  const mesActual = new Date().toLocaleDateString('es-GT', { month: 'long' })
+  const anioActual = new Date().getFullYear()
 
   return (
     <Row gutter={[24, 24]}>
@@ -152,6 +179,48 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           ))}
         </Card>
       </Col>
+
+      <Col xs={24}>
+        <Card
+          size="small"
+          title={
+            <Space>
+              <DollarOutlined style={{ color: '#2ea172' }} />
+              <span style={{ color: '#1faec2', fontWeight: 600 }}>Facturación de suscripciones</span>
+            </Space>
+          }
+          style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}
+        >
+          <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>
+            Cuenta de ingreso por plan (de tu nomenclatura). Se usa al emitir la factura de cada suscripción.
+          </Text>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+            Tipo de documento: <b>FPEQ — Pequeño Contribuyente</b> · Descripción del ítem:{' '}
+            <i>“Suscripción [nombre del plan] mes de {mesActual} {anioActual}”</i>
+          </div>
+          {plans.map(plan => (
+            <div key={plan.plan} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(10,10,10,0.06)' }}>
+              <Tag color={plan.plan === 'enterprise' ? 'gold' : Number(plan.priceMonthly) === 0 ? 'default' : '#1faec2'} style={{ minWidth: 120, textAlign: 'center' }}>
+                {plan.displayName}
+              </Tag>
+              <Select
+                showSearch
+                allowClear
+                optionFilterProp="label"
+                loading={savingAccount === plan.plan}
+                placeholder="Selecciona la cuenta de ingreso"
+                style={{ flex: 1, maxWidth: 480 }}
+                value={planAccounts[plan.plan]}
+                onChange={(val) => savePlanAccount(plan.plan, val)}
+                options={incomeAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+              />
+            </div>
+          ))}
+          {incomeAccounts.length === 0 && (
+            <Text type="secondary" style={{ fontSize: 12 }}>No se cargaron cuentas de ingreso de la nomenclatura.</Text>
+          )}
+        </Card>
+      </Col>
     </Row>
   )
 }
@@ -182,6 +251,7 @@ interface PlanConfig {
   plan: string; displayName: string; priceMonthly: number; currency: string
   maxCompanies: number; maxUsers: number; maxBranches: number
   features: string[]; isActive: boolean
+  incomeAccountId?: string | null
 }
 interface AdminCompany {
   id: string; companyNumber?: string; legalName: string; tradeName?: string; taxId?: string
