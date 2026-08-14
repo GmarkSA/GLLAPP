@@ -1389,14 +1389,15 @@ export default function PlatformAdminPage() {
               {/* Precio personalizado */}
               <Card size="small" title={<Space><DollarOutlined style={{ color: '#1faec2' }} /><span style={{ color: '#1faec2', fontWeight: 600 }}>Precio mensual personalizado</span></Space>}>
                 <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-                  Precio negociado para este cliente. Reemplaza el precio del plan. Dejar vacío para usar precio del plan.
+                  Precio negociado para este cliente (referencia). Dejar vacío para usar el precio del plan.
                 </Text>
                 <Space>
                   <InputNumber
                     value={customPrice}
                     onChange={v => setCustomPrice(v)}
                     min={0} step={1} precision={2}
-                    prefix="$" addonAfter="USD/mes"
+                    prefix={symFor(billingInfo?.subscription?.billingCurrency ?? billingTenant?.mrrCurrency ?? mrrCurrency)}
+                    addonAfter={`${billingInfo?.subscription?.billingCurrency ?? billingTenant?.mrrCurrency ?? mrrCurrency}/mes`}
                     style={{ width: 220 }}
                     placeholder={`Precio del plan`}
                   />
