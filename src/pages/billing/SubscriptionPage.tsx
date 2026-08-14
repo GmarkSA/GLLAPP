@@ -674,7 +674,10 @@ function BillingFelModal({
 export default function SubscriptionPage() {
   const [state, setState]           = useState<BillingState | null>(null)
   const [loading, setLoading]       = useState(true)
-  const [currency, setCurrency]     = useState<BillingCurrency>('GTQ')
+  const [currency, setCurrency]     = useState<BillingCurrency>(() => {
+    const saved = localStorage.getItem('lucia_billing_currency')
+    return saved === 'USD' || saved === 'GTQ' ? saved : 'GTQ'  // por defecto Quetzales
+  })
   const [selectedPlan, setSelectedPlan] = useState<PlanConfig | null>(null)
   const [modalOpen, setModalOpen]   = useState(false)
   const [changingPlan, setChangingPlan] = useState(false)
@@ -690,7 +693,8 @@ export default function SubscriptionPage() {
       ])
       setState(data)
       setRateInfo(rateData)
-      if (data.subscription?.billingCurrency) setCurrency(data.subscription.billingCurrency)
+      // La moneda de visualización es preferencia del usuario (localStorage, default GTQ);
+      // no se fuerza desde billingCurrency para que al refrescar no vuelva a USD.
     } catch {
       message.error('No se pudo cargar la información de suscripción')
     } finally {
@@ -845,7 +849,7 @@ export default function SubscriptionPage() {
           <Text type="secondary" style={{ fontSize: 13 }}>Ver precios en:</Text>
           <Select
             value={currency}
-            onChange={v => setCurrency(v)}
+            onChange={v => { setCurrency(v); localStorage.setItem('lucia_billing_currency', v) }}
             size="small"
             style={{ width: 100 }}
             options={[
