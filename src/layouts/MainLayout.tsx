@@ -8,6 +8,7 @@ import {
   MenuFoldOutlined, MenuUnfoldOutlined,
   TabletOutlined, SearchOutlined, GlobalOutlined,
   TeamOutlined, HomeOutlined, FundOutlined, ClockCircleOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -158,20 +159,27 @@ export default function MainLayout() {
   const [notifOpen,      setNotifOpen]      = useState(false)
   const [trialDaysLeft,  setTrialDaysLeft]  = useState<number | null>(null)
   const [trialEndsAt,    setTrialEndsAt]    = useState<string | null>(null)
+  const [planActivo,     setPlanActivo]     = useState<string | null>(null)
   const alertCount = useAlertCount()
 
   useEffect(() => {
     getBillingState().then(data => {
-      if (data?.tenant?.status === 'trial' && data.tenant.trialEndsAt) {
+      const st = data?.tenant?.status
+      if (st === 'trial' && data.tenant.trialEndsAt) {
         const endsAt = new Date(data.tenant.trialEndsAt)
         const days = Math.max(0, Math.ceil(
           (endsAt.getTime() - Date.now()) / 86400000
         ))
         setTrialDaysLeft(days)
         setTrialEndsAt(data.tenant.trialEndsAt)
+      } else if (st === 'active' && data.tenant.plan) {
+        // Ya pagó: mostrar el plan activo en vez del contador de prueba
+        setPlanActivo(data.tenant.plan)
       }
     }).catch(() => {/* no bloqueante */})
   }, [])
+
+  const PLAN_LABELS: Record<string, string> = { basic: 'Básico', professional: 'Professional', enterprise: 'Enterprise' }
 
   // ── Impersonación de tenant ──────────────────────────────────────────────
   const impersonationTenantName = sessionStorage.getItem('impersonationTenantName')
@@ -454,6 +462,18 @@ export default function MainLayout() {
                 </Tooltip>
               )
             })()}
+            {trialDaysLeft === null && planActivo && (
+              <Tooltip title="Tu suscripción está activa. Haz clic para gestionar tu plan.">
+                <Tag
+                  color="green"
+                  icon={<CheckCircleOutlined />}
+                  style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
+                  onClick={() => navigate('/configuracion/suscripcion')}
+                >
+                  Plan {PLAN_LABELS[planActivo] ?? planActivo}
+                </Tag>
+              </Tooltip>
+            )}
           </Space>
 
           {/* Right */}
