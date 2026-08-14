@@ -57,13 +57,14 @@ function moneyFull(n: number, cur = 'GTQ'): string {
 const pct1 = (n: number): string => `${(Number(n) || 0).toFixed(1)}%`
 
 // ── Semáforo ──────────────────────────────────────────────────────────────────
-type Nivel = 'critico' | 'atencion' | 'saludable'
-const COLOR_TXT: Record<Nivel, string>  = { critico: '#d03b3b', atencion: '#c98500', saludable: '#0ca30c' }
-const COLOR_BAR: Record<Nivel, string>  = { critico: '#d03b3b', atencion: '#fab219', saludable: '#1baf7a' }
+type Nivel = 'critico' | 'atencion' | 'saludable' | 'neutro'
+const COLOR_TXT: Record<Nivel, string>  = { critico: '#d03b3b', atencion: '#c98500', saludable: '#0ca30c', neutro: '#9aa1ab' }
+const COLOR_BAR: Record<Nivel, string>  = { critico: '#d03b3b', atencion: '#fab219', saludable: '#1baf7a', neutro: '#e5e7eb' }
 const BADGE: Record<Nivel, { bg: string; fg: string }> = {
   critico:   { bg: '#fcebeb', fg: '#a32d2d' },
   atencion:  { bg: '#faeeda', fg: '#854f0b' },
   saludable: { bg: '#eaf3de', fg: '#3b6d11' },
+  neutro:    { bg: '#f1f3f5', fg: '#6b7280' },
 }
 // Morosidad (CxC/CxP): <30 saludable, 30-60 atención, >60 crítico
 const nivelMorosidad = (pct: number): Nivel => pct > 60 ? 'critico' : pct >= 30 ? 'atencion' : 'saludable'
@@ -131,20 +132,22 @@ function Metrica({ label, valor, sub, subColor, children }: {
 }
 
 function RazonFinanciera({ nivel, valor, nombre, porque, accion }: {
-  nivel: Nivel; valor: string; nombre: string; porque: string; accion: string
+  nivel: Nivel; valor: string; nombre: string; porque: string; accion?: string
 }) {
   return (
     <div style={{ padding: '11px 12px', background: '#f8fafc', minWidth: 0 }}>
       <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 10, marginBottom: 6, background: BADGE[nivel].bg, color: BADGE[nivel].fg }}>
-        Razón financiera
+        {nivel === 'neutro' ? 'Sin datos' : 'Razón financiera'}
       </span>
-      <div style={{ fontSize: 20, fontWeight: 500, color: '#0a0a0a', marginBottom: 2 }}>{valor}</div>
+      <div style={{ fontSize: 20, fontWeight: 500, color: nivel === 'neutro' ? '#9aa1ab' : '#0a0a0a', marginBottom: 2 }}>{valor}</div>
       <div style={{ fontSize: 10, color: '#9aa1ab', marginBottom: 6 }}>{nombre}</div>
       <div style={{ fontSize: 10, color: '#6b7280', lineHeight: 1.5, marginBottom: 6, borderLeft: '2px solid #cbd5e1', paddingLeft: 6 }}>{porque}</div>
-      <div style={{ fontSize: 10, color: '#1677ff', lineHeight: 1.5, display: 'flex', gap: 4, alignItems: 'flex-start' }}>
-        <ArrowRightOutlined style={{ fontSize: 11, flexShrink: 0, marginTop: 2 }} />
-        <span>{accion}</span>
-      </div>
+      {accion && (
+        <div style={{ fontSize: 10, color: '#1677ff', lineHeight: 1.5, display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+          <ArrowRightOutlined style={{ fontSize: 11, flexShrink: 0, marginTop: 2 }} />
+          <span>{accion}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -227,21 +230,32 @@ export default function TableroDueno() {
   const topCxc    = cxc.topCritical ?? []
   const topCxp    = cxp.topCritical ?? []
   const apalanca  = s.commercialLeverage != null ? Number(s.commercialLeverage) : (Number(s.arTotal) > 0 ? Number(s.apTotal) / Number(s.arTotal) : 0)
-  const liquidez  = valorRatio(data.ratios?.liquidez, 'corriente') ?? 0
-  const roa       = valorRatio(data.ratios?.rentabilidad, 'roa') ?? valorRatio(data.ratios?.rentabilidad, 'activo') ?? 0
+  const liquidezRaw = valorRatio(data.ratios?.liquidez, 'corriente')
+  const roaRaw      = valorRatio(data.ratios?.rentabilidad, 'roa') ?? valorRatio(data.ratios?.rentabilidad, 'activo')
+  const liquidez  = liquidezRaw ?? 0
+  const roa       = roaRaw ?? 0
   const margenBruto = Number(s.grossMargin) || 0
   const margenOper  = Number(s.operatingMargin) || 0
   const cajaRecomendada = Number(s.apTotal) || 0 // heurística: caja suficiente para cubrir lo que se debe
   const cajaPct = cajaRecomendada > 0 ? (Number(s.cashEnd) / cajaRecomendada) * 100 : 100
 
-  // Semáforo de nivel por fila
-  const nCxc = nivelMorosidad(arVencPct)
-  const nCxp = nivelMorosidad(apVencPct)
-  const nApalanca = nivelApalanca(apalanca)
-  const nLiq = nivelLiquidez(liquidez)
-  const nMargen = nivelMargen(margenOper)
-  const nBruto = nivelMargen(margenBruto)
-  const nRoa = nivelRoa(roa)
+  // ¿Hay datos reales por dimensión? (para no mostrar indicadores/textos engañosos con período vacío)
+  const flujoConMovs = !!flujo && (flujo.operating.total !== 0 || flujo.investing.total !== 0 || flujo.financing.total !== 0)
+  const hayCxc      = Number(s.arTotal) > 0
+  const hayCxp      = Number(s.apTotal) > 0
+  const hayApalanca = Number(s.arTotal) > 0 || Number(s.apTotal) > 0
+  const hayVentas   = Number(s.salesTotal) > 0
+  const hayCaja     = liquidezRaw != null || Number(s.cashEnd) !== 0 || flujoConMovs
+  const periodoVacio = !hayCxc && !hayCxp && !hayVentas && !hayCaja
+
+  // Semáforo de nivel por fila — 'neutro' (gris) cuando no hay datos que evaluar
+  const nCxc: Nivel = hayCxc ? nivelMorosidad(arVencPct) : 'neutro'
+  const nCxp: Nivel = hayCxp ? nivelMorosidad(apVencPct) : 'neutro'
+  const nApalanca: Nivel = hayApalanca ? nivelApalanca(apalanca) : 'neutro'
+  const nLiq: Nivel = (hayCaja && liquidezRaw != null) ? nivelLiquidez(liquidez) : 'neutro'
+  const nMargen: Nivel = hayVentas ? nivelMargen(margenOper) : 'neutro'
+  const nBruto: Nivel = hayVentas ? nivelMargen(margenBruto) : 'neutro'
+  const nRoa: Nivel = (hayVentas && roaRaw != null) ? nivelRoa(roa) : 'neutro'
 
   const cajaLiberable = Math.max(0, Number(cxc.overdue) - Number(s.arTotal) * 0.3)
 
@@ -307,10 +321,14 @@ export default function TableroDueno() {
         </Metrica>
         <RazonFinanciera
           nivel={nCxc}
-          valor={pct1(arVencPct)}
+          valor={hayCxc ? pct1(arVencPct) : '—'}
           nombre="Índice de morosidad CxC"
-          porque={`Su empresa tiene ${moneyFull(Number(s.arTotal), cur)} pendiente de cobrar y el ${pct1(arVencPct)} ya está vencido. Eso significa que parte de ese dinero no está entrando a tiempo y reduce su efectivo disponible.`}
-          accion={`Contacte esta semana a sus clientes con mayor saldo vencido y acuerde una fecha de pago. Bajar la morosidad al 30% liberaría cerca de ${moneyFull(cajaLiberable, cur)} en caja.`}
+          porque={hayCxc
+            ? `Su empresa tiene ${moneyFull(Number(s.arTotal), cur)} pendiente de cobrar y el ${pct1(arVencPct)} ya está vencido. Eso significa que parte de ese dinero no está entrando a tiempo y reduce su efectivo disponible.`
+            : 'No hay cuentas por cobrar registradas en este período, así que no hay morosidad que analizar.'}
+          accion={hayCxc
+            ? `Contacte esta semana a sus clientes con mayor saldo vencido y acuerde una fecha de pago. Bajar la morosidad al 30% liberaría cerca de ${moneyFull(cajaLiberable, cur)} en caja.`
+            : undefined}
         />
       </FilaOKR>
 
@@ -323,7 +341,7 @@ export default function TableroDueno() {
         <Metrica label="Proveedores críticos" valor={moneyC(critCxp, cur)} sub="+90 días sin pagar" subColor="#d03b3b">
           {listaClientes(topCxp, 'ap')}
         </Metrica>
-        <Metrica label="CxP vs CxC" valor={`${apalanca.toFixed(2)}x`} sub={apalanca > 1 ? 'Debe más de lo que le deben' : 'Le deben más de lo que debe'} subColor={COLOR_TXT[nApalanca]}>
+        <Metrica label="CxP vs CxC" valor={hayApalanca ? `${apalanca.toFixed(2)}x` : '—'} sub={hayApalanca ? (apalanca > 1 ? 'Debe más de lo que le deben' : 'Le deben más de lo que debe') : 'Sin movimientos'} subColor={COLOR_TXT[nApalanca]}>
           <BarraSegmentada alto={16} segmentos={[
             { valor: Number(s.arTotal), color: '#2a78d6', label: `CxC ${moneyC(Number(s.arTotal), cur)}` },
             { valor: Number(s.apTotal), color: '#e34948', label: `CxP ${moneyC(Number(s.apTotal), cur)}` },
@@ -331,61 +349,71 @@ export default function TableroDueno() {
         </Metrica>
         <RazonFinanciera
           nivel={nApalanca}
-          valor={`${apalanca.toFixed(2)}x`}
+          valor={hayApalanca ? `${apalanca.toFixed(2)}x` : '—'}
           nombre="Apalancamiento comercial CxP/CxC"
-          porque={`Por cada Q1.00 que le deben a usted, usted debe Q${apalanca.toFixed(2)} a sus proveedores. ${apalanca > 1 ? 'Debe más de lo que le deben, lo que presiona su caja si los clientes se atrasan.' : 'Le deben más de lo que debe, una posición cómoda.'}`}
-          accion={apalanca > 1 ? 'Priorice cobrar antes de pagar. Use lo que recupere para saldar primero a sus proveedores más grandes y evitar cortes de suministro.' : 'Mantenga el ritmo de cobro; su posición comercial es sana.'}
+          porque={hayApalanca
+            ? `Por cada Q1.00 que le deben a usted, usted debe Q${apalanca.toFixed(2)} a sus proveedores. ${apalanca > 1 ? 'Debe más de lo que le deben, lo que presiona su caja si los clientes se atrasan.' : 'Le deben más de lo que debe, una posición cómoda.'}`
+            : 'No hay cuentas por pagar ni por cobrar en este período para calcular el apalancamiento.'}
+          accion={hayApalanca
+            ? (apalanca > 1 ? 'Priorice cobrar antes de pagar. Use lo que recupere para saldar primero a sus proveedores más grandes y evitar cortes de suministro.' : 'Mantenga el ritmo de cobro; su posición comercial es sana.')
+            : undefined}
         />
       </FilaOKR>
 
       {/* FILA 3 — Mantener caja saludable */}
       <FilaOKR bg="#173404" icono="🏦" titulo="Mantener caja saludable" meta="Meta: liquidez ≥ 1.5x">
-        <Metrica label="Caja disponible hoy" valor={moneyC(Number(s.cashEnd), cur)} sub={`${Number(s.cashNetChange) >= 0 ? 'Creció' : 'Bajó'} ${moneyC(Math.abs(Number(s.cashNetChange)), cur)} en el período`} subColor={Number(s.cashNetChange) >= 0 ? '#0ca30c' : '#d03b3b'}>
-          <Barra pct={cajaPct} color={COLOR_BAR[cajaPct >= 100 ? 'saludable' : cajaPct >= 50 ? 'atencion' : 'critico']} />
-          <div style={{ fontSize: 9, color: '#9aa1ab' }}>{Math.round(cajaPct)}% de lo que debe a proveedores</div>
+        <Metrica label="Caja disponible hoy" valor={moneyC(Number(s.cashEnd), cur)} sub={Number(s.cashNetChange) === 0 ? 'Sin cambio en el período' : `${Number(s.cashNetChange) > 0 ? 'Creció' : 'Bajó'} ${moneyC(Math.abs(Number(s.cashNetChange)), cur)} en el período`} subColor={Number(s.cashNetChange) === 0 ? '#9aa1ab' : Number(s.cashNetChange) > 0 ? '#0ca30c' : '#d03b3b'}>
+          <Barra pct={cajaRecomendada > 0 ? cajaPct : 0} color={cajaRecomendada > 0 ? COLOR_BAR[cajaPct >= 100 ? 'saludable' : cajaPct >= 50 ? 'atencion' : 'critico'] : COLOR_BAR.neutro} />
+          <div style={{ fontSize: 9, color: '#9aa1ab' }}>{cajaRecomendada > 0 ? `${Math.round(cajaPct)}% de lo que debe a proveedores` : 'Sin cuentas por pagar de referencia'}</div>
         </Metrica>
-        <Metrica label="De dónde vino el efectivo" valor="Flujo de caja" sub={flujo && flujo.operating.total >= 0 ? 'Operación positiva' : 'Operación negativa'} subColor={flujo && flujo.operating.total >= 0 ? '#0ca30c' : '#d03b3b'}>
-          {flujo ? (
+        <Metrica label="De dónde vino el efectivo" valor="Flujo de caja" sub={flujoConMovs ? (flujo!.operating.total >= 0 ? 'Operación positiva' : 'Operación negativa') : 'Sin movimientos'} subColor={flujoConMovs ? (flujo!.operating.total >= 0 ? '#0ca30c' : '#d03b3b') : '#9aa1ab'}>
+          {flujoConMovs ? (
             <BarraSegmentada alto={16} segmentos={[
-              { valor: flujo.operating.total,  color: '#1baf7a', label: `Operación ${moneyC(flujo.operating.total, cur)}` },
-              { valor: flujo.financing.total,  color: '#2a78d6', label: `Financiación ${moneyC(flujo.financing.total, cur)}` },
-              { valor: flujo.investing.total,  color: '#e34948', label: `Inversión ${moneyC(flujo.investing.total, cur)}` },
+              { valor: flujo!.operating.total,  color: '#1baf7a', label: `Operación ${moneyC(flujo!.operating.total, cur)}` },
+              { valor: flujo!.financing.total,  color: '#2a78d6', label: `Financiación ${moneyC(flujo!.financing.total, cur)}` },
+              { valor: flujo!.investing.total,  color: '#e34948', label: `Inversión ${moneyC(flujo!.investing.total, cur)}` },
             ]} />
-          ) : <div style={{ fontSize: 10, color: '#9aa1ab' }}>Sin datos de flujo</div>}
+          ) : <div style={{ fontSize: 10, color: '#9aa1ab' }}>Sin movimientos de efectivo en el período</div>}
         </Metrica>
-        <Metrica label="Margen operativo" valor={pct1(margenOper)} sub={margenOper < 0 ? 'Gasta más de lo que gana' : 'Gana después de gastos'} subColor={COLOR_TXT[nMargen]}>
-          <Barra pct={margenOper < 0 ? 100 : Math.min(100, margenOper * 4)} color={COLOR_BAR[nMargen]} />
-          <div style={{ fontSize: 9, color: '#9aa1ab' }}>Margen bruto: {pct1(margenBruto)}</div>
+        <Metrica label="Margen operativo" valor={hayVentas ? pct1(margenOper) : '—'} sub={hayVentas ? (margenOper < 0 ? 'Gasta más de lo que gana' : 'Gana después de gastos') : 'Sin ventas'} subColor={COLOR_TXT[nMargen]}>
+          <Barra pct={!hayVentas ? 0 : margenOper < 0 ? 100 : Math.min(100, margenOper * 4)} color={COLOR_BAR[nMargen]} />
+          <div style={{ fontSize: 9, color: '#9aa1ab' }}>{hayVentas ? `Margen bruto: ${pct1(margenBruto)}` : 'Sin ventas en el período'}</div>
         </Metrica>
         <RazonFinanciera
           nivel={nLiq}
-          valor={`${liquidez.toFixed(2)}x`}
+          valor={nLiq !== 'neutro' ? `${liquidez.toFixed(2)}x` : '—'}
           nombre="Razón de liquidez corriente"
-          porque={`Por cada Q1.00 que debe pagar a corto plazo tiene Q${liquidez.toFixed(2)} disponibles. ${liquidez >= 1.5 ? 'Está en un nivel cómodo.' : liquidez >= 1 ? 'Está por encima de 1 (puede pagar), pero por debajo del ideal de 1.5.' : 'Está por debajo de 1: hoy no alcanza para cubrir lo que debe a corto plazo.'}`}
-          accion={liquidez < 1.5 ? 'Cobrar a los clientes vencidos es la forma más rápida de subir su liquidez sin endeudarse.' : 'Mantenga el nivel de caja y evite comprometer efectivo en gastos no esenciales.'}
+          porque={nLiq !== 'neutro'
+            ? `Por cada Q1.00 que debe pagar a corto plazo tiene Q${liquidez.toFixed(2)} disponibles. ${liquidez >= 1.5 ? 'Está en un nivel cómodo.' : liquidez >= 1 ? 'Está por encima de 1 (puede pagar), pero por debajo del ideal de 1.5.' : 'Está por debajo de 1: hoy no alcanza para cubrir lo que debe a corto plazo.'}`
+            : 'No hay datos de caja ni de balance en este período para calcular la liquidez.'}
+          accion={nLiq === 'neutro' ? undefined : liquidez < 1.5 ? 'Cobrar a los clientes vencidos es la forma más rápida de subir su liquidez sin endeudarse.' : 'Mantenga el nivel de caja y evite comprometer efectivo en gastos no esenciales.'}
         />
       </FilaOKR>
 
       {/* FILA 4 — Mejorar la rentabilidad */}
       <FilaOKR bg="#4A1B0C" icono="📈" titulo="Mejorar la rentabilidad" meta="Meta: margen neto > 0%">
-        <Metrica label="Margen bruto" valor={pct1(margenBruto)} sub={`Por cada Q100 vendido, quedan Q${Math.round(margenBruto)}`} subColor={COLOR_TXT[nBruto]}>
-          <Barra pct={Math.min(100, Math.max(0, margenBruto * 2))} color={COLOR_BAR[nBruto]} />
+        <Metrica label="Margen bruto" valor={hayVentas ? pct1(margenBruto) : '—'} sub={hayVentas ? `Por cada Q100 vendido, quedan Q${Math.round(margenBruto)}` : 'Sin ventas en el período'} subColor={COLOR_TXT[nBruto]}>
+          <Barra pct={hayVentas ? Math.min(100, Math.max(0, margenBruto * 2)) : 0} color={COLOR_BAR[nBruto]} />
           <div style={{ fontSize: 9, color: '#9aa1ab' }}>Meta &gt;35%</div>
         </Metrica>
-        <Metrica label="Margen operativo" valor={pct1(margenOper)} sub={margenOper < 0 ? 'Los gastos consumen el margen' : 'Positivo tras gastos'} subColor={COLOR_TXT[nMargen]}>
-          <Barra pct={margenOper < 0 ? 100 : Math.min(100, margenOper * 4)} color={COLOR_BAR[nMargen]} />
+        <Metrica label="Margen operativo" valor={hayVentas ? pct1(margenOper) : '—'} sub={hayVentas ? (margenOper < 0 ? 'Los gastos consumen el margen' : 'Positivo tras gastos') : 'Sin ventas'} subColor={COLOR_TXT[nMargen]}>
+          <Barra pct={!hayVentas ? 0 : margenOper < 0 ? 100 : Math.min(100, margenOper * 4)} color={COLOR_BAR[nMargen]} />
           <div style={{ fontSize: 9, color: '#9aa1ab' }}>Meta: positivo</div>
         </Metrica>
-        <Metrica label="Retorno sobre activos (ROA)" valor={pct1(roa)} sub={roa < 0 ? 'Los activos no generan ganancia' : 'Los activos generan retorno'} subColor={COLOR_TXT[nRoa]}>
-          <Barra pct={roa < 0 ? 100 : Math.min(100, roa * 5)} color={COLOR_BAR[nRoa]} />
+        <Metrica label="Retorno sobre activos (ROA)" valor={nRoa !== 'neutro' ? pct1(roa) : '—'} sub={nRoa === 'neutro' ? 'Sin datos' : roa < 0 ? 'Los activos no generan ganancia' : 'Los activos generan retorno'} subColor={COLOR_TXT[nRoa]}>
+          <Barra pct={nRoa === 'neutro' ? 0 : roa < 0 ? 100 : Math.min(100, roa * 5)} color={COLOR_BAR[nRoa]} />
           <div style={{ fontSize: 9, color: '#9aa1ab' }}>Meta: ≥5%</div>
         </Metrica>
         <RazonFinanciera
           nivel={nMargen}
-          valor={pct1(margenOper)}
+          valor={hayVentas ? pct1(margenOper) : '—'}
           nombre="Margen operativo neto"
-          porque={`Su empresa ${margenBruto > 0 ? `vende con un margen bruto de ${pct1(margenBruto)} (${margenBruto >= 35 ? 'sano' : 'ajustado'})` : 'tiene margen bruto negativo'}, pero ${margenOper < 0 ? 'los gastos operativos consumen toda la ganancia y generan pérdida' : 'aún queda utilidad después de gastos'}. ${margenOper < 0 ? 'El problema es control de costos, no de ventas.' : ''}`}
-          accion={margenOper < 0 ? 'Identifique sus 3 gastos operativos más grandes y evalúe reducirlos para llevar el margen a positivo.' : 'Mantenga el control de gastos para proteger la utilidad.'}
+          porque={hayVentas
+            ? `Su empresa ${margenBruto > 0 ? `vende con un margen bruto de ${pct1(margenBruto)} (${margenBruto >= 35 ? 'sano' : 'ajustado'})` : 'tiene margen bruto negativo'}, pero ${margenOper < 0 ? 'los gastos operativos consumen toda la ganancia y generan pérdida' : 'aún queda utilidad después de gastos'}. ${margenOper < 0 ? 'El problema es control de costos, no de ventas.' : ''}`
+            : 'No hubo ventas registradas en este período, así que no hay rentabilidad que evaluar.'}
+          accion={hayVentas
+            ? (margenOper < 0 ? 'Identifique sus 3 gastos operativos más grandes y evalúe reducirlos para llevar el margen a positivo.' : 'Mantenga el control de gastos para proteger la utilidad.')
+            : undefined}
         />
       </FilaOKR>
 
@@ -396,7 +424,7 @@ export default function TableroDueno() {
         <ThunderboltOutlined style={{ color: '#1677ff', fontSize: 15, flexShrink: 0, marginTop: 2 }} />
         <p style={{ fontSize: 12, color: '#0a0a0a', lineHeight: 1.6, margin: 0 }}>
           <strong style={{ color: '#1677ff' }}>Diagnóstico de Lucía (preliminar) — </strong>
-          {diagnosticoPreliminar({ nCxc, nCxp, nLiq, nMargen, arVencPct, apVencPct, apalanca, liquidez, margenBruto, margenOper, cur, critCxc })}
+          {diagnosticoPreliminar({ periodoVacio, hayCxc, hayVentas, nCxc, nMargen, arVencPct, apalanca, hayApalanca, margenBruto, margenOper, cur, critCxc })}
         </p>
       </div>
 
@@ -417,21 +445,34 @@ export default function TableroDueno() {
   )
 }
 
-// Diagnóstico preliminar por reglas (placeholder hasta que exista el endpoint de narrativa)
+// Diagnóstico preliminar por reglas (placeholder hasta que exista el endpoint de narrativa).
+// Construye el texto solo con las dimensiones que tienen datos — nada de frases pegadas
+// cuando el período está vacío.
 function diagnosticoPreliminar(p: {
-  nCxc: Nivel; nCxp: Nivel; nLiq: Nivel; nMargen: Nivel
-  arVencPct: number; apVencPct: number; apalanca: number; liquidez: number
-  margenBruto: number; margenOper: number; cur: string; critCxc: number
+  periodoVacio: boolean; hayCxc: boolean; hayVentas: boolean; hayApalanca: boolean
+  nCxc: Nivel; nMargen: Nivel
+  arVencPct: number; apalanca: number; margenBruto: number; margenOper: number
+  cur: string; critCxc: number
 }): string {
+  if (p.periodoVacio) {
+    return 'En este período no hay movimientos registrados para analizar. Seleccione un trimestre con actividad (ventas, cobros, pagos o movimientos de banco) para ver el diagnóstico.'
+  }
   const partes: string[] = []
-  if (p.nCxc === 'critico') partes.push(`el mayor riesgo está en la cobranza: el ${pct1(p.arVencPct)} de lo que le deben ya está vencido${p.critCxc > 0 ? ` y hay ${moneyFull(p.critCxc, p.cur)} en casos críticos` : ''}`)
-  else partes.push('la cobranza está bajo control')
-  if (p.apalanca > 1) partes.push(`debe más de lo que le deben (${p.apalanca.toFixed(2)}x), así que cobrar rápido es clave para pagar sin financiamiento`)
-  if (p.nMargen === 'critico') partes.push(`el margen bruto de ${pct1(p.margenBruto)} es ${p.margenBruto >= 35 ? 'sano' : 'ajustado'}, pero los gastos operativos lo consumen y generan pérdida: el problema es control de costos, no ventas`)
-  else if (p.nMargen === 'saludable') partes.push('la rentabilidad operativa es positiva')
-  const foco = p.nCxc === 'critico'
+  if (p.hayCxc) {
+    if (p.nCxc === 'critico') partes.push(`el mayor riesgo está en la cobranza: el ${pct1(p.arVencPct)} de lo que le deben ya está vencido${p.critCxc > 0 ? ` y hay ${moneyFull(p.critCxc, p.cur)} en casos críticos` : ''}`)
+    else if (p.nCxc === 'atencion') partes.push('la cobranza necesita atención: parte de lo que le deben empieza a vencerse')
+    else partes.push('la cobranza está bajo control')
+  }
+  if (p.hayApalanca && p.apalanca > 1) partes.push(`debe más de lo que le deben (${p.apalanca.toFixed(2)}x), así que cobrar rápido es clave para pagar sin financiamiento`)
+  if (p.hayVentas) {
+    if (p.nMargen === 'critico') partes.push(`el margen bruto de ${pct1(p.margenBruto)} es ${p.margenBruto >= 35 ? 'sano' : 'ajustado'}, pero los gastos operativos lo consumen y generan pérdida: el problema es control de costos, no ventas`)
+    else if (p.nMargen === 'saludable') partes.push('la rentabilidad operativa es positiva')
+    else partes.push('la rentabilidad operativa está en el límite: los gastos casi consumen el margen')
+  }
+  if (partes.length === 0) return 'Hay actividad en el período, pero aún no es suficiente para un diagnóstico completo de cobranza y rentabilidad.'
+  const foco = (p.hayCxc && p.nCxc === 'critico')
     ? 'Prioridad de la semana: llamar a los clientes vencidos más grandes y acordar fechas de pago concretas.'
-    : p.nMargen === 'critico'
+    : (p.hayVentas && p.nMargen === 'critico')
       ? 'Prioridad de la semana: revisar los 3 gastos operativos más grandes.'
       : 'Mantenga el ritmo actual y vigile los indicadores en amarillo.'
   return `En resumen, ${partes.join('; ')}. ${foco}`
