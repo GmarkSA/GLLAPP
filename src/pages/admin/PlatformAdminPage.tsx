@@ -9,7 +9,7 @@ import {
   EyeOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
-  SearchOutlined, MoreOutlined,
+  SearchOutlined, MoreOutlined, PrinterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
@@ -1597,6 +1597,18 @@ export default function PlatformAdminPage() {
                           }}
                         >
                           Emitir FEL
+                        </Button>
+                      ) : <Text type="secondary">—</Text>,
+                    },
+                    {
+                      title: 'Comprobante', width: 110,
+                      render: (_, p) => p.result === 'approved' ? (
+                        <Button
+                          size="small" icon={<PrinterOutlined />}
+                          onClick={() => window.open(`/admin/comprobante-pago/${p.id}`, '_blank', 'noopener')}
+                          style={{ color: '#1B3A6B', borderColor: '#1B3A6B', fontSize: 11 }}
+                        >
+                          Ver
                         </Button>
                       ) : <Text type="secondary">—</Text>,
                     },

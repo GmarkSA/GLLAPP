@@ -27,6 +27,7 @@ const BankProfilesPage           = lazy(() => import('./pages/configuracion/empr
 const PlantillasImpresionPage    = lazy(() => import('./pages/configuracion/PlantillasImpresionPage'))
 const PlantillasCorreoPage       = lazy(() => import('./pages/configuracion/PlantillasCorreoPage'))
 const PlatformAdminPage          = lazy(() => import('./pages/admin/PlatformAdminPage'))
+const ComprobantePagoPage        = lazy(() => import('./pages/admin/ComprobantePagoPage'))
 const CompanyUsersPage       = lazy(() => import('./pages/configuracion/empresas/CompanyUsersPage'))
 const OnboardingWizardPage   = lazy(() => import('./pages/onboarding/OnboardingWizardPage'))
 const SetupGuidePage         = lazy(() => import('./pages/onboarding/SetupGuidePage'))
@@ -232,6 +233,7 @@ export default function App() {
         <Route path="/bancos/cheques/imprimir-lote"             element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
         <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
         <Route path="/reportes/integraciones/:anio/:mes/imprimir" element={<PrivateRoute><IntegracionesImprimirPage /></PrivateRoute>} />
+        <Route path="/admin/comprobante-pago/:id"                 element={<PrivateRoute><ComprobantePagoPage /></PrivateRoute>} />
 
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
