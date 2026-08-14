@@ -40,6 +40,17 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
   const [planAccounts, setPlanAccounts]   = useState<Record<string, string | undefined>>({})
   const [savingAccount, setSavingAccount] = useState<string | null>(null)
   const [emitiendo, setEmitiendo] = useState(false)
+  const [reconciliando, setReconciliando] = useState(false)
+
+  const handleReconciliar = async () => {
+    setReconciliando(true)
+    try {
+      const r: any = await api.post('/billing/admin/reconciliar-cobros').then(x => x.data?.data ?? x.data)
+      message.success(`Reconciliadas ${r?.revisadas ?? 0} suscripción(es) · ${r?.pagosAprobados ?? 0} pago(s) aprobado(s)`)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al reconciliar cobros')
+    } finally { setReconciliando(false) }
+  }
 
   const handleEmitirAhora = async () => {
     setEmitiendo(true)
@@ -237,12 +248,15 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
             <Text type="secondary" style={{ fontSize: 12 }}>No se cargaron cuentas de ingreso de la nomenclatura.</Text>
           )}
 
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed rgba(10,10,10,0.12)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed rgba(10,10,10,0.12)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Button icon={<ReloadOutlined />} loading={reconciliando} onClick={handleReconciliar}>
+              Reconciliar cobros QPayPro
+            </Button>
             <Button type="primary" icon={<FileTextOutlined />} loading={emitiendo} onClick={handleEmitirAhora} style={{ background: '#2ea172', borderColor: '#2ea172' }}>
               Emitir facturas pendientes ahora
             </Button>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Factura los cobros confirmados que aún no tienen Factura de Venta (respeta el candado de fecha configurado).
+            <Text type="secondary" style={{ fontSize: 12, flexBasis: '100%' }}>
+              1) <b>Reconciliar</b> confirma en QPayPro los cobros pendientes (registra el pago si está aprobado). 2) <b>Emitir</b> factura los cobros confirmados que aún no tienen Factura de Venta.
             </Text>
           </div>
         </Card>
