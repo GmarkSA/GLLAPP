@@ -390,6 +390,7 @@ export default function PlatformAdminPage() {
   const [plans, setPlans]       = useState<PlanConfig[]>([])
   const [loading, setLoading]   = useState(false)
   const [detail, setDetail]     = useState<any | null>(null)
+  const [detailBilling, setDetailBilling] = useState<TenantBillingInfo | null>(null)
   const [detailOpen, setDetailOpen]   = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [seeding, setSeeding]   = useState(false)
@@ -522,10 +523,12 @@ export default function PlatformAdminPage() {
   useEffect(() => { loadTenants(); loadPlans() }, [loadTenants, loadPlans])
 
   const openDetail = async (id: string) => {
-    setDetailOpen(true); setDetailLoading(true); setDetail(null)
+    setDetailOpen(true); setDetailLoading(true); setDetail(null); setDetailBilling(null)
     try {
       const d = await api.get(`/admin/tenants/${id}`).then(unwrap)
       setDetail(d)
+      // Facturación (suscripción + cobros) en paralelo — no bloquea el detalle
+      adminGetTenantBilling(id).then(setDetailBilling).catch(() => setDetailBilling(null))
     } catch { message.error('Error al cargar detalle') }
     finally { setDetailLoading(false) }
   }
@@ -1081,24 +1084,90 @@ export default function PlatformAdminPage() {
       <Modal
         title={<Space><GlobalOutlined />{detail?.name ?? 'Detalle'}</Space>}
         open={detailOpen}
-        onCancel={() => { setDetailOpen(false); setDetail(null) }}
-        footer={<Button onClick={() => { setDetailOpen(false); setDetail(null) }}>Cerrar</Button>}
+        onCancel={() => { setDetailOpen(false); setDetail(null); setDetailBilling(null) }}
+        footer={<Button onClick={() => { setDetailOpen(false); setDetail(null); setDetailBilling(null) }}>Cerrar</Button>}
         width={980}
       >
         {detailLoading
           ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
           : detail && (
             <>
-              <Descriptions size="small" column={2} style={{ marginBottom: 16 }}>
-                <Descriptions.Item label="Plan">
-                  <Tag color={PLAN_COLOR[detail.plan ?? ''] ?? 'default'}>{detail.plan ?? 'basic'}</Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Estado">
-                  <Badge status={STATUS_COLOR[detail.status ?? ''] ?? 'default'} text={detail.status} />
-                </Descriptions.Item>
-                <Descriptions.Item label="NIT">{detail.taxId ?? '—'}</Descriptions.Item>
-                <Descriptions.Item label="Creado">{detail.createdAt ? new Date(detail.createdAt).toLocaleDateString('es-GT') : '—'}</Descriptions.Item>
-              </Descriptions>
+              {/* Encabezado de control */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                <Tag color={PLAN_COLOR[detail.plan ?? ''] ?? 'default'}>{detail.plan ?? 'basic'}</Tag>
+                <Badge status={STATUS_COLOR[detail.status ?? ''] ?? 'default'} text={detail.status} />
+                {detail.taxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT {detail.taxId}</Text>}
+                {detail.createdAt && <Text type="secondary" style={{ fontSize: 12 }}>· Creado {new Date(detail.createdAt).toLocaleDateString('es-GT')}</Text>}
+              </div>
+
+              {/* Tira de métricas */}
+              <Row gutter={12} style={{ marginBottom: 16 }}>
+                <Col span={6}>
+                  <div style={{ background: '#f7f8fa', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>MRR mensual</div>
+                    <div style={{ fontSize: 18, fontWeight: 600, color: '#1B3A6B' }}>
+                      {detailBilling?.subscription
+                        ? `${detailBilling.subscription.billingCurrency} ${Number(detailBilling.subscription.billingAmountLocal || detailBilling.subscription.monthlyPrice).toFixed(2)}`
+                        : detail.status === 'active' ? fmtMoney(tenantMonthly(detail)) : '—'}
+                    </div>
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <div style={{ background: '#f7f8fa', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Empresas</div>
+                    <div style={{ fontSize: 18, fontWeight: 600 }}>{detail.companies?.length ?? 0}</div>
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <div style={{ background: '#f7f8fa', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Usuarios</div>
+                    <div style={{ fontSize: 18, fontWeight: 600 }}>{detail.users?.length ?? 0}</div>
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <div style={{ background: '#f7f8fa', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>{detailBilling?.trialDaysLeft != null ? 'Trial' : 'Próx. cobro'}</div>
+                    <div style={{ fontSize: 18, fontWeight: 600, color: detailBilling?.trialDaysLeft != null ? '#b7791f' : undefined }}>
+                      {detailBilling?.trialDaysLeft != null
+                        ? `${detailBilling.trialDaysLeft} días`
+                        : detailBilling?.subscription?.nextChargeAt
+                          ? new Date(detailBilling.subscription.nextChargeAt).toLocaleDateString('es-GT')
+                          : '—'}
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+
+              {/* Suscripción + cobros recientes */}
+              {detailBilling && (
+                <Card size="small" style={{ marginBottom: 16 }}
+                  title={<Space><DollarOutlined style={{ color: '#2ea172' }} />Cobros recientes</Space>}>
+                  {detailBilling.subscription && (
+                    <div style={{ marginBottom: 10, fontSize: 12, color: '#374151' }}>
+                      Suscripción <b>{detailBilling.subscription.plan}</b> · {detailBilling.subscription.status}
+                      {detailBilling.subscription.qpayproCardLast4
+                        ? ` · ${detailBilling.subscription.qpayproCardBrand} ••••${detailBilling.subscription.qpayproCardLast4}`
+                        : ' · sin tarjeta'}
+                    </div>
+                  )}
+                  <Table<TenantBillingPayment>
+                    rowKey="id" size="small" pagination={false}
+                    dataSource={(detailBilling.payments ?? []).slice(0, 5)}
+                    locale={{ emptyText: 'Sin cobros registrados' }}
+                    columns={[
+                      { title: 'Fecha', dataIndex: 'chargedAt', width: 100, render: (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—' },
+                      { title: 'Monto', width: 120, render: (_, p) => `${p.currency} ${Number(p.amount).toFixed(2)}` },
+                      { title: 'Estado', dataIndex: 'result', width: 90, render: (v: string) => <Tag color={v === 'approved' ? 'success' : v === 'declined' ? 'error' : 'default'}>{v}</Tag> },
+                      {
+                        title: 'FEL',
+                        render: (_, p) => p.felUuid
+                          ? <Space size={4}><Tag color="success" style={{ fontSize: 11 }}>{p.felSerie}-{p.felNumero}</Tag>{p.felInvoiceUrl && <Button size="small" href={p.felInvoiceUrl} target="_blank" icon={<FileTextOutlined />} />}</Space>
+                          : <Text type="secondary">—</Text>,
+                      },
+                    ]}
+                  />
+                </Card>
+              )}
               {detail.companies?.length > 0 && (
                 <>
                   <Text strong style={{ fontSize: 12 }}><BankOutlined style={{ marginRight: 4 }} />Empresas ({detail.companies.length})</Text>
