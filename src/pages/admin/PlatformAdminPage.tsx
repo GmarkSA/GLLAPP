@@ -399,6 +399,9 @@ export default function PlatformAdminPage() {
   const [planModalOpen, setPlanModalOpen] = useState(false)
   const [savingPlan, setSavingPlan] = useState(false)
   const [planForm] = Form.useForm()
+  // Símbolo del campo Precio mensual según la moneda seleccionada
+  const planCurrency = Form.useWatch('currency', planForm)
+  const simboloMoneda = planCurrency === 'GTQ' ? 'Q' : planCurrency === 'EUR' ? '€' : '$'
 
   // Assign plan to tenant
   const [assigningTenantId, setAssigningTenantId] = useState<string | null>(null)
@@ -1332,7 +1335,7 @@ export default function PlatformAdminPage() {
               <Select options={[{ value: 'USD', label: 'USD' }, { value: 'GTQ', label: 'GTQ' }, { value: 'EUR', label: 'EUR' }]} />
             </Form.Item>
             <Form.Item name="priceMonthly" label="Precio mensual" rules={[{ required: true }]}>
-              <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix="$" />
+              <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix={simboloMoneda} addonAfter={planCurrency || 'USD'} />
             </Form.Item>
             <Form.Item name="maxCompanies" label="Máx. empresas" rules={[{ required: true }]}>
               <InputNumber min={1} style={{ width: '100%' }} />
