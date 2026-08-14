@@ -404,8 +404,9 @@ function Sheet({
                     { lbl: 'Saldo Sistema', val: Q(b.bankAccount.currentBalance), color: '#1B3A6B' },
                     ...(rc ? [
                       { lbl: 'Saldo Banco', val: Q(rc.saldoBanco) },
-                      { lbl: 'Diferencia',  val: Q(rc.diferencia),
-                        color: Math.abs(rc.diferencia) < 0.01 ? '#2ea172' : '#e5484d' },
+                      // Diferencia = saldo sistema (GL) vs saldo banco, no el snapshot rc.diferencia
+                      { lbl: 'Diferencia',  val: Q(Number(b.bankAccount.currentBalance) - Number(rc.saldoBanco)),
+                        color: Math.abs(Number(b.bankAccount.currentBalance) - Number(rc.saldoBanco)) < 0.01 ? '#2ea172' : '#e5484d' },
                       ...(rc.notes ? [{ lbl: 'Notas', val: rc.notes }] : []),
                     ] : []),
                   ].map(({ lbl, val, color }) => (
