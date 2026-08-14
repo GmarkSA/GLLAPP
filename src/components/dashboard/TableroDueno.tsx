@@ -115,7 +115,12 @@ function BarraSegmentada({ segmentos, alto = 12 }: { segmentos: Segmento[]; alto
 }
 
 const cssMc: React.CSSProperties = { padding: '11px 12px', borderRight: '0.5px solid #e5e7eb', minWidth: 0 }
-const lblStyle: React.CSSProperties = { fontSize: 10, color: '#9aa1ab', marginBottom: 3 }
+// Etiqueta de cada métrica: legible (slate oscuro, mayúsculas suaves) para que el usuario
+// identifique claramente cada bloque — antes era gris claro y no se veía.
+const lblStyle: React.CSSProperties = {
+  fontSize: 10.5, fontWeight: 600, color: '#475569', marginBottom: 5,
+  textTransform: 'uppercase', letterSpacing: '0.03em',
+}
 const valStyle: React.CSSProperties = { fontSize: 17, fontWeight: 500, color: '#0a0a0a', marginBottom: 2 }
 
 function Metrica({ label, valor, sub, subColor, children }: {
@@ -140,7 +145,7 @@ function RazonFinanciera({ nivel, valor, nombre, porque, accion }: {
         {nivel === 'neutro' ? 'Sin datos' : 'Razón financiera'}
       </span>
       <div style={{ fontSize: 20, fontWeight: 500, color: nivel === 'neutro' ? '#9aa1ab' : '#0a0a0a', marginBottom: 2 }}>{valor}</div>
-      <div style={{ fontSize: 10, color: '#9aa1ab', marginBottom: 6 }}>{nombre}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#1B3A6B', marginBottom: 6 }}>{nombre}</div>
       <div style={{ fontSize: 10, color: '#6b7280', lineHeight: 1.5, marginBottom: 6, borderLeft: '2px solid #cbd5e1', paddingLeft: 6 }}>{porque}</div>
       {accion && (
         <div style={{ fontSize: 10, color: '#1677ff', lineHeight: 1.5, display: 'flex', gap: 4, alignItems: 'flex-start' }}>
