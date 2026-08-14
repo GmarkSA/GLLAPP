@@ -205,3 +205,24 @@ export const adminGetTenantBilling = (tenantId: string): Promise<TenantBillingIn
 
 export const adminRequestInvoiceForTenant = (paymentId: string, dto: RequestInvoiceDto): Promise<BillingFelResult> =>
   api.post(`/billing/admin/payments/${paymentId}/invoice`, dto).then(unwrap)
+
+// Comprobante de pago (voucher) de un cobro de suscripción
+export interface ComprobantePago {
+  id: string
+  qpayproTransactionId?: string
+  qpayproAuditNumber?: string
+  qpayproResponseCode?: string
+  cardBrand?: string
+  cardLast4?: string
+  amount: number
+  currency: string
+  plan: string
+  result: string
+  chargedAt: string
+  clienteNombre: string
+  clienteNit?: string
+  clienteEmail?: string
+  planNombre?: string
+}
+export const getComprobantePago = (paymentId: string): Promise<ComprobantePago> =>
+  api.get(`/billing/admin/payments/${paymentId}/comprobante`).then(unwrap)
