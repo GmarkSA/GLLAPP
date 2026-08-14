@@ -277,7 +277,7 @@ function ActivoFijoPanel({ data }: { data: ActivoFijoEspecifico }) {
 
 // ─── Panel de detalle de cuenta ──────────────────────────────────────────────
 
-function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: number; anio: number }) {
+export function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; mes: number; anio: number }) {
   const { cuenta, integrationType, especifico, saldoFinal, lineas } = detalle
 
   const printUrl = `/reportes/integraciones/${anio}/${mes}/imprimir?accountId=${cuenta.id}`
