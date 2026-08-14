@@ -129,7 +129,7 @@ export default function FacturaRecurrenteFormPage() {
         lugarExpedicion:            r.lugarExpedicion,
         nombreConsignatario:        r.nombreConsignatario,
         direccionConsignatario:     r.direccionConsignatario,
-        idSuscripcionQpaypro:       r.idSuscripcionQpaypro ?? undefined,
+        subscriptionId:             r.subscriptionId ?? undefined,
       })
       setFrecuencia(r.frecuencia)
       setTipoVigencia(r.tipoVigencia)
@@ -201,7 +201,7 @@ export default function FacturaRecurrenteFormPage() {
         emailNotificacion:          vals.notificarClientePorEmail ? (vals.emailNotificacion || undefined) : undefined,
         emailAdicionalNotificacion: vals.notificarClientePorEmail ? (vals.emailAdicionalNotificacion || undefined) : undefined,
         observaciones:              vals.observaciones,
-        idSuscripcionQpaypro:       vals.idSuscripcionQpaypro ?? undefined,
+        subscriptionId:             vals.subscriptionId ?? undefined,
         detalles: items.filter(i => i.description).map((i, idx) => ({
           itemId:              i.productId,
           descripcion:         i.description,
@@ -287,17 +287,19 @@ export default function FacturaRecurrenteFormPage() {
 
             {isSuperAdmin && (
               <Form.Item
-                name="idSuscripcionQpaypro"
+                name="subscriptionId"
                 label="Suscripción QPayPro"
-                style={{ width: 320, marginBottom: 0 }}
+                style={{ width: 340, marginBottom: 0 }}
                 tooltip="Si la enlazas, la factura se emite cuando el cliente paga (no por calendario) y usa el precio del plan."
               >
                 <Select
                   allowClear
+                  showSearch
+                  optionFilterProp="label"
                   placeholder="Sin enlace (genera por calendario)"
                   options={qpayproSubs.map(s => ({
-                    value: s.idSuscripcionQpaypro,
-                    label: `${s.tenantName} · ${s.plan} (${s.status})`,
+                    value: s.id,
+                    label: `${s.tenantName} · ${s.plan} (${s.status})${s.idSuscripcionQpaypro ? ' · QPayPro activo' : ''}`,
                   }))}
                 />
               </Form.Item>
