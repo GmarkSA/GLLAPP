@@ -755,7 +755,12 @@ export default function PlatformAdminPage() {
   // MRR calculado en el front desde el precio del plan (o precio personalizado).
   // Aproximado: no mezcla tipos de cambio — es una vista de control, no contable.
   const planByCode = new Map(plans.map(p => [p.plan, p]))
-  const mrrCurrency = tenants.find(t => t.mrrCurrency)?.mrrCurrency ?? plans[0]?.currency ?? 'GTQ'
+  // La moneda del MRR sale del PLAN (fuente de precio confiable), no de la
+  // suscripción — cuyo billingCurrency quedó en USD por default y no representa
+  // la moneda real de cobro configurada en el plan (GTQ).
+  const mrrCurrency = plans[0]?.currency ?? 'GTQ'
+  const tenantCur = (t: TenantSummary): string =>
+    planByCode.get(t.plan ?? '')?.currency ?? mrrCurrency
   const symFor = (cur?: string | null) =>
     cur === 'GTQ' ? 'Q' : cur === 'EUR' ? '€' : cur === 'USD' ? '$'
       : (mrrCurrency === 'GTQ' ? 'Q' : mrrCurrency === 'EUR' ? '€' : '$')
@@ -852,7 +857,7 @@ export default function PlatformAdminPage() {
       render: (_, r) => {
         const v = tenantMrr(r)
         return v > 0
-          ? <b style={{ color: '#1B3A6B' }}>{fmtMoney(v, r.mrrCurrency)}</b>
+          ? <b style={{ color: '#1B3A6B' }}>{fmtMoney(v, tenantCur(r))}</b>
           : <Text type="secondary">—</Text>
       },
     },
@@ -1396,8 +1401,8 @@ export default function PlatformAdminPage() {
                     value={customPrice}
                     onChange={v => setCustomPrice(v)}
                     min={0} step={1} precision={2}
-                    prefix={symFor(billingInfo?.subscription?.billingCurrency ?? billingTenant?.mrrCurrency ?? mrrCurrency)}
-                    addonAfter={`${billingInfo?.subscription?.billingCurrency ?? billingTenant?.mrrCurrency ?? mrrCurrency}/mes`}
+                    prefix={symFor(billingTenant ? tenantCur(billingTenant) : mrrCurrency)}
+                    addonAfter={`${billingTenant ? tenantCur(billingTenant) : mrrCurrency}/mes`}
                     style={{ width: 220 }}
                     placeholder={`Precio del plan`}
                   />
