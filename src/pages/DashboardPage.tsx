@@ -7,7 +7,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  BankOutlined, BarChartOutlined, CalendarOutlined, DollarOutlined,
+  BankOutlined, BarChartOutlined, CalendarOutlined, DashboardOutlined, DollarOutlined,
   FileTextOutlined, LineChartOutlined, ReloadOutlined, RiseOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
@@ -18,6 +18,7 @@ import {
   type ExecutiveDashboardData,
   type RatioItem,
 } from '../api/reportes'
+import TableroDueno from '../components/dashboard/TableroDueno'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -879,43 +880,19 @@ export default function DashboardPage() {
 
   const currency = data?.currency ?? 'GTQ'
 
+  // Tabs: "Tablero del dueño" (por defecto) + "Resumen Ejecutivo".
+  // Los paneles CxC / CxP / Flujo de Caja / KPIs (AgingPanel, CashFlowPanel, KpiPanel)
+  // se conservan en el archivo como fallback reutilizable, fuera del set de tabs.
   const tabs = useMemo(() => data ? [
+    {
+      key: 'tablero',
+      label: <Space><DashboardOutlined />Tablero del dueño</Space>,
+      children: <TableroDueno />,
+    },
     {
       key: 'resumen',
       label: <Space><LineChartOutlined />Resumen Ejecutivo</Space>,
       children: <ResumenTab data={data} currency={currency} loading={loading} />,
-    },
-    {
-      key: 'cxc',
-      label: (
-        <Space>
-          <FileTextOutlined />
-          CxC
-          {data.receivables.critical > 0 && <Badge dot status="error" />}
-        </Space>
-      ),
-      children: <AgingPanel title="CxC" section={data.receivables} kind="ar" currency={currency} />,
-    },
-    {
-      key: 'cxp',
-      label: (
-        <Space>
-          <WarningOutlined />
-          CxP
-          {data.payables.critical > 0 && <Badge dot status="error" />}
-        </Space>
-      ),
-      children: <AgingPanel title="CxP" section={data.payables} kind="ap" currency={currency} />,
-    },
-    {
-      key: 'flujo',
-      label: <Space><BankOutlined />Flujo de Caja</Space>,
-      children: <CashFlowPanel data={data} currency={currency} />,
-    },
-    {
-      key: 'kpis',
-      label: <Space><BarChartOutlined />KPIs Financieros</Space>,
-      children: <KpiPanel ratios={data.ratios} payables={data.payables} currency={currency} />,
     },
   ] : [], [data, currency, loading])
 
