@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Tag, Badge, Space, Typography, Statistic, Row, Col,
   Button, message, Modal, Descriptions, Spin, Popconfirm, Tabs,
-  Form, InputNumber, Input, Select, Tooltip, Segmented,
+  Form, InputNumber, Input, Select, Tooltip, Segmented, Dropdown,
 } from 'antd'
 import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
-  EyeOutlined, RocketOutlined, EditOutlined, CheckCircleOutlined,
+  EyeOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
-  SearchOutlined,
+  SearchOutlined, MoreOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
@@ -172,6 +172,7 @@ interface TenantSummary {
   // MRR real desde el backend (GET /admin/tenants); null si el tenant no factura
   mrrAmount?: number | null; mrrCurrency?: string | null
   subscriptionStatus?: string | null; nextChargeAt?: string | null
+  lastInvoiceUrl?: string | null; lastInvoiceSerie?: string | null
 }
 interface PlatformStats {
   totalTenants: number; active: number; trial: number; suspended: number
@@ -401,6 +402,7 @@ export default function PlatformAdminPage() {
   // Filtro + búsqueda de la tabla de tenants (rediseño control)
   const [tenantFilter, setTenantFilter] = useState<'all' | 'active' | 'trial' | 'suspended'>('all')
   const [tenantSearch, setTenantSearch] = useState('')
+  const [trialActingId, setTrialActingId] = useState<string | null>(null)
 
   // Plan edit
   const [editingPlan, setEditingPlan] = useState<PlanConfig | null>(null)
@@ -534,6 +536,17 @@ export default function PlatformAdminPage() {
       adminGetTenantBilling(id).then(setDetailBilling).catch(() => setDetailBilling(null))
     } catch { message.error('Error al cargar detalle') }
     finally { setDetailLoading(false) }
+  }
+
+  const handleRowTrial = async (tenantId: string, days: number) => {
+    setTrialActingId(tenantId)
+    try {
+      await adminActivateTrial(tenantId, days)
+      message.success(`Trial de ${days} días activado`)
+      loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al activar trial')
+    } finally { setTrialActingId(null) }
   }
 
   const handleSeedCastillo = async (tenantId: string) => {
@@ -826,7 +839,14 @@ export default function PlatformAdminPage() {
       ),
     },
     { title: 'Empresas', dataIndex: 'companiesCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
-    { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
+    {
+      title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const,
+      render: (v: number | undefined, r) => (
+        <Tooltip title="Ver / bloquear / habilitar usuarios">
+          <a style={{ color: '#1B3A6B', fontWeight: 500 }} onClick={() => openDetail(r.id)}>{v ?? 0}</a>
+        </Tooltip>
+      ),
+    },
     {
       title: 'MRR', width: 110, align: 'right' as const,
       render: (_, r) => {
@@ -837,13 +857,21 @@ export default function PlatformAdminPage() {
       },
     },
     {
-      title: '', width: 175,
+      title: 'Próximo cobro', width: 130,
+      render: (_, r) => {
+        if (r.status === 'trial' && r.trialDaysLeft != null)
+          return <Tag color={r.trialDaysLeft <= 7 ? 'orange' : 'blue'} icon={<ClockCircleOutlined />} style={{ fontSize: 11 }}>trial · {r.trialDaysLeft}d</Tag>
+        if (r.nextChargeAt)
+          return <span style={{ fontSize: 12 }}>{new Date(r.nextChargeAt).toLocaleDateString('es-GT')}</span>
+        return <Text type="secondary">—</Text>
+      },
+    },
+    {
+      title: 'Acciones', width: 250,
       render: (_, r) => (
         <Space size={4}>
           <Button
-            size="small"
-            type="primary"
-            icon={<EyeOutlined />}
+            size="small" type="primary" icon={<EyeOutlined />}
             loading={impersonating === r.id}
             onClick={() => handleImpersonate(r)}
             style={{ background: '#1B3A6B' }}
@@ -851,16 +879,31 @@ export default function PlatformAdminPage() {
           >
             Acceder
           </Button>
-          <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} title="Ver detalle" />
-          <Tooltip title="Facturación y trial">
-            <Button
-              size="small"
-              icon={<DollarOutlined />}
-              onClick={() => openBillingModal(r)}
-              style={{ color: '#2ea172', borderColor: '#2ea172' }}
-              title="Facturación y trial"
-            />
+          <Tooltip title="Detalle: empresas, usuarios y cobros">
+            <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} />
           </Tooltip>
+          <Tooltip title="Facturación e historial de pagos">
+            <Button size="small" icon={<DollarOutlined />} onClick={() => openBillingModal(r)}
+              style={{ color: '#2ea172', borderColor: '#2ea172' }} />
+          </Tooltip>
+          <Dropdown
+            trigger={['click']}
+            menu={{ items: [
+              { key: '30', label: 'Activar trial 30 días', onClick: () => handleRowTrial(r.id, 30) },
+              { key: '15', label: 'Extender trial 15 días', onClick: () => handleRowTrial(r.id, 15) },
+              { key: '7',  label: 'Extender trial +7 días',  onClick: () => handleRowTrial(r.id, 7) },
+            ] }}
+          >
+            <Button size="small" icon={<ClockCircleOutlined />} loading={trialActingId === r.id}
+              title="Trial: activar o extender" style={{ color: '#b7791f', borderColor: '#e5c07b' }} />
+          </Dropdown>
+          {r.lastInvoiceUrl && (
+            <Tooltip title={`Ver factura FEL ${r.lastInvoiceSerie ?? ''}`}>
+              <Button size="small" icon={<FileTextOutlined />}
+                onClick={() => window.open(r.lastInvoiceUrl!, '_blank', 'noopener')}
+                style={{ color: '#1faec2', borderColor: '#1faec2' }} />
+            </Tooltip>
+          )}
           <Popconfirm
             title={r.status === 'suspended' ? '¿Activar tenant?' : '¿Suspender tenant por falta de pago?'}
             onConfirm={() => handleTenantStatus(r.id, r.status === 'suspended' ? 'active' : 'suspended')}
@@ -873,9 +916,14 @@ export default function PlatformAdminPage() {
               title={r.status === 'suspended' ? 'Activar tenant' : 'Suspender tenant'}
             />
           </Popconfirm>
-          <Popconfirm title="¿Crear Grupo Castillo (5 empresas) en este tenant?" onConfirm={() => handleSeedCastillo(r.id)} okText="Sí">
-            <Button size="small" icon={<RocketOutlined />} loading={seeding} title="Seed demo" />
-          </Popconfirm>
+          <Dropdown
+            trigger={['click']}
+            menu={{ items: [
+              { key: 'seed', label: 'Seed demo (Grupo Castillo)', onClick: () => handleSeedCastillo(r.id) },
+            ] }}
+          >
+            <Button size="small" icon={<MoreOutlined />} loading={seeding} title="Más acciones" />
+          </Dropdown>
         </Space>
       ),
     },
