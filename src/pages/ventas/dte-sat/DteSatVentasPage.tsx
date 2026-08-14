@@ -388,7 +388,8 @@ export default function DteSatVentasPage() {
     setStepperDte(dte)
     setStepperStep(0)
     setStepperResult(null)
-    setStepperIsAnulado(false)
+    // Pre-marcar anulada si el portal SAT la reporta anulada → se registrará con Q0.
+    setStepperIsAnulado(!!dte.anulado)
     setStepperCustomer(dte.customerId ? { id: dte.customerId, name: dte.nombreReceptor ?? '' } : null)
     setStepperSuggestion(null)
     stepperForm.resetFields()
@@ -665,7 +666,14 @@ export default function DteSatVentasPage() {
       ellipsis: true,
       render: (_: unknown, r: SatDteEmitidos) => (
         <div>
-          <Text strong style={{ fontSize: 12, display: 'block' }}>{r.nombreReceptor ?? 'Sin nombre'}</Text>
+          <Text strong style={{ fontSize: 12, display: 'block' }}>
+            {r.nombreReceptor ?? 'Sin nombre'}
+            {r.anulado && (
+              <Tag color="#e5484d" icon={<WarningOutlined />} style={{ fontSize: 9, marginLeft: 6, padding: '0 5px', lineHeight: '16px' }}>
+                ANULADO
+              </Tag>
+            )}
+          </Text>
           <Text type="secondary" style={{ fontSize: 10 }}>NIT: {r.nitReceptor ?? '—'}</Text>
         </div>
       ),
