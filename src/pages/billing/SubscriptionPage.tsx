@@ -674,7 +674,7 @@ function BillingFelModal({
 export default function SubscriptionPage() {
   const [state, setState]           = useState<BillingState | null>(null)
   const [loading, setLoading]       = useState(true)
-  const [currency, setCurrency]     = useState<BillingCurrency>('USD')
+  const [currency, setCurrency]     = useState<BillingCurrency>('GTQ')
   const [selectedPlan, setSelectedPlan] = useState<PlanConfig | null>(null)
   const [modalOpen, setModalOpen]   = useState(false)
   const [changingPlan, setChangingPlan] = useState(false)
