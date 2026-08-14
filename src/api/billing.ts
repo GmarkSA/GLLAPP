@@ -55,6 +55,10 @@ export interface SubscriptionPayment {
   cardLast4?: string
   cardBrand?: string
   chargedAt: string
+  felUuid?: string
+  felSerie?: string
+  felNumero?: string
+  felInvoiceUrl?: string
 }
 
 export interface BillingState {
