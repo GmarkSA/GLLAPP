@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Tag, Badge, Space, Typography, Statistic, Row, Col,
   Button, message, Modal, Descriptions, Spin, Popconfirm, Tabs,
-  Form, InputNumber, Input, Select, Tooltip,
+  Form, InputNumber, Input, Select, Tooltip, Segmented,
 } from 'antd'
 import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
   EyeOutlined, RocketOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api/axios'
@@ -393,6 +394,10 @@ export default function PlatformAdminPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [seeding, setSeeding]   = useState(false)
 
+  // Filtro + búsqueda de la tabla de tenants (rediseño control)
+  const [tenantFilter, setTenantFilter] = useState<'all' | 'active' | 'trial' | 'suspended'>('all')
+  const [tenantSearch, setTenantSearch] = useState('')
+
   // Plan edit
   const [editingPlan, setEditingPlan] = useState<PlanConfig | null>(null)
   const [planMode, setPlanMode] = useState<'create' | 'edit'>('edit')
@@ -726,6 +731,34 @@ export default function PlatformAdminPage() {
 
   const totalCompanies = tenants.reduce((s, t) => s + (t.companiesCount ?? 0), 0)
   const totalUsers     = tenants.reduce((s, t) => s + (t.usersCount ?? 0), 0)
+
+  // ── Control: MRR aproximado + conteos + filtrado ──────────────────────────
+  // MRR calculado en el front desde el precio del plan (o precio personalizado).
+  // Aproximado: no mezcla tipos de cambio — es una vista de control, no contable.
+  const planByCode = new Map(plans.map(p => [p.plan, p]))
+  const mrrCurrency = plans[0]?.currency ?? 'GTQ'
+  const moneySymbol = mrrCurrency === 'GTQ' ? 'Q' : mrrCurrency === 'EUR' ? '€' : '$'
+  const fmtMoney = (n: number) =>
+    `${moneySymbol} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const tenantMonthly = (t: TenantSummary): number =>
+    t.customMonthlyPriceUSD != null
+      ? Number(t.customMonthlyPriceUSD)
+      : Number(planByCode.get(t.plan ?? '')?.priceMonthly ?? 0)
+
+  const activeCount    = tenants.filter(t => t.status === 'active').length
+  const trialCount     = tenants.filter(t => t.status === 'trial').length
+  const suspendedCount = tenants.filter(t => t.status === 'suspended').length
+  const mrrTotal       = tenants.filter(t => t.status === 'active').reduce((s, t) => s + tenantMonthly(t), 0)
+  const soonestTrial   = tenants
+    .filter(t => t.status === 'trial' && t.trialDaysLeft != null)
+    .sort((a, b) => (a.trialDaysLeft ?? 0) - (b.trialDaysLeft ?? 0))[0]
+
+  const filteredTenants = tenants.filter(t => {
+    if (tenantFilter !== 'all' && t.status !== tenantFilter) return false
+    const q = tenantSearch.trim().toLowerCase()
+    if (q) return [t.name, t.legalName, t.taxId].some(v => (v ?? '').toLowerCase().includes(q))
+    return true
+  })
   const planOptions = (plans.length > 0 ? plans : [
     { plan: 'basic', displayName: 'Basic' },
     { plan: 'professional', displayName: 'Professional' },
@@ -780,6 +813,12 @@ export default function PlatformAdminPage() {
     },
     { title: 'Empresas', dataIndex: 'companiesCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
+    {
+      title: 'MRR', width: 110, align: 'right' as const,
+      render: (_, r) => r.status === 'active'
+        ? <b style={{ color: '#1B3A6B' }}>{fmtMoney(tenantMonthly(r))}</b>
+        : <Text type="secondary">—</Text>,
+    },
     {
       title: '', width: 175,
       render: (_, r) => (
@@ -841,20 +880,54 @@ export default function PlatformAdminPage() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* KPIs de control */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
-        {[
-          { title: 'Tenants', value: stats?.totalTenants ?? tenants.length, icon: <GlobalOutlined style={{ color: '#1faec2' }} /> },
-          { title: 'Activos', value: stats?.active ?? 0, icon: <Badge status="success" />, color: '#2ea172' },
-          { title: 'Total Empresas', value: totalCompanies, icon: <BankOutlined style={{ color: '#1faec2' }} /> },
-          { title: 'Total Usuarios', value: totalUsers, icon: <TeamOutlined style={{ color: '#6b7280' }} /> },
-        ].map(s => (
-          <Col span={6} key={s.title}>
-            <Card size="small">
-              <Statistic title={s.title} value={s.value} prefix={s.icon} valueStyle={s.color ? { color: s.color } : undefined} />
-            </Card>
-          </Col>
-        ))}
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <DollarOutlined style={{ color: '#1B3A6B' }} />MRR mensual
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#1B3A6B', marginTop: 4 }}>{fmtMoney(mrrTotal)}</div>
+            <div style={{ fontSize: 12, color: '#2ea172', marginTop: 2 }}>{activeCount} suscripción(es) activa(s)</div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <CheckCircleOutlined style={{ color: '#2ea172' }} />Tenants activos
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4 }}>
+              {activeCount} <span style={{ fontSize: 14, color: '#aaa', fontWeight: 400 }}>/ {stats?.totalTenants ?? tenants.length}</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+              Prof. {stats?.byPlan.professional ?? 0} · Ent. {stats?.byPlan.enterprise ?? 0}
+            </div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }} style={{ background: trialCount ? '#fff8ec' : undefined, borderColor: trialCount ? '#f5d9a0' : undefined }}>
+            <div style={{ fontSize: 13, color: trialCount ? '#b7791f' : '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ClockCircleOutlined />En trial
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: trialCount ? '#b7791f' : undefined, marginTop: 4 }}>{trialCount}</div>
+            <div style={{ fontSize: 12, color: trialCount ? '#b7791f' : '#6b7280', marginTop: 2 }}>
+              {soonestTrial
+                ? `${soonestTrial.name} — ${soonestTrial.trialDaysLeft! > 0 ? `vence en ${soonestTrial.trialDaysLeft} días` : 'vencido'}`
+                : 'sin trials activos'}
+            </div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }} style={{ background: suspendedCount ? '#fdecec' : undefined, borderColor: suspendedCount ? '#f3b9b9' : undefined }}>
+            <div style={{ fontSize: 13, color: suspendedCount ? '#c0392b' : '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <StopOutlined />Suspendidos
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: suspendedCount ? '#c0392b' : undefined, marginTop: 4 }}>{suspendedCount}</div>
+            <div style={{ fontSize: 12, color: suspendedCount ? '#c0392b' : '#2ea172', marginTop: 2 }}>
+              {suspendedCount ? 'requieren seguimiento' : 'todo al día'}
+            </div>
+          </Card>
+        </Col>
       </Row>
 
       <Tabs
@@ -865,19 +938,29 @@ export default function PlatformAdminPage() {
             label: <Space><GlobalOutlined />Tenants ({tenants.length})</Space>,
             children: (
               <Card size="small" extra={<Tag color="#ff7f00">Super Admin</Tag>}>
-                {stats && (
-                  <div style={{ marginBottom: 12 }}>
-                    <Space size={8} wrap>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Por plan:</Text>
-                      <Tag>Basic: {stats.byPlan.basic}</Tag>
-                      <Tag color="#1faec2">Professional: {stats.byPlan.professional}</Tag>
-                      <Tag color="gold">Enterprise: {stats.byPlan.enterprise}</Tag>
-                      <Tag color="#ff7f00">Trial: {stats.trial}</Tag>
-                      <Tag color="#e5484d">Suspendidos: {stats.suspended}</Tag>
-                    </Space>
-                  </div>
-                )}
-                <Table rowKey="id" columns={tenantColumns} dataSource={tenants} loading={loading} size="small" pagination={{ pageSize: 20 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <Segmented
+                    size="small"
+                    value={tenantFilter}
+                    onChange={val => setTenantFilter(val as typeof tenantFilter)}
+                    options={[
+                      { label: `Todos (${tenants.length})`,        value: 'all' },
+                      { label: `Activos (${activeCount})`,         value: 'active' },
+                      { label: `Trial (${trialCount})`,            value: 'trial' },
+                      { label: `Suspendidos (${suspendedCount})`,  value: 'suspended' },
+                    ]}
+                  />
+                  <Input
+                    allowClear
+                    size="small"
+                    prefix={<SearchOutlined style={{ color: '#aaa' }} />}
+                    placeholder="Buscar empresa, NIT…"
+                    value={tenantSearch}
+                    onChange={e => setTenantSearch(e.target.value)}
+                    style={{ maxWidth: 260, marginLeft: 'auto' }}
+                  />
+                </div>
+                <Table rowKey="id" columns={tenantColumns} dataSource={filteredTenants} loading={loading} size="small" pagination={{ pageSize: 20 }} />
               </Card>
             ),
           },
