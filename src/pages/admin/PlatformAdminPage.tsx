@@ -169,6 +169,9 @@ interface TenantSummary {
   plan?: string; status?: string; companiesCount?: number
   usersCount?: number; createdAt?: string; trialEndsAt?: string
   trialDaysLeft?: number; customMonthlyPriceUSD?: number
+  // MRR real desde el backend (GET /admin/tenants); null si el tenant no factura
+  mrrAmount?: number | null; mrrCurrency?: string | null
+  subscriptionStatus?: string | null; nextChargeAt?: string | null
 }
 interface PlatformStats {
   totalTenants: number; active: number; trial: number; suspended: number
@@ -739,19 +742,27 @@ export default function PlatformAdminPage() {
   // MRR calculado en el front desde el precio del plan (o precio personalizado).
   // Aproximado: no mezcla tipos de cambio — es una vista de control, no contable.
   const planByCode = new Map(plans.map(p => [p.plan, p]))
-  const mrrCurrency = plans[0]?.currency ?? 'GTQ'
-  const moneySymbol = mrrCurrency === 'GTQ' ? 'Q' : mrrCurrency === 'EUR' ? '€' : '$'
-  const fmtMoney = (n: number) =>
-    `${moneySymbol} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const mrrCurrency = tenants.find(t => t.mrrCurrency)?.mrrCurrency ?? plans[0]?.currency ?? 'GTQ'
+  const symFor = (cur?: string | null) =>
+    cur === 'GTQ' ? 'Q' : cur === 'EUR' ? '€' : cur === 'USD' ? '$'
+      : (mrrCurrency === 'GTQ' ? 'Q' : mrrCurrency === 'EUR' ? '€' : '$')
+  const moneySymbol = symFor(mrrCurrency)
+  const fmtMoney = (n: number, cur?: string | null) =>
+    `${symFor(cur)} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  // MRR aproximado desde el plan (fallback si el backend aún no envía mrrAmount)
   const tenantMonthly = (t: TenantSummary): number =>
     t.customMonthlyPriceUSD != null
       ? Number(t.customMonthlyPriceUSD)
       : Number(planByCode.get(t.plan ?? '')?.priceMonthly ?? 0)
+  // MRR real si el backend lo envía; si no, aproximación (solo tenants activos)
+  const tenantMrr = (t: TenantSummary): number =>
+    t.mrrAmount != null ? Number(t.mrrAmount) : (t.status === 'active' ? tenantMonthly(t) : 0)
+  const mrrIsReal = tenants.some(t => t.mrrAmount != null)
 
   const activeCount    = tenants.filter(t => t.status === 'active').length
   const trialCount     = tenants.filter(t => t.status === 'trial').length
   const suspendedCount = tenants.filter(t => t.status === 'suspended').length
-  const mrrTotal       = tenants.filter(t => t.status === 'active').reduce((s, t) => s + tenantMonthly(t), 0)
+  const mrrTotal       = tenants.reduce((s, t) => s + tenantMrr(t), 0)
   const soonestTrial   = tenants
     .filter(t => t.status === 'trial' && t.trialDaysLeft != null)
     .sort((a, b) => (a.trialDaysLeft ?? 0) - (b.trialDaysLeft ?? 0))[0]
@@ -818,9 +829,12 @@ export default function PlatformAdminPage() {
     { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const, render: (v?: number) => v ?? 0 },
     {
       title: 'MRR', width: 110, align: 'right' as const,
-      render: (_, r) => r.status === 'active'
-        ? <b style={{ color: '#1B3A6B' }}>{fmtMoney(tenantMonthly(r))}</b>
-        : <Text type="secondary">—</Text>,
+      render: (_, r) => {
+        const v = tenantMrr(r)
+        return v > 0
+          ? <b style={{ color: '#1B3A6B' }}>{fmtMoney(v, r.mrrCurrency)}</b>
+          : <Text type="secondary">—</Text>
+      },
     },
     {
       title: '', width: 175,
@@ -891,7 +905,7 @@ export default function PlatformAdminPage() {
               <DollarOutlined style={{ color: '#1B3A6B' }} />MRR mensual
             </div>
             <div style={{ fontSize: 24, fontWeight: 600, color: '#1B3A6B', marginTop: 4 }}>{fmtMoney(mrrTotal)}</div>
-            <div style={{ fontSize: 12, color: '#2ea172', marginTop: 2 }}>{activeCount} suscripción(es) activa(s)</div>
+            <div style={{ fontSize: 12, color: '#2ea172', marginTop: 2 }}>{activeCount} activa(s){mrrIsReal ? '' : ' · aprox.'}</div>
           </Card>
         </Col>
         <Col span={6}>
