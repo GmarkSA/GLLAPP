@@ -26,6 +26,15 @@ const { Title, Text } = Typography
 const money = (n: number, cur = 'USD') =>
   new Intl.NumberFormat('es-GT', { style: 'currency', currency: cur, minimumFractionDigits: 2 }).format(n)
 
+// Convierte un monto desde la moneda del plan a la moneda de visualización.
+// Solo hay tasa GTQ↔USD; para otras (p.ej. EUR) se muestra en la moneda del plan.
+function convertPrecio(amount: number, from: string, to: string, gtqPorUsd: number): { value: number; cur: string } {
+  if (from === to) return { value: amount, cur: to }
+  if (from === 'USD' && to === 'GTQ') return { value: amount * gtqPorUsd, cur: 'GTQ' }
+  if (from === 'GTQ' && to === 'USD') return { value: amount / gtqPorUsd, cur: 'USD' }
+  return { value: amount, cur: from }
+}
+
 
 const RESULT_COLOR: Record<string, string> = {
   approved: 'success',
@@ -59,9 +68,10 @@ function PlanCard({
   onSelect: (plan: PlanConfig) => void
 }) {
   const isActive = current === plan.plan
-  const priceUSD = Number(plan.priceMonthly)
-  const displayPrice = currency === 'GTQ' ? priceUSD * exchangeRate : priceUSD
-  const isFree = priceUSD === 0
+  const planCur = plan.currency || 'USD'
+  const precioNativo = Number(plan.priceMonthly)
+  const { value: displayPrice, cur: displayCur } = convertPrecio(precioNativo, planCur, currency, exchangeRate)
+  const isFree = precioNativo === 0
 
   const borderColor = isActive ? '#1faec2' : 'rgba(10,10,10,0.08)'
 
@@ -91,14 +101,14 @@ function PlanCard({
           {plan.plan.toUpperCase()}
         </Tag>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#1faec2', lineHeight: 1 }}>
-          {isFree ? 'Gratis' : money(displayPrice, currency)}
+          {isFree ? 'Gratis' : money(displayPrice, displayCur)}
         </div>
         {!isFree && (
           <Text type="secondary" style={{ fontSize: 12 }}>
-            / mes en {currency}
-            {currency === 'GTQ' && (
+            / mes en {displayCur}
+            {displayCur !== planCur && (
               <span style={{ marginLeft: 4, color: '#6b7280' }}>
-                (≈ {money(priceUSD, 'USD')})
+                (≈ {money(precioNativo, planCur)})
               </span>
             )}
           </Text>
@@ -159,8 +169,9 @@ function CardForm({
   const [step, setStep] = useState<'tokenizando' | 'activando' | null>(null)
   const [cardDisplay, setCardDisplay] = useState('')
 
-  const priceUSD = Number(plan.priceMonthly)
-  const displayPrice = currency === 'GTQ' ? priceUSD * exchangeRate : priceUSD
+  // El cobro real de QPayPro es en la moneda del plan → se muestra esa, no la de visualización.
+  const planCur = plan.currency || 'USD'
+  const cargoTexto = money(Number(plan.priceMonthly), planCur)
 
   // Pre-llenar con datos del tenant al montar el formulario
   useEffect(() => {
@@ -225,7 +236,7 @@ function CardForm({
           <div>
             <Text strong style={{ color: '#1faec2' }}>Plan {plan.displayName}</Text>
             <div style={{ fontSize: 22, fontWeight: 800, color: '#1faec2' }}>
-              {money(displayPrice, currency)} <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>/ mes</Text>
+              {cargoTexto} <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>/ mes</Text>
             </div>
           </div>
           <LockOutlined style={{ fontSize: 28, color: '#1faec2', opacity: 0.4 }} />
@@ -351,7 +362,7 @@ function CardForm({
               ? 'Registrando tarjeta en QPayPro...'
               : step === 'activando'
                 ? 'Activando suscripción recurrente...'
-                : `Tu tarjeta queda registrada para cobros mensuales de ${money(displayPrice, currency)}. El primer cobro se procesa en el siguiente ciclo de QPayPro.`
+                : `Tu tarjeta queda registrada para cobros mensuales de ${cargoTexto}. El primer cobro se procesa en el siguiente ciclo de QPayPro.`
           }
         />
 
@@ -365,7 +376,7 @@ function CardForm({
               ? 'Registrando tarjeta...'
               : step === 'activando'
                 ? 'Activando suscripción...'
-                : `Configurar cobro ${money(displayPrice, currency)} / mes`}
+                : `Configurar cobro ${cargoTexto} / mes`}
           </Button>
         </div>
       </Form>

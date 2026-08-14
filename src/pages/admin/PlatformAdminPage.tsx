@@ -925,7 +925,7 @@ export default function PlatformAdminPage() {
                       <div style={{ marginBottom: 12 }}>
                         <Statistic
                           value={Number(plan.priceMonthly)}
-                          prefix="$"
+                          prefix={plan.currency === 'GTQ' ? 'Q' : plan.currency === 'EUR' ? '€' : '$'}
                           suffix={`/ mes ${plan.currency}`}
                           valueStyle={{ fontSize: 24, color: '#0a0a0a' }}
                         />
