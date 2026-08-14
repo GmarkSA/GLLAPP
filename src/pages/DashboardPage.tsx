@@ -1,27 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 import SetupProgressBanner from '../components/SetupProgressBanner'
 import {
-  Alert, Badge, Button, Card, Col, DatePicker, Empty, Progress, Row,
-  Select, Skeleton, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
+  Alert, Badge, Card, Col, Empty, Progress, Row,
+  Space, Spin, Statistic, Table, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  BankOutlined, BarChartOutlined, CalendarOutlined, DashboardOutlined, DollarOutlined,
-  FileTextOutlined, LineChartOutlined, ReloadOutlined, RiseOutlined,
+  BankOutlined, BarChartOutlined, DollarOutlined,
+  FileTextOutlined, LineChartOutlined, RiseOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import dayjs, { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import {
-  getExecutiveDashboard,
   type ExecutiveAgingRow,
   type ExecutiveDashboardData,
   type RatioItem,
 } from '../api/reportes'
 import TableroDueno from '../components/dashboard/TableroDueno'
 
-const { Title, Text } = Typography
-const { RangePicker } = DatePicker
+const { Text } = Typography
 
 // ── Constantes ──────────────────────────────────────────────────────────────
 
@@ -67,29 +65,6 @@ function entityName(row: ExecutiveAgingRow, kind: 'ar' | 'ap'): string {
     : (row.vendor_name ?? row.vendor_id ?? 'Proveedor')
 }
 
-// ── Presets de período ────────────────────────────────────────────────────────
-
-const PERIOD_PRESETS = [
-  {
-    label: 'Este mes',
-    range: (): [Dayjs, Dayjs] => [dayjs().startOf('month'), dayjs()],
-  },
-  {
-    label: 'Mes anterior',
-    range: (): [Dayjs, Dayjs] => [
-      dayjs().subtract(1, 'month').startOf('month'),
-      dayjs().subtract(1, 'month').endOf('month'),
-    ],
-  },
-  {
-    label: 'Este trimestre',
-    range: (): [Dayjs, Dayjs] => [dayjs().subtract(dayjs().month() % 3, 'month').startOf('month'), dayjs()],
-  },
-  {
-    label: 'Este año',
-    range: (): [Dayjs, Dayjs] => [dayjs().startOf('year'), dayjs()],
-  },
-]
 
 // ── SummaryCard ───────────────────────────────────────────────────────────────
 
@@ -857,98 +832,14 @@ function ResumenTab({ data, currency, loading }: {
 // ── DashboardPage ─────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [data, setData] = useState<ExecutiveDashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = range
-        ? { fromDate: range[0].format('YYYY-MM-DD'), toDate: range[1].format('YYYY-MM-DD'), asOf: range[1].format('YYYY-MM-DD') }
-        : undefined
-      setData(await getExecutiveDashboard(params))
-    } finally {
-      setLoading(false)
-    }
-  }, [range])
-
-  useEffect(() => {
-    const t = window.setTimeout(() => { void load() }, 0)
-    return () => window.clearTimeout(t)
-  }, [load])
-
-  const currency = data?.currency ?? 'GTQ'
-
-  // Tabs: "Tablero del dueño" (por defecto) + "Resumen Ejecutivo".
-  // Los paneles CxC / CxP / Flujo de Caja / KPIs (AgingPanel, CashFlowPanel, KpiPanel)
-  // se conservan en el archivo como fallback reutilizable, fuera del set de tabs.
-  const tabs = useMemo(() => data ? [
-    {
-      key: 'tablero',
-      label: <Space><DashboardOutlined />Tablero del dueño</Space>,
-      children: <TableroDueno />,
-    },
-    {
-      key: 'resumen',
-      label: <Space><LineChartOutlined />Resumen Ejecutivo</Space>,
-      children: <ResumenTab data={data} currency={currency} loading={loading} />,
-    },
-  ] : [], [data, currency, loading])
-
+  // El Dashboard muestra únicamente el Tablero del dueño, que trae sus propios datos
+  // y su propio selector de período (Q1-Q4 / Año). Los paneles CxC / CxP / Flujo de Caja
+  // / KPIs (AgingPanel, CashFlowPanel, KpiPanel, ResumenTab) se conservan en el archivo
+  // como fallback reutilizable, fuera de la vista.
   return (
     <div>
       <SetupProgressBanner />
-
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Dashboard Ejecutivo</Title>
-          <Text type="secondary">
-            {data
-              ? `${data.company?.company_name ?? 'Empresa'} · ${data.period.from} — ${data.period.to}`
-              : 'Centro financiero de decisión — CFO'}
-          </Text>
-        </div>
-        <Space wrap align="center">
-          {/* Presets rápidos */}
-          {PERIOD_PRESETS.map(p => (
-            <Button key={p.label} size="small" icon={<CalendarOutlined />}
-              onClick={() => setRange(p.range())}
-            >
-              {p.label}
-            </Button>
-          ))}
-          <RangePicker
-            value={range}
-            onChange={v => setRange(v as [Dayjs, Dayjs] | null)}
-            allowClear
-            placeholder={['Desde', 'Hasta']}
-          />
-          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-            Actualizar
-          </Button>
-        </Space>
-      </div>
-
-      {/* Contenido */}
-      {loading && !data ? (
-        <Skeleton active paragraph={{ rows: 12 }} />
-      ) : data ? (
-        <Tabs
-          items={tabs}
-          type="card"
-          tabBarExtraContent={
-            <Tag icon={<BarChartOutlined />} color="#1faec2">
-              Datos reales · corte {data.period.asOf}
-            </Tag>
-          }
-        />
-      ) : (
-        <Card bordered={false} style={cardStyle}>
-          <Empty description="No se pudo cargar el dashboard ejecutivo" />
-        </Card>
-      )}
+      <TableroDueno />
     </div>
   )
 }
