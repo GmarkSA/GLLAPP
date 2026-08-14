@@ -93,8 +93,11 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
       const r: any = await api.post('/ventas/suscripciones-facturacion/emitir-ahora').then(x => x.data?.data ?? x.data)
       const emitidas = r?.emitidas ?? 0
       const fallidas = r?.fallidas ?? 0
-      if (emitidas === 0 && fallidas === 0) {
-        message.info('No hay cobros pendientes por facturar')
+      const errores: string[] = r?.errores ?? []
+      if (errores.length) {
+        message.error(`Falló la emisión → ${errores.join(' | ')}`, 15)
+      } else if (emitidas === 0 && fallidas === 0) {
+        message.info(r?.motivo ?? 'No hay cobros pendientes por facturar', 10)
       } else {
         message.success(`${emitidas} factura(s) emitida(s)${fallidas ? `, ${fallidas} fallida(s)` : ''}`)
       }
