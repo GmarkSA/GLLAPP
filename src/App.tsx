@@ -234,6 +234,7 @@ export default function App() {
         <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
         <Route path="/reportes/integraciones/:anio/:mes/imprimir" element={<PrivateRoute><IntegracionesImprimirPage /></PrivateRoute>} />
         <Route path="/admin/comprobante-pago/:id"                 element={<PrivateRoute><ComprobantePagoPage /></PrivateRoute>} />
+        <Route path="/configuracion/suscripcion/comprobante/:id"  element={<PrivateRoute><ComprobantePagoPage cliente /></PrivateRoute>} />
 
         <Route path="/" element={<PrivateRoute><ErrorBoundary><MainLayout /></ErrorBoundary></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
