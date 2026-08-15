@@ -23,6 +23,8 @@ import {
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -392,7 +394,7 @@ export default function FacturasPage() {
       />
 
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         {[
           { title: 'Total Facturado', value: stats.totalFacturado, icon: <DollarOutlined />,            color: '#1faec2', tabKey: 'all'     },
           { title: 'Pendiente',       value: stats.pendiente,       icon: <ClockCircleOutlined />,        color: '#ff7f00', tabKey: 'pending' },
@@ -401,7 +403,7 @@ export default function FacturasPage() {
         ].map(s => {
           const isActive = statusTab === s.tabKey
           return (
-            <Col span={6} key={s.title}>
+            <Col xs={12} md={6} key={s.title}>
               <Card
                 hoverable
                 bordered={false}
@@ -434,7 +436,7 @@ export default function FacturasPage() {
           items={STATUS_TABS.map(t => ({ key: t.key, label: t.label }))}
           style={{ marginBottom: 0 }}
           tabBarExtraContent={
-            <Space style={{ paddingBottom: 8 }}>
+            <Space wrap style={{ paddingBottom: 8 }}>
               <RangePicker format="YYYY-MM-DD" onChange={onDateChange} size="small" placeholder={['Desde', 'Hasta']} />
               <Input
                 placeholder="Buscar factura, cliente..."
@@ -486,7 +488,7 @@ export default function FacturasPage() {
 
       {/* Table */}
       <Card bordered={false} style={{ borderRadius: '0 0 10px 10px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={invoices}
           rowKey="id"
@@ -501,6 +503,24 @@ export default function FacturasPage() {
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/facturas/${r.id}`) })}
           pagination={{ total, current: page, pageSize, onChange: (p, ps) => { setPage(p); setPageSize(ps) }, showTotal: (t) => `${t} facturas`, showSizeChanger: true, pageSizeOptions: ['100', '200', '500'] }}
           locale={{ emptyText: 'Sin facturas' }}
+          mobileEmptyText="Sin facturas"
+          renderMobileCard={(r: Invoice) => {
+            const cfg = INVOICE_STATUS_CONFIG[r.status]
+            return (
+              <MobileCard
+                title={r.customerName}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.invoiceNumber}{r.invoiceDate ? ` · ${dayjs(r.invoiceDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                amount={fmt(r.total)}
+                amountSub={Number(r.balance) > 0 ? `Saldo ${fmt(r.balance)}` : undefined}
+                status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : <Tag>{r.status}</Tag>}
+                onClick={() => navigate(`/ventas/facturas/${r.id}`)}
+              />
+            )
+          }}
         />
       </Card>
 
