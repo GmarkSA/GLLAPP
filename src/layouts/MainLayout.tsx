@@ -20,6 +20,7 @@ import CompanySelector from '../components/CompanySelector'
 import NoCompanyGuard from '../components/NoCompanyGuard'
 import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
 import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
+import HelpAgentDrawer from '../components/HelpAgent/HelpAgentDrawer'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 import GlobalSearchModal from '../components/GlobalSearch/GlobalSearchModal'
 import NotificationsDrawer, { useAlertCount } from '../components/NotificationsDrawer'
@@ -571,6 +572,7 @@ export default function MainLayout() {
       </Layout>
 
       <OnboardingChatDrawer />
+      <HelpAgentDrawer />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <NotificationsDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
     </Layout>
