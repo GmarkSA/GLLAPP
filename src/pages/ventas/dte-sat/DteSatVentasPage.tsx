@@ -13,6 +13,7 @@ import {
 import DocumentLink from '../../../components/DocumentLink'
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
+import { useIsMobile } from '../../../hooks/useMediaQuery'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatEmitidosCustomer, deleteSatEmitidos, reactivateSatEmitidos,
@@ -62,6 +63,7 @@ function getErrorMessage(err: unknown, fallback: string) {
 
 export default function DteSatVentasPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [documents,  setDocuments]  = useState<SatDteEmitidos[]>([])
   const [jobs,       setJobs]       = useState<SatEmitidosJob[]>([])
   const [stats,      setStats]      = useState<Record<string, { count: number; total: number }>>({})
@@ -1509,12 +1511,12 @@ export default function DteSatVentasPage() {
           </Space>
         }
       >
-        <Form form={importForm} layout="inline" size="small" onFinish={handleImport}>
-          <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: 0 }}
+        <Form form={importForm} layout={isMobile ? 'vertical' : 'inline'} size="small" onFinish={handleImport} style={{ width: '100%' }}>
+          <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: isMobile ? 10 : 0 }}
             rules={[{ required: true, message: 'Selecciona el rango de fechas' }]}
           >
             <RangePicker
-              style={{ width: 280 }}
+              style={{ width: isMobile ? '100%' : 280 }}
               presets={[
                 { label: 'Este mes',       value: [dayjs().startOf('month'), dayjs()] },
                 { label: 'Mes anterior',   value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
