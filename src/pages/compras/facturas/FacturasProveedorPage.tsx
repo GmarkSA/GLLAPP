@@ -22,6 +22,8 @@ import ColumnConfigurator, {
   loadColConfig, saveColConfig,
   type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 
@@ -416,7 +418,7 @@ export default function FacturasProveedorPage() {
           items={STATUS_TABS.map(t => ({ key: t.key, label: t.label }))}
           style={{ marginBottom: 0 }}
           tabBarExtraContent={
-            <Space style={{ paddingBottom: 8 }}>
+            <Space wrap style={{ paddingBottom: 8 }}>
               <Input
                 placeholder="Buscar factura, proveedor..."
                 prefix={<SearchOutlined style={{ color: '#bbb' }} />}
@@ -467,7 +469,7 @@ export default function FacturasProveedorPage() {
         style={{ borderRadius: '0 0 10px 10px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: 0 }}
       >
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={bills}
           rowKey="id"
@@ -485,6 +487,28 @@ export default function FacturasProveedorPage() {
             pageSizeOptions: ['50', '100', '200'],
           }}
           locale={{ emptyText: 'Sin facturas de proveedor' }}
+          mobileEmptyText="Sin facturas de proveedor"
+          renderMobileCard={(r: PurchaseInvoice) => {
+            const cfg = BILL_STATUS_CONFIG[r.status]
+            const money = (v: number) =>
+              r.currency && r.currency !== 'GTQ'
+                ? `${r.currency} ${Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+                : fmtGTQ(v)
+            return (
+              <MobileCard
+                title={r.vendorName}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.invoiceNumber}{r.invoiceDate ? ` · ${dayjs(r.invoiceDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                amount={money(Number(r.total))}
+                amountSub={Number(r.balance) > 0 ? `Saldo ${money(Number(r.balance))}` : undefined}
+                status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : <Tag>{r.status}</Tag>}
+                onClick={() => navigate(`/compras/facturas/${r.id}`)}
+              />
+            )
+          }}
         />
       </Card>
 

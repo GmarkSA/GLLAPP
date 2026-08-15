@@ -11,6 +11,8 @@ import {
   SearchOutlined, StopOutlined, SyncOutlined, TeamOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatDteVendor, deleteSatDte, reactivateSatDte,
@@ -2294,7 +2296,7 @@ export default function DteSatPage() {
                     </Button>
                   )}
                 </div>
-                <Table
+                <ResponsiveTable
                   columns={columns}
                   dataSource={documents}
                   rowKey="id"
@@ -2318,6 +2320,31 @@ export default function DteSatPage() {
                     onChange: keys => setSelectedIds(keys as string[]),
                     getCheckboxProps: row => ({ disabled: !isBatchable(row) }),
                     columnWidth: 36,
+                  }}
+                  mobileEmptyText="Sin documentos"
+                  renderMobileCard={(r: SatDte) => {
+                    const money = `${r.moneda && r.moneda !== 'GTQ' ? r.moneda + ' ' : 'Q '}${Number(r.total).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+                    const estado = r.anulado
+                      ? <Tag color="red" style={{ margin: 0 }}>Anulado</Tag>
+                      : r.status === 'posted' ? <Tag color="green" style={{ margin: 0 }}>Contabilizado</Tag>
+                      : r.status === 'duplicate' ? <Tag color="orange" style={{ margin: 0 }}>Duplicado</Tag>
+                      : r.status === 'error' ? <Tag color="red" style={{ margin: 0 }}>Error</Tag>
+                      : r.status === 'ready' ? <Tag color="blue" style={{ margin: 0 }}>Listo</Tag>
+                      : <Tag style={{ margin: 0 }}>Pendiente</Tag>
+                    return (
+                      <MobileCard
+                        title={r.nombreEmisor || '—'}
+                        subtitle={
+                          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {(r.tipoDocumento || 'DTE')} {r.serie ?? ''}{r.numeroDte ? `-${r.numeroDte}` : ''}
+                            {r.fechaEmision ? ` · ${dayjs(r.fechaEmision).format('DD/MM/YYYY')}` : ''}
+                          </span>
+                        }
+                        amount={r.anulado ? 'Q 0.00' : money}
+                        status={estado}
+                        chevron={false}
+                      />
+                    )
                   }}
                 />
               </Card>

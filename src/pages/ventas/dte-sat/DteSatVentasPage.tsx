@@ -11,6 +11,8 @@ import {
   SearchOutlined, StopOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   createSatEmitidosCustomer, deleteSatEmitidos, reactivateSatEmitidos,
@@ -1610,7 +1612,7 @@ export default function DteSatVentasPage() {
                     )}
                   </Space>
                 </div>
-                <Table
+                <ResponsiveTable
                   columns={cols}
                   dataSource={documents}
                   rowKey="id"
@@ -1638,6 +1640,29 @@ export default function DteSatVentasPage() {
                         : !r.customerId ? 'Vincula un cliente primero (clic en Procesar)'
                         : undefined,
                     }),
+                  }}
+                  mobileEmptyText="Sin documentos"
+                  renderMobileCard={(r: SatDteEmitidos) => {
+                    const money = `${r.moneda && r.moneda !== 'GTQ' ? r.moneda + ' ' : 'Q '}${Number(r.total).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+                    const estado = r.anulado
+                      ? <Tag color="red" style={{ margin: 0 }}>Anulado</Tag>
+                      : r.status === 'posted' ? <Tag color="green" style={{ margin: 0 }}>Contabilizado</Tag>
+                      : r.status === 'duplicate' ? <Tag color="orange" style={{ margin: 0 }}>Duplicado</Tag>
+                      : <Tag style={{ margin: 0 }}>Pendiente</Tag>
+                    return (
+                      <MobileCard
+                        title={r.nombreReceptor || '—'}
+                        subtitle={
+                          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {(r.tipoDocumento || 'DTE')} {r.serie ?? ''}{r.numeroDte ? `-${r.numeroDte}` : ''}
+                            {r.fechaEmision ? ` · ${dayjs(r.fechaEmision).format('DD/MM/YYYY')}` : ''}
+                          </span>
+                        }
+                        amount={r.anulado ? 'Q 0.00' : money}
+                        status={estado}
+                        chevron={false}
+                      />
+                    )
                   }}
                 />
               </Card>

@@ -19,6 +19,8 @@ import { getApiError } from '../../../api/axios'
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -348,7 +350,7 @@ export default function PagosRecibidosPage() {
           { title: 'Anticipos recibidos', value: totalAnticipos,fmt: fmtQ,                       color: '#d48806' },
           { title: 'Pagos hoy',           value: pagosHoy,      fmt: (v: number) => String(v), color: '#1faec2' },
         ].map(s => (
-          <Col span={6} key={s.title}>
+          <Col xs={12} md={6} key={s.title}>
             <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
               <Statistic title={s.title} value={s.value} formatter={v => s.fmt(Number(v))} valueStyle={{ fontSize: 16, color: s.color }} />
             </Card>
@@ -358,7 +360,7 @@ export default function PagosRecibidosPage() {
 
       {/* Tabla */}
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={data}
           rowKey="id"
@@ -367,6 +369,27 @@ export default function PagosRecibidosPage() {
           scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} pagos`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay pagos registrados en el período' }}
+          mobileEmptyText="No hay pagos registrados en el período"
+          renderMobileCard={(r: PagoRecibido) => (
+            <MobileCard
+              title={r.customerName ?? r.customerId}
+              subtitle={
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {r.paymentNumber}{r.paymentDate ? ` · ${dayjs(r.paymentDate).format('DD/MM/YYYY')}` : ''}
+                  {r.invoiceNumber && <><br />Doc: {r.invoiceNumber}</>}
+                </span>
+              }
+              amount={fmtQ(Number(r.amount))}
+              status={
+                r.isAdvance
+                  ? <Tag color="gold" style={{ margin: 0 }}>Anticipo</Tag>
+                  : r.invoiceStatus
+                    ? <Tag color={INVOICE_STATUS_COLOR[r.invoiceStatus] ?? 'default'} style={{ margin: 0 }}>{INVOICE_STATUS_LABEL[r.invoiceStatus] ?? r.invoiceStatus}</Tag>
+                    : undefined
+              }
+              onClick={() => navigate(`/ventas/pagos-recibidos/${r.id}`)}
+            />
+          )}
         />
       </Card>
 

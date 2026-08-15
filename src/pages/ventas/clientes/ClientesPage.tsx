@@ -16,6 +16,8 @@ import { getPaymentTermLabel } from '../../../components/PaymentTermsSelect'
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -340,7 +342,7 @@ export default function ClientesPage() {
 
       {/* Tabla */}
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={customers}
           rowKey="id"
@@ -357,6 +359,24 @@ export default function ClientesPage() {
             showSizeChanger: false,
           }}
           locale={{ emptyText: 'Sin clientes — crea el primero con "Nuevo cliente"' }}
+          mobileEmptyText='Sin clientes — crea el primero con "Nuevo cliente"'
+          renderMobileCard={(r: Customer) => {
+            const st = STATUS_CONFIG[r.status ?? 'active']
+            return (
+              <MobileCard
+                title={r.name}
+                subtitle={
+                  <span>
+                    {r.taxId ? `NIT: ${r.taxId}` : (r.customerNumber || '—')}
+                    {(r.email || r.phone) && <><br />{r.email || r.phone}</>}
+                  </span>
+                }
+                amount={Number(r.balance) > 0 ? fmtQ(Number(r.balance)) : undefined}
+                status={st ? <Tag color={st.color} style={{ margin: 0 }}>{st.label}</Tag> : undefined}
+                onClick={() => navigate(`/ventas/clientes/${r.id}`)}
+              />
+            )
+          }}
         />
       </Card>
     </div>
