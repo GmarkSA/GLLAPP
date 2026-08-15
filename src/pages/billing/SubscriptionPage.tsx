@@ -213,7 +213,7 @@ function CardForm({
       setStep('activando')
       const result = await activarCobros()
 
-      message.success('¡Cobros automáticos configurados! El primer cobro se procesará en el siguiente ciclo de QPayPro.', 8)
+      message.success('¡Cobros automáticos configurados! QPay Pro procesará el cobro automáticamente; en cuanto se confirme, tu comprobante quedará disponible para descargar en el historial de cobros.', 10)
       onSuccess({ success: true, message: result.message } as PaymentResponse)
     } catch (e: any) {
       message.error(
@@ -385,7 +385,7 @@ function CardForm({
 }
 
 // PaymentHistory
-function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[]; onDelete: (id: string) => void }) {
+function PaymentHistory({ payments, onDelete, esperandoCobro }: { payments: SubscriptionPayment[]; onDelete: (id: string) => void; esperandoCobro?: boolean }) {
   const cols: ColumnsType<SubscriptionPayment> = [
     {
       title: 'Fecha',
@@ -466,6 +466,20 @@ function PaymentHistory({ payments, onDelete }: { payments: SubscriptionPayment[
   ]
 
   if (!payments.length) {
+    if (esperandoCobro) {
+      return (
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <ClockCircleOutlined style={{ fontSize: 32, marginBottom: 8, color: '#1faec2' }} />
+          <div style={{ fontWeight: 600, color: '#1a1a2e' }}>Tu pago está en proceso</div>
+          <div style={{ color: '#6b7280', marginTop: 6, maxWidth: 440, margin: '6px auto 0' }}>
+            En cuanto QPay Pro confirme el cobro, tu comprobante y tu factura aparecerán aquí para descargar.
+          </div>
+          <div style={{ color: '#9aa1ab', fontSize: 12, marginTop: 8 }}>
+            La confirmación puede tardar desde unos minutos hasta un par de días hábiles, según el procesamiento del banco.
+          </div>
+        </div>
+      )
+    }
     return (
       <div style={{ textAlign: 'center', padding: 32, color: '#6b7280' }}>
         <DollarOutlined style={{ fontSize: 32, marginBottom: 8 }} />
@@ -931,7 +945,11 @@ export default function SubscriptionPage() {
         extra={<Button size="small" icon={<SyncOutlined />} onClick={load} loading={loading}>Actualizar</Button>}
       >
         <Spin spinning={loading}>
-          <PaymentHistory payments={state?.paymentHistory ?? []} onDelete={handleDeletePayment} />
+          <PaymentHistory
+            payments={state?.paymentHistory ?? []}
+            onDelete={handleDeletePayment}
+            esperandoCobro={!!sub && hasCard && sub.status !== 'cancelled'}
+          />
         </Spin>
       </Card>
 
