@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Drawer, Input, Button, Typography, Space, FloatButton, Tag } from 'antd'
+import { Drawer, Input, Button, Typography, Space, FloatButton, Tag, Segmented } from 'antd'
 import {
-  SendOutlined, RobotOutlined, ArrowRightOutlined, QuestionCircleOutlined,
+  SendOutlined, RobotOutlined, ArrowRightOutlined, QuestionCircleOutlined, CustomerServiceOutlined,
 } from '@ant-design/icons'
 import { buscarAyuda, respuestaDe, rutaLabelDe, type HelpArticle } from './helpArticles'
+import SupportView from './SupportView'
 
 const { Text } = Typography
 const TEAL = '#1faec2'
@@ -27,12 +28,15 @@ const SUGERENCIAS = [
 export default function HelpAgentDrawer() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<'ayuda' | 'soporte'>('ayuda')
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMsg[]>([])
+  const [ultimaPregunta, setUltimaPregunta] = useState('')
 
   const responder = (pregunta: string) => {
     const text = pregunta.trim()
     if (!text) return
+    setUltimaPregunta(text)
     const matches = buscarAyuda(text)
     const agente: ChatMsg = matches.length > 0
       ? { role: 'agent', content: respuestaDe(matches[0].article), article: matches[0].article }
@@ -68,6 +72,18 @@ export default function HelpAgentDrawer() {
         width={400}
       >
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <Segmented
+            block
+            options={[{ label: 'Ayuda', value: 'ayuda' }, { label: 'Soporte', value: 'soporte' }]}
+            value={tab}
+            onChange={v => setTab(v as 'ayuda' | 'soporte')}
+            style={{ marginBottom: 12 }}
+          />
+
+          {tab === 'soporte' ? (
+            <SupportView prefill={ultimaPregunta} />
+          ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 12 }}>
             {messages.length === 0 && (
               <div style={{ marginTop: 8 }}>
@@ -141,6 +157,17 @@ export default function HelpAgentDrawer() {
             />
             <Button type="primary" icon={<SendOutlined />} onClick={submit} style={{ background: TEAL }} />
           </Space.Compact>
+          <Button
+            type="text"
+            size="small"
+            icon={<CustomerServiceOutlined />}
+            onClick={() => setTab('soporte')}
+            style={{ marginTop: 8, color: '#8493a8', fontSize: 12 }}
+          >
+            ¿No encontraste la respuesta? Hablar con soporte
+          </Button>
+          </div>
+          )}
         </div>
       </Drawer>
     </>

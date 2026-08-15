@@ -9,9 +9,10 @@ import {
   EyeOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
-  SearchOutlined, MoreOutlined, PrinterOutlined,
+  SearchOutlined, MoreOutlined, PrinterOutlined, CustomerServiceOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import AdminSupportPanel from './AdminSupportPanel'
 import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import type { Company } from '../../store/authStore'
@@ -1301,6 +1302,11 @@ export default function PlatformAdminPage() {
             key: 'billing',
             label: <Space><KeyOutlined />Facturación</Space>,
             children: <BillingConfigTab plans={plans} />,
+          },
+          {
+            key: 'soporte',
+            label: <Space><CustomerServiceOutlined />Soporte</Space>,
+            children: <AdminSupportPanel />,
           },
         ]}
       />
