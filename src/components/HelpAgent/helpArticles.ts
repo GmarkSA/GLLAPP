@@ -207,6 +207,29 @@ export function rutaLabelDe(a: HelpArticle): string {
   return `Ir a ${a.submodulo}`
 }
 
+/** Artículo por id (para resolver el deep-link que devuelve el agente IA). */
+export function articuloPorId(id: string): HelpArticle | undefined {
+  return HELP_ARTICLES.find(a => a.id === id)
+}
+
+/** Candidato compacto para enviar al agente IA (id + módulo→submódulo + keywords). */
+export interface AgenteCandidato {
+  id: string
+  modulo: string
+  submodulo: string
+  keywords?: string
+}
+
+/** Toda la base como candidatos compactos: le da al agente IA el menú completo para rutear. */
+export function candidatosParaAgente(): AgenteCandidato[] {
+  return HELP_ARTICLES.map(a => ({
+    id: a.id,
+    modulo: a.modulo,
+    submodulo: a.submodulo,
+    keywords: (a.keywords ?? []).join(', ') || undefined,
+  }))
+}
+
 /** Términos indexados de un artículo: submódulo + módulo + keywords. */
 function terminosDe(a: HelpArticle): string[] {
   const base = `${a.submodulo} ${a.modulo} ${(a.keywords ?? []).join(' ')}`
