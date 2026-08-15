@@ -14,6 +14,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import { useVersionCheck } from '../hooks/useVersionCheck'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import { useCompanyStore } from '../store/companyStore'
 import type { Company } from '../store/authStore'
 import CompanySelector from '../components/CompanySelector'
@@ -155,7 +156,9 @@ const pageVariants = {
 }
 
 export default function MainLayout() {
+  const isMobile = useIsMobile()
   const [collapsed,      setCollapsed]      = useState(true)
+  const [mobileOpen,     setMobileOpen]     = useState(false)   // sidebar off-canvas en móvil/tablet
   const [searchOpen,     setSearchOpen]     = useState(false)
   const [notifOpen,      setNotifOpen]      = useState(false)
   const [trialDaysLeft,  setTrialDaysLeft]  = useState<number | null>(null)
@@ -272,6 +275,11 @@ export default function MainLayout() {
     if (!collapsed) setOpenKeys(getOpenKey(lastNavKey.current || location.pathname))
   }, [collapsed])
 
+  // Al volver a desktop, cierra el drawer móvil (evita backdrop atascado).
+  useEffect(() => {
+    if (!isMobile) setMobileOpen(false)
+  }, [isMobile])
+
   // Paso 2: filtrar por rol del usuario
   const visibleMenuItems = filteredMenuItems.filter(item => {
     if (item.key === '/dashboard')      return true
@@ -321,11 +329,25 @@ export default function MainLayout() {
         </div>
       )}
 
+      {/* ── Backdrop del sidebar en móvil ────────────────────────── */}
+      {isMobile && mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            top: isImpersonating ? 34 : 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 1050,
+          }}
+        />
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <Sider
         trigger={null}
         collapsible
-        collapsed={collapsed}
+        collapsed={isMobile ? false : collapsed}
         width={248}
         style={{
           background: '#ffffff',
@@ -333,12 +355,13 @@ export default function MainLayout() {
           height: isImpersonating ? 'calc(100vh - 34px)' : '100vh',
           left: 0,
           top: isImpersonating ? 34 : 0,
-          zIndex: 100,
+          zIndex: isMobile ? 1100 : 100,
           borderRight: '1px solid rgba(10,10,10,0.08)',
-          boxShadow: '2px 0 8px rgba(10,10,10,0.04)',
-          transition: 'width 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          boxShadow: isMobile && mobileOpen ? '0 0 24px rgba(0,0,0,0.25)' : '2px 0 8px rgba(10,10,10,0.04)',
+          transform: isMobile && !mobileOpen ? 'translateX(-100%)' : 'translateX(0)',
+          transition: 'transform 0.3s ease, width 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         }}
-        onClick={() => { if (collapsed) setCollapsed(false) }}
+        onClick={() => { if (!isMobile && collapsed) setCollapsed(false) }}
       >
         {/* Logo */}
         <div style={{
@@ -369,7 +392,7 @@ export default function MainLayout() {
             openKeys={openKeys}
             onOpenChange={handleOpenChange}
             items={visibleMenuItems}
-            onClick={({ key }) => { lastNavKey.current = key; navigate(key) }}
+            onClick={({ key }) => { lastNavKey.current = key; navigate(key); if (isMobile) setMobileOpen(false) }}
             style={{
               background: 'transparent',
               borderRight: 'none',
@@ -381,7 +404,7 @@ export default function MainLayout() {
 
       {/* ── Main area ───────────────────────────────────────────── */}
       <Layout style={{
-        marginLeft: collapsed ? 80 : 248,
+        marginLeft: isMobile ? 0 : (collapsed ? 80 : 248),
         marginTop: isImpersonating ? 34 : 0,
         transition: 'margin 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }}>
@@ -394,7 +417,7 @@ export default function MainLayout() {
           background: 'rgba(240,242,247,0.85)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          padding: '0 24px',
+          padding: isMobile ? '0 12px' : '0 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -403,19 +426,23 @@ export default function MainLayout() {
           height: 60,
         }}>
           {/* Left */}
-          <Space size={12}>
-            <Tooltip title={collapsed ? 'Expandir menú' : 'Colapsar menú'}>
+          <Space size={isMobile ? 6 : 12} style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+            <Tooltip title={isMobile ? 'Menú' : (collapsed ? 'Expandir menú' : 'Colapsar menú')}>
               <Button
                 type="text"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setCollapsed(!collapsed)}
+                icon={
+                  isMobile
+                    ? (mobileOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />)
+                    : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)
+                }
+                onClick={() => (isMobile ? setMobileOpen(o => !o) : setCollapsed(!collapsed))}
                 style={{ color: '#6b7280', borderRadius: 8 }}
               />
             </Tooltip>
             <CompanySelector placement="header" />
             {/* key fuerza remonte del badge al cambiar empresa → re-fetch del porcentaje */}
-            <OnboardingProgressBadge key={activeCompany?.id} />
-            {activeCompany && (
+            {!isMobile && <OnboardingProgressBadge key={activeCompany?.id} />}
+            {activeCompany && !isMobile && (
               <Tooltip title="ID de tu organización — clic para copiar">
                 <Tag
                   color="cyan"
@@ -554,7 +581,7 @@ export default function MainLayout() {
         <EnterpriseBreadcrumb />
 
         {/* Contenido con transición */}
-        <Content style={{ padding: 24, minHeight: 'calc(100vh - 60px)' }} onClick={() => setCollapsed(true)}>
+        <Content style={{ padding: isMobile ? 12 : 24, minHeight: 'calc(100vh - 60px)' }} onClick={() => { if (!isMobile) setCollapsed(true) }}>
           <NoCompanyGuard>
           <AnimatePresence mode="wait">
             <motion.div
