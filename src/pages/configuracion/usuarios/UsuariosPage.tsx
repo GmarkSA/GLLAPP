@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Table, Button, Tag, Avatar, Space, Typography, Modal, Form,
   Input, Select, Tooltip, Badge, Popconfirm, message, Checkbox,
-  Tabs, Divider, Empty, Spin, Collapse,
+  Tabs, Divider, Empty, Spin, Collapse, Switch,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, UserOutlined, CrownOutlined,
@@ -17,6 +17,7 @@ import {
 } from '../../../api/usuarios'
 import { companiesApi } from '../../../api/companies'
 import type { Company } from '../../../store/authStore'
+import { useAuthStore } from '../../../store/authStore'
 
 const ROLE_ORDER = ['superadmin', 'admin', 'contador', 'ventas', 'compras', 'planillas', 'tesoreria', 'cajero', 'lector', 'inventario']
 const sortRoles = (list: RoleSummary[]) =>
@@ -219,6 +220,7 @@ function buildMatrix(allPermissions: PermissionSummary[]): ModuleGroup[] {
 // ── Componente principal ────────────────────────────────────────────────────
 
 export default function UsuariosPage() {
+  const soySuperAdmin = !!useAuthStore(s => s.user?.isSuperAdmin)
   const [users, setUsers]         = useState<TenantUser[]>([])
   const [roles, setRoles]         = useState<RoleSummary[]>([])
   const [allPerms, setAllPerms]   = useState<PermissionSummary[]>([])
@@ -289,6 +291,7 @@ export default function UsuariosPage() {
       lastName:  u.lastName,
       status:    u.status,
       roleIds:   u.roles?.map(r => r.id) ?? [],
+      isSuperAdmin: u.isSuperAdmin,
     })
     setModal('edit')
   }
@@ -326,6 +329,7 @@ export default function UsuariosPage() {
         email:     vals.email,
         ...(invitar ? { sendInvitation: true } : { password: vals.password }),
         roleIds:   vals.roleIds ?? [],
+        ...(soySuperAdmin ? { isSuperAdmin: vals.isSuperAdmin ?? false } : {}),
       })
       message.success(invitar ? 'Invitación enviada por correo' : 'Usuario creado')
       setModal(null)
@@ -346,6 +350,7 @@ export default function UsuariosPage() {
         lastName:  vals.lastName,
         status:    vals.status,
         roleIds:   vals.roleIds ?? [],
+        ...(soySuperAdmin ? { isSuperAdmin: vals.isSuperAdmin ?? false } : {}),
       })
       message.success('Usuario actualizado')
       setModal(null)
@@ -782,6 +787,17 @@ export default function UsuariosPage() {
                 value: r.id, label: r.name,
               }))} />
           </Form.Item>
+          {soySuperAdmin && (
+            <Form.Item
+              name="isSuperAdmin"
+              label={<Space><CrownOutlined style={{ color: '#e5484d' }} />Super Admin de plataforma</Space>}
+              valuePropName="checked"
+              initialValue={false}
+              tooltip="Acceso total a la administración de la plataforma (todos los tenants). Otórgalo solo a personas de confianza."
+            >
+              <Switch />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
 
@@ -821,6 +837,16 @@ export default function UsuariosPage() {
                 value: r.id, label: r.name,
               }))} />
           </Form.Item>
+          {soySuperAdmin && (
+            <Form.Item
+              name="isSuperAdmin"
+              label={<Space><CrownOutlined style={{ color: '#e5484d' }} />Super Admin de plataforma</Space>}
+              valuePropName="checked"
+              tooltip="Acceso total a la administración de la plataforma (todos los tenants). Otórgalo solo a personas de confianza."
+            >
+              <Switch />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
 
