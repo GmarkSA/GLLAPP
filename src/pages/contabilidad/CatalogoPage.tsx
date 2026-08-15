@@ -17,6 +17,8 @@ import {
   getAccountGroups, getAccounts, createAccount, updateAccount, deleteAccount, seedGLL,
   type Account,
 } from '../../api/catalogo'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 
 const { Sider, Content } = Layout
 const { Title, Text } = Typography
@@ -786,7 +788,7 @@ export default function CatalogoPage() {
           </Space>
         </div>
 
-        <Table
+        <ResponsiveTable
           columns={columns}
           dataSource={accounts}
           loading={loadingAccounts}
@@ -800,6 +802,24 @@ export default function CatalogoPage() {
           pagination={{ pageSize: 50, showSizeChanger: true, showTotal: t => `${t} cuentas` }}
           scroll={{ x: 800 }}
           locale={{ emptyText: selectedGroupInfo ? `Sin cuentas en grupo ${selectedGroupInfo.groupCode}` : 'Sin cuentas registradas' }}
+          mobileEmptyText={selectedGroupInfo ? `Sin cuentas en grupo ${selectedGroupInfo.groupCode}` : 'Sin cuentas registradas'}
+          renderMobileCard={(r: Account) => (
+            <MobileCard
+              title={r.name}
+              subtitle={
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {r.code}{r.normalBalance ? ` · ${r.normalBalance === 'debit' ? 'Deudor' : 'Acreedor'}` : ''}
+                </span>
+              }
+              status={
+                <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {r.balanceType && <Tag color={BALANCE_TYPE_COLOR[r.balanceType] || 'default'} style={{ margin: 0 }}>{r.balanceType}</Tag>}
+                  {!r.isActive && <Tag style={{ margin: 0 }}>Inactiva</Tag>}
+                </span>
+              }
+              onClick={() => { setEditRecord(r); setModalOpen(true) }}
+            />
+          )}
         />
       </Content>
 
