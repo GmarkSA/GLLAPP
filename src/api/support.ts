@@ -1,0 +1,67 @@
+import api from './axios'
+
+const unwrap = (r: any) => r.data?.data ?? r.data
+
+export type SupportSender = 'client' | 'admin'
+export type SupportTicketStatus = 'open' | 'answered' | 'closed'
+
+export interface SupportMessage {
+  id: string
+  ticketId: string
+  sender: SupportSender
+  authorName?: string
+  body: string
+  createdAt: string
+}
+
+export interface SupportTicket {
+  id: string
+  tenantId: string
+  companyId?: string
+  userId?: string
+  userName?: string
+  tenantName?: string
+  asunto: string
+  status: SupportTicketStatus
+  unreadForAdmin: boolean
+  unreadForClient: boolean
+  lastMessageAt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TicketConversation {
+  ticket: SupportTicket
+  messages: SupportMessage[]
+}
+
+// ── Cliente ────────────────────────────────────────────────────────────────
+
+export const crearTicket = (asunto: string, mensaje: string): Promise<SupportTicket> =>
+  api.post('/support/tickets', { asunto, mensaje }).then(unwrap)
+
+export const misTickets = (): Promise<SupportTicket[]> =>
+  api.get('/support/tickets').then(unwrap)
+
+export const verTicket = (id: string): Promise<TicketConversation> =>
+  api.get(`/support/tickets/${id}`).then(unwrap)
+
+export const agregarMensaje = (id: string, mensaje: string): Promise<SupportMessage> =>
+  api.post(`/support/tickets/${id}/messages`, { mensaje }).then(unwrap)
+
+// ── Admin (SuperAdmin) ───────────────────────────────────────────────────────
+
+export const adminTickets = (status?: string): Promise<SupportTicket[]> =>
+  api.get('/support/admin/tickets', { params: status ? { status } : {} }).then(unwrap)
+
+export const adminUnreadCount = (): Promise<{ count: number }> =>
+  api.get('/support/admin/tickets/unread-count').then(unwrap)
+
+export const adminVerTicket = (id: string): Promise<TicketConversation> =>
+  api.get(`/support/admin/tickets/${id}`).then(unwrap)
+
+export const adminResponder = (id: string, mensaje: string): Promise<SupportMessage> =>
+  api.post(`/support/admin/tickets/${id}/reply`, { mensaje }).then(unwrap)
+
+export const adminCambiarStatus = (id: string, status: SupportTicketStatus): Promise<{ id: string; status: SupportTicketStatus }> =>
+  api.patch(`/support/admin/tickets/${id}/status`, { status }).then(unwrap)
