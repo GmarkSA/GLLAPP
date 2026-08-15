@@ -65,3 +65,48 @@ export const adminResponder = (id: string, mensaje: string): Promise<SupportMess
 
 export const adminCambiarStatus = (id: string, status: SupportTicketStatus): Promise<{ id: string; status: SupportTicketStatus }> =>
   api.patch(`/support/admin/tickets/${id}/status`, { status }).then(unwrap)
+
+// ── Agente de ayuda IA ────────────────────────────────────────────────────────
+
+export type AiProvider = 'claude' | 'openai' | 'gemini' | 'deepseek'
+
+export interface AgenteCandidatoDTO {
+  id: string
+  modulo: string
+  submodulo: string
+  keywords?: string
+}
+
+export interface AgenteRespuesta {
+  fuente: 'ia' | 'sin-config' | 'error'
+  proveedor?: AiProvider
+  respuesta?: string
+  articuloId?: string | null
+  error?: string
+}
+
+export const preguntarAgente = (pregunta: string, candidatos: AgenteCandidatoDTO[]): Promise<AgenteRespuesta> =>
+  api.post('/support/agent', { pregunta, candidatos }).then(unwrap)
+
+// ── Enlace "trae tu propia cuenta IA" ─────────────────────────────────────────
+
+export interface AiConfigEstado {
+  vinculado: boolean
+  provider?: AiProvider
+  providerLabel?: string
+  model?: string | null
+  apiKeyMask?: string
+  updatedAt?: string
+}
+
+export const aiConfigEstado = (): Promise<AiConfigEstado> =>
+  api.get('/support/ai-config').then(unwrap)
+
+export const aiConfigGuardar = (provider: AiProvider, apiKey: string, model?: string): Promise<AiConfigEstado> =>
+  api.put('/support/ai-config', { provider, apiKey, model }).then(unwrap)
+
+export const aiConfigDesvincular = (): Promise<AiConfigEstado> =>
+  api.delete('/support/ai-config').then(unwrap)
+
+export const aiConfigProbar = (provider: AiProvider, apiKey: string, model?: string): Promise<{ ok: boolean; error?: string }> =>
+  api.post('/support/ai-config/test', { provider, apiKey, model }).then(unwrap)

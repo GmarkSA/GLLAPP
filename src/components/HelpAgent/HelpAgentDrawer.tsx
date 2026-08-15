@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Drawer, Input, Button, Typography, Space, FloatButton, Tag, Segmented } from 'antd'
+import { Drawer, Input, Button, Typography, Space, FloatButton, Tag, Segmented, Spin } from 'antd'
 import {
   SendOutlined, RobotOutlined, ArrowRightOutlined, QuestionCircleOutlined, CustomerServiceOutlined,
+  ApiOutlined,
 } from '@ant-design/icons'
-import { buscarAyuda, respuestaDe, rutaLabelDe, type HelpArticle } from './helpArticles'
+import {
+  buscarAyuda, respuestaDe, rutaLabelDe, articuloPorId, candidatosParaAgente, type HelpArticle,
+} from './helpArticles'
+import { preguntarAgente } from '../../api/support'
 import SupportView from './SupportView'
+import LinkAiAccountModal from './LinkAiAccountModal'
 
 const { Text } = Typography
 const TEAL = '#1faec2'
@@ -32,27 +37,50 @@ export default function HelpAgentDrawer() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [ultimaPregunta, setUltimaPregunta] = useState('')
+  const [pensando, setPensando] = useState(false)
+  const [aiModal, setAiModal] = useState(false)
 
-  const responder = (pregunta: string) => {
-    const text = pregunta.trim()
-    if (!text) return
-    setUltimaPregunta(text)
+  // Fallback determinista (motor local) — se usa si la IA no está disponible o falla.
+  const responderLocal = (text: string): ChatMsg => {
     const matches = buscarAyuda(text)
-    const agente: ChatMsg = matches.length > 0
+    return matches.length > 0
       ? { role: 'agent', content: respuestaDe(matches[0].article), article: matches[0].article }
       : {
           role: 'agent',
           noMatch: true,
           content: 'No encontré una respuesta exacta a eso. Probá reformular tu pregunta (por ejemplo: "cómo importo facturas" o "registrar un pago").',
         }
-    setMessages(prev => [...prev, { role: 'user', content: text }, agente])
+  }
+
+  const responder = async (pregunta: string) => {
+    const text = pregunta.trim()
+    if (!text) return
+    setUltimaPregunta(text)
+    setMessages(prev => [...prev, { role: 'user', content: text }])
+    setPensando(true)
+    try {
+      const r = await preguntarAgente(text, candidatosParaAgente())
+      let agente: ChatMsg
+      if (r.fuente === 'ia' && r.respuesta) {
+        const article = r.articuloId ? articuloPorId(r.articuloId) : undefined
+        agente = { role: 'agent', content: r.respuesta, article, noMatch: !article }
+      } else {
+        // sin-config / error → motor local
+        agente = responderLocal(text)
+      }
+      setMessages(prev => [...prev, agente])
+    } catch {
+      setMessages(prev => [...prev, responderLocal(text)])
+    } finally {
+      setPensando(false)
+    }
   }
 
   const submit = () => {
     const text = input.trim()
-    if (!text) return
+    if (!text || pensando) return
     setInput('')
-    responder(text)
+    void responder(text)
   }
 
   return (
@@ -95,7 +123,7 @@ export default function HelpAgentDrawer() {
                   {SUGERENCIAS.map((s, i) => (
                     <Tag
                       key={i}
-                      onClick={() => responder(s)}
+                      onClick={() => void responder(s)}
                       style={{
                         cursor: 'pointer', whiteSpace: 'normal', padding: '6px 10px',
                         borderColor: TEAL, color: TEAL, background: '#e9f8fb', width: '100%',
@@ -145,6 +173,12 @@ export default function HelpAgentDrawer() {
                   )}
                 </div>
               ))}
+
+              {pensando && (
+                <div style={{ alignSelf: 'flex-start', background: '#f0f2f7', borderRadius: 10, padding: '9px 12px' }}>
+                  <Space size={8}><Spin size="small" /><Text type="secondary" style={{ fontSize: 12 }}>Pensando…</Text></Space>
+                </div>
+              )}
             </Space>
           </div>
 
@@ -154,22 +188,36 @@ export default function HelpAgentDrawer() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onPressEnter={submit}
+              disabled={pensando}
             />
-            <Button type="primary" icon={<SendOutlined />} onClick={submit} style={{ background: TEAL }} />
+            <Button type="primary" icon={<SendOutlined />} onClick={submit} loading={pensando} style={{ background: TEAL }} />
           </Space.Compact>
-          <Button
-            type="text"
-            size="small"
-            icon={<CustomerServiceOutlined />}
-            onClick={() => setTab('soporte')}
-            style={{ marginTop: 8, color: '#8493a8', fontSize: 12 }}
-          >
-            ¿No encontraste la respuesta? Hablar con soporte
-          </Button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            <Button
+              type="text"
+              size="small"
+              icon={<CustomerServiceOutlined />}
+              onClick={() => setTab('soporte')}
+              style={{ color: '#8493a8', fontSize: 12, paddingLeft: 0 }}
+            >
+              Hablar con soporte
+            </Button>
+            <Button
+              type="text"
+              size="small"
+              icon={<ApiOutlined />}
+              onClick={() => setAiModal(true)}
+              style={{ color: TEAL, fontSize: 12 }}
+            >
+              Enlazar mi cuenta IA
+            </Button>
+          </div>
           </div>
           )}
         </div>
       </Drawer>
+
+      <LinkAiAccountModal open={aiModal} onClose={() => setAiModal(false)} />
     </>
   )
 }
