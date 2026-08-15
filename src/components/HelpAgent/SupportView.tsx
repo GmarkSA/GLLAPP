@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Button, Input, Space, Typography, Empty, Tag, Spin, message as antdMessage } from 'antd'
 import { ArrowLeftOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons'
 import {
-  misTickets, crearTicket, verTicket, agregarMensaje,
+  misTickets, crearTicket, verTicket, agregarMensaje, codigoTicket,
   type SupportTicket, type TicketConversation, type SupportTicketStatus,
 } from '../../api/support'
 
@@ -92,7 +92,10 @@ export default function SupportView({ prefill }: { prefill?: string }) {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => setVista('lista')} />
-          <Text strong style={{ fontSize: 13, flex: 1 }} ellipsis>{conv.ticket.asunto}</Text>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text type="secondary" style={{ fontSize: 10, fontFamily: 'monospace' }}>{codigoTicket(conv.ticket.numero)}</Text>
+            <Text strong style={{ fontSize: 13, display: 'block' }} ellipsis>{conv.ticket.asunto}</Text>
+          </div>
           <Tag color={STATUS_TAG[conv.ticket.status].color}>{STATUS_TAG[conv.ticket.status].label}</Tag>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 10 }}>
@@ -177,7 +180,9 @@ export default function SupportView({ prefill }: { prefill?: string }) {
                 <Text strong style={{ fontSize: 13, flex: 1 }} ellipsis>{t.asunto}</Text>
                 <Tag color={STATUS_TAG[t.status].color} style={{ margin: 0 }}>{STATUS_TAG[t.status].label}</Tag>
               </div>
-              <Text type="secondary" style={{ fontSize: 11 }}>{fmt(t.lastMessageAt)}</Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                <span style={{ fontFamily: 'monospace' }}>{codigoTicket(t.numero)}</span> · {fmt(t.lastMessageAt)}
+              </Text>
               {t.unreadForClient && <Tag color={TEAL} style={{ marginLeft: 6 }}>Nueva respuesta</Tag>}
             </div>
           ))}

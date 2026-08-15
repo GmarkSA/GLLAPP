@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
-  Table, Tag, Segmented, Button, Modal, Input, Space, Typography, message as antdMessage, Badge,
+  Table, Tag, Segmented, Button, Modal, Input, Space, Typography, message as antdMessage, Badge, Statistic, Card,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { SendOutlined, ReloadOutlined, CheckOutlined } from '@ant-design/icons'
+import { SendOutlined, ReloadOutlined, CheckOutlined, ClockCircleOutlined, InboxOutlined } from '@ant-design/icons'
 import {
-  adminTickets, adminVerTicket, adminResponder, adminCambiarStatus,
+  adminTickets, adminVerTicket, adminResponder, adminCambiarStatus, codigoTicket,
   type SupportTicket, type TicketConversation, type SupportTicketStatus,
 } from '../../api/support'
 
@@ -18,6 +18,19 @@ const STATUS: Record<SupportTicketStatus, { color: string; label: string }> = {
   closed:   { color: 'default',    label: 'Cerrado' },
 }
 const fmt = (iso: string) => new Date(iso).toLocaleString('es-GT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+// Tiempo transcurrido desde createdAt (para monitorear cuánto lleva abierto un ticket).
+const antiguedad = (iso: string): { texto: string; horas: number } => {
+  const ms = Date.now() - new Date(iso).getTime()
+  const horas = ms / 3_600_000
+  const dias = Math.floor(horas / 24)
+  if (dias >= 1) return { texto: `${dias} d`, horas }
+  const h = Math.floor(horas)
+  if (h >= 1) return { texto: `${h} h`, horas }
+  return { texto: `${Math.max(1, Math.floor(ms / 60_000))} min`, horas }
+}
+// Color de alerta por tiempo abierto: >48h rojo, >24h naranja, si no gris.
+const colorAntiguedad = (horas: number): string => (horas >= 48 ? '#cf1322' : horas >= 24 ? '#d46b08' : '#8493a8')
 
 export default function AdminSupportPanel() {
   const [filtro, setFiltro] = useState<'' | SupportTicketStatus>('')
@@ -77,6 +90,12 @@ export default function AdminSupportPanel() {
 
   const cols: ColumnsType<SupportTicket> = [
     {
+      title: 'Ticket', width: 96,
+      render: (_, r) => (
+        <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{codigoTicket(r.numero)}</Text>
+      ),
+    },
+    {
       title: 'Tenant / Usuario',
       render: (_, r) => (
         <div>
@@ -98,13 +117,44 @@ export default function AdminSupportPanel() {
     },
     { title: 'Estado', dataIndex: 'status', width: 120,
       render: (v: SupportTicketStatus) => <Tag color={STATUS[v].color}>{STATUS[v].label}</Tag> },
+    { title: 'Abierto hace', width: 110,
+      render: (_, r) => {
+        if (r.status === 'closed') return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+        const a = antiguedad(r.createdAt)
+        return <Text strong style={{ fontSize: 12, color: colorAntiguedad(a.horas) }}>{a.texto}</Text>
+      } },
     { title: 'Último mensaje', dataIndex: 'lastMessageAt', width: 150,
       render: (v: string) => <Text style={{ fontSize: 12 }}>{fmt(v)}</Text> },
     { title: '', width: 90, render: (_, r) => <Button size="small" onClick={() => abrir(r.id)}>Abrir</Button> },
   ]
 
+  // Monitoreo de tiempo abierto: pendientes (no cerrados) y el más antiguo.
+  const noCerrados = tickets.filter(t => t.status !== 'closed')
+  const masViejo = noCerrados.length
+    ? noCerrados.reduce((a, b) => (new Date(a.createdAt) <= new Date(b.createdAt) ? a : b))
+    : null
+  const edadViejo = masViejo ? antiguedad(masViejo.createdAt) : null
+
   return (
     <div>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <Card size="small" styles={{ body: { padding: '10px 16px' } }} style={{ minWidth: 160 }}>
+          <Statistic
+            title={<Space size={4}><InboxOutlined /> Pendientes</Space>}
+            value={noCerrados.length}
+            valueStyle={{ fontSize: 22, color: NAVY }}
+          />
+        </Card>
+        <Card size="small" styles={{ body: { padding: '10px 16px' } }} style={{ minWidth: 200 }}>
+          <Statistic
+            title={<Space size={4}><ClockCircleOutlined /> Más antiguo abierto</Space>}
+            value={edadViejo ? edadViejo.texto : '—'}
+            valueStyle={{ fontSize: 22, color: edadViejo ? colorAntiguedad(edadViejo.horas) : '#8493a8' }}
+            suffix={masViejo ? <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>{codigoTicket(masViejo.numero)}</Text> : undefined}
+          />
+        </Card>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <Segmented
           value={filtro}
@@ -136,6 +186,7 @@ export default function AdminSupportPanel() {
         width={560}
         title={conv ? (
           <Space>
+            <Text strong style={{ fontFamily: 'monospace', fontSize: 12, color: NAVY }}>{codigoTicket(conv.ticket.numero)}</Text>
             <Text strong>{conv.ticket.asunto}</Text>
             <Tag color={STATUS[conv.ticket.status].color}>{STATUS[conv.ticket.status].label}</Tag>
           </Space>

@@ -16,6 +16,7 @@ export interface SupportMessage {
 
 export interface SupportTicket {
   id: string
+  numero?: number
   tenantId: string
   companyId?: string
   userId?: string
@@ -34,6 +35,10 @@ export interface TicketConversation {
   ticket: SupportTicket
   messages: SupportMessage[]
 }
+
+/** Correlativo visible del ticket: TCK-#### (o '—' si aún no tiene número). */
+export const codigoTicket = (numero?: number): string =>
+  numero ? `TCK-${String(numero).padStart(4, '0')}` : '—'
 
 // ── Cliente ────────────────────────────────────────────────────────────────
 
