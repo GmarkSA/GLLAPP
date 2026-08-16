@@ -1144,6 +1144,18 @@ export default function TransaccionesPage() {
               las acciones/filtros disponibles (antes escondidos en un dropdown). */}
           <Space size={4} wrap>
             <Text type="secondary" style={{ fontSize: 12 }}>Estado:</Text>
+            <Tag
+              onClick={() => { setStatus(undefined); setPage(1) }}
+              style={{
+                cursor: 'pointer', margin: 0, borderRadius: 12, padding: '1px 10px',
+                fontSize: 12, userSelect: 'none',
+                border: `1px solid ${status === undefined ? NAVY : '#e5e7eb'}`,
+                background: status === undefined ? NAVY : '#fff',
+                color: status === undefined ? '#fff' : '#6b7280',
+              }}
+            >
+              Todo
+            </Tag>
             {Object.entries(TRANSACTION_STATUS_CONFIG).map(([value, cfg]) => {
               const active = status === value
               const color  = cfg.color === 'default' ? '#8c8c8c' : cfg.color
