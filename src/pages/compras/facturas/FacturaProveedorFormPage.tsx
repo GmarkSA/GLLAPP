@@ -442,8 +442,8 @@ export default function FacturaProveedorFormPage() {
   // Tipo de combustible de una línea: la unidad si es un combustible; si no, el idpType
   // guardado (p. ej. facturas importadas con unidad "Galón" + idpType aparte).
   const fuelTypeDe = (it: LineItem): string | undefined =>
-    FUEL_UNITS.has(it.unit ?? '') ? it.unit
-      : (it.idpType && IDP_RATES[it.idpType] != null ? it.idpType : undefined)
+    (it.idpType && IDP_RATES[it.idpType] != null) ? it.idpType
+      : (FUEL_UNITS.has(it.unit ?? '') ? it.unit : undefined)
 
   // IDP calculation: por línea, según el tipo de combustible
   const idpAmount = invoiceType === 'fuel'
@@ -1203,37 +1203,42 @@ export default function FacturaProveedorFormPage() {
             <Card title={<span style={{ color: '#ff7f00', fontWeight: 600 }}>IDP — Combustible</span>}>
               <Form form={form} layout="vertical" size="small">
                 <div style={{ marginBottom: 12 }}>
-                  {Object.entries(IDP_RATES).map(([ft, rate]) => {
-                    const fuelLines = items.filter(it => it.unit === ft)
-                    if (!fuelLines.length) return null
-                    const qty = fuelLines.reduce((s, it) => s + Number(it.quantity || 0), 0)
-                    const amt = Math.round(qty * rate * 100) / 100
-                    const labels: Record<string, string> = {
-                      super: 'Gasolina Super', regular: 'Gasolina Regular', aviacion: 'Aviación',
-                      diesel: 'Diésel', propano: 'Gas Propano', bunker: 'Bunker C',
-                      kerosina: 'Kerosina', other: 'Otros',
-                    }
+                  <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginBottom: 8 }}>
+                    Asigná el tipo de combustible de cada línea para calcular el IDP:
+                  </Text>
+                  {items.filter(it => Number(it.quantity || 0) > 0 || (it.description ?? '').trim()).map(it => {
+                    const ft   = fuelTypeDe(it)
+                    const rate = ft ? (IDP_RATES[ft] ?? 0) : 0
+                    const amt  = Math.round(Number(it.quantity || 0) * rate * 100) / 100
                     return (
-                      <div key={ft} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280' }}>
-                          {labels[ft] ?? ft}
-                          <span style={{ color: '#d1d5db', marginLeft: 4, fontSize: 11 }}>({fmt(qty)} gal × Q{rate})</span>
-                        </Text>
-                        <Text style={{ fontSize: 13, fontWeight: 600, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>
-                          Q {fmt(amt)}
+                      <div key={it._key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <Text ellipsis style={{ flex: 1, fontSize: 12, color: '#6b7280' }}>{it.description || 'Línea'}</Text>
+                        <Select
+                          size="small" style={{ width: 120 }} placeholder="Combustible" allowClear
+                          value={ft}
+                          onChange={v => setItems(prev => prev.map(x => x._key === it._key ? { ...x, idpType: v } : x))}
+                          options={[
+                            { value: 'super',    label: 'Super' },
+                            { value: 'regular',  label: 'Regular' },
+                            { value: 'diesel',   label: 'Diésel' },
+                            { value: 'aviacion', label: 'Aviación' },
+                            { value: 'propano',  label: 'Gas Propano' },
+                            { value: 'bunker',   label: 'Bunker C' },
+                            { value: 'kerosina', label: 'Kerosina' },
+                            { value: 'other',    label: 'Otros' },
+                          ]}
+                        />
+                        <Text style={{ width: 72, textAlign: 'right', fontSize: 12, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>
+                          {amt > 0 ? `Q ${fmt(amt)}` : '—'}
                         </Text>
                       </div>
                     )
                   })}
-                  {idpAmount > 0 ? (
+                  {idpAmount > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #fde68a', paddingTop: 6, marginTop: 4 }}>
                       <Text style={{ fontSize: 13, fontWeight: 700, color: '#ff7f00' }}>Total IDP</Text>
                       <Text style={{ fontSize: 14, fontWeight: 800, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>Q {fmt(idpAmount)}</Text>
                     </div>
-                  ) : (
-                    <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginBottom: 4 }}>
-                      Selecciona el tipo de combustible en la columna Unidad de cada línea
-                    </Text>
                   )}
                 </div>
                 <Form.Item name="idpAccountId" label="Cuenta IDP por acreditar">
