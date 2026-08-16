@@ -255,7 +255,7 @@ export default function DiarioManualFormPage() {
     try { await form.validateFields() } catch { return }
     const validLines = lines.filter(l => l.accountCode || l.accountId)
     if (validLines.length < 2) { message.warning('Se necesitan al menos 2 líneas con cuenta'); return }
-    if (Math.abs(diferencia) > 0.01) { message.warning(`El asiento no cuadra — diferencia: ${fmtCur(Math.abs(diferencia))}`); return }
+    if (Math.abs(diferencia) > 0.01) { message.warning(`La póliza no cuadra: el débito y el crédito deben ser iguales (diferencia actual ${fmtCur(Math.abs(diferencia))}). Ajustá los montos hasta que la diferencia sea ${fmtCur(0)}.`); return }
 
     setSaving(true)
     try {
@@ -459,7 +459,7 @@ export default function DiarioManualFormPage() {
       </div>
 
       <Form form={form} layout="vertical" size="small"
-        initialValues={{ type: 'manual', currency: 'GTQ', exchangeRate: 1, entryDate: dayjs() }}>
+        initialValues={{ type: 'manual', currency: 'GTQ', exchangeRate: 1, entryDate: dayjs(), accountingDate: dayjs() }}>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
           {/* Col izquierda */}
@@ -467,7 +467,8 @@ export default function DiarioManualFormPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Form.Item label="Fecha del documento" name="entryDate"
                 rules={[{ required: true, message: 'Requerida' }]}>
-                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" disabled={isReadonly} />
+                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" disabled={isReadonly}
+                  onChange={(v) => form.setFieldsValue({ accountingDate: v })} />
               </Form.Item>
               <Form.Item label="Fecha contable" name="accountingDate">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" disabled={isReadonly}
@@ -585,12 +586,17 @@ export default function DiarioManualFormPage() {
 
         {/* ── Acciones ─────────────────────────────────────────── */}
         <Divider style={{ margin: '16px 0' }} />
+        {!isReadonly && Math.abs(diferencia) > 0.01 && (
+          <div style={{ color: '#e5484d', fontSize: 13, marginBottom: 10 }}>
+            ⚠ La póliza no cuadra: el débito y el crédito deben ser iguales para poder guardar
+            (diferencia actual {fmtCur(Math.abs(diferencia))}).
+          </div>
+        )}
         <Space wrap>
           {!isReadonly && (
             <>
               <Button type="primary" icon={<CheckCircleOutlined />}
                 style={{ background: correctionMode ? '#f59e0b' : '#1faec2' }} loading={saving}
-                disabled={Math.abs(diferencia) > 0.01}
                 onClick={() => handleSave(true)}>
                 {correctionMode ? 'Guardar corrección' : 'Guardar y publicar'}
               </Button>
