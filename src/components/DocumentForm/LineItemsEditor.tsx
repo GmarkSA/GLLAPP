@@ -24,6 +24,7 @@ export interface LineItem {
   taxInclusive?: boolean   // true = precio ya incluye el impuesto
   accountId?:    string
   projectId?:    string
+  idpType?:      string    // tipo de combustible para IDP (super/regular/diesel…) — solo facturas de compra de combustible
   // stock info (UI only)
   stockOnHand?:    number
   isInventoriable?: boolean

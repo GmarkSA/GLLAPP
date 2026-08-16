@@ -63,9 +63,13 @@ export default function EnterpriseBreadcrumb() {
 
   // Segmentos de ruta
   let path = ''
+  let prevSeg = ''
   for (const seg of segments) {
     path += `/${seg}`
-    const label = ROUTE_LABELS[seg]
+    let label = ROUTE_LABELS[seg]
+    // Desambiguar por contexto: /compras/facturas es "Facturas Proveedor" (no de venta)
+    if (seg === 'facturas' && prevSeg === 'compras') label = 'Facturas Proveedor'
+    prevSeg = seg
     if (!label) continue   // IDs UUID — omitir
 
     const currentPath = path

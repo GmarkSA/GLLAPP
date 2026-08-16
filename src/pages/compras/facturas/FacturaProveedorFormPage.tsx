@@ -293,6 +293,7 @@ export default function FacturaProveedorFormPage() {
             taxId: it.taxId,
             accountId: it.accountId,
             projectId: it.projectId,
+            idpType: it.idpType,   // preservar el tipo de combustible para no perder el IDP al editar
           }),
         )
         setItems(loadedItems.length ? loadedItems : [newLineItem()])
@@ -438,10 +439,17 @@ export default function FacturaProveedorFormPage() {
 
   const totals = calcTotals(items)
 
-  // IDP calculation: per-line, derived from unit (super/regular/diesel)
+  // Tipo de combustible de una línea: la unidad si es un combustible; si no, el idpType
+  // guardado (p. ej. facturas importadas con unidad "Galón" + idpType aparte).
+  const fuelTypeDe = (it: LineItem): string | undefined =>
+    FUEL_UNITS.has(it.unit ?? '') ? it.unit
+      : (it.idpType && IDP_RATES[it.idpType] != null ? it.idpType : undefined)
+
+  // IDP calculation: por línea, según el tipo de combustible
   const idpAmount = invoiceType === 'fuel'
     ? Math.round(items.reduce((sum, it) => {
-        const rate = FUEL_UNITS.has(it.unit ?? '') ? (IDP_RATES[it.unit!] ?? 0) : 0
+        const ft = fuelTypeDe(it)
+        const rate = ft ? (IDP_RATES[ft] ?? 0) : 0
         return sum + Number(it.quantity || 0) * rate
       }, 0) * 100) / 100
     : 0
@@ -482,8 +490,8 @@ export default function FacturaProveedorFormPage() {
       taxId: it.taxId,
       accountId: it.accountId,
       projectId: it.projectId,
-      // Para facturas de combustible: el idpType se deriva de la unidad de medida
-      idpType: FUEL_UNITS.has(it.unit ?? '') ? it.unit : undefined,
+      // Tipo de combustible para IDP: la unidad si es combustible, si no el idpType guardado
+      idpType: fuelTypeDe(it),
     }))
     const isReim = vals.isExpenseReimbursement ?? false
     return {
@@ -612,6 +620,7 @@ export default function FacturaProveedorFormPage() {
         setReclasEntry(null)
       }
       message.success('Factura actualizada y póliza regenerada')
+      navigate(`/compras/facturas/${id}`)
     } catch (err: any) {
       message.error(getApiError(err, 'Error al actualizar'))
     } finally {

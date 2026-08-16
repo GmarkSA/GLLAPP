@@ -469,16 +469,11 @@ export default function FacturaProveedorDetallePage() {
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
         <Divider type="vertical" />
         {canEditOpen && !inlineEdit && (
-          <>
-            <Button type="primary" icon={<EditOutlined />}
-              style={{ background: '#1faec2', borderColor: '#1faec2' }}
-              onClick={() => navigate(`/compras/facturas/${bill.id}/editar`)}>
-              Editar
-            </Button>
-            <Button icon={<EditOutlined />} onClick={canEdit ? enterInlineEdit : openEditModal}>
-              Edición rápida
-            </Button>
-          </>
+          <Button type="primary" icon={<EditOutlined />}
+            style={{ background: '#1faec2', borderColor: '#1faec2' }}
+            onClick={() => navigate(`/compras/facturas/${bill.id}/editar`)}>
+            Editar
+          </Button>
         )}
         {inlineEdit && (
           <>
