@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import AdminSupportPanel from './AdminSupportPanel'
+import { adminUnreadCount } from '../../api/support'
 import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import type { Company } from '../../store/authStore'
@@ -27,6 +28,27 @@ import { platformTemplatesApi, type PlatformTemplate } from '../../api/platformT
 import { getAccounts, type Account } from '../../api/catalogo'
 
 const { Title, Text } = Typography
+
+// ── Label de la pestaña Soporte con badge de tickets no leídos ─────────────────
+// Autónomo: consulta el contador y refresca cada 20s, sin acoplar el estado del padre.
+function SoporteTabLabel() {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    let alive = true
+    const fetchCount = () =>
+      adminUnreadCount().then(r => { if (alive) setCount(r?.count ?? 0) }).catch(() => {})
+    fetchCount()
+    const t = setInterval(fetchCount, 20000)
+    return () => { alive = false; clearInterval(t) }
+  }, [])
+  return (
+    <Space>
+      <CustomerServiceOutlined />
+      Soporte
+      <Badge count={count} size="small" />
+    </Space>
+  )
+}
 
 // ── BillingConfigTab ──────────────────────────────────────────────────────────
 // Componente separado para evitar que el estado del InputNumber se pierda
@@ -1305,7 +1327,7 @@ export default function PlatformAdminPage() {
           },
           {
             key: 'soporte',
-            label: <Space><CustomerServiceOutlined />Soporte</Space>,
+            label: <SoporteTabLabel />,
             children: <AdminSupportPanel />,
           },
         ]}
