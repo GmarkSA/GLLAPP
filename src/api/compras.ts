@@ -359,6 +359,7 @@ export const recordBillPayment = (id: string, dto: {
   mode?: string
   reference?: string
   bankAccountId?: string
+  bankTransactionId?: string
 }) => api.post(`${BILL}/${id}/registrar-pago`, dto).then(unwrap)
 
 export const voidBill = (id: string, reason?: string) =>
