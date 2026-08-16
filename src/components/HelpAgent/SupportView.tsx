@@ -11,7 +11,7 @@ const TEAL = '#1faec2'
 
 const STATUS_TAG: Record<SupportTicketStatus, { color: string; label: string }> = {
   open:     { color: 'processing', label: 'Abierto' },
-  answered: { color: 'success',    label: 'Respondido' },
+  answered: { color: 'success',    label: 'En proceso' },
   closed:   { color: 'default',    label: 'Cerrado' },
 }
 

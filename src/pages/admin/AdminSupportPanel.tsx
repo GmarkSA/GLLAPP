@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
-  Table, Tag, Segmented, Button, Modal, Input, Space, Typography, message as antdMessage, Badge, Statistic, Card,
+  Table, Tag, Segmented, Button, Modal, Input, Space, Typography, message as antdMessage, Badge, Statistic, Card, Select,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { SendOutlined, ReloadOutlined, CheckOutlined, ClockCircleOutlined, InboxOutlined } from '@ant-design/icons'
+import { SendOutlined, ReloadOutlined, ClockCircleOutlined, InboxOutlined } from '@ant-design/icons'
 import {
   adminTickets, adminVerTicket, adminResponder, adminCambiarStatus, codigoTicket,
   type SupportTicket, type TicketConversation, type SupportTicketStatus,
@@ -14,9 +14,16 @@ const NAVY = '#1B3A6B'
 
 const STATUS: Record<SupportTicketStatus, { color: string; label: string }> = {
   open:     { color: 'processing', label: 'Abierto' },
-  answered: { color: 'success',    label: 'Respondido' },
+  answered: { color: 'success',    label: 'En proceso' },
   closed:   { color: 'default',    label: 'Cerrado' },
 }
+
+// Estados que el admin puede fijar manualmente en un ticket.
+const ESTADO_OPCIONES = [
+  { value: 'open',     label: 'Abierto' },
+  { value: 'answered', label: 'En proceso' },
+  { value: 'closed',   label: 'Cerrado' },
+] as const
 const fmt = (iso: string) => new Date(iso).toLocaleString('es-GT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 // Tiempo transcurrido desde createdAt (para monitorear cuánto lleva abierto un ticket).
@@ -162,7 +169,7 @@ export default function AdminSupportPanel() {
           options={[
             { label: 'Todos', value: '' },
             { label: 'Abiertos', value: 'open' },
-            { label: 'Respondidos', value: 'answered' },
+            { label: 'En proceso', value: 'answered' },
             { label: 'Cerrados', value: 'closed' },
           ]}
         />
@@ -217,26 +224,28 @@ export default function AdminSupportPanel() {
               </Space>
             </div>
 
-            {conv.ticket.status !== 'closed' ? (
-              <>
-                <Space.Compact style={{ width: '100%' }}>
-                  <Input.TextArea
-                    placeholder="Escribí tu respuesta..."
-                    value={respuesta}
-                    onChange={e => setRespuesta(e.target.value)}
-                    autoSize={{ minRows: 2, maxRows: 5 }}
-                  />
-                  <Button type="primary" icon={<SendOutlined />} loading={enviando} onClick={responder}
-                    style={{ background: NAVY, height: 'auto' }} />
-                </Space.Compact>
-                <Button size="small" type="text" icon={<CheckOutlined />} onClick={() => cambiarStatus('closed')}
-                  style={{ marginTop: 8, color: '#8493a8' }}>
-                  Cerrar ticket
-                </Button>
-              </>
-            ) : (
-              <Button size="small" onClick={() => cambiarStatus('open')}>Reabrir ticket</Button>
+            {conv.ticket.status !== 'closed' && (
+              <Space.Compact style={{ width: '100%' }}>
+                <Input.TextArea
+                  placeholder="Escribí tu respuesta..."
+                  value={respuesta}
+                  onChange={e => setRespuesta(e.target.value)}
+                  autoSize={{ minRows: 2, maxRows: 5 }}
+                />
+                <Button type="primary" icon={<SendOutlined />} loading={enviando} onClick={responder}
+                  style={{ background: NAVY, height: 'auto' }} />
+              </Space.Compact>
             )}
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Estado del ticket:</Text>
+              <Select
+                size="small"
+                value={conv.ticket.status}
+                style={{ width: 160 }}
+                onChange={v => cambiarStatus(v as SupportTicketStatus)}
+                options={ESTADO_OPCIONES as any}
+              />
+            </div>
           </>
         )}
       </Modal>
