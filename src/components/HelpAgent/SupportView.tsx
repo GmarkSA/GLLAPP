@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { Button, Input, Space, Typography, Empty, Tag, Spin, message as antdMessage } from 'antd'
 import { ArrowLeftOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons'
 import {
-  misTickets, crearTicket, verTicket, agregarMensaje, codigoTicket,
-  type SupportTicket, type TicketConversation, type SupportTicketStatus,
+  misTickets, crearTicket, verTicket, agregarMensaje, codigoTicket, subirAdjunto,
+  type SupportTicket, type TicketConversation, type SupportTicketStatus, type AdjuntoRef,
 } from '../../api/support'
+import { MessageAttachments, AdjuntarButton, PendingStrip } from './attachments'
 
 const { Text } = Typography
 const TEAL = '#1faec2'
@@ -27,9 +28,11 @@ export default function SupportView({ prefill }: { prefill?: string }) {
   const [asunto, setAsunto] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [nuevoAdj, setNuevoAdj] = useState<AdjuntoRef[]>([])
 
   // Responder en un ticket abierto
   const [respuesta, setRespuesta] = useState('')
+  const [respAdj, setRespAdj] = useState<AdjuntoRef[]>([])
 
   const cargarLista = useCallback(async () => {
     setLoading(true)
@@ -62,26 +65,30 @@ export default function SupportView({ prefill }: { prefill?: string }) {
   const irNuevo = () => {
     setAsunto(prefill ? prefill.slice(0, 80) : '')
     setMensaje('')
+    setNuevoAdj([])
     setVista('nuevo')
   }
 
   const enviarNuevo = async () => {
-    if (!mensaje.trim()) { antdMessage.warning('Escribí tu consulta'); return }
+    if (!mensaje.trim() && !nuevoAdj.length) { antdMessage.warning('Escribí tu consulta o adjuntá un archivo'); return }
     setEnviando(true)
     try {
-      const t = await crearTicket(asunto.trim() || 'Consulta', mensaje.trim())
+      const t = await crearTicket(asunto.trim() || 'Consulta', mensaje.trim(), nuevoAdj)
       antdMessage.success('Ticket enviado a soporte')
+      setNuevoAdj([])
       await abrirTicket(t.id)
     } catch { antdMessage.error('No se pudo crear el ticket') }
     finally { setEnviando(false) }
   }
 
   const enviarRespuesta = async () => {
-    if (!respuesta.trim() || !conv) return
+    if ((!respuesta.trim() && !respAdj.length) || !conv) return
     const body = respuesta.trim()
+    const adj = respAdj
     setRespuesta('')
+    setRespAdj([])
     try {
-      await agregarMensaje(conv.ticket.id, body)
+      await agregarMensaje(conv.ticket.id, body, adj)
       setConv(await verTicket(conv.ticket.id))
     } catch { antdMessage.error('No se pudo enviar el mensaje') }
   }
@@ -111,21 +118,26 @@ export default function SupportView({ prefill }: { prefill?: string }) {
                 <div style={{ fontSize: 10, opacity: 0.7, marginBottom: 2 }}>
                   {m.sender === 'admin' ? (m.authorName || 'Soporte') : 'Vos'} · {fmt(m.createdAt)}
                 </div>
-                <Text style={{ color: 'inherit', fontSize: 13, whiteSpace: 'pre-wrap' }}>{m.body}</Text>
+                {m.body && <Text style={{ color: 'inherit', fontSize: 13, whiteSpace: 'pre-wrap' }}>{m.body}</Text>}
+                <MessageAttachments attachments={m.attachments} />
               </div>
             ))}
           </Space>
         </div>
         {conv.ticket.status !== 'closed' && (
-          <Space.Compact style={{ width: '100%' }}>
-            <Input
-              placeholder="Escribí un mensaje..."
-              value={respuesta}
-              onChange={e => setRespuesta(e.target.value)}
-              onPressEnter={enviarRespuesta}
-            />
-            <Button type="primary" icon={<SendOutlined />} onClick={enviarRespuesta} style={{ background: TEAL }} />
-          </Space.Compact>
+          <div>
+            <PendingStrip pendientes={respAdj} onQuitar={i => setRespAdj(prev => prev.filter((_, j) => j !== i))} />
+            <Space.Compact style={{ width: '100%' }}>
+              <AdjuntarButton uploader={subirAdjunto} onUploaded={ref => setRespAdj(prev => [...prev, ref])} />
+              <Input
+                placeholder="Escribí un mensaje..."
+                value={respuesta}
+                onChange={e => setRespuesta(e.target.value)}
+                onPressEnter={enviarRespuesta}
+              />
+              <Button type="primary" icon={<SendOutlined />} onClick={enviarRespuesta} style={{ background: TEAL }} />
+            </Space.Compact>
+          </div>
         )}
       </div>
     )
@@ -147,6 +159,11 @@ export default function SupportView({ prefill }: { prefill?: string }) {
             onChange={e => setMensaje(e.target.value)}
             autoSize={{ minRows: 5, maxRows: 10 }}
           />
+          <PendingStrip pendientes={nuevoAdj} onQuitar={i => setNuevoAdj(prev => prev.filter((_, j) => j !== i))} />
+          <Space>
+            <AdjuntarButton uploader={subirAdjunto} onUploaded={ref => setNuevoAdj(prev => [...prev, ref])} />
+            <Text type="secondary" style={{ fontSize: 12 }}>Adjuntá imágenes, documentos o audio (máx. 10 MB)</Text>
+          </Space>
           <Button type="primary" block loading={enviando} onClick={enviarNuevo} style={{ background: TEAL }}>
             Enviar a soporte
           </Button>

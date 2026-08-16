@@ -5,12 +5,29 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 export type SupportSender = 'client' | 'admin'
 export type SupportTicketStatus = 'open' | 'answered' | 'closed'
 
+/** Adjunto tal como lo devuelve el servidor al leer la conversación (URL firmada temporal). */
+export interface SupportAttachment {
+  url: string
+  name: string
+  type: string
+  size: number
+}
+
+/** Referencia de un adjunto ya subido (lo que se envía al crear el mensaje). */
+export interface AdjuntoRef {
+  key: string
+  name: string
+  type: string
+  size: number
+}
+
 export interface SupportMessage {
   id: string
   ticketId: string
   sender: SupportSender
   authorName?: string
   body: string
+  attachments?: SupportAttachment[]
   createdAt: string
 }
 
@@ -40,10 +57,22 @@ export interface TicketConversation {
 export const codigoTicket = (numero?: number): string =>
   numero ? `TCK-${String(numero).padStart(4, '0')}` : '—'
 
+// ── Adjuntos ─────────────────────────────────────────────────────────────────
+
+export const subirAdjunto = (file: File): Promise<AdjuntoRef> => {
+  const fd = new FormData(); fd.append('file', file)
+  return api.post('/support/attachments', fd).then(unwrap)
+}
+
+export const adminSubirAdjunto = (file: File): Promise<AdjuntoRef> => {
+  const fd = new FormData(); fd.append('file', file)
+  return api.post('/support/admin/attachments', fd).then(unwrap)
+}
+
 // ── Cliente ────────────────────────────────────────────────────────────────
 
-export const crearTicket = (asunto: string, mensaje: string): Promise<SupportTicket> =>
-  api.post('/support/tickets', { asunto, mensaje }).then(unwrap)
+export const crearTicket = (asunto: string, mensaje: string, attachments?: AdjuntoRef[]): Promise<SupportTicket> =>
+  api.post('/support/tickets', { asunto, mensaje, attachments }).then(unwrap)
 
 export const misTickets = (): Promise<SupportTicket[]> =>
   api.get('/support/tickets').then(unwrap)
@@ -51,8 +80,8 @@ export const misTickets = (): Promise<SupportTicket[]> =>
 export const verTicket = (id: string): Promise<TicketConversation> =>
   api.get(`/support/tickets/${id}`).then(unwrap)
 
-export const agregarMensaje = (id: string, mensaje: string): Promise<SupportMessage> =>
-  api.post(`/support/tickets/${id}/messages`, { mensaje }).then(unwrap)
+export const agregarMensaje = (id: string, mensaje: string, attachments?: AdjuntoRef[]): Promise<SupportMessage> =>
+  api.post(`/support/tickets/${id}/messages`, { mensaje, attachments }).then(unwrap)
 
 // ── Admin (SuperAdmin) ───────────────────────────────────────────────────────
 
@@ -65,8 +94,8 @@ export const adminUnreadCount = (): Promise<{ count: number }> =>
 export const adminVerTicket = (id: string): Promise<TicketConversation> =>
   api.get(`/support/admin/tickets/${id}`).then(unwrap)
 
-export const adminResponder = (id: string, mensaje: string): Promise<SupportMessage> =>
-  api.post(`/support/admin/tickets/${id}/reply`, { mensaje }).then(unwrap)
+export const adminResponder = (id: string, mensaje: string, attachments?: AdjuntoRef[]): Promise<SupportMessage> =>
+  api.post(`/support/admin/tickets/${id}/reply`, { mensaje, attachments }).then(unwrap)
 
 export const adminCambiarStatus = (id: string, status: SupportTicketStatus): Promise<{ id: string; status: SupportTicketStatus }> =>
   api.patch(`/support/admin/tickets/${id}/status`, { status }).then(unwrap)

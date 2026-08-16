@@ -5,9 +5,10 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { SendOutlined, ReloadOutlined, CheckOutlined, ClockCircleOutlined, InboxOutlined } from '@ant-design/icons'
 import {
-  adminTickets, adminVerTicket, adminResponder, adminCambiarStatus, codigoTicket,
-  type SupportTicket, type TicketConversation, type SupportTicketStatus,
+  adminTickets, adminVerTicket, adminResponder, adminCambiarStatus, codigoTicket, adminSubirAdjunto,
+  type SupportTicket, type TicketConversation, type SupportTicketStatus, type AdjuntoRef,
 } from '../../api/support'
+import { MessageAttachments, AdjuntarButton, PendingStrip } from '../../components/HelpAgent/attachments'
 
 const { Text } = Typography
 const NAVY = '#1B3A6B'
@@ -38,6 +39,7 @@ export default function AdminSupportPanel() {
   const [loading, setLoading] = useState(false)
   const [conv, setConv] = useState<TicketConversation | null>(null)
   const [respuesta, setRespuesta] = useState('')
+  const [respAdj, setRespAdj] = useState<AdjuntoRef[]>([])
   const [enviando, setEnviando] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -68,11 +70,12 @@ export default function AdminSupportPanel() {
   }
 
   const responder = async () => {
-    if (!respuesta.trim() || !conv) return
+    if ((!respuesta.trim() && !respAdj.length) || !conv) return
     setEnviando(true)
     try {
-      await adminResponder(conv.ticket.id, respuesta.trim())
+      await adminResponder(conv.ticket.id, respuesta.trim(), respAdj)
       setRespuesta('')
+      setRespAdj([])
       setConv(await adminVerTicket(conv.ticket.id))
       void cargar()
     } catch { antdMessage.error('No se pudo enviar la respuesta') }
@@ -210,7 +213,8 @@ export default function AdminSupportPanel() {
                     <div style={{ fontSize: 10, opacity: 0.7, marginBottom: 2 }}>
                       {m.sender === 'admin' ? (m.authorName || 'Soporte') : (m.authorName || 'Cliente')} · {fmt(m.createdAt)}
                     </div>
-                    <Text style={{ color: 'inherit', fontSize: 13, whiteSpace: 'pre-wrap' }}>{m.body}</Text>
+                    {m.body && <Text style={{ color: 'inherit', fontSize: 13, whiteSpace: 'pre-wrap' }}>{m.body}</Text>}
+                    <MessageAttachments attachments={m.attachments} />
                   </div>
                 ))}
                 <div ref={bottomRef} />
@@ -219,7 +223,9 @@ export default function AdminSupportPanel() {
 
             {conv.ticket.status !== 'closed' ? (
               <>
+                <PendingStrip pendientes={respAdj} onQuitar={i => setRespAdj(prev => prev.filter((_, j) => j !== i))} />
                 <Space.Compact style={{ width: '100%' }}>
+                  <AdjuntarButton uploader={adminSubirAdjunto} onUploaded={ref => setRespAdj(prev => [...prev, ref])} color={NAVY} />
                   <Input.TextArea
                     placeholder="Escribí tu respuesta..."
                     value={respuesta}
