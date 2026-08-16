@@ -1531,6 +1531,11 @@ export default function DteSatVentasPage() {
               Importar Emitidos
             </Button>
           </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <span style={{ fontSize: 11, color: '#6b7280' }}>
+              ⚠️ SAT permite máximo 3 meses por importación
+            </span>
+          </Form.Item>
         </Form>
       </Card>
 
