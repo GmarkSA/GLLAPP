@@ -295,16 +295,17 @@ export default function CategorizarDrawer({
 
         await recordBillPayment(bill.id, {
           amount,
-          currency:      account.currency,
-          exchangeRate:  isForeign ? exchangeRate : 1,
-          paymentDate:   txDate,
-          mode:          'bank_transfer',
-          reference:     transaction.reference || undefined,
-          bankAccountId: account.id,
+          currency:          account.currency,
+          exchangeRate:      isForeign ? exchangeRate : 1,
+          paymentDate:       txDate,
+          mode:              'bank_transfer',
+          reference:         transaction.reference || undefined,
+          bankAccountId:     account.id,
+          bankTransactionId: transaction.id,
         })
 
         await updateTransaction(account.id, transaction.id, {
-          status:             'categorized',
+          status:             'reconciled',
           sourceDocumentId:   bill.id,
           sourceDocumentType: 'bill',
           accountId:          bill.accountId || undefined,
@@ -399,8 +400,9 @@ export default function CategorizarDrawer({
           debe:  l.debit,
           haber: l.credit,
         }))
-      } catch {
-        // póliza no crítica — continuar sin mostrarla
+      } catch (jeErr: unknown) {
+        const msg = (jeErr as any)?.response?.data?.message ?? (jeErr as any)?.message ?? 'Error al crear la póliza'
+        message.warning(`Movimiento categorizado, pero la póliza contable no se pudo crear: ${msg}`)
       }
 
       message.success('Movimiento categorizado')
@@ -893,9 +895,9 @@ export default function CategorizarDrawer({
               <Table size="small" dataSource={resultado.journalLines} rowKey={(_, i) => String(i)}
                 columns={journalCols} pagination={false} style={{ marginBottom: 16 }} />
             </>
-          ) : (
+          ) : resultado.journalEntryId ? (
             <Alert type="info" message="La póliza contable se procesará en segundo plano." style={{ marginBottom: 16 }} />
-          )}
+          ) : null}
 
           <Button type="primary" block style={{ background: NAVY }} onClick={handleClose}>Cerrar</Button>
         </div>
