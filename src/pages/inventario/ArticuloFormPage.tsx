@@ -39,6 +39,7 @@ export default function ArticuloFormPage() {
   const [taxes,    setTaxes]    = useState<Tax[]>([])
 
   // Live-watch fields to conditionally show sections
+  const itemType          = Form.useWatch('itemType', form)
   const isInventoriable   = Form.useWatch('isInventoriable', form)
   const currency          = Form.useWatch('currency', form) ?? 'GTQ'
   const currencySymbol    = currency === 'GTQ' ? 'Q' : '$'
@@ -54,6 +55,11 @@ export default function ArticuloFormPage() {
       .then((t: Tax[]) => setTaxes(Array.isArray(t) ? t : []))
       .catch(() => setTaxes([]))
   }, [])
+
+  // Un servicio no lleva inventario: al elegir "servicio" se apaga el control de stock
+  useEffect(() => {
+    if (itemType === 'servicio') form.setFieldValue('isInventoriable', false)
+  }, [itemType, form])
 
   // ── Load for edit ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -266,7 +272,7 @@ export default function ArticuloFormPage() {
                   label="Cuenta de ingresos (ventas)"
                   tooltip="Cuenta donde se registran los ingresos al vender este artículo"
                 >
-                  <AccountSelect filter={{ isCustomerAccount: false }} placeholder="Buscar cuenta de ingresos..." />
+                  <AccountSelect filter={{ balanceType: 'Ingresos' }} placeholder="Buscar cuenta de ingresos..." />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={8}>
@@ -302,7 +308,7 @@ export default function ArticuloFormPage() {
                   label="Cuenta de compras / gastos"
                   tooltip="Cuenta donde se registran las compras de este artículo (si no lleva inventario)"
                 >
-                  <AccountSelect filter={{ isVendorAccount: true }} placeholder="Buscar cuenta de compras..." />
+                  <AccountSelect filter={{ balanceTypes: ['Costos', 'Gastos'] }} placeholder="Buscar cuenta de compras..." />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={8}>
@@ -339,8 +345,13 @@ export default function ArticuloFormPage() {
                     </Space>
                   }
                 >
-                  <Switch checkedChildren="Sí" unCheckedChildren="No" />
+                  <Switch checkedChildren="Sí" unCheckedChildren="No" disabled={itemType === 'servicio'} />
                 </Form.Item>
+                {itemType === 'servicio' && (
+                  <div style={{ fontSize: 11, color: '#8b9aa8', marginTop: -12, marginBottom: 8 }}>
+                    Un <b>servicio</b> no lleva inventario: el control de stock queda desactivado.
+                  </div>
+                )}
               </Col>
               {isInventoriable && (
                 <Col xs={24} sm={12}>
