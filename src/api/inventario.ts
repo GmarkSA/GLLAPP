@@ -34,6 +34,7 @@ export interface Product {
   purchaseAccountId?: string
   costAccountId?: string
   adjustmentAccountId?: string
+  centroBeneficioId?: string
   stockOnHand: number
   minimumStock?: number
   maximumStock?: number
