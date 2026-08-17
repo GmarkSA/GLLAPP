@@ -195,19 +195,32 @@ export default function ProveedorDetallePage() {
 
     // Saldo anterior: suma de todos los movimientos antes del período seleccionado
     let prevBalance = 0
-    bills.filter(b => dayjs(b.invoiceDate ?? b.createdAt).isBefore(from) && b.status !== 'voided' && b.invoiceType !== 'credit_note')
-      .forEach(b => { prevBalance += Number(b.total ?? 0) })
+    bills.filter(b => dayjs(b.invoiceDate ?? b.createdAt).isBefore(from) && b.status !== 'voided')
+      .forEach(b => {
+        if (b.invoiceType === 'credit_note') prevBalance -= Number(b.total ?? 0)
+        else prevBalance += Number(b.total ?? 0)
+      })
     payments.filter(p => dayjs(p.paymentDate ?? p.createdAt).isBefore(from))
       .forEach(p => { prevBalance -= Number(p.amount ?? 0) })
 
     bills.filter(b => {
       const d = dayjs(b.invoiceDate ?? b.createdAt)
-      return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && b.status !== 'voided' && b.invoiceType !== 'credit_note'
-    }).forEach(b => periodRows.push({
-      key: b.id, date: b.invoiceDate, type: 'Factura', ref: b.invoiceNumber,
-      route: `/compras/facturas/${b.id}`,
-      debit: Number(b.total ?? 0), credit: 0,
-    }))
+      return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && b.status !== 'voided'
+    }).forEach(b => {
+      if (b.invoiceType === 'credit_note') {
+        periodRows.push({
+          key: b.id, date: b.invoiceDate, type: 'Nota de crédito', ref: b.invoiceNumber,
+          route: `/compras/notas-credito-proveedor/${b.id}`,
+          debit: 0, credit: Number(b.total ?? 0),
+        })
+      } else {
+        periodRows.push({
+          key: b.id, date: b.invoiceDate, type: 'Factura', ref: b.invoiceNumber,
+          route: `/compras/facturas/${b.id}`,
+          debit: Number(b.total ?? 0), credit: 0,
+        })
+      }
+    })
 
     payments.filter(p => {
       const d = dayjs(p.paymentDate ?? p.createdAt)
