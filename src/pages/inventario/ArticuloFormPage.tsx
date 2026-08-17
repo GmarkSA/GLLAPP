@@ -304,11 +304,11 @@ export default function ArticuloFormPage() {
               </Col>
               <Col xs={24} sm={8}>
                 <Form.Item
-                  name="purchaseAccountId"
-                  label="Cuenta de compras / gastos"
-                  tooltip="Cuenta donde se registran las compras de este artículo (si no lleva inventario)"
+                  name="costAccountId"
+                  label="Cuenta de costo de ventas (COGS)"
+                  tooltip="Cuenta del grupo 5 (costo) o 6 (gasto) que se debita al vender/consumir este artículo"
                 >
-                  <AccountSelect filter={{ balanceTypes: ['Costos', 'Gastos'] }} placeholder="Buscar cuenta de compras..." />
+                  <AccountSelect filter={{ balanceTypes: ['Costos', 'Gastos'] }} placeholder="Buscar cuenta de costo..." />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={8}>
@@ -416,7 +416,7 @@ export default function ArticuloFormPage() {
 
                 {/* Cuentas contables de inventario */}
                 <Row gutter={16}>
-                  <Col xs={24} md={8}>
+                  <Col xs={24} md={12}>
                     <Form.Item
                       name="inventoryAccountId"
                       label="Cuenta de inventario (Activo)"
@@ -425,16 +425,7 @@ export default function ArticuloFormPage() {
                       <AccountSelect filter={{ isInventoryAccount: true }} placeholder="Buscar cuenta de inventario..." />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} md={8}>
-                    <Form.Item
-                      name="costAccountId"
-                      label="Cuenta de costo de ventas (COGS)"
-                      tooltip="Cuenta del grupo 510/511 — Costo de ventas"
-                    >
-                      <AccountSelect filter={{}} placeholder="Buscar cuenta de costo de ventas..." />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} md={8}>
+                  <Col xs={24} md={12}>
                     <Form.Item
                       name="adjustmentAccountId"
                       label="Cuenta de ajustes de inventario"
