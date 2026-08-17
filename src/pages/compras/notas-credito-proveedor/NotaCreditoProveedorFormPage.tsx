@@ -12,7 +12,7 @@ import {
 import dayjs from 'dayjs'
 
 import {
-  createCreditNote, approveCreditNote, getBill,
+  createCreditNote, approveCreditNote, getBill, getBills,
   updateBill, voidBill, getJournalEntry, regenerateBillJournalEntry,
   getVendors,
   type JournalEntry, type JournalEntryLine,
@@ -55,6 +55,7 @@ export default function NotaCreditoProveedorFormPage() {
   const [docStatus,   setDocStatus]   = useState('draft')
   const [vendorDefaultTaxId, setVendorDefaultTaxId] = useState<string | undefined>()
   const [journalEntry,  setJournalEntry]  = useState<JournalEntry | null>(null)
+  const [originalBills, setOriginalBills] = useState<{ value: string; label: string }[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const watchCurr    = Form.useWatch('currency',      form) ?? 'GTQ'
@@ -121,6 +122,7 @@ export default function NotaCreditoProveedorFormPage() {
           felAuthNumber:       bill.felAuthNumber,
           felCertDate:         bill.felCertDate ? dayjs(bill.felCertDate) : undefined,
           notes:               bill.notes,
+          originalInvoiceId:   (bill as any).originalInvoiceId ?? undefined,
         })
         if (bill.vendorId && bill.vendorName) {
           setVendors(prev => {
@@ -167,6 +169,23 @@ export default function NotaCreditoProveedorFormPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendors, watchVendorId])
+
+  useEffect(() => {
+    if (!watchVendorId) { setOriginalBills([]); return }
+    getBills({ vendorId: watchVendorId, limit: 100 })
+      .then(res => {
+        const list = (res as any)?.data ?? []
+        setOriginalBills(
+          list
+            .filter((b: any) => b.invoiceType !== 'credit_note' && !['draft', 'voided'].includes(b.status))
+            .map((b: any) => ({
+              value: b.id,
+              label: `${b.invoiceNumber} — Q ${Number(b.total ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })} (saldo: Q ${Number(b.balance ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })})`,
+            }))
+        )
+      })
+      .catch(() => {})
+  }, [watchVendorId])
 
   // ── Due date auto-calc ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -218,6 +237,7 @@ export default function NotaCreditoProveedorFormPage() {
       felAuthNumber:       vals.felAuthNumber || undefined,
       felCertDate:         vals.felCertDate ? vals.felCertDate.toISOString() : undefined,
       notes:               vals.notes,
+      originalInvoiceId:   vals.originalInvoiceId || undefined,
       status,
       items: items.map(it => ({
         productId:       it.productId,
@@ -408,8 +428,15 @@ export default function NotaCreditoProveedorFormPage() {
             </Form.Item>
           </div>
 
-          {/* Fila 3: Cuenta de gasto | UUID | Notas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 10px' }}>
+          {/* Fila 3: Factura original | Cuenta de gasto | UUID | Notas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0 10px' }}>
+            <Form.Item name="originalInvoiceId" label="Factura original del proveedor (opcional)" style={{ marginBottom: 8 }}>
+              <Select allowClear showSearch placeholder="Buscar factura del proveedor..."
+                optionFilterProp="label"
+                options={originalBills}
+                notFoundContent={!watchVendorId ? 'Seleccione un proveedor primero' : 'Sin facturas registradas'}
+              />
+            </Form.Item>
             <Form.Item name="accountId" label="Cuenta de gasto/activo" style={{ marginBottom: 8 }}
               tooltip="Opcional — cuenta a revertir en la póliza">
               <Select showSearch allowClear placeholder="6101 — Compras locales..."
