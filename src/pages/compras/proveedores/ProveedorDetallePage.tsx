@@ -195,18 +195,29 @@ export default function ProveedorDetallePage() {
 
     // Saldo anterior: suma de todos los movimientos antes del período seleccionado
     let prevBalance = 0
-    bills.filter(b => dayjs(b.invoiceDate ?? b.createdAt).isBefore(from) && b.status !== 'voided' && b.invoiceType !== 'credit_note')
+    bills.filter(b => dayjs(b.invoiceDate ?? b.createdAt).isBefore(from) && b.status !== 'voided')
       .forEach(b => { prevBalance += Number(b.total ?? 0) })
+    creditNotes.filter(nc => dayjs(nc.invoiceDate ?? nc.createdAt).isBefore(from) && nc.status !== 'voided')
+      .forEach(nc => { prevBalance -= Number(nc.total ?? 0) })
     payments.filter(p => dayjs(p.paymentDate ?? p.createdAt).isBefore(from))
       .forEach(p => { prevBalance -= Number(p.amount ?? 0) })
 
     bills.filter(b => {
       const d = dayjs(b.invoiceDate ?? b.createdAt)
-      return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && b.status !== 'voided' && b.invoiceType !== 'credit_note'
+      return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && b.status !== 'voided'
     }).forEach(b => periodRows.push({
       key: b.id, date: b.invoiceDate, type: 'Factura', ref: b.invoiceNumber,
       route: `/compras/facturas/${b.id}`,
       debit: Number(b.total ?? 0), credit: 0,
+    }))
+
+    creditNotes.filter(nc => {
+      const d = dayjs(nc.invoiceDate ?? nc.createdAt)
+      return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && nc.status !== 'voided'
+    }).forEach(nc => periodRows.push({
+      key: nc.id, date: nc.invoiceDate, type: 'Nota de crédito', ref: nc.invoiceNumber,
+      route: `/compras/notas-credito-proveedor/${nc.id}`,
+      debit: 0, credit: Number(nc.total ?? 0),
     }))
 
     payments.filter(p => {
@@ -226,7 +237,7 @@ export default function ProveedorDetallePage() {
     let balance = 0
     return allRows.map(r => { balance = balance + r.debit - r.credit; return { ...r, balance } })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, payments, stmtMonth, stmtYear])
+  }, [bills, payments, creditNotes, stmtMonth, stmtYear])
 
   const stmtTotal = statementRows.reduce((s, r) => s + r.debit - r.credit, 0)
 

@@ -365,7 +365,14 @@ export default function CategorizarDrawer({
 
       let journalLines: JournalLine[] = []
       let jeId = ''; let jeNumber = ''
-      try {
+
+      if (!bankId) {
+        message.warning(
+          `La cuenta bancaria "${account.name}" no tiene cuenta contable vinculada. ` +
+          `Configúrala en Bancos → Cuentas → Editar para que las categorizaciones generen pólizas.`,
+          6,
+        )
+      } else try {
         const desc = manualNote.trim() || transaction.description || 'Categorización bancaria'
         const lines = isCredit
           ? [
