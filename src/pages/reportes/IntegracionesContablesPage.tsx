@@ -66,15 +66,16 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
     : <Text type="secondary">—</Text>
 
   const cols = isAF ? [
-    { title: 'Fecha',      dataIndex: 'fecha',        width: 100, render: (v: string) => fmtDate(v) },
-    { title: 'No. Factura', key: 'fact',              width: 120,
+    { title: 'Fecha',       dataIndex: 'fecha', width: 100, render: (v: string) => fmtDate(v) },
+    { title: 'No. Factura', key: 'fact',        width: 120,
       render: (_: any, r: LineaPoliza) => r.numeroFactura || r.referencia || r.codigoPoliza },
-    { title: 'Proveedor',  key: 'prov',               width: 200, ellipsis: true,
-      render: (_: any, r: LineaPoliza) => r.vendorName || r.descripcion },
-    { title: 'Concepto',   key: 'concepto',           ellipsis: true,
-      render: (_: any, r: LineaPoliza) => r.glosa || r.descripcion },
-    { title: 'Debe',       dataIndex: 'debe',         width: 115, align: 'right' as const, render: rDebe },
-    { title: 'Haber',      dataIndex: 'haber',        width: 115, align: 'right' as const, render: rHaber },
+    { title: 'Descripción', key: 'desc',        ellipsis: true,
+      render: (_: any, r: LineaPoliza) => {
+        const txt = r.vendorName || r.glosa || r.descripcion || ''
+        return <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{txt}</span>
+      } },
+    { title: 'Debe',        dataIndex: 'debe',  width: 115, align: 'right' as const, render: rDebe },
+    { title: 'Haber',       dataIndex: 'haber', width: 115, align: 'right' as const, render: rHaber },
   ] : isRes ? [
     { title: 'Fecha',       dataIndex: 'fecha',        width: 100, render: (v: string) => fmtDate(v) },
     { title: 'No. Factura', key: 'fact',               width: 120,
@@ -99,7 +100,7 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
     { title: 'Haber',       dataIndex: 'haber',        width: 115, align: 'right' as const, render: rHaber },
   ]
 
-  const span = isAF ? 4 : isRes ? 4 : 3
+  const span = isAF ? 3 : isRes ? 4 : 3
 
   return (
     <Table
@@ -245,31 +246,67 @@ function InventarioPanel({ data }: { data: InventarioEspecifico }) {
 }
 
 function ActivoFijoPanel({ data }: { data: ActivoFijoEspecifico }) {
+  // Agrupar por categoría para subtotales
+  const byCategory = data.activos.reduce<Record<string, typeof data.activos>>((acc, a) => {
+    const cat = a.category || 'Sin categoría'
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(a)
+    return acc
+  }, {})
+
+  const cols = [
+    { title: 'N.° Activo',   dataIndex: 'codigo',           width: 100 },
+    { title: 'Nombre',       dataIndex: 'name',             ellipsis: true, minWidth: 180,
+      render: (v: string) => <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{v}</span> },
+    { title: 'Fecha Adq.',   dataIndex: 'fechaAdquisicion', width: 100,
+      render: (d: string) => d ? fmtDate(d) : <Text type="secondary">—</Text> },
+    { title: 'Costo Orig.',  dataIndex: 'costoOriginal',    width: 110, align: 'right' as const,
+      render: (v: number) => <span style={{ whiteSpace: 'nowrap' }}>{Q(v)}</span> },
+    { title: 'Dep. Acum.',   dataIndex: 'depAcumulada',     width: 110, align: 'right' as const,
+      render: (v: number) => <span style={{ color: '#e5484d', whiteSpace: 'nowrap' }}>{Q(v)}</span> },
+    { title: 'Valor Libros', dataIndex: 'valorLibros',      width: 110, align: 'right' as const,
+      render: (v: number) => <Text strong style={{ color: '#1B3A6B', whiteSpace: 'nowrap' }}>{Q(v)}</Text> },
+  ]
+
   return (
-    <div>
-      <div style={{ marginBottom: 8, padding: '6px 0' }}>
-        <Text strong>Valor en libros total: </Text>
-        <Text strong style={{ color: '#1B3A6B', fontSize: 14 }}>{Q(data.totalValorLibros)}</Text>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {Object.entries(byCategory).map(([cat, activos]) => {
+        const totCosto = activos.reduce((s, a) => s + a.costoOriginal, 0)
+        const totDep   = activos.reduce((s, a) => s + a.depAcumulada,  0)
+        const totLibros = activos.reduce((s, a) => s + a.valorLibros,  0)
+        return (
+          <div key={cat}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+              color: '#1B3A6B', borderBottom: '1px solid #e2e8f0', padding: '3px 0 3px', marginBottom: 2,
+              display: 'flex', justifyContent: 'space-between',
+            }}>
+              <span>{cat} ({activos.length} {activos.length === 1 ? 'activo' : 'activos'})</span>
+              <span style={{ display: 'flex', gap: 20, paddingRight: 4 }}>
+                <span style={{ width: 110, textAlign: 'right' }}>{Q(totCosto)}</span>
+                <span style={{ width: 110, textAlign: 'right', color: '#e5484d' }}>{Q(totDep)}</span>
+                <span style={{ width: 110, textAlign: 'right' }}>{Q(totLibros)}</span>
+              </span>
+            </div>
+            <Table
+              size="small"
+              dataSource={activos}
+              rowKey="codigo"
+              pagination={false}
+              showHeader={false}
+              scroll={{ x: 'max-content' }}
+              columns={cols}
+            />
+          </div>
+        )
+      })}
+      <div style={{
+        display: 'flex', justifyContent: 'flex-end', gap: 20,
+        padding: '6px 4px', background: '#eff6ff', borderRadius: 6,
+      }}>
+        <Text style={{ fontSize: 11, color: '#6b7280' }}>Total Valor en Libros</Text>
+        <Text strong style={{ color: '#1B3A6B', whiteSpace: 'nowrap', fontSize: 13 }}>{Q(data.totalValorLibros)}</Text>
       </div>
-      <Table
-        size="small"
-        dataSource={data.activos}
-        rowKey="codigo"
-        pagination={false}
-        scroll={{ x: 'max-content', y: 260 }}
-        columns={[
-          { title: 'Código',       dataIndex: 'codigo',           width: 90 },
-          { title: 'Activo',       dataIndex: 'name',             ellipsis: true, minWidth: 160 },
-          { title: 'Adquisición',  dataIndex: 'fechaAdquisicion', width: 100,
-            render: (d: string) => d ? fmtDate(d) : <Text type="secondary">—</Text> },
-          { title: 'Costo Orig.',  dataIndex: 'costoOriginal',    width: 115, align: 'right' as const,
-            render: (v: number) => <span style={{ whiteSpace: 'nowrap' }}>{Q(v)}</span> },
-          { title: 'Dep. Acum.',   dataIndex: 'depAcumulada',     width: 115, align: 'right' as const,
-            render: (v: number) => <span style={{ color: '#e5484d', whiteSpace: 'nowrap' }}>{Q(v)}</span> },
-          { title: 'Valor Libros', dataIndex: 'valorLibros',      width: 115, align: 'right' as const,
-            render: (v: number) => <Text strong style={{ color: '#1B3A6B', whiteSpace: 'nowrap' }}>{Q(v)}</Text> },
-        ]}
-      />
     </div>
   )
 }
