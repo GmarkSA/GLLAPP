@@ -66,15 +66,16 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
     : <Text type="secondary">—</Text>
 
   const cols = isAF ? [
-    { title: 'Fecha',      dataIndex: 'fecha',        width: 100, render: (v: string) => fmtDate(v) },
-    { title: 'No. Factura', key: 'fact',              width: 120,
+    { title: 'Fecha',       dataIndex: 'fecha', width: 100, render: (v: string) => fmtDate(v) },
+    { title: 'No. Factura', key: 'fact',        width: 120,
       render: (_: any, r: LineaPoliza) => r.numeroFactura || r.referencia || r.codigoPoliza },
-    { title: 'Proveedor',  key: 'prov',               width: 200, ellipsis: true,
-      render: (_: any, r: LineaPoliza) => r.vendorName || r.descripcion },
-    { title: 'Concepto',   key: 'concepto',           ellipsis: true,
-      render: (_: any, r: LineaPoliza) => r.glosa || r.descripcion },
-    { title: 'Debe',       dataIndex: 'debe',         width: 115, align: 'right' as const, render: rDebe },
-    { title: 'Haber',      dataIndex: 'haber',        width: 115, align: 'right' as const, render: rHaber },
+    { title: 'Descripción', key: 'desc',        ellipsis: true,
+      render: (_: any, r: LineaPoliza) => {
+        const txt = r.vendorName || r.glosa || r.descripcion || ''
+        return <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{txt}</span>
+      } },
+    { title: 'Debe',        dataIndex: 'debe',  width: 115, align: 'right' as const, render: rDebe },
+    { title: 'Haber',       dataIndex: 'haber', width: 115, align: 'right' as const, render: rHaber },
   ] : isRes ? [
     { title: 'Fecha',       dataIndex: 'fecha',        width: 100, render: (v: string) => fmtDate(v) },
     { title: 'No. Factura', key: 'fact',               width: 120,
@@ -99,7 +100,7 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
     { title: 'Haber',       dataIndex: 'haber',        width: 115, align: 'right' as const, render: rHaber },
   ]
 
-  const span = isAF ? 4 : isRes ? 4 : 3
+  const span = isAF ? 3 : isRes ? 4 : 3
 
   return (
     <Table
