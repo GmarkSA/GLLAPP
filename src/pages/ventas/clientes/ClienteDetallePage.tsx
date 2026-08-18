@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import {
   Button, Typography, Tag, Table, Divider, Spin, Space, Badge, Avatar,
-  Tabs, Statistic, Select, Empty, Tooltip, Popconfirm, message, Modal, Input,
+  Tabs, Statistic, Select, Empty, Tooltip, Popconfirm, message, Modal, Input, DatePicker,
 } from 'antd'
 import {
   ArrowLeftOutlined, LeftOutlined, RightOutlined, EditOutlined, PlusOutlined, UserOutlined, BankOutlined,
@@ -60,8 +60,10 @@ export default function ClienteDetallePage() {
   const [chartOffset, setChartOffset] = useState(0)
 
   // Estado de cuenta: month/year selectors
-  const [stmtMonth, setStmtMonth] = useState(dayjs().month())
-  const [stmtYear,  setStmtYear]  = useState(dayjs().year())
+  const [stmtRange, setStmtRange] = useState<[ReturnType<typeof dayjs>, ReturnType<typeof dayjs>]>([
+    dayjs().startOf('month'),
+    dayjs().endOf('month'),
+  ])
 
   // Email modal
   const [emailModal, setEmailModal] = useState(false)
@@ -192,8 +194,8 @@ export default function ClienteDetallePage() {
 
   // ── Estado de cuenta ───────────────────────────────────────────────────────
 
-  const stmtFrom = dayjs().year(stmtYear).month(stmtMonth).startOf('month')
-  const stmtTo   = dayjs().year(stmtYear).month(stmtMonth).endOf('month')
+  const stmtFrom = stmtRange[0].startOf('day')
+  const stmtTo   = stmtRange[1].endOf('day')
 
   const statementRows = useMemo(() => {
     const from = stmtFrom.startOf('day')
@@ -239,7 +241,7 @@ export default function ClienteDetallePage() {
       return { ...r, balance }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoices, payments, stmtMonth, stmtYear])
+  }, [invoices, payments, stmtRange])
 
   const stmtTotal = statementRows.reduce((s, r) => s + r.debit - r.credit, 0)
 
@@ -665,17 +667,11 @@ export default function ClienteDetallePage() {
               <div style={{ paddingTop: 8 }}>
                 {/* Filtros con mes/año desplegable */}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-                  <Select
-                    value={stmtMonth}
-                    onChange={setStmtMonth}
-                    style={{ width: 140 }}
-                    options={MONTHS.map((m, i) => ({ value: i, label: m }))}
-                  />
-                  <Select
-                    value={stmtYear}
-                    onChange={setStmtYear}
-                    style={{ width: 90 }}
-                    options={yearOptions.map(y => ({ value: y, label: String(y) }))}
+                  <DatePicker.RangePicker
+                    value={stmtRange}
+                    onChange={(dates) => { if (dates?.[0] && dates?.[1]) setStmtRange([dates[0], dates[1]]) }}
+                    format="DD/MM/YYYY"
+                    allowClear={false}
                   />
                   <Tooltip title="Imprimir estado de cuenta">
                     <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Imprimir</Button>
@@ -703,7 +699,7 @@ export default function ClienteDetallePage() {
                   <div style={{ textAlign: 'right' }}>
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, display: 'block' }}>Período</Text>
                     <Text style={{ color: '#fff', fontSize: 13 }}>
-                      {MONTHS[stmtMonth]} {stmtYear}
+                      {stmtRange[0].format('DD/MM/YYYY')} — {stmtRange[1].format('DD/MM/YYYY')}
                     </Text>
                     {company.name && <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, display: 'block', marginTop: 4 }}>{company.name}</Text>}
                   </div>
@@ -833,7 +829,7 @@ export default function ClienteDetallePage() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}>
           <div>
-            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Período: <strong>{MONTHS[stmtMonth]} {stmtYear}</strong></Text>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Período: <strong>{stmtRange[0].format('DD/MM/YYYY')} — {stmtRange[1].format('DD/MM/YYYY')}</strong></Text>
             <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cliente: <strong>{customer.name || customer.legalName}</strong></Text>
           </div>
           <div>
