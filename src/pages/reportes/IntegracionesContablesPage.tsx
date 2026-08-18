@@ -126,45 +126,51 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
 // ─── Paneles específicos por tipo ─────────────────────────────────────────────
 
 function BancoPanel({ data, saldoGl, mes, anio }: { data: BancoEspecifico; saldoGl: number; mes: number; anio: number }) {
-  const ba       = data.bankAccount
-  const r        = data.reconciliation
+  const ba         = data.bankAccount
+  const r          = data.reconciliation
   const saldoBanco = r ? Number(r.saldoBanco) : ba.currentBalance
-  const fechaCierre = dayjs(`${anio}-${String(mes).padStart(2, '0')}-01`).endOf('month').format('DD/MM/YYYY')
+  const fechaCierre = dayjs(`${anio}-${String(mes).padStart(2, '0')}-01`).endOf('month').format('YYYY-MM-DD')
+
+  type TxnRow = BancoEspecifico['transactions'][number] & { __summary?: boolean }
+  const rows: TxnRow[] = [
+    ...data.transactions,
+    { date: fechaCierre, description: ba.bankName, reference: ba.accountNumber,
+      type: 'Monetaria', amount: saldoBanco, runningBalance: saldoBanco, __summary: true },
+  ]
 
   return (
-    <Table
+    <Table<TxnRow>
       size="small"
-      dataSource={data.transactions}
+      dataSource={rows}
       rowKey={(_, i) => String(i)}
       pagination={false}
-      scroll={{ x: 'max-content', y: 260 }}
-      locale={{ emptyText: 'Sin movimientos bancarios en el período' }}
-      summary={() => (
-        <Table.Summary.Row>
-          <Table.Summary.Cell index={0}><span style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#1B3A6B' }}>{fechaCierre}</span></Table.Summary.Cell>
-          <Table.Summary.Cell index={1}><span style={{ fontWeight: 600, color: '#1B3A6B' }}>{ba.bankName}</span></Table.Summary.Cell>
-          <Table.Summary.Cell index={2}><span style={{ fontWeight: 600, color: '#1B3A6B' }}>{ba.accountNumber}</span></Table.Summary.Cell>
-          <Table.Summary.Cell index={3}>
-            <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px', background: '#dbeafe', border: 'none', color: '#1B3A6B' }}>Monetaria</Tag>
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={4} align="right">
-            <span style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#1B3A6B' }}>{Q(saldoBanco)}</span>
-          </Table.Summary.Cell>
-          <Table.Summary.Cell index={5} align="right">
-            <span style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1B3A6B' }}>{Q(saldoBanco)}</span>
-          </Table.Summary.Cell>
-        </Table.Summary.Row>
-      )}
+      scroll={{ x: 'max-content', ...(data.transactions.length > 0 ? { y: 260 } : {}) }}
+      onRow={(r) => ({ style: r.__summary ? { background: '#eff6ff', borderTop: '2px solid #bfdbfe' } : {} })}
       columns={[
-        { title: 'Fecha',       dataIndex: 'date',           width: 100, render: (d: string) => fmtDate(d) },
-        { title: 'Descripción', dataIndex: 'description',    ellipsis: true, minWidth: 200 },
-        { title: 'Ref',         dataIndex: 'reference',      width: 100, ellipsis: true },
-        { title: 'Tipo',        dataIndex: 'type',           width: 75,
-          render: (t: string) => <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>{t}</Tag> },
-        { title: 'Monto',       dataIndex: 'amount',         width: 115, align: 'right' as const,
-          render: (v: number) => <span style={{ whiteSpace: 'nowrap', color: v >= 0 ? '#2ea172' : '#e5484d' }}>{Q(v)}</span> },
-        { title: 'Saldo',       dataIndex: 'runningBalance', width: 115, align: 'right' as const,
-          render: (v: number) => <span style={{ whiteSpace: 'nowrap' }}>{Q(v)}</span> },
+        { title: 'Fecha', dataIndex: 'date', width: 100,
+          render: (d: string, r: TxnRow) => r.__summary
+            ? <span style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1B3A6B' }}>{dayjs(d).format('DD/MM/YYYY')}</span>
+            : fmtDate(d) },
+        { title: 'Descripción', dataIndex: 'description', ellipsis: true, minWidth: 200,
+          render: (v: string, r: TxnRow) => r.__summary
+            ? <span style={{ fontWeight: 700, color: '#1B3A6B' }}>{v}</span>
+            : v },
+        { title: 'Ref', dataIndex: 'reference', width: 100, ellipsis: true,
+          render: (v: string, r: TxnRow) => r.__summary
+            ? <span style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#1B3A6B' }}>{v}</span>
+            : v },
+        { title: 'Tipo', dataIndex: 'type', width: 75,
+          render: (t: string, r: TxnRow) => r.__summary
+            ? <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px', background: '#dbeafe', border: 'none', color: '#1B3A6B' }}>{t}</Tag>
+            : <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>{t}</Tag> },
+        { title: 'Monto', dataIndex: 'amount', width: 115, align: 'right' as const,
+          render: (v: number, r: TxnRow) => r.__summary
+            ? <span style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1B3A6B' }}>{Q(v)}</span>
+            : <span style={{ whiteSpace: 'nowrap', color: v >= 0 ? '#2ea172' : '#e5484d' }}>{Q(v)}</span> },
+        { title: 'Saldo', dataIndex: 'runningBalance', width: 115, align: 'right' as const,
+          render: (v: number, r: TxnRow) => r.__summary
+            ? <span style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1B3A6B' }}>{Q(v)}</span>
+            : <span style={{ whiteSpace: 'nowrap' }}>{Q(v)}</span> },
       ]}
     />
   )
