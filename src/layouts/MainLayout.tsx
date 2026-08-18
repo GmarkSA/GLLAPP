@@ -132,7 +132,8 @@ const menuItems = [
     { key: '/inventario/expedientes',    label: 'Expediente de importación' },
     { key: '/inventario/produccion',     label: 'Producción' },
     { key: '/inventario/ubicaciones',    label: 'Ubicación / POS' },
-    { key: '/inventario/movimientos',    label: 'Movimientos MIGO' },
+    { key: '/inventario/movimientos',    label: 'Movimientos de Inventario' },
+    { key: '/inventario/recepciones',    label: 'Recepciones de compra' },
   ]},
   { key: '/pos',             icon: <TabletOutlined />,       label: 'Terminal POS' },
   { key: 'planillas',        icon: <TeamOutlined />,         label: 'Planillas', children: [

@@ -13,8 +13,8 @@ import dayjs from 'dayjs'
 import {
   getMovimientos, createMovimiento, confirmarMovimiento, deleteMovimiento,
   addMovimientoLinea, getMovimiento,
-  getUbicaciones,
-  type Movimiento, type MovimientoLinea, type Ubicacion,
+  getUbicaciones, getAlmacenes,
+  type Movimiento, type MovimientoLinea, type Ubicacion, type Almacen,
   TIPO_MOVIMIENTO_CONFIG, type TipoMovimiento,
 } from '../../api/expedientes'
 import { getProducts, type Product } from '../../api/inventario'
@@ -597,24 +597,41 @@ export default function MovimientosPage() {
   const [detailId,   setDetailId]   = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
+  const [almacenes,  setAlmacenes]  = useState<Almacen[]>([])
+  const [almacenFilt, setAlmacenFilt] = useState<string | undefined>()
+  const [productoFilt, setProductoFilt] = useState<string | undefined>()
+  const [prodOpts,   setProdOpts]   = useState<Product[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getMovimientos({ page, limit: 20, search: search || undefined, tipoMovimiento: tipoFilt, status: statusFilt })
+      const res = await getMovimientos({
+        page, limit: 20, search: search || undefined,
+        tipoMovimiento: tipoFilt, status: statusFilt,
+        productId: productoFilt, almacenId: almacenFilt,
+      })
       const r = res as any
       const data = r.data ?? r
       setItems(Array.isArray(data) ? data : [])
       setTotal(r.total ?? data.length)
     } catch { message.error('Error al cargar movimientos') }
     finally { setLoading(false) }
-  }, [page, search, tipoFilt, statusFilt])
+  }, [page, search, tipoFilt, statusFilt, productoFilt, almacenFilt])
 
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
     getUbicaciones().then(r => setUbicaciones(Array.isArray(r) ? r : []))
+    getAlmacenes().then(r => setAlmacenes(Array.isArray(r) ? r : [])).catch(() => setAlmacenes([]))
   }, [])
+
+  const searchProdFilter = async (q: string) => {
+    if (!q || q.length < 2) { setProdOpts([]); return }
+    try {
+      const res = await getProducts({ search: q, limit: 20 })
+      setProdOpts((res as any)?.data ?? [])
+    } catch { setProdOpts([]) }
+  }
 
   const ubicMap = Object.fromEntries(ubicaciones.map(u => [u.id, u.name]))
 
@@ -737,6 +754,14 @@ export default function MovimientosPage() {
               { value: 'draft',     label: '⏳ Borrador' },
               { value: 'confirmed', label: '✅ Confirmado' },
             ]} />
+          <Select allowClear showSearch placeholder="Almacén" style={{ width: 180 }}
+            value={almacenFilt} onChange={v => { setAlmacenFilt(v); setPage(1) }}
+            optionFilterProp="label"
+            options={almacenes.map(a => ({ value: a.id, label: a.name }))} />
+          <Select allowClear showSearch placeholder="Artículo (código/nombre)" style={{ width: 240 }}
+            value={productoFilt} onChange={v => { setProductoFilt(v); setPage(1) }}
+            filterOption={false} onSearch={searchProdFilter} notFoundContent={null}
+            options={prodOpts.map(p => ({ value: p.id, label: `${p.sku} · ${p.name}` }))} />
         </Space>
       </Card>
 

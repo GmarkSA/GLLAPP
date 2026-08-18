@@ -143,6 +143,7 @@ const ProduccionPage        = lazy(() => import('./pages/inventario/ProduccionPa
 const EntregasPage          = lazy(() => import('./pages/inventario/EntregasPage'))
 const UbicacionesPage       = lazy(() => import('./pages/inventario/UbicacionesPage'))
 const MovimientosPage       = lazy(() => import('./pages/inventario/MovimientosPage'))
+const RecepcionesComprasPage = lazy(() => import('./pages/inventario/RecepcionesComprasPage'))
 
 // POS
 const POSPage = lazy(() => import('./pages/pos/POSPage'))
@@ -341,6 +342,7 @@ export default function App() {
           <Route path="inventario/entregas"              element={<EntregasPage />} />
           <Route path="inventario/ubicaciones"           element={<UbicacionesPage />} />
           <Route path="inventario/movimientos"           element={<MovimientosPage />} />
+          <Route path="inventario/recepciones"           element={<RecepcionesComprasPage />} />
 
           <Route path="reportes" element={<ReportesPage />}>
             <Route path="balance-general"    element={<BalanceGeneralPage />} />
