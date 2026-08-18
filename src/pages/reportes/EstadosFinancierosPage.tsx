@@ -207,9 +207,9 @@ export default function EstadosFinancierosPage() {
       </div>
 
       {/* Split layout — paneles con scroll independiente */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
-        {/* Izquierda: Balance / Estado de Resultados */}
-        <Card size="small" style={{ flex: '1 1 420px', minWidth: 340, borderRadius: 10 }} bodyStyle={{ padding: 0 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        {/* Izquierda: Balance / Estado de Resultados — scroll independiente */}
+        <Card size="small" style={{ flex: '1 1 420px', minWidth: 340, borderRadius: 10, position: 'sticky', top: 0 }} bodyStyle={{ padding: 0 }}>
           <div style={{ height: 'calc(100vh - 130px)', overflowY: 'auto', padding: '4px 12px 12px' }}>
             <Spin spinning={loadingLeft}>
               <Tabs items={tabs} size="small" />
@@ -217,9 +217,9 @@ export default function EstadosFinancierosPage() {
           </div>
         </Card>
 
-        {/* Derecha: Integración / detalle de la cuenta */}
+        {/* Derecha: Integración / detalle de la cuenta — crece con el contenido */}
         <Card size="small" style={{ flex: '1 1 520px', minWidth: 380, borderRadius: 10 }} bodyStyle={{ padding: 0 }}>
-          <div style={{ height: 'calc(100vh - 130px)', overflowY: 'auto', padding: 16 }}>
+          <div style={{ padding: 16, minHeight: 200 }}>
             {!selected ? (
               <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}>
                 <Empty description="Selecciona una cuenta a la izquierda para ver su detalle e integración" />
