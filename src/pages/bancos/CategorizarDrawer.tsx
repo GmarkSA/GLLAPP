@@ -587,6 +587,7 @@ export default function CategorizarDrawer({
         entryDate:          txDate,
         description:        desc,
         reference:          transaction.reference || undefined,
+        sourceDocumentId:   transaction.id,
         sourceDocumentType: 'bank_transaction',
         autoPost:           true,
       })
