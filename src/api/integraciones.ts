@@ -146,5 +146,5 @@ export interface DetalleResult {
 export const getCierreIntegraciones = (mes: number, anio: number) =>
   api.get('/reportes/integraciones/cierre', { params: { mes, anio } }).then(unwrap) as Promise<CierreResult>
 
-export const getDetalleIntegracion = (accountId: string, mes: number, anio: number) =>
-  api.get('/reportes/integraciones/detalle', { params: { accountId, mes, anio } }).then(unwrap) as Promise<DetalleResult>
+export const getDetalleIntegracion = (accountId: string, mes: number, anio: number, fromDate?: string) =>
+  api.get('/reportes/integraciones/detalle', { params: { accountId, mes, anio, fromDate } }).then(unwrap) as Promise<DetalleResult>

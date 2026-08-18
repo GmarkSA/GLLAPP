@@ -21,7 +21,7 @@ const MESES = [
 
 const NAVY = '#1B3A6B'
 
-type Selected = { id: string; code: string; name: string } | null
+type Selected = { id: string; code: string; name: string; esResultado?: boolean } | null
 
 // ─── Fila de cuenta clicable ─────────────────────────────────────────────────
 function AccountRowItem({ acc, active, onClick }: {
@@ -128,13 +128,15 @@ export default function EstadosFinancierosPage() {
   useEffect(() => {
     if (!selected) { setDetalle(null); return }
     setLoadingDet(true)
-    getDetalleIntegracion(selected.id, mes, anio)
+    const fromDate = selected.esResultado ? jan1 : undefined
+    getDetalleIntegracion(selected.id, mes, anio, fromDate)
       .then(setDetalle)
       .catch(() => setDetalle(null))
       .finally(() => setLoadingDet(false))
   }, [selected, mes, anio])
 
-  const onSelect = (a: AccountRow) => setSelected({ id: a.id, code: a.code, name: a.name })
+  const onSelectBalance   = (a: AccountRow) => setSelected({ id: a.id, code: a.code, name: a.name, esResultado: false })
+  const onSelectResultado = (a: AccountRow) => setSelected({ id: a.id, code: a.code, name: a.name, esResultado: true  })
   const selId = selected?.id
   const fil = (accs: AccountRow[]) => soloConMovimiento ? accs.filter(a => a.balance !== 0) : accs
 
@@ -155,11 +157,11 @@ export default function EstadosFinancierosPage() {
             Saldos acumulados al {dayjs(endOfMonth).format('DD/MM/YYYY')}
           </Text>
           {filtroSwitch}
-          <Group title="Activo Circulante" accounts={fil(bg.activo.accounts)} total={bg.activo.total} selectedId={selId} onSelect={onSelect} color={NAVY} />
-          <Group title="Activo Fijo" accounts={fil(bg.activoFijo.accounts)} total={bg.activoFijo.total} selectedId={selId} onSelect={onSelect} color={NAVY} />
+          <Group title="Activo Circulante" accounts={fil(bg.activo.accounts)} total={bg.activo.total} selectedId={selId} onSelect={onSelectBalance} color={NAVY} />
+          <Group title="Activo Fijo" accounts={fil(bg.activoFijo.accounts)} total={bg.activoFijo.total} selectedId={selId} onSelect={onSelectBalance} color={NAVY} />
           <GrandTotal label="TOTAL ACTIVOS" value={bg.totalActivo} />
-          <Group title="Pasivo" accounts={fil(bg.pasivo.accounts)} total={bg.pasivo.total} selectedId={selId} onSelect={onSelect} color="#b45309" />
-          <Group title="Capital" accounts={fil(bg.capital.accounts)} total={bg.capital.total} selectedId={selId} onSelect={onSelect} color="#7c3aed" />
+          <Group title="Pasivo" accounts={fil(bg.pasivo.accounts)} total={bg.pasivo.total} selectedId={selId} onSelect={onSelectBalance} color="#b45309" />
+          <Group title="Capital" accounts={fil(bg.capital.accounts)} total={bg.capital.total} selectedId={selId} onSelect={onSelectBalance} color="#7c3aed" />
           <GrandTotal label="TOTAL PASIVO + CAPITAL" value={bg.totalPasivoCapital} />
         </div>
       ),
@@ -173,12 +175,12 @@ export default function EstadosFinancierosPage() {
             Del {dayjs(jan1).format('DD/MM/YYYY')} al {dayjs(endOfMonth).format('DD/MM/YYYY')} (acumulado)
           </Text>
           {filtroSwitch}
-          <Group title="Ingresos" accounts={fil(er.ingresos.accounts)} total={er.ingresos.total} selectedId={selId} onSelect={onSelect} color="#2ea172" />
-          <Group title="Otros Ingresos" accounts={fil(er.otrosIngresos.accounts)} total={er.otrosIngresos.total} selectedId={selId} onSelect={onSelect} color="#2ea172" />
-          <Group title="Costos" accounts={fil(er.costos.accounts)} total={er.costos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
+          <Group title="Ingresos" accounts={fil(er.ingresos.accounts)} total={er.ingresos.total} selectedId={selId} onSelect={onSelectResultado} color="#2ea172" />
+          <Group title="Otros Ingresos" accounts={fil(er.otrosIngresos.accounts)} total={er.otrosIngresos.total} selectedId={selId} onSelect={onSelectResultado} color="#2ea172" />
+          <Group title="Costos" accounts={fil(er.costos.accounts)} total={er.costos.total} selectedId={selId} onSelect={onSelectResultado} color="#e5484d" />
           <GrandTotal label="UTILIDAD BRUTA" value={er.utilidadBruta} />
-          <Group title="Gastos" accounts={fil(er.gastos.accounts)} total={er.gastos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
-          <Group title="Otros Gastos" accounts={fil(er.otrosGastos.accounts)} total={er.otrosGastos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
+          <Group title="Gastos" accounts={fil(er.gastos.accounts)} total={er.gastos.total} selectedId={selId} onSelect={onSelectResultado} color="#e5484d" />
+          <Group title="Otros Gastos" accounts={fil(er.otrosGastos.accounts)} total={er.otrosGastos.total} selectedId={selId} onSelect={onSelectResultado} color="#e5484d" />
           <GrandTotal label="UTILIDAD NETA" value={er.utilidadNeta} />
         </div>
       ),
