@@ -883,6 +883,7 @@ interface AccountDefaults {
   employeeAdvanceAccountCode?: string
   fxGainAccountCode?: string
   fxLossAccountCode?: string
+  inventoryClearingAccountCode?: string
 }
 
 function AccountDefaultsSection() {
@@ -935,7 +936,7 @@ function AccountDefaultsSection() {
   }
 
   const sugerirCuentas = () => {
-    const GLL: Record<keyof AccountDefaults, string> = {
+    const GLL: Partial<Record<keyof AccountDefaults, string>> = {
       customerAdvanceAccountCode:  '214001',
       vendorAdvanceAccountCode:    '150001',
       employeeAdvanceAccountCode:  '122001',
@@ -1094,6 +1095,36 @@ function AccountDefaultsSection() {
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
                 Valor actual: <Text code>{defaults.fxLossAccountCode || 'No configurado'}</Text>
+              </Text>
+            </Col>
+          </Row>
+        </SectionCard>
+
+        <SectionCard title="Inventario (GR/IR)" icon={<DollarOutlined />}>
+          <Row gutter={20}>
+            <Col xs={24} md={12}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Cuenta transitoria — Mercadería recibida no facturada</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta de pasivo (GR/IR). La entrada de mercancía debita Inventario y acredita esta cuenta;
+                  la factura del proveedor la salda. Si no se configura, la compra de bienes se registra como gasto (como antes).
+                </Text>
+              </div>
+              <Select
+                showSearch
+                allowClear
+                style={{ width: '100%' }}
+                value={defaults.inventoryClearingAccountCode}
+                placeholder="Ej: 2130 — Mercadería recibida no facturada"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, inventoryClearingAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.inventoryClearingAccountCode || 'No configurado'}</Text>
               </Text>
             </Col>
           </Row>
