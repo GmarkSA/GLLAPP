@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Table, Typography, Tag, Button, Popconfirm, message, Alert } from 'antd'
+import { Table, Typography, Tag, Button, Modal, Select, message, Alert } from 'antd'
 import { InboxOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getPurchaseOrders, recibirPurchaseOrder, type PurchaseOrder } from '../../api/compras'
+import { getUbicaciones, type Ubicacion } from '../../api/expedientes'
 
 const { Title, Text } = Typography
 const fmtQ = (n: number, cur = 'GTQ') =>
@@ -11,15 +12,19 @@ const fmtQ = (n: number, cur = 'GTQ') =>
 
 /**
  * Recepciones de compra (Bodega) — lista las órdenes de compra enviadas (estado
- * 'sent') pendientes de ingresar a inventario. Al recibir, se genera el ingreso
- * de producto (movimiento entrada_compra) que suma stock y recalcula el costo
- * promedio. Es la puerta de Bodega al mismo flujo que el botón de la OC.
+ * 'sent') pendientes de ingresar a inventario. Al recibir se elige el almacén /
+ * ubicación destino y se genera el ingreso de producto (movimiento entrada_compra)
+ * que suma stock y recalcula el costo promedio. Es la puerta de Bodega al mismo
+ * flujo que el botón de la OC.
  */
 export default function RecepcionesComprasPage() {
   const navigate = useNavigate()
   const [rows,        setRows]        = useState<PurchaseOrder[]>([])
   const [loading,     setLoading]     = useState(true)
-  const [receivingId, setReceivingId] = useState<string | null>(null)
+  const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
+  const [target,      setTarget]      = useState<PurchaseOrder | null>(null)
+  const [destino,     setDestino]     = useState<string | undefined>()
+  const [receiving,   setReceiving]   = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -29,17 +34,22 @@ export default function RecepcionesComprasPage() {
       .finally(() => setLoading(false))
   }
   useEffect(load, [])
+  useEffect(() => { getUbicaciones().then(r => setUbicaciones(Array.isArray(r) ? r : [])).catch(() => setUbicaciones([])) }, [])
 
-  const handleReceive = async (po: PurchaseOrder) => {
-    setReceivingId(po.id)
+  const openReceive = (po: PurchaseOrder) => { setTarget(po); setDestino(undefined) }
+
+  const confirmReceive = async () => {
+    if (!target) return
+    setReceiving(true)
     try {
-      const res = await recibirPurchaseOrder(po.id)
+      const res = await recibirPurchaseOrder(target.id, destino)
       message.success(`Mercadería recibida: ${res.lineas} artículo(s) ingresado(s) a inventario`)
+      setTarget(null)
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al recibir la mercadería')
     } finally {
-      setReceivingId(null)
+      setReceiving(false)
     }
   }
 
@@ -66,19 +76,12 @@ export default function RecepcionesComprasPage() {
       ),
     },
     {
-      title: 'Acción', width: 180, align: 'right' as const,
+      title: 'Acción', width: 150, align: 'right' as const,
       render: (_: any, po: PurchaseOrder) => (
-        <Popconfirm
-          title="Recibir mercadería"
-          description="Ingresa los artículos inventariables al stock (actualiza existencia y costo promedio). ¿Continuar?"
-          okText="Recibir" cancelText="Cancelar"
-          onConfirm={() => handleReceive(po)}
-        >
-          <Button size="small" icon={<InboxOutlined />} loading={receivingId === po.id}
-            style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}>
-            Recibir
-          </Button>
-        </Popconfirm>
+        <Button size="small" icon={<InboxOutlined />} onClick={() => openReceive(po)}
+          style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}>
+          Recibir
+        </Button>
       ),
     },
   ]
@@ -107,6 +110,33 @@ export default function RecepcionesComprasPage() {
         locale={{ emptyText: 'No hay órdenes de compra pendientes de recibir' }}
         size="middle"
       />
+
+      <Modal
+        open={!!target}
+        title={`Recibir mercadería · ${target?.orderNumber ?? ''}`}
+        onCancel={() => setTarget(null)}
+        onOk={confirmReceive}
+        okText="Recibir"
+        cancelText="Cancelar"
+        confirmLoading={receiving}
+        okButtonProps={{ style: { background: '#2ea172', borderColor: '#2ea172' } }}
+      >
+        <p style={{ marginTop: 0 }}>
+          Se ingresarán los artículos inventariables al stock y se recalculará el costo promedio.
+        </p>
+        <div style={{ marginBottom: 6, fontSize: 13, fontWeight: 500 }}>Almacén / ubicación destino</div>
+        <Select
+          allowClear showSearch optionFilterProp="label"
+          style={{ width: '100%' }}
+          placeholder="¿A qué almacén / ubicación entra? (opcional)"
+          value={destino}
+          onChange={setDestino}
+          options={ubicaciones.map(u => ({ value: u.id, label: u.name }))}
+        />
+        <div style={{ fontSize: 11, color: '#8b9aa8', marginTop: 6 }}>
+          Si no eliges ubicación, entra al stock general. Elegir el almacén permite monitorear el movimiento por almacén.
+        </div>
+      </Modal>
     </div>
   )
 }

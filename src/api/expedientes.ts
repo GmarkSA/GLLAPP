@@ -254,7 +254,7 @@ export interface Movimiento {
 }
 
 const MOV = '/inventario/movimientos'
-export const getMovimientos = (params?: { page?: number; limit?: number; search?: string; tipoMovimiento?: string; status?: string; dateFrom?: string; dateTo?: string }) =>
+export const getMovimientos = (params?: { page?: number; limit?: number; search?: string; tipoMovimiento?: string; status?: string; dateFrom?: string; dateTo?: string; productId?: string; almacenId?: string }) =>
   api.get(MOV, { params }).then(unwrap) as Promise<{ data: Movimiento[]; total: number }>
 export const getMovimiento = (id: string) => api.get(`${MOV}/${id}`).then(unwrap) as Promise<Movimiento>
 export const createMovimiento = (dto: Partial<Movimiento>) => api.post(MOV, dto).then(unwrap) as Promise<Movimiento>

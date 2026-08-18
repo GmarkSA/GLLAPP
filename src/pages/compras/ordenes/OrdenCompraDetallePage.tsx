@@ -13,6 +13,7 @@ import {
   getPurchaseOrder, sendPurchaseOrder, approvePurchaseOrder, deletePurchaseOrder,
   recibirPurchaseOrder, attachPoFile, PO_STATUS_CONFIG, type PurchaseOrder,
 } from '../../../api/compras'
+import { getUbicaciones, type Ubicacion } from '../../../api/expedientes'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 
@@ -30,6 +31,9 @@ export default function OrdenCompraDetallePage() {
   const [sending,     setSending]     = useState(false)
   const [approving,   setApproving]   = useState(false)
   const [receiving,   setReceiving]   = useState(false)
+  const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
+  const [showReceive, setShowReceive] = useState(false)
+  const [destino,     setDestino]     = useState<string | undefined>()
   const [showSend,    setShowSend]    = useState(false)
   const [sendForm]  = Form.useForm()
   const [uploadingFile,      setUploadingFile]      = useState(false)
@@ -52,6 +56,7 @@ export default function OrdenCompraDetallePage() {
   }, [id])
 
   useEffect(() => { loadPO() }, [loadPO])
+  useEffect(() => { getUbicaciones().then(r => setUbicaciones(Array.isArray(r) ? r : [])).catch(() => setUbicaciones([])) }, [])
 
   const applyEmailTemplate = (tplId: string | undefined, tpls: EmailTemplate[], currentPo: PurchaseOrder, currentCompany: OrganizationProfile) => {
     const tpl = tpls.find(t => t.id === tplId)
@@ -105,8 +110,9 @@ export default function OrdenCompraDetallePage() {
   const handleReceive = async () => {
     setReceiving(true)
     try {
-      const res = await recibirPurchaseOrder(po!.id)
+      const res = await recibirPurchaseOrder(po!.id, destino)
       message.success(`Mercadería recibida: ${res.lineas} artículo(s) ingresado(s) a inventario`)
+      setShowReceive(false)
       loadPO()
     } catch (e: any) { message.error(e?.response?.data?.message || 'Error al recibir la mercadería') }
     finally { setReceiving(false) }
@@ -212,17 +218,11 @@ export default function OrdenCompraDetallePage() {
           </Button>
         )}
         {canReceive && (
-          <Popconfirm
-            title="Recibir mercadería"
-            description="Ingresa los artículos inventariables de esta orden al stock (actualiza existencia y costo promedio). ¿Continuar?"
-            okText="Recibir" cancelText="Cancelar"
-            onConfirm={handleReceive}
-          >
-            <Button icon={<InboxOutlined />} loading={receiving}
-              style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}>
-              Recibir mercadería
-            </Button>
-          </Popconfirm>
+          <Button icon={<InboxOutlined />} loading={receiving}
+            onClick={() => { setDestino(undefined); setShowReceive(true) }}
+            style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}>
+            Recibir mercadería
+          </Button>
         )}
         {canConvert && (
           <Button type="primary" icon={<FileTextOutlined />} onClick={handleConvert}
@@ -409,6 +409,32 @@ export default function OrdenCompraDetallePage() {
             <Input.TextArea rows={3} placeholder="Mensaje personalizado (opcional)" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={showReceive}
+        title={`Recibir mercadería · ${po.orderNumber}`}
+        onCancel={() => setShowReceive(false)}
+        onOk={handleReceive}
+        okText="Recibir" cancelText="Cancelar"
+        confirmLoading={receiving}
+        okButtonProps={{ style: { background: '#2ea172', borderColor: '#2ea172' } }}
+      >
+        <p style={{ marginTop: 0 }}>
+          Se ingresarán los artículos inventariables al stock y se recalculará el costo promedio.
+        </p>
+        <div style={{ marginBottom: 6, fontSize: 13, fontWeight: 500 }}>Almacén / ubicación destino</div>
+        <Select
+          allowClear showSearch optionFilterProp="label"
+          style={{ width: '100%' }}
+          placeholder="¿A qué almacén / ubicación entra? (opcional)"
+          value={destino}
+          onChange={setDestino}
+          options={ubicaciones.map(u => ({ value: u.id, label: u.name }))}
+        />
+        <div style={{ fontSize: 11, color: '#8b9aa8', marginTop: 6 }}>
+          Si no eliges ubicación, entra al stock general. Elegir el almacén permite monitorear el movimiento por almacén.
+        </div>
       </Modal>
     </div>
   )
