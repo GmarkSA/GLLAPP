@@ -6,12 +6,12 @@ import {
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, SwapOutlined,
-  CheckCircleOutlined, DeleteOutlined, MinusCircleOutlined,
+  CheckCircleOutlined, DeleteOutlined, MinusCircleOutlined, RollbackOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
-  getMovimientos, createMovimiento, confirmarMovimiento, deleteMovimiento,
+  getMovimientos, createMovimiento, confirmarMovimiento, deleteMovimiento, reversarMovimiento,
   addMovimientoLinea, getMovimiento,
   getUbicaciones, getAlmacenes,
   type Movimiento, type MovimientoLinea, type Ubicacion, type Almacen,
@@ -650,6 +650,14 @@ export default function MovimientosPage() {
     catch { message.error('Solo se pueden eliminar movimientos en borrador') }
   }
 
+  const handleReversar = async (id: string) => {
+    try {
+      const r = await reversarMovimiento(id)
+      message.success(`Movimiento reversado · contra-movimiento ${r.code}`)
+      load()
+    } catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo reversar el movimiento') }
+  }
+
   const columns: ColumnsType<Movimiento> = [
     {
       title: 'Código', dataIndex: 'code', width: 140,
@@ -685,13 +693,17 @@ export default function MovimientosPage() {
     },
     { title: 'Referencia', dataIndex: 'reason', ellipsis: true, render: v => v || '—' },
     {
-      title: 'Estado', dataIndex: 'status', width: 110,
-      render: v => v === 'confirmed'
-        ? <Badge status="success" text="Confirmado" />
-        : <Badge status="processing" text="Borrador" />,
+      title: 'Estado', dataIndex: 'status', width: 120,
+      render: (v, row) => row.reversedByMovimientoId
+        ? <Badge status="warning" text="Reversado" />
+        : row.reversalOfId
+          ? <Badge status="default" text="Reversa" />
+          : v === 'confirmed'
+            ? <Badge status="success" text="Confirmado" />
+            : <Badge status="processing" text="Borrador" />,
     },
     {
-      title: 'Acciones', width: 130, render: (_, row) => (
+      title: 'Acciones', width: 150, render: (_, row) => (
         <Space size={4}>
           <Button size="small" type="link" onClick={() => { setDetailId(row.id); setDetailOpen(true) }}>
             Ver
@@ -700,6 +712,17 @@ export default function MovimientosPage() {
             <Tooltip title="Eliminar borrador">
               <Popconfirm title="¿Eliminar movimiento?" onConfirm={() => handleDelete(row.id)} okText="Sí" cancelText="No">
                 <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Tooltip>
+          )}
+          {row.status === 'confirmed' && !row.reversedByMovimientoId && !row.reversalOfId && (
+            <Tooltip title="Reversar (crea contra-movimiento)">
+              <Popconfirm
+                title="¿Reversar este movimiento?"
+                description="Se crea un contra-movimiento que restaura el stock. El costo promedio no se restaura."
+                onConfirm={() => handleReversar(row.id)} okText="Reversar" cancelText="Cancelar"
+              >
+                <Button size="small" type="text" icon={<RollbackOutlined />} style={{ color: '#ff7f00' }} />
               </Popconfirm>
             </Tooltip>
           )}
