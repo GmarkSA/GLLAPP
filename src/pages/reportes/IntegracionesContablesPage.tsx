@@ -125,59 +125,48 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
 
 // ─── Paneles específicos por tipo ─────────────────────────────────────────────
 
-function BancoPanel({ data, saldoGl }: { data: BancoEspecifico; saldoGl: number }) {
-  const ba = data.bankAccount
-  const r  = data.reconciliation
-  type KV = { lbl: string; val: string; color?: string }
-  const kvs: KV[] = [
-    { lbl: 'Banco',         val: ba.bankName },
-    { lbl: 'No. Cuenta',    val: ba.accountNumber },
-    { lbl: 'Saldo Sistema', val: Q(saldoGl), color: '#1B3A6B' },
-    ...(r ? [
-      { lbl: 'Saldo Banco', val: Q(r.saldoBanco) },
-      // La diferencia de la integración es GL (saldo sistema) vs saldo banco — no el
-      // snapshot de la conciliación (r.diferencia), que compara otros valores y puede
-      // dar 0 aunque el saldo contable no cuadre con el banco.
-      { lbl: 'Diferencia',  val: Q(saldoGl - Number(r.saldoBanco)),
-        color: Math.abs(saldoGl - Number(r.saldoBanco)) < 0.01 ? '#2ea172' : '#e5484d' },
-      ...(r.notes ? [{ lbl: 'Notas', val: r.notes }] : []),
-    ] : []),
-  ]
+function BancoPanel({ data, saldoGl, mes, anio }: { data: BancoEspecifico; saldoGl: number; mes: number; anio: number }) {
+  const ba       = data.bankAccount
+  const r        = data.reconciliation
+  const saldoBanco = r ? Number(r.saldoBanco) : ba.currentBalance
+  const fechaCierre = dayjs(`${anio}-${String(mes).padStart(2, '0')}-01`).endOf('month').format('DD/MM/YYYY')
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-end',
-        padding: '10px 16px', background: '#f8fafc',
-        border: '1px solid #e2e8f0', borderRadius: 6,
-      }}>
-        {kvs.map(({ lbl, val, color }) => (
-          <div key={lbl}>
-            <div style={{ fontSize: 9, color: '#9aa1ab', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{lbl}</div>
-            <div style={{ fontSize: 13, fontWeight: color ? 700 : 500, color: color || '#0a0a0a' }}>{val}</div>
-          </div>
-        ))}
-        {!r && <Text type="secondary" style={{ fontSize: 11, fontStyle: 'italic' }}>Sin conciliación registrada</Text>}
-      </div>
-      <Table
-        size="small"
-        dataSource={data.transactions}
-        rowKey={(_, i) => String(i)}
-        pagination={false}
-        scroll={{ x: 'max-content', y: 220 }}
-        locale={{ emptyText: 'Sin movimientos bancarios en el período' }}
-        columns={[
-          { title: 'Fecha',       dataIndex: 'date',           width: 100, render: (d: string) => fmtDate(d) },
-          { title: 'Descripción', dataIndex: 'description',    ellipsis: true, minWidth: 200 },
-          { title: 'Ref',         dataIndex: 'reference',      width: 100, ellipsis: true },
-          { title: 'Tipo',        dataIndex: 'type',           width: 75,
-            render: (t: string) => <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>{t}</Tag> },
-          { title: 'Monto',       dataIndex: 'amount',         width: 115, align: 'right' as const,
-            render: (v: number) => <span style={{ whiteSpace: 'nowrap', color: v >= 0 ? '#2ea172' : '#e5484d' }}>{Q(v)}</span> },
-          { title: 'Saldo',       dataIndex: 'runningBalance', width: 115, align: 'right' as const,
-            render: (v: number) => <span style={{ whiteSpace: 'nowrap' }}>{Q(v)}</span> },
-        ]}
-      />
-    </div>
+    <Table
+      size="small"
+      dataSource={data.transactions}
+      rowKey={(_, i) => String(i)}
+      pagination={false}
+      scroll={{ x: 'max-content', y: 260 }}
+      locale={{ emptyText: 'Sin movimientos bancarios en el período' }}
+      summary={() => (
+        <Table.Summary.Row>
+          <Table.Summary.Cell index={0}><span style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#1B3A6B' }}>{fechaCierre}</span></Table.Summary.Cell>
+          <Table.Summary.Cell index={1}><span style={{ fontWeight: 600, color: '#1B3A6B' }}>{ba.bankName}</span></Table.Summary.Cell>
+          <Table.Summary.Cell index={2}><span style={{ fontWeight: 600, color: '#1B3A6B' }}>{ba.accountNumber}</span></Table.Summary.Cell>
+          <Table.Summary.Cell index={3}>
+            <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px', background: '#dbeafe', border: 'none', color: '#1B3A6B' }}>Monetaria</Tag>
+          </Table.Summary.Cell>
+          <Table.Summary.Cell index={4} align="right">
+            <span style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#1B3A6B' }}>{Q(saldoBanco)}</span>
+          </Table.Summary.Cell>
+          <Table.Summary.Cell index={5} align="right">
+            <span style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1B3A6B' }}>{Q(saldoBanco)}</span>
+          </Table.Summary.Cell>
+        </Table.Summary.Row>
+      )}
+      columns={[
+        { title: 'Fecha',       dataIndex: 'date',           width: 100, render: (d: string) => fmtDate(d) },
+        { title: 'Descripción', dataIndex: 'description',    ellipsis: true, minWidth: 200 },
+        { title: 'Ref',         dataIndex: 'reference',      width: 100, ellipsis: true },
+        { title: 'Tipo',        dataIndex: 'type',           width: 75,
+          render: (t: string) => <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>{t}</Tag> },
+        { title: 'Monto',       dataIndex: 'amount',         width: 115, align: 'right' as const,
+          render: (v: number) => <span style={{ whiteSpace: 'nowrap', color: v >= 0 ? '#2ea172' : '#e5484d' }}>{Q(v)}</span> },
+        { title: 'Saldo',       dataIndex: 'runningBalance', width: 115, align: 'right' as const,
+          render: (v: number) => <span style={{ whiteSpace: 'nowrap' }}>{Q(v)}</span> },
+      ]}
+    />
   )
 }
 
@@ -318,7 +307,7 @@ export function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; m
       {/* Sección específica por tipo */}
       {hasEspecifico && (
         <div>
-          {integrationType === 'banco' && <BancoPanel data={especifico as BancoEspecifico} saldoGl={saldoFinal} />}
+          {integrationType === 'banco' && <BancoPanel data={especifico as BancoEspecifico} saldoGl={saldoFinal} mes={mes} anio={anio} />}
           {integrationType === 'cxc' && (
             <PartidaTable partidas={(especifico as CxcEspecifico).partidas} tipo="cxc" />
           )}
