@@ -217,19 +217,19 @@ export default function EstadosFinancierosPage() {
           </div>
         </Card>
 
-        {/* Derecha: Integración / detalle — misma altura del bloque izquierdo, scroll independiente */}
-        <Card size="small" style={{ flex: '1 1 520px', minWidth: 380, borderRadius: 10, position: 'sticky', top: 0 }} bodyStyle={{ padding: 0 }}>
-          <div style={{ height: 'calc(100vh - 130px)', overflowY: 'auto', padding: 16 }}>
+        {/* Derecha: Integración / detalle de la cuenta — crece con el contenido */}
+        <Card size="small" style={{ flex: '1 1 520px', minWidth: 380, borderRadius: 10 }} bodyStyle={{ padding: 0 }}>
+          <div style={{ padding: 16, minHeight: 200 }}>
             {!selected ? (
-              <div style={{ display: 'grid', placeItems: 'center', height: '100%' }}>
+              <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}>
                 <Empty description="Selecciona una cuenta a la izquierda para ver su detalle e integración" />
               </div>
             ) : loadingDet ? (
-              <div style={{ display: 'grid', placeItems: 'center', height: '100%' }}><Spin /></div>
+              <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}><Spin /></div>
             ) : detalle ? (
               <DetallePanel detalle={detalle} mes={mes} anio={anio} />
             ) : (
-              <div style={{ display: 'grid', placeItems: 'center', height: '100%' }}>
+              <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}>
                 <Empty description={`Sin detalle para ${selected.code} — ${selected.name}`} />
               </div>
             )}
