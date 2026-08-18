@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import {
   Button, Typography, Tag, Table, Divider, Spin, Space, Badge, Avatar,
-  Tabs, Statistic, Select, Empty, Tooltip, Popconfirm, message, Modal, Input,
+  Tabs, Statistic, Select, Empty, Tooltip, Popconfirm, message, Modal, Input, DatePicker,
 } from 'antd'
 import {
   ArrowLeftOutlined, LeftOutlined, RightOutlined, EditOutlined, PlusOutlined, UserOutlined, BankOutlined,
@@ -61,8 +61,10 @@ export default function ProveedorDetallePage() {
   // Gráfico: offset en períodos de 12 meses (0 = actual, 1 = año anterior, ...)
   const [chartOffset, setChartOffset] = useState(0)
 
-  const [stmtMonth, setStmtMonth] = useState(dayjs().month())
-  const [stmtYear,  setStmtYear]  = useState(dayjs().year())
+  const [stmtRange, setStmtRange] = useState<[ReturnType<typeof dayjs>, ReturnType<typeof dayjs>]>([
+    dayjs().startOf('month'),
+    dayjs().endOf('month'),
+  ])
 
   const [emailModal,    setEmailModal]    = useState(false)
   const [emailTo,       setEmailTo]       = useState('')
@@ -184,8 +186,8 @@ export default function ProveedorDetallePage() {
 
   // ── Estado de cuenta ───────────────────────────────────────────────────────
 
-  const stmtFrom = dayjs().year(stmtYear).month(stmtMonth).startOf('month')
-  const stmtTo   = dayjs().year(stmtYear).month(stmtMonth).endOf('month')
+  const stmtFrom = stmtRange[0].startOf('day')
+  const stmtTo   = stmtRange[1].endOf('day')
 
   const statementRows = useMemo(() => {
     const from = stmtFrom.startOf('day')
@@ -237,7 +239,7 @@ export default function ProveedorDetallePage() {
     let balance = 0
     return allRows.map(r => { balance = balance + r.debit - r.credit; return { ...r, balance } })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, payments, creditNotes, stmtMonth, stmtYear])
+  }, [bills, payments, creditNotes, stmtRange])
 
   const stmtTotal = statementRows.reduce((s, r) => s + r.debit - r.credit, 0)
 
@@ -306,7 +308,7 @@ export default function ProveedorDetallePage() {
   const statusCfg = STATUS_CONFIG[vendor.status ?? 'active']
   const isCompany = vendor.type !== 'individual'
   const billingAddr = vendor.billingAddress
-  const yearOptions = Array.from({ length: 6 }, (_, i) => dayjs().year() - i)
+  const yearOptions = Array.from({ length: 6 }, (_, i) => dayjs().year() - i) // usado en el gráfico
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -613,10 +615,12 @@ export default function ProveedorDetallePage() {
           children: (
             <div style={{ paddingTop: 8 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-                <Select value={stmtMonth} onChange={setStmtMonth} style={{ width: 140 }}
-                  options={MONTHS.map((m, i) => ({ value: i, label: m }))} />
-                <Select value={stmtYear} onChange={setStmtYear} style={{ width: 90 }}
-                  options={yearOptions.map(y => ({ value: y, label: String(y) }))} />
+                <DatePicker.RangePicker
+                  value={stmtRange}
+                  onChange={(dates) => { if (dates?.[0] && dates?.[1]) setStmtRange([dates[0], dates[1]]) }}
+                  format="DD/MM/YYYY"
+                  allowClear={false}
+                />
                 <Tooltip title="Imprimir estado de cuenta">
                   <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Imprimir</Button>
                 </Tooltip>
@@ -641,7 +645,9 @@ export default function ProveedorDetallePage() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, display: 'block' }}>Período</Text>
-                  <Text style={{ color: '#fff', fontSize: 13 }}>{MONTHS[stmtMonth]} {stmtYear}</Text>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>
+                    {stmtRange[0].format('DD/MM/YYYY')} — {stmtRange[1].format('DD/MM/YYYY')}
+                  </Text>
                   {company.name && <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, display: 'block', marginTop: 4 }}>{company.name}</Text>}
                 </div>
               </div>
@@ -760,7 +766,7 @@ export default function ProveedorDetallePage() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}>
           <div>
-            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Período: <strong>{MONTHS[stmtMonth]} {stmtYear}</strong></Text>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Período: <strong>{stmtRange[0].format('DD/MM/YYYY')} — {stmtRange[1].format('DD/MM/YYYY')}</strong></Text>
             <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Proveedor: <strong>{vendor.name || vendor.legalName}</strong></Text>
           </div>
           <div>
