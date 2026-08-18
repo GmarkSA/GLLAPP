@@ -220,6 +220,7 @@ export const getStockUbicacion = (id: string) => api.get(`${UBC}/${id}/stock`).t
 export type TipoMovimiento =
   'entrada_compra' | 'entrada_produccion' | 'entrada_devolucion' |
   'salida_venta' | 'salida_produccion' | 'salida_baja' |
+  'salida_devolucion_prov' | 'entrada_reversa' | 'salida_reversa' |
   'traslado' | 'ajuste'
 
 export interface MovimientoLinea {
@@ -250,6 +251,8 @@ export interface Movimiento {
   ordenProduccionId?: string
   compraId?: string
   ventaId?: string
+  reversalOfId?: string
+  reversedByMovimientoId?: string
   lineas?: MovimientoLinea[]
   createdAt: string
 }
@@ -262,6 +265,7 @@ export const createMovimiento = (dto: Partial<Movimiento>) => api.post(MOV, dto)
 export const addMovimientoLinea = (id: string, dto: Partial<MovimientoLinea>) => api.post(`${MOV}/${id}/lineas`, dto).then(unwrap) as Promise<MovimientoLinea>
 export const removeMovimientoLinea = (lineaId: string) => api.delete(`${MOV}/lineas/${lineaId}`)
 export const confirmarMovimiento = (id: string) => api.post(`${MOV}/${id}/confirmar`).then(unwrap) as Promise<Movimiento>
+export const reversarMovimiento = (id: string) => api.post(`${MOV}/${id}/reversar`).then(unwrap) as Promise<Movimiento>
 export const deleteMovimiento = (id: string) => api.delete(`${MOV}/${id}`)
 
 export const TIPO_MOVIMIENTO_CONFIG: Record<TipoMovimiento, {
@@ -274,6 +278,9 @@ export const TIPO_MOVIMIENTO_CONFIG: Record<TipoMovimiento, {
   salida_venta:       { label: 'Salida por venta',            icon: '📤', color: '#e5484d', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
   salida_produccion:  { label: 'Consumo para producción',     icon: '⚙️', color: '#ff7f00', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
   salida_baja:        { label: 'Baja / Merma / Scrap',        icon: '🗑️', color: '#6b7280', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
+  salida_devolucion_prov: { label: 'Devolución a proveedor',  icon: '↩️', color: '#e5484d', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
+  entrada_reversa:    { label: 'Reversa (entrada)',           icon: '⏮️', color: '#6b7280', needsOrigen: false, needsDestino: true,  flow: 'entrada'  },
+  salida_reversa:     { label: 'Reversa (salida)',            icon: '⏮️', color: '#6b7280', needsOrigen: true,  needsDestino: false, flow: 'salida'   },
   traslado:           { label: 'Traslado entre ubicaciones',  icon: '🔄', color: '#6b7280', needsOrigen: true,  needsDestino: true,  flow: 'traslado' },
   ajuste:             { label: 'Ajuste de inventario',        icon: '⚖️', color: '#ff7f00', needsOrigen: false, needsDestino: false, flow: 'ajuste'   },
 }
