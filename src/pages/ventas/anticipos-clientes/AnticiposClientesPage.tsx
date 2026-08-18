@@ -1,16 +1,16 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Table, Button, Space, Typography, Tag, Select, message,
-  Popconfirm, Tooltip, Modal, Alert, Descriptions, Divider, Spin,
+  Popconfirm, Tooltip, Modal, Alert, Descriptions, Divider, Spin, DatePicker,
 } from 'antd'
 import {
-  ReloadOutlined, CheckCircleOutlined, StopOutlined, BookOutlined,
+  ReloadOutlined, CheckCircleOutlined, StopOutlined, BookOutlined, RollbackOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
   getAnticiposClientes, aplicarAnticipoCliente, reembolsarAnticipoCliente,
-  type AnticipoCliente,
+  desaplicarAnticipoCliente, type AnticipoCliente,
 } from '../../../api/anticipos-clientes'
 import { getJournalEntry } from '../../../api/compras'
 import { getInvoices, type Invoice } from '../../../api/facturas'
@@ -64,9 +64,13 @@ export default function AnticiposClientesPage() {
   const [loadingInv,   setLoadingInv]   = useState(false)
   const [selectedInv,  setSelectedInv]  = useState<string | undefined>()
   const [applyLoading, setApplyLoading] = useState(false)
+  const [applyDate,    setApplyDate]    = useState<string>(dayjs().format('YYYY-MM-DD'))
 
   // Anular
-  const [voiding, setVoiding] = useState<string | null>(null)
+  const [voiding,      setVoiding]      = useState<string | null>(null)
+
+  // Desaplicar
+  const [desaplicando, setDesaplicando] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -105,6 +109,7 @@ export default function AnticiposClientesPage() {
   const openApply = async (ant: AnticipoCliente) => {
     setApplying(ant)
     setSelectedInv(undefined)
+    setApplyDate(dayjs().format('YYYY-MM-DD'))
     setLoadingInv(true)
     try {
       const res = await getInvoices({ customerId: ant.customerId, status: 'pending,sent,partial,overdue', limit: 100 })
@@ -118,13 +123,24 @@ export default function AnticiposClientesPage() {
     if (!applying || !selectedInv) return
     setApplyLoading(true)
     try {
-      const res = await aplicarAnticipoCliente(applying.id, { invoiceId: selectedInv }) as any
+      const res = await aplicarAnticipoCliente(applying.id, { invoiceId: selectedInv, date: applyDate }) as any
       message.success(`Anticipo ${applying.invoiceNumber} aplicado — ${fmtQ(Number(res.amount ?? 0))} acreditados`)
       setApplying(null)
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al aplicar el anticipo')
     } finally { setApplyLoading(false) }
+  }
+
+  const handleDesaplicar = async (id: string, invoiceNumber: string) => {
+    setDesaplicando(id)
+    try {
+      await desaplicarAnticipoCliente(id)
+      message.success(`Anticipo ${invoiceNumber} desaplicado — pólizas revertidas`)
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al desaplicar el anticipo')
+    } finally { setDesaplicando(null) }
   }
 
   const handleVoid = async (id: string, invoiceNumber: string) => {
@@ -188,6 +204,23 @@ export default function AnticiposClientesPage() {
               onClick={() => openApply(r)}
             />
           </Tooltip>
+          {(r.status === 'partial' || r.status === 'paid') && (
+            <Popconfirm
+              title={`¿Desaplicar anticipo ${r.invoiceNumber}?`}
+              description="Se revertirán todas las aplicaciones a facturas y sus pólizas."
+              okText="Desaplicar"
+              cancelText="Cancelar"
+              okButtonProps={{ style: { background: '#d97706' } }}
+              onConfirm={() => handleDesaplicar(r.id, r.invoiceNumber)}
+            >
+              <Tooltip title="Desaplicar (revertir aplicaciones)">
+                <Button size="small" icon={<RollbackOutlined />}
+                  loading={desaplicando === r.id}
+                  style={{ color: '#d97706', borderColor: '#d97706' }}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
           {r.status !== 'paid' && r.status !== 'voided' && (
             <Popconfirm
               title={`¿Anular anticipo ${r.invoiceNumber}?`}
@@ -293,6 +326,13 @@ export default function AnticiposClientesPage() {
         okButtonProps={{ disabled: !selectedInv, style: { background: '#1faec2' } }}
         width={520}
       >
+        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>Fecha contable</span>
+          <DatePicker size="small" format="DD/MM/YYYY" style={{ flex: 1 }}
+            value={dayjs(applyDate)}
+            onChange={d => setApplyDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
+          />
+        </div>
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
             Selecciona la factura a la que se aplicará el anticipo

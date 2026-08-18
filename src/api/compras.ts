@@ -69,13 +69,18 @@ export const applyVendorAdvanceRefund = (
   journalEntry: { id: string; entryNumber: string; lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }> }
 }>
 
+export const desaplicarAnticipoProveedor = (advanceId: string) =>
+  api.post(`/compras/anticipos-proveedor/${advanceId}/desaplicar`, {}).then(unwrap)
+
 export const applyVendorAdvanceToBill = (
   advanceId: string,
   invoiceId: string,
   amount?: number,
+  date?: string,
 ) => api.post(`/compras/anticipos-proveedor/${advanceId}/apply`, {
   invoiceIds: [invoiceId],
   ...(amount !== undefined ? { amounts: { [invoiceId]: amount } } : {}),
+  ...(date ? { date } : {}),
 }).then(unwrap) as Promise<VendorAdvance>
 
 // ─── Types ────────────────────────────────────────────────────────────────────
