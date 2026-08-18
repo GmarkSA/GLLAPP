@@ -147,7 +147,7 @@ function BancoPanel({ data, saldoGl, mes, anio }: { data: BancoEspecifico; saldo
       dataSource={rows}
       rowKey={(_, i) => String(i)}
       pagination={false}
-      scroll={{ x: 'max-content', ...(data.transactions.length > 0 ? { y: 260 } : {}) }}
+      scroll={{ x: 'max-content' }}
       onRow={(r) => ({ style: r.__summary ? { background: '#eff6ff', borderTop: '2px solid #bfdbfe' } : {} })}
       columns={[
         { title: 'Fecha', dataIndex: 'date', width: 100,
