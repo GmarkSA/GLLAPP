@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Select, Tabs, Spin, Empty, Typography, Card, Button } from 'antd'
+import { Select, Tabs, Spin, Empty, Typography, Card, Button, Switch } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -103,6 +103,7 @@ export default function EstadosFinancierosPage() {
   const [er, setEr] = useState<EstadoResultadosData | null>(null)
   const [loadingLeft, setLoadingLeft] = useState(true)
 
+  const [soloConMovimiento, setSoloConMovimiento] = useState(false)
   const [selected, setSelected] = useState<Selected>(null)
   const [detalle,  setDetalle]  = useState<DetalleResult | null>(null)
   const [loadingDet, setLoadingDet] = useState(false)
@@ -135,6 +136,14 @@ export default function EstadosFinancierosPage() {
 
   const onSelect = (a: AccountRow) => setSelected({ id: a.id, code: a.code, name: a.name })
   const selId = selected?.id
+  const fil = (accs: AccountRow[]) => soloConMovimiento ? accs.filter(a => a.balance !== 0) : accs
+
+  const filtroSwitch = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+      <Switch size="small" checked={soloConMovimiento} onChange={setSoloConMovimiento} />
+      <Text style={{ fontSize: 11, color: '#6b7280' }}>Solo con movimiento</Text>
+    </div>
+  )
 
   const tabs = [
     {
@@ -142,14 +151,15 @@ export default function EstadosFinancierosPage() {
       label: 'Balance General',
       children: !bg ? <Empty description="Sin datos" /> : (
         <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 10 }}>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
             Saldos acumulados al {dayjs(endOfMonth).format('DD/MM/YYYY')}
           </Text>
-          <Group title="Activo Circulante" accounts={bg.activo.accounts} total={bg.activo.total} selectedId={selId} onSelect={onSelect} color={NAVY} />
-          <Group title="Activo Fijo" accounts={bg.activoFijo.accounts} total={bg.activoFijo.total} selectedId={selId} onSelect={onSelect} color={NAVY} />
+          {filtroSwitch}
+          <Group title="Activo Circulante" accounts={fil(bg.activo.accounts)} total={bg.activo.total} selectedId={selId} onSelect={onSelect} color={NAVY} />
+          <Group title="Activo Fijo" accounts={fil(bg.activoFijo.accounts)} total={bg.activoFijo.total} selectedId={selId} onSelect={onSelect} color={NAVY} />
           <GrandTotal label="TOTAL ACTIVOS" value={bg.totalActivo} />
-          <Group title="Pasivo" accounts={bg.pasivo.accounts} total={bg.pasivo.total} selectedId={selId} onSelect={onSelect} color="#b45309" />
-          <Group title="Capital" accounts={bg.capital.accounts} total={bg.capital.total} selectedId={selId} onSelect={onSelect} color="#7c3aed" />
+          <Group title="Pasivo" accounts={fil(bg.pasivo.accounts)} total={bg.pasivo.total} selectedId={selId} onSelect={onSelect} color="#b45309" />
+          <Group title="Capital" accounts={fil(bg.capital.accounts)} total={bg.capital.total} selectedId={selId} onSelect={onSelect} color="#7c3aed" />
           <GrandTotal label="TOTAL PASIVO + CAPITAL" value={bg.totalPasivoCapital} />
         </div>
       ),
@@ -159,15 +169,16 @@ export default function EstadosFinancierosPage() {
       label: 'Estado de Resultados',
       children: !er ? <Empty description="Sin datos" /> : (
         <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 10 }}>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
             Del {dayjs(jan1).format('DD/MM/YYYY')} al {dayjs(endOfMonth).format('DD/MM/YYYY')} (acumulado)
           </Text>
-          <Group title="Ingresos" accounts={er.ingresos.accounts} total={er.ingresos.total} selectedId={selId} onSelect={onSelect} color="#2ea172" />
-          <Group title="Otros Ingresos" accounts={er.otrosIngresos.accounts} total={er.otrosIngresos.total} selectedId={selId} onSelect={onSelect} color="#2ea172" />
-          <Group title="Costos" accounts={er.costos.accounts} total={er.costos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
+          {filtroSwitch}
+          <Group title="Ingresos" accounts={fil(er.ingresos.accounts)} total={er.ingresos.total} selectedId={selId} onSelect={onSelect} color="#2ea172" />
+          <Group title="Otros Ingresos" accounts={fil(er.otrosIngresos.accounts)} total={er.otrosIngresos.total} selectedId={selId} onSelect={onSelect} color="#2ea172" />
+          <Group title="Costos" accounts={fil(er.costos.accounts)} total={er.costos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
           <GrandTotal label="UTILIDAD BRUTA" value={er.utilidadBruta} />
-          <Group title="Gastos" accounts={er.gastos.accounts} total={er.gastos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
-          <Group title="Otros Gastos" accounts={er.otrosGastos.accounts} total={er.otrosGastos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
+          <Group title="Gastos" accounts={fil(er.gastos.accounts)} total={er.gastos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
+          <Group title="Otros Gastos" accounts={fil(er.otrosGastos.accounts)} total={er.otrosGastos.total} selectedId={selId} onSelect={onSelect} color="#e5484d" />
           <GrandTotal label="UTILIDAD NETA" value={er.utilidadNeta} />
         </div>
       ),
