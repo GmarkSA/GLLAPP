@@ -718,6 +718,7 @@ export default function DteSatPage() {
       let paymentTerms: string | undefined
       let savedInvoiceType: string | undefined
       let savedDefaultUnit: string | undefined
+      let savedIdpType: string | undefined
       // 1. Preferencias guardadas de sesiones anteriores (más recientes)
       if (d.vendorId) {
         try {
@@ -726,6 +727,7 @@ export default function DteSatPage() {
             const p = JSON.parse(raw)
             accountId = p.accountId; taxId = p.taxId
             savedInvoiceType = p.invoiceType; savedDefaultUnit = p.defaultUnit
+            savedIdpType = p.idpType
           }
         } catch {}
       }
@@ -765,6 +767,7 @@ export default function DteSatPage() {
         taxLabel: taxObj ? (taxObj.subtype === 'exempt' ? `Exento — ${taxObj.name}` : `${Number(taxObj.rate)}% — ${taxObj.name}`) : undefined,
         invoiceType: autoInvoiceType,
         defaultUnit: autoDefaultUnit,
+        idpType: savedIdpType,
         idpAccountId: idpAcc?.id,
         ocType: 'direct',
         paymentTerms: paymentTerms ?? 'immediate',
