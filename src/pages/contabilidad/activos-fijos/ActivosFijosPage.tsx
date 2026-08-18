@@ -8,19 +8,28 @@ import {
 import {
   PlusOutlined, EyeOutlined, CheckCircleOutlined,
   DollarOutlined, StopOutlined, UploadOutlined, DownloadOutlined,
-  ImportOutlined,
+  ImportOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getActivosFijos, crearActivoFijo, actualizarActivoFijo,
   activarActivoFijo, venderActivoFijo, darDeBajaActivoFijo,
-  importarMasivoActivosFijos,
+  importarMasivoActivosFijos, depreciarPeriodo,
   type ActivoFijo, type EstadoActivoFijo, type ImportarActivoItem, type ImportarMasivoResult,
 } from '../../../api/activos-fijos'
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../../api/clases-activo-fijo'
 import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../components/SelectorDimensionesAnaliticas'
 
 const { Title, Text } = Typography
+
+interface DeprecTask {
+  periodo: string
+  status: 'pending' | 'running' | 'ok' | 'error'
+  procesados?: number
+  omitidos?: number
+  errores?: number
+  detalles?: string[]
+}
 
 const ESTADO_COLOR: Record<EstadoActivoFijo, string> = {
   BORRADOR:    'default',
@@ -135,6 +144,12 @@ export default function ActivosFijosPage() {
   const [actLoading,  setActLoading]  = useState(false)
   const [formVender]  = Form.useForm()
   const [formBaja]    = Form.useForm()
+
+  // Depreciación masiva por rango de períodos
+  const [modalDeprec,   setModalDeprec]   = useState(false)
+  const [deprecTasks,   setDeprecTasks]   = useState<DeprecTask[]>([])
+  const [deprecRange,   setDeprecRange]   = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
+  const [deprecRunning, setDeprecRunning] = useState(false)
 
   // Importación masiva
   const [drawerImport,  setDrawerImport]  = useState(false)
@@ -264,6 +279,48 @@ export default function ActivosFijosPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al dar de baja')
     } finally { setActLoading(false) }
+  }
+
+  // ── Depreciación masiva por rango de períodos ────────────────────────────────
+
+  const buildPeriods = (from: dayjs.Dayjs, to: dayjs.Dayjs): string[] => {
+    const list: string[] = []
+    let cur = from.startOf('month')
+    const end = to.startOf('month')
+    while (!cur.isAfter(end)) { list.push(cur.format('YYYY-MM')); cur = cur.add(1, 'month') }
+    return list
+  }
+
+  const openDeprecModal = () => {
+    setDeprecTasks([])
+    setDeprecRange(null)
+    setModalDeprec(true)
+  }
+
+  const handlePreviewDeprec = () => {
+    if (!deprecRange) return
+    const periods = buildPeriods(deprecRange[0], deprecRange[1])
+    setDeprecTasks(periods.map(p => ({ periodo: p, status: 'pending' as const })))
+  }
+
+  const handleDepreciarPeriodos = async () => {
+    if (deprecTasks.length === 0) return
+    setDeprecRunning(true)
+    for (const task of deprecTasks) {
+      setDeprecTasks(prev => prev.map(t => t.periodo === task.periodo ? { ...t, status: 'running' as const } : t))
+      try {
+        const res = await depreciarPeriodo(task.periodo) as any
+        setDeprecTasks(prev => prev.map(t => t.periodo === task.periodo
+          ? { ...t, status: 'ok' as const, procesados: res.procesados, omitidos: res.omitidos, errores: res.errores, detalles: res.detalles }
+          : t))
+      } catch (err: any) {
+        setDeprecTasks(prev => prev.map(t => t.periodo === task.periodo
+          ? { ...t, status: 'error' as const, detalles: [err?.response?.data?.message ?? 'Error al procesar'] }
+          : t))
+      }
+    }
+    setDeprecRunning(false)
+    load()
   }
 
   // ── Importación masiva ───────────────────────────────────────────────────────
@@ -408,6 +465,9 @@ export default function ActivosFijosPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Activos Fijos</Title>
         <Space>
+          <Button icon={<ThunderboltOutlined />} onClick={openDeprecModal}>
+            Depreciar períodos
+          </Button>
           <Button icon={<ImportOutlined />} onClick={abrirImport}>
             Importar saldos iniciales
           </Button>
@@ -558,6 +618,122 @@ export default function ActivosFijosPage() {
             <Input.TextArea rows={2} placeholder="Ej: Siniestro total por accidente de tránsito" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* ── Modal: Depreciar períodos ────────────────────────────────── */}
+      <Modal
+        title={<><ThunderboltOutlined /> Depreciar períodos anteriores</>}
+        open={modalDeprec}
+        onCancel={() => { if (!deprecRunning) { setModalDeprec(false) } }}
+        width={620}
+        footer={
+          deprecTasks.length === 0 ? (
+            <Space>
+              <Button onClick={() => setModalDeprec(false)}>Cancelar</Button>
+              <Button type="primary" style={{ background: '#1faec2' }}
+                disabled={!deprecRange}
+                onClick={handlePreviewDeprec}>
+                Previsualizar períodos
+              </Button>
+            </Space>
+          ) : deprecTasks.every(t => t.status === 'pending') ? (
+            <Space>
+              <Button onClick={() => { setDeprecTasks([]); }}>Volver</Button>
+              <Button type="primary" style={{ background: '#1faec2' }}
+                onClick={handleDepreciarPeriodos}>
+                Ejecutar {deprecTasks.length} período{deprecTasks.length !== 1 ? 's' : ''}
+              </Button>
+            </Space>
+          ) : deprecRunning ? (
+            <Button loading disabled>Ejecutando...</Button>
+          ) : (
+            <Button type="primary" style={{ background: '#1faec2' }}
+              onClick={() => setModalDeprec(false)}>
+              Cerrar
+            </Button>
+          )
+        }
+      >
+        {deprecTasks.length === 0 && (
+          <div style={{ marginTop: 16 }}>
+            <Alert type="info" showIcon style={{ marginBottom: 16 }}
+              message="Depreciación masiva por rango"
+              description="Se ejecutará la depreciación de todos los activos ACTIVOS para cada mes del rango. Los períodos ya depreciados se omiten automáticamente."
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
+              <div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Rango de períodos</div>
+                <DatePicker.RangePicker
+                  picker="month"
+                  format="MM/YYYY"
+                  style={{ width: '100%' }}
+                  disabledDate={d => d.isAfter(dayjs())}
+                  onChange={vals => {
+                    if (vals && vals[0] && vals[1]) setDeprecRange([vals[0], vals[1]])
+                    else setDeprecRange(null)
+                  }}
+                />
+              </div>
+              {deprecRange && (
+                <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                  {buildPeriods(deprecRange[0], deprecRange[1]).length} período(s)
+                </Text>
+              )}
+            </div>
+          </div>
+        )}
+
+        {deprecTasks.length > 0 && (
+          <Table
+            dataSource={deprecTasks}
+            rowKey="periodo"
+            size="small"
+            pagination={false}
+            scroll={{ y: 360 }}
+            style={{ marginTop: 8 }}
+            columns={[
+              { title: 'Período', dataIndex: 'periodo', width: 100 },
+              {
+                title: 'Estado', dataIndex: 'status', width: 130,
+                render: (v: DeprecTask['status']) => {
+                  if (v === 'pending') return <Tag>Pendiente</Tag>
+                  if (v === 'running') return <Tag color="processing">Ejecutando...</Tag>
+                  if (v === 'ok')      return <Tag color="success">Listo</Tag>
+                  return <Tag color="error">Error</Tag>
+                },
+              },
+              {
+                title: 'Procesados', dataIndex: 'procesados', width: 105, align: 'center' as const,
+                render: (v?: number) => v != null ? <span style={{ color: '#389e0d' }}>{v}</span> : <Text type="secondary">—</Text>,
+              },
+              {
+                title: 'Omitidos', dataIndex: 'omitidos', width: 90, align: 'center' as const,
+                render: (v?: number) => v != null ? v : <Text type="secondary">—</Text>,
+              },
+              {
+                title: 'Errores', dataIndex: 'errores', width: 80, align: 'center' as const,
+                render: (v?: number, r?: DeprecTask) => {
+                  if (v == null) return <Text type="secondary">—</Text>
+                  return v > 0
+                    ? <Tooltip title={r?.detalles?.join('\n')}><span style={{ color: '#e5484d', cursor: 'help' }}>{v}</span></Tooltip>
+                    : <span>{v}</span>
+                },
+              },
+            ]}
+          />
+        )}
+
+        {deprecTasks.length > 0 && !deprecRunning && deprecTasks.some(t => t.status === 'ok' || t.status === 'error') && (
+          <div style={{ marginTop: 12, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6 }}>
+            <Text style={{ fontSize: 12 }}>
+              <strong style={{ color: '#389e0d' }}>{deprecTasks.filter(t => t.status === 'ok').reduce((s, t) => s + (t.procesados ?? 0), 0)}</strong> activos depreciados en total ·{' '}
+              <strong>{deprecTasks.filter(t => t.status === 'ok').reduce((s, t) => s + (t.omitidos ?? 0), 0)}</strong> omisiones ·{' '}
+              {deprecTasks.some(t => t.status === 'error') && (
+                <strong style={{ color: '#e5484d' }}>{deprecTasks.filter(t => t.status === 'error').length} período(s) con error</strong>
+              )}
+            </Text>
+          </div>
+        )}
       </Modal>
 
       {/* ── Drawer: Importación masiva ───────────────────────────────── */}
