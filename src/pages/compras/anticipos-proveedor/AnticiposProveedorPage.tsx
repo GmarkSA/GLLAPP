@@ -102,7 +102,7 @@ export default function AnticiposProveedorPage() {
     setSelectedBill(undefined)
     setLoadingBills(true)
     try {
-      const res = await getBills({ vendorId: adv.vendorId, status: 'pending,partial,overdue', limit: 100 })
+      const res = await getBills({ vendorId: adv.vendorId, status: 'open,partial,overdue', limit: 100 })
       const list: PurchaseInvoice[] = Array.isArray(res) ? res : (res?.data ?? [])
       setOpenBills(list.filter(b => Number(b.balance ?? 0) > 0.01))
     } catch { setOpenBills([]) }
