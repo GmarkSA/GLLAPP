@@ -71,6 +71,10 @@ export default function CategorizarDrawer({
   const [overpayCustomerName, setOverpayCustomerName] = useState<string | undefined>()
   const [savingOverpay, setSavingOverpay]     = useState(false)
   const [overpayDone, setOverpayDone]         = useState(false)
+  const [showOverpayAccountForm, setShowOverpayAccountForm] = useState(false)
+  const [overpayAccountId, setOverpayAccountId]   = useState<string | undefined>()
+  const [overpayAccountObj, setOverpayAccountObj] = useState<Account | undefined>()
+  const [savingOverpayAccount, setSavingOverpayAccount] = useState(false)
   const [accountDefaults, setAccountDefaults] = useState<AccountDefaults>({})
   const [editingJE, setEditingJE]             = useState(false)
   const [jeEditDate, setJeEditDate]           = useState('')
@@ -121,6 +125,9 @@ export default function CategorizarDrawer({
     setOverpayCustomerId(undefined)
     setOverpayCustomerName(undefined)
     setOverpayDone(false)
+    setShowOverpayAccountForm(false)
+    setOverpayAccountId(undefined)
+    setOverpayAccountObj(undefined)
     fetchMatches('')
     if (account?.currency && account.currency !== 'GTQ') {
       const txDate = String(transaction.transactionDate || '').split('T')[0]
@@ -554,6 +561,44 @@ export default function CategorizarDrawer({
     }
   }
 
+  const applyOverpayAsAccount = async () => {
+    if (!overpayAccountId || !overpayAccountObj || !transaction || !account) return
+    const bankId = account.glAccountId
+    if (!bankId) { message.warning('La cuenta bancaria no tiene cuenta contable vinculada'); return }
+    setSavingOverpayAccount(true)
+    try {
+      const txDate    = String(transaction.transactionDate || '').split('T')[0]
+      const desc      = `Diferencia de ${isCredit ? 'cobro' : 'pago'} — ${transaction.description || ''}`
+      const bankCode  = account.glAccountCode || ''
+      const bankName  = account.glAccountName || 'Banco'
+      const glCode    = overpayAccountObj.code || ''
+      const glName    = overpayAccountObj.name || ''
+      const lines = isCredit
+        ? [
+            { accountId: bankId,           accountCode: bankCode, accountName: bankName, debit: overpayAmount, credit: 0,             description: desc, sortOrder: 1 },
+            { accountId: overpayAccountId, accountCode: glCode,   accountName: glName,   debit: 0,             credit: overpayAmount, description: desc, sortOrder: 2 },
+          ]
+        : [
+            { accountId: overpayAccountId, accountCode: glCode,   accountName: glName,   debit: overpayAmount, credit: 0,             description: desc, sortOrder: 1 },
+            { accountId: bankId,           accountCode: bankCode, accountName: bankName, debit: 0,             credit: overpayAmount, description: desc, sortOrder: 2 },
+          ]
+      await createAsiento({
+        lines,
+        entryDate:          txDate,
+        description:        desc,
+        reference:          transaction.reference || undefined,
+        sourceDocumentType: 'bank_transaction',
+        autoPost:           true,
+      })
+      message.success(`Diferencia registrada en ${glName}`)
+      setOverpayDone(true)
+    } catch (e: unknown) {
+      message.error(periodMsg(e, 'No se pudo registrar la diferencia'))
+    } finally {
+      setSavingOverpayAccount(false)
+    }
+  }
+
   const searchRefundAdvances = async () => {
     setRefundSearching(true)
     try {
@@ -811,25 +856,44 @@ export default function CategorizarDrawer({
               description={
                 <div>
                   <div style={{ marginBottom: 8, fontSize: 12 }}>
-                    ¿Registrar la diferencia como anticipo al proveedor <strong>{overpayVendorName}</strong>?
+                    ¿Cómo registrar la diferencia para el proveedor <strong>{overpayVendorName}</strong>?
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="small" type="primary" loading={savingOverpay}
-                      icon={<ClockCircleOutlined />}
-                      style={{ background: '#d46b08', borderColor: '#d46b08' }}
-                      onClick={applyOverpayAsAdvance}
-                    >
-                      Registrar {moneyFmt(overpayAmount, account?.currency)} como anticipo
-                    </Button>
-                    <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
-                  </div>
+                  {!showOverpayAccountForm ? (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Button size="small" type="primary" loading={savingOverpay}
+                        icon={<ClockCircleOutlined />}
+                        style={{ background: '#d46b08', borderColor: '#d46b08' }}
+                        onClick={applyOverpayAsAdvance}
+                      >
+                        Anticipo proveedor
+                      </Button>
+                      <Button size="small" onClick={() => { setShowOverpayAccountForm(true); setOverpayAccountId(undefined); setOverpayAccountObj(undefined) }}>
+                        En cuenta contable
+                      </Button>
+                      <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                      <AccountSelect filter={{}} placeholder="Selecciona cuenta contable..." size="small"
+                        value={overpayAccountId} onChange={setOverpayAccountId} onChangeAccount={setOverpayAccountObj} />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Button size="small" type="primary" loading={savingOverpayAccount}
+                          disabled={!overpayAccountId} style={{ background: NAVY }}
+                          onClick={applyOverpayAsAccount}
+                        >
+                          Registrar {moneyFmt(overpayAmount, account?.currency)} en cuenta
+                        </Button>
+                        <Button size="small" onClick={() => setShowOverpayAccountForm(false)}>Cancelar</Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               }
             />
           )}
           {overpayAmount > 0.005 && overpayVendorId && overpayDone && (
             <Alert type="success" showIcon style={{ marginBottom: 12 }}
-              message={`Diferencia de ${moneyFmt(overpayAmount, account?.currency)} registrada como anticipo a ${overpayVendorName}`}
+              message={`Diferencia de ${moneyFmt(overpayAmount, account?.currency)} registrada para ${overpayVendorName}`}
             />
           )}
 
@@ -842,25 +906,44 @@ export default function CategorizarDrawer({
               description={
                 <div>
                   <div style={{ marginBottom: 8, fontSize: 12 }}>
-                    ¿Registrar la diferencia como anticipo del cliente <strong>{overpayCustomerName}</strong>?
+                    ¿Cómo registrar la diferencia para el cliente <strong>{overpayCustomerName}</strong>?
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="small" type="primary" loading={savingOverpay}
-                      icon={<ClockCircleOutlined />}
-                      style={{ background: '#d46b08', borderColor: '#d46b08' }}
-                      onClick={applyOverpayAsCustomerAdvance}
-                    >
-                      Registrar {moneyFmt(overpayAmount, account?.currency)} como anticipo
-                    </Button>
-                    <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
-                  </div>
+                  {!showOverpayAccountForm ? (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Button size="small" type="primary" loading={savingOverpay}
+                        icon={<ClockCircleOutlined />}
+                        style={{ background: '#d46b08', borderColor: '#d46b08' }}
+                        onClick={applyOverpayAsCustomerAdvance}
+                      >
+                        Anticipo cliente
+                      </Button>
+                      <Button size="small" onClick={() => { setShowOverpayAccountForm(true); setOverpayAccountId(undefined); setOverpayAccountObj(undefined) }}>
+                        En cuenta contable
+                      </Button>
+                      <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                      <AccountSelect filter={{}} placeholder="Selecciona cuenta contable..." size="small"
+                        value={overpayAccountId} onChange={setOverpayAccountId} onChangeAccount={setOverpayAccountObj} />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Button size="small" type="primary" loading={savingOverpayAccount}
+                          disabled={!overpayAccountId} style={{ background: NAVY }}
+                          onClick={applyOverpayAsAccount}
+                        >
+                          Registrar {moneyFmt(overpayAmount, account?.currency)} en cuenta
+                        </Button>
+                        <Button size="small" onClick={() => setShowOverpayAccountForm(false)}>Cancelar</Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               }
             />
           )}
           {overpayAmount > 0.005 && overpayCustomerId && overpayDone && (
             <Alert type="success" showIcon style={{ marginBottom: 12 }}
-              message={`Diferencia de ${moneyFmt(overpayAmount, account?.currency)} registrada como anticipo de ${overpayCustomerName}`}
+              message={`Diferencia de ${moneyFmt(overpayAmount, account?.currency)} registrada para ${overpayCustomerName}`}
             />
           )}
 
