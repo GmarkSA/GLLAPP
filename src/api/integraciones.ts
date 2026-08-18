@@ -92,7 +92,7 @@ export interface MesHistorial {
 export interface BancoEspecifico {
   bankAccount: {
     id: string; name: string; bankName: string; accountNumber: string
-    currency: string; currentBalance: number
+    currency: string; currentBalance: number; saldoSistema: number | null
   }
   transactions: Array<{
     date: string; description: string; reference: string; type: string
