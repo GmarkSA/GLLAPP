@@ -1,14 +1,18 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Card, Table, Button, Space, Typography, Tag,
-  Select, message, Popconfirm, Tooltip, Modal, Descriptions, Divider,
+  Select, message, Popconfirm, Tooltip, Modal, Descriptions, Divider, Alert,
 } from 'antd'
 import {
-  ReloadOutlined, StopOutlined, BookOutlined, WalletOutlined, BankOutlined,
+  ReloadOutlined, StopOutlined, BookOutlined, WalletOutlined, BankOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
-import { getVendorAdvances, voidVendorAdvance, unvoidVendorAdvance, getJournalEntry, type VendorAdvance } from '../../../api/compras'
+import {
+  getVendorAdvances, voidVendorAdvance, unvoidVendorAdvance, getJournalEntry,
+  applyVendorAdvanceToBill, getBills,
+  type VendorAdvance, type PurchaseInvoice,
+} from '../../../api/compras'
 
 const { Text, Title } = Typography
 
@@ -40,6 +44,13 @@ export default function AnticiposProveedorPage() {
   const [detail,   setDetail]   = useState<VendorAdvance | null>(null)
   const [jeLines,  setJeLines]  = useState<any[]>([])
   const [jeLoading, setJeLoading] = useState(false)
+
+  // Modal: aplicar a factura de compra
+  const [applying,     setApplying]     = useState<VendorAdvance | null>(null)
+  const [openBills,    setOpenBills]    = useState<PurchaseInvoice[]>([])
+  const [loadingBills, setLoadingBills] = useState(false)
+  const [selectedBill, setSelectedBill] = useState<string | undefined>()
+  const [applyLoading, setApplyLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -86,6 +97,33 @@ export default function AnticiposProveedorPage() {
     }
   }
 
+  const openApply = async (adv: VendorAdvance) => {
+    setApplying(adv)
+    setSelectedBill(undefined)
+    setLoadingBills(true)
+    try {
+      const res = await getBills({ vendorId: adv.vendorId, status: 'pending,partial,overdue', limit: 100 })
+      const list: PurchaseInvoice[] = Array.isArray(res) ? res : (res?.data ?? [])
+      setOpenBills(list.filter(b => Number(b.balance ?? 0) > 0.01))
+    } catch { setOpenBills([]) }
+    finally { setLoadingBills(false) }
+  }
+
+  const handleApply = async () => {
+    if (!applying || !selectedBill) return
+    setApplyLoading(true)
+    try {
+      await applyVendorAdvanceToBill(applying.id, selectedBill)
+      const bill = openBills.find(b => b.id === selectedBill)
+      message.success(`Anticipo ${applying.advanceNumber} aplicado a ${bill?.invoiceNumber ?? 'factura'}`)
+      setApplying(null)
+      load()
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al aplicar el anticipo')
+    } finally { setApplyLoading(false) }
+  }
+
   const columns: ColumnsType<VendorAdvance> = [
     {
       title: 'Número', dataIndex: 'advanceNumber', width: 160,
@@ -116,10 +154,10 @@ export default function AnticiposProveedorPage() {
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{STATUS_LABEL[v] ?? v}</Tag>,
     },
     {
-      key: 'actions', width: 100, align: 'center',
+      key: 'actions', width: 120, align: 'center',
       render: (_, r) => (
         <Space size={4}>
-          <Tooltip title="Ver detalle">
+          <Tooltip title="Ver póliza">
             <Button size="small" icon={<BookOutlined />} onClick={() => {
               setDetail(r)
               setJeLines([])
@@ -132,6 +170,16 @@ export default function AnticiposProveedorPage() {
               }
             }} />
           </Tooltip>
+          {r.status !== 'voided' && r.status !== 'applied' && (
+            <Tooltip title="Aplicar a factura de compra">
+              <Button
+                size="small"
+                icon={<CheckCircleOutlined />}
+                style={{ color: '#1faec2', borderColor: '#1faec2' }}
+                onClick={() => openApply(r)}
+              />
+            </Tooltip>
+          )}
           {r.status !== 'voided' && r.status !== 'applied' && (
             <Popconfirm
               title="¿Anular anticipo?"
@@ -312,6 +360,54 @@ export default function AnticiposProveedorPage() {
             />
           </>
         )}
+      </Modal>
+
+      {/* ── Modal: Aplicar anticipo a factura de compra ─────────────── */}
+      <Modal
+        title={applying ? `Aplicar ${applying.advanceNumber} — Saldo: ${fmtQ(applying.balance, applying.currency)}` : 'Aplicar anticipo'}
+        open={!!applying}
+        onCancel={() => setApplying(null)}
+        onOk={handleApply}
+        okText="Aplicar anticipo"
+        confirmLoading={applyLoading}
+        okButtonProps={{ disabled: !selectedBill, style: { background: '#1faec2' } }}
+        width={520}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>
+            Selecciona la factura de compra a la que se aplicará el anticipo
+          </div>
+          {loadingBills ? (
+            <Select disabled placeholder="Cargando facturas..." style={{ width: '100%' }} />
+          ) : openBills.length === 0 ? (
+            <Alert type="warning" message="Este proveedor no tiene facturas con saldo pendiente." />
+          ) : (
+            <Select
+              placeholder="Seleccionar factura..."
+              style={{ width: '100%' }}
+              value={selectedBill}
+              onChange={v => setSelectedBill(v)}
+              optionFilterProp="label"
+              showSearch
+              options={openBills.map(b => ({
+                label: `${b.invoiceNumber} — ${fmtQ(Number(b.balance ?? 0), b.currency)} pendiente`,
+                value: b.id,
+              }))}
+            />
+          )}
+        </div>
+        {applying && selectedBill && (() => {
+          const bill = openBills.find(b => b.id === selectedBill)
+          if (!bill) return null
+          const billBalance = Number(bill.balance ?? 0)
+          const applyAmt = Math.min(applying.balance, billBalance)
+          return (
+            <Alert type="success" showIcon
+              message={`Se aplicarán ${fmtQ(applyAmt, applying.currency)} al saldo de ${bill.invoiceNumber}`}
+              description={`Saldo restante del anticipo: ${fmtQ(Math.max(0, applying.balance - applyAmt), applying.currency)}`}
+            />
+          )
+        })()}
       </Modal>
 
       <style>{`
