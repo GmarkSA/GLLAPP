@@ -205,29 +205,33 @@ export default function EstadosFinancierosPage() {
       </div>
 
       {/* Split layout — paneles con scroll independiente */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'stretch', height: 'calc(100vh - 120px)' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         {/* Izquierda: Balance / Estado de Resultados */}
-        <Card size="small" style={{ flex: '1 1 420px', minWidth: 340, borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} bodyStyle={{ padding: '4px 12px 12px', overflowY: 'auto', flex: 1 }}>
-          <Spin spinning={loadingLeft}>
-            <Tabs items={tabs} size="small" />
-          </Spin>
+        <Card size="small" style={{ flex: '1 1 420px', minWidth: 340, borderRadius: 10 }} bodyStyle={{ padding: 0 }}>
+          <div style={{ height: 'calc(100vh - 130px)', overflowY: 'auto', padding: '4px 12px 12px' }}>
+            <Spin spinning={loadingLeft}>
+              <Tabs items={tabs} size="small" />
+            </Spin>
+          </div>
         </Card>
 
         {/* Derecha: Integración / detalle de la cuenta */}
-        <Card size="small" style={{ flex: '1 1 520px', minWidth: 380, borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} bodyStyle={{ padding: 16, overflowY: 'auto', flex: 1 }}>
-          {!selected ? (
-            <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}>
-              <Empty description="Selecciona una cuenta a la izquierda para ver su detalle e integración" />
-            </div>
-          ) : loadingDet ? (
-            <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}><Spin /></div>
-          ) : detalle ? (
-            <DetallePanel detalle={detalle} mes={mes} anio={anio} />
-          ) : (
-            <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}>
-              <Empty description={`Sin detalle para ${selected.code} — ${selected.name}`} />
-            </div>
-          )}
+        <Card size="small" style={{ flex: '1 1 520px', minWidth: 380, borderRadius: 10 }} bodyStyle={{ padding: 0 }}>
+          <div style={{ height: 'calc(100vh - 130px)', overflowY: 'auto', padding: 16 }}>
+            {!selected ? (
+              <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}>
+                <Empty description="Selecciona una cuenta a la izquierda para ver su detalle e integración" />
+              </div>
+            ) : loadingDet ? (
+              <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}><Spin /></div>
+            ) : detalle ? (
+              <DetallePanel detalle={detalle} mes={mes} anio={anio} />
+            ) : (
+              <div style={{ display: 'grid', placeItems: 'center', minHeight: 360 }}>
+                <Empty description={`Sin detalle para ${selected.code} — ${selected.name}`} />
+              </div>
+            )}
+          </div>
         </Card>
       </div>
     </div>
