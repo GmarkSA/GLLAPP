@@ -4,8 +4,9 @@ import {
   Select, Table, Tag, Spin, Empty, Button, Typography, Divider,
   Alert, Tooltip, message,
 } from 'antd'
-import { PrinterOutlined, ArrowLeftOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { PrinterOutlined, DownloadOutlined, ArrowLeftOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 import {
   getCierreIntegraciones, getDetalleIntegracion,
 } from '../../api/integraciones'
@@ -321,6 +322,80 @@ export function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; m
   const hasEspecifico = especifico !== null
   const showLineas    = ['generico', 'resultado'].includes(integrationType) || !hasEspecifico
 
+  const exportToExcel = () => {
+    const wb = XLSX.utils.book_new()
+    const periodo = `${MESES[mes - 1]} ${anio}`
+    const saldoStr = `Q ${Number(saldoFinal).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+    // Hoja 1: Movimientos del libro mayor
+    const totalDebe  = lineas.reduce((s, l) => s + Number(l.debe),  0)
+    const totalHaber = lineas.reduce((s, l) => s + Number(l.haber), 0)
+    const ws1 = XLSX.utils.aoa_to_sheet([
+      [`${cuenta.code} — ${cuenta.name}`],
+      [TYPE_TITULO[integrationType]],
+      [`Período: ${periodo}   Saldo al corte: ${saldoStr}`],
+      [],
+      ['Fecha', 'No. Póliza', 'Descripción', 'Proveedor', 'No. Factura', 'Serie', 'Debe', 'Haber'],
+      ...lineas.map(l => [
+        l.fecha ? dayjs(l.fecha).format('DD/MM/YYYY') : '',
+        l.codigoPoliza || '',
+        l.glosa || l.descripcion || '',
+        l.vendorName || '',
+        l.numeroFactura || '',
+        l.serieFactura || '',
+        Number(l.debe) || 0,
+        Number(l.haber) || 0,
+      ]),
+      ['Total', '', '', '', '', '', totalDebe, totalHaber],
+    ])
+    ws1['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 38 }, { wch: 32 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 14 }]
+    XLSX.utils.book_append_sheet(wb, ws1, 'Movimientos')
+
+    // Hoja 2: datos específicos por tipo
+    if (especifico) {
+      if (integrationType === 'cxc' || integrationType === 'cxp') {
+        const esp = especifico as CxcEspecifico | CxpEspecifico
+        const label = integrationType === 'cxc' ? 'Cliente' : 'Proveedor'
+        const ws2 = XLSX.utils.aoa_to_sheet([
+          [label, 'No. Documento', 'Fecha', 'Vencimiento', 'Total', 'Saldo'],
+          ...esp.partidas.map(p => [
+            p.nombre, p.numero,
+            p.fecha       ? dayjs(p.fecha).format('DD/MM/YYYY')       : '',
+            p.vencimiento ? dayjs(p.vencimiento).format('DD/MM/YYYY') : '',
+            Number(p.total), Number(p.saldo),
+          ]),
+          ['Total', '', '', '', '', Number(esp.total)],
+        ])
+        ws2['!cols'] = [{ wch: 35 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }]
+        XLSX.utils.book_append_sheet(wb, ws2, integrationType === 'cxc' ? 'CxC' : 'CxP')
+      } else if (integrationType === 'inventario') {
+        const esp = especifico as InventarioEspecifico
+        const ws2 = XLSX.utils.aoa_to_sheet([
+          ['SKU', 'Artículo', 'Stock', 'Costo Promedio', 'Valor Total'],
+          ...esp.articulos.map(a => [a.sku, a.name, Number(a.stock), Number(a.costoPromedio), Number(a.valorTotal)]),
+          ['', 'Total', '', '', Number(esp.totalValor)],
+        ])
+        ws2['!cols'] = [{ wch: 12 }, { wch: 35 }, { wch: 10 }, { wch: 16 }, { wch: 14 }]
+        XLSX.utils.book_append_sheet(wb, ws2, 'Inventario')
+      } else if (integrationType === 'activo_fijo') {
+        const esp = especifico as ActivoFijoEspecifico
+        const ws2 = XLSX.utils.aoa_to_sheet([
+          ['Código', 'Activo', 'Categoría', 'Fecha Adq.', 'Costo Original', 'Dep. Acumulada', 'Valor en Libros', 'Estado'],
+          ...esp.activos.map(a => [
+            a.codigo, a.name, a.category || '',
+            a.fechaAdquisicion ? dayjs(a.fechaAdquisicion).format('DD/MM/YYYY') : '',
+            Number(a.costoOriginal), Number(a.depAcumulada), Number(a.valorLibros), a.status,
+          ]),
+          ['', 'Total', '', '', '', '', Number(esp.totalValorLibros), ''],
+        ])
+        ws2['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 12 }]
+        XLSX.utils.book_append_sheet(wb, ws2, 'Activos Fijos')
+      }
+    }
+
+    XLSX.writeFile(wb, `integracion_${cuenta.code}_${MESES[mes - 1]}_${anio}.xlsx`)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Header cuenta */}
@@ -336,13 +411,22 @@ export function DetallePanel({ detalle, mes, anio }: { detalle: DetalleResult; m
             <div style={{ fontSize: 11, color: '#9aa1ab' }}>Saldo al corte</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#1B3A6B', whiteSpace: 'nowrap' }}>{Q(saldoFinal)}</div>
           </div>
-          <Button
-            size="small"
-            icon={<PrinterOutlined />}
-            onClick={() => window.open(printUrl, '_blank', 'width=900,height=700')}
-          >
-            Imprimir
-          </Button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <Button
+              size="small"
+              icon={<PrinterOutlined />}
+              onClick={() => window.open(printUrl, '_blank', 'width=900,height=700')}
+            >
+              Imprimir
+            </Button>
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={exportToExcel}
+            >
+              Excel
+            </Button>
+          </div>
         </div>
       </div>
 
