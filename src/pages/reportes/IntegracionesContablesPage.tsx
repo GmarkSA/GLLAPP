@@ -89,10 +89,11 @@ function MovimientosTable({ lineas, integrationType }: { lineas: LineaPoliza[]; 
     { title: 'Póliza',      dataIndex: 'codigoPoliza', width: 110 },
     { title: 'Descripción', key: 'desc',               ellipsis: true,
       render: (_: any, r: LineaPoliza) => {
-        const g = r.glosa; const d = r.descripcion
-        if (g && d && g !== d)
-          return <span>{g} <Text type="secondary" style={{ fontSize: 10 }}>· {d}</Text></span>
-        return g || d
+        if (r.vendorName || r.numeroFactura) {
+          const parts = [r.vendorName, r.numeroFactura].filter(Boolean).join(' — ')
+          return <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{parts}</span>
+        }
+        return <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{r.glosa || r.descripcion}</span>
       } },
     { title: 'Debe',        dataIndex: 'debe',         width: 115, align: 'right' as const, render: rDebe },
     { title: 'Haber',       dataIndex: 'haber',        width: 115, align: 'right' as const, render: rHaber },
