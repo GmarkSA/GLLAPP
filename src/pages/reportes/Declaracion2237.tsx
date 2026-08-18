@@ -185,6 +185,10 @@ const snapshotToCounts = (d: DeclaracionIva): EditCounts => {
       emitidas:  d.snapshot?.ventas?.count  ?? 0,
       recibidas: d.snapshot?.compras?.count ?? 0,
     },
+    notasCredito: {
+      emitidas:  (d.snapshot?.notasCredito as any)?.emitidas_count  ?? 0,
+      recibidas: (d.snapshot?.notasCredito as any)?.recibidas_count ?? 0,
+    },
   }
 }
 
