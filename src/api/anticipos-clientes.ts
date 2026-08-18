@@ -21,7 +21,7 @@ export interface AnticipoCliente {
 const BASE = '/ventas/facturas-anticipo'
 
 export const getAnticiposClientes = (params?: {
-  customerId?: string; page?: number; limit?: number
+  customerId?: string; status?: string; page?: number; limit?: number
 }) => api.get(BASE, { params }).then(unwrap) as Promise<{ data: AnticipoCliente[]; total: number; page: number; limit: number }>
 
 export const getAnticipoCliente = (id: string) =>

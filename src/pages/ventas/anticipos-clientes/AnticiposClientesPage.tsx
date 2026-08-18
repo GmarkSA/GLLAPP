@@ -29,11 +29,18 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: 'Disponible',
+  pending: 'Abierto',
   partial:  'Parcial',
   paid:     'Aplicado',
   voided:   'Anulado',
 }
+
+const STATUS_OPTIONS = [
+  { label: 'Abierto',  value: 'pending' },
+  { label: 'Parcial',  value: 'partial' },
+  { label: 'Aplicado', value: 'paid'    },
+  { label: 'Anulado',  value: 'voided'  },
+]
 
 interface Customer { id: string; name: string; taxId?: string }
 
@@ -44,6 +51,7 @@ export default function AnticiposClientesPage() {
   const [page,          setPage]          = useState(1)
   const [customers,     setCustomers]     = useState<Customer[]>([])
   const [filtroCliente, setFiltroCliente] = useState<string | undefined>()
+  const [filtroStatus,  setFiltroStatus]  = useState<string | undefined>()
 
   // Modal: ver póliza
   const [polizaAnt,   setPolizaAnt]   = useState<AnticipoCliente | null>(null)
@@ -63,12 +71,12 @@ export default function AnticiposClientesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getAnticiposClientes({ customerId: filtroCliente, page, limit: 50 })
+      const res = await getAnticiposClientes({ customerId: filtroCliente, status: filtroStatus, page, limit: 50 })
       setData(res.data)
       setTotal(res.total)
     } catch { setData([]) }
     finally { setLoading(false) }
-  }, [filtroCliente, page])
+  }, [filtroCliente, filtroStatus, page])
 
   useEffect(() => { load() }, [load])
 
@@ -99,7 +107,7 @@ export default function AnticiposClientesPage() {
     setSelectedInv(undefined)
     setLoadingInv(true)
     try {
-      const res = await getInvoices({ customerId: ant.customerId, status: 'open,overdue,partial', limit: 100 })
+      const res = await getInvoices({ customerId: ant.customerId, status: 'pending,sent,partial,overdue', limit: 100 })
       const list: Invoice[] = Array.isArray(res) ? res : (res?.data ?? [])
       setOpenInvoices(list.filter((inv: Invoice) => Number(inv.balance) > 0.01))
     } catch { setOpenInvoices([]) }
@@ -206,11 +214,6 @@ export default function AnticiposClientesPage() {
         <Button icon={<ReloadOutlined />} onClick={load}>Actualizar</Button>
       </div>
 
-      <Alert
-        type="info" showIcon style={{ marginBottom: 16 }}
-        message="Solo se muestran anticipos con saldo disponible. Para ver anticipos ya aplicados, consulta el historial de Pagos Recibidos."
-      />
-
       <Space style={{ marginBottom: 12 }}>
         <Select
           showSearch placeholder="Filtrar por cliente" allowClear
@@ -218,13 +221,18 @@ export default function AnticiposClientesPage() {
           options={customers.map(c => ({ label: c.name, value: c.id }))}
           onChange={v => { setFiltroCliente(v); setPage(1) }}
         />
+        <Select
+          placeholder="Estado" allowClear style={{ width: 150 }}
+          options={STATUS_OPTIONS}
+          onChange={v => { setFiltroStatus(v); setPage(1) }}
+        />
       </Space>
 
       <Table
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
         pagination={{ current: page, pageSize: 50, total, onChange: p => setPage(p), showTotal: t => `${t} anticipos` }}
-        locale={{ emptyText: 'No hay anticipos con saldo disponible' }}
+        locale={{ emptyText: 'No hay anticipos registrados' }}
       />
 
       {/* ── Modal: Ver póliza ──────────────────────────────────── */}
