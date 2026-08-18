@@ -403,6 +403,9 @@ export const approvePurchaseOrder = (id: string) =>
 export const sendPurchaseOrder = (id: string, dto: { to: string; subject?: string; message?: string }) =>
   api.post(`${PO}/${id}/enviar`, dto).then(unwrap)
 
+export const recibirPurchaseOrder = (id: string) =>
+  api.post(`${PO}/${id}/recibir`).then(unwrap) as Promise<{ received: boolean; movimientoId: string; lineas: number }>
+
 export const deletePurchaseOrder = (id: string) =>
   api.delete(`${PO}/${id}`)
 
