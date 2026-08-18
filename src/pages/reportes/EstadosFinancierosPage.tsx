@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Select, Tabs, Spin, Empty, Typography, Card, Button, Switch } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { Select, Tabs, Spin, Empty, Typography, Card, Button, Switch, Space } from 'antd'
+import { ArrowLeftOutlined, PrinterOutlined, DownloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 import {
   getBalanceGeneral, getEstadoResultados,
   type BalanceGeneralData, type EstadoResultadosData, type AccountRow,
@@ -147,6 +148,53 @@ export default function EstadosFinancierosPage() {
     </div>
   )
 
+  // ── Impresión (PDF por ruta real) y exportación a Excel ───────────────────
+  const printUrl = `/reportes/estados-financieros/${anio}/${mes}/imprimir`
+
+  const exportEstadosExcel = () => {
+    const wb = XLSX.utils.book_new()
+    const pushGroup = (rows: any[][], title: string, g?: { accounts: AccountRow[]; total: number }) => {
+      if (!g) return
+      rows.push([title])
+      g.accounts.filter(a => Number(a.balance) !== 0).forEach(a => rows.push([a.code, a.name, Number(a.balance)]))
+      rows.push(['', `Total ${title}`, Number(g.total)])
+    }
+    if (bg) {
+      const r: any[][] = [['Balance General', `Al ${dayjs(endOfMonth).format('DD/MM/YYYY')}`], []]
+      pushGroup(r, 'Activo Circulante', bg.activo)
+      pushGroup(r, 'Activo Fijo', bg.activoFijo)
+      r.push(['', 'TOTAL ACTIVOS', Number(bg.totalActivo)])
+      pushGroup(r, 'Pasivo', bg.pasivo)
+      pushGroup(r, 'Capital', bg.capital)
+      r.push(['', 'TOTAL PASIVO + CAPITAL', Number(bg.totalPasivoCapital)])
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(r), 'Balance General')
+    }
+    if (er) {
+      const r: any[][] = [['Estado de Resultados', `Del ${dayjs(jan1).format('DD/MM/YYYY')} al ${dayjs(endOfMonth).format('DD/MM/YYYY')}`], []]
+      pushGroup(r, 'Ingresos', er.ingresos)
+      pushGroup(r, 'Otros Ingresos', er.otrosIngresos)
+      pushGroup(r, 'Costos', er.costos)
+      r.push(['', 'UTILIDAD BRUTA', Number(er.utilidadBruta)])
+      pushGroup(r, 'Gastos', er.gastos)
+      pushGroup(r, 'Otros Gastos', er.otrosGastos)
+      r.push(['', 'UTILIDAD NETA', Number(er.utilidadNeta)])
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(r), 'Estado de Resultados')
+    }
+    XLSX.writeFile(wb, `estados_financieros_${anio}_${String(mes).padStart(2, '0')}.xlsx`)
+  }
+
+  const printExcelBtns = (
+    <Space size={6}>
+      <Button size="small" icon={<PrinterOutlined />}
+        onClick={() => window.open(printUrl, '_blank', 'width=900,height=700')}>
+        Imprimir
+      </Button>
+      <Button size="small" icon={<DownloadOutlined />} onClick={exportEstadosExcel}>
+        Excel
+      </Button>
+    </Space>
+  )
+
   const tabs = [
     {
       key: 'balance',
@@ -212,7 +260,7 @@ export default function EstadosFinancierosPage() {
         <Card size="small" style={{ flex: '1 1 420px', minWidth: 340, borderRadius: 10, position: 'sticky', top: 0 }} bodyStyle={{ padding: 0 }}>
           <div style={{ height: 'calc(100vh - 130px)', overflowY: 'auto', padding: '4px 12px 12px' }}>
             <Spin spinning={loadingLeft}>
-              <Tabs items={tabs} size="small" />
+              <Tabs items={tabs} size="small" tabBarExtraContent={printExcelBtns} />
             </Spin>
           </div>
         </Card>
