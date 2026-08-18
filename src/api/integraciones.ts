@@ -124,7 +124,7 @@ export interface InventarioEspecifico {
 
 export interface ActivoFijoEspecifico {
   activos: Array<{
-    codigo: string; name: string; fechaAdquisicion: string
+    codigo: string; name: string; category?: string; fechaAdquisicion: string
     costoOriginal: number; depAcumulada: number; valorLibros: number; status: string
   }>
   totalValorLibros: number
