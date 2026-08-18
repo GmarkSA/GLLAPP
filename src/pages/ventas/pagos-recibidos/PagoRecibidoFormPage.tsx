@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Form, Select, DatePicker, InputNumber, Input, Button, Typography,
-  Space, Breadcrumb, message, Tag, Row, Col, Spin, Radio, Table, Alert,
+  Space, Breadcrumb, message, Tag, Row, Col, Spin, Radio, Table, Alert, Checkbox,
 } from 'antd'
 import {
   DollarOutlined, SaveOutlined, ArrowLeftOutlined, ThunderboltOutlined,
@@ -40,6 +40,7 @@ export default function PagoRecibidoFormPage() {
   // allocations: invoiceId → amount to apply
   const [allocations,  setAllocations]  = useState<Record<string, number>>({})
   const [totalAmount,  setTotalAmount]  = useState<number | null>(null)
+  const [autoAnticipo, setAutoAnticipo] = useState(true)   // auto-create advance for excess
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // ── Customers ─────────────────────────────────────────────────────────────
@@ -169,11 +170,28 @@ export default function PagoRecibidoFormPage() {
         results.push(pago)
       }
 
-      if (results.length === 1) {
+      // Si hay excedente y el usuario optó por registrarlo como anticipo
+      let advanceNumber: string | undefined
+      if (autoAnticipo && difference > 0.009 && baseDto.bankAccountId) {
+        try {
+          const adv = await createPagoRecibido({ ...baseDto, amount: difference, isAdvance: true })
+          advanceNumber = (adv as any).advanceNumber ?? (adv as any).paymentNumber
+        } catch (advErr: any) {
+          message.warning(`Pagos registrados, pero no se pudo crear el anticipo por el excedente: ${advErr?.response?.data?.message ?? 'Error'}`)
+        }
+      }
+
+      if (advanceNumber) {
+        message.success(`Pago registrado. Excedente de ${fmtQ(difference)} registrado como anticipo ${advanceNumber}`)
+      } else if (results.length === 1) {
         message.success(`Pago ${results[0].paymentNumber} registrado correctamente`)
-        navigate(`/ventas/pagos-recibidos/${results[0].id}`)
       } else {
         message.success(`${results.length} pagos registrados correctamente`)
+      }
+
+      if (results.length === 1 && !advanceNumber) {
+        navigate(`/ventas/pagos-recibidos/${results[0].id}`)
+      } else {
         navigate('/ventas/pagos-recibidos')
       }
     } catch (e: any) {
@@ -552,11 +570,30 @@ export default function PagoRecibidoFormPage() {
                       fontVariantNumeric: 'tabular-nums', fontSize: 13, fontWeight: 700,
                       color: Math.abs(difference) < 0.01 ? '#2ea172' : difference > 0 ? '#d97706' : '#dc2626',
                     }}>
-                      {fmtQ(Math.abs(difference))} {difference > 0.009 ? '(sin aplicar)' : difference < -0.009 ? '(excede importe)' : '✓'}
+                      {fmtQ(Math.abs(difference))} {difference > 0.009 ? '(excedente)' : difference < -0.009 ? '(excede importe)' : '✓'}
                     </Text>
                   </div>
                 </div>
               </div>
+
+              {/* Opción anticipo automático cuando hay excedente */}
+              {difference > 0.009 && (
+                <div style={{ marginTop: 10, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8 }}>
+                  <Checkbox
+                    checked={autoAnticipo}
+                    onChange={e => setAutoAnticipo(e.target.checked)}
+                  >
+                    <Text style={{ fontSize: 13 }}>
+                      Registrar excedente de <strong>{fmtQ(difference)}</strong> como anticipo (ANT) con la misma cuenta bancaria
+                    </Text>
+                  </Checkbox>
+                  {autoAnticipo && !form.getFieldValue('bankAccountId') && (
+                    <div style={{ marginTop: 4, fontSize: 12, color: '#d97706' }}>
+                      ⚠ Selecciona una cuenta bancaria para que el anticipo se vincule correctamente al banco
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </Card>
