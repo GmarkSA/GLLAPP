@@ -92,6 +92,7 @@ const menuItems = [
     { key: '/ventas/facturas-recurrentes', label: 'Facturas recurrentes' },
     { key: '/ventas/notas-credito',        label: 'Notas de crédito' },
     { key: '/ventas/pagos-recibidos',          label: 'Pagos recibidos' },
+    { key: '/ventas/anticipos-clientes',       label: 'Anticipos de clientes' },
     { key: '/ventas/dte-sat',                  label: 'DTE SAT Emitidos' },
   ]},
   { key: 'compras',           icon: <ShopOutlined />,         label: 'Compras', children: [

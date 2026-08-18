@@ -55,6 +55,7 @@ const NotaCreditoDetallePage = lazy(() => import('./pages/ventas/notas-credito/N
 const PagosRecibidosPage     = lazy(() => import('./pages/ventas/pagos-recibidos/PagosRecibidosPage'))
 const PagoRecibidoFormPage   = lazy(() => import('./pages/ventas/pagos-recibidos/PagoRecibidoFormPage'))
 const PagoRecibidoDetallePage = lazy(() => import('./pages/ventas/pagos-recibidos/PagoRecibidoDetallePage'))
+const AnticiposClientesPage  = lazy(() => import('./pages/ventas/anticipos-clientes/AnticiposClientesPage'))
 
 // Compras — Pagos Realizados
 const PagosRealizadosPage      = lazy(() => import('./pages/compras/pagos-realizados/PagosRealizadosPage'))
@@ -267,6 +268,7 @@ export default function App() {
           <Route path="ventas/pagos-recibidos"              element={<PagosRecibidosPage />} />
           <Route path="ventas/pagos-recibidos/nuevo"        element={<PagoRecibidoFormPage />} />
           <Route path="ventas/pagos-recibidos/:id"          element={<PagoRecibidoDetallePage />} />
+          <Route path="ventas/anticipos-clientes"           element={<AnticiposClientesPage />} />
 
           <Route path="compras/proveedores"              element={<ProveedoresPage />} />
           <Route path="compras/proveedores/nuevo"        element={<ProveedorFormPage />} />
