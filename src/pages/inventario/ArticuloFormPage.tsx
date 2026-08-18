@@ -465,35 +465,22 @@ export default function ArticuloFormPage() {
 
                 {/* Stock y reorden */}
                 <Row gutter={16}>
-                  <Col xs={24} sm={8}>
+                  <Col xs={24} sm={12}>
                     <Form.Item
                       name="stockOnHand"
                       label="Existencia actual"
-                      tooltip="Para ajustar el stock usa el módulo de Ajustes de inventario."
+                      tooltip="Se actualiza sola con ingresos, ventas, ajustes y movimientos. Para corregirla usa el módulo de Ajustes de inventario."
                     >
                       <InputNumber style={{ width: '100%' }} precision={2} disabled={isEdit} min={0} />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="reorderPoint" label="Punto de reorden">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} placeholder="Alerta al llegar a este nivel" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="reorderQuantity" label="Cantidad de reorden sugerida">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} />
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Row gutter={16}>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="minimumStock" label="Stock mínimo">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} placeholder="Nivel crítico" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="maximumStock" label="Stock máximo">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} />
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      name="reorderPoint"
+                      label="Punto de reorden"
+                      tooltip="Al bajar de este nivel, el artículo se marca en alerta de bajo stock (lista de artículos y reporte de inventario)."
+                    >
+                      <InputNumber style={{ width: '100%' }} precision={2} min={0} placeholder="Nivel de alerta de bajo stock" />
                     </Form.Item>
                   </Col>
                 </Row>
