@@ -207,7 +207,7 @@ export default function EstadosFinancierosPage() {
       </div>
 
       {/* Split layout — paneles con scroll independiente */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
         {/* Izquierda: Balance / Estado de Resultados */}
         <Card size="small" style={{ flex: '1 1 420px', minWidth: 340, borderRadius: 10 }} bodyStyle={{ padding: 0 }}>
           <div style={{ height: 'calc(100vh - 130px)', overflowY: 'auto', padding: '4px 12px 12px' }}>
