@@ -922,7 +922,6 @@ export default function CategorizarDrawer({
                       <Button size="small" onClick={() => { setShowOverpayAccountForm(true); setOverpayAccountId(undefined); setOverpayAccountObj(undefined) }}>
                         En cuenta contable
                       </Button>
-                      <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
@@ -972,7 +971,6 @@ export default function CategorizarDrawer({
                       <Button size="small" onClick={() => { setShowOverpayAccountForm(true); setOverpayAccountId(undefined); setOverpayAccountObj(undefined) }}>
                         En cuenta contable
                       </Button>
-                      <Button size="small" onClick={() => setOverpayDone(true)}>No registrar</Button>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
