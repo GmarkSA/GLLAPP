@@ -3,18 +3,18 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getApiError } from '../../../api/axios'
 import {
   Button, Typography, Tag, Table, Divider, Spin, message,
-  Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space, Checkbox, Popover,
+  Modal, Form, Input, InputNumber, Select, DatePicker, Alert, Popconfirm, Space, Checkbox, Popover, Tooltip,
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, CheckOutlined, DollarOutlined,
   SyncOutlined, StopOutlined, DeleteOutlined, GlobalOutlined, ThunderboltOutlined, SaveOutlined, CloseOutlined,
-  UploadOutlined, MailOutlined, SendOutlined,
+  UploadOutlined, MailOutlined, SendOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getBill, approveBill, voidBill, deleteBill, regenerateBillJournalEntry,
   getJournalEntry, recordBillPayment, getVendorAdvances, applyVendorAdvanceToBill,
-  updateBill, attachBillFile, sendBill,
+  updateBill, attachBillFile, sendBill, getVendorBillPayments, deleteVendorPayment,
   BILL_STATUS_CONFIG, BILL_TYPE_CONFIG,
   type PurchaseInvoice, type JournalEntry, type JournalEntryLine, type VendorAdvance, type BillItem,
 } from '../../../api/compras'
@@ -80,6 +80,9 @@ export default function FacturaProveedorDetallePage() {
   const [emailForm] = Form.useForm()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [billPayments,    setBillPayments]    = useState<any[]>([])
+  const [deletingPayment, setDeletingPayment] = useState<string | null>(null)
+
   const loadBill = useCallback(async () => {
     if (!id) return
     setLoading(true)
@@ -92,6 +95,7 @@ export default function FacturaProveedorDetallePage() {
       setCompany(org)
       if (b.journalEntryId) getJournalEntry(b.journalEntryId).then(setJournal).catch(() => {})
       if (b.reclassificationJournalEntryId) getJournalEntry(b.reclassificationJournalEntryId).then(setReclasEntry).catch(() => {})
+      getVendorBillPayments(id!).then(setBillPayments).catch(() => {})
     } catch { message.error('No se pudo cargar la factura') }
     finally { setLoading(false) }
   }, [id])
@@ -283,6 +287,16 @@ export default function FacturaProveedorDetallePage() {
     payForm.resetFields()
     payForm.setFieldsValue({ paymentDate: dayjs(), mode: 'bank_transfer', amount: Number(bill?.balance ?? 0) })
     setShowPay(true)
+  }
+
+  const handleDeletePayment = async (paymentId: string) => {
+    setDeletingPayment(paymentId)
+    try {
+      await deleteVendorPayment(paymentId)
+      message.success('Pago eliminado')
+      loadBill()
+    } catch (e: any) { message.error(getApiError(e, 'Error al eliminar el pago')) }
+    finally { setDeletingPayment(null) }
   }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
@@ -895,6 +909,69 @@ export default function FacturaProveedorDetallePage() {
                     style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }} />
                 </>
               )}
+            </div>
+          </>
+        )}
+        {/* ── Historial de pagos ──────────────────────────────────────────── */}
+        {billPayments.length > 0 && (
+          <>
+            <Divider style={{ margin: 0 }} />
+            <div style={{ padding: '20px 40px 28px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Historial de pagos
+                </Text>
+                {canPay && (
+                  <Button size="small" type="primary" icon={<DollarOutlined />}
+                    style={{ background: '#2ea172', borderColor: '#2ea172' }}
+                    onClick={openPayModal}>
+                    + Pago
+                  </Button>
+                )}
+              </div>
+              <Table
+                dataSource={billPayments}
+                rowKey="id"
+                size="small"
+                pagination={false}
+                style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
+                columns={[
+                  { title: '# Pago', dataIndex: 'paymentNumber', width: 150,
+                    render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text> },
+                  { title: 'Fecha', dataIndex: 'paymentDate', width: 110,
+                    render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
+                  { title: 'Forma', dataIndex: 'mode', width: 160,
+                    render: (v: string) => PAYMENT_MODE_LABELS[v] ?? v },
+                  { title: 'Referencia', dataIndex: 'reference',
+                    render: (v: string, r: any) => v || r.checkNumber || <Text type="secondary">—</Text> },
+                  { title: 'Monto', dataIndex: 'amount', width: 140, align: 'right' as const,
+                    render: (v: number, r: any) => {
+                      const applied = r.appliedInvoices?.find((a: any) => a.purchaseInvoiceId === bill.id)
+                      const amt = applied ? Number(applied.amount) : Number(v)
+                      return <Text strong style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(amt, r.currency ?? 'GTQ')}</Text>
+                    },
+                  },
+                  { title: 'Póliza', dataIndex: 'journalEntryId', width: 70, align: 'center' as const,
+                    render: (jeId: string | undefined) => jeId
+                      ? <Tooltip title="Póliza contable generada"><CheckCircleOutlined style={{ color: '#2ea172' }} /></Tooltip>
+                      : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
+                  },
+                  { title: '', width: 50, align: 'center' as const,
+                    render: (_: any, row: any) => (
+                      <Popconfirm
+                        title={`¿Eliminar el pago ${row.paymentNumber}?`}
+                        description="Se revertirá el saldo de la factura y se eliminará la póliza asociada."
+                        okText="Sí, eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+                        onConfirm={() => handleDeletePayment(row.id)}>
+                        <Tooltip title="Eliminar pago">
+                          <Button size="small" danger icon={<DeleteOutlined />}
+                            loading={deletingPayment === row.id} style={{ padding: '0 6px' }} />
+                        </Tooltip>
+                      </Popconfirm>
+                    ),
+                  },
+                ]}
+              />
             </div>
           </>
         )}
