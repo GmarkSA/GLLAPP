@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Table, Button, Space, Typography, Tag, Select, message,
-  Popconfirm, Tooltip, Modal, Alert,
+  Popconfirm, Tooltip, Modal, Alert, Descriptions, Divider, Spin,
 } from 'antd'
 import {
-  ReloadOutlined, CheckCircleOutlined, RollbackOutlined, BookOutlined,
+  ReloadOutlined, CheckCircleOutlined, StopOutlined, BookOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -12,6 +12,7 @@ import {
   getAnticiposClientes, aplicarAnticipoCliente, reembolsarAnticipoCliente,
   type AnticipoCliente,
 } from '../../../api/anticipos-clientes'
+import { getJournalEntry } from '../../../api/compras'
 import { getInvoices, type Invoice } from '../../../api/facturas'
 import { getCustomers } from '../../../api/contactos'
 
@@ -37,22 +38,27 @@ const STATUS_LABEL: Record<string, string> = {
 interface Customer { id: string; name: string; taxId?: string }
 
 export default function AnticiposClientesPage() {
-  const [data,         setData]         = useState<AnticipoCliente[]>([])
-  const [total,        setTotal]        = useState(0)
-  const [loading,      setLoading]      = useState(false)
-  const [page,         setPage]         = useState(1)
-  const [customers,    setCustomers]    = useState<Customer[]>([])
+  const [data,          setData]          = useState<AnticipoCliente[]>([])
+  const [total,         setTotal]         = useState(0)
+  const [loading,       setLoading]       = useState(false)
+  const [page,          setPage]          = useState(1)
+  const [customers,     setCustomers]     = useState<Customer[]>([])
   const [filtroCliente, setFiltroCliente] = useState<string | undefined>()
 
-  // Modal aplicar
+  // Modal: ver póliza
+  const [polizaAnt,   setPolizaAnt]   = useState<AnticipoCliente | null>(null)
+  const [jeLines,     setJeLines]     = useState<any[]>([])
+  const [jeLoading,   setJeLoading]   = useState(false)
+
+  // Modal: aplicar a factura
   const [applying,     setApplying]     = useState<AnticipoCliente | null>(null)
   const [openInvoices, setOpenInvoices] = useState<Invoice[]>([])
   const [loadingInv,   setLoadingInv]   = useState(false)
   const [selectedInv,  setSelectedInv]  = useState<string | undefined>()
   const [applyLoading, setApplyLoading] = useState(false)
 
-  // Refund
-  const [refunding, setRefunding] = useState<string | null>(null)
+  // Anular
+  const [voiding, setVoiding] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,7 +79,21 @@ export default function AnticiposClientesPage() {
     }).catch(() => {})
   }, [])
 
-  // Abrir modal para aplicar anticipo a factura
+  // Abrir póliza en modal
+  const openPoliza = (ant: AnticipoCliente) => {
+    setPolizaAnt(ant)
+    setJeLines([])
+    const jeId = (ant as any).journalEntryId as string | undefined
+    if (jeId) {
+      setJeLoading(true)
+      getJournalEntry(jeId)
+        .then(je => setJeLines(je.lines ?? []))
+        .catch(() => setJeLines([]))
+        .finally(() => setJeLoading(false))
+    }
+  }
+
+  // Abrir modal aplicar
   const openApply = async (ant: AnticipoCliente) => {
     setApplying(ant)
     setSelectedInv(undefined)
@@ -91,7 +111,7 @@ export default function AnticiposClientesPage() {
     setApplyLoading(true)
     try {
       const res = await aplicarAnticipoCliente(applying.id, { invoiceId: selectedInv }) as any
-      message.success(`Anticipo ${applying.invoiceNumber} aplicado — Q${Number(res.amount ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })} acreditados`)
+      message.success(`Anticipo ${applying.invoiceNumber} aplicado — ${fmtQ(Number(res.amount ?? 0))} acreditados`)
       setApplying(null)
       load()
     } catch (e: any) {
@@ -99,15 +119,15 @@ export default function AnticiposClientesPage() {
     } finally { setApplyLoading(false) }
   }
 
-  const handleRefund = async (id: string) => {
-    setRefunding(id)
+  const handleVoid = async (id: string, invoiceNumber: string) => {
+    setVoiding(id)
     try {
       await reembolsarAnticipoCliente(id)
-      message.success('Anticipo marcado como reembolsado')
+      message.success(`Anticipo ${invoiceNumber} anulado — póliza de reverso creada automáticamente`)
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al reembolsar')
-    } finally { setRefunding(null) }
+      message.error(e?.response?.data?.message ?? 'Error al anular el anticipo')
+    } finally { setVoiding(null) }
   }
 
   const columns: ColumnsType<AnticipoCliente> = [
@@ -142,34 +162,38 @@ export default function AnticiposClientesPage() {
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
-      render: (v: string) => (
-        <Tag color={STATUS_COLOR[v] ?? 'default'}>{STATUS_LABEL[v] ?? v}</Tag>
-      ),
+      render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{STATUS_LABEL[v] ?? v}</Tag>,
     },
     {
-      title: 'Acciones', width: 140,
+      title: 'Acciones', width: 130,
       render: (_: any, r: AnticipoCliente) => (
         <Space size={4}>
+          <Tooltip title="Ver póliza contable">
+            <Button size="small" icon={<BookOutlined />}
+              onClick={() => openPoliza(r)}
+            />
+          </Tooltip>
           <Tooltip title="Aplicar a factura">
             <Button size="small" icon={<CheckCircleOutlined />}
               style={{ color: '#1faec2', borderColor: '#1faec2' }}
+              disabled={r.status === 'paid' || r.status === 'voided'}
               onClick={() => openApply(r)}
             />
           </Tooltip>
-          <Tooltip title="Ver póliza contable">
-            <Button size="small" icon={<BookOutlined />}
-              disabled={!r.journalEntryId}
-              onClick={() => r.journalEntryId && window.open(`/contabilidad/asientos/${r.journalEntryId}`, '_blank')}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="¿Marcar como reembolsado? Esta acción es irreversible."
-            onConfirm={() => handleRefund(r.id)}
-          >
-            <Tooltip title="Reembolsar al cliente">
-              <Button size="small" danger icon={<RollbackOutlined />} loading={refunding === r.id} />
-            </Tooltip>
-          </Popconfirm>
+          {r.status !== 'paid' && r.status !== 'voided' && (
+            <Popconfirm
+              title={`¿Anular anticipo ${r.invoiceNumber}?`}
+              description="Se creará un asiento de reverso contable automáticamente."
+              okText="Anular"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleVoid(r.id, r.invoiceNumber)}
+            >
+              <Tooltip title="Anular anticipo (revierte póliza)">
+                <Button size="small" danger icon={<StopOutlined />} loading={voiding === r.id} />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -203,16 +227,63 @@ export default function AnticiposClientesPage() {
         locale={{ emptyText: 'No hay anticipos con saldo disponible' }}
       />
 
-      {/* Modal: Aplicar anticipo a factura */}
+      {/* ── Modal: Ver póliza ──────────────────────────────────── */}
       <Modal
-        title={applying ? `Aplicar anticipo ${applying.invoiceNumber} — Saldo: ${fmtQ(applying.balance)}` : 'Aplicar anticipo'}
+        title={polizaAnt ? `Póliza — ${polizaAnt.invoiceNumber}` : 'Póliza contable'}
+        open={!!polizaAnt}
+        onCancel={() => setPolizaAnt(null)}
+        footer={<Button onClick={() => setPolizaAnt(null)}>Cerrar</Button>}
+        width={640}
+      >
+        {polizaAnt && (
+          <>
+            <Descriptions size="small" column={2} style={{ marginBottom: 12 }}>
+              <Descriptions.Item label="Anticipo">{polizaAnt.invoiceNumber}</Descriptions.Item>
+              <Descriptions.Item label="Cliente">{polizaAnt.customerName}</Descriptions.Item>
+              <Descriptions.Item label="Fecha">{dayjs(polizaAnt.invoiceDate).format('DD/MM/YYYY')}</Descriptions.Item>
+              <Descriptions.Item label="Monto">{fmtQ(polizaAnt.total)}</Descriptions.Item>
+            </Descriptions>
+            <Divider style={{ margin: '8px 0' }} />
+            {jeLoading ? (
+              <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
+            ) : !(polizaAnt as any).journalEntryId ? (
+              <Alert type="warning" message="Este anticipo no tiene póliza contable registrada." />
+            ) : jeLines.length === 0 ? (
+              <Alert type="warning" message="No se pudieron cargar las líneas de la póliza." />
+            ) : (
+              <Table
+                dataSource={jeLines}
+                rowKey={(_, i) => String(i)}
+                size="small"
+                pagination={false}
+                columns={[
+                  { title: 'Cuenta', dataIndex: 'accountCode', width: 80 },
+                  { title: 'Nombre', dataIndex: 'accountName' },
+                  {
+                    title: 'Débito', dataIndex: 'debit', width: 110, align: 'right' as const,
+                    render: (v: number) => v > 0 ? fmtQ(v) : <Text type="secondary">—</Text>,
+                  },
+                  {
+                    title: 'Crédito', dataIndex: 'credit', width: 110, align: 'right' as const,
+                    render: (v: number) => v > 0 ? fmtQ(v) : <Text type="secondary">—</Text>,
+                  },
+                ]}
+              />
+            )}
+          </>
+        )}
+      </Modal>
+
+      {/* ── Modal: Aplicar anticipo a factura ──────────────────── */}
+      <Modal
+        title={applying ? `Aplicar ${applying.invoiceNumber} — Saldo: ${fmtQ(applying.balance)}` : 'Aplicar anticipo'}
         open={!!applying}
         onCancel={() => setApplying(null)}
         onOk={handleApply}
         okText="Aplicar anticipo"
         confirmLoading={applyLoading}
         okButtonProps={{ disabled: !selectedInv, style: { background: '#1faec2' } }}
-        width={560}
+        width={520}
       >
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
@@ -244,7 +315,7 @@ export default function AnticiposClientesPage() {
           return (
             <Alert type="success" showIcon
               message={`Se aplicarán ${fmtQ(applyAmt)} al saldo de ${inv.invoiceNumber}`}
-              description={`Saldo restante del anticipo después de aplicar: ${fmtQ(Math.max(0, applying.balance - applyAmt))}`}
+              description={`Saldo restante del anticipo: ${fmtQ(Math.max(0, applying.balance - applyAmt))}`}
             />
           )
         })()}
