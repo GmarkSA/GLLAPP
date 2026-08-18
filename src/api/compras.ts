@@ -69,13 +69,18 @@ export const applyVendorAdvanceRefund = (
   journalEntry: { id: string; entryNumber: string; lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }> }
 }>
 
+export const desaplicarAnticipoProveedor = (advanceId: string) =>
+  api.post(`/compras/anticipos-proveedor/${advanceId}/desaplicar`, {}).then(unwrap)
+
 export const applyVendorAdvanceToBill = (
   advanceId: string,
   invoiceId: string,
   amount?: number,
+  date?: string,
 ) => api.post(`/compras/anticipos-proveedor/${advanceId}/apply`, {
   invoiceIds: [invoiceId],
   ...(amount !== undefined ? { amounts: { [invoiceId]: amount } } : {}),
+  ...(date ? { date } : {}),
 }).then(unwrap) as Promise<VendorAdvance>
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -367,6 +372,12 @@ export const voidBill = (id: string, reason?: string) =>
 
 export const deleteBill = (id: string) =>
   api.delete(`${BILL}/${id}`)
+
+export const getVendorBillPayments = (billId: string) =>
+  api.get(`${BILL}/${billId}/pagos`).then(unwrap) as Promise<any[]>
+
+export const deleteVendorPayment = (id: string) =>
+  api.delete(`/compras/pagos-realizados/${id}`)
 
 export const getApAging = (asOf?: string) =>
   api.get(`${BILL}/reportes/ap-aging`, { params: asOf ? { asOf } : undefined }).then(unwrap) as Promise<ApAgingReport>

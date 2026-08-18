@@ -1,16 +1,17 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Card, Table, Button, Space, Typography, Tag,
-  Select, message, Popconfirm, Tooltip, Modal, Descriptions, Divider, Alert,
+  Select, message, Popconfirm, Tooltip, Modal, Descriptions, Divider, Alert, DatePicker,
 } from 'antd'
 import {
-  ReloadOutlined, StopOutlined, BookOutlined, WalletOutlined, BankOutlined, CheckCircleOutlined,
+  ReloadOutlined, StopOutlined, BookOutlined, WalletOutlined, BankOutlined,
+  CheckCircleOutlined, RollbackOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
   getVendorAdvances, voidVendorAdvance, unvoidVendorAdvance, getJournalEntry,
-  applyVendorAdvanceToBill, getBills,
+  applyVendorAdvanceToBill, getBills, desaplicarAnticipoProveedor,
   type VendorAdvance, type PurchaseInvoice,
 } from '../../../api/compras'
 
@@ -50,7 +51,9 @@ export default function AnticiposProveedorPage() {
   const [openBills,    setOpenBills]    = useState<PurchaseInvoice[]>([])
   const [loadingBills, setLoadingBills] = useState(false)
   const [selectedBill, setSelectedBill] = useState<string | undefined>()
-  const [applyLoading, setApplyLoading] = useState(false)
+  const [applyLoading,  setApplyLoading]  = useState(false)
+  const [applyDate,     setApplyDate]     = useState<string>(dayjs().format('YYYY-MM-DD'))
+  const [desaplicando,  setDesaplicando]  = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -97,9 +100,22 @@ export default function AnticiposProveedorPage() {
     }
   }
 
+  const handleDesaplicar = async (id: string, advanceNumber: string) => {
+    setDesaplicando(id)
+    try {
+      await desaplicarAnticipoProveedor(id)
+      message.success(`Anticipo ${advanceNumber} desaplicado — pólizas y saldos revertidos`)
+      load()
+    } catch (e: any) {
+      const d = e?.response?.data
+      message.error(d?.error?.message || d?.message || 'Error al desaplicar el anticipo')
+    } finally { setDesaplicando(null) }
+  }
+
   const openApply = async (adv: VendorAdvance) => {
     setApplying(adv)
     setSelectedBill(undefined)
+    setApplyDate(dayjs().format('YYYY-MM-DD'))
     setLoadingBills(true)
     try {
       const res = await getBills({ vendorId: adv.vendorId, status: 'open,partial,overdue', limit: 100 })
@@ -113,7 +129,7 @@ export default function AnticiposProveedorPage() {
     if (!applying || !selectedBill) return
     setApplyLoading(true)
     try {
-      await applyVendorAdvanceToBill(applying.id, selectedBill)
+      await applyVendorAdvanceToBill(applying.id, selectedBill, undefined, applyDate)
       const bill = openBills.find(b => b.id === selectedBill)
       message.success(`Anticipo ${applying.advanceNumber} aplicado a ${bill?.invoiceNumber ?? 'factura'}`)
       setApplying(null)
@@ -179,6 +195,23 @@ export default function AnticiposProveedorPage() {
                 onClick={() => openApply(r)}
               />
             </Tooltip>
+          )}
+          {(r.status === 'partial' || r.status === 'applied') && (
+            <Popconfirm
+              title={`¿Desaplicar anticipo ${r.advanceNumber}?`}
+              description="Se revertirán todas las aplicaciones a facturas y sus pólizas."
+              okText="Desaplicar"
+              cancelText="Cancelar"
+              okButtonProps={{ style: { background: '#d97706' } }}
+              onConfirm={() => handleDesaplicar(r.id, r.advanceNumber)}
+            >
+              <Tooltip title="Desaplicar (revertir aplicaciones)">
+                <Button size="small" icon={<RollbackOutlined />}
+                  loading={desaplicando === r.id}
+                  style={{ color: '#d97706', borderColor: '#d97706' }}
+                />
+              </Tooltip>
+            </Popconfirm>
           )}
           {r.status !== 'voided' && r.status !== 'applied' && (
             <Popconfirm
@@ -373,6 +406,13 @@ export default function AnticiposProveedorPage() {
         okButtonProps={{ disabled: !selectedBill, style: { background: '#1faec2' } }}
         width={520}
       >
+        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>Fecha contable</span>
+          <DatePicker size="small" format="DD/MM/YYYY" style={{ flex: 1 }}
+            value={dayjs(applyDate)}
+            onChange={d => setApplyDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
+          />
+        </div>
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>
             Selecciona la factura de compra a la que se aplicará el anticipo

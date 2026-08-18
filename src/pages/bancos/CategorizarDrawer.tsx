@@ -624,7 +624,7 @@ export default function CategorizarDrawer({
     if (!selectedCustomerRefund || !transaction || !account) return
     setSavingCustomerRefund(true)
     try {
-      await reembolsarAnticipoCliente(selectedCustomerRefund.id)
+      await reembolsarAnticipoCliente(selectedCustomerRefund.id, { date: txDate })
 
       await updateTransaction(account.id, transaction.id, {
         status:             'categorized',
