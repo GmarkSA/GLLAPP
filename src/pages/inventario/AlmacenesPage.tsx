@@ -1,18 +1,20 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Typography, Button, Table, Space, Input, Card, message,
-  Modal, Form, Switch, Tag, Popconfirm, Tooltip,
+  Modal, Form, Switch, Tag, Popconfirm, Tooltip, Select,
 } from 'antd'
 import { PlusOutlined, EditOutlined, HomeOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
   getAlmacenes, createAlmacen, updateAlmacen, deleteAlmacen, type Almacen,
 } from '../../api/expedientes'
+import { branchesApi, type Branch } from '../../api/branches'
+import { useCompanyStore } from '../../store/companyStore'
 
 const { Title, Text } = Typography
 
-function AlmacenModal({ open, record, onClose, onSaved }: {
-  open: boolean; record: Almacen | null; onClose: () => void; onSaved: () => void
+function AlmacenModal({ open, record, branches, onClose, onSaved }: {
+  open: boolean; record: Almacen | null; branches: Branch[]; onClose: () => void; onSaved: () => void
 }) {
   const [form]   = Form.useForm()
   const [saving, setSaving] = useState(false)
@@ -60,6 +62,12 @@ function AlmacenModal({ open, record, onClose, onSaved }: {
         <Form.Item name="manager" label="Responsable">
           <Input placeholder="Nombre del encargado" />
         </Form.Item>
+        <Form.Item name="branchId" label="Sucursal"
+          tooltip="Sucursal a la que pertenece este almacén. Sus ubicaciones (bodega y POS) heredan la sucursal para monitoreo.">
+          <Select allowClear showSearch optionFilterProp="label"
+            placeholder="Sin sucursal / general"
+            options={branches.map(b => ({ value: b.id, label: b.name }))} />
+        </Form.Item>
         <Space>
           <Form.Item name="isPrimary" label="Almacén principal" valuePropName="checked" style={{ marginBottom: 0 }}>
             <Switch checkedChildren="Sí" unCheckedChildren="No" />
@@ -79,6 +87,14 @@ export default function AlmacenesPage() {
   const [search,  setSearch]  = useState('')
   const [modal,   setModal]   = useState(false)
   const [editing, setEditing] = useState<Almacen | null>(null)
+  const [branches, setBranches] = useState<Branch[]>([])
+  const { activeCompany } = useCompanyStore()
+
+  useEffect(() => {
+    if (!activeCompany?.id) return
+    branchesApi.getAll(activeCompany.id).then(r => setBranches(Array.isArray(r) ? r : [])).catch(() => setBranches([]))
+  }, [activeCompany?.id])
+  const branchMap = Object.fromEntries(branches.map(b => [b.id, b.name]))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,6 +122,7 @@ export default function AlmacenesPage() {
           {r.isPrimary && <Tag color="#1faec2" style={{ fontSize: 10 }}>Principal</Tag>}
         </Space>
       ) },
+    { title: 'Sucursal', dataIndex: 'branchId', width: 150, render: v => v ? (branchMap[v] || '—') : <Text type="secondary">General</Text> },
     { title: 'Responsable', dataIndex: 'manager', render: v => v || '—' },
     { title: 'Dirección', dataIndex: 'address', ellipsis: true, render: v => v || '—' },
     { title: 'Estado', dataIndex: 'isActive', width: 90,
@@ -147,7 +164,7 @@ export default function AlmacenesPage() {
           rowKey="id" size="small" pagination={{ pageSize: 20, showSizeChanger: false }}
           locale={{ emptyText: 'Sin almacenes registrados' }} />
       </Card>
-      <AlmacenModal open={modal} record={editing}
+      <AlmacenModal open={modal} record={editing} branches={branches}
         onClose={() => setModal(false)} onSaved={load} />
     </div>
   )

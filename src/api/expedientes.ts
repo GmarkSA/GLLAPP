@@ -70,6 +70,7 @@ export interface Almacen {
   address?: string
   manager?: string
   centroId?: string
+  branchId?: string
   isActive: boolean
   isPrimary: boolean
   createdAt: string
@@ -254,7 +255,7 @@ export interface Movimiento {
 }
 
 const MOV = '/inventario/movimientos'
-export const getMovimientos = (params?: { page?: number; limit?: number; search?: string; tipoMovimiento?: string; status?: string; dateFrom?: string; dateTo?: string; productId?: string; almacenId?: string }) =>
+export const getMovimientos = (params?: { page?: number; limit?: number; search?: string; tipoMovimiento?: string; status?: string; dateFrom?: string; dateTo?: string; productId?: string; almacenId?: string; sucursalId?: string }) =>
   api.get(MOV, { params }).then(unwrap) as Promise<{ data: Movimiento[]; total: number }>
 export const getMovimiento = (id: string) => api.get(`${MOV}/${id}`).then(unwrap) as Promise<Movimiento>
 export const createMovimiento = (dto: Partial<Movimiento>) => api.post(MOV, dto).then(unwrap) as Promise<Movimiento>

@@ -18,6 +18,8 @@ import {
   TIPO_MOVIMIENTO_CONFIG, type TipoMovimiento,
 } from '../../api/expedientes'
 import { getProducts, type Product } from '../../api/inventario'
+import { branchesApi, type Branch } from '../../api/branches'
+import { useCompanyStore } from '../../store/companyStore'
 import AccountSelect from '../../components/AccountSelect'
 
 const { Title, Text } = Typography
@@ -599,8 +601,11 @@ export default function MovimientosPage() {
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
   const [almacenes,  setAlmacenes]  = useState<Almacen[]>([])
   const [almacenFilt, setAlmacenFilt] = useState<string | undefined>()
+  const [sucursalFilt, setSucursalFilt] = useState<string | undefined>()
   const [productoFilt, setProductoFilt] = useState<string | undefined>()
   const [prodOpts,   setProdOpts]   = useState<Product[]>([])
+  const [branches,   setBranches]   = useState<Branch[]>([])
+  const { activeCompany } = useCompanyStore()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -608,7 +613,7 @@ export default function MovimientosPage() {
       const res = await getMovimientos({
         page, limit: 20, search: search || undefined,
         tipoMovimiento: tipoFilt, status: statusFilt,
-        productId: productoFilt, almacenId: almacenFilt,
+        productId: productoFilt, almacenId: almacenFilt, sucursalId: sucursalFilt,
       })
       const r = res as any
       const data = r.data ?? r
@@ -616,7 +621,7 @@ export default function MovimientosPage() {
       setTotal(r.total ?? data.length)
     } catch { message.error('Error al cargar movimientos') }
     finally { setLoading(false) }
-  }, [page, search, tipoFilt, statusFilt, productoFilt, almacenFilt])
+  }, [page, search, tipoFilt, statusFilt, productoFilt, almacenFilt, sucursalFilt])
 
   useEffect(() => { load() }, [load])
 
@@ -624,6 +629,11 @@ export default function MovimientosPage() {
     getUbicaciones().then(r => setUbicaciones(Array.isArray(r) ? r : []))
     getAlmacenes().then(r => setAlmacenes(Array.isArray(r) ? r : [])).catch(() => setAlmacenes([]))
   }, [])
+
+  useEffect(() => {
+    if (!activeCompany?.id) return
+    branchesApi.getAll(activeCompany.id).then(r => setBranches(Array.isArray(r) ? r : [])).catch(() => setBranches([]))
+  }, [activeCompany?.id])
 
   const searchProdFilter = async (q: string) => {
     if (!q || q.length < 2) { setProdOpts([]); return }
@@ -754,6 +764,10 @@ export default function MovimientosPage() {
               { value: 'draft',     label: '⏳ Borrador' },
               { value: 'confirmed', label: '✅ Confirmado' },
             ]} />
+          <Select allowClear showSearch placeholder="Sucursal" style={{ width: 170 }}
+            value={sucursalFilt} onChange={v => { setSucursalFilt(v); setPage(1) }}
+            optionFilterProp="label"
+            options={branches.map(b => ({ value: b.id, label: b.name }))} />
           <Select allowClear showSearch placeholder="Almacén" style={{ width: 180 }}
             value={almacenFilt} onChange={v => { setAlmacenFilt(v); setPage(1) }}
             optionFilterProp="label"
