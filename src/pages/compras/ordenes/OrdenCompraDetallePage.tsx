@@ -6,12 +6,12 @@ import {
 } from 'antd'
 import {
   ArrowLeftOutlined, EditOutlined, SendOutlined,
-  CheckCircleOutlined, FileTextOutlined, DeleteOutlined, UploadOutlined,
+  CheckCircleOutlined, FileTextOutlined, DeleteOutlined, UploadOutlined, InboxOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getPurchaseOrder, sendPurchaseOrder, approvePurchaseOrder, deletePurchaseOrder,
-  attachPoFile, PO_STATUS_CONFIG, type PurchaseOrder,
+  recibirPurchaseOrder, attachPoFile, PO_STATUS_CONFIG, type PurchaseOrder,
 } from '../../../api/compras'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
@@ -29,6 +29,7 @@ export default function OrdenCompraDetallePage() {
   const [loading,     setLoading]     = useState(true)
   const [sending,     setSending]     = useState(false)
   const [approving,   setApproving]   = useState(false)
+  const [receiving,   setReceiving]   = useState(false)
   const [showSend,    setShowSend]    = useState(false)
   const [sendForm]  = Form.useForm()
   const [uploadingFile,      setUploadingFile]      = useState(false)
@@ -101,6 +102,16 @@ export default function OrdenCompraDetallePage() {
     finally { setApproving(false) }
   }
 
+  const handleReceive = async () => {
+    setReceiving(true)
+    try {
+      const res = await recibirPurchaseOrder(po!.id)
+      message.success(`Mercadería recibida: ${res.lineas} artículo(s) ingresado(s) a inventario`)
+      loadPO()
+    } catch (e: any) { message.error(e?.response?.data?.message || 'Error al recibir la mercadería') }
+    finally { setReceiving(false) }
+  }
+
   const handleDelete = async () => {
     try { await deletePurchaseOrder(po!.id); message.success('Orden eliminada'); navigate('/compras/ordenes') }
     catch (e: any) { message.error(e?.response?.data?.message || 'Error al eliminar') }
@@ -127,6 +138,7 @@ export default function OrdenCompraDetallePage() {
   const canEdit    = ['draft'].includes(po.status)
   const canSend    = ['draft', 'received'].includes(po.status)
   const canApprove = po.status === 'draft'
+  const canReceive = po.status === 'sent'
   const canConvert = ['sent', 'received'].includes(po.status)
 
   const ribbonColors: Record<string, string> = {
@@ -198,6 +210,19 @@ export default function OrdenCompraDetallePage() {
             style={{ background: '#06b6d4', borderColor: '#06b6d4' }}>
             Aprobar OC
           </Button>
+        )}
+        {canReceive && (
+          <Popconfirm
+            title="Recibir mercadería"
+            description="Ingresa los artículos inventariables de esta orden al stock (actualiza existencia y costo promedio). ¿Continuar?"
+            okText="Recibir" cancelText="Cancelar"
+            onConfirm={handleReceive}
+          >
+            <Button icon={<InboxOutlined />} loading={receiving}
+              style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}>
+              Recibir mercadería
+            </Button>
+          </Popconfirm>
         )}
         {canConvert && (
           <Button type="primary" icon={<FileTextOutlined />} onClick={handleConvert}
