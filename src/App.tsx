@@ -113,6 +113,7 @@ const ReporteInventarioPage      = lazy(() => import('./pages/reportes/ReporteIn
 const IntegracionesContablesPage = lazy(() => import('./pages/reportes/IntegracionesContablesPage'))
 const EstadosFinancierosPage = lazy(() => import('./pages/reportes/EstadosFinancierosPage'))
 const IntegracionesImprimirPage  = lazy(() => import('./pages/reportes/IntegracionesImprimirPage'))
+const EstadosFinancierosImprimirPage = lazy(() => import('./pages/reportes/EstadosFinancierosImprimirPage'))
 // Diarios
 const DiariosManualesPage        = lazy(() => import('./pages/contabilidad/diarios-manuales/DiariosManualesPage'))
 const DiarioManualFormPage       = lazy(() => import('./pages/contabilidad/diarios-manuales/DiarioManualFormPage'))
@@ -234,6 +235,7 @@ export default function App() {
         <Route path="/bancos/cheques/imprimir-lote"             element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
         <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
         <Route path="/reportes/integraciones/:anio/:mes/imprimir" element={<PrivateRoute><IntegracionesImprimirPage /></PrivateRoute>} />
+        <Route path="/reportes/estados-financieros/:anio/:mes/imprimir" element={<PrivateRoute><EstadosFinancierosImprimirPage /></PrivateRoute>} />
         <Route path="/admin/comprobante-pago/:id"                 element={<PrivateRoute><ComprobantePagoPage /></PrivateRoute>} />
         <Route path="/configuracion/suscripcion/comprobante/:id"  element={<PrivateRoute><ComprobantePagoPage cliente /></PrivateRoute>} />
 
