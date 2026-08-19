@@ -27,21 +27,21 @@ const STATUS_COLOR: Record<string, string> = {
   pending: 'blue',
   partial:  '#ff7f00',
   paid:     '#2ea172',
-  voided:   'red',
+  voided:   'default',
 }
 
 const STATUS_LABEL: Record<string, string> = {
   pending: 'Abierto',
   partial:  'Parcial',
   paid:     'Aplicado',
-  voided:   'Anulado',
+  voided:   'Cerrado',
 }
 
 const STATUS_OPTIONS = [
   { label: 'Abierto',  value: 'pending' },
   { label: 'Parcial',  value: 'partial' },
   { label: 'Aplicado', value: 'paid'    },
-  { label: 'Anulado',  value: 'voided'  },
+  { label: 'Cerrado',  value: 'voided'  },
 ]
 
 interface Customer { id: string; name: string; taxId?: string }
@@ -226,7 +226,7 @@ export default function AnticiposClientesPage() {
           </Tooltip>
           <Tooltip title="Aplicar a factura">
             <Button size="small" icon={<CheckCircleOutlined />}
-              style={{ color: '#1faec2', borderColor: '#1faec2' }}
+              style={r.status === 'paid' || r.status === 'voided' ? {} : { color: '#1faec2', borderColor: '#1faec2' }}
               disabled={r.status === 'paid' || r.status === 'voided'}
               onClick={() => openApply(r)}
             />
