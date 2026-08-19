@@ -135,6 +135,7 @@ export const prefillPresupuesto = (id: string, config: {
   valor: number
   anioFuenteDatos: number
   accountIds?: string[]
+  anualizar?: boolean   // true = promedia meses con actividad y distribuye uniformemente
 }) => api.post(`/contabilidad/presupuesto/${id}/prefill`, config).then(unwrap)
 
 // ── Copiar ────────────────────────────────────────────────────────────────────
