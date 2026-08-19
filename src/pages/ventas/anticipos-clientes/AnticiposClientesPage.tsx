@@ -27,21 +27,21 @@ const STATUS_COLOR: Record<string, string> = {
   pending: 'blue',
   partial:  '#ff7f00',
   paid:     '#2ea172',
-  voided:   'red',
+  voided:   'default',
 }
 
 const STATUS_LABEL: Record<string, string> = {
   pending: 'Abierto',
   partial:  'Parcial',
   paid:     'Aplicado',
-  voided:   'Anulado',
+  voided:   'Cerrado',
 }
 
 const STATUS_OPTIONS = [
   { label: 'Abierto',  value: 'pending' },
   { label: 'Parcial',  value: 'partial' },
   { label: 'Aplicado', value: 'paid'    },
-  { label: 'Anulado',  value: 'voided'  },
+  { label: 'Cerrado',  value: 'voided'  },
 ]
 
 interface Customer { id: string; name: string; taxId?: string }
