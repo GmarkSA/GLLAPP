@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button, Typography, Divider, InputNumber, Spin, message, Modal, Form,
-  Select, Tabs, Tag, Space, Tooltip, Input, Tree,
+  Select, Tabs, Tag, Space, Tooltip, Input, Tree, Radio, Alert, Table,
 } from 'antd'
 import {
   ArrowLeftOutlined, SaveOutlined, CopyOutlined,
   PlusOutlined, MinusOutlined, BarChartOutlined, SearchOutlined,
-  CheckCircleOutlined, ReloadOutlined,
+  CheckCircleOutlined, ReloadOutlined, FileExcelOutlined,
+  AreaChartOutlined, DeleteOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { DataNode } from 'antd/es/tree'
 import dayjs from 'dayjs'
@@ -26,6 +27,60 @@ const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
   const y = dayjs().year() - 1 + i
   return { label: String(y), value: y }
 })
+
+// ── Herramientas de llenado inteligente ───────────────────────────────────────
+
+type AutoTipo = 'FIJO' | 'AJUSTE_MONTO' | 'AJUSTE_PORCENTAJE' | 'TOTAL_ANUAL' | 'PORCENTAJE_INGRESOS'
+
+// Pesos mensuales para 12 meses (se agregan para trimestral/semestral)
+const PATRONES_PESOS: Record<string, number[]> = {
+  uniforme:    [8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.33,8.37],
+  incremental: [5,6,7,7,8,8,8,8,9,9,10,15],
+  decremental: [15,10,9,9,8,8,8,8,7,6,6,6],
+  q4_pesado:   [5,5,5,6,6,6,7,7,7,13,14,13],
+  guatemala:   [6,6,7,7,8,8,8,8,8,9,11,14],
+}
+
+const PATRON_LABELS: Record<string, string> = {
+  uniforme:    'Uniforme (igual cada período)',
+  incremental: 'Incremental (crece hacia fin de año)',
+  decremental: 'Decremental (mayor al inicio)',
+  q4_pesado:   'Q4 pesado — 40% en oct–dic',
+  guatemala:   'Guatemala — aguinaldo y navidad',
+  personalizado: 'Personalizado (definir % por período)',
+}
+
+function getPatronWeights(patron: string, periodo: BudgetPeriodo, custom?: Record<number, number>): number[] {
+  const raw = patron === 'personalizado'
+    ? Array.from({ length: 12 }, (_, i) => custom?.[i + 1] ?? 100 / 12)
+    : (PATRONES_PESOS[patron] ?? PATRONES_PESOS.uniforme)
+  const sum = raw.reduce((a, b) => a + b, 0)
+  const norm = raw.map(w => w / sum)
+  if (periodo === 'MENSUAL')     return norm
+  if (periodo === 'TRIMESTRAL')  return [0,1,2,3].map(q => norm.slice(q*3, q*3+3).reduce((a,b)=>a+b,0))
+  if (periodo === 'SEMESTRAL')   return [norm.slice(0,6).reduce((a,b)=>a+b,0), norm.slice(6).reduce((a,b)=>a+b,0)]
+  return [1]
+}
+
+function parseExcelClipboard(text: string): { accountCode: string; valores: number[] }[] {
+  return text.trim().split('\n')
+    .map(line => line.split('\t'))
+    .filter(cols => cols.length >= 2)
+    .map(cols => ({
+      accountCode: cols[0].trim(),
+      valores: cols.slice(1).map(v => parseFloat(v.replace(/[,\s]/g, '')) || 0),
+    }))
+    .filter(r => r.accountCode)
+}
+
+interface ProductoRow {
+  id: string
+  descripcion: string
+  accountId: string
+  precio: number
+  unidadesBase: number
+  variacionPct: number
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -96,10 +151,21 @@ export default function PresupuestoDetallePage() {
   const [edited, setEdited] = useState<Map<string, number>>(new Map())
   const hasEdits = edited.size > 0
 
-  // Autocompletar por fila
-  const [autoModal, setAutoModal] = useState<{ accountId: string; name: string } | null>(null)
-  const [autoTipo,  setAutoTipo]  = useState<'FIJO' | 'AJUSTE_MONTO' | 'AJUSTE_PORCENTAJE'>('FIJO')
-  const [autoValor, setAutoValor] = useState<number>(0)
+  // Autocompletar por fila (extendido)
+  const [autoModal,         setAutoModal]         = useState<{ accountId: string; name: string } | null>(null)
+  const [autoTipo,          setAutoTipo]          = useState<AutoTipo>('FIJO')
+  const [autoValor,         setAutoValor]         = useState<number>(0)
+  const [autoPatron,        setAutoPatron]        = useState('uniforme')
+  const [autoTotalAnual,    setAutoTotalAnual]    = useState<number>(0)
+  const [autoCustomWeights, setAutoCustomWeights] = useState<Record<number, number>>({})
+
+  // Herramienta 2: Pegar desde Excel
+  const [modalExcel,   setModalExcel]   = useState(false)
+  const [excelText,    setExcelText]    = useState('')
+
+  // Herramienta 4: Volumen de ventas por producto
+  const [modalVolumen, setModalVolumen] = useState(false)
+  const [productos,    setProductos]    = useState<ProductoRow[]>([])
 
   // Modales
   const [modalPrefill, setModalPrefill] = useState(false)
@@ -143,21 +209,88 @@ export default function PresupuestoDetallePage() {
     return ev !== undefined ? ev : (accountMap.get(accountId)?.periodos[p] ?? 0)
   }
 
-  const computeAutoVal = (current: number) => {
+  const computeForPeriod = (accountId: string, p: number): number => {
+    const current = getCellValue(accountId, p)
     if (autoTipo === 'FIJO')               return autoValor
     if (autoTipo === 'AJUSTE_MONTO')       return Math.round((current + autoValor) * 100) / 100
-    return Math.round(current * (1 + autoValor / 100) * 100) / 100
+    if (autoTipo === 'AJUSTE_PORCENTAJE')  return Math.round(current * (1 + autoValor / 100) * 100) / 100
+    if (autoTipo === 'TOTAL_ANUAL') {
+      const weights = getPatronWeights(autoPatron, budget!.periodo, autoCustomWeights)
+      return Math.round(autoTotalAnual * (weights[p - 1] ?? 0) * 100) / 100
+    }
+    if (autoTipo === 'PORCENTAJE_INGRESOS') {
+      const ingresoTotal = [...accountMap.entries()]
+        .filter(([, v]) => v.code?.startsWith('4') || v.type === 'income' || v.type === 'INCOME')
+        .reduce((sum, [aid]) => sum + getCellValue(aid, p), 0)
+      return Math.round(ingresoTotal * autoValor / 100 * 100) / 100
+    }
+    return current
   }
 
   const handleApplyAutocompletar = () => {
     if (!autoModal) return
     const updates = new Map(edited)
     for (let p = 1; p <= periodoCount; p++) {
-      updates.set(cellKey(autoModal.accountId, p), computeAutoVal(getCellValue(autoModal.accountId, p)))
+      updates.set(cellKey(autoModal.accountId, p), computeForPeriod(autoModal.accountId, p))
     }
     setEdited(updates)
     setAutoModal(null)
   }
+
+  // ── Herramienta 2: Pegar desde Excel ──────────────────────────────────────
+  const handleApplyExcel = () => {
+    if (!excelText.trim()) return
+    const rows = parseExcelClipboard(excelText)
+    if (!rows.length) { message.warning('No se pudo leer el formato. Usa: código_cuenta TAB valor1 TAB valor2…'); return }
+    const updates = new Map(edited)
+    let aplicadas = 0
+    for (const { accountCode, valores } of rows) {
+      const entry = [...accountMap.entries()].find(([, v]) => v.code === accountCode)
+      if (!entry) continue
+      const [accountId] = entry
+      for (let i = 0; i < Math.min(valores.length, periodoCount); i++) {
+        updates.set(cellKey(accountId, i + 1), valores[i])
+      }
+      aplicadas++
+    }
+    setEdited(updates)
+    setModalExcel(false)
+    setExcelText('')
+    aplicadas > 0
+      ? message.success(`${aplicadas} cuenta(s) actualizadas desde Excel`)
+      : message.warning('Ninguna cuenta coincidió. Verifica que el primer campo sea el código de cuenta.')
+  }
+
+  // ── Herramienta 4: Volumen de ventas por producto ─────────────────────────
+  const calcVolumenPorPeriodo = (row: ProductoRow): number[] =>
+    Array.from({ length: periodoCount }, (_, i) =>
+      Math.round(row.precio * row.unidadesBase * Math.pow(1 + row.variacionPct / 100, i) * 100) / 100)
+
+  const handleApplyVolumen = () => {
+    if (!productos.length) return
+    const updates = new Map(edited)
+    for (const row of productos) {
+      if (!row.accountId || !row.precio || !row.unidadesBase) continue
+      const amounts = calcVolumenPorPeriodo(row)
+      for (let p = 1; p <= periodoCount; p++) {
+        const key = cellKey(row.accountId, p)
+        updates.set(key, Math.round(((updates.get(key) ?? getCellValue(row.accountId, p)) + (amounts[p-1] ?? 0)) * 100) / 100)
+      }
+    }
+    setEdited(updates)
+    setModalVolumen(false)
+    setProductos([])
+    message.success('Volumen de ventas aplicado al presupuesto')
+  }
+
+  const addProductoRow = () => setProductos(prev => [...prev, {
+    id: crypto.randomUUID(), descripcion: '', accountId: '', precio: 0, unidadesBase: 0, variacionPct: 0,
+  }])
+
+  const updateProducto = (id: string, field: keyof ProductoRow, value: any) =>
+    setProductos(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
+
+  const removeProducto = (id: string) => setProductos(prev => prev.filter(r => r.id !== id))
 
   const handleCellChange = (accountId: string, p: number, value: number) => {
     const key = cellKey(accountId, p)
@@ -418,6 +551,16 @@ export default function PresupuestoDetallePage() {
               <Button size="small" icon={<ReloadOutlined />} onClick={() => setModalPrefill(true)}>
                 Rellenar previo con datos reales
               </Button>
+              <Tooltip title="Pegar valores copiados de Excel">
+                <Button size="small" icon={<FileExcelOutlined />} onClick={() => setModalExcel(true)}>
+                  Pegar desde Excel
+                </Button>
+              </Tooltip>
+              <Tooltip title="Proyectar ingresos por volumen de ventas y precio">
+                <Button size="small" icon={<AreaChartOutlined />} onClick={() => { setProductos([]); setModalVolumen(true) }}>
+                  Volumen de ventas
+                </Button>
+              </Tooltip>
             </>
           )}
           <Button size="small" icon={<CopyOutlined />} onClick={() => setModalCopy(true)}>
@@ -537,36 +680,80 @@ export default function PresupuestoDetallePage() {
         onOk={handleApplyAutocompletar}
         okText="Aplicar"
         okButtonProps={{ style: { background: '#1faec2' } }}
-        width={480}
+        width={560}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          <div>
-            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>TIPO</div>
-            <Select
-              style={{ width: '100%' }}
-              value={autoTipo}
-              onChange={v => setAutoTipo(v)}
-              options={[
-                { label: 'Importe fijo',        value: 'FIJO' },
-                { label: 'Ajuste por monto',    value: 'AJUSTE_MONTO' },
-                { label: 'Ajuste por %',        value: 'AJUSTE_PORCENTAJE' },
-              ]}
-            />
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>
-              {autoTipo === 'AJUSTE_PORCENTAJE' ? 'PORCENTAJE (%)' : 'MONTO (Q)'}
-            </div>
-            <InputNumber
-              controls={false}
-              style={{ width: '100%' }}
-              precision={2}
-              value={autoValor}
-              onChange={v => setAutoValor(v ?? 0)}
-            />
-          </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>TIPO DE DISTRIBUCIÓN</div>
+          <Select
+            style={{ width: '100%' }}
+            value={autoTipo}
+            onChange={v => { setAutoTipo(v); setAutoValor(0) }}
+            options={[
+              { label: 'Importe fijo por período',               value: 'FIJO' },
+              { label: 'Ajuste por monto (+/-)',                  value: 'AJUSTE_MONTO' },
+              { label: 'Ajuste por porcentaje (%)',               value: 'AJUSTE_PORCENTAJE' },
+              { label: 'Total anual con patrón de estacionalidad', value: 'TOTAL_ANUAL' },
+              { label: '% de ingresos presupuestados',           value: 'PORCENTAJE_INGRESOS' },
+            ]}
+          />
         </div>
 
+        {/* Campos según tipo */}
+        {(autoTipo === 'FIJO' || autoTipo === 'AJUSTE_MONTO') && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>MONTO (Q)</div>
+            <InputNumber controls={false} style={{ width: '100%' }} precision={2}
+              value={autoValor} onChange={v => setAutoValor(v ?? 0)} />
+          </div>
+        )}
+
+        {autoTipo === 'AJUSTE_PORCENTAJE' && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>PORCENTAJE (%)</div>
+            <InputNumber controls={false} style={{ width: '100%' }} precision={2} addonAfter="%"
+              value={autoValor} onChange={v => setAutoValor(v ?? 0)} />
+          </div>
+        )}
+
+        {autoTipo === 'PORCENTAJE_INGRESOS' && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>% DE INGRESOS</div>
+            <InputNumber controls={false} style={{ width: '100%' }} precision={2} addonAfter="%" min={0} max={100}
+              value={autoValor} onChange={v => setAutoValor(v ?? 0)} />
+            <Alert type="info" showIcon style={{ marginTop: 8, fontSize: 11 }}
+              message="Suma los ingresos (cuentas 4xx) de cada período y aplica el porcentaje indicado." />
+          </div>
+        )}
+
+        {autoTipo === 'TOTAL_ANUAL' && (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>TOTAL ANUAL (Q)</div>
+              <InputNumber controls={false} style={{ width: '100%' }} precision={2} min={0}
+                value={autoTotalAnual} onChange={v => setAutoTotalAnual(v ?? 0)} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>PATRÓN DE ESTACIONALIDAD</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {Object.entries(PATRON_LABELS).filter(([k]) => k !== 'personalizado').map(([k, label]) => (
+                  <div key={k}
+                    onClick={() => setAutoPatron(k)}
+                    style={{
+                      padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11,
+                      border: `1.5px solid ${autoPatron === k ? '#1faec2' : 'rgba(10,10,10,0.12)'}`,
+                      background: autoPatron === k ? '#e8f9fb' : 'transparent',
+                      color: autoPatron === k ? '#1faec2' : undefined,
+                      fontWeight: autoPatron === k ? 600 : 400,
+                    }}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Vista previa */}
         {autoModal && (
           <>
             <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>VISTA PREVIA</div>
@@ -581,9 +768,9 @@ export default function PresupuestoDetallePage() {
                 </thead>
                 <tbody>
                   {labels.slice(0, 6).map((label, idx) => {
-                    const p = idx + 1
+                    const p       = idx + 1
                     const current = getCellValue(autoModal.accountId, p)
-                    const next    = computeAutoVal(current)
+                    const next    = computeForPeriod(autoModal.accountId, p)
                     return (
                       <tr key={p} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)' }}>
                         <td style={{ padding: '3px 8px' }}>{label}</td>
@@ -607,6 +794,131 @@ export default function PresupuestoDetallePage() {
               </table>
             </div>
           </>
+        )}
+      </Modal>
+
+      {/* ── Modal: Pegar desde Excel ─────────────────────────────────────────── */}
+      <Modal
+        title="Pegar desde Excel"
+        open={modalExcel}
+        onCancel={() => { setModalExcel(false); setExcelText('') }}
+        onOk={handleApplyExcel}
+        okText="Aplicar"
+        okButtonProps={{ style: { background: '#1faec2' } }}
+        width={520}
+      >
+        <Alert type="info" showIcon style={{ marginBottom: 12, fontSize: 11 }}
+          message="Formato esperado"
+          description={
+            <span>
+              En Excel selecciona: <strong>código_cuenta</strong> | valor P1 | valor P2 | …<br />
+              Copia (Ctrl+C) y pega aquí. El número de valores debe coincidir con los períodos del presupuesto.
+            </span>
+          }
+        />
+        <Input.TextArea
+          rows={8}
+          placeholder={`4110\t5000\t5200\t6100\t…\n4120\t3000\t3100\t3200\t…`}
+          value={excelText}
+          onChange={e => setExcelText(e.target.value)}
+          style={{ fontFamily: 'monospace', fontSize: 11 }}
+        />
+        <div style={{ marginTop: 8, fontSize: 11, color: '#6b7280' }}>
+          {excelText.trim()
+            ? `${excelText.trim().split('\n').length} fila(s) detectada(s)`
+            : 'Pega el contenido copiado de Excel arriba'}
+        </div>
+      </Modal>
+
+      {/* ── Modal: Volumen de ventas por producto ────────────────────────────── */}
+      <Modal
+        title="Proyección por volumen de ventas"
+        open={modalVolumen}
+        onCancel={() => { setModalVolumen(false); setProductos([]) }}
+        onOk={handleApplyVolumen}
+        okText="Aplicar al presupuesto"
+        okButtonProps={{ style: { background: '#1faec2' } }}
+        width={700}
+      >
+        <Alert type="info" showIcon style={{ marginBottom: 12, fontSize: 11 }}
+          message="Define productos/servicios con su precio y unidades base. El monto se acumula sobre los valores existentes." />
+        <Table<ProductoRow>
+          dataSource={productos}
+          rowKey="id"
+          size="small"
+          pagination={false}
+          scroll={{ x: 600 }}
+          columns={[
+            {
+              title: 'Descripción', dataIndex: 'descripcion', width: 160,
+              render: (v, r) => (
+                <Input size="small" value={v} placeholder="Producto / servicio"
+                  onChange={e => updateProducto(r.id, 'descripcion', e.target.value)} />
+              ),
+            },
+            {
+              title: 'Cuenta ingreso', dataIndex: 'accountId', width: 200,
+              render: (v, r) => (
+                <Select size="small" style={{ width: '100%' }} value={v || undefined}
+                  placeholder="Seleccionar cuenta"
+                  showSearch optionFilterProp="label"
+                  options={[...accountMap.entries()]
+                    .filter(([, av]) => av.code?.startsWith('4') || av.type === 'income' || av.type === 'INCOME')
+                    .map(([aid, av]) => ({ value: aid, label: `${av.code} – ${av.name}` }))}
+                  onChange={val => updateProducto(r.id, 'accountId', val)} />
+              ),
+            },
+            {
+              title: 'Precio (Q)', dataIndex: 'precio', width: 110,
+              render: (v, r) => (
+                <InputNumber size="small" style={{ width: '100%' }} controls={false} precision={2} min={0}
+                  value={v} onChange={val => updateProducto(r.id, 'precio', val ?? 0)} />
+              ),
+            },
+            {
+              title: 'Unidades base', dataIndex: 'unidadesBase', width: 110,
+              render: (v, r) => (
+                <InputNumber size="small" style={{ width: '100%' }} controls={false} precision={0} min={0}
+                  value={v} onChange={val => updateProducto(r.id, 'unidadesBase', val ?? 0)} />
+              ),
+            },
+            {
+              title: '% var/período', dataIndex: 'variacionPct', width: 110,
+              render: (v, r) => (
+                <InputNumber size="small" style={{ width: '100%' }} controls={false} precision={1}
+                  addonAfter="%" value={v}
+                  onChange={val => updateProducto(r.id, 'variacionPct', val ?? 0)} />
+              ),
+            },
+            {
+              title: '', dataIndex: 'id', width: 40,
+              render: (v) => (
+                <Button size="small" type="text" danger icon={<DeleteOutlined />}
+                  onClick={() => removeProducto(v)} />
+              ),
+            },
+          ]}
+          footer={() => (
+            <Button size="small" icon={<PlusOutlined />} onClick={addProductoRow}>
+              Agregar producto
+            </Button>
+          )}
+        />
+        {productos.some(r => r.accountId && r.precio > 0 && r.unidadesBase > 0) && (
+          <div style={{ marginTop: 12, fontSize: 11, color: '#6b7280' }}>
+            <strong>Resumen por cuenta:</strong>
+            {[...new Set(productos.filter(r => r.accountId).map(r => r.accountId))].map(aid => {
+              const av = accountMap.get(aid)
+              const total = productos
+                .filter(r => r.accountId === aid && r.precio > 0 && r.unidadesBase > 0)
+                .reduce((s, r) => s + calcVolumenPorPeriodo(r).reduce((a, b) => a + b, 0), 0)
+              return (
+                <div key={aid} style={{ marginTop: 4 }}>
+                  {av?.code} – {av?.name}: <strong>Q {total.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</strong> total anual
+                </div>
+              )
+            })}
+          </div>
         )}
       </Modal>
     </div>
