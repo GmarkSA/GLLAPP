@@ -251,7 +251,7 @@ export default function ClienteDetallePage() {
     { title: 'Fecha', dataIndex: 'invoiceDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'invoiceNumber', width: 130,
-      render: (v: string, r: Invoice) => <Link to={`/ventas/facturas/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
+      render: (v: string, r: Invoice) => <Link to={`/ventas/facturas/${r.id}`} state={{ fromCustomerId: customer?.id }} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
@@ -572,7 +572,7 @@ export default function ClienteDetallePage() {
                         <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #fafbfc' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <Link to={`/ventas/facturas/${inv.id}`} style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{inv.invoiceNumber}</Link>
+                              <Link to={`/ventas/facturas/${inv.id}`} state={{ fromCustomerId: customer?.id }} style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{inv.invoiceNumber}</Link>
                               {inv.type === 'recurring' && <Tag color="#6b7280" style={{ fontSize: 10, margin: 0 }}>Recurrente</Tag>}
                             </div>
                             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{dayjs(inv.invoiceDate).format('DD/MM/YYYY')}</Text>
