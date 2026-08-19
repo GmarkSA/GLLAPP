@@ -13,7 +13,7 @@ import {
   PaperClipOutlined, CommentOutlined, UploadOutlined, UserOutlined,
   FileOutlined, EyeOutlined, DownloadOutlined,
 } from '@ant-design/icons'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import { useAuthStore } from '../../../store/authStore'
 import dayjs from 'dayjs'
 import {
@@ -79,6 +79,8 @@ function buildJournalEntries(inv: Invoice) {
 export default function FacturaDetallePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const fromCustomerId = (location.state as any)?.fromCustomerId as string | undefined
   const currentUser = useAuthStore().user
 
   const [invoice,  setInvoice]  = useState<Invoice | null>(null)
@@ -511,7 +513,7 @@ export default function FacturaDetallePage() {
         <Button
           icon={<EditOutlined />}
           disabled={isVoided || isWritten}
-          onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`)}
+          onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`, { state: { fromCustomerId } })}
         >
           Editar
         </Button>

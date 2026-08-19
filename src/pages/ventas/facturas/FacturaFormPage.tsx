@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import {
   Form, Select, DatePicker, InputNumber, Input, Button, Checkbox,
   Card, Breadcrumb, Typography, Spin, Divider, Space, message, Tag, Alert,
@@ -47,6 +47,8 @@ interface CustomerOption {
 export default function FacturaFormPage() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const fromCustomerId = (location.state as any)?.fromCustomerId as string | undefined
   const [form] = Form.useForm()
 
   const [items, setItems] = useState<LineItem[]>([newLineItem()])
@@ -374,7 +376,7 @@ export default function FacturaFormPage() {
         result = id ? await updateInvoice(id, dto) : await createInvoice(dto)
         message.success(status === 'draft' ? 'Borrador guardado' : 'Factura emitida')
       }
-      navigate(`/ventas/facturas/${result.id}`)
+      navigate(fromCustomerId ? `/ventas/clientes/${fromCustomerId}` : `/ventas/facturas/${result.id}`)
     } catch (err: any) {
       const raw = err?.response?.data?.error?.message ?? err?.response?.data?.message
       const msg = Array.isArray(raw) ? raw.join(' | ') : (raw ?? 'Error al guardar la factura')

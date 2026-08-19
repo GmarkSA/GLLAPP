@@ -249,7 +249,7 @@ export default function ProveedorDetallePage() {
     { title: 'Fecha', dataIndex: 'invoiceDate', width: 110, render: (v: string) => <Text style={{ fontSize: 12 }}>{dayjs(v).format('DD/MM/YYYY')}</Text> },
     {
       title: 'Número', dataIndex: 'invoiceNumber', width: 140,
-      render: (v: string, r: PurchaseInvoice) => <Link to={`/compras/facturas/${r.id}`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
+      render: (v: string, r: PurchaseInvoice) => <Link to={`/compras/facturas/${r.id}`} state={{ fromVendorId: vendor?.id }} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>,
     },
     {
       title: 'Tipo', dataIndex: 'invoiceType', width: 110,
@@ -540,7 +540,7 @@ export default function ProveedorDetallePage() {
                     return (
                       <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #fafbfc' }}>
                         <div>
-                          <Link to={`/compras/facturas/${b.id}`} style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{b.invoiceNumber}</Link>
+                          <Link to={`/compras/facturas/${b.id}`} state={{ fromVendorId: vendor?.id }} style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{b.invoiceNumber}</Link>
                           <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{dayjs(b.invoiceDate).format('DD/MM/YYYY')}</Text>
                         </div>
                         <div style={{ textAlign: 'right' }}>

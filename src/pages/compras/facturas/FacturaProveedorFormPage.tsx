@@ -69,7 +69,8 @@ export default function FacturaProveedorFormPage() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const fromPO   = !id ? (location.state as any)?.fromPO as { purchaseOrderId: string; vendorId: string; vendorName: string; items: LineItem[] } | undefined : undefined
+  const fromPO       = !id ? (location.state as any)?.fromPO as { purchaseOrderId: string; vendorId: string; vendorName: string; items: LineItem[] } | undefined : undefined
+  const fromVendorId = (location.state as any)?.fromVendorId as string | undefined
   const [form] = Form.useForm()
 
   const [items, setItems]               = useState<LineItem[]>([newLineItem()])
@@ -553,7 +554,7 @@ export default function FacturaProveedorFormPage() {
       const dto = buildDto('draft')
       const result: any = id ? await updateBill(id, dto as any) : await createBill(dto as any)
       message.success('Guardado como borrador')
-      navigate(`/compras/facturas/${result.id}`)
+      navigate(fromVendorId ? `/compras/proveedores/${fromVendorId}` : `/compras/facturas/${result.id}`)
     } catch (err: any) {
       message.error(getApiError(err, 'Error al guardar'))
     } finally {
@@ -573,7 +574,7 @@ export default function FacturaProveedorFormPage() {
       // Paso 2: aprobar → genera póliza contable (CxP + IVA CF + retenciones)
       await approveBill(invoiceId)
       message.success('Factura abierta — póliza contable generada')
-      navigate(`/compras/facturas/${invoiceId}`)
+      navigate(fromVendorId ? `/compras/proveedores/${fromVendorId}` : `/compras/facturas/${invoiceId}`)
     } catch (err: any) {
       message.error(getApiError(err, 'Error al abrir la factura'))
     } finally {
@@ -626,7 +627,7 @@ export default function FacturaProveedorFormPage() {
         setReclasEntry(null)
       }
       message.success('Factura actualizada y póliza regenerada')
-      navigate(`/compras/facturas/${id}`)
+      navigate(fromVendorId ? `/compras/proveedores/${fromVendorId}` : `/compras/facturas/${id}`)
     } catch (err: any) {
       message.error(getApiError(err, 'Error al actualizar'))
     } finally {

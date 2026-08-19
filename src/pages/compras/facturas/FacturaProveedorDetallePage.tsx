@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { getApiError } from '../../../api/axios'
 import {
   Button, Typography, Tag, Table, Divider, Spin, message,
@@ -37,6 +37,8 @@ const PAYMENT_MODE_LABELS: Record<string, string> = {
 export default function FacturaProveedorDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const fromVendorId = (location.state as any)?.fromVendorId as string | undefined
 
   const [bill,         setBill]         = useState<PurchaseInvoice | null>(null)
   const [company,      setCompany]      = useState<OrganizationProfile>({ name: '' })
@@ -486,7 +488,7 @@ export default function FacturaProveedorDetallePage() {
         {canEditOpen && !inlineEdit && (
           <Button type="primary" icon={<EditOutlined />}
             style={{ background: '#1faec2', borderColor: '#1faec2' }}
-            onClick={() => navigate(`/compras/facturas/${bill.id}/editar`)}>
+            onClick={() => navigate(`/compras/facturas/${bill.id}/editar`, { state: { fromVendorId } })}>
             Editar
           </Button>
         )}
