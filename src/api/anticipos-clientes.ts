@@ -30,7 +30,7 @@ export const getAnticipoCliente = (id: string) =>
 export const aplicarAnticipoCliente = (id: string, dto: { invoiceId: string; amount?: number; date?: string }) =>
   api.post(`${BASE}/${id}/aplicar`, dto).then(unwrap)
 
-export const reembolsarAnticipoCliente = (id: string, dto?: { date?: string }) =>
+export const reembolsarAnticipoCliente = (id: string, dto?: { date?: string; bankAccountId?: string }) =>
   api.post(`${BASE}/${id}/reembolsar`, dto ?? {}).then(unwrap)
 
 export const desaplicarAnticipoCliente = (id: string) =>

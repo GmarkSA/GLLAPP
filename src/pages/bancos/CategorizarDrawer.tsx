@@ -624,20 +624,24 @@ export default function CategorizarDrawer({
     if (!selectedCustomerRefund || !transaction || !account) return
     setSavingCustomerRefund(true)
     try {
-      await reembolsarAnticipoCliente(selectedCustomerRefund.id, { date: txDate })
+      const result = await reembolsarAnticipoCliente(selectedCustomerRefund.id, {
+        date:          txDate,
+        bankAccountId: account.id,
+      })
 
       await updateTransaction(account.id, transaction.id, {
-        status:             'categorized',
-        sourceDocumentId:   selectedCustomerRefund.id,
-        sourceDocumentType: 'advance_void',
+        status:                'categorized',
+        sourceDocumentId:      selectedCustomerRefund.id,
+        sourceDocumentType:    'advance_void',
+        matchedJournalEntryId: result?.journalEntry?.id,
       } as any)
 
-      const advCode  = accountDefaults.customerAdvanceAccountCode || '2110'
-      const amtGTQ   = Number(selectedCustomerRefund.balance) * (isForeign ? exchangeRate : 1)
-      const journalLines: JournalLine[] = [
-        { accountCode: advCode,                      accountName: 'Anticipos de Clientes',  debe: amtGTQ, haber: 0 },
-        { accountCode: account.glAccountCode || '',  accountName: account.glAccountName || 'Banco', debe: 0, haber: amtGTQ },
-      ]
+      const journalLines: JournalLine[] = (result?.journalEntry?.lines ?? []).map((l: any) => ({
+        accountCode: l.accountCode,
+        accountName: l.accountName,
+        debe:        Number(l.debit),
+        haber:       Number(l.credit),
+      }))
 
       message.success(`Reembolso aplicado — anticipo ${selectedCustomerRefund.invoiceNumber} cerrado`)
       setResultado({
