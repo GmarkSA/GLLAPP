@@ -56,6 +56,7 @@ export default function FacturaProveedorDetallePage() {
   const [applyingAdv,  setApplyingAdv]  = useState(false)
   const [selectedAdvId, setSelectedAdvId] = useState<string | undefined>()
   const [advAmount,    setAdvAmount]    = useState(0)
+  const [advApplyDate, setAdvApplyDate] = useState<string>(dayjs().format('YYYY-MM-DD'))
   const [voidForm]  = Form.useForm()
   const [payForm]   = Form.useForm()
   const [showEdit,   setShowEdit]   = useState(false)
@@ -177,7 +178,7 @@ export default function FacturaProveedorDetallePage() {
     if (!selectedAdvId || !bill) return
     setApplyingAdv(true)
     try {
-      await applyVendorAdvanceToBill(selectedAdvId, bill.id, advAmount || undefined)
+      await applyVendorAdvanceToBill(selectedAdvId, bill.id, advAmount || undefined, advApplyDate)
       message.success('Anticipo aplicado')
       setShowAdv(false); loadBill()
     } catch (e: any) { message.error(getApiError(e, 'Error al aplicar anticipo')) }
@@ -1059,6 +1060,12 @@ export default function FacturaProveedorDetallePage() {
             ? <Alert type="info" showIcon message="Sin anticipos disponibles para este proveedor." />
             : (
               <Form layout="vertical" style={{ marginTop: 8 }}>
+                <Form.Item label="Fecha contable de aplicación" required>
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
+                    value={dayjs(advApplyDate)}
+                    onChange={d => setAdvApplyDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
+                  />
+                </Form.Item>
                 <Form.Item label="Anticipo">
                   <Select placeholder="Seleccionar anticipo..." value={selectedAdvId}
                     onChange={v => { setSelectedAdvId(v); const a = advances.find(x => x.id === v); if (a) setAdvAmount(Math.min(Number(a.balance), Number(bill?.balance ?? 0))) }}
