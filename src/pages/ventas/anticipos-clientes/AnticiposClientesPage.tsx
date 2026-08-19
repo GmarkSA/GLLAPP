@@ -226,7 +226,7 @@ export default function AnticiposClientesPage() {
           </Tooltip>
           <Tooltip title="Aplicar a factura">
             <Button size="small" icon={<CheckCircleOutlined />}
-              style={{ color: '#1faec2', borderColor: '#1faec2' }}
+              style={r.status === 'paid' || r.status === 'voided' ? {} : { color: '#1faec2', borderColor: '#1faec2' }}
               disabled={r.status === 'paid' || r.status === 'voided'}
               onClick={() => openApply(r)}
             />
