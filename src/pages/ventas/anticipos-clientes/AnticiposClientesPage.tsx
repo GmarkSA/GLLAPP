@@ -5,12 +5,14 @@ import {
 } from 'antd'
 import {
   ReloadOutlined, CheckCircleOutlined, StopOutlined, BookOutlined, RollbackOutlined,
+  UndoOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
   getAnticiposClientes, aplicarAnticipoCliente, reembolsarAnticipoCliente,
-  desaplicarAnticipoCliente, type AnticipoCliente,
+  desaplicarAnticipoCliente, restaurarAnticipoCliente, eliminarAnticipoCliente,
+  type AnticipoCliente,
 } from '../../../api/anticipos-clientes'
 import { getJournalEntry } from '../../../api/compras'
 import { getInvoices, type Invoice } from '../../../api/facturas'
@@ -70,7 +72,10 @@ export default function AnticiposClientesPage() {
   const [voiding,      setVoiding]      = useState<string | null>(null)
 
   // Desaplicar
-  const [desaplicando, setDesaplicando] = useState<string | null>(null)
+  const [desaplicando,  setDesaplicando]  = useState<string | null>(null)
+  // Restaurar / Eliminar
+  const [restaurando,   setRestaurando]   = useState<string | null>(null)
+  const [eliminando,    setEliminando]    = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -141,6 +146,28 @@ export default function AnticiposClientesPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al desaplicar el anticipo')
     } finally { setDesaplicando(null) }
+  }
+
+  const handleRestaurar = async (id: string, invoiceNumber: string) => {
+    setRestaurando(id)
+    try {
+      await restaurarAnticipoCliente(id)
+      message.success(`Anticipo ${invoiceNumber} restaurado a pendiente — ya puede reembolsarse correctamente`)
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al restaurar el anticipo')
+    } finally { setRestaurando(null) }
+  }
+
+  const handleEliminar = async (id: string, invoiceNumber: string) => {
+    setEliminando(id)
+    try {
+      await eliminarAnticipoCliente(id)
+      message.success(`Anticipo ${invoiceNumber} eliminado`)
+      load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al eliminar el anticipo')
+    } finally { setEliminando(null) }
   }
 
   const handleVoid = async (id: string, invoiceNumber: string) => {
@@ -232,6 +259,37 @@ export default function AnticiposClientesPage() {
             >
               <Tooltip title="Anular anticipo (revierte póliza)">
                 <Button size="small" danger icon={<StopOutlined />} loading={voiding === r.id} />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          {r.status === 'voided' && (
+            <Popconfirm
+              title={`¿Restaurar anticipo ${r.invoiceNumber}?`}
+              description="Vuelve a estado Pendiente para poder reembolsarlo correctamente."
+              okText="Restaurar"
+              cancelText="Cancelar"
+              okButtonProps={{ style: { background: '#1faec2' } }}
+              onConfirm={() => handleRestaurar(r.id, r.invoiceNumber)}
+            >
+              <Tooltip title="Restaurar a pendiente (para re-procesar)">
+                <Button size="small" icon={<UndoOutlined />}
+                  loading={restaurando === r.id}
+                  style={{ color: '#1faec2', borderColor: '#1faec2' }}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          {r.status === 'voided' && (
+            <Popconfirm
+              title={`¿Eliminar definitivamente ${r.invoiceNumber}?`}
+              description="Se revertirá su póliza contable y se borrará el registro."
+              okText="Eliminar"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleEliminar(r.id, r.invoiceNumber)}
+            >
+              <Tooltip title="Eliminar definitivamente">
+                <Button size="small" danger icon={<DeleteOutlined />} loading={eliminando === r.id} />
               </Tooltip>
             </Popconfirm>
           )}

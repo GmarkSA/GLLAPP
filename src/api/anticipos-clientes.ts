@@ -35,3 +35,9 @@ export const reembolsarAnticipoCliente = (id: string, dto?: { date?: string; ban
 
 export const desaplicarAnticipoCliente = (id: string) =>
   api.post(`${BASE}/${id}/desaplicar`, {}).then(unwrap)
+
+export const restaurarAnticipoCliente = (id: string) =>
+  api.post(`${BASE}/${id}/restaurar`, {}).then(unwrap)
+
+export const eliminarAnticipoCliente = (id: string) =>
+  api.delete(`${BASE}/${id}`).then(unwrap)
