@@ -366,6 +366,10 @@ export default function CategorizarDrawer({
 
   const applyManual = async () => {
     if (!transaction || !account || !manualAccountId) return
+    if (transaction.matchedJournalEntryId) {
+      message.warning('Esta transacción ya tiene una póliza contable enlazada. Quita la categorización actual antes de crear una nueva.')
+      return
+    }
     setSavingManual(true)
     try {
       await updateTransaction(account.id, transaction.id, {
@@ -622,6 +626,10 @@ export default function CategorizarDrawer({
 
   const applyAsCustomerRefund = async () => {
     if (!selectedCustomerRefund || !transaction || !account) return
+    if (transaction.matchedJournalEntryId) {
+      message.warning('Esta transacción ya tiene una póliza contable enlazada. Quita la categorización actual antes de aplicar el reembolso.')
+      return
+    }
     setSavingCustomerRefund(true)
     try {
       const result = await reembolsarAnticipoCliente(selectedCustomerRefund.id, {
@@ -666,6 +674,10 @@ export default function CategorizarDrawer({
 
   const applyAsVendorRefund = async () => {
     if (!selectedRefund || !transaction || !account) return
+    if (transaction.matchedJournalEntryId) {
+      message.warning('Esta transacción ya tiene una póliza contable enlazada. Quita la categorización actual antes de aplicar el reembolso.')
+      return
+    }
     setSavingRefund(true)
     try {
       const result = await applyVendorAdvanceRefund(selectedRefund.id, {
