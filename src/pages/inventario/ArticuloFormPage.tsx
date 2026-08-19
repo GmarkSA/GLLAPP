@@ -39,6 +39,7 @@ export default function ArticuloFormPage() {
   const [taxes,    setTaxes]    = useState<Tax[]>([])
 
   // Live-watch fields to conditionally show sections
+  const itemType          = Form.useWatch('itemType', form)
   const isInventoriable   = Form.useWatch('isInventoriable', form)
   const currency          = Form.useWatch('currency', form) ?? 'GTQ'
   const currencySymbol    = currency === 'GTQ' ? 'Q' : '$'
@@ -54,6 +55,11 @@ export default function ArticuloFormPage() {
       .then((t: Tax[]) => setTaxes(Array.isArray(t) ? t : []))
       .catch(() => setTaxes([]))
   }, [])
+
+  // Un servicio no lleva inventario: al elegir "servicio" se apaga el control de stock
+  useEffect(() => {
+    if (itemType === 'servicio') form.setFieldValue('isInventoriable', false)
+  }, [itemType, form])
 
   // ── Load for edit ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -266,7 +272,7 @@ export default function ArticuloFormPage() {
                   label="Cuenta de ingresos (ventas)"
                   tooltip="Cuenta donde se registran los ingresos al vender este artículo"
                 >
-                  <AccountSelect filter={{ isCustomerAccount: false }} placeholder="Buscar cuenta de ingresos..." />
+                  <AccountSelect filter={{ balanceType: 'Ingresos' }} placeholder="Buscar cuenta de ingresos..." />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={8}>
@@ -298,11 +304,11 @@ export default function ArticuloFormPage() {
               </Col>
               <Col xs={24} sm={8}>
                 <Form.Item
-                  name="purchaseAccountId"
-                  label="Cuenta de compras / gastos"
-                  tooltip="Cuenta donde se registran las compras de este artículo (si no lleva inventario)"
+                  name="costAccountId"
+                  label="Cuenta de costo de ventas (COGS)"
+                  tooltip="Cuenta del grupo 5 (costo) o 6 (gasto) que se debita al vender/consumir este artículo"
                 >
-                  <AccountSelect filter={{ isVendorAccount: true }} placeholder="Buscar cuenta de compras..." />
+                  <AccountSelect filter={{ balanceTypes: ['Costos', 'Gastos'] }} placeholder="Buscar cuenta de costo..." />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={8}>
@@ -339,8 +345,13 @@ export default function ArticuloFormPage() {
                     </Space>
                   }
                 >
-                  <Switch checkedChildren="Sí" unCheckedChildren="No" />
+                  <Switch checkedChildren="Sí" unCheckedChildren="No" disabled={itemType === 'servicio'} />
                 </Form.Item>
+                {itemType === 'servicio' && (
+                  <div style={{ fontSize: 11, color: '#8b9aa8', marginTop: -12, marginBottom: 8 }}>
+                    Un <b>servicio</b> no lleva inventario: el control de stock queda desactivado.
+                  </div>
+                )}
               </Col>
               {isInventoriable && (
                 <Col xs={24} sm={12}>
@@ -405,7 +416,7 @@ export default function ArticuloFormPage() {
 
                 {/* Cuentas contables de inventario */}
                 <Row gutter={16}>
-                  <Col xs={24} md={8}>
+                  <Col xs={24} md={12}>
                     <Form.Item
                       name="inventoryAccountId"
                       label="Cuenta de inventario (Activo)"
@@ -414,16 +425,7 @@ export default function ArticuloFormPage() {
                       <AccountSelect filter={{ isInventoryAccount: true }} placeholder="Buscar cuenta de inventario..." />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} md={8}>
-                    <Form.Item
-                      name="costAccountId"
-                      label="Cuenta de costo de ventas (COGS)"
-                      tooltip="Cuenta del grupo 510/511 — Costo de ventas"
-                    >
-                      <AccountSelect filter={{}} placeholder="Buscar cuenta de costo de ventas..." />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} md={8}>
+                  <Col xs={24} md={12}>
                     <Form.Item
                       name="adjustmentAccountId"
                       label="Cuenta de ajustes de inventario"
@@ -463,35 +465,22 @@ export default function ArticuloFormPage() {
 
                 {/* Stock y reorden */}
                 <Row gutter={16}>
-                  <Col xs={24} sm={8}>
+                  <Col xs={24} sm={12}>
                     <Form.Item
                       name="stockOnHand"
                       label="Existencia actual"
-                      tooltip="Para ajustar el stock usa el módulo de Ajustes de inventario."
+                      tooltip="Se actualiza sola con ingresos, ventas, ajustes y movimientos. Para corregirla usa el módulo de Ajustes de inventario."
                     >
                       <InputNumber style={{ width: '100%' }} precision={2} disabled={isEdit} min={0} />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="reorderPoint" label="Punto de reorden">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} placeholder="Alerta al llegar a este nivel" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="reorderQuantity" label="Cantidad de reorden sugerida">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} />
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Row gutter={16}>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="minimumStock" label="Stock mínimo">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} placeholder="Nivel crítico" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Form.Item name="maximumStock" label="Stock máximo">
-                      <InputNumber style={{ width: '100%' }} precision={2} min={0} />
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      name="reorderPoint"
+                      label="Punto de reorden"
+                      tooltip="Al bajar de este nivel, el artículo se marca en alerta de bajo stock (lista de artículos y reporte de inventario)."
+                    >
+                      <InputNumber style={{ width: '100%' }} precision={2} min={0} placeholder="Nivel de alerta de bajo stock" />
                     </Form.Item>
                   </Col>
                 </Row>

@@ -6,6 +6,8 @@ import { getAccounts, type Account } from '../api/catalogo'
 export interface AccountFilter {
   groupCode?:             string
   balanceType?:           string
+  /** Filtra por varios balanceType (ej: ['Costos','Gastos']) — se aplica en cliente */
+  balanceTypes?:          string[]
   isCustomerAccount?:     boolean
   isVendorAccount?:       boolean
   bankLinking?:           boolean
@@ -57,7 +59,14 @@ export default function AccountSelect({
     if (filter?.isInventoryAccount     !== undefined)   params.isInventoryAccount = String(filter.isInventoryAccount)
 
     getAccounts(params)
-      .then(data => setAccounts(Array.isArray(data) ? data : []))
+      .then(data => {
+        let list = Array.isArray(data) ? data : []
+        // Filtro cliente por varios balanceType (el backend solo soporta uno)
+        if (filter?.balanceTypes?.length) {
+          list = list.filter(a => filter.balanceTypes!.includes(a.balanceType ?? ''))
+        }
+        setAccounts(list)
+      })
       .catch(() => setAccounts([]))
       .finally(() => setLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
