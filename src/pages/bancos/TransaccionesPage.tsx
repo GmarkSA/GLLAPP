@@ -993,12 +993,41 @@ export default function TransaccionesPage() {
               </Tooltip>
             </>
           ) : row.status !== 'reconciled' ? (
-            <Tooltip title="Categorizar">
-              <Button
-                size="small" type="text" icon={<TagsOutlined style={{ color: NAVY }} />}
-                onClick={() => setCategorizarTx(row)}
-              />
-            </Tooltip>
+            <>
+              {row.status === 'matched' && (
+                <Tooltip title="Quitar coincidencia">
+                  <Button
+                    size="small" type="text" icon={<CloseOutlined style={{ color: '#e5484d' }} />}
+                    onClick={() => Modal.confirm({
+                      title: 'Quitar coincidencia',
+                      content: 'La transacción volverá a Pendiente para que puedas asignarle una categoría manualmente.',
+                      okText: 'Quitar',
+                      okButtonProps: { danger: true },
+                      cancelText: 'Cancelar',
+                      onOk: async () => {
+                        const { matchLabel: _ml, matchType: _mt, ...restRaw } = row.rawData ?? {}
+                        await updateTransaction(id!, row.id, {
+                          status: 'pending',
+                          matchedInvoiceId: null,
+                          matchedPaymentId: null,
+                          matchedJournalEntryId: null,
+                          sourceDocumentId: null,
+                          sourceDocumentType: null,
+                          rawData: restRaw,
+                        } as any)
+                        loadTransactions()
+                      },
+                    })}
+                  />
+                </Tooltip>
+              )}
+              <Tooltip title="Categorizar">
+                <Button
+                  size="small" type="text" icon={<TagsOutlined style={{ color: NAVY }} />}
+                  onClick={() => setCategorizarTx(row)}
+                />
+              </Tooltip>
+            </>
           ) : null}
           <Popconfirm title="¿Eliminar este movimiento?" onConfirm={() => handleDelete(row.id)} okText="Sí" cancelText="No">
             <Button size="small" type="text" danger icon={<DeleteOutlined />} />

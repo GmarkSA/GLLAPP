@@ -73,6 +73,7 @@ export default function FacturaFormPage() {
   // Mejora 2 — ISR retención en origen
   const [customerIsrTax, setCustomerIsrTax] = useState<Tax | undefined>()
   const [isrAmount, setIsrAmount] = useState(0)
+  const [isrWasZeroOnLoad, setIsrWasZeroOnLoad] = useState(false)
   const [editingIsr, setEditingIsr] = useState(false)
   const [customerNit, setCustomerNit] = useState<string>('')
 
@@ -142,7 +143,9 @@ export default function FacturaFormPage() {
         if (inv.customerTaxId) setCustomerNit(inv.customerTaxId)
         setFelFrases(inv.felFrases ?? [])
         setIsExenta(inv.facturaExenta ?? false)
-        if (Number(inv.isrRetentionAmount) > 0) setIsrAmount(Number(inv.isrRetentionAmount))
+        const savedIsr = Number(inv.isrRetentionAmount ?? 0)
+        if (savedIsr > 0) setIsrAmount(savedIsr)
+        setIsrWasZeroOnLoad(savedIsr === 0)
         loadedStatusRef.current = inv.status ?? 'draft'
 
         const loadedItems: LineItem[] = (inv.items ?? []).map((it) =>
@@ -242,9 +245,10 @@ export default function FacturaFormPage() {
     }
   }
 
-  // Auto-cálculo ISR cuando cambian los ítems (solo facturas nuevas)
+  // Auto-cálculo ISR en facturas nuevas, y en edición cuando el ISR guardado era Q 0.00
   useEffect(() => {
-    if (id || !customerIsrTax) return
+    if (!customerIsrTax) return
+    if (id && !isrWasZeroOnLoad) return
     const { subtotal } = calcTotals(items)
     let amount: number
     if (customerIsrTax.subtype === 'progressive' && customerIsrTax.tiers?.length) {
@@ -263,7 +267,7 @@ export default function FacturaFormPage() {
     }
     setIsrAmount(amount)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, customerIsrTax])
+  }, [items, customerIsrTax, isrWasZeroOnLoad])
 
   const handleInvoiceDateChange = (date: dayjs.Dayjs | null) => {
     if (date && customerTermsDays != null && customerTermsDays > 0) {
