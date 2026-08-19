@@ -110,6 +110,8 @@ export default function FacturaProveedorFormPage() {
   const [ivaRetAmount, setIvaRetAmount] = useState(0)
   const [editingIsr, setEditingIsr]     = useState(false)
   const [editingIvaRet, setEditingIvaRet] = useState(false)
+  // true cuando la factura cargada tenía ISR = 0 (proveedor sin retención al momento de crear)
+  const [isrWasZeroOnLoad, setIsrWasZeroOnLoad] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -260,7 +262,9 @@ export default function FacturaProveedorFormPage() {
           })
         }
         if (bill.vendorTaxId) setVendorNit(bill.vendorTaxId)
-        setIsrAmount(Number(bill.isrRetentionAmount ?? 0))
+        const savedIsr = Number(bill.isrRetentionAmount ?? 0)
+        setIsrAmount(savedIsr)
+        setIsrWasZeroOnLoad(savedIsr === 0)
         setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
         // Restaurar tipo de cambio si la factura es en moneda extranjera
         if (bill.currency && bill.currency !== 'GTQ') {
@@ -363,16 +367,18 @@ export default function FacturaProveedorFormPage() {
     }
   }, [vendors, watchVendorId, taxes])
 
-  // Auto-calcula ISR solo en facturas nuevas (no en edición — el monto guardado prevalece)
+  // Auto-calcula ISR en facturas nuevas, y en edición cuando el ISR guardado era Q 0.00
+  // (caso: proveedor sin retención al crear la factura, configurado después)
   useEffect(() => {
-    if (id || !vendorIsrTax) return
+    if (!vendorIsrTax) return
+    if (id && !isrWasZeroOnLoad) return
     const subtotal = calcTotals(items).subtotal
     const amount = vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length
       ? calcProgressiveISR(subtotal, vendorIsrTax.tiers)
       : Math.round(subtotal * isrAppliedRate / 100 * 100) / 100
     setIsrAmount(amount)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, vendorIsrTax, isrAppliedRate])
+  }, [items, vendorIsrTax, isrAppliedRate, isrWasZeroOnLoad])
 
   // Auto-carga el tipo de cambio desde Banguat cuando cambia la moneda o la fecha de factura
   useEffect(() => {
