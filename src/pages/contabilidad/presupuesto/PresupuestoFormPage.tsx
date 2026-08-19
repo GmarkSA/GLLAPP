@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Form, Input, Select, Button, Typography, Steps, Modal, Checkbox,
-  Tree, Space, message, Divider, Card, Spin,
+  Tree, Space, message, Divider, Card, Spin, InputNumber, Radio, Alert,
 } from 'antd'
-import { SearchOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { SearchOutlined, CheckCircleOutlined, ThunderboltOutlined, EditOutlined } from '@ant-design/icons'
 import type { DataNode } from 'antd/es/tree'
 import dayjs from 'dayjs'
 import { getAccounts, type Account } from '../../../api/catalogo'
-import { createPresupuesto, type BudgetPeriodo } from '../../../api/presupuesto'
+import { createPresupuesto, prefillPresupuesto, type BudgetPeriodo } from '../../../api/presupuesto'
 import { getCentrosCosto, type CentroCosto } from '../../../api/centros-costo'
 import { getCentrosBeneficio, type CentroBeneficio } from '../../../api/centros-beneficio'
 
@@ -24,6 +24,12 @@ const PERIODOS: { label: string; value: BudgetPeriodo }[] = [
 const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
   const y = dayjs().year() - 1 + i
   return { label: `${y}  (${dayjs(`${y}-01-01`).format('MMM YYYY')} – ${dayjs(`${y}-12-31`).format('MMM YYYY')})`, value: y }
+})
+
+const GROWTH_PRESETS = [0, 5, 10, 15, 20]
+const ANIO_FUENTE_OPTIONS = Array.from({ length: 4 }, (_, i) => {
+  const y = dayjs().year() - 1 - i
+  return { label: String(y), value: y }
 })
 
 // Construye árbol para Ant Design Tree
@@ -144,6 +150,12 @@ export default function PresupuestoFormPage() {
   const [modalGastos,   setModalGastos]   = useState(false)
   const [modalOtras,    setModalOtras]    = useState(false)
 
+  // Proyección inteligente
+  const [proyeccion,       setProyeccion]       = useState<'inteligente' | 'blank'>('inteligente')
+  const [crecimiento,      setCrecimiento]       = useState(10)
+  const [crecimientoCustom, setCrecimientoCustom] = useState<number | null>(null)
+  const [anioFuente,       setAnioFuente]        = useState(dayjs().year() - 1)
+
   const incluirBalance = Form.useWatch('incluirBalanceGeneral', form) ?? false
 
   useEffect(() => {
@@ -193,7 +205,22 @@ export default function PresupuestoFormPage() {
         centroBeneficioId: vals.centroBeneficioId ?? null,
         notas:             vals.notas              ?? undefined,
       })
-      message.success('Presupuesto creado')
+
+      if (proyeccion === 'inteligente') {
+        const pct = crecimientoCustom ?? crecimiento
+        await prefillPresupuesto(budget.id, {
+          tipo:            'AJUSTE_PORCENTAJE',
+          valor:           pct,
+          anioFuenteDatos: anioFuente,
+          anualizar:       true,
+        }).catch(() => {
+          message.warning('Presupuesto creado, pero no se pudo aplicar la proyección automática. Puedes rellenarlo manualmente.')
+        })
+        message.success(`Presupuesto creado con proyección +${pct}% desde ${anioFuente}`)
+      } else {
+        message.success('Presupuesto creado')
+      }
+
       navigate(`/contabilidad/presupuesto/${budget.id}`)
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al crear')
@@ -203,6 +230,7 @@ export default function PresupuestoFormPage() {
   const stepItems = [
     { title: 'Configuración' },
     { title: 'Cuentas' },
+    { title: 'Proyección' },
   ]
 
   return (
@@ -332,6 +360,129 @@ export default function PresupuestoFormPage() {
             <Divider />
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Button onClick={() => setStep(0)}>← Anterior</Button>
+              <Space>
+                <Button onClick={() => navigate('/contabilidad/presupuesto')}>Cancelar</Button>
+                <Button type="primary" style={{ background: '#1faec2' }}
+                  onClick={() => {
+                    if (!totalSelected) { message.warning('Seleccione al menos una cuenta'); return }
+                    setStep(2)
+                  }}>
+                  Siguiente →
+                </Button>
+              </Space>
+            </div>
+          </Card>
+        )}
+
+        {/* ── Paso 3: proyección inteligente ─────────────────────────────── */}
+        {step === 2 && (
+          <Card>
+            <div style={{ color: '#6b7280', fontSize: 11, fontWeight: 600, marginBottom: 16, letterSpacing: 1 }}>
+              PROYECCIÓN DE MONTOS
+            </div>
+
+            <Radio.Group
+              value={proyeccion}
+              onChange={e => setProyeccion(e.target.value)}
+              style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}
+            >
+              <Radio value="inteligente" style={{ alignItems: 'flex-start' }}>
+                <div>
+                  <span style={{ fontWeight: 600 }}>
+                    <ThunderboltOutlined style={{ color: '#1faec2', marginRight: 6 }} />
+                    Proyección inteligente desde histórico
+                  </span>
+                  <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
+                    El sistema toma los movimientos reales del año de referencia y proyecta cada período con el crecimiento que definas
+                  </div>
+                </div>
+              </Radio>
+              <Radio value="blank">
+                <div>
+                  <span style={{ fontWeight: 600 }}>
+                    <EditOutlined style={{ color: '#6b7280', marginRight: 6 }} />
+                    En blanco — ingresar montos manualmente
+                  </span>
+                  <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
+                    Crea el presupuesto con todos los montos en Q 0.00 para rellenarlos tú mismo
+                  </div>
+                </div>
+              </Radio>
+            </Radio.Group>
+
+            {proyeccion === 'inteligente' && (
+              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                      Año de referencia
+                    </div>
+                    <Select
+                      value={anioFuente}
+                      onChange={setAnioFuente}
+                      options={ANIO_FUENTE_OPTIONS}
+                      style={{ width: '100%' }}
+                    />
+                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                      Se leerán los movimientos contables de este año
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                      Crecimiento esperado
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {GROWTH_PRESETS.map(pct => (
+                        <Button
+                          key={pct}
+                          size="small"
+                          type={crecimientoCustom === null && crecimiento === pct ? 'primary' : 'default'}
+                          style={crecimientoCustom === null && crecimiento === pct
+                            ? { background: '#1faec2', borderColor: '#1faec2' }
+                            : {}}
+                          onClick={() => { setCrecimiento(pct); setCrecimientoCustom(null) }}
+                        >
+                          {pct === 0 ? 'Sin cambio' : `+${pct}%`}
+                        </Button>
+                      ))}
+                      <InputNumber
+                        size="small"
+                        placeholder="% manual"
+                        min={-50} max={200}
+                        style={{ width: 90 }}
+                        value={crecimientoCustom}
+                        onChange={v => setCrecimientoCustom(v)}
+                        addonAfter="%"
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                      Porcentaje aplicado sobre los montos del año {anioFuente}
+                    </div>
+                  </div>
+                </div>
+
+                <Alert
+                  type="info"
+                  showIcon
+                  icon={<ThunderboltOutlined />}
+                  style={{ borderRadius: 8 }}
+                  message="Proyección con anualización automática"
+                  description={
+                    <div style={{ fontSize: 12 }}>
+                      Si el año <strong>{anioFuente}</strong> tuvo actividad parcial (por ejemplo, solo 6 meses),
+                      el sistema calculará el <strong>promedio mensual de los meses activos</strong> y lo distribuirá
+                      uniformemente a todos los períodos del presupuesto {form.getFieldValue('anioFiscal') ?? dayjs().year()}.
+                      Así el presupuesto refleja un año completo proyectado, no solo los meses donde hubo datos.
+                    </div>
+                  }
+                />
+              </div>
+            )}
+
+            <Divider />
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Button onClick={() => setStep(1)}>← Anterior</Button>
               <Space>
                 <Button onClick={() => navigate('/contabilidad/presupuesto')}>Cancelar</Button>
                 <Button type="primary" style={{ background: '#1faec2' }}
