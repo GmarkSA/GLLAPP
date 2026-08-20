@@ -317,11 +317,25 @@ function CardForm({
             rules={[
               { required: true, message: 'Requerido' },
               { pattern: /^(0[1-9]|1[0-2])\/\d{2}$/, message: 'Formato MM/AA' },
+              {
+                // Rechaza vencimientos en el pasado. Red de seguridad contra el
+                // autocompletado del navegador: Chrome ignora autoComplete="off" en
+                // campos de pago y puede rellenar la expiración de una tarjeta
+                // guardada de pruebas anteriores (bug del 12/25 enviado a QPayPro).
+                validator: (_, value: string) => {
+                  const m = /^(0[1-9]|1[0-2])\/(\d{2})$/.exec(value ?? '')
+                  if (!m) return Promise.resolve() // el formato lo valida la regla anterior
+                  const finDeMes = dayjs(`20${m[2]}-${m[1]}-01`).endOf('month')
+                  return finDeMes.isBefore(dayjs())
+                    ? Promise.reject('Tarjeta vencida — verifica el vencimiento (el navegador pudo autocompletar una fecha vieja)')
+                    : Promise.resolve()
+                },
+              },
             ]}
           >
             <Input
               autoComplete="off"
-              name="ccexp"
+              name="vencimiento-lucia"
               inputMode="numeric"
               placeholder="MM/AA"
               maxLength={5}
