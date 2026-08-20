@@ -9,6 +9,8 @@ import {
   WalletOutlined, BankOutlined, FileProtectOutlined,
 } from '@ant-design/icons'
 import { getEmpresaInfo } from '../../api/reportes'
+import { companiesApi } from '../../api/companies'
+import { useCompanyStore } from '../../store/companyStore'
 
 const { Title, Text } = Typography
 
@@ -149,14 +151,29 @@ export default function ReportesPage() {
   const location = useLocation()
   const isHub    = location.pathname === '/reportes' || location.pathname === '/reportes/'
 
+  const activeCompany = useCompanyStore(s => s.activeCompany)
   const [fiscalRegimeCode, setFiscalRegimeCode] = useState<string | undefined>()
 
   useEffect(() => {
     if (!isHub) return
-    getEmpresaInfo()
-      .then(e => setFiscalRegimeCode(e.fiscal_regime_code))
-      .catch(() => { /* mantiene undefined → no filtra */ })
-  }, [isHub])
+    const resolve = async () => {
+      // 1. Intentar getEmpresaInfo (backend con JOIN fiscal_regimes)
+      try {
+        const e = await getEmpresaInfo()
+        if (e.fiscal_regime_code) { setFiscalRegimeCode(e.fiscal_regime_code); return }
+      } catch { /* continúa */ }
+
+      // 2. Fallback: leer de settingsJson.fiscalRegimeCode (guardado desde EmpresaFormPage)
+      if (activeCompany?.id) {
+        try {
+          const s = await companiesApi.getSettings(activeCompany.id)
+          const code = (s.settingsJson as any)?.fiscalRegimeCode
+          if (code) { setFiscalRegimeCode(code); return }
+        } catch { /* continúa */ }
+      }
+    }
+    resolve()
+  }, [isHub, activeCompany?.id])
 
   if (!isHub) return <Outlet />
 
