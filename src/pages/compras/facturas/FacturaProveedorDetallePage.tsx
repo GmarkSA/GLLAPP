@@ -864,6 +864,16 @@ export default function FacturaProveedorDetallePage() {
 
               {journal && (
                 <>
+                  {/* Alerta de descuadre: debit ≠ credit por más de 1 centavo */}
+                  {Math.abs(Number(journal.totalDebit) - Number(journal.totalCredit)) > 0.005 && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      style={{ marginBottom: 10 }}
+                      message={`Póliza descuadrada: débito Q ${Number(journal.totalDebit).toFixed(2)} ≠ crédito Q ${Number(journal.totalCredit).toFixed(2)}`}
+                      description="Haz clic en 'Regenerar póliza' para recalcular y corregir la diferencia automáticamente."
+                    />
+                  )}
                   <Space size={8} style={{ marginBottom: 8 }}>
                     <Text style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>
                       Póliza de compra — {journal.entryNumber}
