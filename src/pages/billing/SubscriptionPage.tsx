@@ -795,7 +795,8 @@ export default function SubscriptionPage() {
     }
   }
 
-  const hasCard = !!sub?.qpayproCardToken
+  // hasCard: legacy token OR suscripción CA registrada (Cobros Automáticos usa idSuscripcionQpaypro)
+  const hasCard = !!sub?.qpayproCardToken || !!sub?.idSuscripcionQpaypro || !!sub?.idTokenTarjetaQpaypro
   const isNewSubscription = !hasCard || !sub
 
   if (loading && !state) {
