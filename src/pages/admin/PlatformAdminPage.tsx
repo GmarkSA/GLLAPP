@@ -10,6 +10,7 @@ import {
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
   SearchOutlined, MoreOutlined, PrinterOutlined, CustomerServiceOutlined,
+  SendOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import AdminSupportPanel from './AdminSupportPanel'
@@ -337,6 +338,100 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 }
 const unwrap = (r: any) => r.data?.data ?? r.data
 
+// ── Modal "Enviar demo" — crea un tenant demo e invita al prospecto por correo ──
+function EnviarDemoModal({ open, onClose, onSent }: {
+  open: boolean; onClose: () => void; onSent: () => void
+}) {
+  const [form] = Form.useForm()
+  const [templates, setTemplates] = useState<PlatformTemplate[]>([])
+  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (open) platformTemplatesApi.list().then(setTemplates).catch(() => setTemplates([]))
+  }, [open])
+
+  const handleSend = async () => {
+    let values: any
+    try { values = await form.validateFields() } catch { return }
+    try {
+      setSending(true)
+      const r: any = await api.post('/admin/demos', values).then(unwrap)
+      Modal.success({
+        title: 'Demo enviado',
+        content: (
+          <div style={{ fontSize: 13 }}>
+            <p style={{ margin: '4px 0' }}>Tenant demo: <b>{r.tenantName}</b> · {r.trialDays} días de prueba</p>
+            <p style={{ margin: '4px 0' }}>
+              Correo de invitación: {r.emailSent ? 'enviado ✅' : 'no se pudo enviar ⚠️ (verifica Resend)'}
+            </p>
+            {r.cloned && (
+              <p style={{ margin: '4px 0' }}>
+                Plantilla “{r.cloned.template}”: {r.cloned.accounts} cuentas · {r.cloned.taxes} impuestos · {r.cloned.documentSeries} series
+              </p>
+            )}
+            {r.cloneError && <p style={{ margin: '4px 0', color: '#e5484d' }}>Plantilla: {r.cloneError}</p>}
+          </div>
+        ),
+      })
+      form.resetFields()
+      onClose()
+      onSent()
+    } catch (e: any) {
+      message.error(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'No se pudo enviar el demo')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={<span><SendOutlined style={{ color: '#1faec2', marginRight: 8 }} />Enviar demo a un prospecto</span>}
+      open={open}
+      onCancel={() => { form.resetFields(); onClose() }}
+      onOk={handleSend}
+      okText="Enviar demo"
+      confirmLoading={sending}
+      width={520}
+      destroyOnClose
+    >
+      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
+        Se crea un tenant de prueba y el prospecto recibe un correo con el enlace para activar su cuenta y entrar al demo.
+      </Text>
+      <Form form={form} layout="vertical" size="small" initialValues={{ trialDays: 30 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+          <Form.Item name="firstName" label="Nombre" rules={[{ required: true, message: 'Requerido' }]}>
+            <Input placeholder="Juan" maxLength={80} />
+          </Form.Item>
+          <Form.Item name="lastName" label="Apellido">
+            <Input placeholder="García" maxLength={80} />
+          </Form.Item>
+        </div>
+        <Form.Item name="email" label="Correo del prospecto"
+          rules={[{ required: true, type: 'email', message: 'Correo válido requerido' }]}>
+          <Input placeholder="prospecto@empresa.com" />
+        </Form.Item>
+        <Form.Item name="companyName" label="Nombre de la empresa demo"
+          rules={[{ required: true, message: 'Requerido' }]}>
+          <Input placeholder="Empresa Demo S.A." maxLength={120} />
+        </Form.Item>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '0 12px' }}>
+          <Form.Item name="templateId" label="Plantilla de empresa (opcional)">
+            <Select allowClear placeholder="Empresa vacía"
+              options={templates.map(t => ({ value: t.id, label: `${t.icon || '🏢'} ${t.displayName}` }))}
+            />
+          </Form.Item>
+          <Form.Item name="trialDays" label="Días de prueba">
+            <InputNumber min={1} max={90} style={{ width: '100%' }} />
+          </Form.Item>
+        </div>
+        <Form.Item name="message" label="Mensaje personalizado (opcional — va en el correo)">
+          <Input.TextArea rows={2} maxLength={500} placeholder="Hola Juan, te preparamos este demo con los módulos que platicamos…" />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
 const PLAN_COLOR: Record<string, string> = {
   basic: 'default', professional: '#1faec2', enterprise: 'gold',
 }
@@ -579,6 +674,7 @@ export default function PlatformAdminPage() {
   const [detailOpen, setDetailOpen]   = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [seeding, setSeeding]   = useState(false)
+  const [demoOpen, setDemoOpen] = useState(false)
 
   // Filtro + búsqueda de la tabla de tenants (rediseño control)
   const [tenantFilter, setTenantFilter] = useState<'all' | 'active' | 'trial' | 'suspended'>('all')
@@ -1126,9 +1222,15 @@ export default function PlatformAdminPage() {
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>Vista global de todos los tenants y planes</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => { loadTenants(); loadPlans() }} loading={loading}>
-          Actualizar
-        </Button>
+        <Space>
+          <Button type="primary" icon={<SendOutlined />} onClick={() => setDemoOpen(true)}
+            style={{ background: '#1faec2' }}>
+            Enviar demo
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={() => { loadTenants(); loadPlans() }} loading={loading}>
+            Actualizar
+          </Button>
+        </Space>
       </div>
 
       {/* KPIs de control */}
@@ -1777,6 +1879,9 @@ export default function PlatformAdminPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Modal: Enviar demo a un prospecto */}
+      <EnviarDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} onSent={loadTenants} />
     </div>
   )
 }
