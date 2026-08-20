@@ -1,5 +1,6 @@
 import { useNavigate, Outlet, useLocation } from 'react-router-dom'
 import { Typography } from 'antd'
+import { useEffect, useState } from 'react'
 import {
   BarChartOutlined, LineChartOutlined, FundOutlined,
   AuditOutlined, RiseOutlined, AccountBookOutlined,
@@ -7,6 +8,7 @@ import {
   PieChartOutlined, DashboardOutlined, TeamOutlined,
   WalletOutlined, BankOutlined, FileProtectOutlined,
 } from '@ant-design/icons'
+import { getEmpresaInfo } from '../../api/reportes'
 
 const { Title, Text } = Typography
 
@@ -139,12 +141,31 @@ function ReportCard({ report, onClick }: { report: ReportCard; onClick: () => vo
   )
 }
 
+// Reportes que requieren Régimen General (no aplican a Pequeño Contribuyente)
+const REGIMEN_GENERAL_ONLY = new Set(['declaracion-iva', 'declaracion-isr'])
+
 export default function ReportesPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isHub    = location.pathname === '/reportes' || location.pathname === '/reportes/'
 
+  const [fiscalRegimeCode, setFiscalRegimeCode] = useState<string | undefined>()
+
+  useEffect(() => {
+    if (!isHub) return
+    getEmpresaInfo()
+      .then(e => setFiscalRegimeCode(e.fiscal_regime_code))
+      .catch(() => { /* mantiene undefined → no filtra */ })
+  }, [isHub])
+
   if (!isHub) return <Outlet />
+
+  const isPequeno = fiscalRegimeCode === 'gt_pequeno_contribuyente'
+
+  const visibleGroups = GROUPS.map(group => ({
+    ...group,
+    reports: group.reports.filter(r => !(isPequeno && REGIMEN_GENERAL_ONLY.has(r.key))),
+  })).filter(group => group.reports.length > 0)
 
   return (
     <div>
@@ -156,7 +177,7 @@ export default function ReportesPage() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-        {GROUPS.map(group => (
+        {visibleGroups.map(group => (
           <div key={group.id}>
             <div style={{
               fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
