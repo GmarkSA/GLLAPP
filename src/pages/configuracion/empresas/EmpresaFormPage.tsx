@@ -172,6 +172,16 @@ export default function EmpresaFormPage() {
     try {
       if (isEdit) {
         await companiesApi.update(id!, values)
+        // Persistir código de régimen en settingsJson para lecturas rápidas
+        if (values.fiscalRegimeId) {
+          const regime = regimes.find(r => r.id === values.fiscalRegimeId)
+          if (regime) {
+            const existing = settings?.settingsJson ?? {}
+            await companiesApi.updateSettings(id!, {
+              settingsJson: { ...existing, fiscalRegimeCode: regime.code },
+            } as any).catch(() => {})
+          }
+        }
         message.success('Empresa actualizada')
       } else {
         await companiesApi.create(values)
