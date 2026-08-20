@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Button, Table, Tag, Space, Popconfirm, message, Typography, Empty, Card,
+  Button, Table, Tag, Space, Popconfirm, message, Typography, Empty, Card, Dropdown,
 } from 'antd'
 import {
-  PlusOutlined, EyeOutlined, DeleteOutlined, CopyOutlined, FundProjectionScreenOutlined,
+  PlusOutlined, EyeOutlined, DeleteOutlined, FundProjectionScreenOutlined, MoreOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getPresupuestos, deletePresupuesto, type Budget, type BudgetStatus,
+  getPresupuestos, deletePresupuesto, updatePresupuesto, type Budget, type BudgetStatus,
   STATUS_COLOR, STATUS_LABEL,
 } from '../../../api/presupuesto'
 
@@ -33,6 +33,20 @@ export default function PresupuestosPage() {
     catch (e: any) { message.error(e?.response?.data?.message ?? 'Error al eliminar') }
   }
 
+  const handleStatus = async (id: string, status: BudgetStatus) => {
+    try { await updatePresupuesto(id, { status }); load() }
+    catch (e: any) { message.error(e?.response?.data?.message ?? 'Error al cambiar estado') }
+  }
+
+  const statusMenuItems = (r: Budget) => {
+    const items = []
+    if (r.status === 'BORRADOR') items.push({ key: 'ACTIVO',   label: '✓ Activar' })
+    if (r.status === 'ACTIVO')   items.push({ key: 'BORRADOR', label: '↩ Volver a Borrador' })
+    if (r.status === 'ACTIVO')   items.push({ key: 'CERRADO',  label: '🔒 Cerrar' })
+    if (r.status === 'CERRADO')  items.push({ key: 'ACTIVO',   label: '↩ Reabrir' })
+    return items
+  }
+
   const columns = [
     {
       title: 'Nombre', dataIndex: 'nombre',
@@ -54,7 +68,7 @@ export default function PresupuestosPage() {
       render: (v: string) => dayjs(v).format('DD/MM/YYYY'),
     },
     {
-      title: '', width: 160, align: 'right' as const,
+      title: '', width: 200, align: 'right' as const,
       render: (_: any, r: Budget) => (
         <Space>
           <Button size="small" icon={<EyeOutlined />}
@@ -65,6 +79,15 @@ export default function PresupuestosPage() {
             onClick={() => navigate(`/contabilidad/presupuesto/${r.id}/vs-real`)}>
             Vs Real
           </Button>
+          <Dropdown
+            menu={{
+              items: statusMenuItems(r),
+              onClick: ({ key }) => handleStatus(r.id, key as BudgetStatus),
+            }}
+            trigger={['click']}
+          >
+            <Button size="small" icon={<MoreOutlined />} title="Cambiar estado" />
+          </Dropdown>
           <Popconfirm title="¿Eliminar este presupuesto?" okText="Eliminar" okButtonProps={{ danger: true }}
             onConfirm={() => handleDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
