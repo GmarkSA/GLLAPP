@@ -841,8 +841,8 @@ export default function SubscriptionPage() {
         />
       )}
 
-      {/* Banner de trial */}
-      {isInTrial && (
+      {/* Banner de trial — oculto si hay cobro en proceso (ya salió del trial) */}
+      {isInTrial && !isProcesandoPago && (
         <Card
           style={{
             marginBottom: 20, borderRadius: 10,
