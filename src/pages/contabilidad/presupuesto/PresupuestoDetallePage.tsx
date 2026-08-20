@@ -13,7 +13,7 @@ import {
 import type { DataNode } from 'antd/es/tree'
 import dayjs from 'dayjs'
 import {
-  getPresupuesto, upsertLines, addCuentas, removeCuentas, prefillPresupuesto,
+  getPresupuesto, upsertLines, addCuentas, removeCuentas,
   copyPresupuesto, type Budget, type BudgetLine, type BudgetPeriodo,
   PERIODO_LABELS, STATUS_COLOR, STATUS_LABEL,
 } from '../../../api/presupuesto'
@@ -168,7 +168,6 @@ export default function PresupuestoDetallePage() {
   const [productos,    setProductos]    = useState<ProductoRow[]>([])
 
   // Modales
-  const [modalPrefill, setModalPrefill] = useState(false)
   const [modalCopy,    setModalCopy]    = useState(false)
   const [modalCuentas, setModalCuentas] = useState(false)
   const [modoCuentas,  setModoCuentas]  = useState<'add' | 'remove'>('add')
@@ -177,7 +176,6 @@ export default function PresupuestoDetallePage() {
   const [actingCuentas,  setActingCuentas]  = useState(false)
 
   // Forms de modales
-  const [prefillForm] = Form.useForm()
   const [copyForm]    = Form.useForm()
 
   const load = useCallback(async () => {
@@ -318,26 +316,6 @@ export default function PresupuestoDetallePage() {
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar')
-    } finally { setSaving(false) }
-  }
-
-  const handlePrefill = async () => {
-    try { await prefillForm.validateFields() } catch { return }
-    const vals = prefillForm.getFieldsValue()
-    setSaving(true)
-    try {
-      await prefillPresupuesto(id!, {
-        tipo:            vals.tipo,
-        valor:           vals.valor,
-        anioFuenteDatos: vals.anioFuenteDatos ?? budget.anioFiscal - 1,
-      })
-      setModalPrefill(false)
-      prefillForm.resetFields()
-      setEdited(new Map())
-      message.success('Presupuesto actualizado con datos reales')
-      load()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al rellenar')
     } finally { setSaving(false) }
   }
 
@@ -548,9 +526,6 @@ export default function PresupuestoDetallePage() {
               <Tooltip title="Agregar cuentas al presupuesto">
                 <Button size="small" icon={<PlusOutlined />} onClick={() => openModalCuentas('add')}>Agregar O Quitar Cuentas</Button>
               </Tooltip>
-              <Button size="small" icon={<ReloadOutlined />} onClick={() => setModalPrefill(true)}>
-                Rellenar previo con datos reales
-              </Button>
               <Tooltip title="Pegar valores copiados de Excel">
                 <Button size="small" icon={<FileExcelOutlined />} onClick={() => setModalExcel(true)}>
                   Pegar desde Excel
@@ -587,34 +562,6 @@ export default function PresupuestoDetallePage() {
       <Divider style={{ margin: '0 0 16px' }} />
 
       <Tabs items={tabItems} />
-
-      {/* ── Modal: Prefill desde reales ────────────────────────────────────── */}
-      <Modal
-        title="Autorrellenar con datos reales"
-        open={modalPrefill}
-        onCancel={() => { setModalPrefill(false); prefillForm.resetFields() }}
-        onOk={handlePrefill}
-        okText="Aplicar"
-        confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1faec2' } }}
-      >
-        <Form form={prefillForm} layout="vertical" size="small"
-          initialValues={{ tipo: 'FIJO', anioFuenteDatos: budget.anioFiscal - 1 }}>
-          <Form.Item name="tipo" label="Autocompletar importe por" rules={[{ required: true }]}>
-            <Select options={[
-              { label: 'Aplicar un importe fijo para cada período',          value: 'FIJO' },
-              { label: 'Importe de ajuste (real + monto fijo por período)',   value: 'AJUSTE_MONTO' },
-              { label: 'Porcentaje de ajuste (real × porcentaje de cambio)', value: 'AJUSTE_PORCENTAJE' },
-            ]} />
-          </Form.Item>
-          <Form.Item name="anioFuenteDatos" label="Año de datos reales">
-            <Select options={YEAR_OPTIONS} />
-          </Form.Item>
-          <Form.Item name="valor" label="Importe / %" rules={[{ required: true }]}>
-            <InputNumber style={{ width: '100%' }} precision={2} />
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* ── Modal: Copiar al siguiente año ────────────────────────────────── */}
       <Modal
