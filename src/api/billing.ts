@@ -39,6 +39,8 @@ export interface SubscriptionInfo {
   qpayproCardLast4?: string
   qpayproCardBrand?: string
   cardHolderName?: string
+  idSuscripcionQpaypro?: number
+  idTokenTarjetaQpaypro?: number
   cancelledAt?: string
   maxCompanies: number
 }
