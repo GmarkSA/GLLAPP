@@ -320,7 +320,7 @@ function CardForm({
             ]}
           >
             <Input
-              autoComplete="cc-exp"
+              autoComplete="off"
               name="ccexp"
               inputMode="numeric"
               placeholder="MM/AA"
