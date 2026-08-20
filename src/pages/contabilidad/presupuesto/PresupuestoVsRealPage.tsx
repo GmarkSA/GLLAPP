@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button, Typography, Spin, message, Tag, Space, Tooltip,
-  Card, Statistic, Dropdown, Switch,
+  Card, Statistic, Dropdown, Switch, Divider,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -40,32 +40,36 @@ function pctColor(pct: number | null, isExpense: boolean): string {
 }
 
 
-// ── KPI Card ─────────────────────────────────────────────────────────────────
+// ── KPI inline (compacto, sin Card propia) ───────────────────────────────────
 
-function KpiCard({ title, value, suffix, color, icon, sub }: {
+function KpiStat({ title, value, suffix, color, icon, sub, onClick, active }: {
   title: string; value: number | null; suffix?: string; color: string;
-  icon: React.ReactNode; sub?: string
+  icon: React.ReactNode; sub?: string; onClick?: () => void; active?: boolean
 }) {
   return (
-    <Card size="small" style={{ borderTop: `3px solid ${color}`, height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ fontSize: 22, color, marginTop: 2 }}>{icon}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, letterSpacing: 0.3 }}>{title}</div>
-          {value !== null ? (
-            <Statistic
-              value={value}
-              suffix={suffix}
-              precision={suffix === '%' ? 1 : 2}
-              valueStyle={{ fontSize: 20, color, lineHeight: '28px' }}
-            />
-          ) : (
-            <div style={{ fontSize: 18, color: '#9aa1ab', lineHeight: '28px' }}>—</div>
-          )}
-          {sub && <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>{sub}</div>}
-        </div>
+    <div
+      onClick={onClick}
+      style={{
+        borderLeft: `3px solid ${color}`,
+        paddingLeft: 10, paddingRight: onClick ? 10 : 0,
+        paddingTop: 2, paddingBottom: 2,
+        cursor: onClick ? 'pointer' : 'default',
+        background: active ? '#f5f0ff' : undefined,
+        borderRadius: onClick ? '0 4px 4px 0' : undefined,
+        boxShadow: active ? '0 0 0 2px #6b5b9540' : undefined,
+        transition: 'all 0.2s',
+        minWidth: 110,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
+        <span style={{ color, fontSize: 13 }}>{icon}</span>
+        <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, letterSpacing: 0.3 }}>{title}</span>
       </div>
-    </Card>
+      {value !== null
+        ? <Statistic value={value} suffix={suffix} precision={suffix === '%' ? 1 : 0} valueStyle={{ fontSize: 18, color, lineHeight: '22px' }} />
+        : <div style={{ fontSize: 16, color: '#9aa1ab', lineHeight: '22px' }}>—</div>}
+      {sub && <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>{sub}</div>}
+    </div>
   )
 }
 
@@ -638,6 +642,18 @@ export default function PresupuestoVsRealPage() {
   const ejecGlobalColor = kpis.ejecucionGlobal !== null
     ? kpis.ejecucionGlobal >= 90 ? '#2ea172' : kpis.ejecucionGlobal >= 50 ? '#d4640a' : '#e5484d'
     : '#6b7280'
+  const ytdColor   = kpis.ytdEjecucion !== null  ? (kpis.ytdEjecucion  >= 90 ? '#2ea172' : '#d4640a') : '#6b7280'
+  const margenColor = kpis.margenBruto !== null  ? (kpis.margenBruto   >= 0  ? '#1faec2' : '#e5484d') : '#6b7280'
+  const alertColor  = alertCount > 0 ? '#e5484d' : '#2ea172'
+
+  const monthlyStats = labels.map((label, i) => {
+    const p    = i + 1
+    const pres = rows.reduce((s, r) => s + (r.periodos.find(pe => pe.periodo === p)?.presupuestado ?? 0), 0)
+    const real = rows.reduce((s, r) => s + (r.periodos.find(pe => pe.periodo === p)?.real          ?? 0), 0)
+    const varianza   = real - pres
+    const ejecucion  = pres !== 0 ? (real / pres * 100) : (real > 0 ? 100 : null)
+    return { label, p, pres, real, varianza, ejecucion }
+  })
 
   const ccObj = centrosCosto.find(c => c.id === budget.centroCostoId)
   const cbObj = centrosBeneficio.find(c => c.id === budget.centroBeneficioId)
@@ -691,81 +707,91 @@ export default function PresupuestoVsRealPage() {
         </Space>
       </div>
 
-      {/* ── KPIs ──────────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: showTop5 ? 12 : 20, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 180px' }}>
-          <KpiCard
-            title="EJECUCIÓN GLOBAL"
-            value={kpis.ejecucionGlobal}
-            suffix="%"
-            color={ejecGlobalColor}
-            icon={<DashboardOutlined />}
+      {/* ── KPI Block — 5 stats compactos + strip mensual ────────────────────── */}
+      <Card size="small" bodyStyle={{ padding: '12px 16px 12px' }} style={{ marginBottom: showTop5 ? 12 : 20 }}>
+
+        {/* Fila 1: 5 KPIs compactos */}
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <KpiStat
+            title="EJECUCIÓN GLOBAL" value={kpis.ejecucionGlobal} suffix="%"
+            color={ejecGlobalColor} icon={<DashboardOutlined />}
             sub={`${fmtQ(kpis.totalReal)} de ${fmtQ(kpis.totalPresupuestado)}`}
           />
-        </div>
-        <div style={{ flex: '1 1 180px' }}>
-          <KpiCard
-            title="EJECUCIÓN YTD"
-            value={kpis.ytdEjecucion}
-            suffix="%"
-            color={kpis.ytdEjecucion !== null ? (kpis.ytdEjecucion >= 90 ? '#2ea172' : '#d4640a') : '#6b7280'}
-            icon={<RiseOutlined />}
+          <KpiStat
+            title="EJECUCIÓN YTD" value={kpis.ytdEjecucion} suffix="%"
+            color={ytdColor} icon={<RiseOutlined />}
             sub={`Hasta período ${currentPeriod} de ${periodoCount}`}
           />
-        </div>
-        <div style={{ flex: '1 1 180px' }}>
-          <KpiCard
-            title="MARGEN BRUTO"
-            value={kpis.margenBruto}
-            suffix="%"
-            color={kpis.margenBruto !== null ? (kpis.margenBruto >= 0 ? '#1faec2' : '#e5484d') : '#6b7280'}
+          <KpiStat
+            title="MARGEN BRUTO" value={kpis.margenBruto} suffix="%"
+            color={margenColor}
             icon={kpis.margenBruto !== null && kpis.margenBruto >= 0 ? <RiseOutlined /> : <FallOutlined />}
             sub="Ingresos - Gastos / Ingresos"
           />
-        </div>
-        <div style={{ flex: '1 1 180px' }}>
-          <KpiCard
-            title="ALERTAS ACTIVAS"
-            value={alertCount}
-            color={alertCount > 0 ? '#e5484d' : '#2ea172'}
+          <KpiStat
+            title="ALERTAS ACTIVAS" value={alertCount}
+            color={alertColor}
             icon={alertCount > 0 ? <ExclamationCircleOutlined /> : <CheckCircleOutlined />}
             sub={alertCount > 0 ? 'Cuentas fuera del presupuesto' : 'Todo dentro del presupuesto'}
           />
+          <KpiStat
+            title="TOP VARIACIONES" value={topVariaciones.length}
+            color="#6b5b95" icon={<BarChartOutlined />}
+            sub={showTop5 ? '▲ Ocultar detalle' : '▼ Ver cuentas más desviadas'}
+            onClick={() => setShowTop5(v => !v)} active={showTop5}
+          />
         </div>
 
-        {/* 5ª tarjeta: Top Variaciones — interactiva */}
-        <div style={{ flex: '1 1 180px' }}>
-          <Card
-            size="small"
-            onClick={() => setShowTop5(v => !v)}
-            style={{
-              borderTop: `3px solid #6b5b95`,
-              height: '100%',
-              cursor: 'pointer',
-              background: showTop5 ? '#f5f0ff' : '#fff',
-              boxShadow: showTop5 ? '0 0 0 2px #6b5b9540' : undefined,
-              transition: 'all 0.2s',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <div style={{ fontSize: 22, color: '#6b5b95', marginTop: 2 }}>
-                <BarChartOutlined />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, letterSpacing: 0.3 }}>
-                  TOP VARIACIONES
-                </div>
-                <div style={{ fontSize: 20, color: '#6b5b95', lineHeight: '28px', fontWeight: 700 }}>
-                  {topVariaciones.length}
-                </div>
-                <div style={{ fontSize: 10, color: showTop5 ? '#6b5b95' : '#6b7280', marginTop: 2, fontWeight: showTop5 ? 600 : 400 }}>
-                  {showTop5 ? '▲ Ocultar detalle' : '▼ Ver cuentas más desviadas'}
-                </div>
-              </div>
-            </div>
-          </Card>
+        <Divider style={{ margin: '10px 0 8px' }} />
+
+        {/* Fila 2: Análisis mensual */}
+        <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }}>
+          ANÁLISIS MENSUAL — EJECUCIÓN Y VARIACIÓN
         </div>
-      </div>
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ display: 'flex', minWidth: 'max-content' }}>
+            {monthlyStats.map((ms, i) => {
+              const ejecPct  = ms.ejecucion ?? 0
+              const isFuture = ms.p > currentPeriod
+              const isCurrent = ms.p === currentPeriod
+              const mc = isFuture ? '#d0d0d0'
+                : ejecPct >= 90 ? '#2ea172'
+                : ejecPct >= 50 ? '#d4640a'
+                : '#e5484d'
+              return (
+                <div key={i} style={{
+                  minWidth: 88, padding: '2px 8px', textAlign: 'center',
+                  borderRight: i < monthlyStats.length - 1 ? '1px solid rgba(10,10,10,0.07)' : undefined,
+                  background: isCurrent ? '#fafcff' : undefined,
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: isCurrent ? '#1faec2' : '#6b7280', marginBottom: 3 }}>
+                    {ms.label}{isCurrent ? ' ●' : ''}
+                  </div>
+                  {!isFuture ? (
+                    <>
+                      <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginBottom: 3, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${Math.min(Math.max(ejecPct, 0), 100)}%`,
+                          height: '100%', background: mc, borderRadius: 2, transition: 'width 0.4s ease',
+                        }} />
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: mc, lineHeight: '16px' }}>
+                        {ms.ejecucion !== null ? `${ms.ejecucion.toFixed(0)}%` : '—'}
+                      </div>
+                      <div style={{ fontSize: 9, marginTop: 1,
+                        color: ms.varianza > 0 ? '#2ea172' : ms.varianza < 0 ? '#e5484d' : '#6b7280' }}>
+                        {ms.varianza !== 0 ? `${ms.varianza > 0 ? '+' : ''}${fmtQ(ms.varianza)}` : '—'}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 11, color: '#d0d0d0', paddingTop: 6 }}>—</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </Card>
 
       {/* ── Panel Top 5 — desplegable ────────────────────────────────────────── */}
       {showTop5 && (
