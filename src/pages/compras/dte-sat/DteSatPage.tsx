@@ -128,7 +128,7 @@ export default function DteSatPage() {
   const [accountMode, setAccountMode] = useState<'expense' | 'asset' | 'all'>('expense')
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
-  type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'skipped' | 'error'
+  type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'skipped' | 'error' | 'excluded'
   interface BatchLineItem {
     descripcion?: string; description?: string
     cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string
@@ -786,7 +786,7 @@ export default function DteSatPage() {
     if (!processable.length) { message.error('Ningún DTE tiene datos completos para procesar'); return }
     setBatchRunning(true)
     for (const row of batchRows) {
-      if (row.missing) continue
+      if (row.missing || row.status === 'excluded') continue
       setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'processing' } : r))
       try {
         const dte = documents.find(d => d.id === row.id)!
@@ -1775,12 +1775,12 @@ export default function DteSatPage() {
       {(() => {
         const expenseAccounts = accounts.filter(a => !a.isHeader && a.isActive &&
           (a.code?.startsWith('6') || (a as any).type === 'expense'))
-        const allDone = batchRows.length > 0 && batchRows.every(r => r.status === 'ok' || r.status === 'skipped' || r.status === 'error' || r.missing)
+        const allDone = batchRows.length > 0 && batchRows.every(r => r.status === 'ok' || r.status === 'skipped' || r.status === 'error' || r.status === 'excluded' || r.missing)
         const canProcess = !batchRunning && batchRows.some(r => !r.missing && r.accountId && r.status === 'pending')
         return (
         <Modal
           open={batchOpen}
-          title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} /><span>Registro Masivo — {batchRows.length} documento{batchRows.length !== 1 ? 's' : ''}</span></Space>}
+          title={<Space><ThunderboltOutlined style={{ color: '#2ea172' }} /><span>Registro Masivo — {batchRows.filter(r => r.status !== 'excluded').length} documento{batchRows.filter(r => r.status !== 'excluded').length !== 1 ? 's' : ''}</span></Space>}
           width={1360}
           footer={null}
           onCancel={() => { if (!batchRunning) { setBatchOpen(false); setBatchRows([]) } }}
@@ -1812,7 +1812,7 @@ export default function DteSatPage() {
                     return (
                       <React.Fragment key={row.id}>
                         {/* Fila principal del DTE */}
-                        <tr style={{ borderBottom: lines.length > 0 ? undefined : '1px solid rgba(10,10,10,0.08)', background: row.missing ? 'rgba(255,127,0,0.10)' : undefined }}>
+                        <tr style={{ borderBottom: lines.length > 0 ? undefined : '1px solid rgba(10,10,10,0.08)', background: row.status === 'excluded' ? '#f8fafc' : row.missing ? 'rgba(255,127,0,0.10)' : undefined, opacity: row.status === 'excluded' ? 0.45 : 1 }}>
                           <td style={{ padding: '6px 10px' }}>
                             <div style={{ fontWeight: 600, fontSize: 12 }}>{row.vendorName}</div>
                             <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>{row.dteRef}</div>
@@ -1929,8 +1929,25 @@ export default function DteSatPage() {
                           </td>
                           <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
                           <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                            {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
+                            {row.status === 'pending' && !row.missing && (
+                              <Space size={2} direction="vertical" style={{ alignItems: 'center' }}>
+                                <Tag color="default" style={{ fontSize: 10, margin: 0 }}>Pendiente</Tag>
+                                <Button size="small" type="text" danger style={{ fontSize: 10, padding: '0 4px', height: 18, lineHeight: '18px' }}
+                                  onClick={() => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'excluded' } : r))}>
+                                  Excluir
+                                </Button>
+                              </Space>
+                            )}
                             {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
+                            {row.status === 'excluded'                && (
+                              <Space size={2} direction="vertical" style={{ alignItems: 'center' }}>
+                                <Tag color="default" style={{ fontSize: 10, margin: 0, textDecoration: 'line-through' }}>Excluida</Tag>
+                                <Button size="small" type="text" style={{ fontSize: 10, padding: '0 4px', height: 18, lineHeight: '18px', color: '#2ea172' }}
+                                  onClick={() => setBatchRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'pending' } : r))}>
+                                  Incluir
+                                </Button>
+                              </Space>
+                            )}
                             {row.status === 'processing'              && <Tag color="processing" style={{ fontSize: 10 }}>Procesando…</Tag>}
                             {row.status === 'ok'                      && <Tag color="success" style={{ fontSize: 10 }}>✓ {row.result}</Tag>}
                             {row.status === 'skipped'                 && <Tooltip title={row.error}><Tag color="orange" style={{ fontSize: 10 }}>↓ Ya registrada</Tag></Tooltip>}
@@ -2006,7 +2023,7 @@ export default function DteSatPage() {
                       disabled={!canProcess}
                       style={{ background: canProcess ? '#2ea172' : undefined, borderColor: canProcess ? '#2ea172' : undefined }}
                       onClick={handleBatchPost}>
-                      Registrar {batchRows.filter(r => !r.missing && r.accountId).length} DTE{batchRows.filter(r => !r.missing && r.accountId).length !== 1 ? 's' : ''}
+                      Registrar {batchRows.filter(r => !r.missing && r.accountId && r.status === 'pending').length} DTE{batchRows.filter(r => !r.missing && r.accountId && r.status === 'pending').length !== 1 ? 's' : ''}
                     </Button>
                   ) : (
                     <Button type="primary" style={{ background: '#1faec2' }}
