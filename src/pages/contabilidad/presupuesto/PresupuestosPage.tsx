@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Button, Table, Tag, Space, Popconfirm, message, Typography, Empty, Card, Dropdown,
+  Button, Table, Tag, Space, Popconfirm, message, Typography, Empty, Card,
 } from 'antd'
 import {
-  PlusOutlined, EyeOutlined, DeleteOutlined, FundProjectionScreenOutlined, MoreOutlined,
+  PlusOutlined, EyeOutlined, DeleteOutlined, FundProjectionScreenOutlined,
+  CheckCircleOutlined, LockOutlined, RollbackOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -38,14 +39,6 @@ export default function PresupuestosPage() {
     catch (e: any) { message.error(e?.response?.data?.message ?? 'Error al cambiar estado') }
   }
 
-  const statusMenuItems = (r: Budget) => {
-    const items = []
-    if (r.status === 'BORRADOR') items.push({ key: 'ACTIVO',   label: '✓ Activar' })
-    if (r.status === 'ACTIVO')   items.push({ key: 'BORRADOR', label: '↩ Volver a Borrador' })
-    if (r.status === 'ACTIVO')   items.push({ key: 'CERRADO',  label: '🔒 Cerrar' })
-    if (r.status === 'CERRADO')  items.push({ key: 'ACTIVO',   label: '↩ Reabrir' })
-    return items
-  }
 
   const columns = [
     {
@@ -68,9 +61,9 @@ export default function PresupuestosPage() {
       render: (v: string) => dayjs(v).format('DD/MM/YYYY'),
     },
     {
-      title: '', width: 200, align: 'right' as const,
+      title: '', width: 260, align: 'right' as const,
       render: (_: any, r: Budget) => (
-        <Space>
+        <Space size={4}>
           <Button size="small" icon={<EyeOutlined />}
             onClick={() => navigate(`/contabilidad/presupuesto/${r.id}`)}>
             Editar
@@ -79,15 +72,24 @@ export default function PresupuestosPage() {
             onClick={() => navigate(`/contabilidad/presupuesto/${r.id}/vs-real`)}>
             Vs Real
           </Button>
-          <Dropdown
-            menu={{
-              items: statusMenuItems(r),
-              onClick: ({ key }) => handleStatus(r.id, key as BudgetStatus),
-            }}
-            trigger={['click']}
-          >
-            <Button size="small" icon={<MoreOutlined />} title="Cambiar estado" />
-          </Dropdown>
+          {r.status === 'BORRADOR' && (
+            <Button size="small" icon={<CheckCircleOutlined />} style={{ color: '#16a34a', borderColor: '#16a34a' }}
+              onClick={() => handleStatus(r.id, 'ACTIVO')}>
+              Activar
+            </Button>
+          )}
+          {r.status === 'ACTIVO' && (
+            <Button size="small" icon={<LockOutlined />}
+              onClick={() => handleStatus(r.id, 'CERRADO')}>
+              Cerrar
+            </Button>
+          )}
+          {(r.status === 'CERRADO') && (
+            <Button size="small" icon={<RollbackOutlined />}
+              onClick={() => handleStatus(r.id, 'ACTIVO')}>
+              Reabrir
+            </Button>
+          )}
           <Popconfirm title="¿Eliminar este presupuesto?" okText="Eliminar" okButtonProps={{ danger: true }}
             onConfirm={() => handleDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
