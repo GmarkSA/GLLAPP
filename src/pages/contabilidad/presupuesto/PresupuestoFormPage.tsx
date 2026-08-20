@@ -208,15 +208,21 @@ export default function PresupuestoFormPage() {
 
       if (proyeccion === 'inteligente') {
         const pct = crecimientoCustom ?? crecimiento
-        await prefillPresupuesto(budget.id, {
-          tipo:            'AJUSTE_PORCENTAJE',
-          valor:           pct,
-          anioFuenteDatos: anioFuente,
-          anualizar:       true,
-        }).catch(() => {
+        try {
+          const result = await prefillPresupuesto(budget.id, {
+            tipo:            'AJUSTE_PORCENTAJE',
+            valor:           pct,
+            anioFuenteDatos: anioFuente,
+            anualizar:       true,
+          })
+          if ((result as any)?.filledCount > 0) {
+            message.success(`Presupuesto creado con proyección +${pct}% desde ${anioFuente} (${(result as any).filledCount} cuentas)`)
+          } else {
+            message.warning(`Presupuesto creado, pero no hay movimientos en ${anioFuente}. Las cuentas quedaron en Q 0.00 — puedes ingresar los montos manualmente.`)
+          }
+        } catch {
           message.warning('Presupuesto creado, pero no se pudo aplicar la proyección automática. Puedes rellenarlo manualmente.')
-        })
-        message.success(`Presupuesto creado con proyección +${pct}% desde ${anioFuente}`)
+        }
       } else {
         message.success('Presupuesto creado')
       }
