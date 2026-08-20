@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button, Typography, Spin, message, Tag, Space, Tooltip,
-  Card, Statistic, Dropdown, Switch, Divider,
+  Card, Statistic, Dropdown, Switch,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -710,85 +710,91 @@ export default function PresupuestoVsRealPage() {
       {/* ── KPI Block — 5 stats compactos + strip mensual ────────────────────── */}
       <Card size="small" bodyStyle={{ padding: '12px 16px 12px' }} style={{ marginBottom: showTop5 ? 12 : 20 }}>
 
-        {/* Fila 1: 5 KPIs compactos */}
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <KpiStat
-            title="EJECUCIÓN GLOBAL" value={kpis.ejecucionGlobal} suffix="%"
-            color={ejecGlobalColor} icon={<DashboardOutlined />}
-            sub={`${fmtQ(kpis.totalReal)} de ${fmtQ(kpis.totalPresupuestado)}`}
-          />
-          <KpiStat
-            title="EJECUCIÓN YTD" value={kpis.ytdEjecucion} suffix="%"
-            color={ytdColor} icon={<RiseOutlined />}
-            sub={`Hasta período ${currentPeriod} de ${periodoCount}`}
-          />
-          <KpiStat
-            title="MARGEN BRUTO" value={kpis.margenBruto} suffix="%"
-            color={margenColor}
-            icon={kpis.margenBruto !== null && kpis.margenBruto >= 0 ? <RiseOutlined /> : <FallOutlined />}
-            sub="Ingresos - Gastos / Ingresos"
-          />
-          <KpiStat
-            title="ALERTAS ACTIVAS" value={alertCount}
-            color={alertColor}
-            icon={alertCount > 0 ? <ExclamationCircleOutlined /> : <CheckCircleOutlined />}
-            sub={alertCount > 0 ? 'Cuentas fuera del presupuesto' : 'Todo dentro del presupuesto'}
-          />
-          <KpiStat
-            title="TOP VARIACIONES" value={topVariaciones.length}
-            color="#6b5b95" icon={<BarChartOutlined />}
-            sub={showTop5 ? '▲ Ocultar detalle' : '▼ Ver cuentas más desviadas'}
-            onClick={() => setShowTop5(v => !v)} active={showTop5}
-          />
-        </div>
-
-        <Divider style={{ margin: '10px 0 8px' }} />
-
-        {/* Fila 2: Análisis mensual */}
-        <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }}>
-          ANÁLISIS MENSUAL — EJECUCIÓN Y VARIACIÓN
-        </div>
+        {/* Una sola línea: 5 KPIs + separador + 12 meses */}
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'flex', minWidth: 'max-content' }}>
-            {monthlyStats.map((ms, i) => {
-              const ejecPct  = ms.ejecucion ?? 0
-              const isFuture = ms.p > currentPeriod
-              const isCurrent = ms.p === currentPeriod
-              const mc = isFuture ? '#d0d0d0'
-                : ejecPct >= 90 ? '#2ea172'
-                : ejecPct >= 50 ? '#d4640a'
-                : '#e5484d'
-              return (
-                <div key={i} style={{
-                  minWidth: 88, padding: '2px 8px', textAlign: 'center',
-                  borderRight: i < monthlyStats.length - 1 ? '1px solid rgba(10,10,10,0.07)' : undefined,
-                  background: isCurrent ? '#fafcff' : undefined,
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: isCurrent ? '#1faec2' : '#6b7280', marginBottom: 3 }}>
-                    {ms.label}{isCurrent ? ' ●' : ''}
+          <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 'max-content', gap: 0 }}>
+
+            {/* 5 KPIs compactos */}
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexShrink: 0 }}>
+              <KpiStat
+                title="EJECUCIÓN GLOBAL" value={kpis.ejecucionGlobal} suffix="%"
+                color={ejecGlobalColor} icon={<DashboardOutlined />}
+                sub={`${fmtQ(kpis.totalReal)} de ${fmtQ(kpis.totalPresupuestado)}`}
+              />
+              <KpiStat
+                title="EJECUCIÓN YTD" value={kpis.ytdEjecucion} suffix="%"
+                color={ytdColor} icon={<RiseOutlined />}
+                sub={`Hasta período ${currentPeriod} de ${periodoCount}`}
+              />
+              <KpiStat
+                title="MARGEN BRUTO" value={kpis.margenBruto} suffix="%"
+                color={margenColor}
+                icon={kpis.margenBruto !== null && kpis.margenBruto >= 0 ? <RiseOutlined /> : <FallOutlined />}
+                sub="Ingresos - Gastos / Ingresos"
+              />
+              <KpiStat
+                title="ALERTAS ACTIVAS" value={alertCount}
+                color={alertColor}
+                icon={alertCount > 0 ? <ExclamationCircleOutlined /> : <CheckCircleOutlined />}
+                sub={alertCount > 0 ? 'Cuentas fuera del presupuesto' : 'Todo dentro del presupuesto'}
+              />
+              <KpiStat
+                title="TOP VARIACIONES" value={topVariaciones.length}
+                color="#6b5b95" icon={<BarChartOutlined />}
+                sub={showTop5 ? '▲ Ocultar detalle' : '▼ Ver cuentas más desviadas'}
+                onClick={() => setShowTop5(v => !v)} active={showTop5}
+              />
+            </div>
+
+            {/* Separador vertical */}
+            <div style={{
+              width: 1, alignSelf: 'stretch', minHeight: 58,
+              background: 'rgba(10,10,10,0.1)', margin: '0 16px', flexShrink: 0,
+            }} />
+
+            {/* 12 meses */}
+            <div style={{ display: 'flex', flexShrink: 0 }}>
+              {monthlyStats.map((ms, i) => {
+                const ejecPct   = ms.ejecucion ?? 0
+                const isFuture  = ms.p > currentPeriod
+                const isCurrent = ms.p === currentPeriod
+                const mc = isFuture ? '#d0d0d0'
+                  : ejecPct >= 90 ? '#2ea172'
+                  : ejecPct >= 50 ? '#d4640a'
+                  : '#e5484d'
+                return (
+                  <div key={i} style={{
+                    minWidth: 82, padding: '2px 6px', textAlign: 'center',
+                    borderRight: i < monthlyStats.length - 1 ? '1px solid rgba(10,10,10,0.07)' : undefined,
+                    background: isCurrent ? '#fafcff' : undefined,
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: isCurrent ? '#1faec2' : '#6b7280', marginBottom: 3 }}>
+                      {ms.label}{isCurrent ? ' ●' : ''}
+                    </div>
+                    {!isFuture ? (
+                      <>
+                        <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginBottom: 3, overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${Math.min(Math.max(ejecPct, 0), 100)}%`,
+                            height: '100%', background: mc, borderRadius: 2, transition: 'width 0.4s ease',
+                          }} />
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: mc, lineHeight: '16px' }}>
+                          {ms.ejecucion !== null ? `${ms.ejecucion.toFixed(0)}%` : '—'}
+                        </div>
+                        <div style={{ fontSize: 9, marginTop: 1,
+                          color: ms.varianza > 0 ? '#2ea172' : ms.varianza < 0 ? '#e5484d' : '#6b7280' }}>
+                          {ms.varianza !== 0 ? `${ms.varianza > 0 ? '+' : ''}${fmtQ(ms.varianza)}` : '—'}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 11, color: '#d0d0d0', paddingTop: 6 }}>—</div>
+                    )}
                   </div>
-                  {!isFuture ? (
-                    <>
-                      <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginBottom: 3, overflow: 'hidden' }}>
-                        <div style={{
-                          width: `${Math.min(Math.max(ejecPct, 0), 100)}%`,
-                          height: '100%', background: mc, borderRadius: 2, transition: 'width 0.4s ease',
-                        }} />
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: mc, lineHeight: '16px' }}>
-                        {ms.ejecucion !== null ? `${ms.ejecucion.toFixed(0)}%` : '—'}
-                      </div>
-                      <div style={{ fontSize: 9, marginTop: 1,
-                        color: ms.varianza > 0 ? '#2ea172' : ms.varianza < 0 ? '#e5484d' : '#6b7280' }}>
-                        {ms.varianza !== 0 ? `${ms.varianza > 0 ? '+' : ''}${fmtQ(ms.varianza)}` : '—'}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 11, color: '#d0d0d0', paddingTop: 6 }}>—</div>
-                  )}
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+
           </div>
         </div>
       </Card>
