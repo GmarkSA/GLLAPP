@@ -741,7 +741,8 @@ export default function SubscriptionPage() {
 
   const exchangeRate = rateInfo.rate
   const sub = state?.subscription
-  const activePlan = sub?.status === 'active' ? sub.plan : undefined
+  const activePlan        = sub?.status === 'active' ? sub.plan : undefined
+  const isProcesandoPago  = sub?.status === 'procesando_pago'
 
   const handleSelectPlan = (plan: PlanConfig) => {
     if (!sub?.qpayproCardToken && Number(plan.priceMonthly) > 0) {
@@ -820,6 +821,26 @@ export default function SubscriptionPage() {
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      {/* Banner: suscripción en proceso de confirmación de pago */}
+      {isProcesandoPago && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<SyncOutlined spin />}
+          style={{ marginBottom: 20, borderRadius: 10 }}
+          message="Primer cobro en proceso"
+          description={
+            <>
+              Tu suscripción está activa en QPayPro. El cobro se procesa automáticamente a las 00:00 del día
+              correspondiente. En cuanto se confirme, tu comprobante y factura electrónica aparecerán aquí.{' '}
+              <Button size="small" type="link" style={{ padding: 0 }} onClick={load}>
+                Actualizar estado
+              </Button>
+            </>
+          }
+        />
+      )}
+
       {/* Banner de trial */}
       {isInTrial && (
         <Card
@@ -1011,7 +1032,7 @@ export default function SubscriptionPage() {
         ) : null}
       </Modal>
 
-      {/* Cancelar suscripción — solo si hay una suscripción activa con tarjeta registrada */}
+      {/* Cancelar suscripción — si hay suscripción activa o en proceso */}
       {sub && hasCard && sub.status !== 'cancelled' && (
         <Card
           style={{ marginTop: 24, borderRadius: 10, borderColor: '#ffccc7', background: '#fff7f6' }}
