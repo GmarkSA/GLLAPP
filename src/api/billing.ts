@@ -6,7 +6,7 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 
 export type BillingCurrency = 'USD' | 'GTQ'
 export type CardType = 'visa' | 'mastercard'
-export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
+export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing' | 'procesando_pago'
 export type PaymentResult = 'approved' | 'declined' | 'pending' | 'error'
 
 export interface PlanConfig {
