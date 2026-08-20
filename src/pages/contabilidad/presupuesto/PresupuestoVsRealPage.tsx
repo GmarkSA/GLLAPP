@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button, Typography, Spin, message, Tag, Space, Tooltip,
-  Card, Statistic, Dropdown,
+  Card, Statistic, Dropdown, Switch,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -212,7 +212,8 @@ export default function PresupuestoVsRealPage() {
   const [loading,          setLoading]          = useState(true)
   const [centrosCosto,     setCentrosCosto]     = useState<CentroCosto[]>([])
   const [centrosBeneficio, setCentrosBeneficio] = useState<CentroBeneficio[]>([])
-  const [showTop5,         setShowTop5]         = useState(false)
+  const [showTop5,            setShowTop5]            = useState(false)
+  const [soloConMovimiento,   setSoloConMovimiento]   = useState(false)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -369,6 +370,9 @@ export default function PresupuestoVsRealPage() {
   const otherRows   = rows.filter(r => !['income', 'expense', 'contra'].includes(r.accountType?.toLowerCase() ?? ''))
 
   const renderSection = (title: string, sectionRows: BudgetVsRealRow[], accentColor: string, isExp: boolean) => {
+    if (soloConMovimiento) {
+      sectionRows = sectionRows.filter(r => r.totalReal !== 0 || r.totalPresupuestado !== 0)
+    }
     if (!sectionRows.length) return null
 
     const totPres    = sectionRows.reduce((s, r) => s + r.totalPresupuestado, 0)
@@ -771,6 +775,12 @@ export default function PresupuestoVsRealPage() {
         </div>
       )}
 
+
+      {/* ── Filtro ───────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <Switch size="small" checked={soloConMovimiento} onChange={setSoloConMovimiento} />
+        <Text style={{ fontSize: 11, color: '#6b7280' }}>Solo con movimiento</Text>
+      </div>
 
       {/* ── Tablas por sección ────────────────────────────────────────────────── */}
       {renderSection('Ingresos',  incomeRows,  '#1faec2', false)}
