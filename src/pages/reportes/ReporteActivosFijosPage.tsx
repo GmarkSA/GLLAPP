@@ -2,16 +2,18 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Select, Table, Tag, Typography, Statistic, Card,
-  Divider, Row, Col, Modal, Form, Input, message, Space,
+  Divider, Row, Col, Modal, Form, Input, message, Space, Tabs,
 } from 'antd'
 import {
   AppstoreOutlined, PrinterOutlined, FileExcelOutlined, FilePdfOutlined, MailOutlined, FilterOutlined, ArrowLeftOutlined,
+  TableOutlined, CalendarOutlined,
 } from '@ant-design/icons'
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
-import { getActivosFijos, type ActivoFijo, type EstadoActivoFijo } from '../../api/activos-fijos'
+import { getActivosFijos, getHistorialDepreciacionTodos, type ActivoFijo, type EstadoActivoFijo, type HistorialDepreciacion } from '../../api/activos-fijos'
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../api/clases-activo-fijo'
 import { useCentrosOptions } from '../../components/SelectorDimensionesAnaliticas'
+import CedulaDepreciacion from './CedulaDepreciacion'
 
 const { Title, Text } = Typography
 
@@ -55,6 +57,7 @@ export default function ReporteActivosFijosPage() {
   const navigate = useNavigate()
   const [activos,  setActivos]  = useState<ActivoFijo[]>([])
   const [clases,   setClases]   = useState<ClaseActivoFijo[]>([])
+  const [historial, setHistorial] = useState<HistorialDepreciacion[]>([])
   const [loading,  setLoading]  = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [emailForm] = Form.useForm()
@@ -68,10 +71,11 @@ export default function ReporteActivosFijosPage() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([getActivosFijos({ limit: 9999 }), getClasesActivoFijo()])
-      .then(([af, cl]) => {
+    Promise.all([getActivosFijos({ limit: 9999 }), getClasesActivoFijo(), getHistorialDepreciacionTodos().catch(() => [])])
+      .then(([af, cl, hist]) => {
         setActivos(Array.isArray(af?.data) ? af.data : [])
         setClases(cl)
+        setHistorial(Array.isArray(hist) ? hist : [])
       }).finally(() => setLoading(false))
   }, [])
 
@@ -481,7 +485,14 @@ export default function ReporteActivosFijosPage() {
         )}
       </div>
 
-      {/* ── Tabla ────────────────────────────────────────────────────────────── */}
+      {/* ── Contenido: Resumen / Cédula por período fiscal ──────────────────── */}
+      <Tabs
+        defaultActiveKey="resumen"
+        items={[
+          {
+            key: 'resumen',
+            label: <span><TableOutlined /> Resumen</span>,
+            children: (
       <Table<TableRow>
         dataSource={tableRows}
         columns={columns}
@@ -520,6 +531,15 @@ export default function ReporteActivosFijosPage() {
             </Table.Summary.Row>
           </Table.Summary>
         )}
+      />
+            ),
+          },
+          {
+            key: 'cedula',
+            label: <span><CalendarOutlined /> Cédula por período fiscal</span>,
+            children: <CedulaDepreciacion activos={filtered} historial={historial} loading={loading} />,
+          },
+        ]}
       />
 
       {/* ── Modal: Enviar correo ─────────────────────────────────────────────── */}

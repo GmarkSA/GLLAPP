@@ -81,6 +81,10 @@ export const getActivoFijo = (id: string) =>
 export const getHistorialDepreciacion = (id: string) =>
   api.get(`${BASE}/${id}/historial`).then(unwrap) as Promise<HistorialDepreciacion[]>
 
+/** Historial de depreciación de TODOS los activos (cédula por período fiscal). */
+export const getHistorialDepreciacionTodos = () =>
+  api.get(`${BASE}/reporte/historial-todos`).then(unwrap) as Promise<HistorialDepreciacion[]>
+
 export const crearActivoFijo = (dto: {
   name: string; description?: string; claseActivoFijoId?: string;
   acquisitionDate: string; originalCost: number; salvageValue?: number;
