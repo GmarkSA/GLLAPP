@@ -184,7 +184,8 @@ export default function PresupuestoFormPage() {
     try { await form.validateFields() } catch { return }
     const vals = form.getFieldsValue(true)   // true = incluir campos de steps no montados
     const año  = vals.anioFiscal
-    const cuentaIds = [...selectedIngresos, ...selectedGastos, ...(incluirBalance ? selectedOtras : [])]
+    const incluyeBalance = vals.incluirBalanceGeneral ?? false
+    const cuentaIds = [...selectedIngresos, ...selectedGastos, ...(incluyeBalance ? selectedOtras : [])]
 
     if (!cuentaIds.length) {
       message.warning('Seleccione al menos una cuenta de ingresos o gastos')
@@ -199,7 +200,7 @@ export default function PresupuestoFormPage() {
         fechaInicio:          `${año}-01-01`,
         fechaFin:             `${año}-12-31`,
         periodo:              vals.periodo,
-        incluirBalanceGeneral: form.getFieldValue('incluirBalanceGeneral') ?? false,
+        incluirBalanceGeneral: incluyeBalance,
         cuentaIds,
         centroCostoId:     vals.centroCostoId     ?? null,
         centroBeneficioId: vals.centroBeneficioId ?? null,

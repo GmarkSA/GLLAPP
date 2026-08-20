@@ -372,16 +372,15 @@ export default function PresupuestoDetallePage() {
   // ── Render tabla ────────────────────────────────────────────────────────────
 
   const renderTable = (filterType: 'income' | 'expense' | 'other') => {
-    const typeMap: Record<typeof filterType, string[]> = {
-      income:  ['income', 'INCOME'],
-      expense: ['expense', 'EXPENSE', 'contra', 'CONTRA'],
-      other:   ['asset', 'ASSET', 'liability', 'LIABILITY', 'equity', 'EQUITY'],
-    }
-    const allowed = typeMap[filterType]
+    const incomeTypes  = ['income', 'INCOME', 'other_income', 'OTHER_INCOME']
+    const expenseTypes = ['expense', 'EXPENSE', 'contra', 'CONTRA', 'operating_expense', 'other_expense', 'OPERATING_EXPENSE', 'OTHER_EXPENSE']
 
     const rows = [...accountMap.entries()].filter(([, info]) => {
-      if (!info.type) return filterType === 'other'
-      return allowed.includes(info.type)
+      const t = info.type ?? ''
+      if (filterType === 'income')  return incomeTypes.includes(t) || (!t && false)
+      if (filterType === 'expense') return expenseTypes.includes(t)
+      // 'other': todo lo que no es ingreso ni gasto (activo, pasivo, capital, sin tipo)
+      return !incomeTypes.includes(t) && !expenseTypes.includes(t)
     })
 
     if (!rows.length) return <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Sin cuentas en esta sección. Agrega cuentas con el botón "Agregar O Quitar Cuentas".</div>
