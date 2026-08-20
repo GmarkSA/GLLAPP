@@ -177,7 +177,13 @@ export default function CategorizarDrawer({
     }
   }
 
+  const hasUnresolvedRemainder = resultado !== null && overpayAmount > 0.005 && !overpayDone
+
   const handleClose = () => {
+    if (hasUnresolvedRemainder) {
+      message.warning(`Registra la diferencia de ${moneyFmt(overpayAmount, account?.currency)} antes de cerrar.`)
+      return
+    }
     if (resultado) onSaved()
     onClose()
   }
@@ -1055,7 +1061,11 @@ export default function CategorizarDrawer({
             <Alert type="info" message="La póliza contable se procesará en segundo plano." style={{ marginBottom: 16 }} />
           ) : null}
 
-          <Button type="primary" block style={{ background: NAVY }} onClick={handleClose}>Cerrar</Button>
+          <Tooltip title={hasUnresolvedRemainder ? `Registra la diferencia de ${moneyFmt(overpayAmount, account?.currency)} antes de cerrar` : undefined}>
+            <Button type="primary" block style={{ background: NAVY }} onClick={handleClose} disabled={hasUnresolvedRemainder}>
+              Cerrar
+            </Button>
+          </Tooltip>
         </div>
 
       ) : (
