@@ -128,7 +128,7 @@ export default function BalanzaPage() {
               size="small"
               dataSource={filtered}
               rowKey="id"
-              scroll={{ x: "max-content", y: "calc(100vh - 300px)", y: 'calc(100vh - 440px)' }}
+              scroll={{ x: "max-content", y: "calc(100vh - 332px)" }}
               pagination={{ pageSize: 50, showTotal: t => `${t} cuentas`, showSizeChanger: false }}
               summary={() => (
                 <Table.Summary fixed>
