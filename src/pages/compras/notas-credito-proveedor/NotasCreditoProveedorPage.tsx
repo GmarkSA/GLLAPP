@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
-  message, Tabs, Tooltip,
+  message, Tabs, Tooltip, Drawer, InputNumber, Divider, Badge, Select,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, FileTextOutlined,
-  EyeOutlined, StopOutlined, DeleteOutlined,
+  EyeOutlined, StopOutlined, DeleteOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -28,6 +28,32 @@ const STATUS_TABS = [
   { key: 'voided',  label: 'Anulada'  },
 ]
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface NcpAdFilters {
+  filterVendor?: string
+  filterVendorTaxId?: string
+  filterInvoiceNumber?: string
+  filterStatus?: string[]
+  filterCurrency?: string[]
+  filterTotalMin?: number | null
+  filterTotalMax?: number | null
+}
+
+const NCP_EMPTY: NcpAdFilters = {}
+
+function applyNcpFilters(data: PurchaseInvoice[], f: NcpAdFilters): PurchaseInvoice[] {
+  return data.filter(r => {
+    if (f.filterVendor && !r.vendorName?.toLowerCase().includes(f.filterVendor.toLowerCase())) return false
+    if (f.filterVendorTaxId && !r.vendorTaxId?.toLowerCase().includes(f.filterVendorTaxId.toLowerCase())) return false
+    if (f.filterInvoiceNumber && !r.invoiceNumber?.toLowerCase().includes(f.filterInvoiceNumber.toLowerCase())) return false
+    if (f.filterStatus?.length && !f.filterStatus.includes(r.status ?? '')) return false
+    if (f.filterCurrency?.length && !f.filterCurrency.includes(r.currency ?? 'GTQ')) return false
+    if (f.filterTotalMin != null && Number(r.total ?? 0) < f.filterTotalMin) return false
+    if (f.filterTotalMax != null && Number(r.total ?? 0) > f.filterTotalMax) return false
+    return true
+  })
+}
+
 export default function NotasCreditoProveedorPage() {
   const navigate = useNavigate()
   const [data,      setData]      = useState<PurchaseInvoice[]>([])
@@ -36,6 +62,19 @@ export default function NotasCreditoProveedorPage() {
   const [search,    setSearch]    = useState('')
   const [statusTab, setStatusTab] = useState('all')
   const [page,      setPage]      = useState(1)
+
+  // Filtros avanzados
+  const [ncpFilters,    setNcpFilters]    = useState<NcpAdFilters>(NCP_EMPTY)
+  const [ncpDraft,      setNcpDraft]      = useState<NcpAdFilters>(NCP_EMPTY)
+  const [ncpFilterOpen, setNcpFilterOpen] = useState(false)
+
+  const activeCount = useMemo(() =>
+    Object.entries(ncpFilters).filter(([, v]) =>
+      v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+    ).length
+  , [ncpFilters])
+
+  const filteredData = useMemo(() => applyNcpFilters(data, ncpFilters), [data, ncpFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -67,19 +106,26 @@ export default function NotasCreditoProveedorPage() {
     catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo eliminar') }
   }
 
+  const openFilters = () => { setNcpDraft(ncpFilters); setNcpFilterOpen(true) }
+  const applyFilters = () => { setNcpFilters(ncpDraft); setNcpFilterOpen(false) }
+  const clearFilters = () => { setNcpDraft(NCP_EMPTY); setNcpFilters(NCP_EMPTY) }
+
   const columns: ColumnsType<PurchaseInvoice> = [
     {
       title: '# Nota', dataIndex: 'invoiceNumber', width: 150, fixed: 'left',
+      sorter: (a, b) => (a.invoiceNumber ?? '').localeCompare(b.invoiceNumber ?? ''),
       render: (v: string) => <Text strong style={{ color: '#1faec2', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>,
     },
     {
       title: '# Doc. Proveedor', dataIndex: 'vendorInvoiceNumber', width: 150,
+      sorter: (a, b) => (a.vendorInvoiceNumber ?? '').localeCompare(b.vendorInvoiceNumber ?? ''),
       render: (v: string) => v
         ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>
         : <Text type="secondary">—</Text>,
     },
     {
       title: 'Proveedor', width: 210,
+      sorter: (a, b) => (a.vendorName ?? '').localeCompare(b.vendorName ?? ''),
       render: (_: any, r: PurchaseInvoice) => (
         <div>
           <div style={{ fontWeight: 600, fontSize: 13 }}>{r.vendorName}</div>
@@ -89,18 +135,23 @@ export default function NotasCreditoProveedorPage() {
     },
     {
       title: 'Fecha', dataIndex: 'invoiceDate', width: 105,
+      defaultSortOrder: 'descend' as const,
+      sorter: (a, b) => (a.invoiceDate ?? '').localeCompare(b.invoiceDate ?? ''),
       render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : '—',
     },
     {
       title: 'Serie FEL', dataIndex: 'felSerie', width: 90,
+      sorter: (a, b) => (a.felSerie ?? '').localeCompare(b.felSerie ?? ''),
       render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</span>,
     },
     {
       title: 'No. SAT', dataIndex: 'felNumber', width: 110,
+      sorter: (a, b) => (a.felNumber ?? '').localeCompare(b.felNumber ?? ''),
       render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</span>,
     },
     {
       title: 'Monto', dataIndex: 'total', width: 130, align: 'right',
+      sorter: (a, b) => Number(a.total ?? 0) - Number(b.total ?? 0),
       render: (v: number, r: PurchaseInvoice) => {
         const cur = r.currency ?? 'GTQ'
         if (cur !== 'GTQ' && Number(r.exchangeRate) > 1) {
@@ -121,6 +172,7 @@ export default function NotasCreditoProveedorPage() {
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
+      sorter: (a, b) => (a.status ?? '').localeCompare(b.status ?? ''),
       render: (v: BillStatus) => {
         const cfg = BILL_STATUS_CONFIG[v]
         return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>
@@ -178,7 +230,7 @@ export default function NotasCreditoProveedorPage() {
           items={STATUS_TABS.map(t => ({ key: t.key, label: t.label }))}
           style={{ marginBottom: 0 }}
           tabBarExtraContent={
-            <div style={{ paddingBottom: 8 }}>
+            <Space wrap style={{ paddingBottom: 8 }}>
               <Input
                 placeholder="Buscar número, proveedor, serie FEL..."
                 prefix={<SearchOutlined style={{ color: '#bbb' }} />}
@@ -188,7 +240,17 @@ export default function NotasCreditoProveedorPage() {
                 allowClear
                 size="small"
               />
-            </div>
+              <Badge count={activeCount} size="small">
+                <Button
+                  size="small"
+                  icon={<FilterOutlined />}
+                  onClick={openFilters}
+                  style={activeCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}
+                >
+                  Filtros
+                </Button>
+              </Badge>
+            </Space>
           }
         />
       </Card>
@@ -200,10 +262,11 @@ export default function NotasCreditoProveedorPage() {
       >
         <Table
           columns={columns}
-          dataSource={data}
+          dataSource={filteredData}
           rowKey="id"
           loading={loading}
           size="middle"
+          showSorterTooltip={false}
           scroll={{ x: 1050 }}
           onRow={r => ({ onDoubleClick: () => navigate(`/compras/notas-credito-proveedor/${r.id}`) })}
           rowClassName={r => r.status === 'voided' ? 'row-void' : ''}
@@ -218,6 +281,52 @@ export default function NotasCreditoProveedorPage() {
           locale={{ emptyText: 'Sin notas de crédito de proveedor' }}
         />
       </Card>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title="Filtros avanzados"
+        placement="right"
+        width={360}
+        open={ncpFilterOpen}
+        onClose={() => setNcpFilterOpen(false)}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={clearFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyFilters}>Aplicar</Button>
+          </Space>
+        }
+      >
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Proveedor</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Input placeholder="Nombre proveedor" size="small" value={ncpDraft.filterVendor ?? ''} onChange={e => setNcpDraft(d => ({ ...d, filterVendor: e.target.value || undefined }))} allowClear />
+          <Input placeholder="NIT proveedor" size="small" value={ncpDraft.filterVendorTaxId ?? ''} onChange={e => setNcpDraft(d => ({ ...d, filterVendorTaxId: e.target.value || undefined }))} allowClear />
+          <Input placeholder="# Nota de crédito" size="small" value={ncpDraft.filterInvoiceNumber ?? ''} onChange={e => setNcpDraft(d => ({ ...d, filterInvoiceNumber: e.target.value || undefined }))} allowClear />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Clasificación</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Select
+            mode="multiple" size="small" placeholder="Estado"
+            value={ncpDraft.filterStatus ?? []}
+            onChange={v => setNcpDraft(d => ({ ...d, filterStatus: v.length ? v : undefined }))}
+            allowClear style={{ width: '100%' }}
+            options={Object.entries(BILL_STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+          />
+          <Select
+            mode="multiple" size="small" placeholder="Moneda"
+            value={ncpDraft.filterCurrency ?? []}
+            onChange={v => setNcpDraft(d => ({ ...d, filterCurrency: v.length ? v : undefined }))}
+            allowClear style={{ width: '100%' }}
+            options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]}
+          />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Monto</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={ncpDraft.filterTotalMin ?? null} onChange={v => setNcpDraft(d => ({ ...d, filterTotalMin: v ?? null }))} min={0} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={ncpDraft.filterTotalMax ?? null} onChange={v => setNcpDraft(d => ({ ...d, filterTotalMax: v ?? null }))} min={0} prefix="Q" />
+        </div>
+      </Drawer>
 
       <style>{`.row-void td { opacity: 0.45; text-decoration: line-through; }`}</style>
     </div>
