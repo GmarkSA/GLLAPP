@@ -15,7 +15,7 @@ import dayjs from 'dayjs'
 
 import {
   createInvoice, updateInvoice, getInvoice, emitirFelInvoice,
-  FEL_TIPOS_DOCUMENTO, FEL_TIPOS_FRASE, INCOTERMS, felTiposParaRegimen,
+  FEL_TIPOS_DOCUMENTO, FEL_TIPOS_FRASE, FEL_FRASES_FESP, INCOTERMS, felTiposParaRegimen,
   type CreateInvoiceDto, type FelFrase,
 } from '../../../api/facturas'
 import { companyIntegrationsApi } from '../../../api/companyIntegrations'
@@ -76,6 +76,8 @@ export default function FacturaFormPage() {
   const [isrWasZeroOnLoad, setIsrWasZeroOnLoad] = useState(false)
   const [editingIsr, setEditingIsr] = useState(false)
   const [customerNit, setCustomerNit] = useState<string>('')
+  // FESP — Factura Especial (IVA retenido = 12% de base, auto-calculado)
+  const [fespFraseSelected, setFespFraseSelected] = useState<number | null>(null) // codigoEscenario de la frase tipo 4
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -146,6 +148,9 @@ export default function FacturaFormPage() {
         if (inv.customerTaxId) setCustomerNit(inv.customerTaxId)
         setFelFrases(inv.felFrases ?? [])
         setIsExenta(inv.facturaExenta ?? false)
+        // Restaurar frase FESP seleccionada si existe
+        const fesp4 = (inv.felFrases ?? []).find(f => f.tipoFrase === 4)
+        if (fesp4) setFespFraseSelected(fesp4.codigoEscenario)
         const savedIsr = Number(inv.isrRetentionAmount ?? 0)
         if (savedIsr > 0) setIsrAmount(savedIsr)
         setIsrWasZeroOnLoad(savedIsr === 0)
@@ -325,8 +330,9 @@ export default function FacturaFormPage() {
       felCertificadaAt: v.felCertificadaAt ? v.felCertificadaAt.toISOString() : undefined,
       centroCostoId:    dim?.centroCostoId    || undefined,
       centroBeneficioId: dim?.centroBeneficioId || undefined,
-      isrRetentionAmount:    isrAmount > 0 ? isrAmount : undefined,
+      isrRetentionAmount:    isrAmount > 0 ? isrAmount : (isFesp ? fespIsrAmount : undefined),
       isrRetentionAccountId: isrAmount > 0 ? (customerIsrTax?.salesAccountId ?? undefined) : undefined,
+      ivaRetentionAmount:    isFesp ? fespIvaAmount : undefined,
     }
   }
 
@@ -399,6 +405,31 @@ export default function FacturaFormPage() {
   const watchSerie        = Form.useWatch('felSerie',          form)
   const watchNumero       = Form.useWatch('felNumero',         form)
   const watchUuid         = Form.useWatch('felUuid',           form)
+
+  // FESP — cálculos automáticos de retenciones
+  const isFesp = watchTipoDoc === 'FESP'
+  const { subtotal: fespBase, taxAmount: fespIva } = isFesp ? calcTotals(items) : { subtotal: 0, taxAmount: 0 }
+  const fespIsrAmount = isFesp ? Math.round(fespBase * 0.05 * 100) / 100 : 0
+  const fespIvaAmount = isFesp ? Math.round(fespIva * 100) / 100 : 0
+  const fespNeto      = isFesp ? Math.round((fespBase + fespIva - fespIsrAmount - fespIvaAmount) * 100) / 100 : 0
+
+  // Cuando se selecciona FESP, auto-sincronizar la frase tipo 4 seleccionada en felFrases
+  useEffect(() => {
+    if (!isFesp) {
+      // Limpiar frases FESP si cambia a otro tipo
+      setFelFrases(prev => prev.filter(f => f.tipoFrase !== 4))
+      setFespFraseSelected(null)
+      return
+    }
+    // Al activar FESP, pre-seleccionar escenario 1 si no hay ninguna frase tipo 4
+    const scenario = fespFraseSelected ?? 1
+    setFespFraseSelected(scenario)
+    setFelFrases(prev => {
+      const sinTipo4 = prev.filter(f => f.tipoFrase !== 4)
+      return [...sinTipo4, { tipoFrase: 4, codigoEscenario: scenario }]
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFesp])
 
   useEffect(() => {
     if (watchCurrency !== 'USD') {
@@ -665,8 +696,8 @@ export default function FacturaFormPage() {
               accountEditable={isSentEdit}
             />
 
-            {/* ── ISR Retención en origen ──────────────────────────────────── */}
-            {(customerIsrTax || isrAmount > 0) && (
+            {/* ── ISR Retención en origen (solo para facturas no-FESP) ─────── */}
+            {!isFesp && (customerIsrTax || isrAmount > 0) && (
               <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', marginTop: 12, paddingTop: 12 }}>
                 <div style={{ maxWidth: 480, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -713,6 +744,71 @@ export default function FacturaFormPage() {
                     <Text style={{ fontSize: 15, fontWeight: 700, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>
                       Q {fmt(Math.max(0, calcTotals(items).total - isrAmount))}
                     </Text>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── FESP — Factura Especial: retenciones ISR + IVA ───────────── */}
+            {isFesp && (
+              <div style={{ borderTop: '2px solid #fbbf24', marginTop: 12, paddingTop: 14 }}>
+                <div style={{ maxWidth: 520, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Tag color="#d97706" style={{ margin: 0, fontWeight: 700, fontSize: 11 }}>FESP</Tag>
+                    <Text style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>Factura Especial — Retenciones obligatorias</Text>
+                  </div>
+
+                  {/* Selector de frase obligatoria */}
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 12px' }}>
+                    <Text style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 6 }}>Motivo de emisión (obligatorio SAT)</Text>
+                    {FEL_FRASES_FESP.map(f => (
+                      <div
+                        key={f.codigoEscenario}
+                        onClick={() => {
+                          setFespFraseSelected(f.codigoEscenario)
+                          setFelFrases(prev => [...prev.filter(x => x.tipoFrase !== 4), { tipoFrase: 4, codigoEscenario: f.codigoEscenario }])
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 8, padding: '4px 0',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{
+                          width: 14, height: 14, borderRadius: '50%', flexShrink: 0, marginTop: 2,
+                          border: `2px solid ${fespFraseSelected === f.codigoEscenario ? '#d97706' : '#d1d5db'}`,
+                          background: fespFraseSelected === f.codigoEscenario ? '#d97706' : 'transparent',
+                        }} />
+                        <Text style={{ fontSize: 12, color: fespFraseSelected === f.codigoEscenario ? '#92400e' : '#4b5563' }}>{f.label}</Text>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Retención ISR */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <Text style={{ fontSize: 12, color: '#e5484d', fontWeight: 500 }}>ISR Retenido (5% de base)</Text>
+                      <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block' }}>Base Q {fmt(fespBase)} × 5%</Text>
+                    </div>
+                    <Text style={{ fontSize: 13, color: '#e5484d', fontWeight: 600 }}>− Q {fmt(fespIsrAmount)}</Text>
+                  </div>
+
+                  {/* Retención IVA */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <Text style={{ fontSize: 12, color: '#e5484d', fontWeight: 500 }}>IVA Retenido (100% del IVA)</Text>
+                      <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block' }}>IVA Q {fmt(fespIva)} retenido y pagado al SAT</Text>
+                    </div>
+                    <Text style={{ fontSize: 13, color: '#e5484d', fontWeight: 600 }}>− Q {fmt(fespIvaAmount)}</Text>
+                  </div>
+
+                  {/* Neto a pagar al vendedor */}
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: '#d97706', borderRadius: 8, padding: '10px 16px',
+                  }}>
+                    <Text style={{ fontSize: 13, fontWeight: 600, color: '#fffbeb' }}>Neto a Pagar al Vendedor</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 800, color: '#ffffff' }}>Q {fmt(fespNeto)}</Text>
                   </div>
                 </div>
               </div>
@@ -795,6 +891,22 @@ export default function FacturaFormPage() {
                 <Text type="secondary">Frases</Text>
                 <Text strong style={{ fontSize: 12 }}>{felFrases.length} seleccionada(s)</Text>
               </div>
+              {isFesp && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text type="secondary">ISR Retenido</Text>
+                    <Text strong style={{ fontSize: 12, color: '#e5484d' }}>Q {fmt(fespIsrAmount)}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text type="secondary">IVA Retenido</Text>
+                    <Text strong style={{ fontSize: 12, color: '#e5484d' }}>Q {fmt(fespIvaAmount)}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text type="secondary">Neto vendedor</Text>
+                    <Text strong style={{ fontSize: 12, color: '#d97706' }}>Q {fmt(fespNeto)}</Text>
+                  </div>
+                </>
+              )}
               {(watchSerie || felCertResult?.serie) && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text type="secondary">Serie</Text>
