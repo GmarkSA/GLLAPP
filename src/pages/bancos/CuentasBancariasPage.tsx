@@ -316,7 +316,7 @@ export default function CuentasBancariasPage() {
           rowKey="id"
           size="small"
           loading={loading}
-          scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 352px)' }}
           pagination={{ pageSize: 50, showTotal: t => `${t} registros` }}
           locale={{ emptyText: <Empty description="Sin cuentas bancarias" /> }}
         />

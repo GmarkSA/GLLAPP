@@ -641,7 +641,7 @@ export default function BancoDetallePage() {
           rowKey="id"
           loading={txLoad}
           size="small"
-          scroll={{ x: 'max-content', y: 'calc(100vh - 460px)' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 492px)' }}
           pagination={{
             current: page,
             pageSize: 25,
