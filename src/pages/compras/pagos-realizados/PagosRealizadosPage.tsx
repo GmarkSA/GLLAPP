@@ -340,7 +340,7 @@ export default function PagosRealizadosPage() {
             rowKey="id"
             loading={loading}
             size="middle"
-            scroll={{ x: 1200 }}
+            scroll={{ x: 1200, y: 'calc(100vh - 330px)' }}
             rowClassName={(r) => r.status === 'voided' ? 'row-void' : ''}
             rowSelection={{
               type: 'checkbox',

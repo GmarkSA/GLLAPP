@@ -259,7 +259,7 @@ export default function OrdenesCompraPage() {
       </div>
 
       {/* Filters + Tabs */}
-      <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0 }} bodyStyle={{ padding: '12px 16px 0' }}>
+      <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0, position: 'sticky', top: 60, zIndex: 5 }} bodyStyle={{ padding: '12px 16px 0' }}>
         <Tabs
           activeKey={statusTab}
           onChange={(k) => { setStatusTab(k); setPage(1) }}
@@ -318,7 +318,7 @@ export default function OrdenesCompraPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/ordenes/${r.id}`) })}
           pagination={{
             total,
