@@ -168,7 +168,7 @@ function ValorizacionTab() {
         rowKey="id"
         size="small"
         pagination={{ pageSize: 50, showSizeChanger: true }}
-        scroll={{ x: 1000, y: 'calc(100vh - 420px)' }}
+        scroll={{ x: 1000, y: 'calc(100vh - 340px)' }}
         summary={() => (
           <Table.Summary.Row style={{ background: '#f5f8ff' }}>
             <Table.Summary.Cell index={0} colSpan={8}>
@@ -333,7 +333,7 @@ function KardexTab() {
             rowKey={(_, i) => String(i)}
             size="small"
             pagination={{ pageSize: 50, showSizeChanger: true }}
-            scroll={{ x: 900, y: 'calc(100vh - 420px)' }}
+            scroll={{ x: 900, y: 'calc(100vh - 340px)' }}
             summary={() => (
               <Table.Summary.Row style={{ background: '#f5f8ff' }}>
                 <Table.Summary.Cell index={0} colSpan={4}>

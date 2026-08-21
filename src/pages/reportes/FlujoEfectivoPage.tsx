@@ -153,7 +153,7 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
         rowKey="key"
         pagination={false}
         showHeader
-        scroll={{ x: 'max-content', y: 'calc(100vh - 450px)' }}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         onRow={row => ({
           style: {
             background: row._kind === 'grand' && row._total < 0
