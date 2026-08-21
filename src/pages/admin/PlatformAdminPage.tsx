@@ -339,6 +339,114 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 const unwrap = (r: any) => r.data?.data ?? r.data
 
 // ── Modal "Enviar demo" — crea un tenant demo e invita al prospecto por correo ──
+// ── Pestaña "Demos" — tablero de demos enviados: cuántos salen y quiénes activan ──
+function DemosTab() {
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    api.get('/admin/demos').then(unwrap)
+      .then(d => setRows(Array.isArray(d) ? d : []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const total     = rows.length
+  const activados = rows.filter(r => r.userStatus === 'active').length
+  const conversion = total > 0 ? Math.round((activados / total) * 100) : 0
+  const fmtF = (d?: string | null) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
+
+  const cols: ColumnsType<any> = [
+    {
+      title: 'Empresa demo', dataIndex: 'tenantName',
+      render: (v: string, r: any) => (
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div>
+          <div style={{ fontSize: 11, color: '#9aa1ab' }}>
+            enviado por {r.demo?.invitedBy ?? '—'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Prospecto', dataIndex: 'email',
+      render: (v: string, r: any) => (
+        <div>
+          <div style={{ fontSize: 13 }}>{[r.firstName, r.lastName].filter(Boolean).join(' ') || '—'}</div>
+          <div style={{ fontSize: 11, color: '#6b7280' }}>{v ?? '—'}</div>
+        </div>
+      ),
+    },
+    {
+      title: 'Enviado', width: 100,
+      render: (_: any, r: any) => <span style={{ fontSize: 12 }}>{fmtF(r.demo?.sentAt ?? r.createdAt)}</span>,
+    },
+    {
+      title: 'Días', dataIndex: 'demo', width: 60, align: 'center',
+      render: (d: any) => <span style={{ fontSize: 12 }}>{d?.trialDays ?? '—'}</span>,
+    },
+    {
+      title: 'Invitación', dataIndex: 'userStatus', width: 120,
+      render: (v: string) => v === 'active'
+        ? <Tag color="success">Registrado</Tag>
+        : <Tag color="warning">Pendiente</Tag>,
+    },
+    {
+      title: 'Último acceso', dataIndex: 'lastLoginAt', width: 110,
+      render: (v: string) => <span style={{ fontSize: 12 }}>{fmtF(v)}</span>,
+    },
+    {
+      title: 'Tenant', dataIndex: 'tenantStatus', width: 100,
+      render: (v: string) => (
+        <Tag color={v === 'active' ? 'success' : v === 'trial' ? 'processing' : 'error'}>{v}</Tag>
+      ),
+    },
+    {
+      title: 'Vence trial', dataIndex: 'trialEndsAt', width: 100,
+      render: (v: string) => <span style={{ fontSize: 12 }}>{fmtF(v)}</span>,
+    },
+  ]
+
+  return (
+    <div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>Demos enviados</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#1B3A6B' }}>{total}</div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>Registrados</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#2ea172' }}>{activados}</div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>Conversión</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: conversion >= 50 ? '#2ea172' : '#ff7f00' }}>{conversion}%</div>
+          </Card>
+        </Col>
+        <Col span={6} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Actualizar</Button>
+        </Col>
+      </Row>
+      <Table
+        dataSource={rows}
+        columns={cols}
+        rowKey="tenantId"
+        loading={loading}
+        size="small"
+        pagination={{ pageSize: 20, hideOnSinglePage: true }}
+        locale={{ emptyText: 'Aún no se han enviado demos — usa el botón "Enviar demo"' }}
+      />
+    </div>
+  )
+}
+
 function EnviarDemoModal({ open, onClose, onSent }: {
   open: boolean; onClose: () => void; onSent: () => void
 }) {
@@ -1431,6 +1539,11 @@ export default function PlatformAdminPage() {
             key: 'soporte',
             label: <SoporteTabLabel />,
             children: <AdminSupportPanel />,
+          },
+          {
+            key: 'demos',
+            label: <Space><SendOutlined style={{ color: '#1faec2' }} />Demos</Space>,
+            children: <DemosTab />,
           },
         ]}
       />
