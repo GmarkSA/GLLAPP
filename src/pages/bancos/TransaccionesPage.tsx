@@ -897,6 +897,7 @@ export default function TransaccionesPage() {
       title: 'Descripción / Referencia',
       dataIndex: 'description',
       ellipsis: true,
+      sorter: (a, b) => (a.description ?? '').localeCompare(b.description ?? ''),
       render: (v, row) => (
         <div>
           <Text strong>{v}</Text>
@@ -914,6 +915,7 @@ export default function TransaccionesPage() {
       key: 'haber',
       width: 150,
       align: 'right',
+      sorter: (a, b) => (a.type === 'credit' ? Number(a.amount) : 0) - (b.type === 'credit' ? Number(b.amount) : 0),
       render: (_, row) => row.type === 'credit'
         ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>+ {moneyFmt(Number(row.amount), account?.currency)}</Text>
         : <Text type="secondary">—</Text>,
@@ -923,12 +925,17 @@ export default function TransaccionesPage() {
       key: 'debe',
       width: 150,
       align: 'right',
+      sorter: (a, b) => (a.type === 'debit' ? Number(a.amount) : 0) - (b.type === 'debit' ? Number(b.amount) : 0),
       render: (_, row) => row.type === 'debit'
         ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>- {moneyFmt(Number(row.amount), account?.currency)}</Text>
         : <Text type="secondary">—</Text>,
     },
-    { title: 'Saldo', dataIndex: 'runningBalance', width: 130, align: 'right', render: v => v == null ? <Text type="secondary">—</Text> : <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
-    { title: 'Estado', dataIndex: 'status', width: 120, render: v => {
+    { title: 'Saldo', dataIndex: 'runningBalance', width: 130, align: 'right',
+      sorter: (a, b) => Number(a.runningBalance ?? 0) - Number(b.runningBalance ?? 0),
+      render: v => v == null ? <Text type="secondary">—</Text> : <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{moneyFmt(Number(v), account?.currency)}</Text> },
+    { title: 'Estado', dataIndex: 'status', width: 120,
+      sorter: (a, b) => (a.status ?? '').localeCompare(b.status ?? ''),
+      render: v => {
       const cfg = TRANSACTION_STATUS_CONFIG[v as TransactionStatus] || TRANSACTION_STATUS_CONFIG.pending
       return <Tag color={cfg.color}>{cfg.label}</Tag>
     } },
@@ -1234,6 +1241,7 @@ export default function TransaccionesPage() {
           rowKey="id"
           size="small"
           loading={loading}
+          showSorterTooltip={false}
           scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
           pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
         />
