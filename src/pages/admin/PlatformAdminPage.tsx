@@ -407,6 +407,28 @@ function DemosTab() {
       title: 'Vence trial', dataIndex: 'trialEndsAt', width: 100,
       render: (v: string) => <span style={{ fontSize: 12 }}>{fmtF(v)}</span>,
     },
+    {
+      title: '', width: 60, align: 'center',
+      render: (_: any, r: any) => (
+        <Popconfirm
+          title={`¿Eliminar el demo "${r.tenantName}"?`}
+          description="Se borran sus datos, el tenant y el usuario invitado. No se puede deshacer."
+          okText="Eliminar"
+          okButtonProps={{ danger: true }}
+          onConfirm={async () => {
+            try {
+              const res: any = await api.delete(`/admin/demos/${r.tenantId}`).then(unwrap)
+              message.success(res?.message ?? 'Demo eliminado')
+              load()
+            } catch (e: any) {
+              message.error(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'No se pudo eliminar el demo')
+            }
+          }}
+        >
+          <Button size="small" danger icon={<DeleteOutlined />} title="Eliminar demo" />
+        </Popconfirm>
+      ),
+    },
   ]
 
   return (
