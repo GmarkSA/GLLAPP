@@ -504,13 +504,13 @@ export default function LibroComprasPage() {
             &nbsp;·&nbsp; Próximo reporte iniciará en folio <strong>{folioFin + 1}</strong>
           </div>
 
-          <div style={{ background: '#1faec2', color: '#fff', fontSize: 10, fontWeight: 600, padding: '4px 8px', borderRadius: '6px 6px 0 0' }}>
+          <div style={{ background: '#1faec2', color: '#fff', fontSize: 10, fontWeight: 600, padding: '4px 8px', borderRadius: '6px 6px 0 0', position: 'sticky', top: 60, zIndex: 6 }}>
             VALOR BASE (sin IVA) — por categoría SAT
           </div>
 
           <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: '0 0 8px 8px', borderTop: 'none' }}>
             <Table
-        sticky={{ offsetHeader: 60 }}
+              sticky={{ offsetHeader: 82 }}
               dataSource={data.items}
               columns={tableColumns}
               rowKey={(r) => r.uuid || r.numeroInterno}

@@ -182,3 +182,11 @@
     border-right-color: var(--border);
   }
 }
+
+/* ── Marco fijo (estilo Zoho): encabezados sticky de tablas ─────────────────
+   Cuando el thead se pega bajo el header, las filas pasan por debajo; la
+   sombra y el borde marcan la separación para que el corte se vea intencional. */
+.ant-table-sticky-holder {
+  box-shadow: 0 3px 8px rgba(10, 10, 10, 0.12);
+  border-bottom: 1px solid rgba(10, 10, 10, 0.08);
+}
