@@ -494,16 +494,38 @@ export const ESTIMATE_STATUS_CONFIG: Record<EstimateStatus, { label: string; col
   expired:  { label: 'Vencida',     color: '#ff7f00'  },
 }
 
-export const FEL_TIPOS_DOCUMENTO = [
-  { value: 'FACT',  label: 'FACT — Factura estándar' },
-  { value: 'FCAM',  label: 'FCAM — Factura cambiaria' },
-  { value: 'FPEQ',  label: 'FPEQ — Pequeño contribuyente' },
-  { value: 'FAPE',  label: 'FAPE — Exportación pequeño contribuyente' },
-  { value: 'NABN',  label: 'NABN — Nota de abono' },
-  { value: 'RECI',  label: 'RECI — Recibo' },
-  { value: 'NDEB',  label: 'NDEB — Nota de débito' },
-  { value: 'NCRE',  label: 'NCRE — Nota de crédito' },
+// ── Tipos FEL por régimen fiscal Guatemala (SAT) ─────────────────────────────
+
+export const FEL_TIPOS_DOCUMENTO_PEQUENO = [
+  { value: 'FPEQ', label: 'FPEQ — Factura pequeño contribuyente' },
+  { value: 'FCPA', label: 'FCPA — Factura cambiaria pequeño contribuyente' },
+  { value: 'NCRE', label: 'NCRE — Nota de crédito' },
+  { value: 'NABN', label: 'NABN — Nota de abono' },
+  { value: 'RECI', label: 'RECI — Recibo de anticipo' },
 ]
+
+export const FEL_TIPOS_DOCUMENTO_GENERAL = [
+  { value: 'FACT', label: 'FACT — Factura estándar' },
+  { value: 'FCAM', label: 'FCAM — Factura cambiaria' },
+  { value: 'FESP', label: 'FESP — Factura especial' },
+  { value: 'NCRE', label: 'NCRE — Nota de crédito' },
+  { value: 'NABN', label: 'NABN — Nota de abono' },
+  { value: 'RECI', label: 'RECI — Recibo de anticipo' },
+  { value: 'NDEB', label: 'NDEB — Nota de débito' },
+]
+
+// Lista completa (fallback cuando el régimen no está determinado)
+export const FEL_TIPOS_DOCUMENTO = [
+  ...FEL_TIPOS_DOCUMENTO_GENERAL,
+  { value: 'FPEQ', label: 'FPEQ — Pequeño contribuyente' },
+  { value: 'FCPA', label: 'FCPA — Factura cambiaria pequeño contribuyente' },
+]
+
+export function felTiposParaRegimen(defaultDocumentType?: string | null) {
+  if (defaultDocumentType === 'FPEQ') return FEL_TIPOS_DOCUMENTO_PEQUENO
+  if (defaultDocumentType === 'FACT') return FEL_TIPOS_DOCUMENTO_GENERAL
+  return FEL_TIPOS_DOCUMENTO
+}
 
 export const FEL_TIPOS_FRASE = [
   { tipoFrase: 1, codigoEscenario: 1, label: 'Art. 52 Ley IVA — Exento ISR' },

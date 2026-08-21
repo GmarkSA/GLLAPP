@@ -10,7 +10,7 @@ import { getCustomers, getCustomer } from '../../../api/contactos'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import LineItemsEditor, { type LineItem, newLineItem, recalc, calcTotals } from '../../../components/DocumentForm/LineItemsEditor'
 import {
-  FEL_TIPOS_DOCUMENTO, FEL_TIPOS_FRASE, INCOTERMS, type FelFrase,
+  FEL_TIPOS_DOCUMENTO, FEL_TIPOS_FRASE, INCOTERMS, felTiposParaRegimen, type FelFrase,
 } from '../../../api/facturas'
 import {
   createFacturaRecurrente, updateFacturaRecurrente, getFacturaRecurrente,
@@ -19,6 +19,8 @@ import {
   type QpayproSubscriptionOption,
 } from '../../../api/facturas-recurrentes'
 import { useAuthStore } from '../../../store/authStore'
+import { useCompanyStore } from '../../../store/companyStore'
+import { companyIntegrationsApi, type ElectronicInvoicingProfile } from '../../../api/companyIntegrations'
 
 const { Text, Title } = Typography
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -58,6 +60,19 @@ export default function FacturaRecurrenteFormPage() {
   const [felFrases,       setFelFrases]       = useState<FelFrase[]>([])
   const [notificar,       setNotificar]       = useState(false)
   const [emailCliente,    setEmailCliente]    = useState('')
+
+  const activeCompany = useCompanyStore(s => s.activeCompany)
+  const [felDefaultType, setFelDefaultType] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!activeCompany) return
+    companyIntegrationsApi.getEInvoicing(activeCompany.id)
+      .then(profiles => {
+        const active = profiles.find((p: ElectronicInvoicingProfile) => p.status === 'active')
+        setFelDefaultType(active?.apiConfigurationJson?.defaultDocumentType ?? null)
+      })
+      .catch(() => {})
+  }, [activeCompany?.id])
 
   // Enlace con suscripción QPayPro — solo lo gestiona el SuperAdmin (Gmark)
   const isSuperAdmin = useAuthStore(s => s.user?.isSuperAdmin)
@@ -269,7 +284,7 @@ export default function FacturaRecurrenteFormPage() {
             </Form.Item>
 
             <Form.Item name="felTipoDocumento" label="Tipo de Documento" rules={[{ required: true }]} style={{ width: 260, marginBottom: 0 }}>
-              <Select options={FEL_TIPOS_DOCUMENTO} placeholder="FACT" />
+              <Select options={felTiposParaRegimen(felDefaultType)} placeholder="FACT" />
             </Form.Item>
 
             <Form.Item name="moneda" label="Moneda" style={{ width: 140, marginBottom: 0 }}>

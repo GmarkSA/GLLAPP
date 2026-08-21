@@ -15,7 +15,7 @@ import dayjs from 'dayjs'
 
 import {
   createInvoice, updateInvoice, getInvoice, emitirFelInvoice,
-  FEL_TIPOS_DOCUMENTO, FEL_TIPOS_FRASE, INCOTERMS,
+  FEL_TIPOS_DOCUMENTO, FEL_TIPOS_FRASE, INCOTERMS, felTiposParaRegimen,
   type CreateInvoiceDto, type FelFrase,
 } from '../../../api/facturas'
 import { companyIntegrationsApi } from '../../../api/companyIntegrations'
@@ -88,14 +88,17 @@ export default function FacturaFormPage() {
 
   useEffect(() => { fetchCustomers('') }, [])
 
+  const [felDefaultType, setFelDefaultType] = useState<string | null>(null)
+
   // ── Auto-cargar defaultDocumentType del perfil FEL activo ─────────────────
   useEffect(() => {
-    if (id || !activeCompany) return  // solo en nueva factura
+    if (!activeCompany) return
     companyIntegrationsApi.getEInvoicing(activeCompany.id)
       .then(profiles => {
         const active = profiles.find(p => p.status === 'active')
-        const defaultType = active?.apiConfigurationJson?.defaultDocumentType
-        if (defaultType) form.setFieldValue('felTipoDocumento', defaultType)
+        const defaultType = active?.apiConfigurationJson?.defaultDocumentType ?? null
+        setFelDefaultType(defaultType)
+        if (!id && defaultType) form.setFieldValue('felTipoDocumento', defaultType)
       })
       .catch(() => {})
   }, [activeCompany?.id])
@@ -577,7 +580,7 @@ export default function FacturaFormPage() {
               {/* Fila 1: Tipo doc, Serie, Número */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
                 <Form.Item name="felTipoDocumento" label="Tipo Documento" style={{ marginBottom: 8 }}>
-                  <Select options={FEL_TIPOS_DOCUMENTO} placeholder="FACT" />
+                  <Select options={felTiposParaRegimen(felDefaultType)} placeholder="FACT" />
                 </Form.Item>
                 <Form.Item name="felSerie" label="Serie FEL" style={{ marginBottom: 8 }}>
                   <Input placeholder="Serie certificador" />
