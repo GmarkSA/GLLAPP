@@ -429,7 +429,8 @@ export default function FacturasPage() {
       </Row>
 
       {/* Filters */}
-      <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0 }} bodyStyle={{ padding: '12px 16px 0' }}>
+      {/* Tabs sticky: quedan visibles bajo el header al hacer scroll (marco estilo Zoho) */}
+      <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0, position: 'sticky', top: 60, zIndex: 5 }} bodyStyle={{ padding: '12px 16px 0' }}>
         <Tabs
           activeKey={statusTab}
           onChange={(k) => { setStatusTab(k); setPage(1) }}
@@ -494,7 +495,7 @@ export default function FacturasPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: scrollX, y: 'calc(100vh - 340px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 372px)' }}
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,

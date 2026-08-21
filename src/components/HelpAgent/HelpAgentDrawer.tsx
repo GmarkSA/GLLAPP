@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Drawer, Input, Button, Typography, Space, FloatButton, Tag, Segmented, Spin } from 'antd'
 import {
@@ -39,6 +39,13 @@ export default function HelpAgentDrawer() {
   const [ultimaPregunta, setUltimaPregunta] = useState('')
   const [pensando, setPensando] = useState(false)
   const [aiModal, setAiModal] = useState(false)
+
+  // El pie de página fijo del layout abre el agente con este evento global
+  useEffect(() => {
+    const abrir = () => setOpen(true)
+    window.addEventListener('lucia:abrir-ayuda', abrir)
+    return () => window.removeEventListener('lucia:abrir-ayuda', abrir)
+  }, [])
 
   // Fallback determinista (motor local) — se usa si la IA no está disponible o falla.
   const responderLocal = (text: string): ChatMsg => {

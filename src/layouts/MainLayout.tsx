@@ -583,7 +583,7 @@ export default function MainLayout() {
         <EnterpriseBreadcrumb />
 
         {/* Contenido con transición */}
-        <Content style={{ padding: isMobile ? 12 : 24, minHeight: 'calc(100vh - 60px)' }} onClick={() => { if (!isMobile) setCollapsed(true) }}>
+        <Content style={{ padding: isMobile ? '12px 12px 42px' : '24px 24px 54px', minHeight: 'calc(100vh - 60px)' }} onClick={() => { if (!isMobile) setCollapsed(true) }}>
           <NoCompanyGuard>
           <AnimatePresence mode="wait">
             <motion.div
@@ -598,6 +598,29 @@ export default function MainLayout() {
           </AnimatePresence>
           </NoCompanyGuard>
         </Content>
+
+        {/* Pie de página fijo — marco inferior estilo Zoho (siempre visible) */}
+        <div style={{
+          position: 'fixed', bottom: 0, right: 0, zIndex: 97,
+          left: isMobile ? 0 : (collapsed ? 80 : 248),
+          height: 30,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 16px',
+          background: 'rgba(240,242,247,0.92)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          borderTop: '1px solid rgba(0,0,0,0.06)',
+          fontSize: 11, color: '#6b7280',
+          transition: 'left 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        }}>
+          <span><strong style={{ color: '#1B3A6B' }}>Lucía</strong> ERP · © {new Date().getFullYear()} GLL Consulting</span>
+          <Button
+            type="link" size="small"
+            style={{ fontSize: 11, padding: 0, height: 'auto', color: '#1faec2' }}
+            onClick={() => window.dispatchEvent(new Event('lucia:abrir-ayuda'))}
+          >
+            ¿Necesitas ayuda?
+          </Button>
+        </div>
       </Layout>
 
       <OnboardingChatDrawer />
