@@ -1,13 +1,13 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Table, Tag, Space, Popconfirm, message, DatePicker, Select,
-  Typography, Tooltip, Input,
+  Typography, Tooltip, Input, Drawer, InputNumber, Divider, Badge,
 } from 'antd'
 import {
   PlusOutlined, FileTextOutlined, CheckCircleOutlined,
   StopOutlined, RollbackOutlined, DeleteOutlined, ReloadOutlined,
-  CopyOutlined, EditOutlined,
+  CopyOutlined, EditOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import {
@@ -15,7 +15,7 @@ import {
   type AsientoListItem, type GetAsientosParams,
 } from '../../../api/asientos'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 
 const STATUS_COLOR: Record<string, string> = {
@@ -27,6 +27,26 @@ const STATUS_LABEL: Record<string, string> = {
 const TYPE_LABEL: Record<string, string> = {
   manual: 'Manual', auto: 'Automático', recurring: 'Recurrente',
   opening: 'Apertura', closing: 'Cierre', adjustment: 'Ajuste',
+}
+
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface DmAdFilters {
+  filterEntryNumber?: string
+  filterReference?: string
+  filterTotalMin?: number | null
+  filterTotalMax?: number | null
+}
+
+const DM_EMPTY: DmAdFilters = {}
+
+function applyDmFilters(data: AsientoListItem[], f: DmAdFilters): AsientoListItem[] {
+  return data.filter(r => {
+    if (f.filterEntryNumber && !r.entryNumber?.toLowerCase().includes(f.filterEntryNumber.toLowerCase())) return false
+    if (f.filterReference && !r.reference?.toLowerCase().includes(f.filterReference.toLowerCase())) return false
+    if (f.filterTotalMin != null && Number(r.totalDebit ?? 0) < f.filterTotalMin) return false
+    if (f.filterTotalMax != null && Number(r.totalDebit ?? 0) > f.filterTotalMax) return false
+    return true
+  })
 }
 
 export default function DiariosManualesPage() {
@@ -41,6 +61,19 @@ export default function DiariosManualesPage() {
   const [filtroEstado, setFiltroEstado] = useState<string | undefined>()
   const [filtroTipo,   setFiltroTipo]   = useState<string | undefined>()
   const [acting,       setActing]       = useState<string | null>(null)
+
+  // Filtros avanzados
+  const [dmFilters,    setDmFilters]    = useState<DmAdFilters>(DM_EMPTY)
+  const [dmDraft,      setDmDraft]      = useState<DmAdFilters>(DM_EMPTY)
+  const [dmFilterOpen, setDmFilterOpen] = useState(false)
+
+  const dmActiveCount = useMemo(() =>
+    Object.entries(dmFilters).filter(([, v]) =>
+      v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+    ).length
+  , [dmFilters])
+
+  const filteredData = useMemo(() => applyDmFilters(data, dmFilters), [data, dmFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -76,15 +109,21 @@ export default function DiariosManualesPage() {
     finally { setActing(null) }
   }
 
+  const openDmFilters = () => { setDmDraft(dmFilters); setDmFilterOpen(true) }
+  const applyDmFiltersHandler = () => { setDmFilters(dmDraft); setDmFilterOpen(false) }
+  const clearDmFilters = () => { setDmDraft(DM_EMPTY); setDmFilters(DM_EMPTY) }
+
   const columns = [
     {
       title: 'Fecha', dataIndex: 'entryDate', width: 105,
+      defaultSortOrder: 'descend' as const,
       sorter: (a: AsientoListItem, b: AsientoListItem) =>
         a.entryDate.localeCompare(b.entryDate),
       render: (v: string) => dayjs(v).format('DD/MM/YYYY'),
     },
     {
       title: 'N.º Diario', dataIndex: 'entryNumber', width: 145,
+      sorter: (a: AsientoListItem, b: AsientoListItem) => (a.entryNumber ?? '').localeCompare(b.entryNumber ?? ''),
       render: (v: string, r: AsientoListItem) => (
         <Button type="link" size="small" style={{ padding: 0, fontWeight: 500 }}
           onClick={() => navigate(`/contabilidad/diarios-manuales/${r.id}`)}>
@@ -94,6 +133,7 @@ export default function DiariosManualesPage() {
     },
     {
       title: 'Descripción', dataIndex: 'description', ellipsis: true,
+      sorter: (a: AsientoListItem, b: AsientoListItem) => (a.description ?? '').localeCompare(b.description ?? ''),
       render: (v: string) => (
         <Tooltip title={v}>
           <span style={{ color: '#0a0a0a' }}>{v || <span style={{ color: '#9aa1ab' }}>—</span>}</span>
@@ -102,22 +142,26 @@ export default function DiariosManualesPage() {
     },
     {
       title: 'Referencia', dataIndex: 'reference', width: 150,
+      sorter: (a: AsientoListItem, b: AsientoListItem) => (a.reference ?? '').localeCompare(b.reference ?? ''),
       render: (v?: string) => v
         ? <span style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{v}</span>
         : <span style={{ color: '#9aa1ab' }}>—</span>,
     },
     {
       title: 'Tipo', dataIndex: 'type', width: 105,
+      sorter: (a: AsientoListItem, b: AsientoListItem) => (a.type ?? '').localeCompare(b.type ?? ''),
       render: (v: string) => TYPE_LABEL[v] ?? v,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 105,
+      sorter: (a: AsientoListItem, b: AsientoListItem) => (a.status ?? '').localeCompare(b.status ?? ''),
       render: (v: string) => (
         <Tag color={STATUS_COLOR[v] ?? 'default'}>{STATUS_LABEL[v] ?? v}</Tag>
       ),
     },
     {
       title: 'Total', dataIndex: 'totalDebit', width: 150, align: 'right' as const,
+      sorter: (a: AsientoListItem, b: AsientoListItem) => Number(a.totalDebit ?? 0) - Number(b.totalDebit ?? 0),
       render: (v: number, r: AsientoListItem) => (
         <span style={{ fontWeight: 500 }}>
           <span style={{ color: '#6b7280', fontSize: 11, marginRight: 4 }}>{r.currency ?? 'GTQ'}</span>
@@ -248,11 +292,21 @@ export default function DiariosManualesPage() {
             { label: 'Ajuste',     value: 'adjustment' },
           ]}
         />
+        <Badge count={dmActiveCount} size="small">
+          <Button
+            icon={<FilterOutlined />}
+            onClick={openDmFilters}
+            style={dmActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}
+          >
+            Filtros
+          </Button>
+        </Badge>
       </Space>
 
       <Table
-        dataSource={data} columns={columns} rowKey="id"
+        dataSource={filteredData} columns={columns} rowKey="id"
         loading={loading} size="small"
+        showSorterTooltip={false}
         onRow={r => ({ onDoubleClick: () => navigate(`/contabilidad/diarios-manuales/${r.id}`) })}
         pagination={{
           current: page, pageSize: 200, total,
@@ -260,6 +314,33 @@ export default function DiariosManualesPage() {
           showTotal: t => `${t} registros`,
         }}
       />
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title="Filtros avanzados"
+        placement="right"
+        width={340}
+        open={dmFilterOpen}
+        onClose={() => setDmFilterOpen(false)}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={clearDmFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyDmFiltersHandler}>Aplicar</Button>
+          </Space>
+        }
+      >
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Identificación</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Input placeholder="N.° Diario" size="small" value={dmDraft.filterEntryNumber ?? ''} onChange={e => setDmDraft(d => ({ ...d, filterEntryNumber: e.target.value || undefined }))} allowClear />
+          <Input placeholder="Referencia" size="small" value={dmDraft.filterReference ?? ''} onChange={e => setDmDraft(d => ({ ...d, filterReference: e.target.value || undefined }))} allowClear />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Monto total</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={dmDraft.filterTotalMin ?? null} onChange={v => setDmDraft(d => ({ ...d, filterTotalMin: v ?? null }))} min={0} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={dmDraft.filterTotalMax ?? null} onChange={v => setDmDraft(d => ({ ...d, filterTotalMax: v ?? null }))} min={0} prefix="Q" />
+        </div>
+      </Drawer>
     </div>
   )
 }
