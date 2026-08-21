@@ -258,6 +258,7 @@ export default function FacturasRecurrentesPage() {
         size="small"
         showSorterTooltip={false}
         pagination={{ total, pageSize: 20, current: page, onChange: setPage, showSizeChanger: false }}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         style={{ background: '#fff', borderRadius: 10 }}
       />
 

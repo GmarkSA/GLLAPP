@@ -328,6 +328,7 @@ export default function AnticiposClientesPage() {
       <Table
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small" showSorterTooltip={false}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         pagination={{ current: page, pageSize: 50, total, onChange: p => setPage(p), showTotal: t => `${t} anticipos` }}
         locale={{ emptyText: 'No hay anticipos registrados' }}
       />
