@@ -335,7 +335,7 @@ export default function ProveedoresPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/proveedores/${r.id}`) })}
           pagination={{
             total,

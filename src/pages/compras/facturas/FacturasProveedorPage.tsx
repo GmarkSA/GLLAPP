@@ -409,7 +409,7 @@ export default function FacturasProveedorPage() {
       {/* Filters + Tabs */}
       <Card
         bordered={false}
-        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0 }}
+        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0, position: 'sticky', top: 60, zIndex: 5 }}
         bodyStyle={{ padding: '12px 16px 0' }}
       >
         <Tabs
@@ -475,7 +475,7 @@ export default function FacturasProveedorPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/facturas/${r.id}`) })}
           pagination={{
             total,
