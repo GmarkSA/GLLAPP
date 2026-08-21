@@ -419,9 +419,8 @@ export default function RentabilidadCentrosBeneficioPage() {
               title={<Text strong style={{ fontSize: 13 }}>Estado de resultados por División</Text>}
               extra={<Text type="secondary" style={{ fontSize: 11 }}>Expande una sección para ver sus cuentas · clic en un monto para ver movimientos</Text>}>
               <Table
-        sticky={{ offsetHeader: 60 }}
                 size="small" dataSource={filas} columns={tableColumns} rowKey="key"
-                pagination={false} scroll={{ x: 'max-content' }}
+                pagination={false} scroll={{ x: 'max-content', y: 'calc(100vh - 420px)' }}
                 expandable={{ indentSize: 12 }}
                 onRow={row => ({
                   style: {

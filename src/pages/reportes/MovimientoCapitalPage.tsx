@@ -152,7 +152,7 @@ export default function MovimientoCapitalPage() {
               bodyStyle={{ padding: 0 }}
             >
               <Table
-        sticky={{ offsetHeader: 60 }}
+        scroll={{ y: 'calc(100vh - 450px)' }}
                 size="small"
                 dataSource={data.movements}
                 rowKey={(r: any) => `${r.entry_number}-${r.code}`}

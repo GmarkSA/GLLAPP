@@ -216,14 +216,13 @@ export default function ReporteProyectadoPagosPage() {
             {/* Tabla de facturas */}
             {isOpen && (
               <Table
-        sticky={{ offsetHeader: 60 }}
                 columns={invoiceColumns}
                 dataSource={bucket.items}
                 rowKey="id"
                 loading={loading}
                 size="small"
                 pagination={false}
-                scroll={{ x: 800 }}
+                scroll={{ x: 800, y: 'calc(100vh - 420px)' }}
                 summary={() => (
                   <Table.Summary.Row style={{ background: style.bg }}>
                     <Table.Summary.Cell index={0} colSpan={5}>
