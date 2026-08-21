@@ -1898,7 +1898,7 @@ export default function PlatformAdminPage() {
                       render: (_, p) => p.result === 'approved' ? (
                         <Button
                           size="small" icon={<PrinterOutlined />}
-                          onClick={() => window.open(`/admin/comprobante-pago/${p.id}`, '_blank', 'noopener')}
+                          onClick={() => navigate(`/admin/comprobante-pago/${p.id}`)}
                           style={{ color: '#1B3A6B', borderColor: '#1B3A6B', fontSize: 11 }}
                         >
                           Ver
