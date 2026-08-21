@@ -420,7 +420,7 @@ export default function RentabilidadCentrosBeneficioPage() {
               extra={<Text type="secondary" style={{ fontSize: 11 }}>Expande una sección para ver sus cuentas · clic en un monto para ver movimientos</Text>}>
               <Table
                 size="small" dataSource={filas} columns={tableColumns} rowKey="key"
-                pagination={false} scroll={{ x: 'max-content', y: 'calc(100vh - 420px)' }}
+                pagination={false} scroll={{ x: 'max-content', y: 'calc(100vh - 340px)' }}
                 expandable={{ indentSize: 12 }}
                 onRow={row => ({
                   style: {
