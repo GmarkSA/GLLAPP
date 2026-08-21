@@ -74,6 +74,7 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
   switch (key) {
     case 'paymentNumber':
       return { ...base, title: 'N° Pago', dataIndex: 'paymentNumber', width: 175, fixed: 'left' as const,
+        sorter: (a: PagoRecibido, b: PagoRecibido) => String(a.paymentNumber ?? '').localeCompare(String(b.paymentNumber ?? '')),
         render: (v: string, r: PagoRecibido) => (
           <Space direction="vertical" size={2}>
             <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 12 }}>{v}</Text>
@@ -84,9 +85,11 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
         ) }
     case 'paymentDate':
       return { ...base, title: 'Fecha', dataIndex: 'paymentDate', width: 105,
+        sorter: (a: PagoRecibido, b: PagoRecibido) => String(a.paymentDate ?? '').localeCompare(String(b.paymentDate ?? '')),
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
     case 'customer':
       return { ...base, title: 'Cliente', dataIndex: 'customerName',
+        sorter: (a: PagoRecibido, b: PagoRecibido) => String(a.customerName ?? '').localeCompare(String(b.customerName ?? '')),
         render: (v: string, r: PagoRecibido) => (
           <div>
             <div style={{ fontWeight: 500, fontSize: 13 }}>{v ?? r.customerId}</div>
@@ -95,6 +98,7 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
         ) }
     case 'customerTaxId':
       return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
+        sorter: (a: PagoRecibido, b: PagoRecibido) => String(a.customerTaxId ?? '').localeCompare(String(b.customerTaxId ?? '')),
         render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'documento':
       return { ...base, title: 'Documento', dataIndex: 'invoiceNumber', width: 165,
@@ -115,6 +119,7 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
         ) : <Text type="secondary">—</Text> }
     case 'invoiceTotal':
       return { ...base, title: 'Total Factura', dataIndex: 'invoiceTotal', width: 120, align: 'right' as const,
+        sorter: (a: PagoRecibido, b: PagoRecibido) => Number(a.invoiceTotal ?? 0) - Number(b.invoiceTotal ?? 0),
         render: (v: number) => v != null
           ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span>
           : <Text type="secondary">—</Text> }
@@ -133,6 +138,7 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
           : <Text type="secondary">—</Text> }
     case 'amount':
       return { ...base, title: 'Monto', dataIndex: 'amount', width: 130, align: 'right' as const,
+        sorter: (a: PagoRecibido, b: PagoRecibido) => Number(a.amount ?? 0) - Number(b.amount ?? 0),
         render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text> }
     case 'isAdvance':
       return { ...base, title: 'Anticipo', dataIndex: 'isAdvance', width: 90, align: 'center' as const,
@@ -366,6 +372,7 @@ export default function PagosRecibidosPage() {
           rowKey="id"
           loading={loading}
           size="middle"
+          showSorterTooltip={false}
           scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} pagos`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay pagos registrados en el período' }}
