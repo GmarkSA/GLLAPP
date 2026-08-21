@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
   Modal, Form,
-  message, Tabs, Popover, Tooltip,
+  message, Tabs, Popover, Tooltip, Drawer, InputNumber, Divider, Badge, Select,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, ShopOutlined,
   EyeOutlined, EditOutlined, DeleteOutlined, DollarOutlined, StopOutlined,
-  SettingOutlined,
+  SettingOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -132,6 +132,7 @@ function buildColDef(
         render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'invoiceType':
       return { ...base, title: 'Tipo', dataIndex: 'invoiceType', width: 130,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.invoiceType ?? '').localeCompare(b.invoiceType ?? ''),
         render: (v: string) => {
           const cfg = BILL_TYPE_CONFIG[v as keyof typeof BILL_TYPE_CONFIG]
           return cfg ? <Tag style={{ fontSize: 11 }}>{cfg.label}</Tag> : <Tag>{v}</Tag>
@@ -152,6 +153,7 @@ function buildColDef(
         } }
     case 'felSerie':
       return { ...base, title: 'Serie FEL', dataIndex: 'felSerie', width: 80,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.felSerie ?? '').localeCompare(b.felSerie ?? ''),
         render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'felNumber':
       return { ...base, title: 'No. SAT', dataIndex: 'felNumber', width: 100,
@@ -159,6 +161,7 @@ function buildColDef(
         render: (v: string) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{v || '—'}</span> }
     case 'currency':
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 75,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.currency ?? '').localeCompare(b.currency ?? ''),
         render: (v: string) => <Tag style={{ fontSize: 11 }}>{v || 'GTQ'}</Tag> }
     case 'exchangeRate':
       return { ...base, title: 'T/C', dataIndex: 'exchangeRate', width: 90, align: 'right' as const,
@@ -168,6 +171,7 @@ function buildColDef(
             : <Text type="secondary">—</Text> }
     case 'paymentTerms':
       return { ...base, title: 'Términos Pago', dataIndex: 'paymentTerms', width: 130,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.paymentTerms ?? '').localeCompare(b.paymentTerms ?? ''),
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? getPaymentTermLabel(v) : '—'}</span> }
     case 'dueDate':
       return { ...base, title: 'Vence', dataIndex: 'dueDate', width: 105,
@@ -237,9 +241,44 @@ function buildColDef(
         } }
     case 'notes':
       return { ...base, title: 'Notas', dataIndex: 'notes', width: 160, ellipsis: true,
+        sorter: (a: PurchaseInvoice, b: PurchaseInvoice) => (a.notes ?? '').localeCompare(b.notes ?? ''),
         render: (v: string) => v ? <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: v }}>{v}</Text> : <Text type="secondary">—</Text> }
     default: return null
   }
+}
+
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface FpAdFilters {
+  filterVendor?: string
+  filterVendorTaxId?: string
+  filterInvoiceNumber?: string
+  filterVendorInvoiceNumber?: string
+  filterStatus?: string[]
+  filterCurrency?: string[]
+  filterInvoiceType?: string[]
+  filterTotalMin?: number | null
+  filterTotalMax?: number | null
+  filterBalanceMin?: number | null
+  filterBalanceMax?: number | null
+}
+
+const FP_EMPTY: FpAdFilters = {}
+
+function applyFpFilters(data: PurchaseInvoice[], f: FpAdFilters): PurchaseInvoice[] {
+  return data.filter(r => {
+    if (f.filterVendor && !r.vendorName?.toLowerCase().includes(f.filterVendor.toLowerCase())) return false
+    if (f.filterVendorTaxId && !r.vendorTaxId?.toLowerCase().includes(f.filterVendorTaxId.toLowerCase())) return false
+    if (f.filterInvoiceNumber && !r.invoiceNumber?.toLowerCase().includes(f.filterInvoiceNumber.toLowerCase())) return false
+    if (f.filterVendorInvoiceNumber && !r.vendorInvoiceNumber?.toLowerCase().includes(f.filterVendorInvoiceNumber.toLowerCase())) return false
+    if (f.filterStatus?.length && !f.filterStatus.includes(r.status ?? '')) return false
+    if (f.filterCurrency?.length && !f.filterCurrency.includes(r.currency ?? 'GTQ')) return false
+    if (f.filterInvoiceType?.length && !f.filterInvoiceType.includes(r.invoiceType ?? '')) return false
+    if (f.filterTotalMin != null && Number(r.total ?? 0) < f.filterTotalMin) return false
+    if (f.filterTotalMax != null && Number(r.total ?? 0) > f.filterTotalMax) return false
+    if (f.filterBalanceMin != null && Number(r.balance ?? 0) < f.filterBalanceMin) return false
+    if (f.filterBalanceMax != null && Number(r.balance ?? 0) > f.filterBalanceMax) return false
+    return true
+  })
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -270,6 +309,19 @@ export default function FacturasProveedorPage() {
   // Column config
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
+
+  // Filtros avanzados
+  const [fpFilters,    setFpFilters]    = useState<FpAdFilters>(FP_EMPTY)
+  const [fpDraft,      setFpDraft]      = useState<FpAdFilters>(FP_EMPTY)
+  const [fpFilterOpen, setFpFilterOpen] = useState(false)
+
+  const fpActiveCount = useMemo(() =>
+    Object.entries(fpFilters).filter(([, v]) =>
+      v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+    ).length
+  , [fpFilters])
+
+  const filteredBills = useMemo(() => applyFpFilters(bills, fpFilters), [bills, fpFilters])
 
   // Void modal
   const [voidModal, setVoidModal]     = useState(false)
@@ -318,6 +370,10 @@ export default function FacturasProveedorPage() {
     } catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo anular') }
     finally { setVoidLoading(false) }
   }
+
+  const openFpFilters = () => { setFpDraft(fpFilters); setFpFilterOpen(true) }
+  const applyFpFiltersHandler = () => { setFpFilters(fpDraft); setFpFilterOpen(false) }
+  const clearFpFilters = () => { setFpDraft(FP_EMPTY); setFpFilters(FP_EMPTY) }
 
   const openPay = (bill: PurchaseInvoice) => {
     const payeeId = bill.isExpenseReimbursement && bill.employeeId ? bill.employeeId : bill.vendorId
@@ -428,6 +484,16 @@ export default function FacturasProveedorPage() {
                 allowClear
                 size="small"
               />
+              <Badge count={fpActiveCount} size="small">
+                <Button
+                  size="small"
+                  icon={<FilterOutlined />}
+                  onClick={openFpFilters}
+                  style={fpActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}
+                >
+                  Filtros
+                </Button>
+              </Badge>
               {/* Botón configurador de columnas */}
               <Popover
                 open={colPopover}
@@ -471,7 +537,8 @@ export default function FacturasProveedorPage() {
       >
         <ResponsiveTable
           columns={activeColumns}
-          dataSource={bills}
+          dataSource={filteredBills}
+          showSorterTooltip={false}
           rowKey="id"
           loading={loading}
           size="middle"
@@ -511,6 +578,65 @@ export default function FacturasProveedorPage() {
           }}
         />
       </Card>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title="Filtros avanzados"
+        placement="right"
+        width={360}
+        open={fpFilterOpen}
+        onClose={() => setFpFilterOpen(false)}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={clearFpFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyFpFiltersHandler}>Aplicar</Button>
+          </Space>
+        }
+      >
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Proveedor</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Input placeholder="Nombre proveedor" size="small" value={fpDraft.filterVendor ?? ''} onChange={e => setFpDraft(d => ({ ...d, filterVendor: e.target.value || undefined }))} allowClear />
+          <Input placeholder="NIT proveedor" size="small" value={fpDraft.filterVendorTaxId ?? ''} onChange={e => setFpDraft(d => ({ ...d, filterVendorTaxId: e.target.value || undefined }))} allowClear />
+          <Input placeholder="# Factura interna" size="small" value={fpDraft.filterInvoiceNumber ?? ''} onChange={e => setFpDraft(d => ({ ...d, filterInvoiceNumber: e.target.value || undefined }))} allowClear />
+          <Input placeholder="# Factura proveedor" size="small" value={fpDraft.filterVendorInvoiceNumber ?? ''} onChange={e => setFpDraft(d => ({ ...d, filterVendorInvoiceNumber: e.target.value || undefined }))} allowClear />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Clasificación</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Select
+            mode="multiple" size="small" placeholder="Estado"
+            value={fpDraft.filterStatus ?? []}
+            onChange={v => setFpDraft(d => ({ ...d, filterStatus: v.length ? v : undefined }))}
+            allowClear style={{ width: '100%' }}
+            options={Object.entries(BILL_STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+          />
+          <Select
+            mode="multiple" size="small" placeholder="Tipo de factura"
+            value={fpDraft.filterInvoiceType ?? []}
+            onChange={v => setFpDraft(d => ({ ...d, filterInvoiceType: v.length ? v : undefined }))}
+            allowClear style={{ width: '100%' }}
+            options={Object.entries(BILL_TYPE_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+          />
+          <Select
+            mode="multiple" size="small" placeholder="Moneda"
+            value={fpDraft.filterCurrency ?? []}
+            onChange={v => setFpDraft(d => ({ ...d, filterCurrency: v.length ? v : undefined }))}
+            allowClear style={{ width: '100%' }}
+            options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]}
+          />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Total factura</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, marginBottom: 16 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={fpDraft.filterTotalMin ?? null} onChange={v => setFpDraft(d => ({ ...d, filterTotalMin: v ?? null }))} min={0} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={fpDraft.filterTotalMax ?? null} onChange={v => setFpDraft(d => ({ ...d, filterTotalMax: v ?? null }))} min={0} prefix="Q" />
+        </div>
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Saldo</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={fpDraft.filterBalanceMin ?? null} onChange={v => setFpDraft(d => ({ ...d, filterBalanceMin: v ?? null }))} min={0} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={fpDraft.filterBalanceMax ?? null} onChange={v => setFpDraft(d => ({ ...d, filterBalanceMax: v ?? null }))} min={0} prefix="Q" />
+        </div>
+      </Drawer>
 
       {/* Void Modal */}
       <Modal
