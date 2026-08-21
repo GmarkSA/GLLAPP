@@ -251,6 +251,7 @@ export default function DiariosManualesPage() {
       </Space>
 
       <Table
+        scroll={{ y: 'calc(100vh - 330px)' }}
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
         onRow={r => ({ onDoubleClick: () => navigate(`/contabilidad/diarios-manuales/${r.id}`) })}

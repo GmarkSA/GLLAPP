@@ -514,7 +514,7 @@ export default function CorridaPlanillaPage() {
         <Spin spinning={loading || procesando}>
           <Table
             size="small" rowKey="id" dataSource={periodo.detalles} columns={columns}
-            pagination={false} scroll={{ x: 'max-content' }}
+            pagination={false} scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
           />
         </Spin>
       </Card>

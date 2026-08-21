@@ -805,6 +805,7 @@ export default function MovimientosPage() {
       {/* Table */}
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
         <Table
+          scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
           columns={columns}
           dataSource={items}
           loading={loading}

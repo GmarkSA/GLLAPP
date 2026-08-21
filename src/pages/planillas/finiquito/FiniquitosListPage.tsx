@@ -48,6 +48,7 @@ export default function FiniquitosListPage() {
 
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
         <Table
+          scroll={{ y: 'calc(100vh - 330px)' }}
           size="small" rowKey="id" loading={loading}
           dataSource={finiquitos} columns={columns} pagination={false}
           onRow={f => ({ style: { cursor: 'pointer' }, onClick: () => navigate(`/planillas/finiquitos/${f.id}`) })}

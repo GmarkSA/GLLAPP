@@ -283,6 +283,7 @@ export default function EmpresasPage() {
         </Space>
       </div>
       <Table
+        scroll={{ y: 'calc(100vh - 330px)' }}
         rowKey="id"
         columns={columns}
         dataSource={companies}

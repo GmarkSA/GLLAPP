@@ -111,6 +111,7 @@ export default function CentrosBeneficioPage() {
       </div>
 
       <Table
+        scroll={{ y: 'calc(100vh - 330px)' }}
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
         pagination={{ pageSize: 50 }}

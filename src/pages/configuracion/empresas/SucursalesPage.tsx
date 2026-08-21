@@ -103,7 +103,7 @@ export default function SucursalesPage() {
           onClick={openCreate}>Nueva Sucursal</Button>
       </div>
 
-      <Table rowKey="id" columns={columns} dataSource={branches} loading={loading} size="small" pagination={false} />
+      <Table rowKey="id" columns={columns} dataSource={branches} loading={loading} size="small" pagination={false} scroll={{ y: 'calc(100vh - 330px)' }} />
 
       <Modal title={editing ? 'Editar Sucursal' : 'Nueva Sucursal'} open={modalOpen}
         onCancel={() => setModalOpen(false)} onOk={() => form.submit()}

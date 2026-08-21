@@ -134,6 +134,7 @@ export default function PresupuestosPage() {
         </Card>
       ) : (
         <Table
+          scroll={{ y: 'calc(100vh - 330px)' }}
           dataSource={data} columns={columns} rowKey="id"
           loading={loading} size="small"
           pagination={{ pageSize: 20, showTotal: t => `${t} presupuestos` }}
