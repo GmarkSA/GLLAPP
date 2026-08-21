@@ -1,12 +1,13 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Typography, Button, Table, Tag, Space, Input, Select,
   Switch, Card, Row, Col, Statistic, Tooltip, message, Empty,
+  Drawer, InputNumber, Divider, Badge,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined,
-  InboxOutlined, WarningOutlined,
+  InboxOutlined, WarningOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -19,6 +20,32 @@ const { Option } = Select
 
 const fmtQ = (v: number) =>
   'Q ' + Number(v || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface InvAdFilters {
+  filterSku?: string
+  filterStockMin?: number | null
+  filterStockMax?: number | null
+  filterCostMin?: number | null
+  filterCostMax?: number | null
+  filterPriceMin?: number | null
+  filterPriceMax?: number | null
+}
+
+const INV_EMPTY: InvAdFilters = {}
+
+function applyInvFilters(data: Product[], f: InvAdFilters): Product[] {
+  return data.filter(r => {
+    if (f.filterSku && !r.sku?.toLowerCase().includes(f.filterSku.toLowerCase())) return false
+    if (f.filterStockMin != null && Number(r.stockOnHand ?? 0) < f.filterStockMin) return false
+    if (f.filterStockMax != null && Number(r.stockOnHand ?? 0) > f.filterStockMax) return false
+    if (f.filterCostMin != null && Number(r.averageCost ?? 0) < f.filterCostMin) return false
+    if (f.filterCostMax != null && Number(r.averageCost ?? 0) > f.filterCostMax) return false
+    if (f.filterPriceMin != null && Number(r.salesPrice ?? 0) < f.filterPriceMin) return false
+    if (f.filterPriceMax != null && Number(r.salesPrice ?? 0) > f.filterPriceMax) return false
+    return true
+  })
+}
 
 export default function InventarioPage() {
   const navigate = useNavigate()
@@ -34,6 +61,19 @@ export default function InventarioPage() {
   const [itemType, setItemType]   = useState<string | undefined>()
   const [usageType, setUsageType] = useState<string | undefined>()
   const [lowStock, setLowStock]   = useState(false)
+
+  // Filtros avanzados
+  const [invFilters,    setInvFilters]    = useState<InvAdFilters>(INV_EMPTY)
+  const [invDraft,      setInvDraft]      = useState<InvAdFilters>(INV_EMPTY)
+  const [invFilterOpen, setInvFilterOpen] = useState(false)
+
+  const invActiveCount = useMemo(() =>
+    Object.entries(invFilters).filter(([, v]) =>
+      v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+    ).length
+  , [invFilters])
+
+  const filteredProducts = useMemo(() => applyInvFilters(products, invFilters), [products, invFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -66,11 +106,16 @@ export default function InventarioPage() {
   ).length
 
   // ── Table columns ────────────────────────────────────────────────────────────
+  const openInvFilters = () => { setInvDraft(invFilters); setInvFilterOpen(true) }
+  const applyInvFiltersHandler = () => { setInvFilters(invDraft); setInvFilterOpen(false) }
+  const clearInvFilters = () => { setInvDraft(INV_EMPTY); setInvFilters(INV_EMPTY) }
+
   const columns: ColumnsType<Product> = [
     {
       title: 'SKU',
       dataIndex: 'sku',
       width: 120,
+      sorter: (a, b) => (a.sku ?? '').localeCompare(b.sku ?? ''),
       render: (v: string) => (
         <Text
           copyable
@@ -84,6 +129,7 @@ export default function InventarioPage() {
       title: 'Nombre',
       dataIndex: 'name',
       ellipsis: true,
+      sorter: (a, b) => (a.name ?? '').localeCompare(b.name ?? ''),
       render: (name: string, r: Product) => (
         <div>
           <div style={{ fontWeight: 500 }}>{name}</div>
@@ -99,6 +145,7 @@ export default function InventarioPage() {
       title: 'Tipo',
       dataIndex: 'itemType',
       width: 100,
+      sorter: (a, b) => (a.itemType ?? '').localeCompare(b.itemType ?? ''),
       render: (v: string) => {
         const cfg = ITEM_TYPE_CONFIG[v as keyof typeof ITEM_TYPE_CONFIG]
         return cfg ? (
@@ -110,6 +157,7 @@ export default function InventarioPage() {
       title: 'Uso',
       dataIndex: 'usageType',
       width: 120,
+      sorter: (a, b) => (a.usageType ?? '').localeCompare(b.usageType ?? ''),
       render: (v: string) => {
         const cfg = USAGE_TYPE_CONFIG[v as keyof typeof USAGE_TYPE_CONFIG]
         return cfg ? (
@@ -122,6 +170,7 @@ export default function InventarioPage() {
       dataIndex: 'stockOnHand',
       width: 90,
       align: 'right',
+      sorter: (a, b) => Number(a.stockOnHand ?? 0) - Number(b.stockOnHand ?? 0),
       render: (v: number, r: Product) => {
         if (!r.isInventoriable) {
           return <Text type="secondary" style={{ fontSize: 12 }}>N/A</Text>
@@ -143,6 +192,7 @@ export default function InventarioPage() {
       dataIndex: 'averageCost',
       width: 110,
       align: 'right',
+      sorter: (a, b) => Number(a.averageCost ?? 0) - Number(b.averageCost ?? 0),
       render: (v: number) => (
         <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>
       ),
@@ -152,6 +202,7 @@ export default function InventarioPage() {
       dataIndex: 'salesPrice',
       width: 110,
       align: 'right',
+      sorter: (a, b) => Number(a.salesPrice ?? 0) - Number(b.salesPrice ?? 0),
       render: (v: number) => (
         <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>
       ),
@@ -296,6 +347,17 @@ export default function InventarioPage() {
               <Text style={{ fontSize: 13 }}>Solo bajo mínimo</Text>
             </Space>
           </Col>
+          <Col>
+            <Badge count={invActiveCount} size="small">
+              <Button
+                icon={<FilterOutlined />}
+                onClick={openInvFilters}
+                style={invActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}
+              >
+                Filtros
+              </Button>
+            </Badge>
+          </Col>
         </Row>
       </Card>
 
@@ -303,10 +365,11 @@ export default function InventarioPage() {
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
         <Table
           columns={columns}
-          dataSource={products}
+          dataSource={filteredProducts}
           loading={loading}
           rowKey="id"
           size="small"
+          showSorterTooltip={false}
           scroll={{ x: 900, y: 'calc(100vh - 280px)' }}
           pagination={{
             current: page,
@@ -340,6 +403,43 @@ export default function InventarioPage() {
           }}
         />
       </Card>
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title="Filtros avanzados"
+        placement="right"
+        width={340}
+        open={invFilterOpen}
+        onClose={() => setInvFilterOpen(false)}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={clearInvFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyInvFiltersHandler}>Aplicar</Button>
+          </Space>
+        }
+      >
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Identificación</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Input placeholder="SKU" size="small" value={invDraft.filterSku ?? ''} onChange={e => setInvDraft(d => ({ ...d, filterSku: e.target.value || undefined }))} allowClear />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Stock</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, marginBottom: 16 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={invDraft.filterStockMin ?? null} onChange={v => setInvDraft(d => ({ ...d, filterStockMin: v ?? null }))} min={0} />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={invDraft.filterStockMax ?? null} onChange={v => setInvDraft(d => ({ ...d, filterStockMax: v ?? null }))} min={0} />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Costo promedio</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, marginBottom: 16 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={invDraft.filterCostMin ?? null} onChange={v => setInvDraft(d => ({ ...d, filterCostMin: v ?? null }))} min={0} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={invDraft.filterCostMax ?? null} onChange={v => setInvDraft(d => ({ ...d, filterCostMax: v ?? null }))} min={0} prefix="Q" />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Precio de venta</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={invDraft.filterPriceMin ?? null} onChange={v => setInvDraft(d => ({ ...d, filterPriceMin: v ?? null }))} min={0} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={invDraft.filterPriceMax ?? null} onChange={v => setInvDraft(d => ({ ...d, filterPriceMax: v ?? null }))} min={0} prefix="Q" />
+        </div>
+      </Drawer>
     </div>
   )
 }
