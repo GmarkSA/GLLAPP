@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
   Avatar, Badge, Tooltip, Popconfirm, message,
-  Select, Popover,
+  Select, Popover, Drawer, InputNumber, Divider,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
   EyeOutlined, UserOutlined, BankOutlined, MailOutlined,
-  PhoneOutlined, SettingOutlined,
+  PhoneOutlined, SettingOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getCustomers, deleteCustomer, type Customer } from '../../../api/contactos'
@@ -84,6 +84,56 @@ const COL_WIDTHS: Record<string, number> = {
 
 const fmtQ = (n: number) =>
   `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface CustomerFilters {
+  filterName?: string
+  filterCustomerNumber?: string
+  filterLegalName?: string
+  filterTaxId?: string
+  filterEmail?: string
+  filterPhone?: string
+  filterType?: string[]
+  filterTaxTreatment?: string[]
+  filterStatus?: string[]
+  filterCurrency?: string[]
+  filterPaymentTerms?: string[]
+  filterCreditLimitMin?: number | null
+  filterCreditLimitMax?: number | null
+  filterCiudad?: string
+}
+
+function toApiParams(f: CustomerFilters): Record<string, any> {
+  const p: Record<string, any> = {}
+  if (f.filterName)           p.filterName           = f.filterName
+  if (f.filterCustomerNumber) p.filterCustomerNumber = f.filterCustomerNumber
+  if (f.filterLegalName)      p.filterLegalName      = f.filterLegalName
+  if (f.filterTaxId)          p.filterTaxId          = f.filterTaxId
+  if (f.filterEmail)          p.filterEmail          = f.filterEmail
+  if (f.filterPhone)          p.filterPhone          = f.filterPhone
+  if (f.filterCiudad)         p.filterCiudad         = f.filterCiudad
+  if (f.filterType?.length)          p.filterType          = f.filterType!.join(',')
+  if (f.filterTaxTreatment?.length)  p.filterTaxTreatment  = f.filterTaxTreatment!.join(',')
+  if (f.filterStatus?.length)        p.filterStatus        = f.filterStatus!.join(',')
+  if (f.filterCurrency?.length)      p.filterCurrency      = f.filterCurrency!.join(',')
+  if (f.filterPaymentTerms?.length)  p.filterPaymentTerms  = f.filterPaymentTerms!.join(',')
+  if (f.filterCreditLimitMin != null) p.filterCreditLimitMin = f.filterCreditLimitMin
+  if (f.filterCreditLimitMax != null) p.filterCreditLimitMax = f.filterCreditLimitMax
+  return p
+}
+
+const PAYMENT_TERMS_OPTS = [
+  { value: 'immediate', label: 'Pago inmediato' },
+  { value: 'net_7',     label: '7 días neto' },
+  { value: 'net_10',    label: '10 días neto' },
+  { value: 'net_15',    label: '15 días neto' },
+  { value: 'net_30',    label: '30 días neto' },
+  { value: 'net_45',    label: '45 días neto' },
+  { value: 'net_60',    label: '60 días neto' },
+  { value: 'net_90',    label: '90 días neto' },
+  { value: 'net_120',   label: '120 días neto' },
+  { value: 'custom',    label: 'Personalizado' },
+]
 
 // ── Definiciones de columna ───────────────────────────────────────────────────
 function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (id: string) => void): ColumnsType<Customer>[number] | null {
@@ -221,15 +271,36 @@ export default function ClientesPage() {
   const [colConfig,  setColConfig]  = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
 
+  // Filtros avanzados
+  const [filters,    setFilters]    = useState<CustomerFilters>({})
+  const [draft,      setDraft]      = useState<CustomerFilters>({})
+  const [filterOpen, setFilterOpen] = useState(false)
+
+  const activeCount = useMemo(() => [
+    filters.filterName, filters.filterCustomerNumber, filters.filterLegalName,
+    filters.filterTaxId, filters.filterEmail, filters.filterPhone, filters.filterCiudad,
+    filters.filterType?.length       ? 1 : undefined,
+    filters.filterTaxTreatment?.length ? 1 : undefined,
+    filters.filterStatus?.length     ? 1 : undefined,
+    filters.filterCurrency?.length   ? 1 : undefined,
+    filters.filterPaymentTerms?.length ? 1 : undefined,
+    filters.filterCreditLimitMin != null ? 1 : undefined,
+    filters.filterCreditLimitMax != null ? 1 : undefined,
+  ].filter(Boolean).length, [filters])
+
+  const openFilters  = () => { setDraft({ ...filters }); setFilterOpen(true) }
+  const applyFilters = () => { setFilters({ ...draft }); setPage(1); setFilterOpen(false) }
+  const clearFilters = () => { setDraft({}); setFilters({}); setPage(1); setFilterOpen(false) }
+
   const fetchCustomers = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getCustomers({ search, page, limit: 20 })
+      const res = await getCustomers({ search, page, limit: 20, ...toApiParams(filters) })
       if (Array.isArray(res)) { setCustomers(res); setTotal(res.length) }
       else { setCustomers(res.data ?? res.items ?? []); setTotal(res.meta?.total ?? res.total ?? 0) }
     } catch { setCustomers([]); setTotal(0) }
     finally { setLoading(false) }
-  }, [search, page])
+  }, [search, page, filters])
 
   useEffect(() => { fetchCustomers() }, [fetchCustomers])
 
@@ -311,16 +382,15 @@ export default function ClientesPage() {
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             allowClear
           />
-          <Select placeholder="Tipo fiscal" style={{ width: 170 }} allowClear>
-            {Object.entries(TAX_TREATMENT_CONFIG).map(([k, v]) => (
-              <Option key={k} value={k}><Tag color={v.color}>{v.label}</Tag></Option>
-            ))}
-          </Select>
-          <Select placeholder="Estado" style={{ width: 130 }} allowClear>
-            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-              <Option key={k} value={k}>{v.label}</Option>
-            ))}
-          </Select>
+          <Badge count={activeCount} size="small" color="#1faec2" offset={[-4, 4]}>
+            <Button
+              icon={<FilterOutlined />}
+              onClick={openFilters}
+              style={activeCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}
+            >
+              Filtros
+            </Button>
+          </Badge>
           <Popover
             open={colPopover}
             onOpenChange={setColPopover}
@@ -390,6 +460,149 @@ export default function ClientesPage() {
           }}
         />
       </Card>
+
+      {/* ── Drawer filtros avanzados ─────────────────────────────────────────── */}
+      <Drawer
+        title={<Space><FilterOutlined style={{ color: '#1faec2' }} /><span>Filtros avanzados</span></Space>}
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        width={540}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={clearFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyFilters}>
+              Aplicar filtros{activeCount > 0 ? ` (${activeCount})` : ''}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+
+          {/* Identificación */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Identificación</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Nombre</div>
+            <Input size="small" allowClear placeholder="Buscar nombre..."
+              value={draft.filterName ?? ''}
+              onChange={e => setDraft(d => ({ ...d, filterName: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>N° Cliente</div>
+            <Input size="small" allowClear placeholder="CLI-00001..."
+              value={draft.filterCustomerNumber ?? ''}
+              onChange={e => setDraft(d => ({ ...d, filterCustomerNumber: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Razón Social SAT</div>
+            <Input size="small" allowClear placeholder="Razón social registrada en SAT..."
+              value={draft.filterLegalName ?? ''}
+              onChange={e => setDraft(d => ({ ...d, filterLegalName: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>NIT</div>
+            <Input size="small" allowClear placeholder="12345678..."
+              value={draft.filterTaxId ?? ''}
+              onChange={e => setDraft(d => ({ ...d, filterTaxId: e.target.value || undefined }))} />
+          </div>
+
+          {/* Contacto */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Contacto</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Email</div>
+            <Input size="small" allowClear placeholder="correo@..."
+              value={draft.filterEmail ?? ''}
+              onChange={e => setDraft(d => ({ ...d, filterEmail: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Teléfono</div>
+            <Input size="small" allowClear placeholder="502..."
+              value={draft.filterPhone ?? ''}
+              onChange={e => setDraft(d => ({ ...d, filterPhone: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Ciudad</div>
+            <Input size="small" allowClear placeholder="Guatemala, Mixco, Quetzaltenango..."
+              value={draft.filterCiudad ?? ''}
+              onChange={e => setDraft(d => ({ ...d, filterCiudad: e.target.value || undefined }))} />
+          </div>
+
+          {/* Clasificación */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Clasificación</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Tipo</div>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos"
+              value={draft.filterType ?? []}
+              onChange={v => setDraft(d => ({ ...d, filterType: v.length ? v : undefined }))}>
+              <Option value="individual">Individual</Option>
+              <Option value="company">Empresa</Option>
+            </Select>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Tipo fiscal</div>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos"
+              value={draft.filterTaxTreatment ?? []}
+              onChange={v => setDraft(d => ({ ...d, filterTaxTreatment: v.length ? v : undefined }))}>
+              {Object.entries(TAX_TREATMENT_CONFIG).map(([k, v]) => (
+                <Option key={k} value={k}><Tag color={v.color} style={{ margin: 0 }}>{v.label}</Tag></Option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Estado</div>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos"
+              value={draft.filterStatus ?? []}
+              onChange={v => setDraft(d => ({ ...d, filterStatus: v.length ? v : undefined }))}>
+              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                <Option key={k} value={k}>{v.label}</Option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Moneda</div>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todas"
+              value={draft.filterCurrency ?? []}
+              onChange={v => setDraft(d => ({ ...d, filterCurrency: v.length ? v : undefined }))}>
+              <Option value="GTQ">GTQ — Quetzal</Option>
+              <Option value="USD">USD — Dólar</Option>
+            </Select>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Términos de pago</div>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos"
+              value={draft.filterPaymentTerms ?? []}
+              onChange={v => setDraft(d => ({ ...d, filterPaymentTerms: v.length ? v : undefined }))}>
+              {PAYMENT_TERMS_OPTS.map(o => <Option key={o.value} value={o.value}>{o.label}</Option>)}
+            </Select>
+          </div>
+
+          {/* Límite de crédito */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Límite de crédito</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Desde</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="0.00" addonBefore="Q"
+              value={draft.filterCreditLimitMin ?? null}
+              onChange={v => setDraft(d => ({ ...d, filterCreditLimitMin: v ?? null }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Hasta</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="sin límite" addonBefore="Q"
+              value={draft.filterCreditLimitMax ?? null}
+              onChange={v => setDraft(d => ({ ...d, filterCreditLimitMax: v ?? null }))} />
+          </div>
+
+        </div>
+      </Drawer>
     </div>
   )
 }
