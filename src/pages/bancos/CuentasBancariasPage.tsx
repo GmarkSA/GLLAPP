@@ -13,6 +13,10 @@ import {
   Tooltip,
   Typography,
   message,
+  Drawer,
+  InputNumber,
+  Divider,
+  Badge,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -27,6 +31,7 @@ import {
   SearchOutlined,
   StopOutlined,
   SwapOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useCompanyStore } from '../../store/companyStore'
@@ -43,6 +48,26 @@ import { accountTypeIcon, moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './
 
 const { Title, Text } = Typography
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface CbAdFilters {
+  filterBankName?: string
+  filterCurrency?: string[]
+  filterBalanceMin?: number | null
+  filterBalanceMax?: number | null
+}
+
+const CB_EMPTY: CbAdFilters = {}
+
+function applyCbFilters(data: BankAccount[], f: CbAdFilters): BankAccount[] {
+  return data.filter(r => {
+    if (f.filterBankName && !r.bankName?.toLowerCase().includes(f.filterBankName.toLowerCase())) return false
+    if (f.filterCurrency?.length && !f.filterCurrency.includes(r.currency ?? '')) return false
+    if (f.filterBalanceMin != null && Number(r.currentBalance ?? 0) < f.filterBalanceMin) return false
+    if (f.filterBalanceMax != null && Number(r.currentBalance ?? 0) > f.filterBalanceMax) return false
+    return true
+  })
+}
+
 export default function CuentasBancariasPage() {
   const navigate = useNavigate()
   const activeCompany = useCompanyStore(s => s.activeCompany)
@@ -51,6 +76,19 @@ export default function CuentasBancariasPage() {
   const [search, setSearch] = useState('')
   const [type, setType] = useState<BankAccountType | undefined>()
   const [status, setStatus] = useState<string>('active')
+
+  // Filtros avanzados
+  const [cbFilters,    setCbFilters]    = useState<CbAdFilters>(CB_EMPTY)
+  const [cbDraft,      setCbDraft]      = useState<CbAdFilters>(CB_EMPTY)
+  const [cbFilterOpen, setCbFilterOpen] = useState(false)
+
+  const cbActiveCount = useMemo(() =>
+    Object.entries(cbFilters).filter(([, v]) =>
+      v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+    ).length
+  , [cbFilters])
+
+  const filteredAccounts = useMemo(() => applyCbFilters(accounts, cbFilters), [accounts, cbFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -107,12 +145,17 @@ export default function CuentasBancariasPage() {
     }
   }
 
+  const openCbFilters = () => { setCbDraft(cbFilters); setCbFilterOpen(true) }
+  const applyCbFiltersHandler = () => { setCbFilters(cbDraft); setCbFilterOpen(false) }
+  const clearCbFilters = () => { setCbDraft(CB_EMPTY); setCbFilters(CB_EMPTY) }
+
   const columns: ColumnsType<BankAccount> = [
     {
       title: 'Cuenta',
       dataIndex: 'name',
       width: 300,
       fixed: 'left',
+      sorter: (a, b) => (a.name ?? '').localeCompare(b.name ?? ''),
       render: (_, row) => {
         const cfg = ACCOUNT_TYPE_CONFIG[row.type]
         return (
@@ -145,6 +188,7 @@ export default function CuentasBancariasPage() {
       title: 'Tipo',
       dataIndex: 'type',
       width: 160,
+      sorter: (a, b) => (a.type ?? '').localeCompare(b.type ?? ''),
       render: (v: BankAccountType) => {
         const cfg = ACCOUNT_TYPE_CONFIG[v]
         return <Tag color={cfg.color}>{cfg.label}</Tag>
@@ -154,6 +198,7 @@ export default function CuentasBancariasPage() {
       title: 'Moneda',
       dataIndex: 'currency',
       width: 90,
+      sorter: (a, b) => (a.currency ?? '').localeCompare(b.currency ?? ''),
       render: v => <Tag>{v}</Tag>,
     },
     {
@@ -161,6 +206,7 @@ export default function CuentasBancariasPage() {
       dataIndex: 'currentBalance',
       width: 160,
       align: 'right',
+      sorter: (a, b) => Number(a.currentBalance ?? 0) - Number(b.currentBalance ?? 0),
       render: (v, row) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: Number(v) < 0 ? '#e5484d' : NAVY }}>{moneyFmt(Number(v), row.currency)}</Text>,
     },
     {
@@ -305,6 +351,16 @@ export default function CuentasBancariasPage() {
               { value: 'all', label: 'Todas' },
             ]}
           />
+          <Badge count={cbActiveCount} size="small">
+            <Button
+              size="small"
+              icon={<FilterOutlined />}
+              onClick={openCbFilters}
+              style={cbActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}
+            >
+              Filtros
+            </Button>
+          </Badge>
           <Button size="small" icon={<ReloadOutlined />} onClick={load} loading={loading}>Actualizar</Button>
         </Space>
       </Card>
@@ -312,15 +368,53 @@ export default function CuentasBancariasPage() {
       <Card size="small" style={panelStyle} bodyStyle={{ padding: 0 }}>
         <Table<BankAccount>
           columns={columns}
-          dataSource={accounts}
+          dataSource={filteredAccounts}
           rowKey="id"
           size="small"
           loading={loading}
+          showSorterTooltip={false}
           scroll={{ x: 'max-content', y: 'calc(100vh - 352px)' }}
           pagination={{ pageSize: 50, showTotal: t => `${t} registros` }}
           locale={{ emptyText: <Empty description="Sin cuentas bancarias" /> }}
         />
       </Card>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title="Filtros avanzados"
+        placement="right"
+        width={340}
+        open={cbFilterOpen}
+        onClose={() => setCbFilterOpen(false)}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={clearCbFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyCbFiltersHandler}>Aplicar</Button>
+          </Space>
+        }
+      >
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Banco</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Input placeholder="Nombre del banco" size="small" value={cbDraft.filterBankName ?? ''} onChange={e => setCbDraft(d => ({ ...d, filterBankName: e.target.value || undefined }))} allowClear />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Moneda</Text>
+        <div style={{ marginTop: 8, marginBottom: 16 }}>
+          <Select
+            mode="multiple" size="small" placeholder="Moneda"
+            value={cbDraft.filterCurrency ?? []}
+            onChange={v => setCbDraft(d => ({ ...d, filterCurrency: v.length ? v : undefined }))}
+            allowClear style={{ width: '100%' }}
+            options={[{ value: 'GTQ', label: 'GTQ' }, { value: 'USD', label: 'USD' }]}
+          />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Saldo sistema</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={cbDraft.filterBalanceMin ?? null} onChange={v => setCbDraft(d => ({ ...d, filterBalanceMin: v ?? null }))} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={cbDraft.filterBalanceMax ?? null} onChange={v => setCbDraft(d => ({ ...d, filterBalanceMax: v ?? null }))} prefix="Q" />
+        </div>
+      </Drawer>
     </div>
   )
 }

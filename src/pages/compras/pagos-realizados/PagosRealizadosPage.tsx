@@ -1,12 +1,13 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Card, Table, Button, Space, Typography, Tag, Input,
   Select, message, Popconfirm, Tooltip, Modal, Descriptions, Alert,
+  Drawer, InputNumber, Divider, Badge,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   PrinterOutlined, StopOutlined, BookOutlined, DollarOutlined,
-  EyeOutlined, SettingOutlined, DeleteOutlined,
+  EyeOutlined, SettingOutlined, DeleteOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -45,6 +46,28 @@ const STATUS_LABEL: Record<string, string> = {
   voided:  'Anulado',
 }
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface PrAdFilters {
+  filterPaymentNumber?: string
+  filterVendorName?: string
+  filterCheckNumber?: string
+  filterAmountMin?: number | null
+  filterAmountMax?: number | null
+}
+
+const PR_EMPTY: PrAdFilters = {}
+
+function applyPrFilters(data: VendorPayment[], f: PrAdFilters): VendorPayment[] {
+  return data.filter(r => {
+    if (f.filterPaymentNumber && !r.paymentNumber?.toLowerCase().includes(f.filterPaymentNumber.toLowerCase())) return false
+    if (f.filterVendorName && !r.vendorName?.toLowerCase().includes(f.filterVendorName.toLowerCase())) return false
+    if (f.filterCheckNumber && !r.checkNumber?.toLowerCase().includes(f.filterCheckNumber.toLowerCase())) return false
+    if (f.filterAmountMin != null && Number(r.amount ?? 0) < f.filterAmountMin) return false
+    if (f.filterAmountMax != null && Number(r.amount ?? 0) > f.filterAmountMax) return false
+    return true
+  })
+}
+
 export default function PagosRealizadosPage() {
   const navigate = useNavigate()
   const [data,     setData]     = useState<VendorPayment[]>([])
@@ -61,6 +84,19 @@ export default function PagosRealizadosPage() {
   const [jeLoading,    setJeLoading]    = useState(false)
   const [previewId,    setPreviewId]    = useState<string | null>(null)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+
+  // Filtros avanzados
+  const [prFilters,    setPrFilters]    = useState<PrAdFilters>(PR_EMPTY)
+  const [prDraft,      setPrDraft]      = useState<PrAdFilters>(PR_EMPTY)
+  const [prFilterOpen, setPrFilterOpen] = useState(false)
+
+  const prActiveCount = useMemo(() =>
+    Object.entries(prFilters).filter(([, v]) =>
+      v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+    ).length
+  , [prFilters])
+
+  const filteredData = useMemo(() => applyPrFilters(data, prFilters), [data, prFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -125,13 +161,19 @@ export default function PagosRealizadosPage() {
     }
   }
 
+  const openPrFilters = () => { setPrDraft(prFilters); setPrFilterOpen(true) }
+  const applyPrFiltersHandler = () => { setPrFilters(prDraft); setPrFilterOpen(false) }
+  const clearPrFilters = () => { setPrDraft(PR_EMPTY); setPrFilters(PR_EMPTY) }
+
   const columns: ColumnsType<VendorPayment> = [
     {
       title: 'Número', dataIndex: 'paymentNumber', width: 160,
+      sorter: (a, b) => (a.paymentNumber ?? '').localeCompare(b.paymentNumber ?? ''),
       render: (v) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Text>,
     },
     {
       title: 'Proveedor', dataIndex: 'vendorName', ellipsis: true,
+      sorter: (a, b) => (a.vendorName ?? '').localeCompare(b.vendorName ?? ''),
       render: (v) => <Text>{v ?? '—'}</Text>,
     },
     {
@@ -151,14 +193,18 @@ export default function PagosRealizadosPage() {
     },
     {
       title: 'Fecha', dataIndex: 'paymentDate', width: 105,
+      defaultSortOrder: 'descend' as const,
+      sorter: (a, b) => (a.paymentDate ?? '').localeCompare(b.paymentDate ?? ''),
       render: (v) => dayjs(v).format('DD/MM/YYYY'),
     },
     {
       title: 'Modo', dataIndex: 'mode', width: 130,
+      sorter: (a, b) => (a.mode ?? '').localeCompare(b.mode ?? ''),
       render: (v) => MODE_LABELS[v] ?? v,
     },
     {
       title: 'Cheque', dataIndex: 'checkNumber', width: 130,
+      sorter: (a, b) => (a.checkNumber ?? '').localeCompare(b.checkNumber ?? ''),
       render: (v, r) => v ? (
         <Space size={4}>
           <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>
@@ -168,10 +214,12 @@ export default function PagosRealizadosPage() {
     },
     {
       title: 'Monto', dataIndex: 'amount', width: 130, align: 'right',
+      sorter: (a, b) => Number(a.amount ?? 0) - Number(b.amount ?? 0),
       render: (v, r) => <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v, r.currency)}</Text>,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 105,
+      sorter: (a, b) => (a.status ?? '').localeCompare(b.status ?? ''),
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{STATUS_LABEL[v] ?? v}</Tag>,
     },
     {
@@ -321,6 +369,15 @@ export default function PagosRealizadosPage() {
               { value: 'credit_card',   label: 'Tarjeta crédito' },
             ]}
           />
+          <Badge count={prActiveCount} size="small">
+            <Button
+              icon={<FilterOutlined />}
+              onClick={openPrFilters}
+              style={prActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}
+            >
+              Filtros
+            </Button>
+          </Badge>
           <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
             Actualizar
           </Button>
@@ -336,10 +393,11 @@ export default function PagosRealizadosPage() {
         <div className="pagos-table">
           <Table
             columns={columns}
-            dataSource={data}
+            dataSource={filteredData}
             rowKey="id"
             loading={loading}
             size="middle"
+            showSorterTooltip={false}
             scroll={{ x: 1200, y: 'calc(100vh - 330px)' }}
             rowClassName={(r) => r.status === 'voided' ? 'row-void' : ''}
             rowSelection={{
@@ -509,6 +567,34 @@ export default function PagosRealizadosPage() {
           </>
         )}
       </Modal>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title="Filtros avanzados"
+        placement="right"
+        width={340}
+        open={prFilterOpen}
+        onClose={() => setPrFilterOpen(false)}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={clearPrFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyPrFiltersHandler}>Aplicar</Button>
+          </Space>
+        }
+      >
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Pago</Text>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 16 }}>
+          <Input placeholder="N° pago" size="small" value={prDraft.filterPaymentNumber ?? ''} onChange={e => setPrDraft(d => ({ ...d, filterPaymentNumber: e.target.value || undefined }))} allowClear />
+          <Input placeholder="Proveedor" size="small" value={prDraft.filterVendorName ?? ''} onChange={e => setPrDraft(d => ({ ...d, filterVendorName: e.target.value || undefined }))} allowClear />
+          <Input placeholder="N° cheque" size="small" value={prDraft.filterCheckNumber ?? ''} onChange={e => setPrDraft(d => ({ ...d, filterCheckNumber: e.target.value || undefined }))} allowClear />
+        </div>
+        <Divider style={{ margin: '0 0 16px' }} />
+        <Text strong style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Monto</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+          <InputNumber placeholder="Mín" size="small" style={{ width: '100%' }} value={prDraft.filterAmountMin ?? null} onChange={v => setPrDraft(d => ({ ...d, filterAmountMin: v ?? null }))} min={0} prefix="Q" />
+          <InputNumber placeholder="Máx" size="small" style={{ width: '100%' }} value={prDraft.filterAmountMax ?? null} onChange={v => setPrDraft(d => ({ ...d, filterAmountMax: v ?? null }))} min={0} prefix="Q" />
+        </div>
+      </Drawer>
 
       <style>{`
         .row-void td { opacity: 0.45; text-decoration: line-through; }
