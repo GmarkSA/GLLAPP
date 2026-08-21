@@ -145,6 +145,7 @@ export default function GruposPage() {
       </Card>
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
         <Table columns={columns} dataSource={items} loading={loading}
+          scroll={{ y: 'calc(100vh - 330px)' }}
           rowKey="id" size="small" pagination={{ pageSize: 20, showSizeChanger: false }}
           locale={{ emptyText: 'Sin grupos registrados' }} />
       </Card>

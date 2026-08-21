@@ -235,7 +235,7 @@ export default function ImportacionesPage() {
           loading={loading}
           rowKey="id"
           size="small"
-          scroll={{ x: 1000, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: 1000, y: 'calc(100vh - 312px)' }}
           pagination={{
             current: page,
             pageSize: 20,

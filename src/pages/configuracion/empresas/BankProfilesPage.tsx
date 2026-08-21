@@ -165,7 +165,7 @@ export default function BankProfilesPage() {
         </Button>
       </div>
 
-      <Table rowKey="id" columns={columns} dataSource={profiles} loading={loading} size="small" pagination={false} />
+      <Table rowKey="id" columns={columns} dataSource={profiles} loading={loading} size="small" pagination={false} scroll={{ y: 'calc(100vh - 330px)' }} />
 
       <Modal
         title={editing ? 'Editar perfil bancario' : 'Nuevo perfil bancario'}

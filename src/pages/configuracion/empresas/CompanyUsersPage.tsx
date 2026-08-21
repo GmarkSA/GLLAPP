@@ -213,6 +213,7 @@ export default function CompanyUsersPage() {
       </div>
 
       <Table
+        scroll={{ y: 'calc(100vh - 330px)' }}
         rowKey="userId"
         columns={columns}
         dataSource={assignments}

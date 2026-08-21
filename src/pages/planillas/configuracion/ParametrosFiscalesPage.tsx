@@ -238,6 +238,7 @@ export default function ParametrosFiscalesPage() {
             </div>
           ) : (
             <Table
+              scroll={{ y: 'calc(100vh - 330px)' }}
               size="small" rowKey="id" pagination={false} dataSource={salarios}
               columns={[
                 { title: 'Actividad económica', dataIndex: 'tipoActividadEconomica', render: (v: string) => ACTIVIDAD_LABEL[v] ?? v },

@@ -307,7 +307,7 @@ export default function InventarioPage() {
           loading={loading}
           rowKey="id"
           size="small"
-          scroll={{ x: 900, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: 900, y: 'calc(100vh - 312px)' }}
           pagination={{
             current: page,
             pageSize: limit,

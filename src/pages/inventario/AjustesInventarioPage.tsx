@@ -193,6 +193,7 @@ export default function AjustesInventarioPage() {
       </Card>
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
         <Table columns={columns} dataSource={items} loading={loading}
+          scroll={{ y: 'calc(100vh - 330px)' }}
           rowKey="id" size="small"
           pagination={{ current: page, pageSize: 20, total, showSizeChanger: false,
             showTotal: t => `${t} ajustes`, onChange: p => setPage(p) }}
