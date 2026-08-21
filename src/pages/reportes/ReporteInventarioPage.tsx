@@ -163,6 +163,7 @@ function ValorizacionTab() {
       </div>
 
       <Table
+        sticky={{ offsetHeader: 60 }}
         dataSource={data}
         columns={cols}
         rowKey="id"
@@ -328,6 +329,7 @@ function KardexTab() {
       <Spin spinning={loading}>
         {movimientos.length > 0 ? (
           <Table
+        sticky={{ offsetHeader: 60 }}
             dataSource={movimientos}
             columns={cols}
             rowKey={(_, i) => String(i)}

@@ -638,6 +638,7 @@ export default function ArAgingPage() {
 
           {totalBalance > 0 && (
             <Table
+              sticky={{ offsetHeader: 60 }}
               columns={columns}
               dataSource={clientRows}
               rowKey="customerId"

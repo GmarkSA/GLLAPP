@@ -402,6 +402,7 @@ export default function LibroMayorPage() {
       >
         {viewMode === 'resumido' ? (
           <Table
+        sticky={{ offsetHeader: 60 }}
             columns={resumidoColumns}
             dataSource={filteredData}
             rowKey={d => d.account.id}
@@ -436,6 +437,7 @@ export default function LibroMayorPage() {
           />
         ) : (
           <Table
+        sticky={{ offsetHeader: 60 }}
             columns={flatColumns}
             dataSource={flatRows}
             rowKey="_key"

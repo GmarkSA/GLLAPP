@@ -419,6 +419,7 @@ export default function RentabilidadCentrosBeneficioPage() {
               title={<Text strong style={{ fontSize: 13 }}>Estado de resultados por División</Text>}
               extra={<Text type="secondary" style={{ fontSize: 11 }}>Expande una sección para ver sus cuentas · clic en un monto para ver movimientos</Text>}>
               <Table
+        sticky={{ offsetHeader: 60 }}
                 size="small" dataSource={filas} columns={tableColumns} rowKey="key"
                 pagination={false} scroll={{ x: 'max-content' }}
                 expandable={{ indentSize: 12 }}

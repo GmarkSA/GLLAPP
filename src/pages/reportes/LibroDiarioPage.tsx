@@ -334,6 +334,7 @@ export default function LibroDiarioPage() {
         bodyStyle={{ padding: 0 }}
       >
         <Table
+        sticky={{ offsetHeader: 60 }}
           columns={flatColumns}
           dataSource={flatRows}
           rowKey="_key"

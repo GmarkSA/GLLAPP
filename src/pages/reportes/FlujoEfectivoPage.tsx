@@ -147,6 +147,7 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
   return (
     <Spin spinning={loading}>
       <Table
+        sticky={{ offsetHeader: 60 }}
         size="small"
         dataSource={rows}
         columns={columns}
