@@ -503,23 +503,27 @@ export default function CatalogoPage() {
       title: 'Código',
       dataIndex: 'code',
       width: 90,
+      sorter: (a: Account, b: Account) => (a.code ?? '').localeCompare(b.code ?? ''),
       render: (v: string) => <Tag style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, margin: 0 }}>{v}</Tag>,
     },
     {
       title: 'Nombre',
       dataIndex: 'name',
       ellipsis: true,
+      sorter: (a: Account, b: Account) => (a.name ?? '').localeCompare(b.name ?? ''),
     },
     {
       title: 'Tipo',
       dataIndex: 'balanceType',
       width: 130,
+      sorter: (a: Account, b: Account) => (a.balanceType ?? '').localeCompare(b.balanceType ?? ''),
       render: (v: string) => v ? <Tag color={BALANCE_TYPE_COLOR[v] || 'default'}>{v}</Tag> : '-',
     },
     {
       title: 'Saldo normal',
       dataIndex: 'normalBalance',
       width: 110,
+      sorter: (a: Account, b: Account) => (a.normalBalance ?? '').localeCompare(b.normalBalance ?? ''),
       render: (v: string) => (
         <Tag color={v === 'debit' ? '#1faec2' : '#e5484d'}>
           {v === 'debit' ? 'Débito' : 'Crédito'}
@@ -542,6 +546,7 @@ export default function CatalogoPage() {
       title: 'Estado',
       dataIndex: 'isActive',
       width: 90,
+      sorter: (a: Account, b: Account) => Number(b.isActive) - Number(a.isActive),
       render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? 'Activa' : 'Inactiva'}</Tag>,
     },
     {
@@ -794,6 +799,7 @@ export default function CatalogoPage() {
           loading={loadingAccounts}
           rowKey="id"
           size="small"
+          showSorterTooltip={false}
           rowSelection={{
             type: 'checkbox',
             selectedRowKeys,
