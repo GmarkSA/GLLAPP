@@ -113,6 +113,8 @@ export interface Invoice {
   costJournalEntryId?: string   // Asiento de baja de inventario
   isrRetentionAmount?:    number
   isrRetentionAccountId?: string
+  ivaRetentionAmount?:    number
+  ivaRetentionAccountId?: string
   journalLines?:   JournalLine[]
   items?:          InvoiceItem[]
   payments?:       InvoicePayment[]
@@ -182,9 +184,11 @@ export interface CreateInvoiceDto {
   felCertificadaAt?: string
   centroCostoId?:    string
   centroBeneficioId?: string
-  // ISR Retención en origen
+  // Retenciones — ISR en origen + IVA (Factura Especial FESP)
   isrRetentionAmount?:    number
   isrRetentionAccountId?: string
+  ivaRetentionAmount?:    number
+  ivaRetentionAccountId?: string
 }
 
 export interface CreateEstimateDto {
@@ -533,6 +537,12 @@ export const FEL_TIPOS_FRASE = [
   { tipoFrase: 2, codigoEscenario: 1, label: 'Exportación' },
   { tipoFrase: 3, codigoEscenario: 1, label: 'Art. 7 Ley IVA — Exento IVA' },
   { tipoFrase: 4, codigoEscenario: 1, label: 'Especial Dominios' },
+]
+
+// Frases obligatorias para Factura Especial FESP (SAT Guatemala, art. 52 Ley IVA)
+export const FEL_FRASES_FESP = [
+  { tipoFrase: 4, codigoEscenario: 1, label: 'El vendedor se negó a emitir la factura (art. 52 Ley IVA)' },
+  { tipoFrase: 4, codigoEscenario: 2, label: 'Vendedor de productos agropecuarios, artesanales o reciclados' },
 ]
 
 export const INCOTERMS = [
