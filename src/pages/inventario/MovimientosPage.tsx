@@ -661,10 +661,12 @@ export default function MovimientosPage() {
   const columns: ColumnsType<Movimiento> = [
     {
       title: 'Código', dataIndex: 'code', width: 140,
+      sorter: (a, b) => (a.code ?? '').localeCompare(b.code ?? ''),
       render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text>,
     },
     {
       title: 'Tipo', dataIndex: 'tipoMovimiento', width: 200,
+      sorter: (a, b) => (a.tipoMovimiento ?? '').localeCompare(b.tipoMovimiento ?? ''),
       render: (v: TipoMovimiento) => {
         const c = TIPO_MOVIMIENTO_CONFIG[v]
         return c ? <Tag color={c.color}>{c.icon} {c.label}</Tag> : <Tag>{v}</Tag>
@@ -672,6 +674,8 @@ export default function MovimientosPage() {
     },
     {
       title: 'Fecha', dataIndex: 'date', width: 100,
+      defaultSortOrder: 'descend' as const,
+      sorter: (a, b) => (a.date ?? '').localeCompare(b.date ?? ''),
       render: v => dayjs(v).format('DD/MM/YYYY'),
     },
     {
@@ -691,9 +695,12 @@ export default function MovimientosPage() {
         return <Tag color="gold">—</Tag>
       },
     },
-    { title: 'Referencia', dataIndex: 'reason', ellipsis: true, render: v => v || '—' },
+    { title: 'Referencia', dataIndex: 'reason', ellipsis: true,
+      sorter: (a, b) => (a.reason ?? '').localeCompare(b.reason ?? ''),
+      render: v => v || '—' },
     {
       title: 'Estado', dataIndex: 'status', width: 120,
+      sorter: (a, b) => (a.status ?? '').localeCompare(b.status ?? ''),
       render: (v, row) => row.reversedByMovimientoId
         ? <Badge status="warning" text="Reversado" />
         : row.reversalOfId
@@ -810,6 +817,7 @@ export default function MovimientosPage() {
           loading={loading}
           rowKey="id"
           size="small"
+          showSorterTooltip={false}
           pagination={{ current: page, pageSize: 20, total, showSizeChanger: false,
             showTotal: t => `${t} movimientos`, onChange: setPage }}
           locale={{ emptyText: 'Sin movimientos registrados' }}
