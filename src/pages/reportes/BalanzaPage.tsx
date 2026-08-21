@@ -125,6 +125,7 @@ export default function BalanzaPage() {
             size="small"
           >
             <Table
+        sticky={{ offsetHeader: 60 }}
               size="small"
               dataSource={filtered}
               rowKey="id"

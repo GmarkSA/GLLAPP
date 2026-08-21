@@ -196,6 +196,7 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
     <>
       <Spin spinning={loading}>
         <Table
+        sticky={{ offsetHeader: 60 }}
           size="small"
           dataSource={rows}
           columns={columns}

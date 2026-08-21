@@ -363,6 +363,7 @@ export default function EjecucionCentrosCostoPage() {
               title={<Text strong style={{ fontSize: 13 }}>Ejecución por centro de costo · ejercicio {year}</Text>}
               extra={<Text type="secondary" style={{ fontSize: 11 }}>Expande una fila para ver la composición del gasto</Text>}>
               <Table
+        sticky={{ offsetHeader: 60 }}
                 size="small" dataSource={centrosConDatos} columns={columns}
                 rowKey={c => c.centroId ?? 'sin-asignar'}
                 pagination={false} scroll={{ x: 'max-content' }}

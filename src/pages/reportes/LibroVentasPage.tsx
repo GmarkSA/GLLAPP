@@ -438,6 +438,7 @@ export default function LibroVentasPage() {
 
           <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: '0 0 8px 8px', borderTop: 'none' }}>
             <Table
+        sticky={{ offsetHeader: 60 }}
               dataSource={data.items}
               columns={tableColumns}
               rowKey={(r) => r.uuid || r.numeroInterno}

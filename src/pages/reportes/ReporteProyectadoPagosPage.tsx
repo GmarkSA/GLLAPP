@@ -216,6 +216,7 @@ export default function ReporteProyectadoPagosPage() {
             {/* Tabla de facturas */}
             {isOpen && (
               <Table
+        sticky={{ offsetHeader: 60 }}
                 columns={invoiceColumns}
                 dataSource={bucket.items}
                 rowKey="id"

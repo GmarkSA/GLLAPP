@@ -494,6 +494,7 @@ export default function ReporteActivosFijosPage() {
             label: <span><TableOutlined /> Resumen</span>,
             children: (
       <Table<TableRow>
+        sticky={{ offsetHeader: 60 }}
         dataSource={tableRows}
         columns={columns}
         loading={loading}

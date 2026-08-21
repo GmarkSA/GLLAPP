@@ -643,6 +643,7 @@ export default function ApAgingPage() {
 
           {totalBalance > 0 && (
             <Table
+              sticky={{ offsetHeader: 60 }}
               columns={columns}
               dataSource={vendorRows}
               rowKey="vendorId"
