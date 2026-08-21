@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Button, Space, Typography, Tag, Input,
   DatePicker, Tooltip, Popconfirm, message, Row, Col, Statistic, Popover, Modal, Descriptions,
+  Drawer, InputNumber, Divider, Badge, Select,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, DollarOutlined, EyeOutlined, DeleteOutlined,
-  ClearOutlined, BankOutlined, SettingOutlined, BookOutlined, SyncOutlined,
+  ClearOutlined, BankOutlined, SettingOutlined, BookOutlined, SyncOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -154,6 +155,27 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
   }
 }
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface PagoAdFilters {
+  filterPaymentNumber?: string
+  filterCustomerName?: string
+  filterCustomerTaxId?: string
+  filterMode?: string[]
+  filterAmountMin?: number | null
+  filterAmountMax?: number | null
+}
+function applyPagoFilters(data: PagoRecibido[], f: PagoAdFilters): PagoRecibido[] {
+  return data.filter(r => {
+    if (f.filterPaymentNumber && !String(r.paymentNumber ?? '').toLowerCase().includes(f.filterPaymentNumber.toLowerCase())) return false
+    if (f.filterCustomerName  && !String(r.customerName  ?? '').toLowerCase().includes(f.filterCustomerName.toLowerCase()))  return false
+    if (f.filterCustomerTaxId && !String(r.customerTaxId ?? '').toLowerCase().includes(f.filterCustomerTaxId.toLowerCase())) return false
+    if (f.filterMode?.length && r.mode && !f.filterMode.includes(r.mode)) return false
+    if (f.filterAmountMin != null && Number(r.amount) < f.filterAmountMin) return false
+    if (f.filterAmountMax != null && Number(r.amount) > f.filterAmountMax) return false
+    return true
+  })
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function PagosRecibidosPage() {
   const navigate = useNavigate()
@@ -174,6 +196,18 @@ export default function PagosRecibidosPage() {
   // Column config
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
+
+  // Filtros avanzados
+  const [pFilters,    setPFilters]    = useState<PagoAdFilters>({})
+  const [pDraft,      setPDraft]      = useState<PagoAdFilters>({})
+  const [pFilterOpen, setPFilterOpen] = useState(false)
+  const pActiveCount = useMemo(() => Object.entries(pFilters).filter(([, v]) =>
+    v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+  ).length, [pFilters])
+  const openPFilters  = () => { setPDraft({ ...pFilters }); setPFilterOpen(true) }
+  const applyPFilters = () => { setPFilters({ ...pDraft }); setPFilterOpen(false) }
+  const clearPFilters = () => { setPDraft({}); setPFilters({}); setPFilterOpen(false) }
+  const filteredPagos = useMemo(() => applyPagoFilters(data, pFilters), [data, pFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -345,6 +379,12 @@ export default function PagosRecibidosPage() {
               </Button>
             </Tooltip>
           </Popover>
+          <Badge count={pActiveCount} size="small" color="#1faec2" offset={[-4, 4]}>
+            <Button size="small" icon={<FilterOutlined />} onClick={openPFilters}
+              style={pActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}>
+              Filtros
+            </Button>
+          </Badge>
         </Space>
       </Card>
 
@@ -368,7 +408,7 @@ export default function PagosRecibidosPage() {
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
         <ResponsiveTable
           columns={activeColumns}
-          dataSource={data}
+          dataSource={filteredPagos}
           rowKey="id"
           loading={loading}
           size="middle"
@@ -440,6 +480,72 @@ export default function PagosRecibidosPage() {
           </>
         )}
       </Modal>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title={<Space><FilterOutlined style={{ color: '#1faec2' }} /><span>Filtros avanzados</span></Space>}
+        open={pFilterOpen}
+        onClose={() => setPFilterOpen(false)}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={clearPFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyPFilters}>
+              Aplicar{pActiveCount > 0 ? ` (${pActiveCount})` : ''}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Identificación</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>N° Pago</div>
+            <Input size="small" allowClear placeholder="PAG-00001..."
+              value={pDraft.filterPaymentNumber ?? ''}
+              onChange={e => setPDraft(d => ({ ...d, filterPaymentNumber: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Cliente</div>
+            <Input size="small" allowClear placeholder="Nombre del cliente..."
+              value={pDraft.filterCustomerName ?? ''}
+              onChange={e => setPDraft(d => ({ ...d, filterCustomerName: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>NIT cliente</div>
+            <Input size="small" allowClear placeholder="12345678..."
+              value={pDraft.filterCustomerTaxId ?? ''}
+              onChange={e => setPDraft(d => ({ ...d, filterCustomerTaxId: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Método de pago</Text>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos los métodos"
+              value={pDraft.filterMode ?? []}
+              options={Object.entries(PAYMENT_MODE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+              onChange={v => setPDraft(d => ({ ...d, filterMode: v.length ? v : undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Monto cobrado</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Desde</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="0.00" addonBefore="Q"
+              value={pDraft.filterAmountMin ?? null}
+              onChange={v => setPDraft(d => ({ ...d, filterAmountMin: v ?? null }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Hasta</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="sin límite" addonBefore="Q"
+              value={pDraft.filterAmountMax ?? null}
+              onChange={v => setPDraft(d => ({ ...d, filterAmountMax: v ?? null }))} />
+          </div>
+        </div>
+      </Drawer>
     </div>
   )
 }
