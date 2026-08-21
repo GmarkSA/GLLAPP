@@ -9,7 +9,7 @@ import {
   EyeOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
-  SearchOutlined, MoreOutlined, PrinterOutlined, CustomerServiceOutlined,
+  SearchOutlined, PrinterOutlined, CustomerServiceOutlined,
   SendOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -803,7 +803,6 @@ export default function PlatformAdminPage() {
   const [detailBilling, setDetailBilling] = useState<TenantBillingInfo | null>(null)
   const [detailOpen, setDetailOpen]   = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [seeding, setSeeding]   = useState(false)
   const [demoOpen, setDemoOpen] = useState(false)
 
   // Filtro + búsqueda de la tabla de tenants (rediseño control)
@@ -954,17 +953,6 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al activar trial')
     } finally { setTrialActingId(null) }
-  }
-
-  const handleSeedCastillo = async (tenantId: string) => {
-    setSeeding(true)
-    try {
-      const r = await api.post(`/admin/tenants/${tenantId}/seed-castillo`).then(unwrap)
-      message.success(`Grupo Castillo: ${r.created?.length ?? 0} creadas, ${r.skipped?.length ?? 0} ya existían`)
-      loadTenants()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error en seed Castillo')
-    } finally { setSeeding(false) }
   }
 
   const handleAssignPlan = async (tenantId: string, plan: string) => {
@@ -1328,14 +1316,6 @@ export default function PlatformAdminPage() {
               title={r.status === 'suspended' ? 'Activar tenant' : 'Suspender tenant'}
             />
           </Popconfirm>
-          <Dropdown
-            trigger={['click']}
-            menu={{ items: [
-              { key: 'seed', label: 'Seed demo (Grupo Castillo)', onClick: () => handleSeedCastillo(r.id) },
-            ] }}
-          >
-            <Button size="small" icon={<MoreOutlined />} loading={seeding} title="Más acciones" />
-          </Dropdown>
         </Space>
       ),
     },
