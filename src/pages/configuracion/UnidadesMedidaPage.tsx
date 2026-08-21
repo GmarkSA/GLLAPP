@@ -177,6 +177,7 @@ export default function UnidadesMedidaPage() {
 
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
         <Table
+          scroll={{ y: 'calc(100vh - 330px)' }}
           columns={columns}
           dataSource={units}
           rowKey="id"

@@ -444,7 +444,7 @@ export default function LibroVentasPage() {
               rowClassName={(r: any) => r.status === 'voided' ? 'row-voided' : ''}
               pagination={{ pageSize: 100, showSizeChanger: true, showTotal: (t) => `${t} registros` }}
               size="small"
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: 'max-content', y: 'calc(100vh - 390px)' }}
               loading={loading}
               summary={() => data.items.length > 0 ? <TotalsRow data={data} colsConfig={libroConfig.ventas} /> : null}
             />

@@ -179,6 +179,7 @@ export default function SeriesDocumentalesPage() {
               {group}
             </div>
             <Table
+              scroll={{ y: 'calc(100vh - 330px)' }}
               rowKey="id"
               columns={columns}
               dataSource={items}

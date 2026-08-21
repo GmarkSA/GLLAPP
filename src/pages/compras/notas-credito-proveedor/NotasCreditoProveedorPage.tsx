@@ -221,7 +221,7 @@ export default function NotasCreditoProveedorPage() {
 
       <Card
         bordered={false}
-        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0 }}
+        style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 0, position: 'sticky', top: 60, zIndex: 5 }}
         bodyStyle={{ padding: '12px 16px 0' }}
       >
         <Tabs
@@ -267,7 +267,7 @@ export default function NotasCreditoProveedorPage() {
           loading={loading}
           size="middle"
           showSorterTooltip={false}
-          scroll={{ x: 1050 }}
+          scroll={{ x: 1050, y: 'calc(100vh - 312px)' }}
           onRow={r => ({ onDoubleClick: () => navigate(`/compras/notas-credito-proveedor/${r.id}`) })}
           rowClassName={r => r.status === 'voided' ? 'row-void' : ''}
           pagination={{

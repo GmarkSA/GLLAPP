@@ -501,7 +501,7 @@ export default function ReporteActivosFijosPage() {
         size="small"
         rowKey="key"
         rowClassName={r => r.isGroup ? 'af-group-row' : ''}
-        scroll={{ x: 1700 }}
+        scroll={{ x: 1700, y: 'calc(100vh - 340px)' }}
         style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}
         summary={() => (
           <Table.Summary fixed>

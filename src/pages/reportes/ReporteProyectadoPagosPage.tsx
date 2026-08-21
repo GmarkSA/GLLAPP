@@ -222,7 +222,7 @@ export default function ReporteProyectadoPagosPage() {
                 loading={loading}
                 size="small"
                 pagination={false}
-                scroll={{ x: 800 }}
+                scroll={{ x: 800, y: 'calc(100vh - 340px)' }}
                 summary={() => (
                   <Table.Summary.Row style={{ background: style.bg }}>
                     <Table.Summary.Cell index={0} colSpan={5}>

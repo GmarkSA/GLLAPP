@@ -495,6 +495,7 @@ export default function ActivosFijosPage() {
       </Space>
 
       <Table
+        scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
         pagination={{

@@ -278,7 +278,7 @@ export default function AnticiposProveedorPage() {
           rowKey="id"
           loading={loading}
           size="middle"
-          scroll={{ x: 900 }}
+          scroll={{ x: 900, y: 'calc(100vh - 330px)' }}
           rowClassName={(r) => r.status === 'voided' ? 'row-void' : ''}
           pagination={{
             total,

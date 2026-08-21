@@ -202,7 +202,7 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
           rowKey="key"
           pagination={false}
           showHeader
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
           onRow={row => ({
             style: {
               background: rowBg[row._kind],

@@ -429,7 +429,7 @@ export default function ClientesPage() {
           loading={loading}
           size="middle"
           showSorterTooltip={false}
-          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/clientes/${r.id}`) })}
           pagination={{
             total,

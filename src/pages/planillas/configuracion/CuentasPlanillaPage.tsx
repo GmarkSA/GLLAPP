@@ -114,6 +114,7 @@ export default function CuentasPlanillaPage() {
     <Card size="small" style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
       title={<Text strong>{titulo}</Text>}>
       <Table
+        scroll={{ y: 'calc(100vh - 330px)' }}
         size="small" rowKey="campo" pagination={false} showHeader={false}
         dataSource={conceptos.filter(c => c.naturaleza === naturaleza)}
         columns={[

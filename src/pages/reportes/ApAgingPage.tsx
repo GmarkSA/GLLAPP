@@ -651,7 +651,7 @@ export default function ApAgingPage() {
               pagination={{ pageSize: 30, showTotal: t => `${t} proveedores`, showSizeChanger: true, pageSizeOptions: ['15', '30', '50', '100'] }}
               onChange={handleTableChange}
               summary={summaryRow}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: 'max-content', y: 'calc(100vh - 340px)' }}
               loading={loading}
             />
           )}

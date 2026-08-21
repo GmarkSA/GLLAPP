@@ -2329,7 +2329,7 @@ export default function DteSatPage() {
                   rowKey="id"
                   loading={loading}
                   size="small"
-                  scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
+                  scroll={{ x: 'max-content', y: 'calc(100vh - 352px)' }}
                   pagination={{
                     current: page,
                     pageSize: PAGE_SIZE,

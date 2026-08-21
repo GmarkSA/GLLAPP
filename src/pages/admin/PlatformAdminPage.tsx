@@ -9,7 +9,8 @@ import {
   EyeOutlined, EditOutlined, CheckCircleOutlined,
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
-  SearchOutlined, MoreOutlined, PrinterOutlined, CustomerServiceOutlined,
+  SearchOutlined, PrinterOutlined, CustomerServiceOutlined,
+  SendOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import AdminSupportPanel from './AdminSupportPanel'
@@ -337,6 +338,230 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 }
 const unwrap = (r: any) => r.data?.data ?? r.data
 
+// ── Modal "Enviar demo" — crea un tenant demo e invita al prospecto por correo ──
+// ── Pestaña "Demos" — tablero de demos enviados: cuántos salen y quiénes activan ──
+function DemosTab() {
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    api.get('/admin/demos').then(unwrap)
+      .then(d => setRows(Array.isArray(d) ? d : []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const total     = rows.length
+  const activados = rows.filter(r => r.userStatus === 'active').length
+  const conversion = total > 0 ? Math.round((activados / total) * 100) : 0
+  const fmtF = (d?: string | null) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
+
+  const cols: ColumnsType<any> = [
+    {
+      title: 'Empresa demo', dataIndex: 'tenantName',
+      render: (v: string, r: any) => (
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div>
+          <div style={{ fontSize: 11, color: '#9aa1ab' }}>
+            enviado por {r.demo?.invitedBy ?? '—'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Prospecto', dataIndex: 'email',
+      render: (v: string, r: any) => (
+        <div>
+          <div style={{ fontSize: 13 }}>{[r.firstName, r.lastName].filter(Boolean).join(' ') || '—'}</div>
+          <div style={{ fontSize: 11, color: '#6b7280' }}>{v ?? '—'}</div>
+        </div>
+      ),
+    },
+    {
+      title: 'Enviado', width: 100,
+      render: (_: any, r: any) => <span style={{ fontSize: 12 }}>{fmtF(r.demo?.sentAt ?? r.createdAt)}</span>,
+    },
+    {
+      title: 'Días', dataIndex: 'demo', width: 60, align: 'center',
+      render: (d: any) => <span style={{ fontSize: 12 }}>{d?.trialDays ?? '—'}</span>,
+    },
+    {
+      title: 'Invitación', dataIndex: 'userStatus', width: 120,
+      render: (v: string) => v === 'active'
+        ? <Tag color="success">Registrado</Tag>
+        : <Tag color="warning">Pendiente</Tag>,
+    },
+    {
+      title: 'Último acceso', dataIndex: 'lastLoginAt', width: 110,
+      render: (v: string) => <span style={{ fontSize: 12 }}>{fmtF(v)}</span>,
+    },
+    {
+      title: 'Tenant', dataIndex: 'tenantStatus', width: 100,
+      render: (v: string) => (
+        <Tag color={v === 'active' ? 'success' : v === 'trial' ? 'processing' : 'error'}>{v}</Tag>
+      ),
+    },
+    {
+      title: 'Vence trial', dataIndex: 'trialEndsAt', width: 100,
+      render: (v: string) => <span style={{ fontSize: 12 }}>{fmtF(v)}</span>,
+    },
+    {
+      title: '', width: 60, align: 'center',
+      render: (_: any, r: any) => (
+        <Popconfirm
+          title={`¿Eliminar el demo "${r.tenantName}"?`}
+          description="Se borran sus datos, el tenant y el usuario invitado. No se puede deshacer."
+          okText="Eliminar"
+          okButtonProps={{ danger: true }}
+          onConfirm={async () => {
+            try {
+              const res: any = await api.delete(`/admin/demos/${r.tenantId}`).then(unwrap)
+              message.success(res?.message ?? 'Demo eliminado')
+              load()
+            } catch (e: any) {
+              message.error(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'No se pudo eliminar el demo')
+            }
+          }}
+        >
+          <Button size="small" danger icon={<DeleteOutlined />} title="Eliminar demo" />
+        </Popconfirm>
+      ),
+    },
+  ]
+
+  return (
+    <div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>Demos enviados</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#1B3A6B' }}>{total}</div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>Registrados</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#2ea172' }}>{activados}</div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>Conversión</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: conversion >= 50 ? '#2ea172' : '#ff7f00' }}>{conversion}%</div>
+          </Card>
+        </Col>
+        <Col span={6} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Actualizar</Button>
+        </Col>
+      </Row>
+      <Table
+        dataSource={rows}
+        columns={cols}
+        rowKey="tenantId"
+        loading={loading}
+        size="small"
+        pagination={{ pageSize: 20, hideOnSinglePage: true }}
+        locale={{ emptyText: 'Aún no se han enviado demos — usa el botón "Enviar demo"' }}
+      />
+    </div>
+  )
+}
+
+function EnviarDemoModal({ open, onClose, onSent }: {
+  open: boolean; onClose: () => void; onSent: () => void
+}) {
+  const [form] = Form.useForm()
+  const [templates, setTemplates] = useState<PlatformTemplate[]>([])
+  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (open) platformTemplatesApi.list().then(setTemplates).catch(() => setTemplates([]))
+  }, [open])
+
+  const handleSend = async () => {
+    let values: any
+    try { values = await form.validateFields() } catch { return }
+    try {
+      setSending(true)
+      const r: any = await api.post('/admin/demos', values).then(unwrap)
+      Modal.success({
+        title: 'Demo enviado',
+        content: (
+          <div style={{ fontSize: 13 }}>
+            <p style={{ margin: '4px 0' }}>Tenant demo: <b>{r.tenantName}</b> · {r.trialDays} días de prueba</p>
+            <p style={{ margin: '4px 0' }}>
+              Correo de invitación: {r.emailSent ? 'enviado ✅' : 'no se pudo enviar ⚠️ (verifica Resend)'}
+            </p>
+            {r.cloned && (
+              <p style={{ margin: '4px 0' }}>
+                Plantilla “{r.cloned.template}”: {r.cloned.accounts} cuentas · {r.cloned.taxes} impuestos · {r.cloned.documentSeries} series
+              </p>
+            )}
+            {r.cloneError && <p style={{ margin: '4px 0', color: '#e5484d' }}>Plantilla: {r.cloneError}</p>}
+          </div>
+        ),
+      })
+      form.resetFields()
+      onClose()
+      onSent()
+    } catch (e: any) {
+      message.error(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'No se pudo enviar el demo')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={<span><SendOutlined style={{ color: '#1faec2', marginRight: 8 }} />Enviar demo a un prospecto</span>}
+      open={open}
+      onCancel={() => { form.resetFields(); onClose() }}
+      onOk={handleSend}
+      okText="Enviar demo"
+      confirmLoading={sending}
+      width={520}
+      destroyOnClose
+    >
+      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
+        Se crea un tenant de prueba y el prospecto recibe un correo con el enlace para activar su cuenta y entrar al demo.
+      </Text>
+      <Form form={form} layout="vertical" size="small" initialValues={{ trialDays: 30 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+          <Form.Item name="firstName" label="Nombre" rules={[{ required: true, message: 'Requerido' }]}>
+            <Input placeholder="Juan" maxLength={80} />
+          </Form.Item>
+          <Form.Item name="lastName" label="Apellido">
+            <Input placeholder="García" maxLength={80} />
+          </Form.Item>
+        </div>
+        <Form.Item name="email" label="Correo del prospecto"
+          rules={[{ required: true, type: 'email', message: 'Correo válido requerido' }]}>
+          <Input placeholder="prospecto@empresa.com" />
+        </Form.Item>
+        <Form.Item name="companyName" label="Nombre de la empresa demo"
+          rules={[{ required: true, message: 'Requerido' }]}>
+          <Input placeholder="Empresa Demo S.A." maxLength={120} />
+        </Form.Item>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '0 12px' }}>
+          <Form.Item name="templateId" label="Plantilla de empresa (opcional)">
+            <Select allowClear placeholder="Empresa vacía"
+              options={templates.map(t => ({ value: t.id, label: `${t.icon || '🏢'} ${t.displayName}` }))}
+            />
+          </Form.Item>
+          <Form.Item name="trialDays" label="Días de prueba">
+            <InputNumber min={1} max={90} style={{ width: '100%' }} />
+          </Form.Item>
+        </div>
+        <Form.Item name="message" label="Mensaje personalizado (opcional — va en el correo)">
+          <Input.TextArea rows={2} maxLength={500} placeholder="Hola Juan, te preparamos este demo con los módulos que platicamos…" />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
 const PLAN_COLOR: Record<string, string> = {
   basic: 'default', professional: '#1faec2', enterprise: 'gold',
 }
@@ -578,7 +803,7 @@ export default function PlatformAdminPage() {
   const [detailBilling, setDetailBilling] = useState<TenantBillingInfo | null>(null)
   const [detailOpen, setDetailOpen]   = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [seeding, setSeeding]   = useState(false)
+  const [demoOpen, setDemoOpen] = useState(false)
 
   // Filtro + búsqueda de la tabla de tenants (rediseño control)
   const [tenantFilter, setTenantFilter] = useState<'all' | 'active' | 'trial' | 'suspended'>('all')
@@ -728,17 +953,6 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al activar trial')
     } finally { setTrialActingId(null) }
-  }
-
-  const handleSeedCastillo = async (tenantId: string) => {
-    setSeeding(true)
-    try {
-      const r = await api.post(`/admin/tenants/${tenantId}/seed-castillo`).then(unwrap)
-      message.success(`Grupo Castillo: ${r.created?.length ?? 0} creadas, ${r.skipped?.length ?? 0} ya existían`)
-      loadTenants()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error en seed Castillo')
-    } finally { setSeeding(false) }
   }
 
   const handleAssignPlan = async (tenantId: string, plan: string) => {
@@ -1102,14 +1316,6 @@ export default function PlatformAdminPage() {
               title={r.status === 'suspended' ? 'Activar tenant' : 'Suspender tenant'}
             />
           </Popconfirm>
-          <Dropdown
-            trigger={['click']}
-            menu={{ items: [
-              { key: 'seed', label: 'Seed demo (Grupo Castillo)', onClick: () => handleSeedCastillo(r.id) },
-            ] }}
-          >
-            <Button size="small" icon={<MoreOutlined />} loading={seeding} title="Más acciones" />
-          </Dropdown>
         </Space>
       ),
     },
@@ -1126,9 +1332,15 @@ export default function PlatformAdminPage() {
           </Title>
           <Text type="secondary" style={{ fontSize: 12 }}>Vista global de todos los tenants y planes</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => { loadTenants(); loadPlans() }} loading={loading}>
-          Actualizar
-        </Button>
+        <Space>
+          <Button type="primary" icon={<SendOutlined />} onClick={() => setDemoOpen(true)}
+            style={{ background: '#1faec2' }}>
+            Enviar demo
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={() => { loadTenants(); loadPlans() }} loading={loading}>
+            Actualizar
+          </Button>
+        </Space>
       </div>
 
       {/* KPIs de control */}
@@ -1329,6 +1541,11 @@ export default function PlatformAdminPage() {
             key: 'soporte',
             label: <SoporteTabLabel />,
             children: <AdminSupportPanel />,
+          },
+          {
+            key: 'demos',
+            label: <Space><SendOutlined style={{ color: '#1faec2' }} />Demos</Space>,
+            children: <DemosTab />,
           },
         ]}
       />
@@ -1681,7 +1898,7 @@ export default function PlatformAdminPage() {
                       render: (_, p) => p.result === 'approved' ? (
                         <Button
                           size="small" icon={<PrinterOutlined />}
-                          onClick={() => window.open(`/admin/comprobante-pago/${p.id}`, '_blank', 'noopener')}
+                          onClick={() => navigate(`/admin/comprobante-pago/${p.id}`)}
                           style={{ color: '#1B3A6B', borderColor: '#1B3A6B', fontSize: 11 }}
                         >
                           Ver
@@ -1777,6 +1994,9 @@ export default function PlatformAdminPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Modal: Enviar demo a un prospecto */}
+      <EnviarDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} onSent={loadTenants} />
     </div>
   )
 }

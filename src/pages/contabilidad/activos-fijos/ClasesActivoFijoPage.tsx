@@ -408,7 +408,7 @@ export default function ClasesActivoFijoPage() {
         loading={loading}
         size="small"
         pagination={false}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         rowClassName={r => isDirty(r.id ?? '') ? 'row-dirty' : ''}
       />
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Col, Divider, Form, Input, Modal,
   Popconfirm, Progress, Row, Select, Space, Spin, Table, Tag,
@@ -400,6 +401,9 @@ function CardForm({
 
 // PaymentHistory
 function PaymentHistory({ payments, onDelete, esperandoCobro }: { payments: SubscriptionPayment[]; onDelete: (id: string) => void; esperandoCobro?: boolean }) {
+  // Misma pestaña: los tokens viven en sessionStorage (aislados por tab) — una
+  // pestaña nueva nace sin sesión y el guard redirige fuera del voucher.
+  const navigate = useNavigate()
   const cols: ColumnsType<SubscriptionPayment> = [
     {
       title: 'Fecha',
@@ -447,7 +451,7 @@ function PaymentHistory({ payments, onDelete, esperandoCobro }: { payments: Subs
       render: (_, r) => r.result === 'approved' ? (
         <Button size="small" type="link" style={{ padding: 0 }}
           icon={<CheckCircleOutlined />}
-          onClick={() => window.open(`/configuracion/suscripcion/comprobante/${r.id}`, '_blank', 'noopener')}>
+          onClick={() => navigate(`/configuracion/suscripcion/comprobante/${r.id}`)}>
           Ver voucher
         </Button>
       ) : <Text type="secondary">—</Text>,

@@ -365,7 +365,7 @@ export default function EjecucionCentrosCostoPage() {
               <Table
                 size="small" dataSource={centrosConDatos} columns={columns}
                 rowKey={c => c.centroId ?? 'sin-asignar'}
-                pagination={false} scroll={{ x: 'max-content' }}
+                pagination={false} scroll={{ x: 'max-content', y: 'calc(100vh - 340px)' }}
                 expandable={{
                   expandedRowRender: c => (
                     <ComposicionCentro centro={c} data={data}

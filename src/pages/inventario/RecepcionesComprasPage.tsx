@@ -102,6 +102,7 @@ export default function RecepcionesComprasPage() {
       />
 
       <Table
+        scroll={{ y: 'calc(100vh - 330px)' }}
         rowKey="id"
         loading={loading}
         columns={columns}

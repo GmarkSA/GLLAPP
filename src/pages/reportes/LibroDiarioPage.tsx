@@ -340,7 +340,7 @@ export default function LibroDiarioPage() {
           loading={loading}
           size="small"
           pagination={false}
-          scroll={{ x: 700 }}
+          scroll={{ x: 700, y: 'calc(100vh - 350px)' }}
           rowClassName={(row: FlatRow) => {
             if (row._type === 'header') return `row-ld-header${row.entry.status === 'void' ? ' row-void' : ''}`
             if (row._type === 'total')  return 'row-ld-total'

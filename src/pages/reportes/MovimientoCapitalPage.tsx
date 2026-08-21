@@ -152,6 +152,7 @@ export default function MovimientoCapitalPage() {
               bodyStyle={{ padding: 0 }}
             >
               <Table
+        scroll={{ y: 'calc(100vh - 330px)' }}
                 size="small"
                 dataSource={data.movements}
                 rowKey={(r: any) => `${r.entry_number}-${r.code}`}

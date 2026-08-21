@@ -402,7 +402,7 @@ export default function NotasCreditoPage() {
           loading={loading}
           size="middle"
           showSorterTooltip={false}
-          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} notas de crédito`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay notas de crédito en el período' }}
         />

@@ -182,3 +182,20 @@
     border-right-color: var(--border);
   }
 }
+
+/* ── Marco fijo (estilo Zoho): tablas con scroll interno ────────────────────
+   En pantalla, el cuerpo de la tabla scrollea dentro de su contenedor y los
+   títulos de columna quedan siempre visibles. Al IMPRIMIR, estas reglas
+   expanden el cuerpo completo para que el PDF salga con todas las filas
+   (el !important vence el max-height inline que pone scroll.y de AntD). */
+@media print {
+  .ant-table-body,
+  .ant-table-content {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .ant-table-header {
+    overflow: visible !important;
+  }
+}

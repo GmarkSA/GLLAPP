@@ -413,7 +413,7 @@ export default function PagosRecibidosPage() {
           loading={loading}
           size="middle"
           showSorterTooltip={false}
-          scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} pagos`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay pagos registrados en el período' }}
           mobileEmptyText="No hay pagos registrados en el período"

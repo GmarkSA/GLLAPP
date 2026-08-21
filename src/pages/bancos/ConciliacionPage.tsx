@@ -683,7 +683,7 @@ export default function ConciliacionPage() {
             size="small"
             loading={loading || savingReconcile}
             rowSelection={rowSelection}
-            scroll={{ x: 'max-content', y: 'calc(100vh - 420px)' }}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 452px)' }}
             pagination={sessionRows.length > 100 ? { pageSize: 100, showTotal: t => `${t} movimientos del mes` } : false}
             locale={{ emptyText: <Empty description="Sin movimientos en este mes" /> }}
             rowClassName={row => row.status === 'reconciled' ? 'tx-reconciled-row' : ''}
@@ -695,7 +695,7 @@ export default function ConciliacionPage() {
             rowKey="id"
             size="small"
             loading={loading}
-            scroll={{ x: 'max-content', y: 'calc(100vh - 400px)' }}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 432px)' }}
             pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
             locale={{ emptyText: <Empty description="Sin movimientos en este estado" /> }}
           />

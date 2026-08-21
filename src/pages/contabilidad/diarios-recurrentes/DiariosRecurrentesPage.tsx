@@ -245,6 +245,7 @@ export default function DiariosRecurrentesPage() {
       </div>
 
       <Table
+        scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
         pagination={{ pageSize: 50, showTotal: t => `${t} plantillas` }}
