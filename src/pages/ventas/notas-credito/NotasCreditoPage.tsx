@@ -70,13 +70,13 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
   const base = { key }
   switch (key) {
     case 'invoiceNumber':
-      return { ...base, title: 'N° NC', dataIndex: 'invoiceNumber', width: 155, fixed: 'left' as const,
+      return { ...base, title: 'N° NC', dataIndex: 'invoiceNumber', width: 155, fixed: 'left' as const, sorter: true,
         render: (v: string) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 12 }}>{v}</Text> }
     case 'invoiceDate':
-      return { ...base, title: 'Fecha', dataIndex: 'invoiceDate', width: 105,
+      return { ...base, title: 'Fecha', dataIndex: 'invoiceDate', width: 105, sorter: true,
         render: (v: string) => <span style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</span> }
     case 'customer':
-      return { ...base, title: 'Cliente',
+      return { ...base, title: 'Cliente', dataIndex: 'customerName', sorter: true,
         render: (_: any, r: NotaCredito) => (
           <div>
             <div style={{ fontWeight: 500, fontSize: 13 }}>{r.customerName}</div>
@@ -84,7 +84,7 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
           </div>
         ) }
     case 'customerTaxId':
-      return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120,
+      return { ...base, title: 'NIT Cliente', dataIndex: 'customerTaxId', width: 120, sorter: true,
         render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'originalInvoice':
       return { ...base, title: 'Factura Original', width: 150,
@@ -98,16 +98,16 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 80,
         render: (v: string) => <Tag style={{ fontSize: 11 }}>{v || 'GTQ'}</Tag> }
     case 'subtotal':
-      return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const,
+      return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const, sorter: true,
         render: (v: number) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 100, align: 'right' as const,
         render: (v: number) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> }
     case 'total':
-      return { ...base, title: 'Total', dataIndex: 'total', width: 120, align: 'right' as const,
+      return { ...base, title: 'Total', dataIndex: 'total', width: 120, align: 'right' as const, sorter: true,
         render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmtQ(v)}</Text> }
     case 'creditBalance':
-      return { ...base, title: 'Crédito disp.', dataIndex: 'creditBalance', width: 120, align: 'right' as const,
+      return { ...base, title: 'Crédito disp.', dataIndex: 'creditBalance', width: 120, align: 'right' as const, sorter: true,
         render: (v: number) => (
           <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: Number(v) > 0 ? '#2ea172' : '#bbb' }}>
             {fmtQ(v)}
@@ -119,7 +119,7 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
           ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v)}</span>
           : <Text type="secondary">—</Text> }
     case 'status':
-      return { ...base, title: 'Estado', dataIndex: 'status', width: 130,
+      return { ...base, title: 'Estado', dataIndex: 'status', width: 130, sorter: true,
         render: (v: string) => {
           const cfg = NC_STATUS_CONFIG[v as keyof typeof NC_STATUS_CONFIG]
           return <Tag color={cfg?.color ?? 'default'}>{cfg?.label ?? v}</Tag>
@@ -156,6 +156,8 @@ export default function NotasCreditoPage() {
   const [toDate,   setToDate]   = useState(today.format('YYYY-MM-DD'))
   const [search,   setSearch]   = useState('')
   const [page,     setPage]     = useState(1)
+  const [sortBy,   setSortBy]   = useState<string | undefined>(undefined)
+  const [sortOrder,setSortOrder]= useState<'ASC' | 'DESC' | undefined>(undefined)
   const [data,     setData]     = useState<NotaCredito[]>([])
   const [total,    setTotal]    = useState(0)
   const [loading,  setLoading]  = useState(false)
@@ -168,15 +170,22 @@ export default function NotasCreditoPage() {
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
 
+  const handleTableChange = useCallback((_: any, __: any, sorter: any) => {
+    const s = Array.isArray(sorter) ? sorter[0] : sorter
+    setSortBy(s?.field as string | undefined)
+    setSortOrder(s?.order === 'ascend' ? 'ASC' : s?.order === 'descend' ? 'DESC' : undefined)
+    setPage(1)
+  }, [])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getNotasCredito({ page, limit: 20, search: search || undefined, fromDate, toDate })
+      const res = await getNotasCredito({ page, limit: 20, search: search || undefined, fromDate, toDate, ...(sortBy && { sortBy, sortOrder }) })
       setData(res.data ?? [])
       setTotal(res.total ?? 0)
     } catch { setData([]); setTotal(0) }
     finally { setLoading(false) }
-  }, [page, search, fromDate, toDate])
+  }, [page, search, fromDate, toDate, sortBy, sortOrder])
 
   useEffect(() => { load() }, [load])
 
@@ -354,7 +363,9 @@ export default function NotasCreditoPage() {
           rowKey="id"
           loading={loading}
           size="middle"
+          showSorterTooltip={false}
           scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          onChange={handleTableChange}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} notas de crédito`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay notas de crédito en el período' }}
         />

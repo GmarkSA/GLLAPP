@@ -99,6 +99,7 @@ export default function FacturasRecurrentesPage() {
       title: 'Código',
       dataIndex: 'codigoPlantilla',
       width: 110,
+      sorter: (a: FacturaRecurrente, b: FacturaRecurrente) => String(a.codigoPlantilla ?? '').localeCompare(String(b.codigoPlantilla ?? '')),
       render: (v: string, r: FacturaRecurrente) => (
         <Link to={`/ventas/facturas-recurrentes/${r.id}/editar`} style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Link>
       ),
@@ -106,6 +107,7 @@ export default function FacturasRecurrentesPage() {
     {
       title: 'Cliente',
       dataIndex: 'clienteNombre',
+      sorter: (a: FacturaRecurrente, b: FacturaRecurrente) => String(a.clienteNombre ?? '').localeCompare(String(b.clienteNombre ?? '')),
       render: (v: string, r: FacturaRecurrente) => (
         <div>
           <Text style={{ fontSize: 13 }}>{v}</Text>
@@ -118,12 +120,14 @@ export default function FacturasRecurrentesPage() {
       title: 'Frecuencia',
       dataIndex: 'frecuencia',
       width: 110,
+      sorter: (a: FacturaRecurrente, b: FacturaRecurrente) => String(a.frecuencia ?? '').localeCompare(String(b.frecuencia ?? '')),
       render: (v: string) => <Tag color="#1faec2">{FRECUENCIA_LABELS[v as keyof typeof FRECUENCIA_LABELS] ?? v}</Tag>,
     },
     {
       title: 'Próxima generación',
       dataIndex: 'fechaProximaGeneracion',
       width: 140,
+      sorter: (a: FacturaRecurrente, b: FacturaRecurrente) => String(a.fechaProximaGeneracion ?? '').localeCompare(String(b.fechaProximaGeneracion ?? '')),
       render: (v: string) => {
         const d = dayjs(v)
         const atrasada = d.isBefore(dayjs(), 'day')
@@ -151,6 +155,7 @@ export default function FacturasRecurrentesPage() {
       title: 'Estado',
       dataIndex: 'estado',
       width: 100,
+      sorter: (a: FacturaRecurrente, b: FacturaRecurrente) => String(a.estado ?? '').localeCompare(String(b.estado ?? '')),
       render: (v: EstadoFacturaRecurrente) => {
         const cfg = ESTADO_CONFIG[v]
         return <Badge status={cfg?.color as any} text={cfg?.label ?? v} />
@@ -251,6 +256,7 @@ export default function FacturasRecurrentesPage() {
         rowKey="id"
         loading={loading}
         size="small"
+        showSorterTooltip={false}
         pagination={{ total, pageSize: 20, current: page, onChange: setPage, showSizeChanger: false }}
         style={{ background: '#fff', borderRadius: 10 }}
       />

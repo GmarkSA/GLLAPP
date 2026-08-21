@@ -641,6 +641,7 @@ export default function DteSatVentasPage() {
       title: 'Tipo / Serie / No.',
       key: 'serie',
       width: 160,
+      sorter: (a: SatDteEmitidos, b: SatDteEmitidos) => `${a.serie ?? ''}${a.numeroDte ?? ''}`.localeCompare(`${b.serie ?? ''}${b.numeroDte ?? ''}`),
       render: (_: unknown, r: SatDteEmitidos) => (
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
           <Tag style={{ fontSize: 10, padding: '0 4px', margin: 0, lineHeight: '18px', flexShrink: 0 }}>
@@ -668,6 +669,7 @@ export default function DteSatVentasPage() {
       title: 'Receptor (Cliente)',
       key: 'receptor',
       ellipsis: true,
+      sorter: (a: SatDteEmitidos, b: SatDteEmitidos) => String(a.nombreReceptor ?? '').localeCompare(String(b.nombreReceptor ?? '')),
       render: (_: unknown, r: SatDteEmitidos) => (
         <div>
           <Text strong style={{ fontSize: 12, display: 'block' }}>

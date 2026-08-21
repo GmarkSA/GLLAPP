@@ -90,7 +90,7 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
   const base = { key }
   switch (key) {
     case 'nombre':
-      return { ...base, title: 'Cliente', width: 260, fixed: 'left' as const,
+      return { ...base, title: 'Cliente', dataIndex: 'name', width: 260, fixed: 'left' as const, sorter: true,
         render: (_: any, r: Customer) => (
           <Space>
             <Avatar
@@ -112,16 +112,16 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
           </Space>
         ) }
     case 'customerNumber':
-      return { ...base, title: 'N° Cliente', dataIndex: 'customerNumber', width: 110,
+      return { ...base, title: 'N° Cliente', dataIndex: 'customerNumber', width: 110, sorter: true,
         render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'type':
-      return { ...base, title: 'Tipo', dataIndex: 'type', width: 130,
+      return { ...base, title: 'Tipo', dataIndex: 'type', width: 130, sorter: true,
         render: (v: string) => <Tag style={{ fontSize: 11 }}>{TYPE_LABELS[v] ?? v}</Tag> }
     case 'legalName':
-      return { ...base, title: 'Razón Social SAT', dataIndex: 'legalName', width: 200, ellipsis: true,
+      return { ...base, title: 'Razón Social SAT', dataIndex: 'legalName', width: 200, ellipsis: true, sorter: true,
         render: (v: string) => v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text> }
     case 'taxId':
-      return { ...base, title: 'NIT', dataIndex: 'taxId', width: 110,
+      return { ...base, title: 'NIT', dataIndex: 'taxId', width: 110, sorter: true,
         render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v || '—'}</Text> }
     case 'contacto':
       return { ...base, title: 'Contacto', width: 200,
@@ -132,7 +132,7 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
           </div>
         ) }
     case 'email':
-      return { ...base, title: 'Email', dataIndex: 'email', width: 180, ellipsis: true,
+      return { ...base, title: 'Email', dataIndex: 'email', width: 180, ellipsis: true, sorter: true,
         render: (v: string) => v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text> }
     case 'phone':
       return { ...base, title: 'Teléfono', dataIndex: 'phone', width: 120,
@@ -150,10 +150,10 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
       return { ...base, title: 'Términos pago', dataIndex: 'paymentTerms', width: 140,
         render: (v: string) => v ? <Text style={{ fontSize: 12 }}>{getPaymentTermLabel(v)}</Text> : <Text type="secondary">—</Text> }
     case 'creditLimit':
-      return { ...base, title: 'Límite crédito', dataIndex: 'creditLimit', width: 120, align: 'right' as const,
+      return { ...base, title: 'Límite crédito', dataIndex: 'creditLimit', width: 120, align: 'right' as const, sorter: true,
         render: (v: number) => Number(v) > 0 ? <Text style={{ fontSize: 12 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text> }
     case 'taxTreatment':
-      return { ...base, title: 'Tipo fiscal', dataIndex: 'taxTreatment', width: 145,
+      return { ...base, title: 'Tipo fiscal', dataIndex: 'taxTreatment', width: 145, sorter: true,
         render: (v: string) => {
           const c = TAX_TREATMENT_CONFIG[v]
           return c ? <Tag color={c.color}>{c.label}</Tag> : <Tag>{v}</Tag>
@@ -171,14 +171,14 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
       return { ...base, title: 'Código IVA', dataIndex: 'taxCode', width: 110,
         render: (v: string) => v ? <Tag color="#1faec2" style={{ fontSize: 11 }}>{v}</Tag> : <Text type="secondary">—</Text> }
     case 'balance':
-      return { ...base, title: 'Saldo', dataIndex: 'balance', width: 110, align: 'right' as const,
+      return { ...base, title: 'Saldo', dataIndex: 'balance', width: 110, align: 'right' as const, sorter: true,
         render: (v: number) => (
           <Text strong style={{ color: Number(v) > 0 ? '#1faec2' : '#6b7280' }}>
             {Number(v) > 0 ? fmtQ(v) : '—'}
           </Text>
         ) }
     case 'status':
-      return { ...base, title: 'Estado', dataIndex: 'status', width: 100,
+      return { ...base, title: 'Estado', dataIndex: 'status', width: 100, sorter: true,
         render: (v: string) => {
           const c = STATUS_CONFIG[v ?? 'active']
           return <Badge status={c?.color as any} text={c?.label} />
@@ -206,20 +206,29 @@ export default function ClientesPage() {
   const [search,    setSearch]    = useState('')
   const [total,     setTotal]     = useState(0)
   const [page,      setPage]      = useState(1)
+  const [sortBy,    setSortBy]    = useState<string | undefined>(undefined)
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | undefined>(undefined)
 
   // Column config
   const [colConfig,  setColConfig]  = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
 
+  const handleTableChange = useCallback((_: any, __: any, sorter: any) => {
+    const s = Array.isArray(sorter) ? sorter[0] : sorter
+    setSortBy(s?.field as string | undefined)
+    setSortOrder(s?.order === 'ascend' ? 'ASC' : s?.order === 'descend' ? 'DESC' : undefined)
+    setPage(1)
+  }, [])
+
   const fetchCustomers = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getCustomers({ search, page, limit: 20 })
+      const res = await getCustomers({ search, page, limit: 20, ...(sortBy && { sortBy, sortOrder }) })
       if (Array.isArray(res)) { setCustomers(res); setTotal(res.length) }
       else { setCustomers(res.data ?? res.items ?? []); setTotal(res.meta?.total ?? res.total ?? 0) }
     } catch { setCustomers([]); setTotal(0) }
     finally { setLoading(false) }
-  }, [search, page])
+  }, [search, page, sortBy, sortOrder])
 
   useEffect(() => { fetchCustomers() }, [fetchCustomers])
 
@@ -348,7 +357,9 @@ export default function ClientesPage() {
           rowKey="id"
           loading={loading}
           size="middle"
+          showSorterTooltip={false}
           scroll={{ x: scrollX, y: 'calc(100vh - 280px)' }}
+          onChange={handleTableChange}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/clientes/${r.id}`) })}
           pagination={{
             total,

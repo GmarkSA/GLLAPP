@@ -184,10 +184,12 @@ export default function AnticiposClientesPage() {
   const columns: ColumnsType<AnticipoCliente> = [
     {
       title: 'N.º Anticipo', dataIndex: 'invoiceNumber', width: 130,
+      sorter: (a: AnticipoCliente, b: AnticipoCliente) => String(a.invoiceNumber ?? '').localeCompare(String(b.invoiceNumber ?? '')),
       render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontWeight: 600 }}>{v}</Text>,
     },
     {
       title: 'Cliente', dataIndex: 'customerName',
+      sorter: (a: AnticipoCliente, b: AnticipoCliente) => String(a.customerName ?? '').localeCompare(String(b.customerName ?? '')),
       render: (v: string, r: AnticipoCliente) => (
         <div>
           <div style={{ fontWeight: 500 }}>{v}</div>
@@ -197,14 +199,17 @@ export default function AnticiposClientesPage() {
     },
     {
       title: 'Fecha', dataIndex: 'invoiceDate', width: 110,
+      sorter: (a: AnticipoCliente, b: AnticipoCliente) => String(a.invoiceDate ?? '').localeCompare(String(b.invoiceDate ?? '')),
       render: (v: string) => dayjs(v).format('DD/MM/YYYY'),
     },
     {
       title: 'Monto original', dataIndex: 'total', width: 130, align: 'right' as const,
+      sorter: (a: AnticipoCliente, b: AnticipoCliente) => Number(a.total ?? 0) - Number(b.total ?? 0),
       render: (v: number) => fmtQ(v),
     },
     {
       title: 'Saldo disponible', dataIndex: 'balance', width: 140, align: 'right' as const,
+      sorter: (a: AnticipoCliente, b: AnticipoCliente) => Number(a.balance ?? 0) - Number(b.balance ?? 0),
       render: (v: number) => (
         <Text style={{ fontWeight: 700, color: Number(v) > 0 ? '#d97706' : '#2ea172' }}>
           {fmtQ(v)}
@@ -213,6 +218,7 @@ export default function AnticiposClientesPage() {
     },
     {
       title: 'Estado', dataIndex: 'status', width: 110,
+      sorter: (a: AnticipoCliente, b: AnticipoCliente) => String(a.status ?? '').localeCompare(String(b.status ?? '')),
       render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{STATUS_LABEL[v] ?? v}</Tag>,
     },
     {
@@ -321,7 +327,7 @@ export default function AnticiposClientesPage() {
 
       <Table
         dataSource={data} columns={columns} rowKey="id"
-        loading={loading} size="small"
+        loading={loading} size="small" showSorterTooltip={false}
         pagination={{ current: page, pageSize: 50, total, onChange: p => setPage(p), showTotal: t => `${t} anticipos` }}
         locale={{ emptyText: 'No hay anticipos registrados' }}
       />
