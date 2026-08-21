@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Card, Table, Button, Space, Typography, Tag, Input,
   DatePicker, Tooltip, Popconfirm, message, Row, Col, Statistic,
-  Modal, Form, Popover,
+  Modal, Form, Popover, Drawer, InputNumber, Divider, Badge, Select,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, FileTextOutlined,
   EyeOutlined, DeleteOutlined, SendOutlined, EditOutlined,
-  StopOutlined, SettingOutlined,
+  StopOutlined, SettingOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -155,6 +155,27 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
   }
 }
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface NcAdFilters {
+  filterInvoiceNumber?: string
+  filterCustomerName?: string
+  filterCustomerTaxId?: string
+  filterStatus?: string[]
+  filterTotalMin?: number | null
+  filterTotalMax?: number | null
+}
+function applyNcFilters(data: NotaCredito[], f: NcAdFilters): NotaCredito[] {
+  return data.filter(r => {
+    if (f.filterInvoiceNumber && !String(r.invoiceNumber ?? '').toLowerCase().includes(f.filterInvoiceNumber.toLowerCase())) return false
+    if (f.filterCustomerName  && !String(r.customerName  ?? '').toLowerCase().includes(f.filterCustomerName.toLowerCase()))  return false
+    if (f.filterCustomerTaxId && !String(r.customerTaxId ?? '').toLowerCase().includes(f.filterCustomerTaxId.toLowerCase())) return false
+    if (f.filterStatus?.length && !f.filterStatus.includes(r.status)) return false
+    if (f.filterTotalMin != null && Number(r.total) < f.filterTotalMin) return false
+    if (f.filterTotalMax != null && Number(r.total) > f.filterTotalMax) return false
+    return true
+  })
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function NotasCreditoPage() {
   const navigate = useNavigate()
@@ -175,6 +196,18 @@ export default function NotasCreditoPage() {
   // Column config
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
+
+  // Filtros avanzados
+  const [ncFilters,    setNcFilters]    = useState<NcAdFilters>({})
+  const [ncDraft,      setNcDraft]      = useState<NcAdFilters>({})
+  const [ncFilterOpen, setNcFilterOpen] = useState(false)
+  const ncActiveCount = useMemo(() => Object.entries(ncFilters).filter(([, v]) =>
+    v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+  ).length, [ncFilters])
+  const openNcFilters  = () => { setNcDraft({ ...ncFilters }); setNcFilterOpen(true) }
+  const applyNcFilters2 = () => { setNcFilters({ ...ncDraft }); setNcFilterOpen(false) }
+  const clearNcFilters  = () => { setNcDraft({}); setNcFilters({}); setNcFilterOpen(false) }
+  const filteredNc = useMemo(() => applyNcFilters(data, ncFilters), [data, ncFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -336,6 +369,12 @@ export default function NotasCreditoPage() {
               </Button>
             </Tooltip>
           </Popover>
+          <Badge count={ncActiveCount} size="small" color="#1faec2" offset={[-4, 4]}>
+            <Button size="small" icon={<FilterOutlined />} onClick={openNcFilters}
+              style={ncActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}>
+              Filtros
+            </Button>
+          </Badge>
         </Space>
       </Card>
 
@@ -358,7 +397,7 @@ export default function NotasCreditoPage() {
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
         <Table
           columns={activeColumns}
-          dataSource={data}
+          dataSource={filteredNc}
           rowKey="id"
           loading={loading}
           size="middle"
@@ -388,6 +427,79 @@ export default function NotasCreditoPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title={<Space><FilterOutlined style={{ color: '#1faec2' }} /><span>Filtros avanzados</span></Space>}
+        open={ncFilterOpen}
+        onClose={() => setNcFilterOpen(false)}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={clearNcFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyNcFilters2}>
+              Aplicar{ncActiveCount > 0 ? ` (${ncActiveCount})` : ''}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Identificación</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>N° Nota de crédito</div>
+            <Input size="small" allowClear placeholder="NC-00001..."
+              value={ncDraft.filterInvoiceNumber ?? ''}
+              onChange={e => setNcDraft(d => ({ ...d, filterInvoiceNumber: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Cliente</div>
+            <Input size="small" allowClear placeholder="Nombre del cliente..."
+              value={ncDraft.filterCustomerName ?? ''}
+              onChange={e => setNcDraft(d => ({ ...d, filterCustomerName: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>NIT cliente</div>
+            <Input size="small" allowClear placeholder="12345678..."
+              value={ncDraft.filterCustomerTaxId ?? ''}
+              onChange={e => setNcDraft(d => ({ ...d, filterCustomerTaxId: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Clasificación</Text>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Estado</div>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos"
+              value={ncDraft.filterStatus ?? []}
+              options={[
+                { value: 'draft',   label: 'Borrador' },
+                { value: 'sent',    label: 'Emitida' },
+                { value: 'partial', label: 'Parcial' },
+                { value: 'paid',    label: 'Aplicada total' },
+                { value: 'voided',  label: 'Anulada' },
+              ]}
+              onChange={v => setNcDraft(d => ({ ...d, filterStatus: v.length ? v : undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Monto total</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Desde</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="0.00" addonBefore="Q"
+              value={ncDraft.filterTotalMin ?? null}
+              onChange={v => setNcDraft(d => ({ ...d, filterTotalMin: v ?? null }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Hasta</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="sin límite" addonBefore="Q"
+              value={ncDraft.filterTotalMax ?? null}
+              onChange={v => setNcDraft(d => ({ ...d, filterTotalMax: v ?? null }))} />
+          </div>
+        </div>
+      </Drawer>
     </div>
   )
 }

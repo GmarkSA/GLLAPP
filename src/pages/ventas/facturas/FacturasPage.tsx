@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import {
   Table, Button, Input, Tag, Space, Typography, Card,
   Statistic, Row, Col, Modal, Form, DatePicker,
-  message, Tabs, Popover, Tooltip,
+  message, Tabs, Popover, Tooltip, Drawer, InputNumber, Divider, Badge, Select,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, FileTextOutlined,
   EyeOutlined, DollarOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, CheckCircleOutlined,
   CheckSquareOutlined, SettingOutlined, StopOutlined, DeleteOutlined, SyncOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import type { ColumnsType } from 'antd/es/table'
@@ -204,6 +205,27 @@ const STATUS_TABS = [
   { key: 'voided',  label: 'Anuladas'     },
 ]
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface InvAdFilters {
+  filterInvoiceNumber?: string
+  filterCustomerName?: string
+  filterCustomerTaxId?: string
+  filterCurrency?: string[]
+  filterTotalMin?: number | null
+  filterTotalMax?: number | null
+}
+function applyInvFilters(data: Invoice[], f: InvAdFilters): Invoice[] {
+  return data.filter(r => {
+    if (f.filterInvoiceNumber && !String(r.invoiceNumber ?? '').toLowerCase().includes(f.filterInvoiceNumber.toLowerCase())) return false
+    if (f.filterCustomerName  && !String(r.customerName  ?? '').toLowerCase().includes(f.filterCustomerName.toLowerCase()))  return false
+    if (f.filterCustomerTaxId && !String(r.customerTaxId ?? '').toLowerCase().includes(f.filterCustomerTaxId.toLowerCase())) return false
+    if (f.filterCurrency?.length && !f.filterCurrency.includes(r.currency)) return false
+    if (f.filterTotalMin != null && Number(r.total) < f.filterTotalMin) return false
+    if (f.filterTotalMax != null && Number(r.total) > f.filterTotalMax) return false
+    return true
+  })
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function FacturasPage() {
   const navigate = useNavigate()
@@ -225,6 +247,18 @@ export default function FacturasPage() {
   // Column config
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
   const [colPopover, setColPopover] = useState(false)
+
+  // Filtros avanzados
+  const [invFilters,    setInvFilters]    = useState<InvAdFilters>({})
+  const [invDraft,      setInvDraft]      = useState<InvAdFilters>({})
+  const [invFilterOpen, setInvFilterOpen] = useState(false)
+  const invActiveCount = useMemo(() => Object.entries(invFilters).filter(([, v]) =>
+    v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+  ).length, [invFilters])
+  const openInvFilters  = () => { setInvDraft({ ...invFilters }); setInvFilterOpen(true) }
+  const applyInvFilters2 = () => { setInvFilters({ ...invDraft }); setInvFilterOpen(false) }
+  const clearInvFilters  = () => { setInvDraft({}); setInvFilters({}); setInvFilterOpen(false) }
+  const filteredInvoices = useMemo(() => applyInvFilters(invoices, invFilters), [invoices, invFilters])
 
   // Void modal
   const [voidModal, setVoidModal]     = useState(false)
@@ -470,6 +504,12 @@ export default function FacturasPage() {
                   </Button>
                 </Tooltip>
               </Popover>
+              <Badge count={invActiveCount} size="small" color="#1faec2" offset={[-4, 4]}>
+                <Button size="small" icon={<FilterOutlined />} onClick={openInvFilters}
+                  style={invActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}>
+                  Filtros
+                </Button>
+              </Badge>
             </Space>
           }
         />
@@ -490,7 +530,7 @@ export default function FacturasPage() {
       <Card bordered={false} style={{ borderRadius: '0 0 10px 10px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
         <ResponsiveTable
           columns={activeColumns}
-          dataSource={invoices}
+          dataSource={filteredInvoices}
           rowKey="id"
           loading={loading}
           size="middle"
@@ -541,6 +581,73 @@ export default function FacturasPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title={<Space><FilterOutlined style={{ color: '#1faec2' }} /><span>Filtros avanzados</span></Space>}
+        open={invFilterOpen}
+        onClose={() => setInvFilterOpen(false)}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={clearInvFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyInvFilters2}>
+              Aplicar{invActiveCount > 0 ? ` (${invActiveCount})` : ''}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Identificación</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>N° Factura</div>
+            <Input size="small" allowClear placeholder="FACT-00001..."
+              value={invDraft.filterInvoiceNumber ?? ''}
+              onChange={e => setInvDraft(d => ({ ...d, filterInvoiceNumber: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Cliente</div>
+            <Input size="small" allowClear placeholder="Nombre del cliente..."
+              value={invDraft.filterCustomerName ?? ''}
+              onChange={e => setInvDraft(d => ({ ...d, filterCustomerName: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>NIT cliente</div>
+            <Input size="small" allowClear placeholder="12345678..."
+              value={invDraft.filterCustomerTaxId ?? ''}
+              onChange={e => setInvDraft(d => ({ ...d, filterCustomerTaxId: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Clasificación</Text>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Moneda</div>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todas"
+              value={invDraft.filterCurrency ?? []}
+              options={[{ value: 'GTQ', label: 'GTQ — Quetzal' }, { value: 'USD', label: 'USD — Dólar' }]}
+              onChange={v => setInvDraft(d => ({ ...d, filterCurrency: v.length ? v : undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Monto total</Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Desde</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="0.00" addonBefore="Q"
+              value={invDraft.filterTotalMin ?? null}
+              onChange={v => setInvDraft(d => ({ ...d, filterTotalMin: v ?? null }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Hasta</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="sin límite" addonBefore="Q"
+              value={invDraft.filterTotalMax ?? null}
+              onChange={v => setInvDraft(d => ({ ...d, filterTotalMax: v ?? null }))} />
+          </div>
+        </div>
+      </Drawer>
     </div>
   )
 }

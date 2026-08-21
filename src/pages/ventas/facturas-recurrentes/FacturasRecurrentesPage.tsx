@@ -1,12 +1,13 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Button, Table, Typography, Tag, Badge, Space, Select, Input,
-  Popconfirm, message, Tooltip, Modal,
+  Popconfirm, message, Tooltip, Modal, Drawer, Divider,
 } from 'antd'
 import {
   PlusOutlined, PauseCircleOutlined, PlayCircleOutlined,
   CloseCircleOutlined, ThunderboltOutlined, HistoryOutlined, DeleteOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -22,6 +23,19 @@ const { Text, Title } = Typography
 
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface RecAdFilters {
+  filterEstado?: string[]
+  filterFrecuencia?: string[]
+}
+function applyRecFilters(data: FacturaRecurrente[], f: RecAdFilters): FacturaRecurrente[] {
+  return data.filter(r => {
+    if (f.filterEstado?.length    && !f.filterEstado.includes(r.estado))       return false
+    if (f.filterFrecuencia?.length && !f.filterFrecuencia.includes(r.frecuencia)) return false
+    return true
+  })
+}
+
 export default function FacturasRecurrentesPage() {
   const navigate = useNavigate()
   const [data,    setData]    = useState<FacturaRecurrente[]>([])
@@ -36,6 +50,23 @@ export default function FacturasRecurrentesPage() {
   const [historialLoading, setHistorialLoading] = useState(false)
   const [historialTitulo,  setHistorialTitulo]  = useState('')
   const [historialPlantillaId, setHistorialPlantillaId] = useState<string | null>(null)
+
+  // Filtros avanzados
+  const [recFilters,    setRecFilters]    = useState<RecAdFilters>({})
+  const [recDraft,      setRecDraft]      = useState<RecAdFilters>({})
+  const [recFilterOpen, setRecFilterOpen] = useState(false)
+  const recActiveCount = useMemo(() => Object.entries(recFilters).filter(([, v]) =>
+    v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+  ).length, [recFilters])
+  const openRecFilters  = () => { setRecDraft({ ...recFilters }); setRecFilterOpen(true) }
+  const applyRecFilters2 = () => { setRecFilters({ ...recDraft }); setRecFilterOpen(false) }
+  const clearRecFilters  = () => { setRecDraft({}); setRecFilters({}); setRecFilterOpen(false) }
+  const filteredRec = useMemo(() => {
+    const afterSearch = search
+      ? data.filter(r => r.clienteNombre?.toLowerCase().includes(search.toLowerCase()) || r.codigoPlantilla?.toLowerCase().includes(search.toLowerCase()))
+      : data
+    return applyRecFilters(afterSearch, recFilters)
+  }, [data, search, recFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -243,15 +274,18 @@ export default function FacturasRecurrentesPage() {
         </Button>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <Input.Search placeholder="Buscar por cliente o código..." style={{ maxWidth: 320 }} value={search} onChange={e => setSearch(e.target.value)} allowClear />
-        <Select placeholder="Estado" allowClear style={{ width: 160 }} value={filtroEstado} onChange={setFiltroEstado}>
-          {Object.entries(ESTADO_CONFIG).map(([k, v]) => <Select.Option key={k} value={k}>{v.label}</Select.Option>)}
-        </Select>
+        <Badge count={recActiveCount} size="small" color="#1faec2" offset={[-4, 4]}>
+          <Button size="small" icon={<FilterOutlined />} onClick={openRecFilters}
+            style={recActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}>
+            Filtros
+          </Button>
+        </Badge>
       </div>
 
       <Table
-        dataSource={filtered}
+        dataSource={filteredRec}
         columns={columns}
         rowKey="id"
         loading={loading}
@@ -277,6 +311,44 @@ export default function FacturasRecurrentesPage() {
           pagination={{ pageSize: 10, showSizeChanger: false }}
         />
       </Modal>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title={<Space><FilterOutlined style={{ color: '#1faec2' }} /><span>Filtros avanzados</span></Space>}
+        open={recFilterOpen}
+        onClose={() => setRecFilterOpen(false)}
+        width={400}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={clearRecFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyRecFilters2}>
+              Aplicar{recActiveCount > 0 ? ` (${recActiveCount})` : ''}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Estado</Text>
+            <div style={{ marginTop: 6 }}>
+              <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos los estados"
+                value={recDraft.filterEstado ?? []}
+                options={Object.entries(ESTADO_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+                onChange={v => setRecDraft(d => ({ ...d, filterEstado: v.length ? v : undefined }))} />
+            </div>
+          </div>
+          <Divider style={{ margin: '4px 0' }} />
+          <div>
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Frecuencia</Text>
+            <div style={{ marginTop: 6 }}>
+              <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todas las frecuencias"
+                value={recDraft.filterFrecuencia ?? []}
+                options={Object.entries(FRECUENCIA_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                onChange={v => setRecDraft(d => ({ ...d, filterFrecuencia: v.length ? v : undefined }))} />
+            </div>
+          </div>
+        </div>
+      </Drawer>
     </div>
   )
 }

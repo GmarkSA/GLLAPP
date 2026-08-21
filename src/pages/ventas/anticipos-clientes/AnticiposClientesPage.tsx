@@ -1,11 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Table, Button, Space, Typography, Tag, Select, message,
   Popconfirm, Tooltip, Modal, Alert, Descriptions, Divider, Spin, DatePicker,
+  Drawer, InputNumber, Badge, Input,
 } from 'antd'
 import {
   ReloadOutlined, CheckCircleOutlined, StopOutlined, BookOutlined, RollbackOutlined,
-  UndoOutlined, DeleteOutlined,
+  UndoOutlined, DeleteOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -46,6 +47,25 @@ const STATUS_OPTIONS = [
 
 interface Customer { id: string; name: string; taxId?: string }
 
+// ── Filtros avanzados (client-side sobre datos cargados) ──────────────────────
+interface AntAdFilters {
+  filterInvoiceNumber?: string
+  filterTotalMin?: number | null
+  filterTotalMax?: number | null
+  filterBalanceMin?: number | null
+  filterBalanceMax?: number | null
+}
+function applyAntFilters(data: AnticipoCliente[], f: AntAdFilters): AnticipoCliente[] {
+  return data.filter(r => {
+    if (f.filterInvoiceNumber && !String(r.invoiceNumber ?? '').toLowerCase().includes(f.filterInvoiceNumber.toLowerCase())) return false
+    if (f.filterTotalMin != null && Number(r.total) < f.filterTotalMin) return false
+    if (f.filterTotalMax != null && Number(r.total) > f.filterTotalMax) return false
+    if (f.filterBalanceMin != null && Number(r.balance) < f.filterBalanceMin) return false
+    if (f.filterBalanceMax != null && Number(r.balance) > f.filterBalanceMax) return false
+    return true
+  })
+}
+
 export default function AnticiposClientesPage() {
   const [data,          setData]          = useState<AnticipoCliente[]>([])
   const [total,         setTotal]         = useState(0)
@@ -76,6 +96,18 @@ export default function AnticiposClientesPage() {
   // Restaurar / Eliminar
   const [restaurando,   setRestaurando]   = useState<string | null>(null)
   const [eliminando,    setEliminando]    = useState<string | null>(null)
+
+  // Filtros avanzados
+  const [antFilters,    setAntFilters]    = useState<AntAdFilters>({})
+  const [antDraft,      setAntDraft]      = useState<AntAdFilters>({})
+  const [antFilterOpen, setAntFilterOpen] = useState(false)
+  const antActiveCount = useMemo(() => Object.entries(antFilters).filter(([, v]) =>
+    v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+  ).length, [antFilters])
+  const openAntFilters  = () => { setAntDraft({ ...antFilters }); setAntFilterOpen(true) }
+  const applyAntFilters2 = () => { setAntFilters({ ...antDraft }); setAntFilterOpen(false) }
+  const clearAntFilters  = () => { setAntDraft({}); setAntFilters({}); setAntFilterOpen(false) }
+  const filteredAntipos = useMemo(() => applyAntFilters(data, antFilters), [data, antFilters])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -323,10 +355,16 @@ export default function AnticiposClientesPage() {
           options={STATUS_OPTIONS}
           onChange={v => { setFiltroStatus(v); setPage(1) }}
         />
+        <Badge count={antActiveCount} size="small" color="#1faec2" offset={[-4, 4]}>
+          <Button size="small" icon={<FilterOutlined />} onClick={openAntFilters}
+            style={antActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}>
+            Filtros
+          </Button>
+        </Badge>
       </Space>
 
       <Table
-        dataSource={data} columns={columns} rowKey="id"
+        dataSource={filteredAntipos} columns={columns} rowKey="id"
         loading={loading} size="small" showSorterTooltip={false}
         pagination={{ current: page, pageSize: 50, total, onChange: p => setPage(p), showTotal: t => `${t} anticipos` }}
         locale={{ emptyText: 'No hay anticipos registrados' }}
@@ -432,6 +470,63 @@ export default function AnticiposClientesPage() {
           )
         })()}
       </Modal>
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title={<Space><FilterOutlined style={{ color: '#1faec2' }} /><span>Filtros avanzados</span></Space>}
+        open={antFilterOpen}
+        onClose={() => setAntFilterOpen(false)}
+        width={440}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={clearAntFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyAntFilters2}>
+              Aplicar{antActiveCount > 0 ? ` (${antActiveCount})` : ''}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>N° Anticipo</div>
+            <Input size="small" allowClear placeholder="ANT-00001..."
+              value={antDraft.filterInvoiceNumber ?? ''}
+              onChange={e => setAntDraft(d => ({ ...d, filterInvoiceNumber: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Monto</Typography.Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Total desde</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} addonBefore="Q"
+              value={antDraft.filterTotalMin ?? null}
+              onChange={v => setAntDraft(d => ({ ...d, filterTotalMin: v ?? null }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Total hasta</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} addonBefore="Q"
+              value={antDraft.filterTotalMax ?? null}
+              onChange={v => setAntDraft(d => ({ ...d, filterTotalMax: v ?? null }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Saldo disponible</Typography.Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Saldo desde</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} addonBefore="Q"
+              value={antDraft.filterBalanceMin ?? null}
+              onChange={v => setAntDraft(d => ({ ...d, filterBalanceMin: v ?? null }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Saldo hasta</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} addonBefore="Q"
+              value={antDraft.filterBalanceMax ?? null}
+              onChange={v => setAntDraft(d => ({ ...d, filterBalanceMax: v ?? null }))} />
+          </div>
+        </div>
+      </Drawer>
     </div>
   )
 }

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Form, Input,
+  Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Drawer, Form, Input, InputNumber,
   message, Modal, Row, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -9,6 +9,7 @@ import {
   ApiOutlined, BookOutlined, CheckCircleOutlined, CloudSyncOutlined,
   DeleteOutlined, FileTextOutlined, ReloadOutlined, RollbackOutlined,
   SearchOutlined, StopOutlined, ThunderboltOutlined, UserAddOutlined, WarningOutlined, EyeOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import DocumentLink from '../../../components/DocumentLink'
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
@@ -61,6 +62,25 @@ function getErrorMessage(err: unknown, fallback: string) {
   return (typeof raw === 'string' && raw) ? raw : fallback
 }
 
+// ── Filtros avanzados ─────────────────────────────────────────────────────────
+interface DteAdFilters {
+  filterTipoDocumento?: string[]
+  filterNombreReceptor?: string
+  filterNitReceptor?: string
+  filterTotalMin?: number | null
+  filterTotalMax?: number | null
+}
+function applyDteFilters(data: SatDteEmitidos[], f: DteAdFilters): SatDteEmitidos[] {
+  return data.filter(r => {
+    if (f.filterTipoDocumento?.length && r.tipoDocumento && !f.filterTipoDocumento.includes(r.tipoDocumento)) return false
+    if (f.filterNombreReceptor && !String(r.nombreReceptor ?? '').toLowerCase().includes(f.filterNombreReceptor.toLowerCase())) return false
+    if (f.filterNitReceptor    && !String(r.nitReceptor    ?? '').toLowerCase().includes(f.filterNitReceptor.toLowerCase()))    return false
+    if (f.filterTotalMin != null && Number(r.total) < f.filterTotalMin) return false
+    if (f.filterTotalMax != null && Number(r.total) > f.filterTotalMax) return false
+    return true
+  })
+}
+
 export default function DteSatVentasPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -81,6 +101,18 @@ export default function DteSatVentasPage() {
   const PAGE_SIZE = 200
   const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Filtros avanzados
+  const [dteFilters,    setDteFilters]    = useState<DteAdFilters>({})
+  const [dteDraft,      setDteDraft]      = useState<DteAdFilters>({})
+  const [dteFilterOpen, setDteFilterOpen] = useState(false)
+  const dteActiveCount = useMemo(() => Object.entries(dteFilters).filter(([, v]) =>
+    v != null && (Array.isArray(v) ? v.length > 0 : v !== '')
+  ).length, [dteFilters])
+  const openDteFilters  = () => { setDteDraft({ ...dteFilters }); setDteFilterOpen(true) }
+  const applyDteFilters2 = () => { setDteFilters({ ...dteDraft }); setDteFilterOpen(false) }
+  const clearDteFilters  = () => { setDteDraft({}); setDteFilters({}); setDteFilterOpen(false) }
+  const filteredDte = useMemo(() => applyDteFilters(documents, dteFilters), [documents, dteFilters])
 
   // ── Stepper ────────────────────────────────────────────────────────────────
   const [stepperDte,     setStepperDte]     = useState<SatDteEmitidos | null>(null)
@@ -1582,6 +1614,12 @@ export default function DteSatVentasPage() {
                         {cfg.label}{stats[key]?.count ? ` (${stats[key].count})` : ''}
                       </Button>
                     ))}
+                    <Badge count={dteActiveCount} size="small" color="#1faec2" offset={[-4, 4]}>
+                      <Button size="small" icon={<FilterOutlined />} onClick={openDteFilters}
+                        style={dteActiveCount > 0 ? { borderColor: '#1faec2', color: '#1faec2' } : undefined}>
+                        Filtros
+                      </Button>
+                    </Badge>
                     {(stats.ready?.count ?? 0) > 0 && !statusFilter && (
                       <div
                         style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
@@ -1623,7 +1661,7 @@ export default function DteSatVentasPage() {
                 </div>
                 <ResponsiveTable
                   columns={cols}
-                  dataSource={documents}
+                  dataSource={filteredDte}
                   rowKey="id"
                   loading={loading}
                   size="small"
@@ -1706,6 +1744,66 @@ export default function DteSatVentasPage() {
           },
         ]}
       />
+
+      {/* Drawer filtros avanzados */}
+      <Drawer
+        title={<Space><FilterOutlined style={{ color: '#1faec2' }} /><span>Filtros avanzados — DTE SAT</span></Space>}
+        open={dteFilterOpen}
+        onClose={() => setDteFilterOpen(false)}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={clearDteFilters}>Limpiar todo</Button>
+            <Button type="primary" style={{ background: '#1faec2' }} onClick={applyDteFilters2}>
+              Aplicar{dteActiveCount > 0 ? ` (${dteActiveCount})` : ''}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Receptor</Typography.Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Nombre receptor</div>
+            <Input size="small" allowClear placeholder="Nombre del receptor..."
+              value={dteDraft.filterNombreReceptor ?? ''}
+              onChange={e => setDteDraft(d => ({ ...d, filterNombreReceptor: e.target.value || undefined }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>NIT receptor</div>
+            <Input size="small" allowClear placeholder="12345678..."
+              value={dteDraft.filterNitReceptor ?? ''}
+              onChange={e => setDteDraft(d => ({ ...d, filterNitReceptor: e.target.value || undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Tipo de documento</Typography.Text>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Select mode="multiple" size="small" style={{ width: '100%' }} allowClear placeholder="Todos los tipos"
+              value={dteDraft.filterTipoDocumento ?? []}
+              options={['FACT', 'FESP', 'FCAM', 'AFCE', 'NABN', 'RDON', 'RECI', 'MFAC', 'MABO'].map(v => ({ value: v, label: v }))}
+              onChange={v => setDteDraft(d => ({ ...d, filterTipoDocumento: v.length ? v : undefined }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Divider style={{ margin: '4px 0 8px' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Monto total</Typography.Text>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Desde</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="0.00" addonBefore="Q"
+              value={dteDraft.filterTotalMin ?? null}
+              onChange={v => setDteDraft(d => ({ ...d, filterTotalMin: v ?? null }))} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>Hasta</div>
+            <InputNumber size="small" style={{ width: '100%' }} min={0} placeholder="sin límite" addonBefore="Q"
+              value={dteDraft.filterTotalMax ?? null}
+              onChange={v => setDteDraft(d => ({ ...d, filterTotalMax: v ?? null }))} />
+          </div>
+        </div>
+      </Drawer>
     </Space>
   )
 }
