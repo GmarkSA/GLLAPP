@@ -1234,7 +1234,7 @@ export default function TransaccionesPage() {
           rowKey="id"
           size="small"
           loading={loading}
-          scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 412px)' }}
           pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
         />
       </Card>

@@ -252,7 +252,7 @@ export default function ReglasBancariasPage() {
           rowKey="id"
           size="small"
           loading={loading}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
           sticky={{ offsetHeader: 60 }}
           pagination={{ pageSize: 50, showTotal: t => `${t} registros` }}
         />
