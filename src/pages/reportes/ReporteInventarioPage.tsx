@@ -163,13 +163,12 @@ function ValorizacionTab() {
       </div>
 
       <Table
-        sticky={{ offsetHeader: 60 }}
         dataSource={data}
         columns={cols}
         rowKey="id"
         size="small"
         pagination={{ pageSize: 50, showSizeChanger: true }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1000, y: 'calc(100vh - 420px)' }}
         summary={() => (
           <Table.Summary.Row style={{ background: '#f5f8ff' }}>
             <Table.Summary.Cell index={0} colSpan={8}>
@@ -329,13 +328,12 @@ function KardexTab() {
       <Spin spinning={loading}>
         {movimientos.length > 0 ? (
           <Table
-        sticky={{ offsetHeader: 60 }}
             dataSource={movimientos}
             columns={cols}
             rowKey={(_, i) => String(i)}
             size="small"
             pagination={{ pageSize: 50, showSizeChanger: true }}
-            scroll={{ x: 900 }}
+            scroll={{ x: 900, y: 'calc(100vh - 420px)' }}
             summary={() => (
               <Table.Summary.Row style={{ background: '#f5f8ff' }}>
                 <Table.Summary.Cell index={0} colSpan={4}>

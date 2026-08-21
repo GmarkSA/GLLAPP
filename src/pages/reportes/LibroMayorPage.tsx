@@ -402,14 +402,13 @@ export default function LibroMayorPage() {
       >
         {viewMode === 'resumido' ? (
           <Table
-        sticky={{ offsetHeader: 60 }}
             columns={resumidoColumns}
             dataSource={filteredData}
             rowKey={d => d.account.id}
             loading={loading}
             size="small"
             pagination={false}
-            scroll={{ x: 900 }}
+            scroll={{ x: 900, y: 'calc(100vh - 440px)' }}
             summary={() => filteredData.length === 0 ? null : (
               <Table.Summary.Row style={{ background: '#f8fafc', fontWeight: 600 }}>
                 <Table.Summary.Cell index={0} colSpan={3}>
@@ -437,14 +436,13 @@ export default function LibroMayorPage() {
           />
         ) : (
           <Table
-        sticky={{ offsetHeader: 60 }}
             columns={flatColumns}
             dataSource={flatRows}
             rowKey="_key"
             loading={loading}
             size="small"
             pagination={false}
-            scroll={{ x: 800 }}
+            scroll={{ x: 800, y: 'calc(100vh - 440px)' }}
             rowClassName={(row: FlatRow) => {
               if (row._type === 'acct-header') return 'row-lm-header'
               if (row._type === 'opening')     return 'row-lm-opening'

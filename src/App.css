@@ -183,10 +183,19 @@
   }
 }
 
-/* ── Marco fijo (estilo Zoho): encabezados sticky de tablas ─────────────────
-   Cuando el thead se pega bajo el header, las filas pasan por debajo; la
-   sombra y el borde marcan la separación para que el corte se vea intencional. */
-.ant-table-sticky-holder {
-  box-shadow: 0 3px 8px rgba(10, 10, 10, 0.12);
-  border-bottom: 1px solid rgba(10, 10, 10, 0.08);
+/* ── Marco fijo (estilo Zoho): tablas con scroll interno ────────────────────
+   En pantalla, el cuerpo de la tabla scrollea dentro de su contenedor y los
+   títulos de columna quedan siempre visibles. Al IMPRIMIR, estas reglas
+   expanden el cuerpo completo para que el PDF salga con todas las filas
+   (el !important vence el max-height inline que pone scroll.y de AntD). */
+@media print {
+  .ant-table-body,
+  .ant-table-content {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .ant-table-header {
+    overflow: visible !important;
+  }
 }

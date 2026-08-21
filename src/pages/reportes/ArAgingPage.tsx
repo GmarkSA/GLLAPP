@@ -638,7 +638,6 @@ export default function ArAgingPage() {
 
           {totalBalance > 0 && (
             <Table
-              sticky={{ offsetHeader: 60 }}
               columns={columns}
               dataSource={clientRows}
               rowKey="customerId"
@@ -647,7 +646,7 @@ export default function ArAgingPage() {
               pagination={{ pageSize: 30, showTotal: t => `${t} clientes`, showSizeChanger: true, pageSizeOptions: ['15', '30', '50', '100'] }}
               onChange={handleTableChange}
               summary={summaryRow}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: 'max-content', y: 'calc(100vh - 420px)' }}
               loading={loading}
             />
           )}

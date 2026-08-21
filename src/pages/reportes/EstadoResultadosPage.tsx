@@ -196,14 +196,13 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
     <>
       <Spin spinning={loading}>
         <Table
-        sticky={{ offsetHeader: 60 }}
           size="small"
           dataSource={rows}
           columns={columns}
           rowKey="key"
           pagination={false}
           showHeader
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 450px)' }}
           onRow={row => ({
             style: {
               background: row._kind === 'grand2' && row._total < 0
