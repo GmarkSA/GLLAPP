@@ -21,6 +21,8 @@ import { companiesApi } from '../../../api/companies'
 import { fiscalRegimesApi } from '../../../api/fiscalRegimes'
 import { GT_TEMPLATES, detectTemplate, type TaxRegimeTemplate, type TaxTemplateItem } from '../../../data/guatemalaTaxTemplates'
 import { useCompanyStore } from '../../../store/companyStore'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../../hooks/setupProgress'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -757,11 +759,12 @@ function TaxModal({
 // ── Panel de plantilla (empty state) ──────────────────────────────────────
 
 function TemplatePanel({
-  template, onLoad, loading,
+  template, onLoad, loading, highlight,
 }: {
   template: TaxRegimeTemplate
   onLoad:   () => void
   loading:  boolean
+  highlight?: boolean
 }) {
   const SAT_COLOR: Record<string, string> = {
     'SAT-2237': '#1faec2', 'SAT-2046': '#f59e0b', 'No obligatorio': '#9aa1ab',
@@ -813,7 +816,7 @@ function TemplatePanel({
           icon={<ThunderboltOutlined />}
           loading={loading}
           onClick={onLoad}
-          style={{ background: satColor, minWidth: 200 }}
+          style={{ background: satColor, minWidth: 200, ...(highlight ? guideHighlight : {}) }}
         >
           Cargar plantilla {template.regimeName}
         </Button>
@@ -893,6 +896,16 @@ export default function ImpuestosPage() {
   const [activeTab,      setActiveTab]      = useState<string>('iva')
   const [seedingIsr,     setSeedingIsr]     = useState(false)
   const [seedingRiva,    setSeedingRiva]    = useState(false)
+  // Guía de configuración (paso 6): llegó con ?from=setup
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromSetup = searchParams.get('from') === 'setup'
+  const [setupDone, setSetupDone] = useState(false)
+  const confirmarPasoImpuestos = async (irAGuia: boolean) => {
+    if (activeCompany?.id) await markSetupStepDone(activeCompany.id, 'impuestos').catch(() => {})
+    setSetupDone(true)
+    if (irAGuia) navigate(SETUP_ROUTES.guide)
+  }
 
   // Busca las cuentas IVA por nombre — funciona con cualquier plan de cuentas
   const ivaVentasAccount  = pageAccounts.find(a => {
@@ -995,6 +1008,7 @@ export default function ImpuestosPage() {
         '. Libro SAT configurado.'
       )
       fetchTaxes()
+      if (fromSetup) await confirmarPasoImpuestos(false)
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al cargar plantilla')
     } finally {
@@ -1341,6 +1355,7 @@ export default function ImpuestosPage() {
     <>
       {!loading && !hasTaxes && (
         <TemplatePanel
+          highlight={fromSetup && !setupDone}
           template={activeTemplate}
           onLoad={() => handleLoadTemplate(activeTemplate)}
           loading={seeding}
@@ -1496,8 +1511,31 @@ export default function ImpuestosPage() {
     </Card>
   )
 
+  const setupBanner = fromSetup && (
+    <div style={{
+      marginBottom: 12, padding: '10px 16px', borderRadius: 10,
+      border: `1.5px solid ${setupDone ? '#bbf7d0' : '#b2e6f0'}`, background: setupDone ? '#f0fdf4' : '#f0fafe',
+      display: 'flex', alignItems: 'center', gap: 12,
+    }}>
+      <Tag color={setupDone ? '#2ea172' : '#1faec2'} style={{ margin: 0 }}>Paso 6 de 9</Tag>
+      <span style={{ flex: 1, fontSize: 13 }}>
+        {setupDone
+          ? <b>Impuestos cargados ✓ — ya puedes continuar con la guía.</b>
+          : hasTaxes
+            ? <><b>Tu empresa ya tiene impuestos cargados.</b> Revísalos y confirma para continuar.</>
+            : <>Tu empresa es <b>{activeTemplate.regimeName}</b>: carga su plantilla de impuestos con el botón resaltado «Cargar plantilla {activeTemplate.regimeName}».</>}
+      </span>
+      {setupDone
+        ? <Button type="primary" style={{ background: '#2ea172', borderColor: '#2ea172' }} onClick={() => navigate(SETUP_ROUTES.guide)}>Continuar →</Button>
+        : hasTaxes
+          ? <Button type="primary" style={{ background: '#1faec2' }} onClick={() => confirmarPasoImpuestos(true)}>Confirmar y continuar →</Button>
+          : <Button onClick={() => navigate(SETUP_ROUTES.guide)}>Volver a la guía</Button>}
+    </div>
+  )
+
   return (
     <div>
+      {setupBanner}
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
         <div>
@@ -1513,6 +1551,7 @@ export default function ImpuestosPage() {
               icon={<ThunderboltOutlined />}
               loading={seeding}
               onClick={() => handleLoadTemplate(activeTemplate)}
+              style={fromSetup && !setupDone ? guideHighlight : undefined}
               title={`Carga los códigos de la plantilla ${activeTemplate.regimeName} que aún no existan`}
             >
               Cargar plantilla {activeTemplate.regimeName}

@@ -888,7 +888,7 @@ interface AccountDefaults {
   fxLossAccountCode?: string
 }
 
-function AccountDefaultsSection() {
+function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef?: React.MutableRefObject<null | (() => Promise<boolean>)> } = {}) {
   const [accounts,  setAccounts]  = useState<Account[]>([])
   const [loading,   setLoading]   = useState(true)
   const [saving,    setSaving]    = useState(false)
@@ -930,12 +930,16 @@ function AccountDefaultsSection() {
         },
       } as any)
       message.success('Cuentas por defecto guardadas correctamente')
+      return true
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'No se pudo guardar la configuración')
+      return false
     } finally {
       setSaving(false)
     }
   }
+
+  if (saveRef) saveRef.current = handleSave
 
   const sugerirCuentas = () => {
     const GLL: Record<keyof AccountDefaults, string> = {
@@ -968,12 +972,17 @@ function AccountDefaultsSection() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
           <Button
             icon={<ThunderboltOutlined />}
-            style={{ color: '#1faec2', borderColor: '#1faec2' }}
+            style={{ color: '#1faec2', borderColor: '#1faec2', ...(guided ? guideHighlight : {}) }}
             onClick={sugerirCuentas}
           >
             Usar catálogo sugerido
           </Button>
         </div>
+        {guided && (
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12, textAlign: 'right' }}>
+            Pulsa «Usar catálogo sugerido» para vincular las cuentas del catálogo GLL; revisa y luego «Guardar y continuar».
+          </Text>
+        )}
         <SectionCard title="Anticipos" icon={<DollarOutlined />}>
           <Row gutter={20}>
             <Col xs={24} md={12}>
@@ -1760,6 +1769,7 @@ export default function ConfiguracionPage() {
   const fiscalSaveRef = useRef<null | (() => Promise<void>)>(null)
   const [guidedSaving, setGuidedSaving] = useState(false)
   const saveOkRef = useRef(true)   // resultado del último guardado (para no avanzar en la guía si falló)
+  const defaultsSaveRef = useRef<null | (() => Promise<boolean>)>(null)   // paso 4: Cuentas por defecto
   const [profile, setProfile] = useState<OrganizationProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -1816,6 +1826,19 @@ export default function ConfiguracionPage() {
     }
   }
 
+  const handleGuidedContinueDefaults = async () => {
+    const companyId = useCompanyStore.getState().activeCompany?.id
+    setGuidedSaving(true)
+    try {
+      const ok = await defaultsSaveRef.current?.()
+      if (ok === false) return
+      if (companyId) await markSetupStepDone(companyId, 'contabilidad').catch(() => {})
+      navigate(SETUP_ROUTES.clases_af)
+    } finally {
+      setGuidedSaving(false)
+    }
+  }
+
   const renderContent = () => {
     switch (activeKey) {
       case 'setup-guide':
@@ -1857,7 +1880,10 @@ export default function ConfiguracionPage() {
         return (
           <div>
             <div style={{ marginBottom: 20 }}>
-              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Contabilidad</Title>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
+                Contabilidad
+                {fromSetup && <Tag color="#1faec2" style={{ marginLeft: 10, verticalAlign: 'middle' }}>Paso 4 de 9 — Vincula las cuentas por defecto del sistema</Tag>}
+              </Title>
               <Text type="secondary">Dimensiones analíticas, cuentas por defecto, impuestos especiales y preferencias del sistema</Text>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
@@ -1866,9 +1892,17 @@ export default function ConfiguracionPage() {
                 <div style={{ marginTop: 16 }}><PreferencesSection /></div>
               </div>
               <div>
-                <AccountDefaultsSection />
+                <AccountDefaultsSection guided={fromSetup} saveRef={defaultsSaveRef} />
               </div>
             </div>
+            {fromSetup && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(10,10,10,0.06)' }}>
+                <Button onClick={() => navigate(SETUP_ROUTES.guide)}>Volver a la guía</Button>
+                <Button type="primary" size="large" loading={guidedSaving} onClick={handleGuidedContinueDefaults} style={{ background: '#1faec2', minWidth: 200 }}>
+                  Guardar y continuar →
+                </Button>
+              </div>
+            )}
             <div style={{ marginTop: 20 }}>
               <div style={{ marginBottom: 16 }}>
                 <Text strong style={{ fontSize: 15, color: '#0a0a0a' }}>Impuestos especiales</Text>
