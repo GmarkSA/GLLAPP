@@ -6,7 +6,7 @@ import { tenantsApi } from '../api/tenants'
 import { getCustomers, getVendors } from '../api/contactos'
 import { getBankAccounts } from '../api/bancos'
 import { getClasesActivoFijo } from '../api/clases-activo-fijo'
-import { getSetupStepFlags, SETUP_ROUTES } from './setupProgress'
+import { getSetupStepFlags, SETUP_ROUTES, SKIPPED } from './setupProgress'
 
 export interface SetupStep {
   id:    string
@@ -18,6 +18,12 @@ export interface SetupStep {
   /** Hay datos en el sistema aunque el usuario aún no haya revisado el paso desde la guía */
   detected?: boolean
   hint?: string
+  /** Datos maestros: el usuario eligió "Omitir por ahora" */
+  skipped?: boolean
+  /** La tarjeta ofrece "Omitir por ahora" */
+  skippable?: boolean
+  /** Ya hay datos: la tarjeta ofrece "Confirmar" sin salir de la guía */
+  confirmable?: boolean
 }
 
 function countOf(res: any): number {
@@ -62,6 +68,13 @@ export function useSetupSteps() {
       // (sin banderas y con cuentas por defecto vinculadas) conservan el criterio anterior por datos.
       const legacy        = flags === null && defaultsOk
       const guiado        = (id: string) => !!flags?.[id]
+      const omitido       = (id: string) => flags?.[id] === SKIPPED
+      // Datos maestros (7-9): si ya hay registros (plantilla o creados desde el módulo) se confirma desde la tarjeta
+      const maestro       = (id: string, ok: boolean) => ({
+        done: legacy ? ok : guiado(id), detected: ok, skipped: omitido(id),
+        hint: ok && !legacy && !guiado(id) ? 'Ya hay registros — confirmar' : undefined,
+        confirmable: ok && !legacy && !guiado(id),
+      })
 
       setSteps([
         {
@@ -120,22 +133,24 @@ export function useSetupSteps() {
           id: 'clientes', num: 7,
           label: 'Primer cliente',
           desc:  'Al menos un cliente registrado en el sistema.',
-          route: '/ventas/clientes',
-          done:  clientesOk,
+          route: clientesOk ? '/ventas/clientes' : SETUP_ROUTES.clientes,
+          ...maestro('clientes', clientesOk),
+          skippable: true,
         },
         {
           id: 'proveedores', num: 8,
           label: 'Primer proveedor',
           desc:  'Al menos un proveedor registrado en el sistema.',
-          route: '/compras/proveedores',
-          done:  proveedoresOk,
+          route: proveedoresOk ? '/compras/proveedores' : SETUP_ROUTES.proveedores,
+          ...maestro('proveedores', proveedoresOk),
+          skippable: true,
         },
         {
           id: 'bancos', num: 9,
           label: 'Cuenta bancaria',
           desc:  'Cuenta bancaria configurada para tesorería.',
-          route: '/bancos',
-          done:  bancosOk,
+          route: bancosOk ? '/bancos' : SETUP_ROUTES.bancos,
+          ...maestro('bancos', bancosOk),
         },
       ])
     }).finally(() => setLoading(false))

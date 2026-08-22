@@ -14,6 +14,8 @@ import {
   ApartmentOutlined,
 } from '@ant-design/icons'
 import { useSetupSteps, type SetupStep } from '../../hooks/useSetupSteps'
+import { markSetupStepDone, markSetupStepSkipped } from '../../hooks/setupProgress'
+import { useCompanyStore } from '../../store/companyStore'
 
 const { Title, Text } = Typography
 
@@ -31,12 +33,18 @@ const STEP_ICONS: Record<string, React.ReactNode> = {
 
 export default function SetupGuidePage() {
   const navigate = useNavigate()
-  const { steps, loading, completedCount, completionPercent } = useSetupSteps()
+  const { steps, loading, completedCount, completionPercent, reload } = useSetupSteps()
+  const companyId = useCompanyStore(s => s.activeCompany?.id)
 
   const nextPending = steps.find(s => !s.done)
 
   const goTo = (step: { id: string; route: string }) => {
     navigate(step.route)
+  }
+  // Datos maestros: confirmar (ya hay registros) u omitir por ahora sin salir de la guía
+  const actions: CardActions = {
+    confirm: async (step) => { if (companyId) await markSetupStepDone(companyId, step.id).catch(() => {}); reload() },
+    skip:    async (step) => { if (companyId) await markSetupStepSkipped(companyId, step.id).catch(() => {}); reload() },
   }
 
   if (loading) {
@@ -86,7 +94,7 @@ export default function SetupGuidePage() {
         </Text>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
-        {steps.slice(0, 6).map(step => renderCard(step, nextPending, goTo))}
+        {steps.slice(0, 6).map(step => renderCard(step, nextPending, goTo, actions))}
       </div>
 
       {/* Sección: Datos maestros */}
@@ -96,7 +104,7 @@ export default function SetupGuidePage() {
         </Text>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
-        {steps.slice(6).map(step => renderCard(step, nextPending, goTo))}
+        {steps.slice(6).map(step => renderCard(step, nextPending, goTo, actions))}
       </div>
 
       {/* Footer */}
@@ -114,7 +122,7 @@ export default function SetupGuidePage() {
             style={{ background: '#2ea172', borderColor: '#2ea172' }}
             onClick={() => navigate('/dashboard')}
           >
-            ¡Todo listo — Ir al Dashboard!
+            ¡Lista para operar! → Ir al Dashboard
           </Button>
         )}
       </div>
@@ -122,10 +130,13 @@ export default function SetupGuidePage() {
   )
 }
 
+type CardActions = { confirm: (s: SetupStep) => Promise<void>; skip: (s: SetupStep) => Promise<void> }
+
 function renderCard(
   step: SetupStep,
   nextPending: typeof step | undefined,
   goTo: (s: typeof step) => void,
+  actions: CardActions,
 ) {
   const isCurrent = !step.done && step === nextPending
 
@@ -185,12 +196,17 @@ function renderCard(
 
       {/* Footer */}
       <div style={{ marginTop: 'auto', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-        {step.done && (
+        {step.done && !step.skipped && (
           <Tag style={{
             background: '#dcfce7', borderColor: '#bbf7d0',
             color: '#15803d', fontWeight: 600, fontSize: 11,
           }}>
             Completado
+          </Tag>
+        )}
+        {step.done && step.skipped && (
+          <Tag style={{ background: '#f3f4f6', borderColor: '#e5e7eb', color: '#6b7280', fontWeight: 600, fontSize: 11 }}>
+            Omitido por ahora
           </Tag>
         )}
         {!step.done && step.hint && (
@@ -209,7 +225,17 @@ function renderCard(
             }
             onClick={() => goTo(step)}
           >
-            {isCurrent ? 'Revisar y completar →' : step.done ? 'Revisar' : step.num <= 6 ? 'Revisar y completar' : 'Ir al módulo'}
+            {isCurrent ? 'Revisar y completar →' : step.done ? (step.skipped ? 'Agregar ahora' : 'Revisar') : step.num <= 6 ? 'Revisar y completar' : 'Ir al módulo'}
+          </Button>
+        )}
+        {!step.done && step.confirmable && (
+          <Button size="small" type="link" style={{ color: '#2ea172', padding: '0 2px', fontSize: 12, fontWeight: 600 }} onClick={() => actions.confirm(step)}>
+            Confirmar ✓
+          </Button>
+        )}
+        {!step.done && step.skippable && (
+          <Button size="small" type="text" style={{ color: '#9aa1ab', padding: '0 4px', fontSize: 12, marginLeft: 'auto' }} onClick={() => actions.skip(step)}>
+            Omitir por ahora
           </Button>
         )}
       </div>
