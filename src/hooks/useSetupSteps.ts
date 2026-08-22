@@ -50,7 +50,9 @@ export function useSetupSteps() {
       const catalogoOk    = countOf(accounts) > 0
       const defaultsOk    = !!(profile?.settings?.accountDefaults &&
                               Object.values(profile.settings.accountDefaults).some(Boolean))
-      const clasesOk      = countOf(clases) > 0
+      // Clases AF: el backend devuelve las clases Guatemala en memoria (id null) cuando no hay ninguna guardada →
+      // contar solo las GUARDADAS, si no el paso sale verde sin haber hecho nada.
+      const clasesOk      = Array.isArray(clases) ? clases.filter((c: any) => !!c?.id).length > 0 : countOf(clases) > 0
       const impuestosOk   = countOf(taxes) > 0
       const clientesOk    = countOf(customers) > 0
       const proveedoresOk = countOf(vendors) > 0
@@ -91,22 +93,28 @@ export function useSetupSteps() {
           id: 'contabilidad', num: 4,
           label: 'Cuentas por defecto',
           desc:  'Cuentas contables del sistema vinculadas.',
-          route: '/configuracion?tab=contabilidad',
-          done:  defaultsOk,
+          route: SETUP_ROUTES.contabilidad,
+          done:  legacy ? defaultsOk : guiado('contabilidad'),
+          detected: defaultsOk,
+          hint:  defaultsOk && !legacy && !guiado('contabilidad') ? 'Ya hay cuentas vinculadas — revisar y confirmar' : undefined,
         },
         {
           id: 'clases_af', num: 5,
           label: 'Clases de activo fijo',
           desc:  'Clases ISR Guatemala generadas y cuentas vinculadas.',
-          route: '/contabilidad/clases-activo-fijo',
-          done:  clasesOk,
+          route: SETUP_ROUTES.clases_af,
+          done:  legacy ? clasesOk : guiado('clases_af'),
+          detected: clasesOk,
+          hint:  clasesOk && !legacy && !guiado('clases_af') ? 'Ya hay clases guardadas — revisar y confirmar' : undefined,
         },
         {
           id: 'impuestos', num: 6,
           label: 'Plantilla de impuestos',
           desc:  'Impuestos fiscales (IVA, ISR, retenciones) cargados.',
-          route: '/configuracion?tab=taxes',
-          done:  impuestosOk,
+          route: SETUP_ROUTES.impuestos,
+          done:  legacy ? impuestosOk : guiado('impuestos'),
+          detected: impuestosOk,
+          hint:  impuestosOk && !legacy && !guiado('impuestos') ? 'Ya hay impuestos cargados — revisar y confirmar' : undefined,
         },
         {
           id: 'clientes', num: 7,

@@ -4,6 +4,9 @@ import {
   Switch, Typography, Alert, Popconfirm, Select, Modal, Form, Input,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useCompanyStore } from '../../../store/companyStore'
+import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../../hooks/setupProgress'
 import {
   ReloadOutlined, LockOutlined, UnlockOutlined, PlusOutlined,
   DeleteOutlined, SaveOutlined, BookOutlined, EditOutlined, CopyOutlined,
@@ -101,6 +104,17 @@ export default function ClasesActivoFijoPage() {
   const [loading,     setLoading]    = useState(false)
   const [seeding,     setSeeding]    = useState(false)
   const [sugeriendo,  setSugeriendo] = useState(false)
+  // Guía de configuración (paso 5): llegó con ?from=setup
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromSetup = searchParams.get('from') === 'setup'
+  const activeCompanyId = useCompanyStore(s => s.activeCompany?.id)
+  const [setupDone, setSetupDone] = useState(false)
+  const confirmarPasoClases = async (irAlSiguiente: boolean) => {
+    if (activeCompanyId) await markSetupStepDone(activeCompanyId, 'clases_af').catch(() => {})
+    setSetupDone(true)
+    if (irAlSiguiente) navigate(SETUP_ROUTES.impuestos)
+  }
   const [pending,     setPending]    = useState<Record<string, Pending>>({})
   const [saving,      setSaving]     = useState<Record<string, boolean>>({})
 
@@ -228,7 +242,7 @@ export default function ClasesActivoFijoPage() {
 
   const handleSeed = async () => {
     setSeeding(true)
-    try { await seedGuatemalaClases(); message.success('Clases Guatemala generadas'); load() }
+    try { await seedGuatemalaClases(); message.success('Clases Guatemala generadas'); load(); if (fromSetup) await confirmarPasoClases(false) }
     catch (e: any) { message.error(e?.response?.data?.message ?? 'Error') }
     finally { setSeeding(false) }
   }
@@ -367,8 +381,32 @@ export default function ClasesActivoFijoPage() {
     },
   ]
 
+  const guardadas = data.filter(c => !!c.id).length   // el backend devuelve las clases Guatemala en memoria (id null) si no hay guardadas
+  const setupBanner = fromSetup && (
+    <div style={{
+      marginBottom: 12, padding: '10px 16px', borderRadius: 10,
+      border: `1.5px solid ${setupDone ? '#bbf7d0' : '#b2e6f0'}`, background: setupDone ? '#f0fdf4' : '#f0fafe',
+      display: 'flex', alignItems: 'center', gap: 12,
+    }}>
+      <Tag color={setupDone ? '#2ea172' : '#1faec2'} style={{ margin: 0 }}>Paso 5 de 9</Tag>
+      <span style={{ flex: 1, fontSize: 13 }}>
+        {setupDone
+          ? <b>Clases de activo fijo generadas ✓ — ya puedes continuar.</b>
+          : guardadas > 0
+            ? <><b>Ya tienes clases guardadas.</b> Vincula sus cuentas con «Cargar catálogo sugerido» si hace falta y confirma para continuar.</>
+            : <><b>Genera las clases ISR Guatemala</b> con el botón resaltado «Cargar clases de AF»; luego «Cargar catálogo sugerido» vincula sus cuentas.</>}
+      </span>
+      {setupDone
+        ? <Button type="primary" style={{ background: '#2ea172', borderColor: '#2ea172' }} onClick={() => navigate(SETUP_ROUTES.impuestos)}>Continuar al paso 6 →</Button>
+        : guardadas > 0
+          ? <Button type="primary" style={{ background: '#1faec2' }} onClick={() => confirmarPasoClases(true)}>Confirmar y continuar →</Button>
+          : <Button onClick={() => navigate(SETUP_ROUTES.guide)}>Volver a la guía</Button>}
+    </div>
+  )
+
   return (
     <div style={{ padding: 24 }}>
+      {setupBanner}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Clases de Activo Fijo (ISR Guatemala)</Title>
         <Space>
@@ -385,11 +423,12 @@ export default function ClasesActivoFijoPage() {
             okButtonProps={{ style: { background: '#1faec2' } }}
           >
             <Button icon={<ThunderboltOutlined />} loading={sugeriendo}
-              style={{ color: '#1faec2', borderColor: '#1faec2' }}>
+              style={{ color: '#1faec2', borderColor: '#1faec2', ...(fromSetup && !setupDone && guardadas > 0 ? guideHighlight : {}) }}>
               Cargar catálogo sugerido
             </Button>
           </Popconfirm>
-          <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}>
+          <Button icon={<ReloadOutlined />} loading={seeding} onClick={handleSeed}
+            style={fromSetup && !setupDone && guardadas === 0 ? guideHighlight : undefined}>
             Cargar clases de AF
           </Button>
         </Space>

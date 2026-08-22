@@ -14,6 +14,9 @@ export const SETUP_ROUTES = {
   empresa:  (companyId: string) => `/configuracion/empresas/${companyId}?from=setup`,
   perfil:   '/configuracion?tab=organization&from=setup',
   catalogo: '/contabilidad/catalogo?from=setup',
+  contabilidad: '/configuracion?tab=contabilidad&from=setup',
+  clases_af:    '/contabilidad/clases-activo-fijo?from=setup',
+  impuestos:    '/configuracion?tab=taxes&from=setup',
 }
 
 /** stepId → fecha ISO en que el usuario lo completó desde la guía. `null` = la empresa nunca ha usado la guía. */
