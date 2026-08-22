@@ -30,9 +30,10 @@ import {
   type OrganizationProfile,
 } from '../../api/configuracion'
 import {
-  getCurrencies, createCurrency, updateRate, syncBanguatRate, getExchangeRateHistory, removeCurrency,
-  type Currency, type CurrencyExchangeRate,
+  getCurrencies, createCurrency, updateRate, syncBanguatRate, removeCurrency, updateCurrency,
+  type Currency,
 } from '../../api/monedas'
+import { getApiError } from '../../api/axios'
 import { getAccounts, type Account } from '../../api/catalogo'
 import { useCompanyStore } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
@@ -555,11 +556,10 @@ const ALL_CURRENCIES = [
 
 
 function CurrencySection() {
+  const navigate = useNavigate()
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const [currencies, setCurrencies] = useState<Currency[]>([])
-  const [history,    setHistory]    = useState<CurrencyExchangeRate[]>([])
   const [loading,    setLoading]    = useState(true)
-  const [loadingHistory, setLoadingHistory] = useState(false)
   const [saving,     setSaving]     = useState(false)
   const [syncing,    setSyncing]    = useState(false)
   const [modalOpen,  setModalOpen]  = useState(false)
@@ -582,20 +582,6 @@ function CurrencySection() {
 
   useEffect(() => { fetchCurrencies() }, [fetchCurrencies])
 
-  const fetchHistory = useCallback(async () => {
-    setLoadingHistory(true)
-    try {
-      const data = await getExchangeRateHistory('USD', 30)
-      setHistory(Array.isArray(data) ? data : [])
-    } catch {
-      setHistory([])
-    } finally {
-      setLoadingHistory(false)
-    }
-  }, [])
-
-  useEffect(() => { fetchHistory() }, [fetchHistory])
-
   const handleAdd = async () => {
     try {
       const values = await form.validateFields()
@@ -614,9 +600,11 @@ function CurrencySection() {
       form.resetFields()
       fetchCurrencies()
     } catch (e: any) {
-      const msg = e?.response?.data?.message
+      // El backend responde { error: { message } } — antes se leía data.message y
+      // cualquier error (ya existe, permisos, etc.) quedaba en silencio.
+      const msg = getApiError(e, '')
       if (msg) message.error(msg)
-      // validation errors are silently ignored
+      // errores de validación del formulario: sin mensaje (AntD ya los marca)
     } finally {
       setSaving(false)
     }
@@ -625,10 +613,20 @@ function CurrencySection() {
   const handleRemove = async (id: string, name: string) => {
     try {
       await removeCurrency(id)
-      message.success(`Moneda ${name} eliminada`)
+      message.success(`Moneda ${name} desactivada`)
       fetchCurrencies()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo eliminar')
+      message.error(getApiError(e, 'No se pudo desactivar'))
+    }
+  }
+
+  const handleActivate = async (id: string, name: string) => {
+    try {
+      await updateCurrency(id, { isActive: true })
+      message.success(`Moneda ${name} activada`)
+      fetchCurrencies()
+    } catch (e: any) {
+      message.error(getApiError(e, 'No se pudo activar'))
     }
   }
 
@@ -646,7 +644,6 @@ function CurrencySection() {
     try {
       const result = await syncBanguatRate()
       await fetchCurrencies()
-      await fetchHistory()
       const target = result.targetCurrencyCode ? ` ${result.targetCurrencyCode}` : ''
       const officialRate = result.banguatRate ?? result.rate
       message.success(`Banguat actualizado${target}: 1 USD = ${Number(officialRate).toFixed(6)} GTQ`)
@@ -658,7 +655,8 @@ function CurrencySection() {
     }
   }
 
-  const activeCodes  = currencies.map(c => c.code)
+  // Solo las ACTIVAS cuentan: una moneda desactivada debe poder re-agregarse/activarse
+  const activeCodes  = currencies.filter(c => c.isActive).map(c => c.code)
   const availableToAdd = ALL_CURRENCIES.filter(c => !activeCodes.includes(c.code))
   const localCurrencyCode = activeCompany?.currencyCode ?? currencies.find(c => c.isBase)?.code ?? 'GTQ'
   const localCurrencyMeta = ALL_CURRENCIES.find(c => c.code === localCurrencyCode)
@@ -727,6 +725,7 @@ function CurrencySection() {
                     <Text type="secondary" style={{ fontSize: 12 }}>Símbolo: {r.symbol}</Text>
                   </div>
                   {r.isBase && <Tag color="gold" icon={<StarFilled />}>Base</Tag>}
+                  {!r.isActive && <Tag>Inactiva</Tag>}
                 </Space>
               ),
             },
@@ -761,9 +760,11 @@ function CurrencySection() {
             {
               title: '',
               width: 60,
-              render: (_, r) => r.code === localCurrencyCode ? null : (
+              render: (_, r) => r.code === localCurrencyCode ? null : !r.isActive ? (
+                <Button type="link" size="small" onClick={() => handleActivate(r.id, r.name)}>Activar</Button>
+              ) : (
                 <Popconfirm
-                  title={`¿Eliminar ${r.name}?`}
+                  title={`¿Desactivar ${r.name}?`}
                   onConfirm={() => handleRemove(r.id, r.name)}
                   okText="Sí" cancelText="No"
                   okButtonProps={{ danger: true }}
@@ -776,46 +777,15 @@ function CurrencySection() {
         />
       </Card>
 
-      <Collapse
-        style={{ marginTop: 16, background: '#fff', borderRadius: 10 }}
-        items={[{
-          key: 'exchange-history',
-          label: <Space><SyncOutlined /> Historial USD/GTQ</Space>,
-          children: (
-            <Table
-              size="small"
-              rowKey="id"
-              loading={loadingHistory}
-              dataSource={history}
-              pagination={{ pageSize: 8, size: 'small' }}
-              columns={[
-                {
-                  title: 'Fecha',
-                  dataIndex: 'effectiveDate',
-                  width: 140,
-                  render: (v: string) => dayjs(v).format('DD/MM/YYYY'),
-                },
-                {
-                  title: 'Conversion GTQ a USD',
-                  dataIndex: 'rate',
-                  render: (v: number) => <Text code>1 GTQ = {Number(v).toFixed(8)} USD</Text>,
-                },
-                {
-                  title: 'Oficial Banguat',
-                  dataIndex: 'officialRate',
-                  render: (v?: number) => v ? <Text>1 USD = {Number(v).toFixed(6)} GTQ</Text> : <Text type="secondary">Manual</Text>,
-                },
-                {
-                  title: 'Fuente',
-                  dataIndex: 'source',
-                  width: 110,
-                  render: (v: string) => <Tag color={v === 'banguat' ? '#1faec2' : 'default'}>{v}</Tag>,
-                },
-              ]}
-            />
-          ),
-        }]}
-      />
+      {/* El historial de tipos de cambio vive en Reportes › Tipos de cambio */}
+      <Card bordered={false} style={{ ...cardStyle, marginTop: 16 }} bodyStyle={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          Desde que activas USD, el tipo de cambio oficial de Banguat se registra todos los días.
+        </Text>
+        <Button type="link" icon={<SyncOutlined />} onClick={() => navigate('/reportes/tipos-cambio')} style={{ padding: 0 }}>
+          Ver historial en Reportes → Tipos de cambio
+        </Button>
+      </Card>
 
       {/* Modal agregar moneda */}
       <Modal

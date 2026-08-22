@@ -6,7 +6,7 @@ import {
   AuditOutlined, RiseOutlined, AccountBookOutlined,
   FileTextOutlined, BookOutlined, ShopOutlined,
   PieChartOutlined, DashboardOutlined, TeamOutlined,
-  WalletOutlined, BankOutlined, FileProtectOutlined,
+  WalletOutlined, BankOutlined, FileProtectOutlined, DollarOutlined,
 } from '@ant-design/icons'
 import { getEmpresaInfo } from '../../api/reportes'
 import { companiesApi } from '../../api/companies'
@@ -37,6 +37,7 @@ const GROUPS: ReportGroup[] = [
       { key: 'balance-general',    icon: <AuditOutlined />,       title: 'Balance General',        desc: 'Activos, pasivos y patrimonio al cierre del período.',          path: '/reportes/balance-general',    color: '#1faec2' },
       { key: 'estado-resultados',  icon: <LineChartOutlined />,   title: 'Estado de Resultados',   desc: 'Ingresos, costos, gastos y utilidad neta del período.',          path: '/reportes/estado-resultados',  color: '#2ea172' },
       { key: 'flujo-efectivo',     icon: <FundOutlined />,        title: 'Flujo de Caja',          desc: 'Entradas y salidas de efectivo: operación, inversión y fin.',    path: '/reportes/flujo-efectivo',     color: '#1faec2' },
+      { key: 'tipos-cambio',       icon: <DollarOutlined />,      title: 'Tipos de cambio',        desc: 'Historial USD/GTQ oficial Banguat, variación diaria y exportación.', path: '/reportes/tipos-cambio',       color: '#1B3A6B' },
       { key: 'tasas-rendimiento',  icon: <RiseOutlined />,        title: 'Tasas de Rendimiento',   desc: 'Ratios de liquidez, endeudamiento y rentabilidad ROA/ROE.',      path: '/reportes/tasas-rendimiento',  color: '#f59e0b' },
       { key: 'movimiento-capital', icon: <BarChartOutlined />,    title: 'Movimiento de Capital',  desc: 'Cambios en patrimonio, utilidades retenidas y distribuciones.',  path: '/reportes/movimiento-capital', color: '#e5484d' },
     ],

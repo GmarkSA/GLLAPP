@@ -54,3 +54,4 @@ export const getExchangeRateHistory = (currency = 'USD', limit = 30) =>
 export const getExchangeRateForDate = (currency = 'USD', date?: string) =>
   api.get('/configuracion/monedas/tipo-cambio', { params: { currency, date } }).then(unwrap) as Promise<ExchangeRateForDate>
 export const removeCurrency  = (id: string)                   => api.delete(`/configuracion/monedas/${id}`)
+export const updateCurrency  = (id: string, dto: Partial<Currency>) => api.patch(`/configuracion/monedas/${id}`, dto).then(unwrap)
