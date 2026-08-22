@@ -28,6 +28,11 @@ const ALL_MODULES = [
 const { Title } = Typography
 const { Option } = Select
 
+/** Tipo de identificador fiscal — solo Guatemala por ahora: NIT por defecto (CUI para
+ *  personas individuales sin NIT). Antes era texto libre y los usuarios escribían ahí
+ *  el número del NIT. */
+const TAX_ID_LABELS = ['NIT', 'CUI']
+
 const COUNTRIES = [
   { code: 'GT', name: 'Guatemala',    currency: 'GTQ' },
   { code: 'HN', name: 'Honduras',     currency: 'HNL' },
@@ -207,7 +212,7 @@ export default function EmpresaFormPage() {
 
       <Spin spinning={loading}>
         <Form form={form} layout="vertical" size="small" onFinish={onFinish}
-          initialValues={{ countryCode: 'GT', currencyCode: 'GTQ', language: 'es', timezone: 'America/Guatemala' }}>
+          initialValues={{ countryCode: 'GT', taxIdLabel: 'NIT', currencyCode: 'GTQ', language: 'es', timezone: 'America/Guatemala' }}>
 
           {/* ── Template Engine (solo en modo crear) ────────────────────────── */}
           {!isEdit && (
@@ -318,8 +323,8 @@ export default function EmpresaFormPage() {
                   <Form.Item label="Número de Identificación Fiscal" name="taxId">
                     <Input placeholder="NIT / RFC / RTN..." />
                   </Form.Item>
-                  <Form.Item label="Tipo de ID" name="taxIdLabel">
-                    <Input placeholder="NIT" />
+                  <Form.Item label="Tipo de ID" name="taxIdLabel" tooltip="NIT por defecto (Guatemala)">
+                    <Select options={TAX_ID_LABELS.map(l => ({ value: l, label: l }))} />
                   </Form.Item>
                   <Form.Item
                     label="Régimen Fiscal"
