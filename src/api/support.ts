@@ -61,12 +61,12 @@ export const codigoTicket = (numero?: number): string =>
 
 export const subirAdjunto = (file: File): Promise<AdjuntoRef> => {
   const fd = new FormData(); fd.append('file', file)
-  return api.post('/support/attachments', fd).then(unwrap)
+  return api.post('/support/attachments', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap)
 }
 
 export const adminSubirAdjunto = (file: File): Promise<AdjuntoRef> => {
   const fd = new FormData(); fd.append('file', file)
-  return api.post('/support/admin/attachments', fd).then(unwrap)
+  return api.post('/support/admin/attachments', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap)
 }
 
 // ── Cliente ────────────────────────────────────────────────────────────────
