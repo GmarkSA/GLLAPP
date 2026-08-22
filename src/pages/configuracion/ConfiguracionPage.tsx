@@ -559,7 +559,6 @@ function CurrencySection() {
   const navigate = useNavigate()
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const [currencies, setCurrencies] = useState<Currency[]>([])
-  const [history,    setHistory]    = useState<CurrencyExchangeRate[]>([])
   const [loading,    setLoading]    = useState(true)
   const [saving,     setSaving]     = useState(false)
   const [syncing,    setSyncing]    = useState(false)
