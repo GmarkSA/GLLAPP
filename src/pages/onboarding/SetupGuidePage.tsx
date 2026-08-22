@@ -13,7 +13,7 @@ import {
   ArrowRightOutlined,
   ApartmentOutlined,
 } from '@ant-design/icons'
-import { useSetupSteps } from '../../hooks/useSetupSteps'
+import { useSetupSteps, type SetupStep } from '../../hooks/useSetupSteps'
 
 const { Title, Text } = Typography
 
@@ -123,7 +123,7 @@ export default function SetupGuidePage() {
 }
 
 function renderCard(
-  step: { id: string; num: number; label: string; desc: string; route: string; done: boolean },
+  step: SetupStep,
   nextPending: typeof step | undefined,
   goTo: (s: typeof step) => void,
 ) {
@@ -193,6 +193,11 @@ function renderCard(
             Completado
           </Tag>
         )}
+        {!step.done && step.hint && (
+          <Tag style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', fontWeight: 600, fontSize: 11 }}>
+            {step.hint}
+          </Tag>
+        )}
         {step.route && (
           <Button
             type={isCurrent ? 'primary' : 'link'}
@@ -204,7 +209,7 @@ function renderCard(
             }
             onClick={() => goTo(step)}
           >
-            {isCurrent ? 'Completar ahora →' : step.done ? 'Revisar' : 'Ir al módulo'}
+            {isCurrent ? 'Revisar y completar →' : step.done ? 'Revisar' : step.num <= 6 ? 'Revisar y completar' : 'Ir al módulo'}
           </Button>
         )}
       </div>

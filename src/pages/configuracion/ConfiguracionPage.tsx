@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
@@ -18,6 +18,7 @@ import {
   ImportOutlined,
 } from '@ant-design/icons'
 import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
+import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../hooks/setupProgress'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
 import LibroSATPage           from './libros-sat/LibroSATPage'
 import EspacioDesarrolloPage  from './EspacioDesarrolloPage'
@@ -119,11 +120,13 @@ const COUNTRY_CODE_TO_NAME: Record<string, string> = {
 }
 
 function OrganizationSection({
-  profile, loading, onSave,
+  profile, loading, onSave, guided, saveRef,
 }: {
   profile: OrganizationProfile | null
   loading: boolean
   onSave: (values: Partial<OrganizationProfile>) => Promise<void>
+  guided?: boolean
+  saveRef?: React.MutableRefObject<null | (() => Promise<void>)>
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
@@ -198,6 +201,7 @@ function OrganizationSection({
       setSaving(false)
     }
   }
+  if (saveRef) saveRef.current = handleSave
 
   return (
     <Spin spinning={loading}>
@@ -205,7 +209,7 @@ function OrganizationSection({
         {/* Logo row */}
         <Card bordered={false} style={cardStyle} bodyStyle={{ padding: '24px 28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', borderRadius: '50%', ...(guided ? guideHighlight : {}) }}>
               <Avatar
                 size={96}
                 src={logoUrl}
@@ -298,6 +302,7 @@ function OrganizationSection({
                 })()}
               </Col>
               <Col xs={24} md={12}>
+                <div style={guided ? { padding: '6px 10px 0', borderRadius: 10, ...guideHighlight } : undefined}>
                 <Form.Item name="industry" label="Industria" style={{ marginBottom: 16 }}>
                   <Select placeholder="Selecciona una industria" size="large">
                     {['Comercio', 'Manufactura', 'Servicios profesionales', 'Tecnología',
@@ -306,6 +311,7 @@ function OrganizationSection({
                     )}
                   </Select>
                 </Form.Item>
+                </div>
               </Col>
               <Col xs={24}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
@@ -316,7 +322,7 @@ function OrganizationSection({
           </SectionCard>
 
           {/* Contact + Address */}
-          <SectionCard title="Contacto y dirección" icon={<MailOutlined />}>
+          <SectionCard title="Contacto y dirección" icon={<MailOutlined />} highlight={guided}>
             <Row gutter={[16, 0]}>
               <Col xs={24} md={14}>
                 <Form.Item name="email" label="Correo electrónico" style={{ marginBottom: 16 }} rules={[{ type: 'email', message: 'Email inválido' }]}>
@@ -388,16 +394,23 @@ function OrganizationSection({
 }
 
 function FiscalSection({
-  profile, loading, onSave,
+  profile, loading, onSave, guided, saveRef,
 }: {
   profile: OrganizationProfile | null
   loading: boolean
   onSave: (values: Partial<OrganizationProfile>) => Promise<void>
+  guided?: boolean
+  saveRef?: React.MutableRefObject<null | (() => Promise<void>)>
 }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [regimes, setRegimes] = useState<FiscalRegime[]>([])
   const activeCompany = useCompanyStore(s => s.activeCompany)
+  // Empresa completa: el régimen elegido al crearla y su NIT son la fuente de verdad del perfil fiscal
+  const [fullCompany, setFullCompany] = useState<any>(null)
+  useEffect(() => {
+    if (activeCompany?.id) companiesApi.getOne(activeCompany.id).then(setFullCompany).catch(() => {})
+  }, [activeCompany?.id])
   const companyCountryCode = countryCodeFromValue((activeCompany as any)?.countryCode ?? (activeCompany as any)?.country ?? profile?.country)
   const watchedCountry = Form.useWatch(['settings', 'fiscalCountryCode'], form)
   const fiscalCountryCode = countryCodeFromValue(watchedCountry ?? companyCountryCode)
@@ -411,15 +424,19 @@ function FiscalSection({
 
   useEffect(() => {
     if (profile) {
+      const s = (profile as any).settings ?? {}
       form.setFieldsValue({
         ...profile,
         settings: {
-          ...(profile as any).settings,
-          fiscalCountryCode: (profile as any).settings?.fiscalCountryCode ?? companyCountryCode,
+          ...s,
+          fiscalCountryCode: s.fiscalCountryCode ?? companyCountryCode,
+          // Heredados de la empresa cuando el perfil aún no los tiene
+          fiscalRegimeId: s.fiscalRegimeId ?? fullCompany?.fiscalRegimeId ?? undefined,
+          satNit:         s.satNit         ?? fullCompany?.taxId         ?? undefined,
         },
       })
     }
-  }, [profile, form, companyCountryCode])
+  }, [profile, form, companyCountryCode, fullCompany])
 
   const handleSave = async () => {
     const values = await form.validateFields()
@@ -430,9 +447,17 @@ function FiscalSection({
         ...values,
         settings: { ...existingSettings, ...values.settings },
       })
+      // La empresa es la fuente de verdad del régimen: si se cambió aquí, se actualiza también en la empresa
+      const regimeId = values.settings?.fiscalRegimeId
+      if (regimeId && fullCompany?.id && regimeId !== fullCompany.fiscalRegimeId) {
+        await companiesApi.update(fullCompany.id, { fiscalRegimeId: regimeId } as any).catch(() => {})
+        setFullCompany((c: any) => c ? { ...c, fiscalRegimeId: regimeId } : c)
+        useCompanyStore.getState().loadCompanies().catch(() => {})
+      }
     }
     finally { setSaving(false) }
   }
+  if (saveRef) saveRef.current = handleSave
 
   return (
     <Spin spinning={loading}>
@@ -486,6 +511,11 @@ function FiscalSection({
                     options={regimes.map(r => ({ value: r.id, label: r.name }))}
                   />
                 </Form.Item>
+                {fullCompany?.fiscalRegimeId && (
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                    Régimen elegido al crear la empresa. Si lo cambias aquí, se actualiza también en la empresa.
+                  </Text>
+                )}
                 {selectedRegime && (
                   <div style={{
                     background: '#f0fafe', borderRadius: 8, padding: '8px 12px',
@@ -507,7 +537,7 @@ function FiscalSection({
             </Row>
           </SectionCard>
 
-          <SectionCard title="Acceso SAT" icon={<LockOutlined />}>
+          <SectionCard title="Acceso SAT" icon={<LockOutlined />} highlight={guided}>
             <Row gutter={20}>
               <Col xs={24} md={12}>
                 <Form.Item name={['settings', 'satNit']} label="NIT — Agencia Virtual SAT" style={{ marginBottom: 0 }}>
@@ -520,6 +550,9 @@ function FiscalSection({
                 </Form.Item>
               </Col>
             </Row>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 10 }}>
+              Tu contraseña de Agencia Virtual se usa únicamente para importar los DTE emitidos y recibidos desde SAT.
+            </Text>
           </SectionCard>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
@@ -1583,11 +1616,11 @@ function ModulesSection() {
 
 // ── Helper components ──────────────────────────────────────────────────────
 
-function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function SectionCard({ title, icon, children, highlight }: { title: string; icon: React.ReactNode; children: React.ReactNode; highlight?: boolean }) {
   return (
     <Card
       bordered={false}
-      style={{ ...cardStyle, marginBottom: 12 }}
+      style={{ ...cardStyle, marginBottom: 12, ...(highlight ? guideHighlight : {}) }}
       bodyStyle={{ padding: '14px 20px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -1721,6 +1754,12 @@ export default function ConfiguracionPage() {
   const navigate   = useNavigate()
   const [searchParams] = useSearchParams()
   const [activeKey, setActiveKey] = useState<string | null>(searchParams.get('tab'))
+  const fromSetup = searchParams.get('from') === 'setup'
+  // Guía (paso 2): un solo "Guardar y continuar" guarda ambas secciones del perfil
+  const orgSaveRef    = useRef<null | (() => Promise<void>)>(null)
+  const fiscalSaveRef = useRef<null | (() => Promise<void>)>(null)
+  const [guidedSaving, setGuidedSaving] = useState(false)
+  const saveOkRef = useRef(true)   // resultado del último guardado (para no avanzar en la guía si falló)
   const [profile, setProfile] = useState<OrganizationProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -1745,14 +1784,35 @@ export default function ConfiguracionPage() {
     try {
       const updated = await updateOrganizationProfile(values)
       setProfile(prev => ({ ...prev, ...updated }))
+      saveOkRef.current = true
       message.success('✓ Cambios guardados correctamente')
-      if (searchParams.get('from') === 'setup') {
-        navigate('/onboarding/setup')
+      // Desde la guía: en Perfil navega el botón "Guardar y continuar"; en otras pestañas se vuelve a la guía
+      if (fromSetup && activeKey !== 'organization') {
+        navigate(SETUP_ROUTES.guide)
       }
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message
       const detail = Array.isArray(msg) ? msg.join(', ') : msg
       message.error(detail ? `Error: ${detail}` : 'No se pudo guardar. Intenta de nuevo.')
+      saveOkRef.current = false
+    }
+  }
+
+  const handleGuidedContinue = async () => {
+    const companyId = useCompanyStore.getState().activeCompany?.id
+    setGuidedSaving(true)
+    try {
+      saveOkRef.current = true
+      await orgSaveRef.current?.()
+      if (!saveOkRef.current) return
+      await fiscalSaveRef.current?.()
+      if (!saveOkRef.current) return
+      if (companyId) await markSetupStepDone(companyId, 'perfil').catch(() => {})
+      navigate(SETUP_ROUTES.catalogo)
+    } catch {
+      // validación o guardado fallido: el mensaje ya se mostró
+    } finally {
+      setGuidedSaving(false)
     }
   }
 
@@ -1765,13 +1825,24 @@ export default function ConfiguracionPage() {
         return (
           <div>
             <div style={{ marginBottom: 20 }}>
-              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Perfil de organización</Title>
+              <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
+                Perfil de organización
+                {fromSetup && <Tag color="#1faec2" style={{ marginLeft: 10, verticalAlign: 'middle' }}>Paso 2 de 9 — Completa logo, industria, contacto y acceso SAT</Tag>}
+              </Title>
               <Text type="secondary">Información general y configuración fiscal de tu empresa</Text>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-              <OrganizationSection profile={profile} loading={loading} onSave={handleSave} />
-              <FiscalSection profile={profile} loading={loading} onSave={handleSave} />
+              <OrganizationSection profile={profile} loading={loading} onSave={handleSave} guided={fromSetup} saveRef={orgSaveRef} />
+              <FiscalSection profile={profile} loading={loading} onSave={handleSave} guided={fromSetup} saveRef={fiscalSaveRef} />
             </div>
+            {fromSetup && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(10,10,10,0.06)' }}>
+                <Button onClick={() => navigate(SETUP_ROUTES.guide)}>Volver a la guía</Button>
+                <Button type="primary" size="large" loading={guidedSaving} onClick={handleGuidedContinue} style={{ background: '#1faec2', minWidth: 200 }}>
+                  Guardar y continuar →
+                </Button>
+              </div>
+            )}
           </div>
         )
       case 'modules':

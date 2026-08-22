@@ -18,6 +18,10 @@ import { tenantsApi } from '../../api/tenants'
 import { updateOrganizationProfile } from '../../api/configuracion'
 import { seedGLL } from '../../api/catalogo'
 
+// La guía de configuración (paso 3) pide al usuario cargar el catálogo GLL con el botón "Catálogo GLL".
+// Se conserva la siembra automática como fallback desactivado.
+const AUTO_SEED_GLL_ON_CREATE = false
+
 const { Title, Text } = Typography
 
 const COUNTRIES = [
@@ -171,8 +175,8 @@ export default function OnboardingWizardPage() {
       // 4. Activar empresa antes de sembrar catálogo
       await setActiveCompany(company)
 
-      // 5. Plan de cuentas: GLL para GT, blanco para otros
-      if (country === 'GT') {
+      // 5. Plan de cuentas: el usuario lo carga desde la guía (paso 3). Fallback desactivado.
+      if (AUTO_SEED_GLL_ON_CREATE && country === 'GT') {
         await seedGLL().catch(() => {})
       }
 

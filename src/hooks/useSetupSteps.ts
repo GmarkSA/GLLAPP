@@ -6,6 +6,7 @@ import { tenantsApi } from '../api/tenants'
 import { getCustomers, getVendors } from '../api/contactos'
 import { getBankAccounts } from '../api/bancos'
 import { getClasesActivoFijo } from '../api/clases-activo-fijo'
+import { getSetupStepFlags, SETUP_ROUTES } from './setupProgress'
 
 export interface SetupStep {
   id:    string
@@ -14,6 +15,9 @@ export interface SetupStep {
   desc:  string
   route: string
   done:  boolean
+  /** Hay datos en el sistema aunque el usuario aún no haya revisado el paso desde la guía */
+  detected?: boolean
+  hint?: string
 }
 
 function countOf(res: any): number {
@@ -38,7 +42,8 @@ export function useSetupSteps() {
       getCustomers({ limit: 1 }).catch(() => []),
       getVendors({ limit: 1 }).catch(() => []),
       getBankAccounts({ status: 'active' }).catch(() => []),
-    ]).then(([accounts, profile, taxes, clases, customers, vendors, banks]) => {
+      getSetupStepFlags(activeCompany.id),
+    ]).then(([accounts, profile, taxes, clases, customers, vendors, banks, flags]) => {
       // Datos de empresa tomados del store — sin llamada extra al backend
       const co            = activeCompany as any
       const perfilOk      = !!(co.legalName && co.taxId && co.fiscalRegimeId)
@@ -50,28 +55,37 @@ export function useSetupSteps() {
       const clientesOk    = countOf(customers) > 0
       const proveedoresOk = countOf(vendors) > 0
       const bancosOk      = countOf(banks) > 0
+      // Guía paso a paso: los pasos 1-3 se completan cuando el usuario los revisa y guarda DESDE la guía
+      // (bandera en company_settings.settingsJson.setupSteps). Empresas que ya operaban antes de la guía
+      // (sin banderas y con cuentas por defecto vinculadas) conservan el criterio anterior por datos.
+      const legacy        = flags === null && defaultsOk
+      const guiado        = (id: string) => !!flags?.[id]
 
       setSteps([
         {
           id: 'empresa', num: 1,
           label: 'Empresa creada',
           desc:  'Datos de la empresa registrados en el sistema.',
-          route: `/configuracion/empresas/${activeCompany.id}?from=setup`,
-          done:  true,
+          route: SETUP_ROUTES.empresa(activeCompany.id),
+          done:  legacy ? true : guiado('empresa'),
+          detected: true,
         },
         {
           id: 'perfil', num: 2,
           label: 'Perfil de organización',
           desc:  'Nombre legal, NIT y régimen fiscal completos.',
-          route: '/configuracion?from=setup',
-          done:  perfilOk,
+          route: SETUP_ROUTES.perfil,
+          done:  legacy ? perfilOk : guiado('perfil'),
+          detected: perfilOk,
         },
         {
           id: 'catalogo', num: 3,
           label: 'Catálogo de cuentas',
           desc:  'Catálogo contable cargado y revisado.',
-          route: '/contabilidad/catalogo',
-          done:  catalogoOk,
+          route: SETUP_ROUTES.catalogo,
+          done:  legacy ? catalogoOk : guiado('catalogo'),
+          detected: catalogoOk,
+          hint:  catalogoOk && !legacy && !guiado('catalogo') ? 'Cargado desde plantilla — revisar y confirmar' : undefined,
         },
         {
           id: 'contabilidad', num: 4,
