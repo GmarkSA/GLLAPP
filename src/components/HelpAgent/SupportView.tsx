@@ -5,7 +5,7 @@ import {
   misTickets, crearTicket, verTicket, agregarMensaje, codigoTicket, subirAdjunto,
   type SupportTicket, type TicketConversation, type SupportTicketStatus, type AdjuntoRef,
 } from '../../api/support'
-import { MessageAttachments, AdjuntarButton, PendingStrip } from './attachments'
+import { MessageAttachments, AdjuntarButton, PendingStrip, DropPasteZone } from './attachments'
 
 const { Text } = Typography
 const TEAL = '#1faec2'
@@ -125,7 +125,7 @@ export default function SupportView({ prefill }: { prefill?: string }) {
           </Space>
         </div>
         {conv.ticket.status !== 'closed' && (
-          <div>
+          <DropPasteZone uploader={subirAdjunto} onUploaded={ref => setRespAdj(prev => [...prev, ref])}>
             <PendingStrip pendientes={respAdj} onQuitar={i => setRespAdj(prev => prev.filter((_, j) => j !== i))} />
             <Space.Compact style={{ width: '100%' }}>
               <AdjuntarButton uploader={subirAdjunto} onUploaded={ref => setRespAdj(prev => [...prev, ref])} />
@@ -137,7 +137,7 @@ export default function SupportView({ prefill }: { prefill?: string }) {
               />
               <Button type="primary" icon={<SendOutlined />} onClick={enviarRespuesta} style={{ background: TEAL }} />
             </Space.Compact>
-          </div>
+          </DropPasteZone>
         )}
       </div>
     )
@@ -151,6 +151,7 @@ export default function SupportView({ prefill }: { prefill?: string }) {
           <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => setVista('lista')} />
           <Text strong style={{ fontSize: 13 }}>Nueva consulta a soporte</Text>
         </div>
+        <DropPasteZone uploader={subirAdjunto} onUploaded={ref => setNuevoAdj(prev => [...prev, ref])}>
         <Space direction="vertical" size={10} style={{ width: '100%' }}>
           <Input placeholder="Asunto" value={asunto} onChange={e => setAsunto(e.target.value)} maxLength={120} />
           <Input.TextArea
@@ -162,12 +163,13 @@ export default function SupportView({ prefill }: { prefill?: string }) {
           <PendingStrip pendientes={nuevoAdj} onQuitar={i => setNuevoAdj(prev => prev.filter((_, j) => j !== i))} />
           <Space>
             <AdjuntarButton uploader={subirAdjunto} onUploaded={ref => setNuevoAdj(prev => [...prev, ref])} />
-            <Text type="secondary" style={{ fontSize: 12 }}>Adjuntá imágenes, documentos o audio (máx. 10 MB)</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>Adjuntá imágenes, documentos o audio (máx. 10 MB) — también podés arrastrarlos aquí o pegar una captura con Ctrl+V</Text>
           </Space>
           <Button type="primary" block loading={enviando} onClick={enviarNuevo} style={{ background: TEAL }}>
             Enviar a soporte
           </Button>
         </Space>
+        </DropPasteZone>
       </div>
     )
   }

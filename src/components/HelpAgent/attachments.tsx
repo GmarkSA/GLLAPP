@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode, type DragEvent, type ClipboardEvent } from 'react'
 import { Button, Tooltip, message as antdMessage } from 'antd'
 import { PaperClipOutlined, FileOutlined, CloseCircleFilled } from '@ant-design/icons'
 import type { AdjuntoRef, SupportAttachment } from '../../api/support'
+import { getApiError } from '../../api/axios'
 
 const esImagen = (t?: string) => !!t && t.startsWith('image/')
 const esAudio  = (t?: string) => !!t && t.startsWith('audio/')
@@ -41,6 +42,74 @@ export function MessageAttachments({ attachments }: { attachments?: SupportAttac
   )
 }
 
+
+/**
+ * Sube una lista de archivos (botón, arrastrar o pegar) validando el tamaño y
+ * mostrando el motivo real si el servidor rechaza la subida.
+ */
+export async function subirArchivos(
+  files: FileList | File[] | null,
+  uploader: (file: File) => Promise<AdjuntoRef>,
+  onUploaded: (ref: AdjuntoRef) => void,
+): Promise<void> {
+  if (!files || !('length' in files) || !files.length) return
+  for (const f of Array.from(files as ArrayLike<File>)) {
+    if (f.size > MAX) { antdMessage.warning(`${f.name} supera 10 MB`); continue }
+    try { onUploaded(await uploader(f)) }
+    catch (e: any) { antdMessage.error(`No se pudo subir ${f.name}: ${getApiError(e, 'error del servidor')}`) }
+  }
+}
+
+/**
+ * Zona que acepta arrastrar-y-soltar archivos y pegar imágenes del portapapeles
+ * (Ctrl/Cmd+V). Envuelve el área de redacción; al arrastrar resalta el borde.
+ */
+export function DropPasteZone({
+  uploader, onUploaded, children, hint = 'Soltá la imagen o el archivo aquí',
+}: {
+  uploader: (file: File) => Promise<AdjuntoRef>
+  onUploaded: (ref: AdjuntoRef) => void
+  children: ReactNode
+  hint?: string
+}) {
+  const [over, setOver] = useState(false)
+  const onDrop = async (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); setOver(false)
+    await subirArchivos(e.dataTransfer?.files ?? null, uploader, onUploaded)
+  }
+  const onPaste = async (e: ClipboardEvent<HTMLDivElement>) => {
+    const items = Array.from(e.clipboardData?.items ?? [])
+    const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter((f): f is File => !!f)
+    if (!files.length) return
+    e.preventDefault()
+    await subirArchivos(files, uploader, onUploaded)
+  }
+  return (
+    <div
+      onDragOver={e => { e.preventDefault(); if (!over) setOver(true) }}
+      onDragLeave={() => setOver(false)}
+      onDrop={onDrop}
+      onPaste={onPaste}
+      style={{
+        position: 'relative', borderRadius: 10,
+        outline: over ? '2px dashed #1faec2' : '2px dashed transparent',
+        outlineOffset: 4, transition: 'outline-color 0.15s',
+      }}
+    >
+      {children}
+      {over && (
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 10, pointerEvents: 'none',
+          background: 'rgba(31,174,194,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#1faec2', fontWeight: 600, fontSize: 13,
+        }}>
+          {hint}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Botón "adjuntar" + input oculto: sube cada archivo y notifica onUploaded(ref). */
 export function AdjuntarButton({
   uploader, onUploaded, color = '#1faec2',
@@ -55,13 +124,8 @@ export function AdjuntarButton({
   const onFiles = async (files: FileList | null) => {
     if (!files?.length) return
     setSubiendo(true)
-    try {
-      for (const f of Array.from(files)) {
-        if (f.size > MAX) { antdMessage.warning(`${f.name} supera 10 MB`); continue }
-        try { onUploaded(await uploader(f)) }
-        catch { antdMessage.error(`No se pudo subir ${f.name}`) }
-      }
-    } finally {
+    try { await subirArchivos(files, uploader, onUploaded) }
+    finally {
       setSubiendo(false)
       if (inputRef.current) inputRef.current.value = ''
     }
