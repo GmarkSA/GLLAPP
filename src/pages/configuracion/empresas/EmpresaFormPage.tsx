@@ -28,13 +28,10 @@ const ALL_MODULES = [
 const { Title } = Typography
 const { Option } = Select
 
-/** Etiqueta del identificador fiscal por país (NIT por defecto). Se deriva del país y
- *  solo se muestra como lista de opciones conocidas — antes era texto libre y los
- *  usuarios escribían ahí el número del NIT. */
-const TAX_ID_LABEL_BY_COUNTRY: Record<string, string> = {
-  GT: 'NIT', SV: 'NIT', HN: 'RTN', NI: 'RUC', PA: 'RUC', CR: 'Cédula jurídica', MX: 'RFC', DO: 'RNC', CO: 'NIT',
-}
-const TAX_ID_LABELS = ['NIT', 'RTN', 'RUC', 'RFC', 'RNC', 'Cédula jurídica', 'CUI', 'Pasaporte']
+/** Tipo de identificador fiscal — solo Guatemala por ahora: NIT por defecto (CUI para
+ *  personas individuales sin NIT). Antes era texto libre y los usuarios escribían ahí
+ *  el número del NIT. */
+const TAX_ID_LABELS = ['NIT', 'CUI']
 
 const COUNTRIES = [
   { code: 'GT', name: 'Guatemala',    currency: 'GTQ' },
@@ -294,7 +291,7 @@ export default function EmpresaFormPage() {
                     <Input placeholder="Nombre que aparece en documentos" />
                   </Form.Item>
                   <Form.Item label="País" name="countryCode" rules={[{ required: true }]}>
-                    <Select onChange={(v: string) => { onCountryChange(v); form.setFieldValue('taxIdLabel', TAX_ID_LABEL_BY_COUNTRY[v] ?? 'NIT') }}>
+                    <Select onChange={onCountryChange}>
                       {COUNTRIES.map(c => <Option key={c.code} value={c.code}>{c.name} ({c.code})</Option>)}
                     </Select>
                   </Form.Item>
@@ -326,7 +323,7 @@ export default function EmpresaFormPage() {
                   <Form.Item label="Número de Identificación Fiscal" name="taxId">
                     <Input placeholder="NIT / RFC / RTN..." />
                   </Form.Item>
-                  <Form.Item label="Tipo de ID" name="taxIdLabel" tooltip="Se define según el país; NIT para Guatemala">
+                  <Form.Item label="Tipo de ID" name="taxIdLabel" tooltip="NIT por defecto (Guatemala)">
                     <Select options={TAX_ID_LABELS.map(l => ({ value: l, label: l }))} />
                   </Form.Item>
                   <Form.Item
