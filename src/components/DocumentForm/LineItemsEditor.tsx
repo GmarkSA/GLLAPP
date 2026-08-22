@@ -418,19 +418,21 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
   // Se re-ejecuta cuando cargan los taxes O cuando cambia el proveedor / docType.
   useEffect(() => {
     if (!taxes.length) return
-    // Ventas: solo aplicar si el cliente tiene un impuesto configurado en su dato maestro.
-    // Sin cliente seleccionado → dejar vacío para que el usuario elija.
+    // Homologado ventas/compras: siempre se aplica el impuesto preferido de la lista de la empresa
+    // (cliente/proveedor → específico → ambos → primero). Antes en ventas solo se aplicaba si el cliente
+    // tenía impuesto configurado y la línea quedaba con el 'IVA 12%' plano (incorrecto p. ej. en Pequeño Contribuyente).
     const isDoc = docType === 'po' || docType === 'bill'
-    if (!isDoc && !vendorDefaultTaxId) return
     const preferredTax = resolvePreferredTax(taxes, isDoc, vendorDefaultTaxId)
     if (!preferredTax) return
 
-    const needsUpdate = items.some(i => !i.productId && i.taxId !== preferredTax.id)
+    // Ventas sin impuesto de cliente: solo completar líneas que aún no tienen impuesto (no pisar una elección manual)
+    const soloVacias = !isDoc && !vendorDefaultTaxId
+    const aplica = (i: LineItem) => !i.productId && (soloVacias ? !i.taxId : i.taxId !== preferredTax.id)
+    const needsUpdate = items.some(aplica)
     if (!needsUpdate) return
 
     onChange(items.map(item => {
-      if (item.productId) return item
-      if (item.taxId === preferredTax.id) return item
+      if (!aplica(item)) return item
       return recalc({
         ...item,
         taxId:        preferredTax.id,
@@ -461,9 +463,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
     onChange(items.map(item => item._key === key ? recalc({ ...item, ...patch }) : item))
 
   const addRow = () => {
-    const preferredTax = (isPurchaseDoc || vendorDefaultTaxId)
-      ? resolvePreferredTax(taxes, isPurchaseDoc, vendorDefaultTaxId)
-      : undefined
+    const preferredTax = resolvePreferredTax(taxes, isPurchaseDoc, vendorDefaultTaxId)   // ventas y compras por igual
     onChange([...items, newLineItem(preferredTax ? {
       taxId:        preferredTax.id,
       taxName:      preferredTax.name,
