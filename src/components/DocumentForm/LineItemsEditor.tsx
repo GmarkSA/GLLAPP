@@ -42,7 +42,7 @@ export const newLineItem = (overrides?: Partial<LineItem>): LineItem => {
     quantity:        1,
     unitPrice:       0,
     discountPercent: 0,
-    taxPercent:      12,
+    taxPercent:      0,      // sin impuesto hasta que se asigne uno de la lista de la empresa (antes: 12% fijo)
     taxInclusive:    true,   // Guatemala: por defecto IVA incluido
     lineNet:         0,
     lineTax:         0,
@@ -783,12 +783,13 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
         }
         return (
           <Select size="small" style={{ width: '100%' }}
-            value={row.taxId || `flat:${row.taxPercent}`}
-            options={[
+            // Sin impuestos configurados en la empresa: no se muestra ni se asume nada (se cargan en Configuración › Impuestos, paso 6 de la guía)
+            value={row.taxId || (taxOptions.length ? `flat:${row.taxPercent}` : undefined)}
+            placeholder={taxOptions.length ? 'Impuesto' : 'Sin impuestos configurados'}
+            options={taxOptions.length ? [
               { value: 'flat:0', label: 'Exento (0%)' },
-              ...(taxOptions.length === 0 ? [{ value: 'flat:12', label: 'IVA 12%', rate: 12, isInclusive: true }] : []),
               ...taxOptions,
-            ]}
+            ] : []}
             onChange={(v: string) => {
               if (v.startsWith('flat:')) {
                 const pct = Number(v.split(':')[1])
