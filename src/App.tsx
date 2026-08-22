@@ -85,6 +85,7 @@ const ApAgingPage              = lazy(() => import('./pages/reportes/ApAgingPage
 const ArAgingPage              = lazy(() => import('./pages/reportes/ArAgingPage'))
 const LibroComprasPage         = lazy(() => import('./pages/reportes/LibroComprasPage'))
 const DeclaracionIvaPage       = lazy(() => import('./pages/reportes/DeclaracionIvaPage'))
+const TiposCambioPage          = lazy(() => import('./pages/reportes/TiposCambioPage'))
 const Declaracion1311Page      = lazy(() => import('./pages/reportes/Declaracion1311'))
 const OrdenesCompraPage        = lazy(() => import('./pages/compras/ordenes/OrdenesCompraPage'))
 const OrdenCompraFormPage      = lazy(() => import('./pages/compras/ordenes/OrdenCompraFormPage'))
@@ -352,6 +353,7 @@ export default function App() {
             <Route path="balance-general"    element={<BalanceGeneralPage />} />
             <Route path="estado-resultados"  element={<EstadoResultadosPage />} />
             <Route path="flujo-efectivo"     element={<FlujoEfectivoPage />} />
+            <Route path="tipos-cambio"       element={<TiposCambioPage />} />
             <Route path="tasas-rendimiento"  element={<TasasRendimientoPage />} />
             <Route path="movimiento-capital" element={<MovimientoCapitalPage />} />
             <Route path="balanza"            element={<BalanzaPage />} />
