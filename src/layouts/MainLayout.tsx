@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag, Alert } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
   BankOutlined, BarChartOutlined, SettingOutlined,
@@ -166,6 +166,7 @@ export default function MainLayout() {
   const [trialDaysLeft,  setTrialDaysLeft]  = useState<number | null>(null)
   const [trialEndsAt,    setTrialEndsAt]    = useState<string | null>(null)
   const [planActivo,     setPlanActivo]     = useState<string | null>(null)
+  const [soloLectura,    setSoloLectura]    = useState(false)
   const alertCount = useAlertCount()
 
   useEffect(() => {
@@ -182,6 +183,9 @@ export default function MainLayout() {
         // Ya pagó: mostrar el plan activo en vez del contador de prueba
         setPlanActivo(data.tenant.plan)
       }
+      // Suspendido (trial de demo vencido / falta de pago): el backend solo permite
+      // consultar; avisamos con un banner permanente y el camino para reactivar.
+      setSoloLectura(st === 'suspended')
     }).catch(() => {/* no bloqueante */})
   }, [])
 
@@ -581,6 +585,22 @@ export default function MainLayout() {
 
         {/* Breadcrumb enterprise */}
         <EnterpriseBreadcrumb />
+
+        {/* Tenant suspendido → modo solo lectura */}
+        {soloLectura && (
+          <Alert
+            type="warning"
+            showIcon
+            banner
+            message="Tu cuenta está en modo solo lectura"
+            description="Tu período de prueba finalizó o la suscripción está suspendida. Podés consultar toda tu información, pero no registrar operaciones hasta activar un plan."
+            action={
+              <Button size="small" type="primary" onClick={() => navigate('/configuracion/suscripcion')} style={{ background: '#1faec2' }}>
+                Activar mi plan
+              </Button>
+            }
+          />
+        )}
 
         {/* Contenido con transición */}
         <Content style={{ padding: isMobile ? '12px 12px 42px' : '24px 24px 54px', minHeight: 'calc(100vh - 60px)' }} onClick={() => { if (!isMobile) setCollapsed(true) }}>
