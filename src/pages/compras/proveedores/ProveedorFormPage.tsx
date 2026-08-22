@@ -1,5 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useCompanyStore } from '../../../store/companyStore'
+import { markSetupStepDone, SETUP_ROUTES } from '../../../hooks/setupProgress'
 import {
   Form, Input, Select, Button, Tabs, Row, Col, Switch,
   Typography, Space, Card, Divider, Tag, Alert, message,
@@ -169,6 +171,9 @@ function ContactPersonRow({
 export default function ProveedorFormPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromSetup = searchParams.get('from') === 'setup'   // llegó desde la guía de configuración
+  const setupCompanyId = useCompanyStore(s => s.activeCompany?.id)
   const [form]    = Form.useForm()
   const isNew     = !id || id === 'nuevo'
 
@@ -235,11 +240,16 @@ export default function ProveedorFormPage() {
       if (isNew) {
         await createVendor(values)
         message.success('Proveedor creado exitosamente')
+        if (fromSetup) {   // paso 8 de la guía completado
+          if (setupCompanyId) await markSetupStepDone(setupCompanyId, 'proveedores').catch(() => {})
+          navigate(SETUP_ROUTES.guide)
+          return
+        }
       } else {
         await updateVendor(id!, values)
         message.success('Proveedor actualizado')
       }
-      navigate('/compras/proveedores')
+      navigate(fromSetup ? SETUP_ROUTES.guide : '/compras/proveedores')
     } catch (e: any) {
       if (e?.errorFields) return // validación del form
       const serverMsg = e?.response?.data?.error?.message || e?.response?.data?.message
@@ -311,11 +321,12 @@ export default function ProveedorFormPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <Button
             type="text" icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/compras/proveedores')}
+            onClick={() => navigate(fromSetup ? SETUP_ROUTES.guide : '/compras/proveedores')}
           />
           <div>
             <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
               {isNew ? 'Nuevo proveedor' : 'Editar proveedor'}
+              {fromSetup && <Tag color="#1faec2" style={{ marginLeft: 10, verticalAlign: 'middle' }}>Paso 8 de 9 — Registra tu primer proveedor</Tag>}
             </Title>
             <Text type="secondary">
               {isNew

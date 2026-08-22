@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Switch, Typography, message, Spin } from 'antd'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { markSetupStepDone, SETUP_ROUTES } from '../../hooks/setupProgress'
+import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Switch, Typography, message, Spin, Tag,
+} from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import AccountSelect from '../../components/AccountSelect'
@@ -21,6 +23,9 @@ const { TextArea } = Input
 export default function CuentaFormPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const fromSetup = searchParams.get('from') === 'setup'   // llegó desde la guía de configuración
+  const setupCompanyId = useCompanyStore(s => s.activeCompany?.id)
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
@@ -41,7 +46,7 @@ export default function CuentaFormPage() {
       })
       .catch(() => {
         message.error('No se pudo cargar la cuenta bancaria')
-        navigate('/bancos')
+        navigate(fromSetup ? SETUP_ROUTES.guide : '/bancos')
       })
       .finally(() => setLoading(false))
   }, [form, id, navigate])
@@ -62,10 +67,15 @@ export default function CuentaFormPage() {
       if (isEdit) {
         await updateBankAccount(id!, dto)
         message.success('Cuenta bancaria actualizada')
-        navigate('/bancos')
+        navigate(fromSetup ? SETUP_ROUTES.guide : '/bancos')
       } else {
         const created = await createBankAccount(dto)
         message.success('Cuenta bancaria creada')
+        if (fromSetup) {   // paso 9 de la guía completado
+          if (setupCompanyId) await markSetupStepDone(setupCompanyId, 'bancos').catch(() => {})
+          navigate(SETUP_ROUTES.guide)
+          return
+        }
         navigate(`/bancos/${created.id}`)
       }
     } catch (err: any) {
@@ -88,9 +98,9 @@ export default function CuentaFormPage() {
     <div>
       <div style={pageHeaderStyle}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/bancos')} />
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(fromSetup ? SETUP_ROUTES.guide : '/bancos')} />
           <div>
-            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria'}</Title>
+            <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>{isEdit ? 'Editar cuenta bancaria' : 'Nueva cuenta bancaria'}{fromSetup && <Tag color="#1faec2" style={{ marginLeft: 10, verticalAlign: 'middle' }}>Paso 9 de 9 — Registra tu cuenta bancaria</Tag>}</Title>
             <Text type="secondary">Datos bancarios, moneda y vinculacion contable por empresa</Text>
           </div>
         </div>
@@ -223,7 +233,7 @@ export default function CuentaFormPage() {
         </Card>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button onClick={() => navigate('/bancos')}>Cancelar</Button>
+          <Button onClick={() => navigate(fromSetup ? SETUP_ROUTES.guide : '/bancos')}>Cancelar</Button>
           <Button htmlType="submit" type="primary" icon={<SaveOutlined />} loading={saving} style={{ background: NAVY }}>
             {isEdit ? 'Guardar cambios' : 'Crear cuenta'}
           </Button>

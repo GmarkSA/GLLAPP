@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useCompanyStore } from '../../../store/companyStore'
+import { markSetupStepDone, SETUP_ROUTES } from '../../../hooks/setupProgress'
 import {
   Form, Input, Select, Button, Tabs, Row, Col, Switch,
   Typography, Space, Card, Divider, Tag, Alert, message,
@@ -166,6 +168,9 @@ function ContactPersonRow({
 export default function ClienteFormPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromSetup = searchParams.get('from') === 'setup'   // llegó desde la guía de configuración
+  const setupCompanyId = useCompanyStore(s => s.activeCompany?.id)
   const [form]    = Form.useForm()
   const isNew     = !id || id === 'nuevo'
 
@@ -219,11 +224,16 @@ export default function ClienteFormPage() {
       if (isNew) {
         await createCustomer(values)
         message.success('✓ Cliente creado exitosamente')
+        if (fromSetup) {   // paso 7 de la guía completado
+          if (setupCompanyId) await markSetupStepDone(setupCompanyId, 'clientes').catch(() => {})
+          navigate(SETUP_ROUTES.guide)
+          return
+        }
       } else {
         await updateCustomer(id!, values)
         message.success('✓ Cliente actualizado')
       }
-      navigate('/ventas/clientes')
+      navigate(fromSetup ? SETUP_ROUTES.guide : '/ventas/clientes')
     } catch (e: any) {
       if (e?.errorFields) {
         const names = e.errorFields.map((f: any) => f.name?.join(' › ')).join(', ')
@@ -301,11 +311,12 @@ export default function ClienteFormPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <Button
             type="text" icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/ventas/clientes')}
+            onClick={() => navigate(fromSetup ? SETUP_ROUTES.guide : '/ventas/clientes')}
           />
           <div>
             <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>
               {isNew ? 'Nuevo cliente' : 'Editar cliente'}
+              {fromSetup && <Tag color="#1faec2" style={{ marginLeft: 10, verticalAlign: 'middle' }}>Paso 7 de 9 — Registra tu primer cliente</Tag>}
             </Title>
             <Text type="secondary">
               {isNew
