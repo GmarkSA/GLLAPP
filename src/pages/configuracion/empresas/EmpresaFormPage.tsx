@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { getApiError } from '../../../api/axios'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Form, Input, Select, Button, Card, message, Spin, Typography,
@@ -160,8 +161,8 @@ export default function EmpresaFormPage() {
         const result: any = await companiesApi.clone(sourceCompanyId, { targetCompany: values, options: opts })
         message.success(`Empresa clonada correctamente — ${result.copied?.accounts ?? 0} cuentas, ${result.copied?.documentSeries ?? 0} series`)
         navigate(backTo)
-      } catch {
-        message.error('Error al clonar empresa')
+      } catch (e: any) {
+        message.error(getApiError(e, 'Error al clonar empresa'))
       } finally {
         setSaving(false)
       }
@@ -188,8 +189,8 @@ export default function EmpresaFormPage() {
         message.success('Empresa creada')
       }
       navigate(backTo)
-    } catch {
-      message.error('Error al guardar empresa')
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al guardar empresa'))
     } finally {
       setSaving(false)
     }
