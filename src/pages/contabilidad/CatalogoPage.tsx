@@ -333,6 +333,7 @@ export default function CatalogoPage() {
   const fromSetup = searchParams.get('from') === 'setup'
   const activeCompanyId = useCompanyStore(s => s.activeCompany?.id)
   const [setupDone, setSetupDone] = useState(false)
+  const [totalCuentas, setTotalCuentas] = useState(0)   // total del catálogo (la lista se filtra por grupo)
   const confirmarPasoCatalogo = async (irAGuia: boolean) => {
     if (activeCompanyId) await markSetupStepDone(activeCompanyId, 'catalogo').catch(() => {})
     setSetupDone(true)
@@ -361,6 +362,7 @@ export default function CatalogoPage() {
       const params = selectedGroup ? { groupCode: selectedGroup.groupCode } : undefined
       const data = await getAccounts(params)
       setAccounts(Array.isArray(data) ? data : [])
+      if (!selectedGroup && Array.isArray(data)) setTotalCuentas(data.length)
     } catch {
       message.error('Error al cargar cuentas')
     } finally {
@@ -604,7 +606,7 @@ export default function CatalogoPage() {
         {setupDone
           ? <b>Catálogo cargado ✓ — ya puedes continuar con la guía.</b>
           : groups.length > 0
-            ? <><b>Tu empresa ya tiene un catálogo cargado.</b> Revísalo y confirma para continuar.</>
+            ? <><b>Tu empresa ya tiene un catálogo de {totalCuentas} cuentas en {groups.length} grupos contables.</b> Revísalo y, si lo necesitas, crea más cuentas dentro de cada grupo; luego confirma para continuar.</>
             : <><b>Carga el catálogo de cuentas GLL</b> con el botón resaltado «Catálogo GLL» para completar este paso.</>}
       </span>
       {setupDone
