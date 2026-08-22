@@ -13,6 +13,9 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useCompanyStore } from '../../store/companyStore'
+import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../hooks/setupProgress'
 import {
   getAccountGroups, getAccounts, createAccount, updateAccount, deleteAccount, seedGLL,
   type Account,
@@ -324,6 +327,17 @@ export default function CatalogoPage() {
   const editInputRef = useRef<InputRef>(null)
   const [loadingAccounts, setLoadingAccounts] = useState(false)
   const [seeding, setSeeding] = useState(false)
+  // Guía de configuración (paso 3): llegó con ?from=setup
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromSetup = searchParams.get('from') === 'setup'
+  const activeCompanyId = useCompanyStore(s => s.activeCompany?.id)
+  const [setupDone, setSetupDone] = useState(false)
+  const confirmarPasoCatalogo = async (irAGuia: boolean) => {
+    if (activeCompanyId) await markSetupStepDone(activeCompanyId, 'catalogo').catch(() => {})
+    setSetupDone(true)
+    if (irAGuia) navigate(SETUP_ROUTES.guide)
+  }
   const [modalOpen, setModalOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<Partial<Account> | null>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
@@ -368,6 +382,7 @@ export default function CatalogoPage() {
       }
       loadGroups()
       loadAccounts()
+      if (fromSetup && mode === 'complement') await confirmarPasoCatalogo(false)
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message
       message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al procesar catálogo'))
@@ -578,8 +593,32 @@ export default function CatalogoPage() {
     ? groups.find(g => g.groupCode === selectedGroup.groupCode)
     : null
 
+  const setupBanner = fromSetup && (
+    <div style={{
+      marginBottom: 12, padding: '10px 16px', borderRadius: 10,
+      border: `1.5px solid ${setupDone ? '#bbf7d0' : '#b2e6f0'}`, background: setupDone ? '#f0fdf4' : '#f0fafe',
+      display: 'flex', alignItems: 'center', gap: 12,
+    }}>
+      <Tag color={setupDone ? '#2ea172' : '#1faec2'} style={{ margin: 0 }}>Paso 3 de 9</Tag>
+      <span style={{ flex: 1, fontSize: 13 }}>
+        {setupDone
+          ? <b>Catálogo cargado ✓ — ya puedes continuar con la guía.</b>
+          : groups.length > 0
+            ? <><b>Tu empresa ya tiene un catálogo cargado.</b> Revísalo y confirma para continuar.</>
+            : <><b>Carga el catálogo de cuentas GLL</b> con el botón resaltado «Catálogo GLL» para completar este paso.</>}
+      </span>
+      {setupDone
+        ? <Button type="primary" style={{ background: '#2ea172', borderColor: '#2ea172' }} onClick={() => navigate(SETUP_ROUTES.guide)}>Continuar →</Button>
+        : groups.length > 0
+          ? <Button type="primary" style={{ background: '#1faec2' }} onClick={() => confirmarPasoCatalogo(true)}>Confirmar y continuar →</Button>
+          : <Button onClick={() => navigate(SETUP_ROUTES.guide)}>Volver a la guía</Button>}
+    </div>
+  )
+
   return (
-    <Layout style={{ background: 'transparent', height: 'calc(100vh - 112px)' }}>
+    <>
+    {setupBanner}
+    <Layout style={{ background: 'transparent', height: fromSetup ? 'calc(100vh - 168px)' : 'calc(100vh - 112px)' }}>
       {/* ── Left sidebar: group list ── */}
       <Sider
         width={320}
@@ -771,7 +810,7 @@ export default function CatalogoPage() {
                   onClick={() => handleSeed('complement')}
                   style={complete
                     ? { borderColor: '#d9d9d9', color: '#9ca3af', cursor: 'not-allowed' }
-                    : { borderColor: '#1faec2', color: '#0a0a0a' }}
+                    : { borderColor: '#1faec2', color: '#0a0a0a', ...(fromSetup && !setupDone ? guideHighlight : {}) }}
                 >
                   {complete ? `Catálogo GLL completo (${groups.length}/68)` : 'Catálogo GLL'}
                 </Button>
@@ -838,5 +877,6 @@ export default function CatalogoPage() {
         onSaved={loadAccounts}
       />
     </Layout>
+    </>
   )
 }

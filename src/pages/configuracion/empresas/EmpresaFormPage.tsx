@@ -11,6 +11,7 @@ import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
 import { satLookupApi, type SatProviderConfig } from '../../../api/satLookup'
 import type { Company } from '../../../store/authStore'
 import { GT_TEMPLATES } from '../../../data/guatemalaTaxTemplates'
+import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../../hooks/setupProgress'
 
 const ALL_MODULES = [
   { key: 'ventas',        label: 'Ventas' },
@@ -51,7 +52,8 @@ const TIMEZONES = [
 export default function EmpresaFormPage() {
   const navigate         = useNavigate()
   const [searchParams]   = useSearchParams()
-  const backTo           = searchParams.get('from') === 'setup' ? '/onboarding/setup' : '/configuracion/empresas'
+  const fromSetup        = searchParams.get('from') === 'setup'
+  const backTo           = fromSetup ? SETUP_ROUTES.guide : '/configuracion/empresas'
   const { id }           = useParams<{ id: string }>()
   const isEdit        = !!id && id !== 'nueva'
   const [form]        = Form.useForm()
@@ -189,6 +191,12 @@ export default function EmpresaFormPage() {
           }
         }
         message.success('Empresa actualizada')
+        if (fromSetup) {
+          // Paso 1 de la guía completado → continuar al paso 2 (Perfil de organización)
+          await markSetupStepDone(id!, 'empresa').catch(() => {})
+          navigate(SETUP_ROUTES.perfil)
+          return
+        }
       } else {
         await companiesApi.create(values)
         message.success('Empresa creada')
@@ -202,12 +210,14 @@ export default function EmpresaFormPage() {
   }
 
   const filteredRegimes = regimes.filter(r => r.countryCode === country)
+  const guided = fromSetup && isEdit   // llegó desde la guía: resaltar lo que debe revisar/completar
 
   return (
     <div style={{ padding: '24px', maxWidth: 1200 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(backTo)} />
         <Title level={4} style={{ margin: 0 }}>{isEdit ? 'Editar Empresa' : 'Nueva Empresa'}</Title>
+        {guided && <Tag color="#1faec2" style={{ marginLeft: 4 }}>Paso 1 de 9 — Revisa y completa los datos de tu empresa</Tag>}
       </div>
 
       <Spin spinning={loading}>
@@ -282,7 +292,7 @@ export default function EmpresaFormPage() {
 
             {/* ── Columna izquierda ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <Card title="Identificación">
+              <Card title="Identificación" style={guided ? guideHighlight : undefined}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                   <Form.Item label="Nombre Legal" name="legalName" rules={[{ required: true, message: 'Requerido' }]}>
                     <Input placeholder="Castillo Guatemala S.A." />
@@ -301,7 +311,7 @@ export default function EmpresaFormPage() {
                 </div>
               </Card>
 
-              <Card title="Datos Fiscales">
+              <Card title="Datos Fiscales" style={guided ? guideHighlight : undefined}>
                 {/* ID interno de la empresa — útil para integraciones externas */}
                 {isEdit && id && (
                   <div style={{
@@ -397,7 +407,7 @@ export default function EmpresaFormPage() {
 
             {/* ── Columna derecha ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <Card title="Contacto">
+              <Card title={<Space>Contacto{guided && <Tag style={{ fontSize: 11, fontWeight: 500, color: '#6b7280', background: '#f3f4f6', borderColor: '#e5e7eb' }}>Opcional — puedes llenarlo después</Tag>}</Space>}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                   <Form.Item label="Representante Legal" name="legalRepresentative">
                     <Input />
@@ -530,10 +540,10 @@ export default function EmpresaFormPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-            <Button onClick={() => navigate(backTo)}>Cancelar</Button>
+            <Button onClick={() => navigate(backTo)}>{guided ? 'Volver a la guía' : 'Cancelar'}</Button>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}
               style={{ background: '#1faec2' }}>
-              {isEdit ? 'Guardar Cambios' : 'Crear Empresa'}
+              {guided ? 'Guardar y continuar →' : isEdit ? 'Guardar Cambios' : 'Crear Empresa'}
             </Button>
           </div>
         </Form>
