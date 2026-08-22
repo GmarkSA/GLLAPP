@@ -30,9 +30,10 @@ import {
   type OrganizationProfile,
 } from '../../api/configuracion'
 import {
-  getCurrencies, createCurrency, updateRate, syncBanguatRate, getExchangeRateHistory, removeCurrency,
+  getCurrencies, createCurrency, updateRate, syncBanguatRate, getExchangeRateHistory, removeCurrency, updateCurrency,
   type Currency, type CurrencyExchangeRate,
 } from '../../api/monedas'
+import { getApiError } from '../../api/axios'
 import { getAccounts, type Account } from '../../api/catalogo'
 import { useCompanyStore } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
@@ -614,9 +615,11 @@ function CurrencySection() {
       form.resetFields()
       fetchCurrencies()
     } catch (e: any) {
-      const msg = e?.response?.data?.message
+      // El backend responde { error: { message } } — antes se leía data.message y
+      // cualquier error (ya existe, permisos, etc.) quedaba en silencio.
+      const msg = getApiError(e, '')
       if (msg) message.error(msg)
-      // validation errors are silently ignored
+      // errores de validación del formulario: sin mensaje (AntD ya los marca)
     } finally {
       setSaving(false)
     }
@@ -625,10 +628,20 @@ function CurrencySection() {
   const handleRemove = async (id: string, name: string) => {
     try {
       await removeCurrency(id)
-      message.success(`Moneda ${name} eliminada`)
+      message.success(`Moneda ${name} desactivada`)
       fetchCurrencies()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'No se pudo eliminar')
+      message.error(getApiError(e, 'No se pudo desactivar'))
+    }
+  }
+
+  const handleActivate = async (id: string, name: string) => {
+    try {
+      await updateCurrency(id, { isActive: true })
+      message.success(`Moneda ${name} activada`)
+      fetchCurrencies()
+    } catch (e: any) {
+      message.error(getApiError(e, 'No se pudo activar'))
     }
   }
 
@@ -658,7 +671,8 @@ function CurrencySection() {
     }
   }
 
-  const activeCodes  = currencies.map(c => c.code)
+  // Solo las ACTIVAS cuentan: una moneda desactivada debe poder re-agregarse/activarse
+  const activeCodes  = currencies.filter(c => c.isActive).map(c => c.code)
   const availableToAdd = ALL_CURRENCIES.filter(c => !activeCodes.includes(c.code))
   const localCurrencyCode = activeCompany?.currencyCode ?? currencies.find(c => c.isBase)?.code ?? 'GTQ'
   const localCurrencyMeta = ALL_CURRENCIES.find(c => c.code === localCurrencyCode)
@@ -727,6 +741,7 @@ function CurrencySection() {
                     <Text type="secondary" style={{ fontSize: 12 }}>Símbolo: {r.symbol}</Text>
                   </div>
                   {r.isBase && <Tag color="gold" icon={<StarFilled />}>Base</Tag>}
+                  {!r.isActive && <Tag>Inactiva</Tag>}
                 </Space>
               ),
             },
@@ -761,9 +776,11 @@ function CurrencySection() {
             {
               title: '',
               width: 60,
-              render: (_, r) => r.code === localCurrencyCode ? null : (
+              render: (_, r) => r.code === localCurrencyCode ? null : !r.isActive ? (
+                <Button type="link" size="small" onClick={() => handleActivate(r.id, r.name)}>Activar</Button>
+              ) : (
                 <Popconfirm
-                  title={`¿Eliminar ${r.name}?`}
+                  title={`¿Desactivar ${r.name}?`}
                   onConfirm={() => handleRemove(r.id, r.name)}
                   okText="Sí" cancelText="No"
                   okButtonProps={{ danger: true }}
