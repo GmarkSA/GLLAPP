@@ -159,6 +159,8 @@ export default function OnboardingWizardPage() {
 
       // 3. Pre-llenar perfil de organización con datos del wizard (evita duplicar entrada)
       const selectedRegimeObj = regimes.find(r => r.id === selectedRegime)
+      // settings del tenant se fusionan con lo existente: enviarlos parciales borraba la marca `demo` y otras claves
+      const currentProfile = await tenantsApi.getProfile().catch(() => null)
       await (updateOrganizationProfile as any)({
         name:     vals.tradeName || vals.legalName,
         legalName: vals.legalName,
@@ -167,6 +169,7 @@ export default function OnboardingWizardPage() {
         currency: getCountryMeta(country)?.currency ?? 'GTQ',
         timezone: TIMEZONES[country] ?? 'America/Guatemala',
         settings: {
+          ...((currentProfile as any)?.settings ?? {}),
           fiscalCountryCode: country,
           fiscalRegimeCode:  selectedRegimeObj?.code ?? 'RG',  // para detectar plantilla en ImpuestosPage
         },
