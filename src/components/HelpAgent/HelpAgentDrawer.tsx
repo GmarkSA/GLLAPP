@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Drawer, Input, Button, Typography, Space, FloatButton, Tag, Segmented, Spin } from 'antd'
 import {
   SendOutlined, RobotOutlined, ArrowRightOutlined, QuestionCircleOutlined, CustomerServiceOutlined,
@@ -10,6 +10,7 @@ import {
 } from './helpArticles'
 import { preguntarAgente } from '../../api/support'
 import SupportView from './SupportView'
+import { getTourForPath } from '../Tour/moduleTours'
 import LinkAiAccountModal from './LinkAiAccountModal'
 
 const { Text } = Typography
@@ -31,6 +32,8 @@ const SUGERENCIAS = [
 ]
 
 export default function HelpAgentDrawer() {
+  const { pathname } = useLocation()
+  const tourActual = getTourForPath(pathname)
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'ayuda' | 'soporte'>('ayuda')
@@ -105,6 +108,12 @@ export default function HelpAgentDrawer() {
         onClose={() => setOpen(false)}
         title={<Space><RobotOutlined style={{ color: TEAL }} /> Asistente de ayuda</Space>}
         width={400}
+        extra={tourActual && (
+          <Button size="small" style={{ color: TEAL, borderColor: TEAL }}
+            onClick={() => { setOpen(false); window.dispatchEvent(new Event('lucia:abrir-tour')) }}>
+            ▶ Tour de {tourActual.name} · {tourActual.minutes} min
+          </Button>
+        )}
       >
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <Segmented
