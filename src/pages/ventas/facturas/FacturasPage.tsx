@@ -368,7 +368,7 @@ export default function FacturasPage() {
       .filter((c): c is ColumnsType<Invoice>[number] => c !== null),
     {
       key: '_actions',
-      title: 'Acciones',
+      title: <span data-tour="ventas-acciones">Acciones</span>,
       align: 'center' as const,
       width: 160,
       fixed: 'right' as const,
@@ -420,7 +420,7 @@ export default function FacturasPage() {
             <Button icon={<SyncOutlined />} loading={syncJELoading} onClick={handleSyncJEDates} title="Sincroniza la fecha de las pólizas contables con la fecha contable de cada factura">
               Sincronizar pólizas
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }} data-tour="ventas-nueva">
               Nueva factura
             </Button>
           </Space>
@@ -441,6 +441,7 @@ export default function FacturasPage() {
               <Card
                 hoverable
                 bordered={false}
+                {...(/cobrar/i.test(String(s.title)) ? { 'data-tour': 'ventas-cxc' } : {})}
                 onClick={() => { setStatusTab(s.tabKey); setPage(1) }}
                 style={{
                   borderRadius: 10,

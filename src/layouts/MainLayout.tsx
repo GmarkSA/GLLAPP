@@ -22,6 +22,7 @@ import NoCompanyGuard from '../components/NoCompanyGuard'
 import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
 import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import HelpAgentDrawer from '../components/HelpAgent/HelpAgentDrawer'
+import ModuleTour from '../components/Tour/ModuleTour'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 import GlobalSearchModal from '../components/GlobalSearch/GlobalSearchModal'
 import NotificationsDrawer, { useAlertCount } from '../components/NotificationsDrawer'
@@ -86,8 +87,8 @@ const getOpenKey = (pathname: string): string[] => {
 const menuItems = [
   { key: '/dashboard',        icon: <DashboardOutlined />,    label: 'Dashboard' },
   { key: 'ventas',            icon: <ShoppingCartOutlined />, label: 'Ventas', children: [
-    { key: '/ventas/clientes',        label: 'Clientes' },
-    { key: '/ventas/estimaciones',         label: 'Cotizaciones' },
+    { key: '/ventas/clientes',        label: <span data-tour="ventas-clientes">Clientes</span> },
+    { key: '/ventas/estimaciones',         label: <span data-tour="ventas-cotizaciones">Cotizaciones</span> },
     { key: '/ventas/facturas',             label: 'Facturas de venta' },
     { key: '/ventas/facturas-recurrentes', label: 'Facturas recurrentes' },
     { key: '/ventas/notas-credito',        label: 'Notas de crédito' },
@@ -645,6 +646,7 @@ export default function MainLayout() {
 
       <OnboardingChatDrawer />
       <HelpAgentDrawer />
+      <ModuleTour />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <NotificationsDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
     </Layout>
