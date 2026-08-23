@@ -104,10 +104,10 @@ export default function SetupGuidePage() {
       {/* Sección: Conoce Lucía — tours por módulo (no cuentan para el progreso; se repiten cuando se quiera) */}
       <div style={{ marginBottom: 8 }}>
         <Text style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#9aa1ab', textTransform: 'uppercase' }}>
-          Conoce Lucía — recorridos de 2 minutos
+          Conoce Lucía — recorridos de menos de un minuto
         </Text>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
         {MODULE_TOURS.map(t => {
           const visto = isTourSeen(userId, t.key)
           return (
@@ -115,7 +115,7 @@ export default function SetupGuidePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: visto ? '#2ea172' : '#1faec2' }}>
                 <PlayCircleOutlined style={{ fontSize: 20 }} />
                 <span style={{ fontWeight: 700, fontSize: 13, color: '#0a0a0a' }}>Tour de {t.name}</span>
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>{t.steps.length} paradas · ~{t.minutes} min</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>{t.steps.length} paradas · ~{t.seconds} s</span>
               </div>
               <div style={{ fontSize: 12, color: '#6b7280' }}>{t.summary}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>

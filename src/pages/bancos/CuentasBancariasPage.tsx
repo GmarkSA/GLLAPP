@@ -307,7 +307,7 @@ export default function CuentasBancariasPage() {
         <Space wrap>
           <Button icon={<SwapOutlined />} onClick={() => navigate('/bancos/transferencias/nueva')}>Agregar transacción</Button>
           <Button type="primary" icon={<PlusOutlined />} style={{ background: NAVY }} onClick={() => navigate('/bancos/nuevo')}>
-            Nueva cuenta
+            <span data-tour="bancos-cuenta-nueva">Nueva cuenta</span>
           </Button>
         </Space>
       </div>
