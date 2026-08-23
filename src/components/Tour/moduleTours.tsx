@@ -21,6 +21,7 @@ export interface ModuleTourDef {
   match:     (pathname: string) => boolean  // el usuario está dentro del módulo (ayuda → "Tour de …")
   seconds:   number                         // duración real aproximada
   nextKey?:  string                         // al terminar, encadena con este tour
+  finishRoute?: string                      // al terminar (sin siguiente), a dónde llevar al usuario
   intro:     string
   steps:     ModuleTourStep[]
 }
@@ -47,7 +48,7 @@ export const MODULE_TOURS: ModuleTourDef[] = [
     ],
   },
   {
-    key: 'compras', name: 'Compras', seconds: 20, match: p => p.startsWith('/compras'),
+    key: 'compras', name: 'Compras', seconds: 20, nextKey: 'bancos', match: p => p.startsWith('/compras'),
     summary: 'Proveedores → orden de compra → factura de proveedor → DTE SAT recibidos',
     intro: 'Recorrido corto por Compras: dónde creas tu proveedor, tu primera orden y tu primera factura de proveedor, y cómo importar desde SAT todo lo que ya recibiste.',
     steps: [
@@ -63,7 +64,18 @@ export const MODULE_TOURS: ModuleTourDef[] = [
       { route: '/compras/dte-sat', anchor: 'compras-dte-importar', placement: 'bottomRight',
         title: '4 · DTE SAT recibidos — trae lo que ya compraste',
         description: 'Importa desde la Agencia Virtual las facturas que tus proveedores te emitieron: elige el rango de fechas (hasta 3 meses) y pulsa Importar. Las revisas, las asocias al proveedor y quedan contabilizadas sin capturar.',
-        cta: 'Listo, a trabajar →' },
+        cta: 'Continuar con Bancos →' },
+    ],
+  },
+  {
+    key: 'bancos', name: 'Bancos', seconds: 10, finishRoute: '/dashboard', match: p => p.startsWith('/bancos'),
+    summary: 'Crea tu cuenta bancaria → lista para operar',
+    intro: 'Última parada: tu cuenta bancaria. Con ella registras cobros y pagos, importas el estado de cuenta y concilias.',
+    steps: [
+      { route: '/bancos', anchor: 'bancos-cuenta-nueva', placement: 'bottomRight',
+        title: '1 · Crea tu cuenta bancaria',
+        description: 'Registra la cuenta (banco, moneda, número) y su cuenta contable. Desde ella registras cobros y pagos, importas el estado de cuenta y concilias. Con Ventas, Compras y Bancos ya puedes operar.',
+        cta: 'Terminar →' },
     ],
   },
 ]

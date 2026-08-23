@@ -70,7 +70,9 @@ export default function ModuleTour() {
     setOpen(false); setWelcome(false)
     // Encadenar con el siguiente módulo (p. ej. Ventas → Compras) sin volver a pedir confirmación
     const next = completed && tour?.nextKey ? getTourByKey(tour.nextKey) : undefined
-    if (next) { setTour(next); setCurrent(0); void goTo(next, 0) }
+    if (next) { setTour(next); setCurrent(0); void goTo(next, 0); return }
+    // Fin del recorrido: llevar al usuario a la pantalla principal para que elija por dónde empezar
+    if (completed && tour?.finishRoute) navigate(tour.finishRoute)
   }
 
   const steps: TourProps['steps'] = (tour?.steps ?? []).map((s, i, arr) => ({
