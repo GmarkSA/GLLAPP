@@ -68,6 +68,9 @@ export default function ModuleTour() {
   const finish = (completed: boolean) => {
     if (tour) markTour(userId, tour.key, completed ? 'done' : 'skipped')
     setOpen(false); setWelcome(false)
+    // Encadenar con el siguiente módulo (p. ej. Ventas → Compras) sin volver a pedir confirmación
+    const next = completed && tour?.nextKey ? getTourByKey(tour.nextKey) : undefined
+    if (next) { setTour(next); setCurrent(0); void goTo(next, 0) }
   }
 
   const steps: TourProps['steps'] = (tour?.steps ?? []).map((s, i, arr) => ({
@@ -89,7 +92,7 @@ export default function ModuleTour() {
           <Title level={4} style={{ margin: '0 0 6px' }}>Tour de {tour.name}</Title>
           <Text type="secondary" style={{ display: 'block', marginBottom: 14 }}>{tour.intro}</Text>
           <Space size={14} style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
-            <span><b>{tour.steps.length}</b> paradas</span><span><b>~{tour.minutes}</b> min</span><span>Te lleva a cada pantalla · puedes <b>saltarlo</b> cuando quieras</span>
+            <span><b>{tour.steps.length}</b> paradas</span><span><b>~{tour.seconds}</b> segundos</span><span>Te lleva a cada pantalla · puedes <b>saltarlo</b> cuando quieras</span>
           </Space>
           <div>
             <Space>

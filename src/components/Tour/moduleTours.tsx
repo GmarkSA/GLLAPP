@@ -19,14 +19,15 @@ export interface ModuleTourDef {
   name:      string
   summary:   string                         // para la tarjeta de la guía
   match:     (pathname: string) => boolean  // el usuario está dentro del módulo (ayuda → "Tour de …")
-  minutes:   number
+  seconds:   number                         // duración real aproximada
+  nextKey?:  string                         // al terminar, encadena con este tour
   intro:     string
   steps:     ModuleTourStep[]
 }
 
 export const MODULE_TOURS: ModuleTourDef[] = [
   {
-    key: 'ventas', name: 'Ventas', minutes: 2, match: p => p.startsWith('/ventas'),
+    key: 'ventas', name: 'Ventas', seconds: 20, nextKey: 'compras', match: p => p.startsWith('/ventas'),
     summary: 'Clientes → cotización → factura → DTE SAT emitidos',
     intro: 'Recorrido corto por Ventas: dónde creas tu cliente, tu primera cotización y tu primera factura, y cómo importar desde SAT todo lo que ya emitiste.',
     steps: [
@@ -40,13 +41,13 @@ export const MODULE_TOURS: ModuleTourDef[] = [
         title: '3 · Tu primera factura',
         description: 'Se certifica en SAT (FEL), se imprime en el formato que elijas y se envía al cliente. Desde el mismo listado registras el cobro.' },
       { route: '/ventas/dte-sat', anchor: 'ventas-dte-importar', placement: 'bottomRight',
-        title: '4 · DTE SAT emitidos — lo más importante si ya facturas fuera de Lucía',
-        description: 'Importa desde la Agencia Virtual todo lo que tu empresa (o la de tu cliente, si eres firma contable) ya emitió: quedan como facturas de venta listas para contabilizar y cobrar.',
-        cta: 'Listo, a trabajar →' },
+        title: '4 · DTE SAT emitidos — trae lo que ya facturaste',
+        description: 'Importa desde la Agencia Virtual todo lo que tu empresa ya facturó: elige el rango de fechas (hasta 3 meses) y pulsa Importar. Quedan como facturas de venta listas para contabilizar y cobrar. Ideal también para firmas contables.',
+        cta: 'Continuar con Compras →' },
     ],
   },
   {
-    key: 'compras', name: 'Compras', minutes: 2, match: p => p.startsWith('/compras'),
+    key: 'compras', name: 'Compras', seconds: 20, match: p => p.startsWith('/compras'),
     summary: 'Proveedores → orden de compra → factura de proveedor → DTE SAT recibidos',
     intro: 'Recorrido corto por Compras: dónde creas tu proveedor, tu primera orden y tu primera factura de proveedor, y cómo importar desde SAT todo lo que ya recibiste.',
     steps: [
@@ -60,8 +61,8 @@ export const MODULE_TOURS: ModuleTourDef[] = [
         title: '3 · Tu primera factura de proveedor',
         description: 'Registra la compra con su IVA y retenciones; se contabiliza sola y queda lista para programar el pago.' },
       { route: '/compras/dte-sat', anchor: 'compras-dte-importar', placement: 'bottomRight',
-        title: '4 · DTE SAT recibidos — lo más importante si quieres traer lo que ya compraste',
-        description: 'Importa desde la Agencia Virtual las facturas que tus proveedores te emitieron: las revisas, las asocias al proveedor y quedan contabilizadas sin capturar.',
+        title: '4 · DTE SAT recibidos — trae lo que ya compraste',
+        description: 'Importa desde la Agencia Virtual las facturas que tus proveedores te emitieron: elige el rango de fechas (hasta 3 meses) y pulsa Importar. Las revisas, las asocias al proveedor y quedan contabilizadas sin capturar.',
         cta: 'Listo, a trabajar →' },
     ],
   },

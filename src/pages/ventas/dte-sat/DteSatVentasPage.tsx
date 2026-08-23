@@ -1546,6 +1546,8 @@ export default function DteSatVentasPage() {
         }
       >
         <Form form={importForm} layout={isMobile ? 'vertical' : 'inline'} size="small" onFinish={handleImport} style={{ width: '100%' }}>
+          {/* data-tour: el tour resalta rango de fechas + botón Importar como un solo bloque */}
+          <div data-tour="ventas-dte-importar" style={{ display: isMobile ? 'block' : 'flex', alignItems: 'center', flexWrap: 'wrap', borderRadius: 8 }}>
           <Form.Item name="range" label="Rango de emisión" style={{ marginBottom: isMobile ? 10 : 0 }}
             rules={[{ required: true, message: 'Selecciona el rango de fechas' }]}
           >
@@ -1562,9 +1564,10 @@ export default function DteSatVentasPage() {
             <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
               disabled={!satCredentials.satNit}
               style={{ background: '#1faec2' }}>
-              <span data-tour="ventas-dte-importar">Importar Emitidos</span>
+              Importar Emitidos
             </Button>
           </Form.Item>
+          </div>
           <Form.Item style={{ marginBottom: 0 }}>
             <span style={{ fontSize: 11, color: '#6b7280' }}>
               ⚠️ SAT permite máximo 3 meses por importación

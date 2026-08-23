@@ -111,7 +111,7 @@ export default function HelpAgentDrawer() {
         extra={tourActual && (
           <Button size="small" style={{ color: TEAL, borderColor: TEAL }}
             onClick={() => { setOpen(false); abrirTour(tourActual.key) }}>
-            ▶ Tour de {tourActual.name} · {tourActual.minutes} min
+            ▶ Tour de {tourActual.name} · ~{tourActual.seconds} s
           </Button>
         )}
       >
