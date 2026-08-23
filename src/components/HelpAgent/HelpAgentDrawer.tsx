@@ -10,7 +10,7 @@ import {
 } from './helpArticles'
 import { preguntarAgente } from '../../api/support'
 import SupportView from './SupportView'
-import { getTourForPath } from '../Tour/moduleTours'
+import { getTourForPath, abrirTour } from '../Tour/moduleTours'
 import LinkAiAccountModal from './LinkAiAccountModal'
 
 const { Text } = Typography
@@ -110,7 +110,7 @@ export default function HelpAgentDrawer() {
         width={400}
         extra={tourActual && (
           <Button size="small" style={{ color: TEAL, borderColor: TEAL }}
-            onClick={() => { setOpen(false); window.dispatchEvent(new Event('lucia:abrir-tour')) }}>
+            onClick={() => { setOpen(false); abrirTour(tourActual.key) }}>
             ▶ Tour de {tourActual.name} · {tourActual.minutes} min
           </Button>
         )}

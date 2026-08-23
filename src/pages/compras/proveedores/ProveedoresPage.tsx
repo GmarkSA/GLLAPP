@@ -352,7 +352,7 @@ export default function ProveedoresPage() {
           </div>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/compras/proveedores/nuevo')} style={{ background: '#1faec2' }}>
-          Nuevo proveedor
+          <span data-tour="compras-proveedor-nuevo">Nuevo proveedor</span>
         </Button>
       </div>
 
