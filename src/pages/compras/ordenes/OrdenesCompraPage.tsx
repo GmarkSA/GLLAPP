@@ -254,7 +254,7 @@ export default function OrdenesCompraPage() {
           onClick={() => navigate('/compras/ordenes/nueva')}
           style={{ background: '#1faec2' }}
         >
-          Nueva orden
+          <span data-tour="compras-orden-nueva">Nueva orden</span>
         </Button>
       </div>
 

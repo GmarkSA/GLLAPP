@@ -1562,7 +1562,7 @@ export default function DteSatVentasPage() {
             <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
               disabled={!satCredentials.satNit}
               style={{ background: '#1faec2' }}>
-              Importar Emitidos
+              <span data-tour="ventas-dte-importar">Importar Emitidos</span>
             </Button>
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>

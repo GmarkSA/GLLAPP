@@ -274,7 +274,7 @@ export default function EstimacionesPage() {
           onClick={() => navigate('/ventas/estimaciones/nueva')}
           style={{ background: '#1faec2' }}
         >
-          Nueva cotización
+          <span data-tour="ventas-cotizacion-nueva">Nueva cotización</span>
         </Button>
       </div>
 

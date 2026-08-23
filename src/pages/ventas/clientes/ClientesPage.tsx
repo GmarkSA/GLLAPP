@@ -367,7 +367,7 @@ export default function ClientesPage() {
           </div>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/clientes/nuevo')} style={{ background: '#1faec2' }}>
-          Nuevo cliente
+          <span data-tour="ventas-cliente-nuevo">Nuevo cliente</span>
         </Button>
       </div>
 

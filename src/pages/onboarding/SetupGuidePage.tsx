@@ -15,7 +15,10 @@ import {
 } from '@ant-design/icons'
 import { useSetupSteps, type SetupStep } from '../../hooks/useSetupSteps'
 import { markSetupStepDone, markSetupStepSkipped } from '../../hooks/setupProgress'
+import { MODULE_TOURS, abrirTour, isTourSeen } from '../../components/Tour/moduleTours'
+import { PlayCircleOutlined } from '@ant-design/icons'
 import { useCompanyStore } from '../../store/companyStore'
+import { useAuthStore } from '../../store/authStore'
 
 const { Title, Text } = Typography
 
@@ -35,6 +38,7 @@ export default function SetupGuidePage() {
   const navigate = useNavigate()
   const { steps, loading, completedCount, completionPercent, reload } = useSetupSteps()
   const companyId = useCompanyStore(s => s.activeCompany?.id)
+  const userId    = useAuthStore(s => (s.user as any)?.id as string | undefined)
 
   const nextPending = steps.find(s => !s.done)
 
@@ -95,6 +99,35 @@ export default function SetupGuidePage() {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
         {steps.slice(0, 6).map(step => renderCard(step, nextPending, goTo, actions))}
+      </div>
+
+      {/* Sección: Conoce Lucía — tours por módulo (no cuentan para el progreso; se repiten cuando se quiera) */}
+      <div style={{ marginBottom: 8 }}>
+        <Text style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#9aa1ab', textTransform: 'uppercase' }}>
+          Conoce Lucía — recorridos de 2 minutos
+        </Text>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+        {MODULE_TOURS.map(t => {
+          const visto = isTourSeen(userId, t.key)
+          return (
+            <div key={t.key} style={{ padding: '16px 20px', borderRadius: 10, border: `2px solid ${visto ? '#bbf7d0' : 'rgba(10,10,10,0.08)'}`, background: visto ? '#f0fdf4' : '#fff', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: visto ? '#2ea172' : '#1faec2' }}>
+                <PlayCircleOutlined style={{ fontSize: 20 }} />
+                <span style={{ fontWeight: 700, fontSize: 13, color: '#0a0a0a' }}>Tour de {t.name}</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>{t.steps.length} paradas · ~{t.minutes} min</span>
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>{t.summary}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                {visto && <Tag style={{ background: '#dcfce7', borderColor: '#bbf7d0', color: '#15803d', fontWeight: 600, fontSize: 11 }}>Visto</Tag>}
+                <Button type={visto ? 'link' : 'primary'} size="small" onClick={() => abrirTour(t.key)}
+                  style={visto ? { color: '#2ea172', padding: '0 2px', fontSize: 12 } : { background: '#1faec2', borderColor: '#1faec2', fontWeight: 600 }}>
+                  {visto ? 'Repetir tour' : 'Iniciar tour →'}
+                </Button>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Sección: Datos maestros */}

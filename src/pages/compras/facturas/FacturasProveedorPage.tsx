@@ -458,7 +458,7 @@ export default function FacturasProveedorPage() {
           onClick={() => navigate('/compras/facturas/nueva')}
           style={{ background: '#1faec2' }}
         >
-          Nueva factura proveedor
+          <span data-tour="compras-factura-nueva">Nueva factura proveedor</span>
         </Button>
       </div>
 
