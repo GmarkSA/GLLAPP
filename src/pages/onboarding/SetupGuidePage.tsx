@@ -114,7 +114,8 @@ export default function SetupGuidePage() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <Button type="link" style={{ color: '#9aa1ab', padding: 0 }} onClick={() => navigate('/dashboard')}>
-          Continuar sin configurar
+          {/* Si la configuración base (1-6) ya está completa, lo único pendiente son datos maestros */}
+          {steps.slice(0, 6).every(s => s.done) ? 'Continuar sin crear datos maestros' : 'Continuar sin configurar'}
         </Button>
         {completedCount === steps.length && (
           <Button
