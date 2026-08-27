@@ -3,18 +3,22 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Card, Form, Input, Select, Switch, Button, Row, Col,
   Typography, Space, InputNumber, Divider, message, Spin,
-  Alert, Tooltip, Steps,
+  Alert, Tooltip, Steps, Upload, Avatar,
 } from 'antd'
+import type { UploadChangeParam } from 'antd/es/upload'
 import {
   ArrowLeftOutlined, SaveOutlined, InfoCircleOutlined,
   InboxOutlined, DollarOutlined, TagOutlined,
-  ShopOutlined,
+  ShopOutlined, CameraOutlined,
 } from '@ant-design/icons'
 import AccountSelect from '../../components/AccountSelect'
+import BarcodeInput from '../../components/BarcodeInput'
 import SelectorDimensionesAnaliticas from '../../components/SelectorDimensionesAnaliticas'
 import { getTaxes, type Tax } from '../../api/impuestos'
+import { getAccounts, type Account } from '../../api/catalogo'
+import { getGrupos, type GrupoArticulo } from '../../api/expedientes'
 import {
-  getProduct, createProduct, updateProduct,
+  getProduct, createProduct, updateProduct, uploadProductPhoto,
   ITEM_TYPE_CONFIG, ITEM_CATEGORY_CONFIG, UNITS,
   type Product,
 } from '../../api/inventario'
@@ -37,6 +41,9 @@ export default function ArticuloFormPage() {
   const [saving,   setSaving]   = useState(false)
   const [step,     setStep]     = useState(0)
   const [taxes,    setTaxes]    = useState<Tax[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [grupos,   setGrupos]   = useState<GrupoArticulo[]>([])
+  const [photoUploading, setPhotoUploading] = useState(false)
 
   // Live-watch fields to conditionally show sections
   const itemType          = Form.useWatch('itemType', form)
@@ -44,6 +51,8 @@ export default function ArticuloFormPage() {
   const currency          = Form.useWatch('currency', form) ?? 'GTQ'
   const currencySymbol    = currency === 'GTQ' ? 'Q' : '$'
   const centroBeneficioId = Form.useWatch('centroBeneficioId', form)
+  const imageUrl          = Form.useWatch('imageUrl', form)
+  const productName       = Form.useWatch('name', form)
 
   // Impuestos filtrados por uso (misma lista del módulo de Impuestos, pestaña IVA)
   const salesTaxes    = taxes.filter(t => t.isActive && IVA_CATS.includes(t.category) && ['sales', 'both'].includes(t.applicability))
@@ -56,10 +65,108 @@ export default function ArticuloFormPage() {
       .catch(() => setTaxes([]))
   }, [])
 
+  // ── Cargar catálogo de cuentas (para sugerir por código exacto) ───────────
+  useEffect(() => {
+    getAccounts()
+      .then((a: Account[]) => setAccounts(Array.isArray(a) ? a : []))
+      .catch(() => setAccounts([]))
+  }, [])
+
   // Un servicio no lleva inventario: al elegir "servicio" se apaga el control de stock
   useEffect(() => {
     if (itemType === 'servicio') form.setFieldValue('isInventoriable', false)
   }, [itemType, form])
+
+  // ── Vinculación fiscal/contable sugerida según el tipo de artículo ────────
+  // Bien → Ventas Gravadas (410001) / Costo de Mercaderías Vendidas (520001) /
+  //        Inventario de Mercaderías (130001) / impuesto "bienes" del régimen.
+  // Servicio → Ingresos por Servicios (440001) / sin COGS / impuesto "servicios".
+  // Solo se aplica en artículos nuevos, y solo pisa un campo si está vacío o si
+  // su valor actual es justamente la sugerencia del tipo contrario (para que al
+  // cambiar de tipo la sugerencia "siga" al usuario sin borrar una elección manual).
+  const pickTaxFor = (list: Tax[], wantServicio: boolean, col: 'libroVentasCol' | 'libroComprasCol') => {
+    const byCol = list.find(t => {
+      const v = (t as any)[col] as string | undefined
+      if (!v) return false
+      return wantServicio ? /servicio/i.test(v) : /bien/i.test(v)
+    })
+    if (byCol) return byCol
+    return list.find(t => t.isDefault) ?? list[0]
+  }
+
+  useEffect(() => {
+    if (isEdit) return
+    if (!accounts.length && !taxes.length) return
+    const wantServicio = itemType === 'servicio'
+
+    const bienSalesAcc = accounts.find(a => a.code === '410001')?.id
+    const servSalesAcc = accounts.find(a => a.code === '440001')?.id
+    const bienCostAcc  = accounts.find(a => a.code === '520001')?.id
+    const bienInvAcc   = accounts.find(a => a.code === '130001')?.id
+    const bienAdjAcc   = accounts.find(a => a.code === '540001')?.id
+
+    const wantSalesAcc  = wantServicio ? servSalesAcc : bienSalesAcc
+    const otherSalesAcc = wantServicio ? bienSalesAcc : servSalesAcc
+    const curSalesAcc   = form.getFieldValue('salesAccountId')
+    if (wantSalesAcc && (!curSalesAcc || curSalesAcc === otherSalesAcc)) {
+      form.setFieldValue('salesAccountId', wantSalesAcc)
+    }
+
+    // COGS: solo aplica a bienes — un servicio no tiene costo de mercadería vendida.
+    const curCostAcc = form.getFieldValue('costAccountId')
+    if (wantServicio) {
+      if (curCostAcc && curCostAcc === bienCostAcc) form.setFieldValue('costAccountId', undefined)
+    } else if (bienCostAcc && !curCostAcc) {
+      form.setFieldValue('costAccountId', bienCostAcc)
+    }
+
+    // Cuenta de inventario, categoría y cuenta de ajustes: solo relevantes si lleva control de stock.
+    if (!wantServicio) {
+      if (bienInvAcc && !form.getFieldValue('inventoryAccountId')) form.setFieldValue('inventoryAccountId', bienInvAcc)
+      if (bienAdjAcc && !form.getFieldValue('adjustmentAccountId')) form.setFieldValue('adjustmentAccountId', bienAdjAcc)
+      if (!form.getFieldValue('itemCategory')) form.setFieldValue('itemCategory', 'finished_good')
+    }
+
+    if (salesTaxes.length) {
+      const want  = pickTaxFor(salesTaxes, wantServicio, 'libroVentasCol')
+      const other = pickTaxFor(salesTaxes, !wantServicio, 'libroVentasCol')
+      const cur   = form.getFieldValue('salesTaxId')
+      if (want && (!cur || cur === other?.id)) form.setFieldValue('salesTaxId', want.id)
+    }
+    if (purchaseTaxes.length) {
+      const want  = pickTaxFor(purchaseTaxes, wantServicio, 'libroComprasCol')
+      const other = pickTaxFor(purchaseTaxes, !wantServicio, 'libroComprasCol')
+      const cur   = form.getFieldValue('purchaseTaxId')
+      if (want && (!cur || cur === other?.id)) form.setFieldValue('purchaseTaxId', want.id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemType, accounts, taxes])
+
+  // ── Cargar grupos de artículos (Inventario › Grupos) ──────────────────────
+  useEffect(() => {
+    getGrupos()
+      .then((g: GrupoArticulo[]) => setGrupos(Array.isArray(g) ? g : []))
+      .catch(() => setGrupos([]))
+  }, [])
+
+  // Al elegir un Grupo de artículos, sugiere sus cuentas contables e impuesto
+  // por defecto — es una acción explícita del usuario, así que sí reemplaza la
+  // sugerencia automática por tipo de artículo (pero no un valor que ya venía
+  // de una versión anterior guardada al editar).
+  const handleGroupChange = (groupId?: string) => {
+    form.setFieldValue('groupId', groupId)
+    const g = grupos.find(x => x.id === groupId)
+    if (!g) return
+    const fill = (field: string, val?: string) => {
+      if (val) form.setFieldValue(field, val)
+    }
+    fill('inventoryAccountId', g.inventoryAccountId)
+    fill('salesAccountId',     g.salesAccountId)
+    fill('costAccountId',      g.costAccountId)
+    fill('purchaseAccountId',  g.purchaseAccountId)
+    fill('salesTaxId',         g.defaultTaxId)
+    fill('purchaseTaxId',      g.defaultTaxId)
+  }
 
   // ── Load for edit ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -89,6 +196,31 @@ export default function ArticuloFormPage() {
       message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Error al guardar'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  // ── Foto del artículo (requiere artículo ya guardado) ─────────────────────
+  const handlePhotoUpload = async (info: UploadChangeParam) => {
+    const file = info.file.originFileObj
+    if (!file || !id) return
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp']
+    if (!ALLOWED.includes(file.type)) {
+      message.error('Formato no admitido. Usa JPG, PNG o WEBP.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      message.error('El archivo supera 5 MB.')
+      return
+    }
+    setPhotoUploading(true)
+    try {
+      const updated = await uploadProductPhoto(id, file)
+      form.setFieldValue('imageUrl', updated.imageUrl)
+      message.success('Foto actualizada')
+    } catch {
+      message.error('No se pudo subir la foto')
+    } finally {
+      setPhotoUploading(false)
     }
   }
 
@@ -178,7 +310,7 @@ export default function ArticuloFormPage() {
               <Col xs={24} sm={8}>
                 <Form.Item name="itemType" label="Tipo de artículo" rules={[{ required: true }]}>
                   <Select>
-                    {Object.entries(ITEM_TYPE_CONFIG).map(([k, v]) => (
+                    {Object.entries(ITEM_TYPE_CONFIG).filter(([k]) => k === 'bien' || k === 'servicio').map(([k, v]) => (
                       <Option key={k} value={k}>
                         <Tag color={v.color} style={{ marginRight: 6 }}>{v.label}</Tag>
                         <Text type="secondary" style={{ fontSize: 11 }}>{v.description}</Text>
@@ -207,6 +339,23 @@ export default function ArticuloFormPage() {
 
             <Row gutter={16}>
               <Col xs={24} sm={8}>
+                <Form.Item
+                  name="groupId"
+                  label="Grupo de artículos"
+                  tooltip="Al elegir un grupo se sugieren sus cuentas contables e impuesto por defecto (editable)"
+                >
+                  <Select
+                    allowClear showSearch optionFilterProp="label"
+                    placeholder="Sin grupo"
+                    onChange={handleGroupChange}
+                  >
+                    {grupos.map(g => (
+                      <Option key={g.id} value={g.id} label={`${g.code} ${g.name}`}>{g.code} — {g.name}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8}>
                 <Form.Item name="category" label="Familia / Categoría">
                   <Input placeholder="Ej: Materiales de construcción" />
                 </Form.Item>
@@ -216,6 +365,9 @@ export default function ArticuloFormPage() {
                   <Input placeholder="Ej: Cementos Progreso" />
                 </Form.Item>
               </Col>
+            </Row>
+
+            <Row gutter={16}>
               <Col xs={24} sm={8}>
                 {/* División — lista compartida de Financiero › División */}
                 <SelectorDimensionesAnaliticas
@@ -257,6 +409,9 @@ export default function ArticuloFormPage() {
             <Divider titlePlacement="start" style={{ margin: '4px 0 16px' }}>
               <Text style={{ fontSize: 13, color: '#1faec2', fontWeight: 600 }}>Información de ventas</Text>
             </Divider>
+            <div style={{ fontSize: 11, color: '#8b9aa8', marginTop: -10, marginBottom: 10 }}>
+              Los precios se ingresan <b>sin IVA</b> (precio base). El impuesto se calcula aparte según la tasa configurada.
+            </div>
             <Row gutter={16}>
               <Col xs={24} sm={8}>
                 <Form.Item name="salesPrice" label={`Precio de venta (${currencySymbol})`}>
@@ -457,7 +612,7 @@ export default function ArticuloFormPage() {
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={8}>
-                    <Form.Item name="weight" label="Peso (kg)">
+                    <Form.Item name="weight" label="Peso (lb)">
                       <InputNumber style={{ width: '100%' }} precision={4} min={0} placeholder="Peso por unidad" />
                     </Form.Item>
                   </Col>
@@ -513,11 +668,37 @@ export default function ArticuloFormPage() {
           >
             <Row gutter={16}>
               <Col xs={24} md={12}>
-                <Form.Item name="barCodes" label="Códigos de barras" tooltip="Separados por coma">
-                  <Input placeholder="7501000123456, 7501000654321" />
+                <Form.Item label="Foto del artículo" tooltip="Se usa en la Terminal POS">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <Avatar
+                      shape="square" size={72} src={imageUrl}
+                      style={{ background: imageUrl ? 'transparent' : '#1faec2', fontSize: 22, fontWeight: 700, border: '1px solid #e8edf5' }}
+                    >
+                      {!imageUrl && (productName?.[0]?.toUpperCase() || '?')}
+                    </Avatar>
+                    <Upload
+                      accept=".jpg,.jpeg,.png,.webp"
+                      showUploadList={false}
+                      beforeUpload={() => false}
+                      onChange={handlePhotoUpload}
+                      disabled={!id}
+                    >
+                      <Tooltip title={!id ? 'Guarda el artículo primero para poder subir una foto' : ''}>
+                        <Button icon={<CameraOutlined />} loading={photoUploading} disabled={!id}>
+                          {imageUrl ? 'Cambiar foto' : 'Subir foto'}
+                        </Button>
+                      </Tooltip>
+                    </Upload>
+                  </div>
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="barCodes" label="Códigos de barras" tooltip="Escanea con un lector físico (USB/Bluetooth) o escribe y presiona Enter">
+                  <BarcodeInput />
                 </Form.Item>
               </Col>
             </Row>
+            <Form.Item name="imageUrl" hidden><Input /></Form.Item>
             <Alert
               type="success" showIcon
               message="Listo para vender en POS"
