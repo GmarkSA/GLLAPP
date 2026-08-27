@@ -14,6 +14,12 @@ export interface AccountFilter {
   isFixedAsset?:          boolean
   requiresReconciliation?: boolean
   isInventoryAccount?:    boolean
+  /** AccountType del backend: 'asset' | 'liability' | 'equity' | 'income' | 'expense' | 'contra' */
+  type?:                  string
+  /** AccountSubType del backend, ej. 'cogs' */
+  subType?:               string
+  /** Filtra cuentas cuyo código empieza con este prefijo, ej. '5' para grupo de costos */
+  codePrefix?:            string
 }
 
 interface AccountSelectProps {
@@ -57,6 +63,9 @@ export default function AccountSelect({
     if (filter?.isFixedAsset          !== undefined)    params.isFixedAsset = String(filter.isFixedAsset)
     if (filter?.requiresReconciliation !== undefined)   params.requiresReconciliation = String(filter.requiresReconciliation)
     if (filter?.isInventoryAccount     !== undefined)   params.isInventoryAccount = String(filter.isInventoryAccount)
+    if (filter?.type)                                   params.type = filter.type
+    if (filter?.subType)                                params.subType = filter.subType
+    if (filter?.codePrefix)                             params.codePrefix = filter.codePrefix
 
     getAccounts(params)
       .then(data => {

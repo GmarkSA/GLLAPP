@@ -34,6 +34,7 @@ export interface Product {
   purchaseAccountId?: string
   costAccountId?: string
   adjustmentAccountId?: string
+  groupId?: string
   centroBeneficioId?: string
   stockOnHand: number
   minimumStock?: number
@@ -42,6 +43,7 @@ export interface Product {
   reorderQuantity?: number
   weight?: number
   barCodes?: string[]
+  imageUrl?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -100,6 +102,14 @@ export const createProduct = (dto: Partial<Product>) => api.post(BASE, dto).then
 export const updateProduct = (id: string, dto: Partial<Product>) => api.patch(`${BASE}/${id}`, dto).then(unwrap) as Promise<Product>
 export const deleteProduct = (id: string) => api.delete(`${BASE}/${id}`)
 export const getProductStock = (id: string) => api.get(`${BASE}/${id}/stock`).then(unwrap)
+
+export const uploadProductPhoto = (id: string, file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api
+    .post(`${BASE}/${id}/foto`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then(unwrap) as Promise<Product>
+}
 
 // ─── Importaciones ────────────────────────────────────────────────────────────
 const IMP = '/inventario/importaciones'
