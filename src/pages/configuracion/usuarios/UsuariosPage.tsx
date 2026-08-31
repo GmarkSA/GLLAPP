@@ -1043,7 +1043,7 @@ export default function UsuariosPage() {
             <Input.Password autoComplete="new-password" />
           </Form.Item>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            El usuario quedará desbloqueado, sus sesiones se cerrarán y al entrar estará obligado a definir su propia contraseña.
+            El usuario quedará activo y desbloqueado, sus sesiones se cerrarán y al entrar estará obligado a definir su propia contraseña.
           </Text>
         </Form>
       </Modal>

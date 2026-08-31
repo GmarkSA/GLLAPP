@@ -75,7 +75,11 @@ export default function LoginPage() {
       if (status === 423) {
         message.error(err?.response?.data?.error?.message ?? err?.response?.data?.message ?? 'Cuenta bloqueada temporalmente por intentos fallidos. Restablecé tu contraseña o esperá unos minutos.')
       } else if (status === 401 || status === 400) {
-        message.error('Credenciales incorrectas. Verifica tu email y contraseña.')
+        // Mostrar el motivo real cuando no es de credenciales (cuenta bloqueada por admin, inactiva, sin acceso al tenant)
+        const raw = err?.response?.data?.error?.message ?? err?.response?.data?.message
+        const texto = Array.isArray(raw) ? raw.join(' · ') : raw
+        if (texto && !/credenciales/i.test(texto)) message.error(texto, 7)
+        else message.error('Credenciales incorrectas. Verifica tu email y contraseña.')
       } else if (!status) {
         message.error('No se pudo conectar al servidor. Verifica tu conexión.')
       } else {
