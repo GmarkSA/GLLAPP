@@ -1,6 +1,9 @@
 import api from './axios'
 
 /** Activa una cuenta invitada definiendo la contraseña (token del correo). */
+export const changeMyPassword = (currentPassword: string, newPassword: string): Promise<void> =>
+  api.patch('/auth/change-password', { currentPassword, newPassword }).then(() => undefined)
+
 export const acceptInvitation = (token: string, password: string): Promise<void> =>
   api.post('/auth/accept-invitation', { token, password }).then(() => undefined)
 

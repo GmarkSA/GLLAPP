@@ -3,7 +3,7 @@ import api from './axios'
 const unwrap = (r: any) => r.data?.data ?? r.data
 const BASE = '/auth/users'
 
-export type UserStatus = 'active' | 'inactive' | 'suspended'
+export type UserStatus = 'active' | 'inactive' | 'suspended' | 'pending_verification'
 
 export interface TenantUser {
   id:           string
@@ -15,6 +15,10 @@ export interface TenantUser {
   roles?:       RoleSummary[]
   lastLoginAt?: string
   createdAt:    string
+  // Seguimiento de bloqueos y clave inicial (estilo SAP)
+  failedLoginAttempts?: number
+  lockedUntil?:        string | null
+  mustChangePassword?: boolean
 }
 
 export interface PermissionSummary {
@@ -63,6 +67,12 @@ export const updateUser = (id: string, dto: {
 
 export const resetUserPassword = (id: string, newPassword: string) =>
   api.post(`${BASE}/${id}/reset-password`, { newPassword })
+
+export const bloquearUser = (id: string) =>
+  api.post(`${BASE}/${id}/bloquear`)
+
+export const desbloquearUser = (id: string) =>
+  api.post(`${BASE}/${id}/desbloquear`)
 
 export const deleteUser = (id: string) =>
   api.delete(`${BASE}/${id}`)
