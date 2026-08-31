@@ -7,11 +7,12 @@ import {
 import {
   PlusOutlined, EditOutlined, UserOutlined, CrownOutlined,
   TeamOutlined, BankOutlined, KeyOutlined, DeleteOutlined,
-  LockOutlined, SettingOutlined, SaveOutlined,
+  LockOutlined, SettingOutlined, SaveOutlined, UnlockOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
   getUsers, getRoles, getPermissions, createUser, updateUser, deleteUser,
+  resetUserPassword, bloquearUser, desbloquearUser,
   createRole, updateRolePermissions, deleteRole,
   type TenantUser, type RoleSummary, type PermissionSummary,
 } from '../../../api/usuarios'
@@ -219,17 +220,24 @@ function buildMatrix(allPermissions: PermissionSummary[]): ModuleGroup[] {
 
 // ── Componente principal ────────────────────────────────────────────────────
 
+const bloqueoTemporal = (r: TenantUser) => !!r.lockedUntil && new Date(r.lockedUntil).getTime() > Date.now()
+const minutosBloqueo   = (r: TenantUser) => Math.max(1, Math.ceil((new Date(r.lockedUntil as string).getTime() - Date.now()) / 60000))
+
 export default function UsuariosPage() {
   const soySuperAdmin = !!useAuthStore(s => s.user?.isSuperAdmin)
+  const me = useAuthStore(s => s.user)
+  // Solo Super Admin administra usuarios (estilo SAP SU01) — el backend también lo exige
+  const esAdmin = soySuperAdmin || (me?.roles ?? []).some(r => ['superadmin', 'admin'].includes(r))
   const [users, setUsers]         = useState<TenantUser[]>([])
   const [roles, setRoles]         = useState<RoleSummary[]>([])
   const [allPerms, setAllPerms]   = useState<PermissionSummary[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading]     = useState(false)
   const [saving, setSaving]       = useState(false)
-  const [modal, setModal]         = useState<'create' | 'edit' | 'companies' | 'newRole' | null>(null)
+  const [modal, setModal]         = useState<'create' | 'edit' | 'companies' | 'newRole' | 'password' | null>(null)
   const [selected, setSelected]   = useState<TenantUser | null>(null)
   const [form] = Form.useForm()
+  const [pwForm] = Form.useForm()
   const [roleForm] = Form.useForm()
 
   // Asignación de empresas
@@ -357,6 +365,31 @@ export default function UsuariosPage() {
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al actualizar')
+    } finally { setSaving(false) }
+  }
+
+  const handleBloquear = async (id: string) => {
+    try { await bloquearUser(id); message.success('Usuario bloqueado — sus sesiones fueron cerradas'); load() }
+    catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo bloquear', 6) }
+  }
+
+  const handleDesbloquear = async (id: string) => {
+    try { await desbloquearUser(id); message.success('Usuario desbloqueado'); load() }
+    catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo desbloquear', 6) }
+  }
+
+  const openResetPassword = (u: TenantUser) => { setSelected(u); pwForm.resetFields(); setModal('password') }
+
+  const handleResetPassword = async () => {
+    try {
+      const vals = await pwForm.validateFields()
+      setSaving(true)
+      await resetUserPassword(selected!.id, vals.newPassword)
+      message.success('Contraseña temporal asignada — el usuario deberá cambiarla al entrar y sus sesiones fueron cerradas', 6)
+      setModal(null); load()
+    } catch (e: any) {
+      const raw = e?.response?.data?.message
+      if (raw) message.error(Array.isArray(raw) ? raw.join(' · ') : String(raw), 6)
     } finally { setSaving(false) }
   }
 
@@ -518,13 +551,28 @@ export default function UsuariosPage() {
     {
       title: 'Estado',
       dataIndex: 'status',
-      width: 110,
-      render: (v: string) => (
-        <Badge
-          status={v === 'active' ? 'success' : v === 'suspended' ? 'warning' : 'default'}
-          text={v === 'active' ? 'Activo' : v === 'suspended' ? 'Suspendido' : 'Inactivo'}
-        />
-      ),
+      width: 190,
+      render: (v: string, r) => {
+        if (v === 'suspended') return <Tag color="error" style={{ fontSize: 11 }}>🚫 Bloqueado por admin</Tag>
+        if (bloqueoTemporal(r)) return (
+          <Tooltip title={`${r.failedLoginAttempts ?? 0} intento(s) fallido(s) — se desbloquea solo o con el botón`}>
+            <Tag color="warning" style={{ fontSize: 11 }}>🔒 Bloqueado · {minutosBloqueo(r)} min</Tag>
+          </Tooltip>
+        )
+        return (
+          <Space size={4}>
+            <Badge
+              status={v === 'active' ? 'success' : v === 'pending_verification' ? 'warning' : 'default'}
+              text={v === 'active' ? 'Activo' : v === 'pending_verification' ? 'Pendiente' : 'Inactivo'}
+            />
+            {r.mustChangePassword && (
+              <Tooltip title="Tiene una clave temporal asignada por el admin; deberá cambiarla al entrar">
+                <Tag color="processing" style={{ fontSize: 10 }}>Clave temporal</Tag>
+              </Tooltip>
+            )}
+          </Space>
+        )
+      },
     },
     {
       title: 'Último acceso',
@@ -545,6 +593,26 @@ export default function UsuariosPage() {
           <Tooltip title="Empresas asignadas">
             <Button size="small" icon={<BankOutlined />} onClick={() => openCompanies(r)} />
           </Tooltip>
+          <Tooltip title="Cambiar contraseña (queda como temporal)">
+            <Button size="small" icon={<KeyOutlined />} onClick={() => openResetPassword(r)} />
+          </Tooltip>
+          {r.id !== me?.id && r.status !== 'suspended' && !bloqueoTemporal(r) && (
+            <Popconfirm
+              title="¿Bloquear este usuario?"
+              description="No podrá ingresar hasta que lo desbloquees; sus sesiones se cierran de inmediato."
+              okText="Bloquear" cancelText="Cancelar" okButtonProps={{ danger: true }}
+              onConfirm={() => handleBloquear(r.id)}
+            >
+              <Tooltip title="Bloquear">
+                <Button size="small" icon={<LockOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          {(r.status === 'suspended' || bloqueoTemporal(r)) && (
+            <Tooltip title="Desbloquear (no cambia la contraseña)">
+              <Button size="small" style={{ color: '#2ea172', borderColor: '#2ea172' }} icon={<UnlockOutlined />} onClick={() => handleDesbloquear(r.id)} />
+            </Tooltip>
+          )}
           <Tooltip title="Eliminar">
             <Popconfirm title="¿Eliminar este usuario?" onConfirm={() => handleDelete(r.id)}>
               <Button size="small" danger icon={<DeleteOutlined />} />
@@ -556,6 +624,17 @@ export default function UsuariosPage() {
   ]
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+
+  if (!esAdmin) {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 16px' }}>
+        <LockOutlined style={{ fontSize: 28, color: '#9aa1ab' }} />
+        <Title level={5} style={{ marginTop: 12 }}>Solo un Super Admin puede administrar usuarios</Title>
+        <Text type="secondary">Pide a tu administrador que gestione altas, bloqueos y contraseñas.</Text>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -825,7 +904,8 @@ export default function UsuariosPage() {
             <Select options={[
               { value: 'active',    label: 'Activo' },
               { value: 'inactive',  label: 'Inactivo' },
-              { value: 'suspended', label: 'Suspendido' },
+              { value: 'suspended', label: 'Bloqueado por admin' },
+              { value: 'pending_verification', label: 'Pendiente de activación (aún no define su contraseña)', disabled: true },
             ]} />
           </Form.Item>
           <Form.Item name="roleIds" label="Rol">
@@ -943,6 +1023,28 @@ export default function UsuariosPage() {
           <Form.Item name="description" label="Descripción">
             <Input.TextArea rows={2} placeholder="Describe qué puede hacer este rol" />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal: contraseña temporal (estilo SAP — el usuario deberá cambiarla al entrar) */}
+      <Modal
+        title={`Cambiar contraseña — ${selected?.firstName ?? ''} ${selected?.lastName ?? ''}`}
+        open={modal === 'password'}
+        onCancel={() => setModal(null)}
+        onOk={handleResetPassword}
+        okText="Asignar contraseña temporal"
+        okButtonProps={{ loading: saving, style: { background: '#1faec2' } }}
+        cancelText="Cancelar"
+        width={420}
+      >
+        <Form form={pwForm} layout="vertical" size="middle" style={{ marginTop: 8 }}>
+          <Form.Item name="newPassword" label="Nueva contraseña temporal"
+            rules={[{ required: true, message: 'Requerida' }, { min: 8, message: 'Mínimo 8 caracteres' }]}>
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            El usuario quedará desbloqueado, sus sesiones se cerrarán y al entrar estará obligado a definir su propia contraseña.
+          </Text>
         </Form>
       </Modal>
 
