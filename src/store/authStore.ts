@@ -11,6 +11,8 @@ interface User {
   roles?: string[]
   tenantIds: string[]
   isSuperAdmin?: boolean
+  /** Clave inicial asignada por el admin: debe cambiarla antes de operar (estilo SAP) */
+  mustChangePassword?: boolean
 }
 
 export interface Company {

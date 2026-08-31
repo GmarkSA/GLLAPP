@@ -23,6 +23,7 @@ import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgress
 import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
 import HelpAgentDrawer from '../components/HelpAgent/HelpAgentDrawer'
 import ModuleTour from '../components/Tour/ModuleTour'
+import ForcePasswordChangeModal from '../components/ForcePasswordChangeModal'
 import EnterpriseBreadcrumb from '../components/enterprise/EnterpriseBreadcrumb'
 import GlobalSearchModal from '../components/GlobalSearch/GlobalSearchModal'
 import NotificationsDrawer, { useAlertCount } from '../components/NotificationsDrawer'
@@ -647,6 +648,7 @@ export default function MainLayout() {
       <OnboardingChatDrawer />
       <HelpAgentDrawer />
       <ModuleTour />
+      <ForcePasswordChangeModal />
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <NotificationsDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
     </Layout>

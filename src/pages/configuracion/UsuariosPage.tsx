@@ -6,11 +6,13 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   KeyOutlined, CheckCircleOutlined, StopOutlined,
+  LockOutlined, UnlockOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
   getUsers, createUser, updateUser, resetUserPassword, deleteUser,
+  bloquearUser, desbloquearUser,
   type TenantUser,
 } from '../../api/usuarios'
 import { useAuthStore } from '../../store/authStore'
@@ -21,10 +23,16 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   active:    { label: 'Activo',    color: 'success' },
   inactive:  { label: 'Inactivo', color: 'default' },
   suspended: { label: 'Suspendido', color: 'error' },
+  pending_verification: { label: 'Pendiente', color: 'warning' },
 }
+
+const bloqueoTemporal = (r: TenantUser) => !!r.lockedUntil && dayjs(r.lockedUntil).isAfter(dayjs())
 
 export default function UsuariosPage() {
   const currentUserId = useAuthStore(s => s.user?.id)
+  const me = useAuthStore(s => s.user)
+  // Solo Super Admin administra usuarios (estilo SAP SU01) — el backend también lo exige
+  const esAdmin = !!me?.isSuperAdmin || (me?.roles ?? []).some(r => ['superadmin', 'admin'].includes(r))
 
   const [users,   setUsers]   = useState<TenantUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,7 +49,7 @@ export default function UsuariosPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (esAdmin) load() }, [])  // sin permiso no se consulta (evita 403 en consola)
 
   const openCreate = () => {
     setEditing(null)
@@ -109,6 +117,16 @@ export default function UsuariosPage() {
     } finally { setSaving(false) }
   }
 
+  const handleBloquear = async (id: string) => {
+    try { await bloquearUser(id); message.success('Usuario bloqueado — sus sesiones fueron cerradas'); load() }
+    catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo bloquear', 6) }
+  }
+
+  const handleDesbloquear = async (id: string) => {
+    try { await desbloquearUser(id); message.success('Usuario desbloqueado'); load() }
+    catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo desbloquear', 6) }
+  }
+
   const handleDelete = async (id: string) => {
     try {
       await deleteUser(id)
@@ -140,10 +158,28 @@ export default function UsuariosPage() {
     {
       title: 'Estado',
       dataIndex: 'status',
-      width: 110,
-      render: (v: string) => {
+      width: 190,
+      render: (v: string, r) => {
+        if (v === 'suspended') return <Tag color="error" style={{ fontSize: 11 }}>🚫 Bloqueado por admin</Tag>
+        if (bloqueoTemporal(r)) {
+          const min = Math.max(1, dayjs(r.lockedUntil).diff(dayjs(), 'minute') + 1)
+          return (
+            <Tooltip title={`${r.failedLoginAttempts ?? 0} intento(s) fallido(s) — se desbloquea solo o con el botón`}>
+              <Tag color="warning" style={{ fontSize: 11 }}>🔒 Bloqueado · {min} min</Tag>
+            </Tooltip>
+          )
+        }
         const s = STATUS_LABELS[v] ?? { label: v, color: 'default' }
-        return <Badge status={s.color as any} text={<Text style={{ fontSize: 12 }}>{s.label}</Text>} />
+        return (
+          <Space size={4}>
+            <Badge status={s.color as any} text={<Text style={{ fontSize: 12 }}>{s.label}</Text>} />
+            {r.mustChangePassword && (
+              <Tooltip title="Tiene una clave temporal asignada por el admin; deberá cambiarla al entrar">
+                <Tag color="processing" style={{ fontSize: 10 }}>Clave temporal</Tag>
+              </Tooltip>
+            )}
+          </Space>
+        )
       },
     },
     {
@@ -166,6 +202,24 @@ export default function UsuariosPage() {
           <Tooltip title="Cambiar contraseña">
             <Button size="small" type="text" icon={<KeyOutlined />} onClick={() => openResetPassword(r)} />
           </Tooltip>
+          {r.id !== currentUserId && r.status !== 'suspended' && !bloqueoTemporal(r) && (
+            <Popconfirm
+              title="¿Bloquear este usuario?"
+              description="No podrá ingresar hasta que lo desbloquees; sus sesiones se cierran de inmediato."
+              okText="Bloquear" cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleBloquear(r.id)}
+            >
+              <Tooltip title="Bloquear">
+                <Button size="small" type="text" icon={<LockOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          {(r.status === 'suspended' || bloqueoTemporal(r)) && (
+            <Tooltip title="Desbloquear (no cambia la contraseña)">
+              <Button size="small" type="text" style={{ color: '#2ea172' }} icon={<UnlockOutlined />} onClick={() => handleDesbloquear(r.id)} />
+            </Tooltip>
+          )}
           {r.id !== currentUserId && (
             <Popconfirm
               title="¿Eliminar este usuario?"
@@ -183,6 +237,16 @@ export default function UsuariosPage() {
       ),
     },
   ]
+
+  if (!esAdmin) {
+    return (
+      <Card bordered={false} style={{ borderRadius: 10, textAlign: 'center', padding: '32px 16px' }}>
+        <LockOutlined style={{ fontSize: 28, color: '#9aa1ab' }} />
+        <Title level={5} style={{ marginTop: 12 }}>Solo un Super Admin puede administrar usuarios</Title>
+        <Text type="secondary">Pide a tu administrador que gestione altas, bloqueos y contraseñas.</Text>
+      </Card>
+    )
+  }
 
   return (
     <div>
