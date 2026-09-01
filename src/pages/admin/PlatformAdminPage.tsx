@@ -356,6 +356,16 @@ function DemosTab() {
   const total     = rows.length
   const activados = rows.filter(r => r.userStatus === 'active').length
   const conversion = total > 0 ? Math.round((activados / total) * 100) : 0
+  // Medidor: minutos desde el correo (demo.sentAt) hasta la última marca de la guía
+  const minutosConfig = (r: any): number | null => {
+    const inicio = r.demo?.sentAt ? new Date(r.demo.sentAt).getTime() : NaN
+    const fin = r.setup?.ultimaMarca ? new Date(r.setup.ultimaMarca).getTime() : NaN
+    if (isNaN(inicio) || isNaN(fin) || fin <= inicio) return null
+    return Math.max(1, Math.round((fin - inicio) / 60000))
+  }
+  const fmtDur = (min: number) => min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`
+  const tiempos = rows.map(minutosConfig).filter((m): m is number => m != null)
+  const promedioConfig = tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : null
   const fmtF = (d?: string | null) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
 
   const cols: ColumnsType<any> = [
@@ -392,6 +402,23 @@ function DemosTab() {
       render: (v: string) => v === 'active'
         ? <Tag color="success">Registrado</Tag>
         : <Tag color="warning">Pendiente</Tag>,
+    },
+    {
+      title: 'Configuración', width: 140,
+      render: (_: any, r: any) => {
+        if (!r.setup?.completados) return <span style={{ fontSize: 12, color: '#9aa1ab' }}>Sin iniciar</span>
+        const min = minutosConfig(r)
+        const detalle = Object.entries(r.setup.pasos ?? {})
+          .map(([k, v]: any) => `${k}: ${typeof v === 'string' && v.startsWith('skipped') ? 'omitido' : new Date(v).toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`)
+          .join(' · ')
+        return (
+          <Tooltip title={`Del correo a la última marca de la guía. ${detalle}`}>
+            <span style={{ fontSize: 12 }}>
+              <b>{r.setup.completados}/9</b>{min != null && <> · {fmtDur(min)}</>}
+            </span>
+          </Tooltip>
+        )
+      },
     },
     {
       title: 'Último acceso', dataIndex: 'lastLoginAt', width: 110,
@@ -450,6 +477,9 @@ function DemosTab() {
           <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
             <div style={{ fontSize: 13, color: '#6b7280' }}>Conversión</div>
             <div style={{ fontSize: 24, fontWeight: 600, color: conversion >= 50 ? '#2ea172' : '#ff7f00' }}>{conversion}%</div>
+            {promedioConfig != null && (
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Configuración promedio: {fmtDur(promedioConfig)}</div>
+            )}
           </Card>
         </Col>
         <Col span={6} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
