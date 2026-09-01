@@ -178,11 +178,14 @@ export default function EmisionLoteChequesPage() {
         <Checkbox
           checked={selections[vendorId]?.invoiceIds.includes(r.id) ?? false}
           onChange={() => toggleInvoice(vendorId, vendorName, r)}
+          onClick={e => e.stopPropagation()}   /* sin esto, el clic burbujea a la fila y des-selecciona al instante */
         />
       ),
     },
     { title: 'Factura', dataIndex: 'invoiceNumber', width: 140,
       render: (val) => <Text style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{val}</Text> },
+    { title: 'Emisión', dataIndex: 'invoiceDate', width: 100,
+      render: (d: string) => <Text style={{ fontSize: 12 }}>{d ? dayjs(String(d).slice(0, 10)).format('DD/MM/YYYY') : '—'}</Text> },
     { title: 'Vencimiento', dataIndex: 'dueDate', width: 110,
       render: (d) => {
         if (!d) return <Text type="secondary">—</Text>
@@ -217,9 +220,12 @@ export default function EmisionLoteChequesPage() {
         <Checkbox
           checked={selections[r.vendorId]?.invoiceIds.includes(r.id) ?? false}
           onChange={() => toggleInvoice(r.vendorId, r.vendorName, r)}
+          onClick={e => e.stopPropagation()}   /* sin esto, el clic burbujea a la fila y des-selecciona al instante */
         />
       ),
     },
+    { title: 'Emisión', dataIndex: 'invoiceDate', width: 100,
+      render: (d: string) => <Text style={{ fontSize: 12 }}>{d ? dayjs(String(d).slice(0, 10)).format('DD/MM/YYYY') : '—'}</Text> },
     { title: 'Vencimiento', dataIndex: 'dueDate', width: 115,
       render: (d) => {
         if (!d) return <Text type="secondary">Sin fecha</Text>
@@ -249,12 +255,6 @@ export default function EmisionLoteChequesPage() {
     },
   ]
 
-  // Vista de rango: igual que antigüedad pero mostrando la fecha de EMISIÓN (el criterio del filtro)
-  const rangoColumns: ColumnsType<FlatInvoice> = [
-    { title: 'Emisión', dataIndex: 'invoiceDate', width: 100,
-      render: (d: string) => <Text style={{ fontSize: 12 }}>{d ? dayjs(d.slice(0, 10)).format('DD/MM/YYYY') : '—'}</Text> },
-    ...(agingColumns as ColumnsType<FlatInvoice>),
-  ]
 
   const handleSubmit = async (values: any) => {
     if (selectedVendors.length === 0) { message.warning('Selecciona al menos una factura de algún proveedor'); return }
@@ -376,7 +376,9 @@ export default function EmisionLoteChequesPage() {
                 loading={submitting}
                 disabled={totalChecks === 0}
                 icon={<PrinterOutlined />}
-                style={{ background: '#1B3A6B', borderColor: '#1B3A6B', whiteSpace: 'nowrap' }}
+                style={totalChecks > 0
+                  ? { background: '#1B3A6B', borderColor: '#1B3A6B', color: '#fff', whiteSpace: 'nowrap' }
+                  : { whiteSpace: 'nowrap' } /* deshabilitado: estilo estándar legible */}
                 size="middle"
               >
                 {totalChecks > 0
@@ -410,7 +412,7 @@ export default function EmisionLoteChequesPage() {
               <Select
                 value={sortMode}
                 onChange={v => setSortMode(v)}
-                style={{ width: 200 }}
+                style={{ width: 250 }}
                 options={[
                   { value: 'vendor', label: 'Proveedor (agrupado)' },
                   { value: 'aging',  label: 'Antigüedad (vencimiento ASC)' },
@@ -482,7 +484,7 @@ export default function EmisionLoteChequesPage() {
           >
             <Table
               size="small"
-              columns={sortMode === 'rango' ? rangoColumns : agingColumns}
+              columns={agingColumns}
               dataSource={sortMode === 'rango' ? invoicesEnRango : allInvoicesFlat}
               rowKey="id"
               pagination={{ pageSize: 50, showTotal: t => `${t} facturas` }}
