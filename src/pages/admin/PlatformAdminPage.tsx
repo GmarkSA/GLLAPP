@@ -2198,9 +2198,14 @@ export default function PlatformAdminPage() {
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
-          <Form.Item name="modules" label="Módulos de Lucía incluidos en el plan">
-            <Select mode="multiple" placeholder="Selecciona los módulos"
-              options={MODULOS_LUCIA.map(m => ({ value: m.value, label: m.label }))} />
+          <Form.Item name="modules" label="Módulos de Lucía incluidos en el plan" style={{ marginBottom: 12 }}>
+            <Checkbox.Group
+              options={MODULOS_LUCIA.map(m => ({ value: m.value, label: m.label }))}
+              style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px',
+                border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 14px', width: '100%',
+              }}
+            />
           </Form.Item>
           <Form.Item
             name="featuresText"
@@ -2208,7 +2213,7 @@ export default function PlatformAdminPage() {
             extra={<span style={{ fontSize: 11, color: '#9ca3af' }}>Ej: <code>### Facturación</code> crea un encabezado de sección</span>}
           >
             <Input.TextArea
-              rows={12}
+              rows={5}
               placeholder={"### Facturación\nGestión hasta 5,000 facturas\nFacturación recurrente\n\n### Usuarios\nInvitar 3 usuarios\nSoporte email"}
             />
           </Form.Item>
