@@ -1547,6 +1547,7 @@ const ALL_MODULES_CFG = [
 function ModulesSection() {
   const activeCompany = useCompanyStore(s => s.activeCompany)
   const setEnabledModules = useCompanyStore(s => s.setEnabledModules)
+  const allowedTenant = useCompanyStore(s => s.allowedModules)
   const [enabledMods, setEnabledMods] = useState<string[]>([])
   const [loading,     setLoading]     = useState(true)
   const [saving,      setSaving]      = useState(false)
@@ -1603,13 +1604,15 @@ function ModulesSection() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 32px' }}>
             {ALL_MODULES_CFG.map(mod => {
-              const active = enabledMods.length === 0 || enabledMods.includes(mod.key)
+              const bloqueado = !!allowedTenant?.length && !allowedTenant.includes(mod.key)
+              const active = !bloqueado && (enabledMods.length === 0 || enabledMods.includes(mod.key))
               return (
                 <div key={mod.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
                   <Text style={{ fontSize: 14 }}>{mod.label}</Text>
                   <Switch
                     size="small"
                     checked={active}
+                    disabled={bloqueado}
                     loading={saving}
                     onChange={checked => handleToggle(mod.key, checked)}
                   />
