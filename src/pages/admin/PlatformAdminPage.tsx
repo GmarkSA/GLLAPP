@@ -406,7 +406,11 @@ function DemosTab() {
     {
       title: 'Configuración', width: 140,
       render: (_: any, r: any) => {
-        if (!r.setup?.completados) return <span style={{ fontSize: 12, color: '#9aa1ab' }}>Sin iniciar</span>
+        if (!r.setup?.completados) return (
+          <Tooltip title={r.setup?.diag ?? 'El prospecto aún no usa la guía de configuración'}>
+            <span style={{ fontSize: 12, color: '#9aa1ab', cursor: 'help', textDecoration: r.setup?.diag ? 'underline dotted' : undefined }}>Sin iniciar</span>
+          </Tooltip>
+        )
         const min = minutosConfig(r)
         const detalle = Object.entries(r.setup.pasos ?? {})
           .map(([k, v]: any) => `${k}: ${typeof v === 'string' && v.startsWith('skipped') ? 'omitido' : new Date(v).toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`)
