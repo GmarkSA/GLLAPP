@@ -45,7 +45,7 @@ function formatOrgId(company: Company): string {
 const FULL_ACCESS_ROLES = new Set(['superadmin', 'admin'])
 
 const ROLE_MODULES: Record<string, Set<string>> = {
-  contador:   new Set(['contabilidad', 'activos-fijos', 'financiero', 'bancos', 'compras', 'reportes', 'configuracion']),
+  contador:   new Set(['contabilidad', 'activos', 'financiero', 'bancos', 'compras', 'reportes', 'configuracion']),
   ventas:     new Set(['ventas', 'inventario', 'reportes', 'configuracion']),
   compras:    new Set(['compras', 'inventario', 'bancos', 'reportes', 'configuracion']),
   planillas:  new Set(['planillas', 'reportes', 'configuracion']),
@@ -229,6 +229,7 @@ export default function MainLayout() {
   // cuya referencia es estable): así el menú lateral se recalcula al instante cuando se
   // habilitan/deshabilitan módulos desde Configuración, sin recargar ni reiniciar sesión.
   const enabledModules   = useCompanyStore(s => s.enabledModules)
+  const allowedModules   = useCompanyStore(s => s.allowedModules)   // restricción del Platform Admin
   const activeCompany    = useCompanyStore(s => s.activeCompany)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
   const hasUpdate = useVersionCheck()
@@ -254,14 +255,16 @@ export default function MainLayout() {
 
   // ── Filtrado del menú ─────────────────────────────────────────────────────
   // Paso 1: filtrar por módulos habilitados en la empresa activa
-  // activos-fijos y financiero son sub-grupos de contabilidad: se muestran si contabilidad está activa
+  // Activos Fijos y Financiero son módulos propios desde sep 2026 (las listas viejas heredan vía normalizarModulosLegacy)
   const resolveModuleKey = (key: string) =>
-    key === 'activos-fijos' || key === 'financiero' ? 'contabilidad' : key
+    key === 'activos-fijos' ? 'activos' : key
 
   // Mismo criterio que companyStore.isModuleEnabled, pero leyendo enabledModules suscrito
   // para que el filtrado reaccione en caliente. null/[] = todos habilitados; array = solo esos.
   const moduleEnabled = (moduleKey: string): boolean => {
     if (!activeCompany) return false
+    // Bloqueo del Platform Admin: manda sobre lo que la empresa haya habilitado
+    if (allowedModules && allowedModules.length > 0 && !allowedModules.includes(moduleKey)) return false
     if (!enabledModules || enabledModules.length === 0) return true
     return enabledModules.includes(moduleKey)
   }
