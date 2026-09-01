@@ -10,7 +10,7 @@ import {
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
   SearchOutlined, PrinterOutlined, CustomerServiceOutlined,
-  SendOutlined,
+  SendOutlined, MinusCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import AdminSupportPanel from './AdminSupportPanel'
@@ -1606,6 +1606,26 @@ export default function PlatformAdminPage() {
                           <TeamOutlined style={{ color: '#6b7280' }} />
                           <Text>{plan.maxUsers >= 999 ? 'Usuarios ilimitados' : `${plan.maxUsers} usuario${plan.maxUsers !== 1 ? 's' : ''}`}</Text>
                         </Space>
+                      </div>
+                      {/* Matriz de módulos — misma vista que ve el cliente, para administrarla con contexto */}
+                      <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 10, marginBottom: 4 }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>
+                          Módulos incluidos
+                        </div>
+                        {MODULOS_LUCIA.map(m => {
+                          const incluido = (plan.modules ?? []).includes(m.value)
+                          return (
+                            <div key={m.value} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, padding: '2px 0', opacity: incluido ? 1 : 0.4 }}>
+                              {incluido
+                                ? <CheckCircleOutlined style={{ color: '#2ea172', flexShrink: 0 }} />
+                                : <MinusCircleOutlined style={{ color: '#9ca3af', flexShrink: 0 }} />}
+                              <span style={{ color: '#374151' }}>{m.label}</span>
+                            </div>
+                          )
+                        })}
+                        {(plan.modules ?? []).length === 0 && (
+                          <div style={{ color: '#b45309', fontSize: 11, fontStyle: 'italic' }}>Sin módulos definidos — edítalo con el lápiz</div>
+                        )}
                       </div>
                       <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 10, maxHeight: 340, overflowY: 'auto', paddingRight: 4 }}>
                         {(plan.features || []).length === 0 && (
