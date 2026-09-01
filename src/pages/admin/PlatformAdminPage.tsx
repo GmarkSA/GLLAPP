@@ -341,6 +341,23 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 // ── Modal "Enviar demo" — crea un tenant demo e invita al prospecto por correo ──
 // ── Pestaña "Demos" — tablero de demos enviados: cuántos salen y quiénes activan ──
 function DemosTab() {
+  const navigate = useNavigate()
+  const [accediendo, setAccediendo] = useState<string | null>(null)
+  // Mismo mecanismo de impersonación que la pestaña Tenants (endpoint ya probado en producción):
+  // imprescindible para intervenir un demo (p. ej. asignar contraseña temporal a un prospecto trabado)
+  const accederDemo = async (r: any) => {
+    setAccediendo(r.tenantId)
+    try {
+      const res: any = await api.post(`/admin/tenants/${r.tenantId}/impersonate`).then(unwrap)
+      sessionStorage.setItem('impersonationToken',    res.impersonationToken)
+      sessionStorage.setItem('impersonationTenantId', res.tenantId)
+      sessionStorage.setItem('impersonationTenantName', res.tenantName)
+      sessionStorage.removeItem('activeCompanyId')
+      navigate('/dashboard')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al acceder al demo')
+    } finally { setAccediendo(null) }
+  }
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -435,8 +452,18 @@ function DemosTab() {
       render: (v: string) => <span style={{ fontSize: 12 }}>{fmtF(v)}</span>,
     },
     {
-      title: '', width: 60, align: 'center',
+      title: '', width: 150, align: 'center',
       render: (_: any, r: any) => (
+        <Space size={4}>
+        <Button
+          size="small" type="primary" icon={<EyeOutlined />}
+          loading={accediendo === r.tenantId}
+          onClick={() => accederDemo(r)}
+          style={{ background: '#1B3A6B' }}
+          title="Acceder como este demo (para asistir al prospecto)"
+        >
+          Acceder
+        </Button>
         <Popconfirm
           title={`¿Eliminar el demo "${r.tenantName}"?`}
           description="Se borran sus datos, el tenant y el usuario invitado. No se puede deshacer."
@@ -454,6 +481,7 @@ function DemosTab() {
         >
           <Button size="small" danger icon={<DeleteOutlined />} title="Eliminar demo" />
         </Popconfirm>
+        </Space>
       ),
     },
   ]
