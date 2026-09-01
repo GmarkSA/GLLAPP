@@ -168,6 +168,7 @@ export default function MainLayout() {
   const [trialDaysLeft,  setTrialDaysLeft]  = useState<number | null>(null)
   const [trialEndsAt,    setTrialEndsAt]    = useState<string | null>(null)
   const [planActivo,     setPlanActivo]     = useState<string | null>(null)
+  const [planNombre,     setPlanNombre]     = useState<string | null>(null)   // displayName real (editable por el admin)
   const [soloLectura,    setSoloLectura]    = useState(false)
   const alertCount = useAlertCount()
 
@@ -184,6 +185,9 @@ export default function MainLayout() {
       } else if (st === 'active' && data.tenant.plan) {
         // Ya pagó: mostrar el plan activo en vez del contador de prueba
         setPlanActivo(data.tenant.plan)
+        // Nombre real del plan (displayName de plan_configs, renombrable por el admin)
+        const dn = (data as any)?.plans?.find((p: any) => p.plan === data.tenant.plan)?.displayName
+        if (dn) setPlanNombre(String(dn))
       }
       // Suspendido (trial de demo vencido / falta de pago): el backend solo permite
       // consultar; avisamos con un banner permanente y el camino para reactivar.
@@ -507,7 +511,7 @@ export default function MainLayout() {
                   style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
                   onClick={() => navigate('/configuracion/suscripcion')}
                 >
-                  Plan {PLAN_LABELS[planActivo] ?? planActivo}
+                  Plan {(planNombre ?? PLAN_LABELS[planActivo] ?? planActivo).replace(/^plan\s+/i, '')}
                 </Tag>
               </Tooltip>
             )}
