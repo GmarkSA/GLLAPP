@@ -9,7 +9,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   CheckCircleOutlined, ClockCircleOutlined, CreditCardOutlined,
   DollarOutlined, FileTextOutlined, LockOutlined,
-  SyncOutlined, TeamOutlined, WarningOutlined,
+  SyncOutlined, TeamOutlined, WarningOutlined, MinusCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -19,6 +19,20 @@ import {
   type BillingState, type PlanConfig, type SubscriptionPayment,
   type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
 } from '../../api/billing'
+
+
+const MODULOS_LUCIA = [
+  { value: 'ventas',       label: 'Ventas' },
+  { value: 'compras',      label: 'Compras' },
+  { value: 'bancos',       label: 'Bancos y Tesorería' },
+  { value: 'contabilidad', label: 'Contabilidad y Activos Fijos' },
+  { value: 'reportes',     label: 'Reportes' },
+  { value: 'planillas',    label: 'Planillas' },
+  { value: 'fel',          label: 'FEL — Factura Electrónica' },
+  { value: 'inventario',   label: 'Inventario' },
+  { value: 'pos',          label: 'Terminal POS' },
+  { value: 'proyectos',    label: 'Proyectos' },
+]
 
 const { Title, Text } = Typography
 
@@ -99,7 +113,7 @@ function PlanCard({
         <Tag color={plan.plan === 'enterprise' ? 'gold' : plan.plan === 'professional' ? '#1faec2' : 'default'}
           style={{ fontSize: 11, marginBottom: 8 }}
         >
-          {plan.plan.toUpperCase()}
+          {(((plan as any).displayName as string) || plan.plan).toUpperCase()}
         </Tag>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#1faec2', lineHeight: 1 }}>
           {isFree ? 'Gratis' : money(displayPrice, displayCur)}
@@ -131,6 +145,23 @@ function PlanCard({
             {plan.maxUsers >= 999 ? 'Usuarios ilimitados' : `${plan.maxUsers} usuarios`}
           </Text>
         </div>
+        {Array.isArray((plan as any).modules) && ((plan as any).modules as string[]).length > 0 && (
+          <>
+            {/* Matriz de módulos — estilo Zoho: todos visibles y comparables entre planes */}
+            <Text strong style={{ fontSize: 12, marginTop: 4 }}>Módulos incluidos</Text>
+            {MODULOS_LUCIA.map(m => {
+              const incluido = ((plan as any).modules as string[]).includes(m.value)
+              return (
+                <div key={m.value} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: incluido ? 1 : 0.45 }}>
+                  {incluido
+                    ? <CheckCircleOutlined style={{ color: '#2ea172', fontSize: 12 }} />
+                    : <MinusCircleOutlined style={{ color: '#9ca3af', fontSize: 12 }} />}
+                  <Text style={{ fontSize: 12 }}>{m.label}</Text>
+                </div>
+              )
+            })}
+          </>
+        )}
         {plan.features.map((f, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <CheckCircleOutlined style={{ color: '#2ea172', fontSize: 12 }} />

@@ -641,10 +641,25 @@ interface PlatformStats {
   totalTenants: number; active: number; trial: number; suspended: number
   byPlan: { basic: number; professional: number; enterprise: number }
 }
+/** Módulos de Lucía asignables a planes (claves de enabledModules) */
+const MODULOS_LUCIA = [
+  { value: 'ventas',       label: 'Ventas' },
+  { value: 'compras',      label: 'Compras' },
+  { value: 'bancos',       label: 'Bancos y Tesorería' },
+  { value: 'contabilidad', label: 'Contabilidad (incluye Activos Fijos)' },
+  { value: 'reportes',     label: 'Reportes' },
+  { value: 'planillas',    label: 'Planillas' },
+  { value: 'fel',          label: 'FEL — Factura Electrónica' },
+  { value: 'inventario',   label: 'Inventario' },
+  { value: 'pos',          label: 'Terminal POS' },
+  { value: 'proyectos',    label: 'Proyectos' },
+]
+
 interface PlanConfig {
   plan: string; displayName: string; priceMonthly: number; currency: string
   maxCompanies: number; maxUsers: number; maxBranches: number
   features: string[]; isActive: boolean
+  modules?: string[]
   incomeAccountId?: string | null
 }
 interface AdminCompany {
@@ -1148,6 +1163,7 @@ export default function PlatformAdminPage() {
       maxUsers: plan.maxUsers,
       maxBranches: plan.maxBranches,
       featuresText: (plan.features || []).join('\n'),
+      modules: plan.modules ?? [],
     })
     setPlanModalOpen(true)
   }
@@ -1163,6 +1179,7 @@ export default function PlatformAdminPage() {
       maxUsers: 5,
       maxBranches: 1,
       featuresText: '',
+      modules: [],
     })
     setPlanModalOpen(true)
   }
@@ -2097,6 +2114,10 @@ export default function PlatformAdminPage() {
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
+          <Form.Item name="modules" label="Módulos de Lucía incluidos en el plan">
+            <Select mode="multiple" placeholder="Selecciona los módulos"
+              options={MODULOS_LUCIA.map(m => ({ value: m.value, label: m.label }))} />
+          </Form.Item>
           <Form.Item
             name="featuresText"
             label="Características (una por línea — usa ### para secciones)"
