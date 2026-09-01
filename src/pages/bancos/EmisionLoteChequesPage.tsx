@@ -43,8 +43,10 @@ export default function EmisionLoteChequesPage() {
   const [loading,      setLoading]      = useState(true)
   const [submitting,   setSubmitting]   = useState(false)
   const [mode,         setMode]         = useState<string>('check')
-  const [sortMode,     setSortMode]     = useState<'vendor' | 'aging'>('vendor')
+  const [sortMode,     setSortMode]     = useState<'vendor' | 'aging' | 'rango'>('vendor')
   const [totalBudget,  setTotalBudget]  = useState<number | null>(null)
+  // Rango de fechas a cancelar (por FECHA DE EMISIÓN — decisión del dueño, sep 2026)
+  const [rango,        setRango]        = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -69,6 +71,20 @@ export default function EmisionLoteChequesPage() {
       return dayjs(a.dueDate).diff(dayjs(b.dueDate))
     })
   }, [allVendors])
+
+  // Facturas EMITIDAS dentro del rango, conservando el orden por antigüedad de vencimiento:
+  // "Distribuir automáticamente" trabaja solo sobre este universo cuando el modo es rango.
+  // Comparación por texto YYYY-MM-DD (inclusive ambos extremos): inmune a zonas horarias.
+  const invoicesEnRango = useMemo<FlatInvoice[]>(() => {
+    if (!rango) return []
+    const desde = rango[0].format('YYYY-MM-DD')
+    const hasta = rango[1].format('YYYY-MM-DD')
+    return allInvoicesFlat.filter(inv => {
+      const f = (inv.invoiceDate ?? '').slice(0, 10)
+      return f >= desde && f <= hasta
+    })
+  }, [allInvoicesFlat, rango])
+  const totalEnRango = useMemo(() => invoicesEnRango.reduce((t, i) => t + Number(i.balance || 0), 0), [invoicesEnRango])
 
   const toggleInvoice = (vendorId: string, vendorName: string, inv: PendingInvoice) => {
     setSelections(prev => {
@@ -115,11 +131,15 @@ export default function EmisionLoteChequesPage() {
       message.warning('Ingresa un monto disponible para distribuir')
       return
     }
+    if (sortMode === 'rango') {
+      if (!rango) { message.warning('Selecciona el rango de fechas de emisión a cancelar'); return }
+      if (invoicesEnRango.length === 0) { message.warning('No hay facturas emitidas en ese rango con saldo pendiente'); return }
+    }
     const r = (n: number) => Math.round(n * 100) / 100
     let remaining = totalBudget
     const newSelections: Record<string, VendorSelection> = {}
 
-    for (const inv of allInvoicesFlat) {
+    for (const inv of (sortMode === 'rango' ? invoicesEnRango : allInvoicesFlat)) {
       if (remaining <= 0.005) break
       const apply = r(Math.min(inv.balance, remaining))
       if (apply <= 0) continue
@@ -142,6 +162,7 @@ export default function EmisionLoteChequesPage() {
     const applied = r(totalBudget - remaining)
     message.success(
       `Distribuidos ${fmtQ(applied)} en ${Object.keys(newSelections).length} proveedor(es)` +
+      (sortMode === 'rango' && rango ? ` (facturas del ${rango[0].format('DD/MM/YYYY')} al ${rango[1].format('DD/MM/YYYY')})` : '') +
       (remaining > 0.005 ? ` — saldo sin aplicar: ${fmtQ(remaining)}` : '')
     )
   }
@@ -226,6 +247,13 @@ export default function EmisionLoteChequesPage() {
         )
       },
     },
+  ]
+
+  // Vista de rango: igual que antigüedad pero mostrando la fecha de EMISIÓN (el criterio del filtro)
+  const rangoColumns: ColumnsType<FlatInvoice> = [
+    { title: 'Emisión', dataIndex: 'invoiceDate', width: 100,
+      render: (d: string) => <Text style={{ fontSize: 12 }}>{d ? dayjs(d.slice(0, 10)).format('DD/MM/YYYY') : '—'}</Text> },
+    ...(agingColumns as ColumnsType<FlatInvoice>),
   ]
 
   const handleSubmit = async (values: any) => {
@@ -386,9 +414,28 @@ export default function EmisionLoteChequesPage() {
                 options={[
                   { value: 'vendor', label: 'Proveedor (agrupado)' },
                   { value: 'aging',  label: 'Antigüedad (vencimiento ASC)' },
+                  { value: 'rango',  label: 'Rango de fechas (emisión)' },
                 ]}
               />
             </div>
+            {sortMode === 'rango' && (
+              <div>
+                <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>Facturas emitidas del … al …</Text>
+                <Space>
+                  <DatePicker.RangePicker
+                    value={rango as any}
+                    onChange={v => setRango((v && v[0] && v[1]) ? [v[0], v[1]] : null)}
+                    format="DD/MM/YYYY"
+                    style={{ width: 250 }}
+                  />
+                  {rango && (
+                    <Tag color={invoicesEnRango.length ? '#1faec2' : 'default'} style={{ margin: 0 }}>
+                      {invoicesEnRango.length} factura(s) · {fmtQ(totalEnRango)} pendiente
+                    </Tag>
+                  )}
+                </Space>
+              </div>
+            )}
             <Tooltip title="Aplica el monto disponible a las facturas más antiguas primero, distribuyendo automáticamente entre proveedores">
               <Button
                 icon={<RocketOutlined />}
@@ -413,22 +460,30 @@ export default function EmisionLoteChequesPage() {
           <Card loading style={{ borderRadius: 10 }} />
         ) : allVendors.length === 0 ? (
           <Alert type="success" showIcon message="No hay facturas pendientes de pago en ningún proveedor." />
-        ) : sortMode === 'aging' ? (
-          /* Vista plana por antigüedad */
+        ) : (sortMode === 'aging' || sortMode === 'rango') ? (
+          sortMode === 'rango' && !rango ? (
+            <Alert type="info" showIcon style={{ borderRadius: 10 }}
+              message="Selecciona el rango de fechas de emisión para ver las facturas a cancelar." />
+          ) : (
+          /* Vista plana por antigüedad (completa o filtrada por rango de emisión) */
           <Card
             bordered={false}
             title={
               <Space>
                 <SortAscendingOutlined />
-                <span>Facturas ordenadas por antigüedad — {allInvoicesFlat.length} facturas de {allVendors.length} proveedores</span>
+                <span>
+                  {sortMode === 'rango' && rango
+                    ? `Facturas emitidas del ${rango[0].format('DD/MM/YYYY')} al ${rango[1].format('DD/MM/YYYY')} — ${invoicesEnRango.length} factura(s) · ${fmtQ(totalEnRango)} pendiente`
+                    : `Facturas ordenadas por antigüedad — ${allInvoicesFlat.length} facturas de ${allVendors.length} proveedores`}
+                </span>
               </Space>
             }
             style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
           >
             <Table
               size="small"
-              columns={agingColumns}
-              dataSource={allInvoicesFlat}
+              columns={sortMode === 'rango' ? rangoColumns : agingColumns}
+              dataSource={sortMode === 'rango' ? invoicesEnRango : allInvoicesFlat}
               rowKey="id"
               pagination={{ pageSize: 50, showTotal: t => `${t} facturas` }}
               onRow={(r) => ({ onClick: () => toggleInvoice(r.vendorId, r.vendorName, r), style: { cursor: 'pointer' } })}
@@ -436,6 +491,7 @@ export default function EmisionLoteChequesPage() {
               scroll={{ x: 800 }}
             />
           </Card>
+          )
         ) : (
           /* Vista agrupada por proveedor */
           <Collapse
