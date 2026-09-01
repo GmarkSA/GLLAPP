@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { tenantsApi } from '../api/tenants'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { companiesApi } from '../api/companies'
 import { branchesApi } from '../api/branches'
@@ -12,6 +13,8 @@ interface CompanyStore {
   branches:        Branch[]
   // null = todos los módulos habilitados; array = solo esos módulos visibles
   enabledModules:  string[] | null
+  // Restricción del PLATFORM ADMIN (tenants.settings.allowedModules). null = sin restricción.
+  allowedModules:  string[] | null
   // true = ya tenemos valor confirmado (persisted o cargado desde backend)
   settingsReady:   boolean
   isLoading:       boolean
@@ -22,6 +25,7 @@ interface CompanyStore {
   loadCompanies:     ()                 => Promise<void>
   clearCompany:      ()                 => void
   isModuleEnabled:   (module: string)  => boolean
+  loadTenantRestrictions: () => Promise<void>
   // Refresca los módulos habilitados en caliente (tras editarlos en Configuración)
   // para que el menú lateral reaccione sin recargar ni volver a iniciar sesión.
   setEnabledModules: (modules: string[] | null) => void
@@ -35,15 +39,26 @@ export const useCompanyStore = create<CompanyStore>()(
       companies:      [],
       branches:       [],
       enabledModules: null,
+      allowedModules: null,
       settingsReady:  false,
       isLoading:      false,
       lastLoaded:     null,
 
       isModuleEnabled: (module: string) => {
-        const { enabledModules, activeCompany } = get()
+        const { enabledModules, activeCompany, allowedModules } = get()
         if (!activeCompany) return false
+        // Bloqueo del Platform Admin: manda sobre lo que la empresa haya habilitado
+        if (allowedModules && allowedModules.length > 0 && !allowedModules.includes(module)) return false
         if (!enabledModules || enabledModules.length === 0) return true
         return enabledModules.includes(module)
+      },
+
+      loadTenantRestrictions: async () => {
+        try {
+          const p: any = await tenantsApi.getProfile()
+          const allowed = (p?.settings?.allowedModules as string[] | undefined) ?? null
+          set({ allowedModules: Array.isArray(allowed) && allowed.length > 0 ? allowed : null })
+        } catch { /* fail-open: si no se puede leer, no se restringe nada */ }
       },
 
       loadCompanies: async () => {

@@ -3,6 +3,7 @@ import {
   Card, Table, Tag, Badge, Space, Typography, Statistic, Row, Col,
   Button, message, Modal, Descriptions, Spin, Popconfirm, Tabs,
   Form, InputNumber, Input, Select, Tooltip, Segmented, Dropdown,
+  Checkbox, Radio,
 } from 'antd'
 import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
@@ -10,7 +11,7 @@ import {
   PlusOutlined, DeleteOutlined, StopOutlined, PlayCircleOutlined, KeyOutlined,
   StarFilled, StarOutlined, DollarOutlined, ClockCircleOutlined, FileTextOutlined,
   SearchOutlined, PrinterOutlined, CustomerServiceOutlined,
-  SendOutlined, MinusCircleOutlined,
+  SendOutlined, MinusCircleOutlined, AppstoreOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import AdminSupportPanel from './AdminSupportPanel'
@@ -628,6 +629,7 @@ const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> 
 }
 
 interface TenantSummary {
+  settings?: any
   id: string; name: string; legalName?: string; taxId?: string
   plan?: string; status?: string; companiesCount?: number
   usersCount?: number; createdAt?: string; trialEndsAt?: string
@@ -1040,6 +1042,23 @@ export default function PlatformAdminPage() {
   }
 
   // Eliminar tenant basura (registro web sin uso) — solo Super Admin; el backend protege activos y con cobros
+  // Restricción de módulos por tenant (Platform Admin)
+  const [modTenant, setModTenant] = useState<any | null>(null)
+  const [modSel, setModSel] = useState<string[] | null>(null)
+  const [savingMod, setSavingMod] = useState(false)
+  const handleGuardarModulos = async () => {
+    if (!modTenant) return
+    setSavingMod(true)
+    try {
+      await api.patch(`/admin/tenants/${modTenant.id}/modules`, { modules: modSel })
+      message.success(modSel ? `Módulos restringidos para ${modTenant.name}` : `Sin restricción de módulos para ${modTenant.name}`)
+      setModTenant(null)
+      loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo guardar', 6)
+    } finally { setSavingMod(false) }
+  }
+
   const [tenantAEliminar, setTenantAEliminar] = useState<any | null>(null)
   const [confirmNombre, setConfirmNombre] = useState('')
   const [eliminandoTenant, setEliminandoTenant] = useState(false)
@@ -1408,6 +1427,11 @@ export default function PlatformAdminPage() {
               title={r.status === 'suspended' ? 'Activar tenant' : 'Suspender tenant'}
             />
           </Popconfirm>
+          <Tooltip title={((r as any).settings?.allowedModules?.length ? `Módulos restringidos (${(r as any).settings.allowedModules.length})` : 'Restringir módulos visibles')}>
+            <Button size="small" icon={<AppstoreOutlined />}
+              style={(r as any).settings?.allowedModules?.length ? { color: '#b45309', borderColor: '#e5c07b' } : undefined}
+              onClick={() => { setModTenant(r); setModSel(((r as any).settings?.allowedModules as string[] | undefined) ?? null) }} />
+          </Tooltip>
           <Tooltip title={r.status === 'active' ? 'No se puede eliminar un tenant activo (cliente pagando)' : 'Eliminar tenant definitivamente'}>
             <Button size="small" danger icon={<DeleteOutlined />} disabled={r.status === 'active'}
               onClick={() => { setTenantAEliminar(r); setConfirmNombre('') }} />
@@ -1438,6 +1462,46 @@ export default function PlatformAdminPage() {
           </Button>
         </Space>
       </div>
+
+      {/* Modal: módulos permitidos por tenant */}
+      <Modal
+        title={<Space><AppstoreOutlined />Módulos visibles — {modTenant?.name}</Space>}
+        open={!!modTenant}
+        onCancel={() => setModTenant(null)}
+        onOk={handleGuardarModulos}
+        okText="Guardar"
+        okButtonProps={{ loading: savingMod, style: { background: '#1faec2' } }}
+        cancelText="Cancelar"
+        width={460}
+      >
+        <Radio.Group
+          value={modSel === null ? 'todos' : 'custom'}
+          onChange={e => setModSel(e.target.value === 'todos' ? null : ((modTenant?.settings?.allowedModules as string[] | undefined) ?? plans.find(p => p.plan === (modTenant?.plan ?? 'basic'))?.modules ?? []))}
+          style={{ marginBottom: 12 }}
+        >
+          <Radio value="todos">Sin restricción (todos los módulos)</Radio>
+          <Radio value="custom">Solo los seleccionados</Radio>
+        </Radio.Group>
+        {modSel !== null && (
+          <>
+            <div style={{ marginBottom: 8 }}>
+              <Button size="small" onClick={() => setModSel(plans.find(p => p.plan === (modTenant?.plan ?? 'basic'))?.modules ?? [])}>
+                Usar los del plan ({plans.find(p => p.plan === (modTenant?.plan ?? 'basic'))?.displayName ?? modTenant?.plan})
+              </Button>
+            </div>
+            <Checkbox.Group
+              value={modSel}
+              onChange={vals => setModSel(vals as string[])}
+              options={MODULOS_LUCIA.map(m => ({ value: m.value, label: m.label }))}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}
+            />
+          </>
+        )}
+        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 12 }}>
+          Los módulos no permitidos desaparecen del menú del tenant y sus switches quedan bloqueados con
+          "No incluido en tu plan". Por defecto ningún tenant tiene restricción.
+        </div>
+      </Modal>
 
       {/* Modal: eliminar tenant definitivamente */}
       <Modal

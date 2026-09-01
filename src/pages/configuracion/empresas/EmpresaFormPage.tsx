@@ -10,6 +10,7 @@ import { companiesApi, type CompanySettings } from '../../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
 import { satLookupApi, type SatProviderConfig } from '../../../api/satLookup'
 import type { Company } from '../../../store/authStore'
+import { useCompanyStore } from '../../../store/companyStore'
 import { GT_TEMPLATES } from '../../../data/guatemalaTaxTemplates'
 import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../../hooks/setupProgress'
 
@@ -211,6 +212,7 @@ export default function EmpresaFormPage() {
 
   const filteredRegimes = regimes.filter(r => r.countryCode === country)
   const guided = fromSetup && isEdit   // llegó desde la guía: resaltar lo que debe revisar/completar
+  const allowedTenant = useCompanyStore(st => st.allowedModules)
 
   return (
     <div style={{ padding: '24px', maxWidth: 1200 }}>
@@ -436,13 +438,18 @@ export default function EmpresaFormPage() {
                   </Typography.Text>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
                     {ALL_MODULES.map(mod => {
-                      const active = enabledMods.length === 0 || enabledMods.includes(mod.key)
+                      const bloqueado = !!allowedTenant?.length && !allowedTenant.includes(mod.key)
+                      const active = !bloqueado && (enabledMods.length === 0 || enabledMods.includes(mod.key))
                       return (
-                        <div key={mod.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Typography.Text style={{ fontSize: 13 }}>{mod.label}</Typography.Text>
+                        <div key={mod.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: bloqueado ? 0.55 : 1 }}>
+                          <Typography.Text style={{ fontSize: 13 }}>
+                            {mod.label}
+                            {bloqueado && <Tag style={{ marginLeft: 6, fontSize: 10 }} color="default">No incluido en tu plan</Tag>}
+                          </Typography.Text>
                           <Switch
                             size="small"
                             checked={active}
+                            disabled={bloqueado}
                             loading={savingMods}
                             onChange={checked => handleToggleModule(mod.key, checked)}
                           />

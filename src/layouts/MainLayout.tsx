@@ -208,6 +208,7 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  useEffect(() => { void useCompanyStore.getState().loadTenantRestrictions() }, [])
 
   // Cmd+K / Ctrl+K abre el buscador global
   useEffect(() => {
