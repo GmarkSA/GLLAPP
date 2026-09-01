@@ -1644,6 +1644,17 @@ export default function PlatformAdminPage() {
                 <Badge status={STATUS_COLOR[detail.status ?? ''] ?? 'default'} text={detail.status} />
                 {detail.taxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT {detail.taxId}</Text>}
                 {detail.createdAt && <Text type="secondary" style={{ fontSize: 12 }}>· Creado {new Date(detail.createdAt).toLocaleDateString('es-GT')}</Text>}
+                {detail.setup?.completados > 0 && (() => {
+                  const inicio = detail.demoSentAt ? new Date(detail.demoSentAt).getTime() : (detail.setup.primeraMarca ? new Date(detail.setup.primeraMarca).getTime() : NaN)
+                  const fin = detail.setup.ultimaMarca ? new Date(detail.setup.ultimaMarca).getTime() : NaN
+                  const min = !isNaN(inicio) && !isNaN(fin) && fin > inicio ? Math.max(1, Math.round((fin - inicio) / 60000)) : null
+                  const dur = min == null ? null : min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`
+                  return (
+                    <Tooltip title={detail.demoSentAt ? 'Desde el envío del correo del demo hasta la última marca de la guía' : 'De la primera a la última marca de la guía'}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>· Configuración {detail.setup.completados}/9{dur ? ` · ${dur}` : ''}</Text>
+                    </Tooltip>
+                  )
+                })()}
               </div>
 
               {/* Tira de métricas */}
