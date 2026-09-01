@@ -19,7 +19,7 @@ const ALL_MODULES = [
   { key: 'compras',       label: 'Compras' },
   { key: 'contabilidad',  label: 'Contabilidad' },
   { key: 'activos',       label: 'Activos Fijos' },
-  { key: 'financiero',    label: 'Financiero (presupuestos y centros)' },
+  { key: 'financiero',    label: 'Financiero' },
   { key: 'bancos',        label: 'Bancos y Tesorería' },
   { key: 'inventario',    label: 'Inventario' },
   { key: 'planillas',     label: 'Planillas' },

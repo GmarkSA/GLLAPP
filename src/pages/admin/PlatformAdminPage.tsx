@@ -650,7 +650,7 @@ const MODULOS_LUCIA = [
   { value: 'bancos',       label: 'Bancos y Tesorería' },
   { value: 'contabilidad', label: 'Contabilidad' },
   { value: 'activos',      label: 'Activos Fijos' },
-  { value: 'financiero',   label: 'Financiero (presupuestos y centros)' },
+  { value: 'financiero',   label: 'Financiero' },
   { value: 'reportes',     label: 'Reportes' },
   { value: 'planillas',    label: 'Planillas' },
   { value: 'fel',          label: 'FEL — Factura Electrónica' },
