@@ -966,6 +966,23 @@ export default function PlatformAdminPage() {
     } finally { setAssigningTenantId(null) }
   }
 
+  // Eliminar tenant basura (registro web sin uso) — solo Super Admin; el backend protege activos y con cobros
+  const [tenantAEliminar, setTenantAEliminar] = useState<any | null>(null)
+  const [confirmNombre, setConfirmNombre] = useState('')
+  const [eliminandoTenant, setEliminandoTenant] = useState(false)
+  const handleEliminarTenant = async () => {
+    if (!tenantAEliminar) return
+    setEliminandoTenant(true)
+    try {
+      const res: any = await api.delete(`/admin/tenants/${tenantAEliminar.id}`).then(unwrap)
+      message.success(res?.message ?? 'Tenant eliminado')
+      setTenantAEliminar(null); setConfirmNombre('')
+      loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'No se pudo eliminar', 7)
+    } finally { setEliminandoTenant(false) }
+  }
+
   const refreshDetail = async (tenantId: string) => {
     const d = await api.get(`/admin/tenants/${tenantId}`).then(unwrap)
     setDetail(d)
@@ -1316,6 +1333,10 @@ export default function PlatformAdminPage() {
               title={r.status === 'suspended' ? 'Activar tenant' : 'Suspender tenant'}
             />
           </Popconfirm>
+          <Tooltip title={r.status === 'active' ? 'No se puede eliminar un tenant activo (cliente pagando)' : 'Eliminar tenant definitivamente'}>
+            <Button size="small" danger icon={<DeleteOutlined />} disabled={r.status === 'active'}
+              onClick={() => { setTenantAEliminar(r); setConfirmNombre('') }} />
+          </Tooltip>
         </Space>
       ),
     },
@@ -1342,6 +1363,31 @@ export default function PlatformAdminPage() {
           </Button>
         </Space>
       </div>
+
+      {/* Modal: eliminar tenant definitivamente */}
+      <Modal
+        title={<Space><DeleteOutlined style={{ color: '#e5484d' }} />Eliminar tenant definitivamente</Space>}
+        open={!!tenantAEliminar}
+        onCancel={() => { setTenantAEliminar(null); setConfirmNombre('') }}
+        onOk={handleEliminarTenant}
+        okText="Eliminar definitivamente"
+        cancelText="Cancelar"
+        okButtonProps={{ danger: true, loading: eliminandoTenant, disabled: confirmNombre.trim() !== ((tenantAEliminar?.name ?? tenantAEliminar?.tenantName ?? '') as string).trim() }}
+        width={480}
+      >
+        <p style={{ marginTop: 8 }}>
+          Se borrará <b>todo</b> el tenant <b>{tenantAEliminar?.name ?? tenantAEliminar?.tenantName}</b>: sus empresas,
+          datos contables, usuarios (si no pertenecen a otro tenant) y suscripciones. <b>No se puede deshacer.</b>
+        </p>
+        <p style={{ fontSize: 12, color: '#6b7280' }}>
+          Protecciones automáticas: no aplica a tenants activos ni con cobros registrados (clientes convertidos).
+        </p>
+        <Input
+          placeholder={`Escribe "${tenantAEliminar?.name ?? tenantAEliminar?.tenantName ?? ''}" para confirmar`}
+          value={confirmNombre}
+          onChange={e => setConfirmNombre(e.target.value)}
+        />
+      </Modal>
 
       {/* KPIs de control */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
