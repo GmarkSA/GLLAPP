@@ -63,7 +63,6 @@ export interface CrearFacturaRecurrenteDto {
   emailNotificacion?:          string
   emailAdicionalNotificacion?: string
   observaciones?:              string
-  subscriptionId?:             string
   detalles:                    DetalleFacturaRecurrenteDto[]
 }
 
@@ -99,7 +98,6 @@ export interface FacturaRecurrente {
   emailAdicionalNotificacion:  string | null
   estado:                      EstadoFacturaRecurrente
   observaciones:               string | null
-  subscriptionId:              string | null
   detalles:                    Array<DetalleFacturaRecurrenteDto & { id: string }>
   fechaCreacion:               string
   fechaModificacion:           string
