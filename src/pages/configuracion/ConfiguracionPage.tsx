@@ -36,7 +36,7 @@ import {
 } from '../../api/monedas'
 import { getApiError } from '../../api/axios'
 import { getAccounts, type Account } from '../../api/catalogo'
-import { useCompanyStore } from '../../store/companyStore'
+import { useCompanyStore, normalizarModulosLegacy } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
 import { companiesApi } from '../../api/companies'
 
@@ -1535,6 +1535,8 @@ const ALL_MODULES_CFG = [
   { key: 'ventas',        label: 'Ventas' },
   { key: 'compras',       label: 'Compras' },
   { key: 'contabilidad',  label: 'Contabilidad' },
+  { key: 'activos',       label: 'Activos Fijos' },
+  { key: 'financiero',    label: 'Financiero (presupuestos y centros)' },
   { key: 'bancos',        label: 'Bancos y Tesorería' },
   { key: 'inventario',    label: 'Inventario' },
   { key: 'planillas',     label: 'Planillas' },
@@ -1556,7 +1558,7 @@ function ModulesSection() {
     if (!activeCompany?.id) { setLoading(false); return }
     companiesApi.getSettings(activeCompany.id)
       .then(s => {
-        const mods = s?.enabledModules
+        const mods = normalizarModulosLegacy(s?.enabledModules)
         setEnabledMods(Array.isArray(mods) && mods.length > 0 ? mods : [])
       })
       .catch(() => null)

@@ -1,5 +1,16 @@
 import { create } from 'zustand'
 import { tenantsApi } from '../api/tenants'
+
+/** Migración suave (sep 2026): Activos Fijos y Financiero se separaron de Contabilidad. Las listas de
+ *  módulos guardadas ANTES del cambio no los mencionan → heredan su estado desde 'contabilidad'.
+ *  (Puro — el write-back a backend se hace una sola vez en el store.) */
+export const normalizarModulosLegacy = (mods: any): string[] | null => {
+  const lista = Array.isArray(mods) && mods.length > 0 ? (mods as string[]) : null
+  if (lista && !lista.includes('activos') && !lista.includes('financiero') && lista.includes('contabilidad')) {
+    return [...lista, 'activos', 'financiero']
+  }
+  return lista
+}
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { companiesApi } from '../api/companies'
 import { branchesApi } from '../api/branches'
@@ -91,11 +102,13 @@ export const useCompanyStore = create<CompanyStore>()(
             }
             // Recargar settings para reflejar módulos configurados desde el último login
             const s = await companiesApi.getSettings(active.id).catch(() => null)
-            const mods = s?.enabledModules
-            set({
-              enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null,
-              settingsReady:  true,
-            })
+            const crudos = s?.enabledModules
+            const mods = normalizarModulosLegacy(crudos)
+            if (mods && Array.isArray(crudos) && mods.length !== crudos.length) {
+              // Persistir la herencia una sola vez: desde aquí la lista es explícita y se puede apagar cada módulo
+              companiesApi.updateSettings(active.id, { enabledModules: mods } as any).catch(() => {})
+            }
+            set({ enabledModules: mods, settingsReady: true })
           }
         } catch {
           // silent — no interrumpir la UI
@@ -126,8 +139,12 @@ export const useCompanyStore = create<CompanyStore>()(
         }
 
         if (settingsResult.status === 'fulfilled') {
-          const mods = settingsResult.value?.enabledModules
-          set({ enabledModules: (Array.isArray(mods) && mods.length > 0) ? mods : null, settingsReady: true })
+          const crudos = settingsResult.value?.enabledModules
+          const mods = normalizarModulosLegacy(crudos)
+          if (mods && Array.isArray(crudos) && mods.length !== crudos.length) {
+            companiesApi.updateSettings(company.id, { enabledModules: mods } as any).catch(() => {})
+          }
+          set({ enabledModules: mods, settingsReady: true })
         } else {
           set({ settingsReady: true })
         }
