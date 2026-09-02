@@ -165,6 +165,7 @@ export default function FacturaFormPage() {
             quantity:        Number(it.quantity),
             unitPrice:       Number(it.unitPrice),
             discountPercent: Number(it.discountPercent ?? 0),
+            discountAmount:  (Number(it.discountPercent ?? 0) === 0 && Number(it.discountAmount ?? 0) > 0) ? Number(it.discountAmount) : undefined,
             taxPercent:      Number(it.taxPercent ?? 12),
             taxId:           it.taxId,
             accountId:       it.accountId,
@@ -297,8 +298,8 @@ export default function FacturaFormPage() {
   const buildDto = (): Omit<CreateInvoiceDto, 'status'> => {
     const v = form.getFieldsValue()
     const dim = v.dimensiones as DimensionesValue | undefined
-    const lineItems = items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId }) => ({
-      productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxId, taxInclusive, accountId, projectId,
+    const lineItems = items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, discountAmount, taxPercent, taxId, taxInclusive, accountId, projectId }) => ({
+      productId, description, unit, quantity, unitPrice, discountPercent, discountAmount: discountAmount || undefined, taxPercent, taxId, taxInclusive, accountId, projectId,
     }))
     return {
       customerId:       v.customerId,

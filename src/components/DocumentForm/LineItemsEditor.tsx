@@ -765,8 +765,8 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
 
     /* ══ Desc. (% o valor Q — el valor exacto evita descuadres de centavos) ══ */
     {
-      title: docType === 'bill' ? 'Desc.' : 'Desc.%', dataIndex: 'discountPercent',
-      width: docType === 'bill' ? 132 : 95, align: 'center' as const,
+      title: 'Desc.', dataIndex: 'discountPercent',
+      width: 132, align: 'center' as const,
       render: (_: any, row: LineItem) => {
         const qMode = discQMode[row._key] ?? ((row.discountAmount ?? 0) > 0)
         if (readOnly) {
@@ -776,13 +776,6 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
             ? <Tag color="#ff7f00" style={{ fontSize: 11, margin: 0 }}>{row.discountPercent}%</Tag>
             : <span style={{ color: '#9aa1ab' }}>—</span>
         }
-        if (docType !== 'bill') return (
-          <CellInputNumber
-            value={row.discountPercent}
-            onCommit={v => update(row._key, { discountPercent: v })}
-            min={0} max={100} step={1} precision={2} suffix="%"
-          />
-        )
         return (
           <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <CellInputNumber
