@@ -138,6 +138,7 @@ export default function FacturaProveedorFormPage() {
   const [bebidasTipo,  setBebidasTipo]  = useState<string | null>(null)
   const [bebidasBase,  setBebidasBase]  = useState<number | null>(null)
   const [bebidasMonto, setBebidasMonto] = useState<number | null>(null)
+  const [bebidasLineas, setBebidasLineas] = useState<number[]>([])
   const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number> } | null>(null)
 
   // Watched form values
@@ -504,8 +505,18 @@ export default function FacturaProveedorFormPage() {
   // Bebidas alcohólicas (Dto. 21-2004) — base sin IVA × tasa; se suma al total (no forma base del IVA)
   const bebidasRates = { ...DEFAULT_BEBIDAS_RATES, ...(orgImpEsp?.bebidasRates ?? {}) }
   const bebidasRate  = bebidasTipo ? (bebidasRates[bebidasTipo] ?? 0) : 0
+  // Base sin IVA de las LÍNEAS marcadas con el impuesto (no va sobre toda la factura)
+  const bebidasBaseLineas = Math.round(bebidasLineas.reduce((sum, idx) => {
+    const it = items[idx]
+    if (!it) return sum
+    const gross = Number(it.quantity || 0) * Number(it.unitPrice || 0) * (1 - Number(it.discountPercent || 0) / 100)
+    const base  = (it.taxInclusive ?? true) && Number(it.taxPercent || 0) > 0
+      ? gross / (1 + Number(it.taxPercent) / 100) : gross
+    return sum + base
+  }, 0) * 100) / 100
+  const bebidasBaseAuto = bebidasLineas.length > 0 ? bebidasBaseLineas : totals.subtotal
   const bebidasCalc  = (invoiceType === 'goods' && hasBebidas && bebidasTipo)
-    ? Math.round((bebidasBase ?? totals.subtotal) * (bebidasRate / 100) * 100) / 100 : 0
+    ? Math.round((bebidasBase ?? bebidasBaseAuto) * (bebidasRate / 100) * 100) / 100 : 0
   const bebidasAmount = (invoiceType === 'goods' && hasBebidas) ? (bebidasMonto ?? bebidasCalc) : 0
 
   // IDP se suma al gross porque el precio SAT ("P. Unitario con IVA") no lo incluye
@@ -1353,6 +1364,14 @@ export default function FacturaProveedorFormPage() {
           {invoiceType === 'goods' && hasBebidas && (
             <Card title={<span style={{ color: '#7c3aed', fontWeight: 600 }}>Bebidas Alcohólicas (Dto. 21-2004)</span>}>
               <Form form={form} layout="vertical" size="small">
+                <div style={{ marginBottom: 8 }}>
+                  <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 2 }}>Líneas con el impuesto</Text>
+                  <Select mode="multiple" size="small" style={{ width: '100%' }} placeholder="Todas (base = subtotal)"
+                    value={bebidasLineas}
+                    onChange={(v: number[]) => { setBebidasLineas(v); setBebidasBase(null); setBebidasMonto(null) }}
+                    options={items.map((it, i) => ({ value: i, label: `#${i + 1} — ${(it.description || 'Línea sin descripción').slice(0, 60)}` }))}
+                    maxTagCount={2} allowClear />
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                   <div>
                     <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 2 }}>Tipo de bebida</Text>
@@ -1365,7 +1384,7 @@ export default function FacturaProveedorFormPage() {
                   <div>
                     <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 2 }}>Base imponible (sin IVA)</Text>
                     <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2} prefix="Q"
-                      value={bebidasBase ?? totals.subtotal}
+                      value={bebidasBase ?? bebidasBaseAuto}
                       onChange={v => { setBebidasBase(v ?? null); setBebidasMonto(null) }} />
                   </div>
                 </div>
