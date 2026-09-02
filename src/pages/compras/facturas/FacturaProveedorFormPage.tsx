@@ -51,6 +51,20 @@ function calcProgressiveISR(base: number, tiers: { upTo: number | null; rate: nu
   return Math.round(total * 100) / 100
 }
 
+
+// Impuesto sobre la Distribución de Bebidas Alcohólicas — Decreto 21-2004
+const BEBIDAS_TIPOS = [
+  { key: 'cerveza',    label: 'Cervezas y bebidas de cereales fermentados', rate: 6 },
+  { key: 'vino',       label: 'Vinos',                                      rate: 7.5 },
+  { key: 'espumoso',   label: 'Vino espumoso',                              rate: 7.5 },
+  { key: 'vermouth',   label: 'Vino vermouth',                              rate: 7.5 },
+  { key: 'sidra',      label: 'Sidras',                                     rate: 7.5 },
+  { key: 'mezclada',   label: 'Bebidas alcohólicas mezcladas',              rate: 7.5 },
+  { key: 'fermentada', label: 'Demás bebidas fermentadas',                  rate: 7.5 },
+  { key: 'destilada',  label: 'Bebidas alcohólicas destiladas',             rate: 8.5 },
+]
+const DEFAULT_BEBIDAS_RATES: Record<string, number> = Object.fromEntries(BEBIDAS_TIPOS.map(b => [b.key, b.rate]))
+
 const BILL_TYPES: { value: BillType; label: string }[] = [
   { value: 'goods',          label: BILL_TYPE_CONFIG.goods.label          },
   { value: 'services',       label: BILL_TYPE_CONFIG.services.label       },
@@ -119,7 +133,12 @@ export default function FacturaProveedorFormPage() {
   // Impuestos especiales
   const [hasTimbrePrens, setHasTimbrePrens] = useState(false)
   const [hasTurismo,     setHasTurismo]     = useState(false)
-  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
+  // Bebidas alcohólicas (Dto. 21-2004) — facturas de bienes
+  const [hasBebidas,   setHasBebidas]   = useState(false)
+  const [bebidasTipo,  setBebidasTipo]  = useState<string | null>(null)
+  const [bebidasBase,  setBebidasBase]  = useState<number | null>(null)
+  const [bebidasMonto, setBebidasMonto] = useState<number | null>(null)
+  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number> } | null>(null)
 
   // Watched form values
   const invoiceType      = Form.useWatch('invoiceType',              form) as BillType   ?? 'goods'
@@ -152,6 +171,13 @@ export default function FacturaProveedorFormPage() {
     }
   }, [hasTurismo, orgImpEsp, accounts, form])
 
+  useEffect(() => {
+    if (hasBebidas && orgImpEsp?.bebidasAccountCode && !form.getFieldValue('bebidasAccountId')) {
+      const acc = accounts.find(a => a.code === orgImpEsp.bebidasAccountCode)
+      if (acc) form.setFieldValue('bebidasAccountId', acc.id)
+    }
+  }, [hasBebidas, orgImpEsp, accounts, form])
+
   // ── Load data ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -179,6 +205,8 @@ export default function FacturaProveedorFormPage() {
           idpAccountCode:          ie.idp?.accountCode,
           timbrePrensaAccountCode: ie.timbre_prensa?.accountCode,
           turismoAccountCode:      ie.turismo?.accountCode,
+          bebidasAccountCode:      ie.bebidas?.accountCode,
+          bebidasRates:            ie.bebidas?.rates,
           timbrePrensaRate:        ie.timbre_prensa?.rate ?? 0.5,
           turismoRate:             ie.turismo?.rate ?? 10,
         })
@@ -473,8 +501,15 @@ export default function FacturaProveedorFormPage() {
   const turismoAmount = (invoiceType === 'services' && hasTurismo)
     ? Math.round(totals.subtotal * (turismoRate / 100) * 100) / 100 : 0
 
+  // Bebidas alcohólicas (Dto. 21-2004) — base sin IVA × tasa; se suma al total (no forma base del IVA)
+  const bebidasRates = { ...DEFAULT_BEBIDAS_RATES, ...(orgImpEsp?.bebidasRates ?? {}) }
+  const bebidasRate  = bebidasTipo ? (bebidasRates[bebidasTipo] ?? 0) : 0
+  const bebidasCalc  = (invoiceType === 'goods' && hasBebidas && bebidasTipo)
+    ? Math.round((bebidasBase ?? totals.subtotal) * (bebidasRate / 100) * 100) / 100 : 0
+  const bebidasAmount = (invoiceType === 'goods' && hasBebidas) ? (bebidasMonto ?? bebidasCalc) : 0
+
   // IDP se suma al gross porque el precio SAT ("P. Unitario con IVA") no lo incluye
-  const netPayable = Math.round((totals.total + idpAmount + timbrePrensaAmount + turismoAmount - totalRetention) * 100) / 100
+  const netPayable = Math.round((totals.total + idpAmount + timbrePrensaAmount + turismoAmount + bebidasAmount - totalRetention) * 100) / 100
 
   // ── Account options ────────────────────────────────────────────────────────
 
@@ -537,6 +572,10 @@ export default function FacturaProveedorFormPage() {
       timbrePrensaAccountId:  (invoiceType === 'services' && hasTimbrePrens) ? vals.timbrePrensaAccountId : undefined,
       turismoAmount:          turismoAmount || undefined,
       turismoAccountId:       (invoiceType === 'services' && hasTurismo) ? vals.turismoAccountId : undefined,
+      // Bebidas alcohólicas (Dto. 21-2004)
+      bebidasAmount:          (invoiceType === 'goods' && hasBebidas) ? (bebidasAmount || undefined) : undefined,
+      bebidasTipo:            (invoiceType === 'goods' && hasBebidas && bebidasAmount) ? (bebidasTipo || undefined) : undefined,
+      bebidasAccountId:       (invoiceType === 'goods' && hasBebidas && bebidasAmount) ? vals.bebidasAccountId : undefined,
       status,
       notes: vals.notes,
       items: lineItems,
@@ -754,6 +793,13 @@ export default function FacturaProveedorFormPage() {
                       </Checkbox>
                       <Checkbox checked={hasTurismo} onChange={e => setHasTurismo(e.target.checked)}>
                         <span style={{ fontSize: 12 }}>Turismo INGUAT</span>
+                      </Checkbox>
+                    </div>
+                  )}
+                  {invoiceType === 'goods' && (
+                    <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
+                      <Checkbox checked={hasBebidas} onChange={e => setHasBebidas(e.target.checked)}>
+                        <span style={{ fontSize: 12 }}>Bebidas Alcohólicas (Dto. 21-2004)</span>
                       </Checkbox>
                     </div>
                   )}
@@ -1299,6 +1345,43 @@ export default function FacturaProveedorFormPage() {
                     </Form.Item>
                   </div>
                 )}
+              </Form>
+            </Card>
+          )}
+
+          {/* Impuesto sobre Bebidas Alcohólicas — Dto. 21-2004 */}
+          {invoiceType === 'goods' && hasBebidas && (
+            <Card title={<span style={{ color: '#7c3aed', fontWeight: 600 }}>Bebidas Alcohólicas (Dto. 21-2004)</span>}>
+              <Form form={form} layout="vertical" size="small">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 2 }}>Tipo de bebida</Text>
+                    <Select size="small" style={{ width: '100%' }} placeholder="Seleccionar tipo"
+                      value={bebidasTipo ?? undefined}
+                      onChange={v => { setBebidasTipo(v ?? null); setBebidasMonto(null) }}
+                      options={BEBIDAS_TIPOS.map(b => ({ value: b.key, label: `${b.label} — ${bebidasRates[b.key] ?? b.rate}%` }))}
+                      allowClear />
+                  </div>
+                  <div>
+                    <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 2 }}>Base imponible (sin IVA)</Text>
+                    <InputNumber size="small" style={{ width: '100%' }} min={0} precision={2} prefix="Q"
+                      value={bebidasBase ?? totals.subtotal}
+                      onChange={v => { setBebidasBase(v ?? null); setBebidasMonto(null) }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                    Impuesto{bebidasTipo ? ` (base × ${bebidasRate}%)` : ''}
+                  </Text>
+                  <InputNumber size="small" min={0} precision={2} prefix="Q" style={{ width: 130 }}
+                    value={bebidasAmount}
+                    onChange={v => setBebidasMonto(v ?? 0)} />
+                </div>
+                <Form.Item name="bebidasAccountId" label="Cuenta Impuesto Bebidas Alcohólicas" style={{ marginBottom: 0 }}>
+                  <Select showSearch placeholder="Ej. 6110 — Impuesto Bebidas Alcohólicas"
+                    filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
+                    options={allAccounts} allowClear />
+                </Form.Item>
               </Form>
             </Card>
           )}
