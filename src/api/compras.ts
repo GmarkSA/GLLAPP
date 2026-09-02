@@ -529,6 +529,8 @@ export interface SatDte {
   items?: Array<{ descripcion?: string; description?: string; cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string }>
   /** Derivado del portal SAT (rawData.tabla_sat.ESTADO): true si la factura está anulada. */
   anulado?: boolean
+  /** Diferencia factura registrada − GranTotal SAT (0 si cuadra); calculada por el backend */
+  descuadre?: number
   createdAt: string
   updatedAt?: string
 }
