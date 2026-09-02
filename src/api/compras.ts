@@ -164,6 +164,9 @@ export interface PurchaseInvoice {
   timbrePrensaAccountId?:  string
   turismoAmount?:          number
   turismoAccountId?:       string
+  bebidasAmount?:          number
+  bebidasTipo?:            string
+  bebidasAccountId?:       string
   journalEntryId?:         string
   reclassificationJournalEntryId?: string
 

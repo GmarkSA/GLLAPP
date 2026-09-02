@@ -1207,11 +1207,26 @@ const IDP_FUEL_TYPES = [
 
 const DEFAULT_IDP_RATES = Object.fromEntries(IDP_FUEL_TYPES.map(f => [f.key, f.default]))
 
+// Impuesto sobre la Distribución de Bebidas Alcohólicas — Decreto 21-2004
+const BEBIDAS_TIPOS = [
+  { key: 'cerveza',    label: 'Cervezas y bebidas de cereales fermentados', rate: 6 },
+  { key: 'vino',       label: 'Vinos',                                      rate: 7.5 },
+  { key: 'espumoso',   label: 'Vino espumoso',                              rate: 7.5 },
+  { key: 'vermouth',   label: 'Vino vermouth',                              rate: 7.5 },
+  { key: 'sidra',      label: 'Sidras',                                     rate: 7.5 },
+  { key: 'mezclada',   label: 'Bebidas alcohólicas mezcladas',              rate: 7.5 },
+  { key: 'fermentada', label: 'Demás bebidas fermentadas',                  rate: 7.5 },
+  { key: 'destilada',  label: 'Bebidas alcohólicas destiladas',             rate: 8.5 },
+]
+const DEFAULT_BEBIDAS_RATES: Record<string, number> = Object.fromEntries(BEBIDAS_TIPOS.map(b => [b.key, b.rate]))
+
+
 interface ImpuestosEspecialesConfig {
   idp:              { rates: Record<string, number>; accountCode?: string }
   turismo:          { rate: number; accountCode?: string }
   timbre_prensa:    { rate: number; accountCode?: string }
   timbres_fiscales: { rate: number; accountCode?: string }
+  bebidas:          { rates: Record<string, number>; accountCode?: string }
 }
 
 const DEFAULT_IMPUESTOS_ESPECIALES: ImpuestosEspecialesConfig = {
@@ -1219,6 +1234,7 @@ const DEFAULT_IMPUESTOS_ESPECIALES: ImpuestosEspecialesConfig = {
   turismo:          { rate: 10 },
   timbre_prensa:    { rate: 0.5 },
   timbres_fiscales: { rate: 3 },
+  bebidas:          { rates: { ...DEFAULT_BEBIDAS_RATES } },
 }
 
 function ImpuestosEspecialesSection() {
@@ -1242,7 +1258,8 @@ function ImpuestosEspecialesSection() {
             setCfg(prev => ({
               ...prev,
               ...saved,
-              idp: { ...prev.idp, ...saved.idp, rates: { ...DEFAULT_IDP_RATES, ...(saved.idp?.rates ?? {}) } },
+              idp:     { ...prev.idp, ...saved.idp, rates: { ...DEFAULT_IDP_RATES, ...(saved.idp?.rates ?? {}) } },
+              bebidas: { ...prev.bebidas, ...(saved.bebidas ?? {}), rates: { ...DEFAULT_BEBIDAS_RATES, ...(saved.bebidas?.rates ?? {}) } },
             }))
           }
         })
@@ -1255,6 +1272,12 @@ function ImpuestosEspecialesSection() {
 
   const setIdpAccount = (code: string) =>
     setCfg(prev => ({ ...prev, idp: { ...prev.idp, accountCode: code } }))
+
+  const setBebidasRate = (key: string, value: number) =>
+    setCfg(prev => ({ ...prev, bebidas: { ...prev.bebidas, rates: { ...prev.bebidas.rates, [key]: value } } }))
+
+  const setBebidasAccount = (code: string) =>
+    setCfg(prev => ({ ...prev, bebidas: { ...prev.bebidas, accountCode: code } }))
 
   const setOtherTax = (tax: 'turismo' | 'timbre_prensa' | 'timbres_fiscales', field: 'rate' | 'accountCode', value: number | string) =>
     setCfg(prev => ({ ...prev, [tax]: { ...prev[tax], [field]: value } }))
@@ -1354,6 +1377,54 @@ function ImpuestosEspecialesSection() {
                 />
               </div>
             </SectionCard>
+
+            <div style={{ marginTop: 12 }}>
+              <SectionCard title="Bebidas Alcohólicas — Impuesto a la Distribución (Dto. 21-2004)" icon={<ThunderboltOutlined />}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
+                  Tasa sobre el precio de venta sin IVA. Se aplica al registrar facturas de compra de bienes
+                  marcando <Text code>Bebidas Alcohólicas (Dto. 21-2004)</Text>; el impuesto se suma al total de la factura
+                  y se contabiliza a la cuenta configurada aquí.
+                </Text>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: '#f5f5f5' }}>
+                      <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8' }}>Tipo de bebida</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 140 }}>Tasa %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {BEBIDAS_TIPOS.map((bt, i) => (
+                      <tr key={bt.key} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>{bt.label}</td>
+                        <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0', textAlign: 'right' }}>
+                          <InputNumber
+                            value={cfg.bebidas.rates[bt.key] ?? bt.rate}
+                            min={0} step={0.5} precision={2}
+                            suffix="%"
+                            size="small"
+                            style={{ width: 110 }}
+                            onChange={v => setBebidasRate(bt.key, v ?? 0)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop: 14 }}>
+                  <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Cuenta contable — Bebidas Alcohólicas</Text>
+                  <Select
+                    showSearch
+                    style={{ width: '100%' }}
+                    placeholder="Ej: 6110 — Impuesto Bebidas Alcohólicas"
+                    value={cfg.bebidas.accountCode || undefined}
+                    filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                    options={accountOptions}
+                    onChange={setBebidasAccount}
+                    allowClear
+                  />
+                </div>
+              </SectionCard>
+            </div>
           </div>
 
           {/* Turismo, Timbre de Prensa, Timbres Fiscales — apilados verticalmente */}

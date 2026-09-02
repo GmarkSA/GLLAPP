@@ -696,6 +696,12 @@ export default function FacturaProveedorDetallePage() {
                   <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.turismoAmount), bill.currency)}</Text>
                 </div>
               )}
+              {Number(bill.bebidasAmount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <Text style={{ color: '#6d28d9' }}>Bebidas Alcohólicas (Dto. 21-2004)</Text>
+                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.bebidasAmount), bill.currency)}</Text>
+                </div>
+              )}
               {Number(bill.idpAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#ff7f00' }}>IDP Combustible</Text>
