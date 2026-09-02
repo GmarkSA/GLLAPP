@@ -144,6 +144,23 @@ Los anticipos (`type: 'advance'`, numeración `ANT-XXXX`) se gestionan **solo** 
 
 ---
 
+## Convenciones de fechas (obligatorias en módulos nuevos)
+
+Guatemala es UTC-6 y el servidor (Railway) corre en UTC. Tres reglas, una por cara del problema:
+
+1. **Leer (backend):** toda columna `date` que un SQL crudo devuelva al frontend va con `::text`
+   (`DATE_TRUNC(...)::date::text` para etiquetas de período). Las lecturas por entidad TypeORM
+   son seguras (devuelven `YYYY-MM-DD`) — preferirlas.
+2. **Mostrar (frontend):** nunca `new Date('YYYY-MM-DD')` para formatear — el navegador lo parsea
+   como medianoche UTC y en GT retrocede un día. Usar dayjs (parsea local) o `+'T12:00:00'`.
+   `toLocaleDateString` directo solo para timestamps reales (createdAt, horas).
+3. **Escribir (backend):** "hoy" nunca con `new Date().toISOString().split('T')[0]` (día UTC:
+   después de las 18:00 GT ya es mañana — el POS facturaba al día siguiente). Usar `hoyGT()`
+   de `src/common/fechas/hoy-gt.ts` en el backend.
+
+Barrido 360 aplicado en sep-2026 (PRs fix/fecha-pagos-listado-tz, fix/fechas-360-sql-crudo,
+fix/fechas-360-frontend). Todo módulo nuevo nace cumpliendo las tres.
+
 ## Decisiones de arquitectura establecidas
 
 | Decisión | Razonamiento |
