@@ -357,6 +357,17 @@ function DemosTab() {
   const activados = rows.filter(r => r.userStatus === 'active').length
   const conversion = total > 0 ? Math.round((activados / total) * 100) : 0
   const fmtF = (d?: string | null) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
+  const fmtDur = (min: number) => min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`
+
+  // Tiempo desde el correo (demo.sentAt) hasta el primer login (lastLoginAt)
+  const minutosActivacion = (r: any): number | null => {
+    const inicio = r.demo?.sentAt ? new Date(r.demo.sentAt).getTime() : NaN
+    const fin = r.lastLoginAt ? new Date(r.lastLoginAt).getTime() : NaN
+    if (isNaN(inicio) || isNaN(fin) || fin <= inicio) return null
+    return Math.max(1, Math.round((fin - inicio) / 60000))
+  }
+  const tiemposActivacion = rows.map(minutosActivacion).filter((m): m is number => m != null)
+  const promedioActivacion = tiemposActivacion.length ? Math.round(tiemposActivacion.reduce((a, b) => a + b, 0) / tiemposActivacion.length) : null
 
   const cols: ColumnsType<any> = [
     {
@@ -433,6 +444,9 @@ function DemosTab() {
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <Button icon={<ReloadOutlined />} onClick={load} loading={loading} size="small">Actualizar</Button>
+      </div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
@@ -452,8 +466,18 @@ function DemosTab() {
             <div style={{ fontSize: 24, fontWeight: 600, color: conversion >= 50 ? '#2ea172' : '#ff7f00' }}>{conversion}%</div>
           </Card>
         </Col>
-        <Col span={6} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Actualizar</Button>
+        <Col span={6}>
+          <Card size="small" styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <ClockCircleOutlined style={{ color: '#1faec2' }} />Tiempo de activación
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: '#1B3A6B' }}>
+              {promedioActivacion != null ? fmtDur(promedioActivacion) : '—'}
+            </div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+              correo → primer acceso
+            </div>
+          </Card>
         </Col>
       </Row>
       <Table
