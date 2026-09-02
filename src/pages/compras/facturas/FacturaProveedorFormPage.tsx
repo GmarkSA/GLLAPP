@@ -139,6 +139,7 @@ export default function FacturaProveedorFormPage() {
   const [bebidasBase,  setBebidasBase]  = useState<number | null>(null)
   const [bebidasMonto, setBebidasMonto] = useState<number | null>(null)
   const [bebidasLineas, setBebidasLineas] = useState<number[]>([])
+  const [bebidasLineasOpen, setBebidasLineasOpen] = useState(false)
   const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number> } | null>(null)
 
   // Watched form values
@@ -1368,7 +1369,8 @@ export default function FacturaProveedorFormPage() {
                   <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 2 }}>Líneas con el impuesto</Text>
                   <Select mode="multiple" size="small" style={{ width: '100%' }} placeholder="Todas (base = subtotal)"
                     value={bebidasLineas}
-                    onChange={(v: number[]) => { setBebidasLineas(v); setBebidasBase(null); setBebidasMonto(null) }}
+                    open={bebidasLineasOpen} onOpenChange={setBebidasLineasOpen}
+                    onChange={(v: number[]) => { setBebidasLineas(v); setBebidasBase(null); setBebidasMonto(null); setBebidasLineasOpen(false) }}
                     options={items.map((it, i) => ({ value: i, label: `#${i + 1} — ${(it.description || 'Línea sin descripción').slice(0, 60)}` }))}
                     maxTagCount={2} allowClear />
                 </div>
