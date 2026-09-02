@@ -37,7 +37,7 @@ const ANIOS = Array.from({ length: 6 }, (_, i) => ({ value: CUR_YEAR - i, label:
 
 const fmt  = (n: number) => (n ?? 0) === 0 ? '—' : (n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })
 const fmtQ = (n: number) => `Q ${(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-const fmtD = (v: string) => v ? new Date(v).toLocaleDateString('es-GT') : '—'
+const fmtD = (v: string) => v ? new Date(String(v).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-GT') : '—' // T12: 'YYYY-MM-DD' en new Date() es UTC y en GT retrocedía un día
 
 // Mapa estable: clave SAT → campo del backend
 const FIELD_MAP: Record<string, string> = {

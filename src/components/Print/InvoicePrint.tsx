@@ -13,7 +13,7 @@ const fmt = (n: any) =>
   Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const fmtDate = (d?: string) =>
-  d ? new Date(d).toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
+  d ? new Date(String(d).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
 interface Props {
   invoice:    Invoice

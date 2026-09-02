@@ -220,7 +220,7 @@ export default function ChequePrintPage() {
   const amount     = Number(payment.amount)
   const amountStr  = `Q ${amount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
   const letras     = numToWords(amount)
-  const date       = new Date(payment.paymentDate)
+  const date       = new Date(String(payment.paymentDate).slice(0, 10) + 'T12:00:00')
   const dateStr    = date.toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
   const isMatrix   = printerType === 'matrix'
