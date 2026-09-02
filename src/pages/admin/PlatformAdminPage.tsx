@@ -432,18 +432,30 @@ function DemosTab() {
         : <Tag color="warning">Pendiente</Tag>,
     },
     {
-      title: 'Configuración', width: 140,
+      title: 'Configuración', width: 160,
       render: (_: any, r: any) => {
-        if (!r.setup?.completados) return <span style={{ fontSize: 12, color: '#9aa1ab' }}>Sin iniciar</span>
+        const minAct = minutosActivacion(r)
+        const actLabel = minAct != null
+          ? <div style={{ fontSize: 11, color: '#1faec2', marginTop: 2 }}>Activación: {fmtDur(minAct)}</div>
+          : null
+        if (!r.setup?.completados) return (
+          <div>
+            <span style={{ fontSize: 12, color: '#9aa1ab' }}>Sin iniciar</span>
+            {actLabel}
+          </div>
+        )
         const min = minutosConfig(r)
         const detalle = Object.entries(r.setup.pasos ?? {})
           .map(([k, v]: any) => `${k}: ${typeof v === 'string' && v.startsWith('skipped') ? 'omitido' : new Date(v).toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`)
           .join(' · ')
         return (
           <Tooltip title={`Del correo a la última marca de la guía. ${detalle}`}>
-            <span style={{ fontSize: 12 }}>
-              <b>{r.setup.completados}/9</b>{min != null && <> · {fmtDur(min)}</>}
-            </span>
+            <div>
+              <span style={{ fontSize: 12 }}>
+                <b>{r.setup.completados}/9</b>{min != null && <> · {fmtDur(min)}</>}
+              </span>
+              {actLabel}
+            </div>
           </Tooltip>
         )
       },
