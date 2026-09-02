@@ -18,6 +18,7 @@ export interface LineItem {
   quantity:      number
   unitPrice:     number
   discountPercent: number
+  discountAmount?: number  // descuento en Q exacto (prioridad sobre el %) — facturas de compra
   taxPercent:    number
   taxId?:        string
   taxName?:      string    // nombre para agrupar en el desglose de totales
@@ -54,7 +55,11 @@ export const newLineItem = (overrides?: Partial<LineItem>): LineItem => {
 
 export function recalc(item: LineItem): LineItem {
   const rate        = item.taxPercent ?? 0
-  const grossAmount = item.quantity * item.unitPrice * (1 - (item.discountPercent ?? 0) / 100)
+  // Descuento en Q exacto (DTE SAT lo trae absoluto): prioridad sobre el porcentaje
+  const discAbs     = Number(item.discountAmount ?? 0)
+  const grossAmount = discAbs > 0
+    ? Math.max(0, item.quantity * item.unitPrice - discAbs)
+    : item.quantity * item.unitPrice * (1 - (item.discountPercent ?? 0) / 100)
 
   // El precio SAT ("P. Unitario con IVA") = base + IVA, sin IDP.
   // El IDP se calcula en el form padre y se SUMA al total. Aquí solo IVA.
@@ -459,6 +464,9 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
       name:        t.name,
     }))
 
+  // Modo del descuento por línea en facturas de compra: % (default) o valor Q exacto
+  const [discQMode, setDiscQMode] = useState<Record<string, boolean>>({})
+
   const update = (key: string, patch: Partial<LineItem>) =>
     onChange(items.map(item => item._key === key ? recalc({ ...item, ...patch }) : item))
 
@@ -755,18 +763,46 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
           />,
     },
 
-    /* ══ Desc.% ════════════════════════════════════════════════════════ */
+    /* ══ Desc. (% o valor Q — el valor exacto evita descuadres de centavos) ══ */
     {
-      title: 'Desc.%', dataIndex: 'discountPercent', width: 95, align: 'center' as const,
-      render: (_: any, row: LineItem) => readOnly
-        ? (row.discountPercent > 0
+      title: docType === 'bill' ? 'Desc.' : 'Desc.%', dataIndex: 'discountPercent',
+      width: docType === 'bill' ? 132 : 95, align: 'center' as const,
+      render: (_: any, row: LineItem) => {
+        const qMode = discQMode[row._key] ?? ((row.discountAmount ?? 0) > 0)
+        if (readOnly) {
+          if ((row.discountAmount ?? 0) > 0)
+            return <Tag color="#ff7f00" style={{ fontSize: 11, margin: 0 }}>Q {Number(row.discountAmount).toFixed(2)}</Tag>
+          return row.discountPercent > 0
             ? <Tag color="#ff7f00" style={{ fontSize: 11, margin: 0 }}>{row.discountPercent}%</Tag>
-            : <span style={{ color: '#9aa1ab' }}>—</span>)
-        : <CellInputNumber
+            : <span style={{ color: '#9aa1ab' }}>—</span>
+        }
+        if (docType !== 'bill') return (
+          <CellInputNumber
             value={row.discountPercent}
             onCommit={v => update(row._key, { discountPercent: v })}
             min={0} max={100} step={1} precision={2} suffix="%"
-          />,
+          />
+        )
+        return (
+          <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <CellInputNumber
+              value={qMode ? (row.discountAmount ?? 0) : row.discountPercent}
+              onCommit={v => update(row._key, qMode
+                ? { discountAmount: v, discountPercent: 0 }
+                : { discountPercent: v, discountAmount: 0 })}
+              min={0} max={qMode ? 9999999 : 100} step={qMode ? 0.01 : 1} precision={2}
+            />
+            <Select
+              size="small" value={qMode ? 'Q' : '%'} style={{ width: 48 }}
+              onChange={m => {
+                setDiscQMode(p => ({ ...p, [row._key]: m === 'Q' }))
+                update(row._key, { discountAmount: 0, discountPercent: 0 })
+              }}
+              options={[{ value: '%', label: '%' }, { value: 'Q', label: 'Q' }]}
+            />
+          </div>
+        )
+      },
     },
 
     /* ══ Impuesto ══════════════════════════════════════════════════════ */
