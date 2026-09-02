@@ -31,6 +31,7 @@ export interface DetalleFacturaRecurrenteDto {
   cantidad:             number
   precioUnitario:       number
   descuentoPorcentaje?: number
+  descuentoValor?: number // descuento en Q exacto — prioridad sobre el %
   impuestoPorcentaje?:  number
   impuestoId?:          string
   cuentaContableId?:    string

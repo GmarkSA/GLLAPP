@@ -125,6 +125,7 @@ export default function OrdenCompraFormPage() {
             quantity: Number(it.quantity),
             unitPrice: Number(it.unitPrice),
             discountPercent: Number(it.discountPercent ?? 0),
+            discountAmount:  Number(it.discountAmount ?? 0) || undefined,
             taxPercent: Number(it.taxPercent ?? 12),
             taxId: it.taxId,
             accountId: it.accountId,
@@ -167,8 +168,8 @@ export default function OrdenCompraFormPage() {
 
   const buildDto = (status: string) => {
     const vals = form.getFieldsValue()
-    const lineItems = items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxInclusive, taxId, accountId, projectId }) => ({
-      productId, description, unit, quantity, unitPrice, discountPercent, taxPercent, taxInclusive: taxInclusive ?? true, taxId, accountId, projectId,
+    const lineItems = items.map(({ productId, description, unit, quantity, unitPrice, discountPercent, discountAmount, taxPercent, taxInclusive, taxId, accountId, projectId }) => ({
+      productId, description, unit, quantity, unitPrice, discountPercent, discountAmount: discountAmount || undefined, taxPercent, taxInclusive: taxInclusive ?? true, taxId, accountId, projectId,
     }))
     return {
       vendorId:             vals.vendorId,
