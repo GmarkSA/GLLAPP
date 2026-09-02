@@ -1307,7 +1307,7 @@ function ImpuestosEspecialesSection() {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ maxWidth: 1100 }}>
+      <div style={{ maxWidth: 1500 }}>
 
         <Alert
           type="warning"
@@ -1325,7 +1325,7 @@ function ImpuestosEspecialesSection() {
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
 
           {/* IDP */}
-          <div style={{ flex: '0 0 52%' }}>
+          <div style={{ flex: '0 0 36%' }}>
             <SectionCard title="IDP — Impuesto de Distribución de Petróleo (Dto. 38-92)" icon={<ThunderboltOutlined />}>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
                 Tarifa específica por galón americano. Se aplica al registrar facturas de compra con tipo <Text code>Combustible con IDP</Text>.
@@ -1428,51 +1428,55 @@ function ImpuestosEspecialesSection() {
                 </Text>
               </Card>
             ))}
-              <SectionCard title="Bebidas Alcohólicas — Impuesto a la Distribución (Dto. 21-2004)" icon={<ThunderboltOutlined />}>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
-                  Tasa sobre el precio de venta sin IVA. Se aplica al registrar facturas de compra de bienes
-                  marcando <Text code>Bebidas Alcohólicas (Dto. 21-2004)</Text>; el impuesto se suma al total de la factura
-                  y se contabiliza a la cuenta configurada aquí.
-                </Text>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: '#f5f5f5' }}>
-                      <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8' }}>Tipo de bebida</th>
-                      <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 140 }}>Tasa %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {BEBIDAS_TIPOS.map((bt, i) => (
-                      <tr key={bt.key} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                        <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>{bt.label}</td>
-                        <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0', textAlign: 'right' }}>
-                          <InputNumber
-                            value={cfg.bebidas.rates[bt.key] ?? bt.rate}
-                            min={0} step={0.5} precision={2}
-                            suffix="%"
-                            size="small"
-                            style={{ width: 110 }}
-                            onChange={v => setBebidasRate(bt.key, v ?? 0)}
-                          />
-                        </td>
+          </div>
+
+          {/* Bebidas Alcohólicas — tercera columna, a la par de Turismo */}
+          <div style={{ flex: '0 0 34%' }}>
+                <SectionCard title="Bebidas Alcohólicas — Impuesto a la Distribución (Dto. 21-2004)" icon={<ThunderboltOutlined />}>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
+                    Tasa sobre el precio de venta sin IVA. Se aplica al registrar facturas de compra de bienes
+                    marcando <Text code>Bebidas Alcohólicas (Dto. 21-2004)</Text>; el impuesto se suma al total de la factura
+                    y se contabiliza a la cuenta configurada aquí.
+                  </Text>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: '#f5f5f5' }}>
+                        <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8' }}>Tipo de bebida</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e8e8e8', width: 140 }}>Tasa %</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div style={{ marginTop: 14 }}>
-                  <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Cuenta contable — Bebidas Alcohólicas</Text>
-                  <Select
-                    showSearch
-                    style={{ width: '100%' }}
-                    placeholder="Ej: 6110 — Impuesto Bebidas Alcohólicas"
-                    value={cfg.bebidas.accountCode || undefined}
-                    filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                    options={accountOptions}
-                    onChange={setBebidasAccount}
-                    allowClear
-                  />
-                </div>
-              </SectionCard>
+                    </thead>
+                    <tbody>
+                      {BEBIDAS_TIPOS.map((bt, i) => (
+                        <tr key={bt.key} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>{bt.label}</td>
+                          <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f0f0', textAlign: 'right' }}>
+                            <InputNumber
+                              value={cfg.bebidas.rates[bt.key] ?? bt.rate}
+                              min={0} step={0.5} precision={2}
+                              suffix="%"
+                              size="small"
+                              style={{ width: 110 }}
+                              onChange={v => setBebidasRate(bt.key, v ?? 0)}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ marginTop: 14 }}>
+                    <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Cuenta contable — Bebidas Alcohólicas</Text>
+                    <Select
+                      showSearch
+                      style={{ width: '100%' }}
+                      placeholder="Ej: 6110 — Impuesto Bebidas Alcohólicas"
+                      value={cfg.bebidas.accountCode || undefined}
+                      filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                      options={accountOptions}
+                      onChange={setBebidasAccount}
+                      allowClear
+                    />
+                  </div>
+                </SectionCard>
           </div>
         </div>
 
