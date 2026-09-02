@@ -385,7 +385,6 @@ function DemosTab() {
   const tiempos = rows.map(minutosConfig).filter((m): m is number => m != null)
   const promedioConfig = tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : null
   const fmtF = (d?: string | null) => d ? new Date(d).toLocaleDateString('es-GT') : '—'
-  const fmtDur = (min: number) => min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`
 
   // Tiempo desde el correo (demo.sentAt) hasta el primer login (lastLoginAt)
   const minutosActivacion = (r: any): number | null => {
