@@ -678,5 +678,3 @@ export const postSatEmitidos = (id: string, dto: {
 export const backfillInvoiceDueDates = () =>
   api.post(`${BASE_INV}/backfill-due-dates`).then(unwrap) as Promise<{ updated: number; skipped: number }>
 
-export const syncInvoiceJEDates = () =>
-  api.post(`${BASE_INV}/sync-je-dates`).then(unwrap) as Promise<{ updated: number; skipped: number }>

@@ -9,7 +9,7 @@ import {
   PlusOutlined, SearchOutlined, FileTextOutlined,
   EyeOutlined, DollarOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, CheckCircleOutlined,
-  CheckSquareOutlined, SettingOutlined, StopOutlined, DeleteOutlined, SyncOutlined,
+  CheckSquareOutlined, SettingOutlined, StopOutlined, DeleteOutlined,
   FilterOutlined,
 } from '@ant-design/icons'
 import { PageHeader } from '../../../components/ui/PageHeader'
@@ -18,7 +18,6 @@ import type { RangePickerProps } from 'antd/es/date-picker'
 import dayjs from 'dayjs'
 import {
   getInvoices, deleteInvoice, voidInvoice, marcarEnviadasMasivo,
-  syncInvoiceJEDates,
   INVOICE_STATUS_CONFIG, type Invoice, type InvoiceStatus,
 } from '../../../api/facturas'
 import ColumnConfigurator, {
@@ -242,7 +241,6 @@ export default function FacturasPage() {
   // Row selection
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [bulkLoading, setBulkLoading]         = useState(false)
-  const [syncJELoading, setSyncJELoading]     = useState(false)
 
   // Column config
   const [colConfig, setColConfig] = useState<ColConfig[]>(() => loadColConfig(STORAGE_KEY, ALL_COL_META, DEFAULT_COL_CONFIG))
@@ -341,16 +339,6 @@ export default function FacturasPage() {
     } finally { setBulkLoading(false) }
   }
 
-  const handleSyncJEDates = async () => {
-    setSyncJELoading(true)
-    try {
-      const res = await syncInvoiceJEDates()
-      message.success(`Pólizas sincronizadas: ${res.updated} actualizadas, ${res.skipped} sin cambio.`)
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Error al sincronizar pólizas')
-    } finally { setSyncJELoading(false) }
-  }
-
   // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
   const scrollX = useMemo(() => {
     const dataWidth = colConfig
@@ -417,9 +405,6 @@ export default function FacturasPage() {
         subtitle="Gestión de facturas emitidas a clientes"
         actions={
           <Space>
-            <Button icon={<SyncOutlined />} loading={syncJELoading} onClick={handleSyncJEDates} title="Sincroniza la fecha de las pólizas contables con la fecha contable de cada factura">
-              Sincronizar pólizas
-            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }} data-tour="ventas-nueva">
               Nueva factura
             </Button>
