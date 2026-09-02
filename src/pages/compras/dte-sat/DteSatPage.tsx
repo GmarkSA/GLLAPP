@@ -1023,6 +1023,13 @@ export default function DteSatPage() {
             }}>
               {currentLabel}
             </Text>
+            {Number(row.descuadre) !== 0 && (
+              <Tooltip title={`La factura registrada difiere del GranTotal SAT por Q ${Math.abs(Number(row.descuadre)).toFixed(2)} (p. ej. un impuesto especial no registrado). Corrige la factura o regenera la póliza.`}>
+                <Tag color="#e5484d" icon={<WarningOutlined />} style={{ fontSize: 10, marginTop: 2 }}>
+                  Descuadre Q {Math.abs(Number(row.descuadre)).toFixed(2)} vs SAT
+                </Tag>
+              </Tooltip>
+            )}
           </div>
         )
       },
