@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Table, Button, Tag, Avatar, Space, Typography, Modal, Form,
   Input, Select, Tooltip, Badge, Popconfirm, message, Checkbox,
-  Tabs, Divider, Empty, Spin, Collapse, Switch,
+  Tabs, Divider, Empty, Spin, Collapse, Switch, Alert,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, UserOutlined, CrownOutlined,
@@ -17,6 +17,7 @@ import {
   type TenantUser, type RoleSummary, type PermissionSummary,
 } from '../../../api/usuarios'
 import { companiesApi } from '../../../api/companies'
+import { getBillingState } from '../../../api/billing'
 import type { Company } from '../../../store/authStore'
 import { useAuthStore } from '../../../store/authStore'
 
@@ -232,6 +233,7 @@ export default function UsuariosPage() {
   const [roles, setRoles]         = useState<RoleSummary[]>([])
   const [allPerms, setAllPerms]   = useState<PermissionSummary[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
+  const [maxUsers, setMaxUsers]   = useState<number>(Infinity)
   const [loading, setLoading]     = useState(false)
   const [saving, setSaving]       = useState(false)
   const [modal, setModal]         = useState<'create' | 'edit' | 'companies' | 'newRole' | 'password' | null>(null)
@@ -270,6 +272,12 @@ export default function UsuariosPage() {
       setAllPerms(Array.isArray(p) ? p : [])
     } catch { message.error('Error al cargar datos') }
     finally { setLoading(false) }
+    getBillingState()
+      .then(b => {
+        const plan = b.plans.find(pl => pl.plan === b.subscription?.plan)
+        if (plan?.maxUsers) setMaxUsers(plan.maxUsers)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -654,11 +662,28 @@ export default function UsuariosPage() {
             label: <Space><UserOutlined />Usuarios</Space>,
             children: (
               <>
+                {users.length >= maxUsers && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 12 }}
+                    message={`Límite de usuarios alcanzado (${users.length}/${maxUsers})`}
+                    description={
+                      <span>
+                        Tu plan actual no permite agregar más usuarios.{' '}
+                        <a href="/billing/subscription">Actualiza tu suscripción</a> para desbloquear más.
+                      </span>
+                    }
+                  />
+                )}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}
-                    style={{ background: '#1faec2' }}>
-                    Nuevo usuario
-                  </Button>
+                  <Tooltip title={users.length >= maxUsers ? `Límite de ${maxUsers} usuario${maxUsers !== 1 ? 's' : ''} alcanzado` : undefined}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}
+                      disabled={users.length >= maxUsers}
+                      style={{ background: users.length >= maxUsers ? undefined : '#1faec2' }}>
+                      Nuevo usuario
+                    </Button>
+                  </Tooltip>
                 </div>
                 <Table
                   columns={userColumns}
