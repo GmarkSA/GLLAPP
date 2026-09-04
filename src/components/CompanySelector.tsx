@@ -6,6 +6,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useCompanyStore } from '../store/companyStore'
+import { getBillingState } from '../api/billing'
 import type { Company } from '../store/authStore'
 
 const COUNTRY_FLAG: Record<string, string> = {
@@ -28,12 +29,16 @@ export default function CompanySelector({ placement = 'sidebar' }: CompanySelect
   const setActiveCompany = useCompanyStore(s => s.setActiveCompany)
   const loadCompanies    = useCompanyStore(s => s.loadCompanies)
 
-  const [search, setSearch] = useState('')
-  const [open, setOpen]     = useState(false)
+  const [search, setSearch]       = useState('')
+  const [open, setOpen]           = useState(false)
+  const [maxCompanies, setMaxCompanies] = useState<number>(Infinity)
   const searchRef = useRef<any>(null)
 
   useEffect(() => {
     loadCompanies()
+    getBillingState()
+      .then(b => { if (b.subscription?.maxCompanies) setMaxCompanies(b.subscription.maxCompanies) })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -141,12 +146,20 @@ export default function CompanySelector({ placement = 'sidebar' }: CompanySelect
         >
           <ReloadOutlined /> Recargar
         </div>
-        <div
-          onClick={() => { setOpen(false); navigate('/configuracion/empresas/nueva') }}
-          style={{ flex: 1, padding: '5px 8px', cursor: 'pointer', borderRadius: 4, color: '#1faec2', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          <PlusOutlined /> Nueva empresa
-        </div>
+        {companies.length >= maxCompanies ? (
+          <Tooltip title={`Tu plan permite ${maxCompanies} empresa${maxCompanies !== 1 ? 's' : ''}. Actualiza tu suscripción.`}>
+            <div style={{ flex: 1, padding: '5px 8px', cursor: 'not-allowed', borderRadius: 4, color: '#bbb', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <PlusOutlined /> Nueva empresa
+            </div>
+          </Tooltip>
+        ) : (
+          <div
+            onClick={() => { setOpen(false); navigate('/configuracion/empresas/nueva') }}
+            style={{ flex: 1, padding: '5px 8px', cursor: 'pointer', borderRadius: 4, color: '#1faec2', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <PlusOutlined /> Nueva empresa
+          </div>
+        )}
         <div
           onClick={() => { setOpen(false); navigate('/configuracion/empresas') }}
           style={{ flex: 1, padding: '5px 8px', cursor: 'pointer', borderRadius: 4, color: '#666', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}

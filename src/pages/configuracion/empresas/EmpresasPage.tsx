@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Table, Button, Tag, Space, Popconfirm, message, Typography, Badge, Modal,
+  Table, Button, Tag, Space, Popconfirm, message, Typography, Badge, Modal, Tooltip,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, StarOutlined, StarFilled, BankOutlined,
@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { companiesApi } from '../../../api/companies'
+import { getBillingState } from '../../../api/billing'
 import type { Company } from '../../../store/authStore'
 import { useCompanyStore } from '../../../store/companyStore'
 
@@ -34,6 +35,7 @@ export default function EmpresasPage() {
   const setActiveCompany = useCompanyStore(s => s.setActiveCompany)
   const activeCompanyId  = useCompanyStore(s => s.activeCompany?.id ?? null)
   const [companies, setCompanies]   = useState<Company[]>([])
+  const [maxCompanies, setMaxCompanies] = useState<number>(Infinity)
   const [loading, setLoading]       = useState(false)
   const [migrating, setMigrating]   = useState<string | null>(null)
   const [toggling, setToggling]     = useState<string | null>(null)
@@ -51,7 +53,12 @@ export default function EmpresasPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    getBillingState()
+      .then(b => { if (b.subscription?.maxCompanies) setMaxCompanies(b.subscription.maxCompanies) })
+      .catch(() => {})
+  }, [])
 
   const handleSetDefault = async (id: string) => {
     try {
@@ -276,10 +283,14 @@ export default function EmpresasPage() {
           <Button icon={<StarOutlined />} onClick={() => navigate('/onboarding/rapido')}>
             Onboarding rápido con plantilla
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
-            onClick={() => navigate('/configuracion/empresas/nueva')}>
-            Nueva Empresa
-          </Button>
+          <Tooltip title={companies.length >= maxCompanies ? `Tu plan permite ${maxCompanies} empresa${maxCompanies !== 1 ? 's' : ''}. Actualiza tu suscripción para agregar más.` : undefined}>
+            <Button type="primary" icon={<PlusOutlined />}
+              disabled={companies.length >= maxCompanies}
+              style={{ background: companies.length >= maxCompanies ? undefined : '#1faec2' }}
+              onClick={() => navigate('/configuracion/empresas/nueva')}>
+              Nueva Empresa
+            </Button>
+          </Tooltip>
         </Space>
       </div>
       <Table
