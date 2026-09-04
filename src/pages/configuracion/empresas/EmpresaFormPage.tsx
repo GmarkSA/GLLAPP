@@ -9,6 +9,7 @@ import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, Apps
 import { companiesApi, type CompanySettings } from '../../../api/companies'
 import { fiscalRegimesApi, type FiscalRegime } from '../../../api/fiscalRegimes'
 import { satLookupApi, type SatProviderConfig } from '../../../api/satLookup'
+import { getBillingState } from '../../../api/billing'
 import type { Company } from '../../../store/authStore'
 import { useCompanyStore } from '../../../store/companyStore'
 import { GT_TEMPLATES } from '../../../data/guatemalaTaxTemplates'
@@ -80,6 +81,7 @@ export default function EmpresaFormPage() {
   const [createMode, setCreateMode]         = useState<'empty' | 'clone'>('empty')
   const [sourceCompanyId, setSourceCompanyId] = useState<string | null>(null)
   const [allCompanies, setAllCompanies]     = useState<Company[]>([])
+  const [maxCompanies, setMaxCompanies]     = useState<number>(Infinity)
   const [cloneOptions, setCloneOptions]     = useState<string[]>([
     'copyChartOfAccounts', 'copyTaxes', 'copyDocumentSeries', 'copyBranches', 'copySettings',
   ])
@@ -105,6 +107,9 @@ export default function EmpresaFormPage() {
         .finally(() => setLoading(false))
     } else {
       companiesApi.getAll().then(setAllCompanies).catch(() => {})
+      getBillingState()
+        .then(b => { if (b.subscription?.maxCompanies) setMaxCompanies(b.subscription.maxCompanies) })
+        .catch(() => {})
     }
   }, [id])
 
@@ -574,9 +579,25 @@ export default function EmpresaFormPage() {
             </div>
           </div>
 
+          {!isEdit && allCompanies.length >= maxCompanies && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginTop: 16 }}
+              message={`Límite de empresas alcanzado (${allCompanies.length}/${maxCompanies})`}
+              description={
+                <span>
+                  Tu plan actual no permite crear más empresas.{' '}
+                  <a href="/billing/subscription">Actualiza tu suscripción</a> para desbloquear más.
+                </span>
+              }
+            />
+          )}
+
           <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
             <Button onClick={() => navigate(backTo)}>{guided ? 'Volver a la guía' : 'Cancelar'}</Button>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}
+              disabled={!isEdit && allCompanies.length >= maxCompanies}
               style={{ background: '#1faec2' }}>
               {guided ? 'Guardar y continuar →' : isEdit ? 'Guardar Cambios' : 'Crear Empresa'}
             </Button>
