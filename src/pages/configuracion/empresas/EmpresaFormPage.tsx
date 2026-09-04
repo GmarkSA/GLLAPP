@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getApiError } from '../../../api/axios'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
-  Form, Input, Select, Button, Card, message, Spin, Typography,
+  Form, Input, Select, Button, Card, message, Modal, Spin, Typography,
   Radio, Checkbox, Alert, Switch, Tag, Space,
 } from 'antd'
 import { SaveOutlined, ArrowLeftOutlined, CopyOutlined, PlusCircleOutlined, AppstoreOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
@@ -169,8 +169,34 @@ export default function EmpresaFormPage() {
             .map(k => [k, cloneOptions.includes(k)]),
         )
         const result: any = await companiesApi.clone(sourceCompanyId, { targetCompany: values, options: opts })
-        message.success(`Empresa clonada correctamente — ${result.copied?.accounts ?? 0} cuentas, ${result.copied?.documentSeries ?? 0} series`)
-        navigate(backTo)
+        const newId: string = result.targetCompanyId ?? result.id ?? ''
+        const c = result.copied ?? {}
+        Modal.info({
+          title: 'Empresa creada a partir de plantilla',
+          width: 480,
+          okText: 'Ir a configuración',
+          content: (
+            <div style={{ fontSize: 13, lineHeight: 1.7 }}>
+              <p style={{ marginBottom: 8 }}>Se copiaron los siguientes datos de la empresa origen:</p>
+              <ul style={{ paddingLeft: 18, marginBottom: 12 }}>
+                {opts.copyChartOfAccounts && <li><b>{c.accounts ?? 0}</b> cuentas contables</li>}
+                {opts.copyTaxes           && <li><b>{c.taxes ?? 0}</b> impuestos</li>}
+                {opts.copyDocumentSeries  && <li><b>{c.documentSeries ?? 0}</b> series de documentos</li>}
+                {opts.copyBranches        && <li><b>{c.branches ?? 0}</b> sucursales</li>}
+                {opts.copySettings        && <li>Configuración general (módulos, moneda, zona horaria)</li>}
+              </ul>
+              <p style={{ color: '#b45309', marginBottom: 4, fontWeight: 600 }}>Debes configurar manualmente:</p>
+              <ul style={{ paddingLeft: 18, color: '#92400e' }}>
+                <li>Credenciales SAT / proveedor FEL (quedan vacías)</li>
+                <li>Datos fiscales propios (NIT, representante legal)</li>
+                <li>Cuentas bancarias y cajas</li>
+                <li>Usuarios y permisos de acceso</li>
+              </ul>
+              <p style={{ marginTop: 12, color: '#6b7280', fontSize: 12 }}>La guía de configuración te llevará paso a paso.</p>
+            </div>
+          ),
+          onOk: () => navigate(newId ? SETUP_ROUTES.empresa(newId) : '/onboarding/setup'),
+        })
       } catch (e: any) {
         message.error(getApiError(e, 'Error al clonar empresa'))
       } finally {
