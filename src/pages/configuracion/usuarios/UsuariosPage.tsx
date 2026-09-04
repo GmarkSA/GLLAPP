@@ -274,8 +274,8 @@ export default function UsuariosPage() {
     finally { setLoading(false) }
     getBillingState()
       .then(b => {
-        const plan = b.plans.find(pl => pl.plan === b.subscription?.plan)
-        if (plan?.maxUsers) setMaxUsers(plan.maxUsers)
+        const pc = b.plans.find(pl => pl.plan === b.tenant.plan)
+        if (pc?.maxUsers) setMaxUsers(Number(pc.maxUsers))
       })
       .catch(() => {})
   }, [])
