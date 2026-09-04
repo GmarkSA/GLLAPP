@@ -108,7 +108,10 @@ export default function EmpresaFormPage() {
     } else {
       companiesApi.getAll().then(setAllCompanies).catch(() => {})
       getBillingState()
-        .then(b => { if (b.subscription?.maxCompanies) setMaxCompanies(b.subscription.maxCompanies) })
+        .then(b => {
+          const pc = b.plans.find(p => p.plan === b.tenant.plan)
+          if (pc?.maxCompanies) setMaxCompanies(Number(pc.maxCompanies))
+        })
         .catch(() => {})
     }
   }, [id])

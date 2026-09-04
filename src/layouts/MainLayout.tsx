@@ -189,7 +189,8 @@ export default function MainLayout() {
         // Nombre real del plan (displayName de plan_configs, renombrable por el admin)
         const dn = (data as any)?.plans?.find((p: any) => p.plan === data.tenant.plan)?.displayName
         if (dn) setPlanNombre(String(dn))
-        if (data.subscription?.maxCompanies) setMaxCompanies(data.subscription.maxCompanies)
+        const pc = (data as any).plans?.find((p: any) => p.plan === data.tenant.plan)
+        if (pc?.maxCompanies) setMaxCompanies(Number(pc.maxCompanies))
       }
       // Suspendido (trial de demo vencido / falta de pago): el backend solo permite
       // consultar; avisamos con un banner permanente y el camino para reactivar.
