@@ -8,7 +8,7 @@ import {
   MenuFoldOutlined, MenuUnfoldOutlined,
   TabletOutlined, SearchOutlined, GlobalOutlined,
   TeamOutlined, HomeOutlined, FundOutlined, ClockCircleOutlined,
-  CheckCircleOutlined,
+  CheckCircleOutlined, StopOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -170,6 +170,7 @@ export default function MainLayout() {
   const [planActivo,     setPlanActivo]     = useState<string | null>(null)
   const [planNombre,     setPlanNombre]     = useState<string | null>(null)   // displayName real (editable por el admin)
   const [soloLectura,    setSoloLectura]    = useState(false)
+  const [maxCompanies,   setMaxCompanies]   = useState<number>(Infinity)
   const alertCount = useAlertCount()
 
   useEffect(() => {
@@ -188,6 +189,7 @@ export default function MainLayout() {
         // Nombre real del plan (displayName de plan_configs, renombrable por el admin)
         const dn = (data as any)?.plans?.find((p: any) => p.plan === data.tenant.plan)?.displayName
         if (dn) setPlanNombre(String(dn))
+        if (data.subscription?.maxCompanies) setMaxCompanies(data.subscription.maxCompanies)
       }
       // Suspendido (trial de demo vencido / falta de pago): el backend solo permite
       // consultar; avisamos con un banner permanente y el camino para reactivar.
@@ -231,6 +233,7 @@ export default function MainLayout() {
   const enabledModules   = useCompanyStore(s => s.enabledModules)
   const allowedModules   = useCompanyStore(s => s.allowedModules)   // restricción del Platform Admin
   const activeCompany    = useCompanyStore(s => s.activeCompany)
+  const companies        = useCompanyStore(s => s.companies)
   const [openKeys, setOpenKeys] = useState<string[]>(() => getOpenKey(location.pathname))
   const hasUpdate = useVersionCheck()
 
@@ -506,18 +509,24 @@ export default function MainLayout() {
                 </Tooltip>
               )
             })()}
-            {trialDaysLeft === null && planActivo && (
-              <Tooltip title="Tu suscripción está activa. Haz clic para gestionar tu plan.">
-                <Tag
-                  color="green"
-                  icon={<CheckCircleOutlined />}
-                  style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
-                  onClick={() => navigate('/configuracion/suscripcion')}
-                >
-                  Plan {(planNombre ?? PLAN_LABELS[planActivo] ?? planActivo).replace(/^plan\s+/i, '')}
-                </Tag>
-              </Tooltip>
-            )}
+            {trialDaysLeft === null && planActivo && (() => {
+              const atLimit = companies.length >= maxCompanies
+              return (
+                <Tooltip title={atLimit
+                  ? `Límite de ${maxCompanies} empresa${maxCompanies !== 1 ? 's' : ''} alcanzado. Actualiza tu plan.`
+                  : 'Tu suscripción está activa. Haz clic para gestionar tu plan.'
+                }>
+                  <Tag
+                    color={atLimit ? 'orange' : 'green'}
+                    icon={atLimit ? <StopOutlined /> : <CheckCircleOutlined />}
+                    style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
+                    onClick={() => navigate('/configuracion/suscripcion')}
+                  >
+                    Plan {(planNombre ?? PLAN_LABELS[planActivo] ?? planActivo).replace(/^plan\s+/i, '')}
+                  </Tag>
+                </Tooltip>
+              )
+            })()}
           </Space>
 
           {/* Right */}
