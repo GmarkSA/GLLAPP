@@ -1099,6 +1099,8 @@ export default function PlatformAdminPage() {
   const [tenantAEliminar, setTenantAEliminar] = useState<any | null>(null)
   const [confirmNombre, setConfirmNombre] = useState('')
   const [eliminandoTenant, setEliminandoTenant] = useState(false)
+  const [expandedCompanies, setExpandedCompanies] = useState<Record<string, any[]>>({})
+  const [loadingExpanded, setLoadingExpanded] = useState<Set<string>>(new Set())
   const handleEliminarTenant = async () => {
     if (!tenantAEliminar) return
     setEliminandoTenant(true)
@@ -1645,7 +1647,56 @@ export default function PlatformAdminPage() {
                     style={{ maxWidth: 260, marginLeft: 'auto' }}
                   />
                 </div>
-                <Table rowKey="id" columns={tenantColumns} dataSource={filteredTenants} loading={loading} size="small" pagination={{ pageSize: 20 }} />
+                <Table
+                  rowKey="id"
+                  columns={tenantColumns}
+                  dataSource={filteredTenants}
+                  loading={loading}
+                  size="small"
+                  pagination={{ pageSize: 20 }}
+                  expandable={{
+                    expandedRowRender: (r) => (
+                      <Table
+                        size="small"
+                        rowKey="id"
+                        dataSource={expandedCompanies[r.id] ?? []}
+                        loading={loadingExpanded.has(r.id)}
+                        pagination={false}
+                        style={{ margin: '4px 0' }}
+                        columns={[
+                          {
+                            title: 'Empresa',
+                            render: (_: any, c: any) => (
+                              <span>
+                                <b>{c.legalName}</b>
+                                {c.tradeName && c.tradeName !== c.legalName && (
+                                  <span style={{ color: '#6b7280', fontSize: 11 }}> · {c.tradeName}</span>
+                                )}
+                              </span>
+                            ),
+                          },
+                          { title: 'NIT', dataIndex: 'taxId', width: 120, render: (v: any) => v || '—' },
+                          { title: 'País', dataIndex: 'countryCode', width: 60 },
+                          { title: 'Moneda', dataIndex: 'currencyCode', width: 80 },
+                          { title: 'Usuarios', dataIndex: 'usersCount', width: 80, align: 'center' as const },
+                          {
+                            title: 'Estado', dataIndex: 'isActive', width: 90,
+                            render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Activa' : 'Inactiva'}</Tag>,
+                          },
+                        ]}
+                      />
+                    ),
+                    onExpand: (expanded: boolean, r: TenantSummary) => {
+                      if (expanded && !expandedCompanies[r.id]) {
+                        setLoadingExpanded(prev => new Set(prev).add(r.id))
+                        api.get(`/admin/tenants/${r.id}`).then(unwrap)
+                          .then((d: any) => setExpandedCompanies(prev => ({ ...prev, [r.id]: d.companies ?? [] })))
+                          .catch(() => setExpandedCompanies(prev => ({ ...prev, [r.id]: [] })))
+                          .finally(() => setLoadingExpanded(prev => { const s = new Set(prev); s.delete(r.id); return s }))
+                      }
+                    },
+                  }}
+                />
               </Card>
             ),
           },
