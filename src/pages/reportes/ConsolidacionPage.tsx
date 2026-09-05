@@ -1,20 +1,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Alert, Button, Card, Checkbox, Col, DatePicker, Empty, Row, Select,
-  Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
+  Space, Spin, Statistic, Table, Tabs, Tag, Typography,
 } from 'antd'
 import {
   ApartmentOutlined, BankOutlined, CheckCircleOutlined,
-  ExclamationCircleOutlined, FileTextOutlined, RiseOutlined,
-  WarningOutlined,
+  DownloadOutlined, ExclamationCircleOutlined, FileTextOutlined,
+  FundOutlined, RiseOutlined, SwapOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 import { useCompanyStore } from '../../store/companyStore'
 import { getBillingState } from '../../api/billing'
 import {
   getBalanceGeneral, getEstadoResultados, getPlanificacionFiscal,
+  getFlujoCaja, getMovimientoCapital, getEliminacionIntercompany,
   type ConsolidacionQuery, type ResultadoConsolidado,
   type PlanificacionFiscal, type Recomendacion,
+  type FlujoCaja, type MovimientoCapital, type EliminacionIntercompany,
 } from '../../api/consolidacion'
 
 const { Title, Text } = Typography
@@ -64,7 +67,6 @@ function TablaConsolidada({ data, companyNames }: { data: ResultadoConsolidado; 
     income: 'Ingresos', expense: 'Gastos', contra: 'Cuentas Contrarias',
   }
 
-  // Agrupar por type para mostrar subtotales
   const grouped: Record<string, any[]> = {}
   for (const r of data.filas) { (grouped[r.type] ??= []).push(r) }
 
@@ -72,7 +74,6 @@ function TablaConsolidada({ data, companyNames }: { data: ResultadoConsolidado; 
   for (const [type, filas] of Object.entries(grouped)) {
     allRows.push({ _isHeader: true, accountName: typeLabel[type] ?? type, type, filas })
     allRows.push(...filas.map(f => ({ ...f, key: `${f.type}_${f.accountName}` })))
-    // Subtotal
     const subtotal: any = { _isSubtotal: true, type, accountName: `Subtotal ${typeLabel[type] ?? type}`, porEmpresa: {}, total: 0, normalBalance: filas[0]?.normalBalance ?? 'debit' }
     for (const id of data.companyIds) subtotal.porEmpresa[id] = filas.reduce((s, f) => s + (f.porEmpresa[id] ?? 0), 0)
     subtotal.total = filas.reduce((s, f) => s + f.total, 0)
@@ -109,7 +110,6 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
 
   return (
     <div>
-      {/* Resumen KPIs */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
@@ -137,7 +137,6 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
         </Col>
       </Row>
 
-      {/* Tabla por empresa */}
       <Table
         dataSource={data.empresas}
         rowKey="companyId"
@@ -155,7 +154,6 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
         ]}
       />
 
-      {/* Recomendaciones */}
       {data.recomendaciones.length === 0 ? (
         <Alert type="success" icon={<CheckCircleOutlined />} showIcon
           message="Sin oportunidades de optimización fiscal identificadas para este período." />
@@ -195,6 +193,302 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
   )
 }
 
+// ── Panel de Flujo de Caja ─────────────────────────────────────────────────
+function PanelFlujoCaja({ data, companyNames }: { data: FlujoCaja; companyNames: Record<string, string> }) {
+  const colStyle = (v: number) => ({ color: v < 0 ? '#cf1322' : v > 0 ? '#2ea172' : undefined })
+
+  const filas = [
+    { label: 'Utilidad neta del período',          key: 'utilidad',     section: 'Actividades de Operación' },
+    { label: '(+/-) Variación Cuentas por Cobrar', key: 'arChange',     section: 'Actividades de Operación', inv: true },
+    { label: '(+/-) Variación Cuentas por Pagar',  key: 'apChange',     section: 'Actividades de Operación' },
+    { label: 'Flujo neto de operación',             key: 'operating',    section: 'Subtotal', bold: true },
+    { label: 'Compra/venta de activos fijos',       key: 'faInvesting',  section: 'Actividades de Inversión' },
+    { label: 'Flujo neto de inversión',             key: 'investing',    section: 'Subtotal', bold: true },
+    { label: '(+/-) Variación de Capital',          key: 'capChange',    section: 'Actividades de Financiamiento' },
+    { label: 'Flujo neto de financiamiento',        key: 'financing',    section: 'Subtotal', bold: true },
+    { label: 'FLUJO NETO TOTAL',                    key: 'netCash',      section: 'Total', bold: true },
+  ] as const
+
+  const getVal = (e: any, key: string) => Number((e as any)[key] ?? 0)
+
+  const cols: any[] = [
+    { title: 'Concepto', dataIndex: 'label', width: 280, render: (v: string, r: any) => <span style={{ fontWeight: r.bold ? 700 : 400 }}>{v}</span> },
+    ...data.porEmpresa.map(e => ({
+      title: <span style={{ fontSize: 11 }}>{companyNames[e.companyId] ?? e.companyId.slice(0, 8)}</span>,
+      key: e.companyId,
+      align: 'right' as const,
+      width: 150,
+      render: (_: any, r: any) => {
+        const v = getVal(e, r.key)
+        return <span style={{ ...colStyle(v), fontWeight: r.bold ? 700 : 400 }}>{Q(v)}</span>
+      },
+    })),
+    {
+      title: 'Consolidado',
+      key: 'consolidado',
+      align: 'right' as const,
+      width: 160,
+      render: (_: any, r: any) => {
+        const v = getVal(data.consolidado, r.key)
+        return <Text strong style={{ color: v < 0 ? '#cf1322' : v > 0 ? '#1B3A6B' : undefined }}>{Q(v)}</Text>
+      },
+    },
+  ]
+
+  // Agrupar por sección para mostrar headers
+  const sections: string[] = []
+  const rowsWithHeaders: any[] = []
+  for (const f of filas) {
+    if (!sections.includes(f.section) && f.section !== 'Subtotal' && f.section !== 'Total') {
+      sections.push(f.section)
+      rowsWithHeaders.push({ _isHeader: true, label: f.section, key: `hdr_${f.section}` })
+    }
+    rowsWithHeaders.push({ ...f })
+  }
+
+  return (
+    <Table
+      dataSource={rowsWithHeaders}
+      columns={cols}
+      size="small"
+      rowKey="key"
+      pagination={false}
+      scroll={{ x: 'max-content' }}
+      rowClassName={(r: any) => r._isHeader ? 'bg-section-header' : ''}
+      components={{
+        body: {
+          row: (props: any) => {
+            const idx = rowsWithHeaders.findIndex(r => r.key === props['data-row-key'])
+            const r = rowsWithHeaders[idx]
+            if (!r) return <tr {...props} />
+            if (r._isHeader) return <tr {...props} style={{ background: '#f0f5ff', fontWeight: 700 }} />
+            if (r.section === 'Total') return <tr {...props} style={{ background: '#1B3A6B10', fontWeight: 700, borderTop: '2px solid #1B3A6B' }} />
+            if (r.section === 'Subtotal') return <tr {...props} style={{ background: '#fafbfc', fontWeight: 600, borderTop: '1px solid #e5e7eb' }} />
+            return <tr {...props} />
+          },
+        },
+      }}
+    />
+  )
+}
+
+// ── Panel de Movimiento de Capital ─────────────────────────────────────────
+function PanelMovimientoCapital({ data, companyNames }: { data: MovimientoCapital; companyNames: Record<string, string> }) {
+  const filas = [
+    { label: 'Saldo inicial de capital',  key: 'saldoInicial',      bold: false },
+    { label: '+ Utilidad del período',    key: 'utilidad',          bold: false },
+    { label: '+ Movimientos de capital',  key: 'movimientoCapital', bold: false },
+    { label: 'SALDO FINAL DE CAPITAL',    key: 'saldoFinal',        bold: true  },
+  ]
+
+  const cols: any[] = [
+    { title: 'Concepto', dataIndex: 'label', width: 280, render: (v: string, r: any) => <span style={{ fontWeight: r.bold ? 700 : 400 }}>{v}</span> },
+    ...data.porEmpresa.map(e => ({
+      title: <span style={{ fontSize: 11 }}>{companyNames[e.companyId] ?? e.companyId.slice(0, 8)}</span>,
+      key: e.companyId,
+      align: 'right' as const,
+      width: 150,
+      render: (_: any, r: any) => {
+        const v = Number((e as any)[r.key] ?? 0)
+        return <span style={{ color: v < 0 ? '#cf1322' : undefined, fontWeight: r.bold ? 700 : 400 }}>{Q(v)}</span>
+      },
+    })),
+    {
+      title: 'Consolidado',
+      key: 'consolidado',
+      align: 'right' as const,
+      width: 160,
+      render: (_: any, r: any) => {
+        const v = Number((data.consolidado as any)[r.key] ?? 0)
+        return <Text strong style={{ color: v < 0 ? '#cf1322' : '#1B3A6B' }}>{Q(v)}</Text>
+      },
+    },
+  ]
+
+  return (
+    <div>
+      <Table
+        dataSource={filas}
+        columns={cols}
+        size="small"
+        rowKey="key"
+        pagination={false}
+        scroll={{ x: 'max-content' }}
+        components={{
+          body: {
+            row: (props: any) => {
+              const r = filas.find(f => f.key === props['data-row-key'])
+              if (r?.bold) return <tr {...props} style={{ background: '#1B3A6B10', fontWeight: 700, borderTop: '2px solid #1B3A6B' }} />
+              return <tr {...props} />
+            },
+          },
+        }}
+      />
+
+      {/* Detalle de movimientos por empresa */}
+      {data.porEmpresa.some(e => e.movimientos.length > 0) && (
+        <div style={{ marginTop: 20 }}>
+          <Text strong style={{ display: 'block', marginBottom: 12, color: '#1B3A6B' }}>
+            Detalle de movimientos de capital por empresa
+          </Text>
+          <Row gutter={[16, 16]}>
+            {data.porEmpresa.filter(e => e.movimientos.length > 0).map(e => (
+              <Col key={e.companyId} xs={24} md={12}>
+                <Card size="small" title={companyNames[e.companyId] ?? e.companyId} style={{ borderRadius: 8 }}>
+                  <Table
+                    dataSource={e.movimientos}
+                    rowKey="code"
+                    size="small"
+                    pagination={false}
+                    columns={[
+                      { title: 'Código', dataIndex: 'code', width: 80 },
+                      { title: 'Cuenta', dataIndex: 'name' },
+                      { title: 'Movimiento', dataIndex: 'movimiento', align: 'right', render: (v: number) => <span style={{ color: v < 0 ? '#cf1322' : '#2ea172' }}>{Q(v)}</span> },
+                    ]}
+                  />
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Panel de Eliminación Intercompany ─────────────────────────────────────
+function PanelIntercompany({ data, companyNames }: { data: EliminacionIntercompany; companyNames: Record<string, string> }) {
+  return (
+    <div>
+      <Row gutter={16} style={{ marginBottom: 20 }}>
+        <Col span={8}>
+          <Card size="small" style={{ borderRadius: 10 }}>
+            <Statistic
+              title="Transacciones intercompany"
+              value={data.transacciones.length}
+              valueStyle={{ color: '#1B3A6B', fontSize: 24 }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small" style={{ borderRadius: 10 }}>
+            <Statistic
+              title="Total a eliminar"
+              value={data.totalEliminado}
+              prefix="Q"
+              precision={2}
+              valueStyle={{ color: data.totalEliminado > 0 ? '#d46b08' : '#6b7280', fontSize: 20 }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {data.transacciones.length === 0 ? (
+        <Alert
+          type="success"
+          icon={<CheckCircleOutlined />}
+          showIcon
+          message={data.nota ?? 'No se encontraron transacciones intercompany en el período seleccionado.'}
+        />
+      ) : (
+        <>
+          <Alert
+            type="warning"
+            icon={<WarningOutlined />}
+            showIcon
+            style={{ marginBottom: 16, borderRadius: 8 }}
+            message={data.nota}
+          />
+          <Table
+            dataSource={data.transacciones}
+            rowKey="invoiceNumber"
+            size="small"
+            pagination={false}
+            scroll={{ x: 'max-content' }}
+            columns={[
+              { title: 'Fecha', dataIndex: 'fecha', width: 100 },
+              { title: 'Número', dataIndex: 'invoiceNumber', width: 120 },
+              { title: 'Empresa emisora', dataIndex: 'emisorNombre', render: (v, r: any) => companyNames[r.emisorId] ?? v },
+              { title: 'Empresa receptora', dataIndex: 'receptorEmpresaNombre' },
+              { title: 'NIT receptor', dataIndex: 'receptorNit', width: 110 },
+              { title: 'Moneda', dataIndex: 'currency', width: 80, align: 'center' },
+              { title: 'Total', dataIndex: 'total', align: 'right', width: 140, render: (v: number) => <Text strong style={{ color: '#d46b08' }}>{Q(v)}</Text> },
+            ]}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Exportar a Excel ───────────────────────────────────────────────────────
+function exportarExcel(params: {
+  periodo: string
+  companyNames: Record<string, string>
+  bgData:  ResultadoConsolidado | null
+  erData:  ResultadoConsolidado | null
+  pfData:  PlanificacionFiscal  | null
+  fcData:  FlujoCaja            | null
+  mcData:  MovimientoCapital    | null
+  icData:  EliminacionIntercompany | null
+}) {
+  const wb = XLSX.utils.book_new()
+  const { periodo, companyNames, bgData, erData, pfData, fcData, mcData, icData } = params
+
+  const toSheet = (filas: ResultadoConsolidado) => {
+    const headers = ['Tipo', 'SubTipo', 'Cuenta', ...filas.companyIds.map(id => companyNames[id] ?? id), 'Total']
+    const rows = filas.filas.map(f => [
+      f.type, f.subType, f.accountName,
+      ...filas.companyIds.map(id => f.porEmpresa[id] ?? 0),
+      f.total,
+    ])
+    return XLSX.utils.aoa_to_sheet([headers, ...rows])
+  }
+
+  if (bgData) XLSX.utils.book_append_sheet(wb, toSheet(bgData), 'Balance General')
+  if (erData) XLSX.utils.book_append_sheet(wb, toSheet(erData), 'Est. Resultados')
+
+  if (pfData) {
+    const headers = ['Empresa', 'NIT', 'Régimen', 'Ingresos', 'Gastos', 'Utilidad', 'Tasa ISR', 'ISR Proyectado', 'Situación']
+    const rows = pfData.empresas.map(e => [
+      e.legalName, e.taxId, e.regNombre, e.ingresos, e.gastos, e.utilidad, e.tasaIsr, e.isrProyectado, e.situacion,
+    ])
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Plan. Fiscal')
+  }
+
+  if (fcData) {
+    const empHeaders = fcData.porEmpresa.map(e => companyNames[e.companyId] ?? e.companyId)
+    const keys = ['utilidad','arChange','apChange','operating','faInvesting','investing','capChange','financing','netCash'] as const
+    const labels: Record<string, string> = {
+      utilidad: 'Utilidad neta', arChange: 'Var. CxC', apChange: 'Var. CxP',
+      operating: 'Flujo operación', faInvesting: 'Activos fijos', investing: 'Flujo inversión',
+      capChange: 'Var. capital', financing: 'Flujo financiamiento', netCash: 'Flujo neto total',
+    }
+    const headers = ['Concepto', ...empHeaders, 'Consolidado']
+    const rows = keys.map(k => [labels[k], ...fcData.porEmpresa.map(e => (e as any)[k] ?? 0), (fcData.consolidado as any)[k] ?? 0])
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Flujo de Caja')
+  }
+
+  if (mcData) {
+    const empHeaders = mcData.porEmpresa.map(e => companyNames[e.companyId] ?? e.companyId)
+    const keys = ['saldoInicial','utilidad','movimientoCapital','saldoFinal'] as const
+    const labels: Record<string, string> = {
+      saldoInicial: 'Saldo inicial', utilidad: 'Utilidad', movimientoCapital: 'Movimientos capital', saldoFinal: 'Saldo final',
+    }
+    const headers = ['Concepto', ...empHeaders, 'Consolidado']
+    const rows = keys.map(k => [labels[k], ...mcData.porEmpresa.map(e => (e as any)[k] ?? 0), (mcData.consolidado as any)[k] ?? 0])
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Mov. Capital')
+  }
+
+  if (icData && icData.transacciones.length > 0) {
+    const headers = ['Fecha', 'Número', 'Emisor', 'Receptor', 'NIT', 'Moneda', 'Total']
+    const rows = icData.transacciones.map(t => [t.fecha, t.invoiceNumber, t.emisorNombre, t.receptorEmpresaNombre, t.receptorNit, t.currency, t.total])
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Intercompany')
+  }
+
+  XLSX.writeFile(wb, `Consolidacion_${periodo.replace(/\s/g, '_')}.xlsx`)
+}
+
 // ── Página principal ───────────────────────────────────────────────────────
 export default function ConsolidacionPage() {
   const { companies } = useCompanyStore()
@@ -207,6 +501,9 @@ export default function ConsolidacionPage() {
   const [bgData,   setBgData]   = useState<ResultadoConsolidado | null>(null)
   const [erData,   setErData]   = useState<ResultadoConsolidado | null>(null)
   const [pfData,   setPfData]   = useState<PlanificacionFiscal  | null>(null)
+  const [fcData,   setFcData]   = useState<FlujoCaja            | null>(null)
+  const [mcData,   setMcData]   = useState<MovimientoCapital    | null>(null)
+  const [icData,   setIcData]   = useState<EliminacionIntercompany | null>(null)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
@@ -239,14 +536,20 @@ export default function ConsolidacionPage() {
     setLoading(true)
     setError(null)
     try {
-      const [bg, er, pf] = await Promise.all([
+      const [bg, er, pf, fc, mc, ic] = await Promise.all([
         getBalanceGeneral(query),
         getEstadoResultados(query),
         getPlanificacionFiscal(query),
+        getFlujoCaja(query),
+        getMovimientoCapital(query),
+        getEliminacionIntercompany(query),
       ])
       setBgData(bg)
       setErData(er)
       setPfData(pf)
+      setFcData(fc)
+      setMcData(mc)
+      setIcData(ic)
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Error al generar el reporte consolidado')
     } finally {
@@ -255,6 +558,8 @@ export default function ConsolidacionPage() {
   }, [selectedIds, period])
 
   const hayResultados = bgData || erData || pfData
+
+  const periodoLabel = `${MESES[query.month - 1]} ${query.year}`
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
@@ -356,11 +661,18 @@ export default function ConsolidacionPage() {
       {/* Resultados */}
       {!loading && hayResultados && (
         <Card style={{ borderRadius: 12 }}>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Período: <strong>{MESES[query.month - 1]} {query.year}</strong> ·
+              Período: <strong>{periodoLabel}</strong> ·
               Empresas: <strong>{selectedIds.map(id => companyNames[id] ?? id).join(', ')}</strong>
             </Text>
+            <Button
+              icon={<DownloadOutlined />}
+              size="small"
+              onClick={() => exportarExcel({ periodo: periodoLabel, companyNames, bgData, erData, pfData, fcData, mcData, icData })}
+            >
+              Exportar Excel
+            </Button>
           </div>
 
           <Tabs
@@ -394,6 +706,34 @@ export default function ConsolidacionPage() {
                 ),
                 children: pfData
                   ? <PanelFiscal data={pfData} />
+                  : <Empty description="Sin datos" />,
+              },
+              {
+                key: 'flujo',
+                label: <span><FundOutlined /> Flujo de Caja</span>,
+                children: fcData
+                  ? <PanelFlujoCaja data={fcData} companyNames={companyNames} />
+                  : <Empty description="Sin datos" />,
+              },
+              {
+                key: 'capital',
+                label: <span><BankOutlined /> Mov. Capital</span>,
+                children: mcData
+                  ? <PanelMovimientoCapital data={mcData} companyNames={companyNames} />
+                  : <Empty description="Sin datos" />,
+              },
+              {
+                key: 'intercompany',
+                label: (
+                  <span>
+                    <SwapOutlined /> Intercompany
+                    {icData && icData.transacciones.length > 0
+                      ? <Tag color="orange" style={{ marginLeft: 6, fontSize: 10 }}>{icData.transacciones.length}</Tag>
+                      : null}
+                  </span>
+                ),
+                children: icData
+                  ? <PanelIntercompany data={icData} companyNames={companyNames} />
                   : <Empty description="Sin datos" />,
               },
             ]}
