@@ -7,6 +7,7 @@ import {
   FileTextOutlined, BookOutlined, ShopOutlined,
   PieChartOutlined, DashboardOutlined, TeamOutlined,
   WalletOutlined, BankOutlined, FileProtectOutlined, DollarOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons'
 import { getEmpresaInfo } from '../../api/reportes'
 import { companiesApi } from '../../api/companies'
@@ -91,6 +92,7 @@ const GROUPS: ReportGroup[] = [
     label: 'Cierre Contable',
     reports: [
       { key: 'estados-financieros', icon: <AuditOutlined />, title: 'Estados Financieros', desc: 'Balance General y Estado de Resultados con drill-down a la integración de cada cuenta.', path: '/reportes/estados-financieros', color: '#1B3A6B' },
+      { key: 'consolidacion', icon: <ApartmentOutlined />, title: 'Consolidación', desc: 'Balance General, Estado de Resultados y planificación fiscal multi-empresa con recomendaciones ISR.', path: '/reportes/consolidacion', color: '#1faec2' },
     ],
   },
 ]

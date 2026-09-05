@@ -114,6 +114,7 @@ const ReporteActivosFijosPage    = lazy(() => import('./pages/reportes/ReporteAc
 const ReporteInventarioPage      = lazy(() => import('./pages/reportes/ReporteInventarioPage'))
 const IntegracionesContablesPage = lazy(() => import('./pages/reportes/IntegracionesContablesPage'))
 const EstadosFinancierosPage = lazy(() => import('./pages/reportes/EstadosFinancierosPage'))
+const ConsolidacionPage      = lazy(() => import('./pages/reportes/ConsolidacionPage'))
 const IntegracionesImprimirPage  = lazy(() => import('./pages/reportes/IntegracionesImprimirPage'))
 const EstadosFinancierosImprimirPage = lazy(() => import('./pages/reportes/EstadosFinancierosImprimirPage'))
 // Diarios
@@ -372,6 +373,7 @@ export default function App() {
             <Route path="declaracion-isr"            element={<Declaracion1311Page />} />
             <Route path="integraciones-contables"    element={<IntegracionesContablesPage />} />
             <Route path="estados-financieros"        element={<EstadosFinancierosPage />} />
+            <Route path="consolidacion"              element={<ConsolidacionPage />} />
           </Route>
 
           <Route path="planillas/corridas"                           element={<PeriodosPlanillaPage />} />
