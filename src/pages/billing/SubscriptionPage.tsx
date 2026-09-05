@@ -793,7 +793,11 @@ export default function SubscriptionPage() {
 
   const exchangeRate = rateInfo.rate
   const sub = state?.subscription
-  const activePlan        = sub?.status === 'active' ? sub.plan : undefined
+  // En trial no hay suscripción activa pero el tenant ya tiene un plan asignado;
+  // usar tenant.plan como fallback para que el card correcto muestre "Plan actual".
+  const activePlan = sub?.status === 'active'
+    ? sub.plan
+    : (state?.tenant?.plan ?? undefined)
   const isProcesandoPago  = sub?.status === 'procesando_pago'
 
   const handleSelectPlan = (plan: PlanConfig) => {
