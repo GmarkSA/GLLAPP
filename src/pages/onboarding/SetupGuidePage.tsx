@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Progress, Spin, Tag, Typography } from 'antd'
+import { Button, Progress, Spin, Tag, Typography } from 'antd'
 import {
   CheckCircleFilled,
   BankOutlined,
@@ -113,27 +113,6 @@ export default function SetupGuidePage() {
           />
         </div>
       </div>
-
-      {/* Banner trial */}
-      {onTrial && (
-        <Alert
-          type={trialDaysLeft! <= 3 ? 'error' : trialDaysLeft! <= 7 ? 'warning' : 'info'}
-          icon={<CrownOutlined />}
-          showIcon
-          style={{ marginBottom: 24, borderRadius: 10 }}
-          message={
-            trialDaysLeft! <= 0
-              ? 'Tu período de prueba ha vencido. Elige un plan para seguir operando.'
-              : `Prueba gratuita — ${trialDaysLeft} día${trialDaysLeft !== 1 ? 's' : ''} restante${trialDaysLeft !== 1 ? 's' : ''}. Al terminar la configuración elige tu plan.`
-          }
-          action={
-            <Button size="small" style={{ background: '#1faec2', borderColor: '#1faec2', color: '#fff' }}
-              onClick={() => navigate('/configuracion/suscripcion')}>
-              Ver planes
-            </Button>
-          }
-        />
-      )}
 
       {/* Sección: Configuración base */}
       <div style={{ marginBottom: 8 }}>
