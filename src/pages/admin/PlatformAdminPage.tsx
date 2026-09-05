@@ -1710,7 +1710,7 @@ export default function PlatformAdminPage() {
               </div>
               <Row gutter={16}>
                 {plans.map(plan => (
-                  <Col span={8} key={plan.plan}>
+                  <Col span={6} key={plan.plan}>
                     <Card
                       size="small"
                       title={
