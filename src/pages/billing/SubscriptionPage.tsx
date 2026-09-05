@@ -855,11 +855,15 @@ export default function SubscriptionPage() {
     return <Spin spinning style={{ display: 'block', margin: '80px auto' }} />
   }
 
-  const isInTrial = state?.tenant?.status === 'trial'
   const trialEndsAt = state?.tenant?.trialEndsAt ? new Date(state.tenant.trialEndsAt) : null
   const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
     : null
+  // Trial activo si el status lo indica O si aún queda tiempo de prueba
+  const isInTrial = state?.tenant?.status === 'trial'
+    || state?.tenant?.status === 'trialing'
+    || state?.subscription?.status === 'trialing'
+    || trialDaysLeft !== null
   // Inferir fecha de inicio: trialEndsAt - 30 días
   const trialStartedAt = trialEndsAt ? new Date(trialEndsAt.getTime() - 30 * 24 * 60 * 60 * 1000) : null
   const trialDaysElapsed = trialStartedAt
