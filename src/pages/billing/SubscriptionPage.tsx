@@ -863,8 +863,10 @@ export default function SubscriptionPage() {
   const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
     : null
-  // Trial activo si el status lo indica O si aún queda tiempo de prueba
+  // isInTrial: para el banner de trial pre-existente (solo si el backend lo marca explícitamente)
   const isInTrial = state?.tenant?.status === 'trial'
+  // onTrial: para el botón "30 días gratis" — cubre también 'trialing' (QPayPro) y trialEndsAt futuro
+  const onTrialButton = state?.tenant?.status === 'trial'
     || state?.tenant?.status === 'trialing'
     || state?.subscription?.status === 'trialing'
     || trialDaysLeft !== null
@@ -1010,7 +1012,7 @@ export default function SubscriptionPage() {
               currency={currency}
               exchangeRate={exchangeRate}
               onSelect={handleSelectPlan}
-              onTrial={isInTrial}
+              onTrial={onTrialButton}
             />
           </Col>
         ))}
