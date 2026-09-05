@@ -85,6 +85,16 @@ export interface SubscribeDto {
   phone?: string
 }
 
+// ── Plan color helper (dinámico, sin hardcodear claves) ──────────────────────
+// Paleta ordenada por precio ascendente: index 0 = más barato/gratis, último = más caro.
+const PLAN_PALETTE = ['default', '#1B3A6B', '#1faec2', '#ff7f00', 'gold', 'purple', 'magenta']
+
+export function planColorByIndex(planKey: string, plans: PlanConfig[]): string {
+  const sorted = [...plans].sort((a, b) => a.priceMonthly - b.priceMonthly)
+  const idx = sorted.findIndex(p => p.plan === planKey)
+  return PLAN_PALETTE[idx < 0 ? 0 : Math.min(idx, PLAN_PALETTE.length - 1)]
+}
+
 // ── API calls ────────────────────────────────────────────────────────────────
 
 export const getBillingState = (): Promise<BillingState> =>

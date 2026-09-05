@@ -4,25 +4,9 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../api/axios'
+import { planColorByIndex, type PlanConfig as PlanOption } from '../../api/billing'
 
 const { Title, Text } = Typography
-
-interface PlanOption {
-  plan: string
-  displayName: string
-  priceMonthly: number
-  currency: string
-  maxCompanies: number
-  maxUsers: number
-  features: string[]
-}
-
-const PLAN_COLOR: Record<string, string> = {
-  basic:        '#6b7280',
-  contador:     '#1B3A6B',
-  professional: '#1faec2',
-  enterprise:   '#ff7f00',
-}
 
 export default function RegisterPage() {
   const { register, isLoading } = useAuthStore()
@@ -98,7 +82,7 @@ export default function RegisterPage() {
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(plans.length, 3)}, 1fr)`, gap: 10 }}>
               {plans.map(p => {
                 const active = selectedPlan === p.plan
-                const color  = PLAN_COLOR[p.plan] ?? '#1B3A6B'
+                const color  = planColorByIndex(p.plan, plans)
                 return (
                   <div
                     key={p.plan}
