@@ -1667,6 +1667,9 @@ export default function PlatformAdminPage() {
                                 {c.tradeName && c.tradeName !== c.legalName && (
                                   <span style={{ color: '#6b7280', fontSize: 11 }}> · {c.tradeName}</span>
                                 )}
+                                {r.taxId && c.taxId === r.taxId && (
+                                  <Tag color="blue" style={{ marginLeft: 6, fontSize: 10, padding: '0 5px', lineHeight: '16px' }}>Principal</Tag>
+                                )}
                               </span>
                             ),
                           },
