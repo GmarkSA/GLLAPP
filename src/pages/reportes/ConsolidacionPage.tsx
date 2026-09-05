@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Button, Card, Checkbox, Col, DatePicker, Empty, Row,
-  Space, Spin, Statistic, Table, Tabs, Tag, Typography,
+  Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Typography,
 } from 'antd'
 import {
   ApartmentOutlined, ArrowLeftOutlined, BankOutlined, CheckCircleOutlined,
   DownloadOutlined, ExclamationCircleOutlined, FileTextOutlined,
   FundOutlined, RiseOutlined, SwapOutlined, WarningOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import dayjs, { type Dayjs } from 'dayjs'
 import * as XLSX from 'xlsx'
 import { useCompanyStore } from '../../store/companyStore'
 import { getBillingState } from '../../api/billing'
@@ -28,8 +28,33 @@ const qStyle = { fontVariantNumeric: 'tabular-nums' as const }
 const neg = (v: number) => v < 0 ? '#e5484d' : undefined
 const posneg = (v: number) => v < 0 ? '#e5484d' : '#2ea172'
 
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+type PeriodMode = 'mes' | 'trimestre' | 'año'
+
+function computeRange(mode: PeriodMode, pick: Dayjs): { startDate: string; endDate: string; label: string } {
+  if (mode === 'mes') {
+    return {
+      startDate: pick.startOf('month').format('YYYY-MM-DD'),
+      endDate:   pick.endOf('month').format('YYYY-MM-DD'),
+      label:     pick.format('MMMM YYYY'),
+    }
+  }
+  if (mode === 'trimestre') {
+    const q = Math.floor(pick.month() / 3)
+    const start = pick.month(q * 3).startOf('month')
+    const end   = pick.month(q * 3 + 2).endOf('month')
+    return {
+      startDate: start.format('YYYY-MM-DD'),
+      endDate:   end.format('YYYY-MM-DD'),
+      label:     `Q${q + 1} ${pick.year()}`,
+    }
+  }
+  // año
+  return {
+    startDate: pick.startOf('year').format('YYYY-MM-DD'),
+    endDate:   pick.endOf('year').format('YYYY-MM-DD'),
+    label:     `Año ${pick.year()}`,
+  }
+}
 
 // ── Tabla de filas consolidadas ────────────────────────────────────────────
 function TablaConsolidada({ data, companyNames }: { data: ResultadoConsolidado; companyNames: Record<string, string> }) {
@@ -452,7 +477,8 @@ export default function ConsolidacionPage() {
   const [maxCompanies, setMaxCompanies] = useState<number>(10)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [period, setPeriod]           = useState(dayjs().subtract(1, 'month'))
+  const [mode, setMode]               = useState<PeriodMode>('mes')
+  const [pick, setPick]               = useState(dayjs().subtract(1, 'month'))
   const [activeTab, setActiveTab]     = useState('balance')
 
   const [bgData, setBgData] = useState<ResultadoConsolidado    | null>(null)
@@ -482,19 +508,16 @@ export default function ConsolidacionPage() {
         : [...prev, id]
     )
 
-  const query: ConsolidacionQuery = {
-    companyIds: selectedIds,
-    year:  period.year(),
-    month: period.month() + 1,
-  }
+  const range = computeRange(mode, pick)
 
   const generar = useCallback(async () => {
     if (selectedIds.length < 2) return
+    const q: ConsolidacionQuery = { companyIds: selectedIds, ...computeRange(mode, pick) }
     setLoading(true); setError(null)
     try {
       const [bg, er, pf, fc, mc, ic] = await Promise.all([
-        getBalanceGeneral(query), getEstadoResultados(query), getPlanificacionFiscal(query),
-        getFlujoCaja(query), getMovimientoCapital(query), getEliminacionIntercompany(query),
+        getBalanceGeneral(q), getEstadoResultados(q), getPlanificacionFiscal(q),
+        getFlujoCaja(q), getMovimientoCapital(q), getEliminacionIntercompany(q),
       ])
       setBgData(bg); setErData(er); setPfData(pf); setFcData(fc); setMcData(mc); setIcData(ic)
     } catch (e: any) {
@@ -502,10 +525,9 @@ export default function ConsolidacionPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedIds, period])
+  }, [selectedIds, mode, pick])
 
   const hayResultados = bgData || erData || pfData
-  const periodoLabel  = `${MESES[query.month - 1]} ${query.year}`
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -560,10 +582,33 @@ export default function ConsolidacionPage() {
             </div>
           </Col>
 
-          <Col xs={24} md={6}>
+          <Col xs={24} md={8}>
             <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>Período</Text>
-            <DatePicker picker="month" value={period} onChange={v => v && setPeriod(v)}
-              format="MMMM YYYY" style={{ width: '100%' }} disabledDate={d => d.isAfter(dayjs())} />
+            <Space direction="vertical" size={6} style={{ width: '100%' }}>
+              <Segmented
+                size="small"
+                value={mode}
+                onChange={v => setMode(v as PeriodMode)}
+                options={[
+                  { label: 'Mes',       value: 'mes' },
+                  { label: 'Trimestre', value: 'trimestre' },
+                  { label: 'Año',       value: 'año' },
+                ]}
+                style={{ width: '100%' }}
+              />
+              {mode === 'mes' && (
+                <DatePicker picker="month" value={pick} onChange={v => v && setPick(v)}
+                  format="MMMM YYYY" style={{ width: '100%' }} disabledDate={d => d.isAfter(dayjs())} />
+              )}
+              {mode === 'trimestre' && (
+                <DatePicker picker="quarter" value={pick} onChange={v => v && setPick(v)}
+                  format="[Q]Q YYYY" style={{ width: '100%' }} disabledDate={d => d.isAfter(dayjs())} />
+              )}
+              {mode === 'año' && (
+                <DatePicker picker="year" value={pick} onChange={v => v && setPick(v)}
+                  format="YYYY" style={{ width: '100%' }} disabledDate={d => d.isAfter(dayjs())} />
+              )}
+            </Space>
           </Col>
 
           <Col xs={24} md={4}>
@@ -595,10 +640,11 @@ export default function ConsolidacionPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Período: <strong>{periodoLabel}</strong> · Empresas: <strong>{selectedIds.map(id => companyNames[id] ?? id).join(', ')}</strong>
+              Período: <strong>{range.label}</strong> ({range.startDate} → {range.endDate}) ·
+              Empresas: <strong>{selectedIds.map(id => companyNames[id] ?? id).join(', ')}</strong>
             </Text>
             <Button icon={<DownloadOutlined />} size="small"
-              onClick={() => exportarExcel({ periodo: periodoLabel, companyNames, bgData, erData, pfData, fcData, mcData, icData })}>
+              onClick={() => exportarExcel({ periodo: range.label, companyNames, bgData, erData, pfData, fcData, mcData, icData })}>
               Exportar Excel
             </Button>
           </div>

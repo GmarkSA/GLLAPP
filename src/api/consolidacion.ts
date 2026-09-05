@@ -4,8 +4,8 @@ const unwrap = (r: any) => r.data?.data ?? r.data
 
 export interface ConsolidacionQuery {
   companyIds: string[]
-  year: number
-  month: number
+  startDate: string   // YYYY-MM-DD
+  endDate: string     // YYYY-MM-DD
 }
 
 export interface FilaConsolidada {
@@ -18,7 +18,7 @@ export interface FilaConsolidada {
 }
 
 export interface ResultadoConsolidado {
-  periodo: { year: number; month: number }
+  periodo: { startDate: string; endDate: string }
   companyIds: string[]
   filas: FilaConsolidada[]
 }
@@ -52,7 +52,7 @@ export interface Recomendacion {
 }
 
 export interface PlanificacionFiscal {
-  periodo: { year: number; month: number; startDate: string; endDate: string }
+  periodo: { startDate: string; endDate: string }
   empresas: EmpresaFiscal[]
   totalIngresos: number
   totalGastos: number
@@ -76,7 +76,7 @@ export interface EmpresaFlujoCaja {
 }
 
 export interface FlujoCaja {
-  periodo: { year: number; month: number; startDate: string; endDate: string }
+  periodo: { startDate: string; endDate: string }
   porEmpresa: EmpresaFlujoCaja[]
   consolidado: Omit<EmpresaFlujoCaja, 'companyId'>
 }
@@ -98,7 +98,7 @@ export interface EmpresaMovimientoCapital {
 }
 
 export interface MovimientoCapital {
-  periodo: { year: number; month: number; startDate: string; endDate: string }
+  periodo: { startDate: string; endDate: string }
   porEmpresa: EmpresaMovimientoCapital[]
   consolidado: { saldoInicial: number; utilidad: number; movimientoCapital: number; saldoFinal: number }
 }
@@ -118,7 +118,7 @@ export interface TransaccionIntercompany {
 }
 
 export interface EliminacionIntercompany {
-  periodo: { year: number; month: number; startDate?: string; endDate?: string }
+  periodo: { startDate: string; endDate: string }
   transacciones: TransaccionIntercompany[]
   totalEliminado: number
   nota?: string
