@@ -198,7 +198,8 @@ export default function MainLayout() {
     }).catch(() => {/* no bloqueante */})
   }, [])
 
-  const PLAN_LABELS: Record<string, string> = { basic: 'Básico', professional: 'Professional', enterprise: 'Enterprise' }
+  // Sin PLAN_LABELS hardcodeado: planNombre viene de plan_configs.displayName (dinámico).
+  // Si no viene, planActivo (la clave del plan) es el fallback.
 
   // ── Impersonación de tenant ──────────────────────────────────────────────
   const impersonationTenantName = sessionStorage.getItem('impersonationTenantName')
@@ -523,7 +524,7 @@ export default function MainLayout() {
                     style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, margin: 0, padding: '3px 10px', borderRadius: 20 }}
                     onClick={() => navigate('/configuracion/suscripcion')}
                   >
-                    Plan {(planNombre ?? PLAN_LABELS[planActivo] ?? planActivo).replace(/^plan\s+/i, '')}
+                    Plan {(planNombre ?? planActivo ?? '').replace(/^plan\s+/i, '')}
                   </Tag>
                 </Tooltip>
               )

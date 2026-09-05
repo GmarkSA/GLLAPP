@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   getGtqExchangeRate, setGtqExchangeRate,
   adminActivateTrial, adminSetBillingConfig, adminGetTenantBilling, adminRequestInvoiceForTenant,
+  planColorByIndex,
   type TenantBillingInfo, type TenantBillingPayment,
 } from '../../api/billing'
 import { companiesApi } from '../../api/companies'
@@ -251,7 +252,7 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '10px 0', borderBottom: '1px solid rgba(10,10,10,0.08)',
             }}>
-              <Tag color={Number(plan.priceMonthly) === 0 ? 'default' : plan.plan === 'enterprise' ? 'gold' : '#1faec2'}>
+              <Tag color={planColorByIndex(plan.plan, plans)}>
                 {plan.displayName}
               </Tag>
               {Number(plan.priceMonthly) === 0 ? (
@@ -291,7 +292,7 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           </div>
           {plans.map(plan => (
             <div key={plan.plan} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(10,10,10,0.06)' }}>
-              <Tag color={plan.plan === 'enterprise' ? 'gold' : Number(plan.priceMonthly) === 0 ? 'default' : '#1faec2'} style={{ minWidth: 120, textAlign: 'center' }}>
+              <Tag color={planColorByIndex(plan.plan, plans)} style={{ minWidth: 120, textAlign: 'center' }}>
                 {plan.displayName}
               </Tag>
               <Select
@@ -656,9 +657,7 @@ function EnviarDemoModal({ open, onClose, onSent }: {
   )
 }
 
-const PLAN_COLOR: Record<string, string> = {
-  basic: 'default', professional: '#1faec2', enterprise: 'gold',
-}
+// planColorByIndex ya importado desde billing.ts — usa la paleta dinámica por precio.
 const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   active: 'success', trial: 'default', suspended: 'warning', cancelled: 'error',
 }
@@ -1336,13 +1335,9 @@ export default function PlatformAdminPage() {
     if (q) return [t.name, t.legalName, t.taxId].some(v => (v ?? '').toLowerCase().includes(q))
     return true
   })
-  const planOptions = (plans.length > 0 ? plans : [
-    { plan: 'basic', displayName: 'Basic' },
-    { plan: 'professional', displayName: 'Professional' },
-    { plan: 'enterprise', displayName: 'Enterprise' },
-  ] as Pick<PlanConfig, 'plan' | 'displayName'>[]).map(plan => ({
+  const planOptions = plans.map(plan => ({
     value: plan.plan,
-    label: <Tag color={PLAN_COLOR[plan.plan] ?? 'default'}>{plan.displayName}</Tag>,
+    label: <Tag color={planColorByIndex(plan.plan, plans)}>{plan.displayName}</Tag>,
   }))
 
   const tenantColumns: ColumnsType<TenantSummary> = [
@@ -1717,7 +1712,7 @@ export default function PlatformAdminPage() {
                       size="small"
                       title={
                         <Space>
-                          <Tag color={PLAN_COLOR[plan.plan] ?? 'default'} style={{ fontSize: 13, padding: '2px 10px' }}>
+                          <Tag color={planColorByIndex(plan.plan, plans)} style={{ fontSize: 13, padding: '2px 10px' }}>
                             {plan.displayName}
                           </Tag>
                         </Space>
@@ -1857,7 +1852,7 @@ export default function PlatformAdminPage() {
             <>
               {/* Encabezado de control */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-                <Tag color={PLAN_COLOR[detail.plan ?? ''] ?? 'default'}>{detail.plan ?? 'basic'}</Tag>
+                <Tag color={planColorByIndex(detail.plan ?? '', plans)}>{detail.plan ?? 'basic'}</Tag>
                 <Badge status={STATUS_COLOR[detail.status ?? ''] ?? 'default'} text={detail.status} />
                 {detail.taxId && <Text type="secondary" style={{ fontSize: 12 }}>NIT {detail.taxId}</Text>}
                 {detail.createdAt && <Text type="secondary" style={{ fontSize: 12 }}>· Creado {new Date(detail.createdAt).toLocaleDateString('es-GT')}</Text>}
