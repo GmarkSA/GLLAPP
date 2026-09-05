@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  Alert, Button, Card, Checkbox, Col, DatePicker, Empty, Row,
+  Alert, Breadcrumb, Button, Card, Checkbox, Col, DatePicker, Empty, Row,
   Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Typography,
 } from 'antd'
 import {
   ApartmentOutlined, ArrowLeftOutlined, BankOutlined, CheckCircleOutlined,
-  DownloadOutlined, ExclamationCircleOutlined, FileTextOutlined,
+  DownloadOutlined, ExclamationCircleOutlined, FileTextOutlined, HomeOutlined,
   FundOutlined, RiseOutlined, SwapOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -21,7 +21,7 @@ import {
   type FlujoCaja, type MovimientoCapital, type EliminacionIntercompany,
 } from '../../api/consolidacion'
 
-const { Text } = Typography
+const { Title, Text } = Typography
 
 const Q = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 const qStyle = { fontVariantNumeric: 'tabular-nums' as const }
@@ -512,7 +512,8 @@ export default function ConsolidacionPage() {
 
   const generar = useCallback(async () => {
     if (selectedIds.length < 2) return
-    const q: ConsolidacionQuery = { companyIds: selectedIds, ...computeRange(mode, pick) }
+    const { startDate, endDate } = computeRange(mode, pick)
+    const q: ConsolidacionQuery = { companyIds: selectedIds, startDate, endDate }
     setLoading(true); setError(null)
     try {
       const [bg, er, pf, fc, mc, ic] = await Promise.all([
@@ -547,7 +548,7 @@ export default function ConsolidacionPage() {
       {/* Selector de empresas y período */}
       <Card size="small" style={{ borderRadius: 8, marginBottom: 20 }}>
         <Row gutter={[24, 16]} align="middle">
-          <Col xs={24} md={14}>
+          <Col xs={24} md={12}>
             <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>
               Empresas a consolidar
               <Text type="secondary" style={{ fontWeight: 400, marginLeft: 8, fontSize: 11 }}>
