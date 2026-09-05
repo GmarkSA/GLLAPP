@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Button, Progress, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, Progress, Spin, Tag, Typography } from 'antd'
 import {
   CheckCircleFilled,
   BankOutlined,
@@ -12,6 +12,7 @@ import {
   CreditCardOutlined,
   ArrowRightOutlined,
   ApartmentOutlined,
+  CrownOutlined,
 } from '@ant-design/icons'
 import { useSetupSteps, type SetupStep } from '../../hooks/useSetupSteps'
 import { markSetupStepDone, markSetupStepSkipped } from '../../hooks/setupProgress'
@@ -19,6 +20,8 @@ import { MODULE_TOURS, abrirTour, isTourSeen } from '../../components/Tour/modul
 import { PlayCircleOutlined } from '@ant-design/icons'
 import { useCompanyStore } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
+import { getBillingState } from '../../api/billing'
+import { useEffect, useState } from 'react'
 
 const { Title, Text } = Typography
 
@@ -39,6 +42,26 @@ export default function SetupGuidePage() {
   const { steps, loading, completedCount, completionPercent, reload } = useSetupSteps()
   const companyId = useCompanyStore(s => s.activeCompany?.id)
   const userId    = useAuthStore(s => (s.user as any)?.id as string | undefined)
+
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
+  const [planNombre,    setPlanNombre]    = useState<string | null>(null)
+
+  useEffect(() => {
+    getBillingState().then(data => {
+      const st = data.tenant?.status ?? data.subscription?.status
+      if (st === 'trialing' || st === 'trial') {
+        if (data.tenant?.trialEndsAt) {
+          const diff = Math.ceil((new Date(data.tenant.trialEndsAt).getTime() - Date.now()) / 86_400_000)
+          setTrialDaysLeft(Math.max(0, diff))
+        } else {
+          setTrialDaysLeft(0)
+        }
+      }
+      setPlanNombre(data.plans?.find(p => p.plan === data.tenant?.plan)?.displayName ?? null)
+    }).catch(() => {})
+  }, [])
+
+  const onTrial = trialDaysLeft !== null
 
   const nextPending = steps.find(s => !s.done)
 
@@ -90,6 +113,27 @@ export default function SetupGuidePage() {
           />
         </div>
       </div>
+
+      {/* Banner trial */}
+      {onTrial && (
+        <Alert
+          type={trialDaysLeft! <= 3 ? 'error' : trialDaysLeft! <= 7 ? 'warning' : 'info'}
+          icon={<CrownOutlined />}
+          showIcon
+          style={{ marginBottom: 24, borderRadius: 10 }}
+          message={
+            trialDaysLeft! <= 0
+              ? 'Tu período de prueba ha vencido. Elige un plan para seguir operando.'
+              : `Prueba gratuita — ${trialDaysLeft} día${trialDaysLeft !== 1 ? 's' : ''} restante${trialDaysLeft !== 1 ? 's' : ''}. Al terminar la configuración elige tu plan.`
+          }
+          action={
+            <Button size="small" style={{ background: '#1faec2', borderColor: '#1faec2', color: '#fff' }}
+              onClick={() => navigate('/configuracion/suscripcion')}>
+              Ver planes
+            </Button>
+          }
+        />
+      )}
 
       {/* Sección: Configuración base */}
       <div style={{ marginBottom: 8 }}>
@@ -151,13 +195,24 @@ export default function SetupGuidePage() {
           {steps.slice(0, 6).every(s => s.done) ? 'Continuar sin crear datos maestros' : 'Continuar sin configurar'}
         </Button>
         {completedCount === steps.length && (
-          <Button
-            type="primary"
-            style={{ background: '#2ea172', borderColor: '#2ea172' }}
-            onClick={() => navigate('/dashboard')}
-          >
-            ¡Lista para operar! → Ir al Dashboard
-          </Button>
+          onTrial ? (
+            <Button
+              type="primary"
+              icon={<CrownOutlined />}
+              style={{ background: '#1faec2', borderColor: '#1faec2' }}
+              onClick={() => navigate('/configuracion/suscripcion')}
+            >
+              ¡Configuración lista! Elegir mi plan →
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              style={{ background: '#2ea172', borderColor: '#2ea172' }}
+              onClick={() => navigate('/dashboard')}
+            >
+              ¡Lista para operar! → Ir al Dashboard
+            </Button>
+          )
         )}
       </div>
     </div>
