@@ -76,13 +76,14 @@ function formatCardInput(value: string): string {
   return value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
 }
 function PlanCard({
-  plan, current, currency, exchangeRate, onSelect,
+  plan, current, currency, exchangeRate, onSelect, onTrial,
 }: {
   plan: PlanConfig
   current?: string
   currency: BillingCurrency
   exchangeRate: number
   onSelect: (plan: PlanConfig) => void
+  onTrial?: boolean
 }) {
   const isActive = current === plan.plan
   const planCur = plan.currency || 'USD'
@@ -179,7 +180,7 @@ function PlanCard({
         onClick={() => onSelect(plan)}
         style={isActive ? {} : { background: '#1faec2', borderColor: '#1faec2' }}
       >
-        {isActive ? 'Plan actual' : isFree ? 'Usar gratis' : 'Seleccionar'}
+        {isActive ? 'Plan actual' : isFree ? 'Usar gratis' : onTrial ? '30 días gratis' : 'Seleccionar'}
       </Button>
     </Card>
   )
@@ -993,14 +994,15 @@ export default function SubscriptionPage() {
 
       {/* Planes */}
       <Row gutter={[16, 16]} style={{ marginBottom: 28 }}>
-        {(state?.plans ?? []).map(plan => (
-          <Col xs={24} md={8} key={plan.plan}>
+        {[...(state?.plans ?? [])].sort((a, b) => Number(a.priceMonthly) - Number(b.priceMonthly)).map(plan => (
+          <Col xs={24} sm={12} md={6} key={plan.plan}>
             <PlanCard
               plan={plan}
               current={activePlan}
               currency={currency}
               exchangeRate={exchangeRate}
               onSelect={handleSelectPlan}
+              onTrial={isInTrial}
             />
           </Col>
         ))}
