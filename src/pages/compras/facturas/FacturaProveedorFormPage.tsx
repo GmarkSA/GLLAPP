@@ -846,35 +846,35 @@ export default function FacturaProveedorFormPage() {
                   <PaymentTermsSelect size="small" />
                 </Form.Item>
 
-                <div style={{ marginBottom: 8 }}>
-                  <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]} style={{ marginBottom: 0 }}>
-                    <Select options={BILL_TYPES} />
-                  </Form.Item>
-                  {invoiceType === 'services' && (
-                    <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'nowrap' }}>
-                      <Checkbox checked={hasTimbrePrens} onChange={e => setHasTimbrePrens(e.target.checked)}>
-                        <span style={{ fontSize: 11 }}>Timbre de Prensa</span>
-                      </Checkbox>
-                      <Checkbox checked={hasTurismo} onChange={e => setHasTurismo(e.target.checked)}>
-                        <span style={{ fontSize: 11 }}>Turismo INGUAT</span>
-                      </Checkbox>
-                      <Checkbox checked={hasTasaMunicipal} onChange={e => setHasTasaMunicipal(e.target.checked)}>
-                        <span style={{ fontSize: 11 }}>Tasa Municipal</span>
-                      </Checkbox>
-                      <Checkbox checked={hasBomberos} onChange={e => setHasBomberos(e.target.checked)}>
-                        <span style={{ fontSize: 11 }}>Bomberos</span>
-                      </Checkbox>
-                    </div>
-                  )}
-                  {invoiceType === 'goods' && (
-                    <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
-                      <Checkbox checked={hasBebidas} onChange={e => setHasBebidas(e.target.checked)}>
-                        <span style={{ fontSize: 12 }}>Bebidas Alcohólicas (Dto. 21-2004)</span>
-                      </Checkbox>
-                    </div>
-                  )}
-                </div>
+                <Form.Item name="invoiceType" label="Tipo de factura" rules={[{ required: true }]} style={{ marginBottom: 8 }}>
+                  <Select options={BILL_TYPES} />
+                </Form.Item>
               </div>
+
+              {/* Checkboxes de impuestos especiales — fila ancha separada del grid */}
+              {invoiceType === 'services' && (
+                <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <Checkbox checked={hasTimbrePrens} onChange={e => setHasTimbrePrens(e.target.checked)}>
+                    <span style={{ fontSize: 12 }}>Timbre de Prensa</span>
+                  </Checkbox>
+                  <Checkbox checked={hasTurismo} onChange={e => setHasTurismo(e.target.checked)}>
+                    <span style={{ fontSize: 12 }}>Turismo INGUAT</span>
+                  </Checkbox>
+                  <Checkbox checked={hasTasaMunicipal} onChange={e => setHasTasaMunicipal(e.target.checked)}>
+                    <span style={{ fontSize: 12 }}>Tasa Municipal</span>
+                  </Checkbox>
+                  <Checkbox checked={hasBomberos} onChange={e => setHasBomberos(e.target.checked)}>
+                    <span style={{ fontSize: 12 }}>Bomberos (Dto. 112-97)</span>
+                  </Checkbox>
+                </div>
+              )}
+              {invoiceType === 'goods' && (
+                <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+                  <Checkbox checked={hasBebidas} onChange={e => setHasBebidas(e.target.checked)}>
+                    <span style={{ fontSize: 12 }}>Bebidas Alcohólicas (Dto. 21-2004)</span>
+                  </Checkbox>
+                </div>
+              )}
 
               {/* Tipo de cambio — visible solo cuando la moneda del proveedor no es GTQ */}
               {vendorCurrency !== 'GTQ' && (
