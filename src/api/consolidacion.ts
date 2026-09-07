@@ -33,6 +33,9 @@ export interface EmpresaFiscal {
   ingresos: number
   gastos: number
   utilidad: number
+  ivaDebito: number
+  ivaCredito: number
+  ivaPorPagar: number // >0 a pagar · <0 saldo a favor
   isrProyectado: number
   baseIsr: number
   tasaIsr: number
@@ -48,6 +51,7 @@ export interface Recomendacion {
   receptor?: { id: string; nombre: string }
   montoSugerido?: number
   ahorroEstimadoIsr?: number
+  ahorroEstimadoIva?: number
   empresa?: { id: string; nombre: string }
 }
 
@@ -57,6 +61,8 @@ export interface PlanificacionFiscal {
   totalIngresos: number
   totalGastos: number
   utilidadConsolidada: number
+  ivaCreditoTotal: number
+  ivaPorPagarTotal: number
   isrConsolidado: number
   recomendaciones: Recomendacion[]
 }

@@ -171,6 +171,10 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           { title: 'Ingresos', dataIndex: 'ingresos', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v)}</span> },
           { title: 'Gastos',   dataIndex: 'gastos',   align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#e5484d' }}>{Q(v)}</span> },
           { title: 'Utilidad', dataIndex: 'utilidad', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: posneg(v) }}>{Q(v)}</span> },
+          { title: 'IVA Crédito Fiscal', dataIndex: 'ivaCredito', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span> },
+          { title: 'IVA por Pagar', dataIndex: 'ivaPorPagar', align: 'right', render: (v: number) => (v ?? 0) < -0.005
+              ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#2ea172' }}>{Q(Math.abs(v))} a favor</span>
+              : <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span> },
           { title: 'Tasa ISR', dataIndex: 'tasaIsr',  align: 'center', render: (v: number) => <span style={{ fontSize: 12 }}>{(v * 100).toFixed(0)}%</span> },
           { title: 'ISR Proyectado', dataIndex: 'isrProyectado', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v)}</span> },
           { title: 'Situación', dataIndex: 'situacion', align: 'center', render: (v: string) => <Tag color={situacionColor(v)}>{v.charAt(0).toUpperCase() + v.slice(1)}</Tag> },
@@ -186,12 +190,13 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           {data.recomendaciones.map((r: Recomendacion, i) => (
             <Alert key={i}
               type={r.prioridad === 'alta' ? 'error' : r.prioridad === 'media' ? 'warning' : 'info'}
-              icon={r.tipo === 'intercompany_billing' ? <RiseOutlined /> : <WarningOutlined />}
+              icon={r.tipo.startsWith('intercompany_billing') ? <RiseOutlined /> : <WarningOutlined />}
               showIcon style={{ borderRadius: 8 }}
               message={
                 <Space>
                   <Tag color={prioridadColor(r.prioridad)} style={{ fontSize: 10 }}>Prioridad {r.prioridad}</Tag>
                   {r.ahorroEstimadoIsr && <Tag color="green" style={{ fontSize: 10 }}>Ahorro ISR estimado: {Q(r.ahorroEstimadoIsr)}</Tag>}
+                  {r.ahorroEstimadoIva && <Tag color="cyan" style={{ fontSize: 10 }}>Reduce IVA por pagar: {Q(r.ahorroEstimadoIva)}</Tag>}
                 </Space>
               }
               description={
