@@ -824,23 +824,42 @@ export default function DteSatPage() {
     await load(true)
   }
 
-  // Infiere tipo de compra (Bien/Servicio/Combustible) y el código de impuesto correcto
+  // Infiere tipo de compra (Bien/Servicio/Combustible), impuesto y cuenta de gasto
   // a partir de los items del DTE (campo bien_o_servicio del XML SAT + descripción)
-  const inferTaxFromDteItems = (dtes: SatDte[]): { taxId?: string; detectedType: 'B' | 'S' | 'C' | 'mixed' } => {
+  const inferFromDteItems = (dtes: SatDte[]): { taxId?: string; expenseAccountId?: string; detectedType: 'B' | 'S' | 'C' | 'mixed' } => {
     const allItems = dtes.flatMap(d => d.items ?? [])
+    const expAccounts = accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('5') || a.code?.startsWith('6')))
+    const findExp = (kws: string[]) => expAccounts.find(a => kws.some(k => (a.name ?? '').toLowerCase().includes(k)))?.id
+
     if (allItems.length === 0) return { taxId: taxes.find(t => t.code === 'RG-C01')?.id, detectedType: 'B' }
     const fuelKw = ['combustible', 'gasolina', 'diesel', 'diésel', 'bunker', 'kerosina', 'propano', 'petróleo']
     const hasFuel = allItems.some(i => {
       const desc = ((i as any).descripcion ?? (i as any).description ?? '').toLowerCase()
       return fuelKw.some(k => desc.includes(k))
     })
-    if (hasFuel) return { taxId: taxes.find(t => t.code === 'RG-C08')?.id, detectedType: 'C' }
+    if (hasFuel) return {
+      taxId: taxes.find(t => t.code === 'RG-C08')?.id,
+      expenseAccountId: findExp(['combustible', 'gasolina', 'diesel', 'petróleo', 'petroleo']),
+      detectedType: 'C',
+    }
     const types = allItems.map(i => (i as any).bien_o_servicio ?? 'B')
     const allSvc = types.every(t => t === 'S')
     const hasBoth = types.some(t => t === 'B') && types.some(t => t === 'S')
-    if (allSvc) return { taxId: taxes.find(t => t.code === 'RG-C02')?.id, detectedType: 'S' }
-    if (hasBoth) return { taxId: taxes.find(t => t.code === 'RG-C01')?.id, detectedType: 'mixed' }
-    return { taxId: taxes.find(t => t.code === 'RG-C01')?.id, detectedType: 'B' }
+    if (allSvc) return {
+      taxId: taxes.find(t => t.code === 'RG-C02')?.id,
+      expenseAccountId: findExp(['servicio', 'honorario', 'consultor', 'asesor']),
+      detectedType: 'S',
+    }
+    if (hasBoth) return {
+      taxId: taxes.find(t => t.code === 'RG-C01')?.id,
+      expenseAccountId: findExp(['compra', 'mercadería', 'mercaderia', 'inventario']),
+      detectedType: 'mixed',
+    }
+    return {
+      taxId: taxes.find(t => t.code === 'RG-C01')?.id,
+      expenseAccountId: findExp(['compra', 'mercadería', 'mercaderia', 'inventario']),
+      detectedType: 'B',
+    }
   }
 
   const openBulkVendorModal = async () => {
@@ -852,15 +871,20 @@ export default function DteSatPage() {
       if (!byNit.has(nit)) byNit.set(nit, [])
       byNit.get(nit)!.push(d)
     }
+    // Cuenta Proveedores Nacionales: busca por nombre, fallback a cualquier cuenta 2xxx activa de proveedor
+    const provNacAccount = accounts.find(a => {
+      const n = (a.name ?? '').toLowerCase()
+      return !a.isHeader && a.isActive && n.includes('proveedor') && (n.includes('nacional') || n.includes('local'))
+    }) ?? accounts.find(a => !a.isHeader && a.isActive && a.code?.startsWith('21'))
     const rows: BulkVendorRow[] = Array.from(byNit.entries()).map(([nit, dtes]) => {
-      const { taxId, detectedType } = inferTaxFromDteItems(dtes)
+      const { taxId, expenseAccountId, detectedType } = inferFromDteItems(dtes)
       return {
         dteId:                dtes[0].id,
         nitEmisor:            nit,
         name:                 dtes[0].nombreEmisor ?? '',
-        payableAccountId:     undefined,
+        payableAccountId:     provNacAccount?.id,
         paymentTerms:         'net_30',
-        expenseAccountId:     undefined,
+        expenseAccountId,
         defaultPurchaseTaxId: taxId,
         status:               'pending' as const,
         dteCount:             dtes.length,
@@ -868,7 +892,7 @@ export default function DteSatPage() {
       }
     })
     setBulkVendorRows(rows)
-    setBulkCommonPayable(undefined)
+    setBulkCommonPayable(provNacAccount?.id)
     setBulkCommonTerms('net_30')
     setBulkCommonExpense(undefined)
     setBulkCommonTax(undefined)
