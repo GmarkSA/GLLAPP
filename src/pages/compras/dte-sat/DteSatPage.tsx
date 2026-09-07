@@ -162,6 +162,7 @@ export default function DteSatPage() {
     expenseAccountId?: string; defaultPurchaseTaxId?: string
     status: 'pending' | 'processing' | 'ok' | 'error'
     errorMsg?: string; dteCount: number
+    detectedType?: 'B' | 'S' | 'C' | 'mixed'
   }
   const [bulkVendorOpen,    setBulkVendorOpen]    = useState(false)
   const [bulkVendorRows,    setBulkVendorRows]    = useState<BulkVendorRow[]>([])
@@ -823,6 +824,25 @@ export default function DteSatPage() {
     await load(true)
   }
 
+  // Infiere tipo de compra (Bien/Servicio/Combustible) y el código de impuesto correcto
+  // a partir de los items del DTE (campo bien_o_servicio del XML SAT + descripción)
+  const inferTaxFromDteItems = (dtes: SatDte[]): { taxId?: string; detectedType: 'B' | 'S' | 'C' | 'mixed' } => {
+    const allItems = dtes.flatMap(d => d.items ?? [])
+    if (allItems.length === 0) return { taxId: taxes.find(t => t.code === 'RG-C01')?.id, detectedType: 'B' }
+    const fuelKw = ['combustible', 'gasolina', 'diesel', 'diésel', 'bunker', 'kerosina', 'propano', 'petróleo']
+    const hasFuel = allItems.some(i => {
+      const desc = ((i as any).descripcion ?? (i as any).description ?? '').toLowerCase()
+      return fuelKw.some(k => desc.includes(k))
+    })
+    if (hasFuel) return { taxId: taxes.find(t => t.code === 'RG-C08')?.id, detectedType: 'C' }
+    const types = allItems.map(i => (i as any).bien_o_servicio ?? 'B')
+    const allSvc = types.every(t => t === 'S')
+    const hasBoth = types.some(t => t === 'B') && types.some(t => t === 'S')
+    if (allSvc) return { taxId: taxes.find(t => t.code === 'RG-C02')?.id, detectedType: 'S' }
+    if (hasBoth) return { taxId: taxes.find(t => t.code === 'RG-C01')?.id, detectedType: 'mixed' }
+    return { taxId: taxes.find(t => t.code === 'RG-C01')?.id, detectedType: 'B' }
+  }
+
   const openBulkVendorModal = async () => {
     const res = await getSatDteDocuments({ status: 'pending', limit: 500 })
     const pendingDtes = res.data ?? []
@@ -832,17 +852,21 @@ export default function DteSatPage() {
       if (!byNit.has(nit)) byNit.set(nit, [])
       byNit.get(nit)!.push(d)
     }
-    const rows: BulkVendorRow[] = Array.from(byNit.entries()).map(([nit, dtes]) => ({
-      dteId:                dtes[0].id,
-      nitEmisor:            nit,
-      name:                 dtes[0].nombreEmisor ?? '',
-      payableAccountId:     undefined,
-      paymentTerms:         'net_30',
-      expenseAccountId:     undefined,
-      defaultPurchaseTaxId: undefined,
-      status:               'pending' as const,
-      dteCount:             dtes.length,
-    }))
+    const rows: BulkVendorRow[] = Array.from(byNit.entries()).map(([nit, dtes]) => {
+      const { taxId, detectedType } = inferTaxFromDteItems(dtes)
+      return {
+        dteId:                dtes[0].id,
+        nitEmisor:            nit,
+        name:                 dtes[0].nombreEmisor ?? '',
+        payableAccountId:     undefined,
+        paymentTerms:         'net_30',
+        expenseAccountId:     undefined,
+        defaultPurchaseTaxId: taxId,
+        status:               'pending' as const,
+        dteCount:             dtes.length,
+        detectedType,
+      }
+    })
     setBulkVendorRows(rows)
     setBulkCommonPayable(undefined)
     setBulkCommonTerms('net_30')
@@ -2546,16 +2570,32 @@ export default function DteSatPage() {
               ),
             },
             {
-              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 260,
-              render: (val: string | undefined, row: BulkVendorRow) => (
-                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="RG-C01..."
-                  value={val} disabled={row.status === 'ok' || bulkVendorRunning}
-                  onChange={v => setBulkVendorRows(prev => prev.map(r =>
-                    r.dteId === row.dteId ? { ...r, defaultPurchaseTaxId: v } : r
-                  ))}
-                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                  options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
-              ),
+              title: 'Impuesto IVA', dataIndex: 'defaultPurchaseTaxId', width: 280,
+              render: (val: string | undefined, row: BulkVendorRow) => {
+                const typeLabel: Record<string, { label: string; color: string }> = {
+                  B:     { label: 'Bien',       color: '#1faec2' },
+                  S:     { label: 'Servicio',   color: '#6b7280' },
+                  C:     { label: 'Combustible',color: '#f59e0b' },
+                  mixed: { label: 'Mixto',      color: '#8b5cf6' },
+                }
+                const chip = row.detectedType ? typeLabel[row.detectedType] : null
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {chip && (
+                      <Tag style={{ fontSize: 10, margin: 0, padding: '0 5px', width: 'fit-content', color: chip.color, borderColor: chip.color, background: `${chip.color}15` }}>
+                        {chip.label}
+                      </Tag>
+                    )}
+                    <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="RG-C01..."
+                      value={val} disabled={row.status === 'ok' || bulkVendorRunning}
+                      onChange={v => setBulkVendorRows(prev => prev.map(r =>
+                        r.dteId === row.dteId ? { ...r, defaultPurchaseTaxId: v } : r
+                      ))}
+                      filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                      options={taxes.filter(t => t.code?.startsWith('RG-C')).map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
+                  </div>
+                )
+              },
             },
             {
               title: 'DTEs', dataIndex: 'dteCount', width: 50, align: 'center',
