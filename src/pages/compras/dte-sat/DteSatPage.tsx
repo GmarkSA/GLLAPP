@@ -125,6 +125,7 @@ export default function DteSatPage() {
   const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
   const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
   const [stepperIsAnulado, setStepperIsAnulado] = useState(false)
+  const [stepperTasaMunicipalAmount, setStepperTasaMunicipalAmount] = useState(0)
   const [accountMode, setAccountMode] = useState<'expense' | 'asset' | 'all'>('expense')
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
@@ -501,6 +502,18 @@ export default function DteSatPage() {
     setStepperIsAnulado(!!row.anulado)
     setAccountMode('expense')
 
+    // Detectar Tasa Municipal: gap entre total SAT y (base IVA + IVA)
+    // Si totalIva > 0: base = totalIva / 0.12; gap = total - base - IVA
+    // Un gap > Q0.50 indica Tasa Municipal u otro impuesto adicional
+    const dteIvaAmt = Number(row.totalIva ?? 0)
+    if (dteIvaAmt > 0) {
+      const baseIva = Math.round((dteIvaAmt / 0.12) * 100) / 100
+      const gap     = Math.round((Number(row.total ?? 0) - baseIva - dteIvaAmt) * 100) / 100
+      setStepperTasaMunicipalAmount(gap > 0.50 ? gap : 0)
+    } else {
+      setStepperTasaMunicipalAmount(0)
+    }
+
     // Limpiar completamente el formulario para no heredar campos del DTE anterior
     stepperForm.resetFields()
 
@@ -654,6 +667,7 @@ export default function DteSatPage() {
     accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; idpType?: string; defaultUnit?: string
     originalInvoiceId?: string; creditNoteReason?: string
     timbrePrensaAccountId?: string; turismoAccountId?: string
+    tasaMunicipalAccountId?: string
   }) => {
     if (!stepperDte) return
     setStepperLoading(true)
@@ -692,6 +706,8 @@ export default function DteSatPage() {
         timbrePrensaAccountId:  timbrePrensaAmount > 0 ? values.timbrePrensaAccountId : undefined,
         turismoAmount:          turismoAmount || undefined,
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
+        tasaMunicipalAmount:    stepperTasaMunicipalAmount > 0 ? stepperTasaMunicipalAmount : undefined,
+        tasaMunicipalAccountId: stepperTasaMunicipalAmount > 0 ? values.tasaMunicipalAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
@@ -1761,6 +1777,25 @@ export default function DteSatPage() {
                         </div>
                       )
                     })()}
+
+                    {/* Tasa Municipal — auto-detectada del gap financiero del DTE */}
+                    {stepperTasaMunicipalAmount > 0 && !stepperIsAnulado && (
+                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Tasa Municipal</Text>
+                          <Text strong style={{ fontSize: 13, color: '#1d4ed8' }}>
+                            Q {stepperTasaMunicipalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                          </Text>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+                          Detectada en esta factura. Se contabiliza como línea separada en la póliza.
+                        </Text>
+                        <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: 0 }}>
+                          <Select showSearch allowClear placeholder="Ej. 6112 — Tasa Municipal"
+                            options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                        </Form.Item>
+                      </div>
+                    )}
 
                     {/* Empleado — visible solo en modo Reembolso de Gastos */}
                     {stepperOcChoice === 'reimbursement' && (
