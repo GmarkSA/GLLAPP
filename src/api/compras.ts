@@ -167,6 +167,10 @@ export interface PurchaseInvoice {
   bebidasAmount?:          number
   bebidasTipo?:            string
   bebidasAccountId?:       string
+  tasaMunicipalAmount?:    number
+  tasaMunicipalAccountId?: string
+  bomberosAmount?:         number
+  bomberosAccountId?:      string
   journalEntryId?:         string
   reclassificationJournalEntryId?: string
 
