@@ -146,7 +146,7 @@ export default function FacturaProveedorFormPage() {
   const [bebidasMonto, setBebidasMonto] = useState<number | null>(null)
   const [bebidasLineas, setBebidasLineas] = useState<number[]>([])
   const [bebidasLineasOpen, setBebidasLineasOpen] = useState(false)
-  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number> } | null>(null)
+  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number>; tasaMunicipalAccountCode?: string; bomberosAccountCode?: string } | null>(null)
 
   // Watched form values
   const invoiceType      = Form.useWatch('invoiceType',              form) as BillType   ?? 'goods'
@@ -186,6 +186,20 @@ export default function FacturaProveedorFormPage() {
     }
   }, [hasBebidas, orgImpEsp, accounts, form])
 
+  useEffect(() => {
+    if (hasTasaMunicipal && orgImpEsp?.tasaMunicipalAccountCode && !form.getFieldValue('tasaMunicipalAccountId')) {
+      const acc = accounts.find(a => a.code === orgImpEsp.tasaMunicipalAccountCode)
+      if (acc) form.setFieldValue('tasaMunicipalAccountId', acc.id)
+    }
+  }, [hasTasaMunicipal, orgImpEsp, accounts, form])
+
+  useEffect(() => {
+    if (hasBomberos && orgImpEsp?.bomberosAccountCode && !form.getFieldValue('bomberosAccountId')) {
+      const acc = accounts.find(a => a.code === orgImpEsp.bomberosAccountCode)
+      if (acc) form.setFieldValue('bomberosAccountId', acc.id)
+    }
+  }, [hasBomberos, orgImpEsp, accounts, form])
+
   // ── Load data ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -217,6 +231,8 @@ export default function FacturaProveedorFormPage() {
           bebidasRates:            ie.bebidas?.rates,
           timbrePrensaRate:        ie.timbre_prensa?.rate ?? 0.5,
           turismoRate:             ie.turismo?.rate ?? 10,
+          tasaMunicipalAccountCode: ie.tasa_municipal?.accountCode,
+          bomberosAccountCode:      ie.bomberos?.accountCode,
         })
       })
       .catch(() => null)

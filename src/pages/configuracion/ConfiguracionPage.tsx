@@ -1227,6 +1227,8 @@ interface ImpuestosEspecialesConfig {
   timbre_prensa:    { rate: number; accountCode?: string }
   timbres_fiscales: { rate: number; accountCode?: string }
   bebidas:          { rates: Record<string, number>; accountCode?: string }
+  tasa_municipal:   { accountCode?: string }
+  bomberos:         { accountCode?: string }
 }
 
 const DEFAULT_IMPUESTOS_ESPECIALES: ImpuestosEspecialesConfig = {
@@ -1235,6 +1237,8 @@ const DEFAULT_IMPUESTOS_ESPECIALES: ImpuestosEspecialesConfig = {
   timbre_prensa:    { rate: 0.5 },
   timbres_fiscales: { rate: 3 },
   bebidas:          { rates: { ...DEFAULT_BEBIDAS_RATES } },
+  tasa_municipal:   {},
+  bomberos:         {},
 }
 
 function ImpuestosEspecialesSection() {
@@ -1278,6 +1282,12 @@ function ImpuestosEspecialesSection() {
 
   const setBebidasAccount = (code: string) =>
     setCfg(prev => ({ ...prev, bebidas: { ...prev.bebidas, accountCode: code } }))
+
+  const setTasaMunicipalAccount = (code: string) =>
+    setCfg(prev => ({ ...prev, tasa_municipal: { ...prev.tasa_municipal, accountCode: code } }))
+
+  const setBomberosAccount = (code: string) =>
+    setCfg(prev => ({ ...prev, bomberos: { ...prev.bomberos, accountCode: code } }))
 
   const setOtherTax = (tax: 'turismo' | 'timbre_prensa' | 'timbres_fiscales', field: 'rate' | 'accountCode', value: number | string) =>
     setCfg(prev => ({ ...prev, [tax]: { ...prev[tax], [field]: value } }))
@@ -1477,6 +1487,59 @@ function ImpuestosEspecialesSection() {
                     />
                   </div>
                 </SectionCard>
+          </div>
+        </div>
+
+        {/* Tasa Municipal y Bomberos — cuentas de gasto por defecto */}
+        <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
+          <div style={{ flex: 1 }}>
+            <Card bordered={false} style={{ ...cardStyle }} bodyStyle={{ padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
+                <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>Tasa Municipal (EEGSA / Energuate)</span>
+              </div>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+                Impuesto de servicios municipales que aparece en facturas de electricidad (EEGSA/Energuate).
+                El monto es fijo según el DTE — se registra marcando <Text code>Tasa Municipal</Text> en la factura.
+              </Text>
+              <div>
+                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable — Tasa Municipal</Text>
+                <Select
+                  showSearch style={{ width: '100%' }}
+                  placeholder="Ej: 6112 — Tasa Municipal (EEGSA / Energuate)"
+                  value={cfg.tasa_municipal?.accountCode || undefined}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={accountOptions}
+                  onChange={setTasaMunicipalAccount}
+                  allowClear
+                />
+              </div>
+            </Card>
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <Card bordered={false} style={{ ...cardStyle }} bodyStyle={{ padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
+                <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>Bomberos (Dto. 112-97)</span>
+              </div>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+                Impuesto al Cuerpo de Bomberos que aparece en pólizas de seguros.
+                El monto es fijo según el DTE — se registra marcando <Text code>Bomberos (Dto. 112-97)</Text> en la factura.
+              </Text>
+              <div>
+                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable — Bomberos</Text>
+                <Select
+                  showSearch style={{ width: '100%' }}
+                  placeholder="Ej: 6113 — Impuesto Bomberos"
+                  value={cfg.bomberos?.accountCode || undefined}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={accountOptions}
+                  onChange={setBomberosAccount}
+                  allowClear
+                />
+              </div>
+            </Card>
           </div>
         </div>
 
