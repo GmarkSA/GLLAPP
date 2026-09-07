@@ -667,7 +667,7 @@ export default function DteSatPage() {
     accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; idpType?: string; defaultUnit?: string
     originalInvoiceId?: string; creditNoteReason?: string
     timbrePrensaAccountId?: string; turismoAccountId?: string
-    tasaMunicipalAccountId?: string
+    tasaMunicipalAccountId?: string; bomberosAccountId?: string
   }) => {
     if (!stepperDte) return
     setStepperLoading(true)
@@ -708,6 +708,7 @@ export default function DteSatPage() {
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
         tasaMunicipalAmount:    stepperTasaMunicipalAmount > 0 ? stepperTasaMunicipalAmount : undefined,
         tasaMunicipalAccountId: stepperTasaMunicipalAmount > 0 ? values.tasaMunicipalAccountId : undefined,
+        bomberosAccountId:      stepperTasaMunicipalAmount > 0 ? values.bomberosAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
@@ -1778,20 +1779,24 @@ export default function DteSatPage() {
                       )
                     })()}
 
-                    {/* Tasa Municipal — auto-detectada del gap financiero del DTE */}
+                    {/* Impuestos adicionales (Tasa Municipal / Bomberos) — auto-detectados del gap */}
                     {stepperTasaMunicipalAmount > 0 && !stepperIsAnulado && (
                       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Tasa Municipal</Text>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Impuestos adicionales detectados</Text>
                           <Text strong style={{ fontSize: 13, color: '#1d4ed8' }}>
                             Q {stepperTasaMunicipalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                           </Text>
                         </div>
-                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
-                          Detectada en esta factura. Se contabiliza como línea separada en la póliza.
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
+                          El backend los identifica por tipo desde el XML FEL y genera una línea independiente en la póliza. Selecciona la(s) cuenta(s) que aplique.
                         </Text>
-                        <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: 0 }}>
-                          <Select showSearch allowClear placeholder="Ej. 6112 — Tasa Municipal"
+                        <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: 8 }}>
+                          <Select showSearch allowClear placeholder="Ej. 6112 — Tasa Municipal (EEGSA / Energuate)"
+                            options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                        </Form.Item>
+                        <Form.Item name="bomberosAccountId" label="Cuenta Bomberos" style={{ marginBottom: 0 }}>
+                          <Select showSearch allowClear placeholder="Ej. 6113 — Impuesto Bomberos (seguros)"
                             options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                         </Form.Item>
                       </div>
