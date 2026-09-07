@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Alert, Breadcrumb, Button, Card, Checkbox, Col, DatePicker, Empty, Modal,
-  Row, Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Typography,
+  Row, Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import { ToolOutlined } from '@ant-design/icons'
 import {
@@ -139,7 +139,18 @@ function TablaConsolidada({ data, companyNames }: { data: ResultadoConsolidado; 
 
 // ── Panel de planificación fiscal ─────────────────────────────────────────
 function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
+  const navigate      = useNavigate()
+  const activeCompany = useCompanyStore(s => s.activeCompany)
   const situacionColor = (s: string) => s === 'rentable' ? 'green' : s === 'perdida' ? 'red' : 'orange'
+
+  // Crear la factura sugerida: solo desde la empresa EMISORA (la factura se emite
+  // con la empresa activa) — si está en otra, el botón lo indica en lugar de emitir mal.
+  const crearFactura = (r: Recomendacion) => {
+    const receptor = data.empresas.find(e => e.companyId === r.receptor?.id)
+    navigate(`/ventas/facturas/nueva?icNit=${encodeURIComponent(receptor?.taxId ?? '')}`
+      + `&icNombre=${encodeURIComponent(r.receptor?.nombre ?? '')}`
+      + `&icBase=${r.montoSugerido ?? 0}`)
+  }
   const prioridadColor = (p: string) => p === 'alta' ? 'red' : p === 'media' ? 'orange' : 'blue'
 
   return (
@@ -205,6 +216,17 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
                   <Text type="secondary" style={{ fontSize: 11 }}>⚠ {r.nota}</Text>
                 </div>
               }
+              action={r.tipo.startsWith('intercompany_billing') && r.emisor && r.montoSugerido ? (
+                activeCompany?.id === r.emisor.id ? (
+                  <Button size="small" type="primary" style={{ background: '#1B3A6B' }} onClick={() => crearFactura(r)}>
+                    Crear factura
+                  </Button>
+                ) : (
+                  <Tooltip title={`Cambia a la empresa ${r.emisor.nombre} (selector superior) para emitir esta factura`}>
+                    <Button size="small" disabled>Crear factura</Button>
+                  </Tooltip>
+                )
+              ) : undefined}
             />
           ))}
         </Space>

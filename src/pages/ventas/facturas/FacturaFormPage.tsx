@@ -23,7 +23,7 @@ import { useCompanyStore } from '../../../store/companyStore'
 import { getCustomers, getCustomer } from '../../../api/contactos'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getExchangeRateForDate } from '../../../api/monedas'
-import LineItemsEditor, {
+import LineItemsEditor, { recalc,
   type LineItem,
   newLineItem,
   calcTotals,
@@ -89,6 +89,40 @@ export default function FacturaFormPage() {
   }, [])
 
   useEffect(() => { fetchCustomers('') }, [])
+
+  // ── Prellenado desde la recomendación de cierre fiscal (Consolidación) ──────
+  // /ventas/facturas/nueva?icNit=..&icNombre=..&icBase=..  → cliente por NIT y
+  // línea de servicios con la base sugerida (precio con IVA incluido).
+  useEffect(() => {
+    if (id) return // solo facturas nuevas
+    const params = new URLSearchParams(location.search)
+    const icNit    = params.get('icNit')
+    const icBase   = Number(params.get('icBase') || 0)
+    const icNombre = params.get('icNombre') || ''
+    if (!icNit || !(icBase > 0)) return
+
+    getCustomers({ search: icNit, limit: 10 })
+      .then((res: any) => {
+        const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
+        const c = list.find(x => String(x.taxId ?? '').trim() === icNit.trim())
+        if (c) {
+          fetchCustomers(icNit) // poblar el select con la opción
+          form.setFieldValue('customerId', c.id)
+        } else {
+          message.info(`Crea primero el cliente con NIT ${icNit} (${icNombre}) y selecciónalo.`)
+        }
+      })
+      .catch(() => null)
+
+    setItems([recalc(newLineItem({
+      description:  'Servicios intercompany — planificación fiscal',
+      quantity:     1,
+      unitPrice:    Math.round(icBase * 1.12 * 100) / 100, // precio con IVA para que la base quede en lo sugerido
+      taxPercent:   12,
+      taxInclusive: true,
+    }))])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [felDefaultType, setFelDefaultType] = useState<string | null>(null)
 
