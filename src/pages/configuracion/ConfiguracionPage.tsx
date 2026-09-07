@@ -1487,59 +1487,50 @@ function ImpuestosEspecialesSection() {
                     />
                   </div>
                 </SectionCard>
-          </div>
-        </div>
 
-        {/* Tasa Municipal y Bomberos — cuentas de gasto por defecto */}
-        <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
-          <div style={{ flex: 1 }}>
-            <Card bordered={false} style={{ ...cardStyle }} bodyStyle={{ padding: '14px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
-                <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>Tasa Municipal (EEGSA / Energuate)</span>
-              </div>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-                Impuesto de servicios municipales que aparece en facturas de electricidad (EEGSA/Energuate).
-                El monto es fijo según el DTE — se registra marcando <Text code>Tasa Municipal</Text> en la factura.
-              </Text>
-              <div>
-                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable — Tasa Municipal</Text>
-                <Select
-                  showSearch style={{ width: '100%' }}
-                  placeholder="Ej: 6112 — Tasa Municipal (EEGSA / Energuate)"
-                  value={cfg.tasa_municipal?.accountCode || undefined}
-                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                  options={accountOptions}
-                  onChange={setTasaMunicipalAccount}
-                  allowClear
-                />
-              </div>
-            </Card>
-          </div>
+                {/* Tasa Municipal y Bomberos — apilados bajo Bebidas en la misma columna derecha */}
+                <Card bordered={false} style={{ ...cardStyle, marginTop: 12 }} bodyStyle={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
+                    <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>Tasa Municipal (EEGSA / Energuate)</span>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+                    Impuesto municipal en facturas de electricidad. El monto es fijo según el DTE — se registra
+                    marcando <Text code>Tasa Municipal</Text> en la factura de servicios.
+                  </Text>
+                  <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable — Tasa Municipal</Text>
+                  <Select
+                    showSearch style={{ width: '100%' }}
+                    placeholder="Ej: 6112 — Tasa Municipal (EEGSA / Energuate)"
+                    value={cfg.tasa_municipal?.accountCode || undefined}
+                    filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                    options={accountOptions}
+                    onChange={setTasaMunicipalAccount}
+                    allowClear
+                  />
+                </Card>
 
-          <div style={{ flex: 1 }}>
-            <Card bordered={false} style={{ ...cardStyle }} bodyStyle={{ padding: '14px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
-                <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>Bomberos (Dto. 112-97)</span>
-              </div>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-                Impuesto al Cuerpo de Bomberos que aparece en pólizas de seguros.
-                El monto es fijo según el DTE — se registra marcando <Text code>Bomberos (Dto. 112-97)</Text> en la factura.
-              </Text>
-              <div>
-                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable — Bomberos</Text>
-                <Select
-                  showSearch style={{ width: '100%' }}
-                  placeholder="Ej: 6113 — Impuesto Bomberos"
-                  value={cfg.bomberos?.accountCode || undefined}
-                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                  options={accountOptions}
-                  onChange={setBomberosAccount}
-                  allowClear
-                />
-              </div>
-            </Card>
+                <Card bordered={false} style={{ ...cardStyle, marginTop: 12 }} bodyStyle={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ color: '#1faec2', fontSize: 14 }}><PercentageOutlined /></span>
+                    <span style={{ fontWeight: 600, color: '#0a0a0a', fontSize: 13 }}>Bomberos (Dto. 112-97)</span>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+                    Impuesto al Cuerpo de Bomberos en pólizas de seguros. El monto es fijo según el DTE — se registra
+                    marcando <Text code>Bomberos (Dto. 112-97)</Text> en la factura de servicios.
+                  </Text>
+                  <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Cuenta contable — Bomberos</Text>
+                  <Select
+                    showSearch style={{ width: '100%' }}
+                    placeholder="Ej: 6113 — Impuesto Bomberos"
+                    value={cfg.bomberos?.accountCode || undefined}
+                    filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                    options={accountOptions}
+                    onChange={setBomberosAccount}
+                    allowClear
+                  />
+                </Card>
+
           </div>
         </div>
 
