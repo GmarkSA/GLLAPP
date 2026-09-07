@@ -133,6 +133,12 @@ export default function FacturaProveedorFormPage() {
   // Impuestos especiales
   const [hasTimbrePrens, setHasTimbrePrens] = useState(false)
   const [hasTurismo,     setHasTurismo]     = useState(false)
+  // Tasa Municipal (EEGSA / Energuate) y Bomberos (Dto. 112-97) — monto fijo del DTE
+  const [hasTasaMunicipal,   setHasTasaMunicipal]   = useState(false)
+  const [tasaMunicipalMonto, setTasaMunicipalMonto] = useState<number | null>(null)
+  const [hasBomberos,        setHasBomberos]        = useState(false)
+  const [bomberosMontoSt,    setBomberosMontoSt]    = useState<number | null>(null)
+
   // Bebidas alcohólicas (Dto. 21-2004) — facturas de bienes
   const [hasBebidas,   setHasBebidas]   = useState(false)
   const [bebidasTipo,  setBebidasTipo]  = useState<string | null>(null)
@@ -140,11 +146,6 @@ export default function FacturaProveedorFormPage() {
   const [bebidasMonto, setBebidasMonto] = useState<number | null>(null)
   const [bebidasLineas, setBebidasLineas] = useState<number[]>([])
   const [bebidasLineasOpen, setBebidasLineasOpen] = useState(false)
-  // Tasa Municipal (EEGSA / Energuate) y Bomberos (Dto. 112-97) — monto fijo del DTE
-  const [hasTasaMunicipal,   setHasTasaMunicipal]   = useState(false)
-  const [tasaMunicipalMonto, setTasaMunicipalMonto] = useState<number | null>(null)
-  const [hasBomberos,        setHasBomberos]        = useState(false)
-  const [bomberosMontoSt,    setBomberosMontoSt]    = useState<number | null>(null)
   const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number> } | null>(null)
 
   // Watched form values
@@ -311,7 +312,15 @@ export default function FacturaProveedorFormPage() {
           }
         }
         setLoadedIsrAccountId(bill.isrRetentionAccountId ?? undefined)
-        // Restaurar Tasa Municipal / Bomberos si la factura ya los tiene
+        // Restaurar impuestos especiales de servicios al editar
+        if (Number(bill.timbrePrensaAmount ?? 0) > 0) {
+          setHasTimbrePrens(true)
+          form.setFieldValue('timbrePrensaAccountId', bill.timbrePrensaAccountId)
+        }
+        if (Number(bill.turismoAmount ?? 0) > 0) {
+          setHasTurismo(true)
+          form.setFieldValue('turismoAccountId', bill.turismoAccountId)
+        }
         if (Number(bill.tasaMunicipalAmount ?? 0) > 0) {
           setHasTasaMunicipal(true)
           setTasaMunicipalMonto(Number(bill.tasaMunicipalAmount))
@@ -522,10 +531,6 @@ export default function FacturaProveedorFormPage() {
     ? Math.round(totals.subtotal * (turismoRate / 100) * 100) / 100 : 0
 
   // Bebidas alcohólicas (Dto. 21-2004) — base sin IVA × tasa; se suma al total (no forma base del IVA)
-  // Tasa Municipal / Bomberos — monto fijo ingresado o pre-cargado del DTE
-  const tasaMunicipalAmount = hasTasaMunicipal ? Math.round((tasaMunicipalMonto ?? 0) * 100) / 100 : 0
-  const bomberosAmount      = hasBomberos      ? Math.round((bomberosMontoSt    ?? 0) * 100) / 100 : 0
-
   const bebidasRates = { ...DEFAULT_BEBIDAS_RATES, ...(orgImpEsp?.bebidasRates ?? {}) }
   const bebidasRate  = bebidasTipo ? (bebidasRates[bebidasTipo] ?? 0) : 0
   // Base sin IVA de las LÍNEAS marcadas con el impuesto (no va sobre toda la factura)
@@ -541,6 +546,10 @@ export default function FacturaProveedorFormPage() {
   const bebidasCalc  = (invoiceType === 'goods' && hasBebidas && bebidasTipo)
     ? Math.round((bebidasBase ?? bebidasBaseAuto) * (bebidasRate / 100) * 100) / 100 : 0
   const bebidasAmount = (invoiceType === 'goods' && hasBebidas) ? (bebidasMonto ?? bebidasCalc) : 0
+
+  // Tasa Municipal / Bomberos — monto fijo ingresado o pre-cargado del DTE
+  const tasaMunicipalAmount = hasTasaMunicipal ? Math.round((tasaMunicipalMonto ?? 0) * 100) / 100 : 0
+  const bomberosAmount      = hasBomberos      ? Math.round((bomberosMontoSt    ?? 0) * 100) / 100 : 0
 
   // IDP se suma al gross porque el precio SAT ("P. Unitario con IVA") no lo incluye
   const netPayable = Math.round((totals.total + idpAmount + timbrePrensaAmount + turismoAmount + bebidasAmount + tasaMunicipalAmount + bomberosAmount - totalRetention) * 100) / 100
@@ -611,7 +620,6 @@ export default function FacturaProveedorFormPage() {
       bebidasAmount:          (invoiceType === 'goods' && hasBebidas) ? (bebidasAmount || undefined) : undefined,
       bebidasTipo:            (invoiceType === 'goods' && hasBebidas && bebidasAmount) ? (bebidasTipo || undefined) : undefined,
       bebidasAccountId:       (invoiceType === 'goods' && hasBebidas && bebidasAmount) ? vals.bebidasAccountId : undefined,
-      // Tasa Municipal (EEGSA / servicios municipales) y Bomberos (Dto. 112-97)
       tasaMunicipalAmount:    hasTasaMunicipal ? (tasaMunicipalAmount || undefined) : undefined,
       tasaMunicipalAccountId: hasTasaMunicipal ? vals.tasaMunicipalAccountId : undefined,
       bomberosAmount:         hasBomberos ? (bomberosAmount || undefined) : undefined,
@@ -1119,15 +1127,12 @@ export default function FacturaProveedorFormPage() {
                   </div>
                 )}
 
-                {/* Tasa Municipal */}
                 {tasaMunicipalAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#1B3A6B' }}>Tasa Municipal</Text>
                     <Text style={{ fontSize: 13, color: '#1B3A6B', fontWeight: 600 }}>+ Q {fmt(tasaMunicipalAmount)}</Text>
                   </div>
                 )}
-
-                {/* Bomberos */}
                 {bomberosAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#1B3A6B' }}>Bomberos (Dto. 112-97)</Text>
@@ -1151,7 +1156,7 @@ export default function FacturaProveedorFormPage() {
                   </div>
                 )}
 
-                {/* Neto a Pagar — cuando hay retenciones, IDP o impuestos adicionales */}
+                {/* Neto a Pagar — cuando hay retenciones, IDP u otros impuestos adicionales */}
                 {(totalRetention > 0 || idpAmount > 0 || tasaMunicipalAmount > 0 || bomberosAmount > 0) && (
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -1411,7 +1416,7 @@ export default function FacturaProveedorFormPage() {
             </Card>
           )}
 
-          {/* Tasa Municipal / Bomberos — montos fijos del DTE */}
+          {/* Tasa Municipal y Bomberos — montos fijos del DTE */}
           {invoiceType === 'services' && (hasTasaMunicipal || hasBomberos) && (
             <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>Impuestos Adicionales DTE</span>}>
               <Form form={form} layout="vertical" size="small">
