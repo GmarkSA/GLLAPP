@@ -530,15 +530,29 @@ export default function ConsolidacionPage() {
     const q: ConsolidacionQuery = { companyIds: selectedIds, startDate, endDate }
     setLoading(true); setError(null)
     try {
-      const [bg, er, pf, fc, mc, ic] = await Promise.all([
+      const results = await Promise.allSettled([
         getBalanceGeneral(q), getEstadoResultados(q), getPlanificacionFiscal(q),
         getFlujoCaja(q), getMovimientoCapital(q), getEliminacionIntercompany(q),
       ])
+      const ok = <T,>(r: PromiseSettledResult<T>): T | null =>
+        r.status === 'fulfilled' ? r.value : null
+      const [bgR, erR, pfR, fcR, mcR, icR] = results
+      const bg = ok(bgR); const er = ok(erR); const pf = ok(pfR)
+      const fc = ok(fcR); const mc = ok(mcR); const ic = ok(icR)
       setBgData(bg); setErData(er); setPfData(pf); setFcData(fc); setMcData(mc); setIcData(ic)
+
+      // Si algún endpoint F1/F2 falló con error no-404, mostrar el error
+      const f12Errors = [bgR, erR, pfR].filter(
+        r => r.status === 'rejected' && (r as any).reason?.response?.status !== 404
+      )
+      if (f12Errors.length > 0) {
+        const firstErr = (f12Errors[0] as PromiseRejectedResult).reason
+        setError(firstErr?.response?.data?.message ?? 'Error al generar el reporte consolidado')
+      }
 
       // Detectar si todos los resultados están vacíos — posible causa: companyId NULL en asientos
       const sinDatos = (!bg?.filas?.length) && (!er?.filas?.length)
-      if (sinDatos) {
+      if (sinDatos && f12Errors.length === 0) {
         const diag: any = await companiesApi.diagnoseData().catch(() => null)
         const hayLegacy = diag && Object.values(diag).some((v: any) =>
           Array.isArray(v) && v.some((r: any) => r.companyId === null && Number(r.total) > 0)
@@ -573,13 +587,14 @@ export default function ConsolidacionPage() {
               try {
                 await companiesApi.migrateLegacy(targetId)
                 setError(null)
-                // Re-generar automáticamente tras la migración
+                // Re-generar automáticamente tras la migración — también con allSettled
                 const q2: ConsolidacionQuery = { companyIds: selectedIds, startDate, endDate }
-                const [bg2, er2, pf2, fc2, mc2, ic2] = await Promise.all([
+                const r2 = await Promise.allSettled([
                   getBalanceGeneral(q2), getEstadoResultados(q2), getPlanificacionFiscal(q2),
                   getFlujoCaja(q2), getMovimientoCapital(q2), getEliminacionIntercompany(q2),
                 ])
-                setBgData(bg2); setErData(er2); setPfData(pf2); setFcData(fc2); setMcData(mc2); setIcData(ic2)
+                setBgData(ok(r2[0])); setErData(ok(r2[1])); setPfData(ok(r2[2]))
+                setFcData(ok(r2[3])); setMcData(ok(r2[4])); setIcData(ok(r2[5]))
               } catch {
                 setError('Error al migrar datos legados. Inténtalo desde Configuración → Empresas.')
               } finally {
