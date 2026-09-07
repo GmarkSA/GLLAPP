@@ -864,7 +864,7 @@ export default function DteSatPage() {
     { signals: ['auditor','contabilidad','contador','auditoria','auditoría','firma de auditores','deloitte','kpmg','pwc','ernst'],
       accountKw: ['honorario','auditoría','auditoria','contabilidad'] },
     // Alimentación / Viáticos
-    { signals: ['restaurante','comida','catering','alimentación','alimentos','cafetería','cafeteria','viveres','víveres','supermercado','walmart','paiz','la torre','maxi'],
+    { signals: ['restaurante','comida','catering','alimentación','alimentos','cafetería','cafeteria','viveres','víveres','supermercado','walmart','paiz','la torre','maxi','pollo campero','campero','industrias de hamburguesas','hamburguesa','prismart'],
       accountKw: ['alimentación','alimentacion','comida','restaurante','viático','viatico'] },
     // Gastos menores / Misceláneos (tiendas varias, uso doméstico)
     { signals: ['dollar city','dollarcity','cemaco','típica','tipica','mercado','bazar','ferretería','ferreteria','truper','multimax','quetzal'],
