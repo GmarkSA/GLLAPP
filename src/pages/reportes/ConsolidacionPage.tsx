@@ -13,7 +13,6 @@ import {
 import dayjs, { type Dayjs } from 'dayjs'
 import * as XLSX from 'xlsx'
 import { useCompanyStore } from '../../store/companyStore'
-import { getBillingState } from '../../api/billing'
 import { companiesApi } from '../../api/companies'
 import {
   getBalanceGeneral, getEstadoResultados, getPlanificacionFiscal,
@@ -476,7 +475,6 @@ function exportarExcel(params: {
 export default function ConsolidacionPage() {
   const navigate = useNavigate()
   const { companies, activeCompany, loadCompanies } = useCompanyStore()
-  const [maxCompanies, setMaxCompanies] = useState<number>(10)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [mode, setMode]               = useState<PeriodMode>('mes')
@@ -496,9 +494,6 @@ export default function ConsolidacionPage() {
 
   useEffect(() => {
     loadCompanies()
-    getBillingState()
-      .then(s => setMaxCompanies(s.subscription?.maxCompanies ?? s.plans?.find(p => p.plan === s.tenant?.plan)?.maxCompanies ?? 10))
-      .catch(() => {})
   }, [])
 
   // Auto-seleccionar la empresa activa la primera vez que se cargan las empresas
@@ -514,6 +509,8 @@ export default function ConsolidacionPage() {
     companies.map(c => [c.id, c.tradeName || c.legalName])
   )
   const activeCompanies = companies.filter(c => (c as any).isActive !== false)
+  // El límite para consolidar es cuántas empresas existen — el plan ya controló la creación
+  const maxCompanies = Math.max(activeCompanies.length, 2)
 
   const toggleEmpresa = (id: string) =>
     setSelectedIds(prev =>
@@ -635,7 +632,7 @@ export default function ConsolidacionPage() {
             <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>
               Empresas a consolidar
               <Text type="secondary" style={{ fontWeight: 400, marginLeft: 8, fontSize: 11 }}>
-                máx. {maxCompanies} según tu plan · seleccionadas: {selectedIds.length}
+                seleccionadas: {selectedIds.length} de {activeCompanies.length}
               </Text>
             </Text>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
