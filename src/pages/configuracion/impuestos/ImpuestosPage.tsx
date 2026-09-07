@@ -985,9 +985,17 @@ export default function ImpuestosPage() {
           libroComprasCol: item.libroComprasCol,
         }
 
-        // Vinculación automática — busca por nombre, no por código exacto
-        if (item.salesAccountCode    && ivaVentasAccount)  dto.salesAccountId    = ivaVentasAccount.id
-        if (item.purchaseAccountCode && ivaComprasAccount) dto.purchaseAccountId = ivaComprasAccount.id
+        // Vinculación automática — busca por código exacto primero, luego por nombre
+        if (item.salesAccountCode) {
+          const byCode = pageAccounts.find(a => a.code === item.salesAccountCode)
+          const acc = byCode ?? ivaVentasAccount
+          if (acc) dto.salesAccountId = acc.id
+        }
+        if (item.purchaseAccountCode) {
+          const byCode = pageAccounts.find(a => a.code === item.purchaseAccountCode)
+          const acc = byCode ?? ivaComprasAccount
+          if (acc) dto.purchaseAccountId = acc.id
+        }
 
         try {
           await createTax(dto)
@@ -1038,10 +1046,16 @@ export default function ImpuestosPage() {
     if (!items?.length) { message.info('La plantilla del régimen actual no incluye códigos ISR'); return }
     setSeedingIsr(true)
     let created = 0
+    const isrRetAccount = pageAccounts.find(a => {
+      const n = (a.name ?? '').toLowerCase()
+      return n.includes('isr') && (n.includes('pagar') || n.includes('retener') || n.includes('retención') || n.includes('retencion'))
+    })
     try {
       for (const item of items) {
         if (taxes.find(t => t.code === item.code)) continue
-        try { await createTax(itemToBaseDto(item) as any); created++ }
+        const dto: any = { ...itemToBaseDto(item) }
+        if (isrRetAccount) dto.retentionAccountId = isrRetAccount.id
+        try { await createTax(dto); created++ }
         catch (e: any) { console.warn(`[ISR template] falló ${item.code}:`, e?.response?.data?.message) }
       }
       message.success(
@@ -1058,10 +1072,16 @@ export default function ImpuestosPage() {
     if (!items?.length) { message.info('La plantilla del régimen actual no incluye códigos de Retención de IVA'); return }
     setSeedingRiva(true)
     let created = 0
+    const rivaRetAccount = pageAccounts.find(a => {
+      const n = (a.name ?? '').toLowerCase()
+      return (n.includes('retención') || n.includes('retencion')) && n.includes('iva')
+    })
     try {
       for (const item of items) {
         if (taxes.find(t => t.code === item.code)) continue
-        try { await createTax(itemToBaseDto(item) as any); created++ }
+        const dto: any = { ...itemToBaseDto(item) }
+        if (rivaRetAccount) dto.retentionAccountId = rivaRetAccount.id
+        try { await createTax(dto); created++ }
         catch (e: any) { console.warn(`[RIVA template] falló ${item.code}:`, e?.response?.data?.message) }
       }
       message.success(
