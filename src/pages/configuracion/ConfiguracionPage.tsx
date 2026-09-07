@@ -1568,6 +1568,8 @@ function ContabilidadSection() {
           </div>
         </SectionCard>
 
+        <AlertaCierreConfigCard />
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
           <Button
             type="primary" size="large" icon={<SaveOutlined />}
@@ -1702,6 +1704,53 @@ function ModulesSection() {
 }
 
 // ── Helper components ──────────────────────────────────────────────────────
+
+/** Día del mes (dinámico: 25, 28, 29, 30…) a partir del cual el Admin ve la alerta de cierre fiscal. */
+function AlertaCierreConfigCard() {
+  const [dia,     setDia]     = useState<number>(28)
+  const [loading, setLoading] = useState(true)
+  const [saving,  setSaving]  = useState(false)
+
+  useEffect(() => {
+    getOrganizationProfile()
+      .then((p: any) => setDia(Number(p?.settings?.alertas?.cierreFiscalDia ?? 28)))
+      .catch(() => null)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const guardar = async () => {
+    setSaving(true)
+    try {
+      const p: any = await getOrganizationProfile().catch(() => ({}))
+      const st = p?.settings ?? {}
+      await updateOrganizationProfile({
+        settings: { ...st, alertas: { ...(st.alertas ?? {}), cierreFiscalDia: dia } },
+      } as any)
+      message.success(`Alerta de cierre fiscal configurada: a partir del día ${dia}`)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'No se pudo guardar')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Spin spinning={loading}>
+      <SectionCard title="Alerta de cierre fiscal" icon={<AuditOutlined />}>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 14, fontSize: 13 }}>
+          A partir de este día del mes, el <Text strong>Admin</Text> verá en el Dashboard y en la campana de
+          notificaciones las recomendaciones de facturación entre empresas del grupo (IVA e ISR) antes del cierre.
+          Aplica solo si la organización tiene 2 o más empresas activas.
+        </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Text strong style={{ fontSize: 13 }}>Mostrar la alerta a partir del día</Text>
+          <InputNumber min={1} max={31} value={dia} onChange={v => setDia(Number(v ?? 28))} style={{ width: 90 }} />
+          <Button type="primary" loading={saving} onClick={guardar} style={{ background: '#1faec2' }}>
+            Guardar
+          </Button>
+        </div>
+      </SectionCard>
+    </Spin>
+  )
+}
 
 function SectionCard({ title, icon, children, highlight }: { title: string; icon: React.ReactNode; children: React.ReactNode; highlight?: boolean }) {
   return (

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Drawer, List, Tag, Typography, Space, Button, Spin, Divider, Empty } from 'antd'
 import {
   ExclamationCircleOutlined, ClockCircleOutlined,
-  FileTextOutlined, SyncOutlined, ReloadOutlined,
+  FileTextOutlined, SyncOutlined, ReloadOutlined, RiseOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -12,6 +12,8 @@ import { getInvoices }          from '../api/facturas'
 import { getBills }             from '../api/compras'
 import { getSatDteDocuments }   from '../api/compras'
 import { getSatEmitidosDocuments } from '../api/facturas'
+import { getAlertaCierre, esAdminUsuario } from '../api/consolidacion'
+import { useAuthStore } from '../store/authStore'
 
 dayjs.extend(relativeTime)
 dayjs.locale('es')
@@ -23,7 +25,7 @@ const fmtQ = (n: number) =>
 
 export interface AlertItem {
   id:       string
-  type:     'overdue' | 'due_soon' | 'dte_compras' | 'dte_ventas' | 'bill_overdue'
+  type:     'overdue' | 'due_soon' | 'dte_compras' | 'dte_ventas' | 'bill_overdue' | 'cierre_fiscal'
   title:    string
   subtitle: string
   amount?:  number
@@ -43,6 +45,7 @@ const TYPE_CONFIG: Record<AlertItem['type'], { icon: React.ReactNode; color: str
   dte_compras:{ icon: <FileTextOutlined />,          color: '#1faec2', bg: '#f0fdfe' },
   dte_ventas: { icon: <FileTextOutlined />,          color: '#7c3aed', bg: '#f5f3ff' },
   bill_overdue:{ icon: <ExclamationCircleOutlined />, color: '#dc2626', bg: '#fef2f2' },
+  cierre_fiscal:{ icon: <RiseOutlined />,             color: '#d46b08', bg: '#fff7ed' },
 }
 
 const SECTION_LABELS: Record<AlertItem['type'], string> = {
@@ -51,10 +54,12 @@ const SECTION_LABELS: Record<AlertItem['type'], string> = {
   dte_compras: 'DTE Compras listos para contabilizar',
   dte_ventas:  'DTE Ventas listos para contabilizar',
   bill_overdue:'Facturas de proveedor vencidas',
+  cierre_fiscal:'Cierre fiscal del mes — acción de facturación',
 }
 
 export default function NotificationsDrawer({ open, onClose, onLoad }: Props) {
   const navigate = useNavigate()
+  const user = useAuthStore(st => st.user)
   const [alerts,  setAlerts]  = useState<AlertItem[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -73,6 +78,27 @@ export default function NotificationsDrawer({ open, onClose, onLoad }: Props) {
       ])
 
       const items: AlertItem[] = []
+
+      // Cierre fiscal del mes — solo Admin; desde el día configurado (default 28)
+      if (esAdminUsuario(user)) {
+        try {
+          const ac = await getAlertaCierre()
+          if (ac?.activa && (ac.recomendaciones?.length ?? 0) > 0) {
+            ac.recomendaciones!.forEach((r: any, i: number) => {
+              items.push({
+                id:       `cierre-fiscal-${i}`,
+                type:     'cierre_fiscal',
+                title:    r.emisor && r.receptor ? `${r.emisor.nombre} → facturar a ${r.receptor.nombre}` : (r.empresa?.nombre ?? 'Planificación fiscal'),
+                subtitle: r.montoSugerido
+                  ? `Facturar ${fmtQ(r.montoSugerido)}${r.ahorroEstimadoIva ? ` · reduce IVA por pagar ${fmtQ(r.ahorroEstimadoIva)}` : r.ahorroEstimadoIsr ? ` · ahorro ISR ${fmtQ(r.ahorroEstimadoIsr)}` : ''} antes del cierre`
+                  : r.descripcion,
+                amount:   r.montoSugerido,
+                route:    '/reportes/consolidacion',
+              })
+            })
+          }
+        } catch { /* la campana no debe romperse por la alerta */ }
+      }
 
       // Facturas de venta vencidas
       if (overdueRes.status === 'fulfilled') {
@@ -285,6 +311,13 @@ export function useAlertCount() {
         ])
 
         let c = 0
+        try {
+          const u = useAuthStore.getState().user
+          if (esAdminUsuario(u)) {
+            const ac = await getAlertaCierre()
+            if (ac?.activa) c += ac.recomendaciones?.length ?? 0
+          }
+        } catch { /* silencioso */ }
         if (overdueRes.status    === 'fulfilled') c += overdueRes.value?.total    ?? 0
         if (billsRes.status      === 'fulfilled') c += (billsRes.value as any)?.total ?? 0
         if (dteComprasRes.status === 'fulfilled') c += ((dteComprasRes.value as any)?.total ?? 0) > 0 ? 1 : 0

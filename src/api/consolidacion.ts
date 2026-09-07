@@ -145,5 +145,28 @@ export const getFlujoCaja = (q: ConsolidacionQuery): Promise<FlujoCaja> =>
 export const getMovimientoCapital = (q: ConsolidacionQuery): Promise<MovimientoCapital> =>
   api.post('/consolidacion/movimiento-capital', q).then(unwrap)
 
+// ── Alerta de cierre fiscal (día configurable por el Admin; default 28) ──
+export interface AlertaCierre {
+  aplicable: boolean
+  activa?: boolean
+  dia?: number
+  diaConfigurado?: number
+  motivo?: string
+  periodo?: { startDate: string; endDate: string }
+  recomendaciones?: Recomendacion[]
+  empresas?: Array<{ companyId: string; legalName: string; utilidad: number; isrProyectado: number; ivaPorPagar: number }>
+}
+
+export const getAlertaCierre = (): Promise<AlertaCierre> =>
+  api.get('/consolidacion/alerta-cierre').then(unwrap)
+
+/** ¿El usuario es Admin del tenant? (la alerta de cierre es solo para el dueño) */
+export const esAdminUsuario = (user: any): boolean =>
+  !!user?.isSuperAdmin ||
+  (user?.roles ?? [])
+    .map((r: any) => (typeof r === 'string' ? r : r?.name))
+    .filter(Boolean)
+    .some((n: string) => ['admin', 'superadmin'].includes(String(n).toLowerCase()))
+
 export const getEliminacionIntercompany = (q: ConsolidacionQuery): Promise<EliminacionIntercompany> =>
   api.post('/consolidacion/eliminacion-intercompany', q).then(unwrap)
