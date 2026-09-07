@@ -125,6 +125,7 @@ export default function DteSatPage() {
   const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
   const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
   const [stepperIsAnulado, setStepperIsAnulado] = useState(false)
+  const [stepperTasaMunicipalAmount, setStepperTasaMunicipalAmount] = useState(0)
   const [accountMode, setAccountMode] = useState<'expense' | 'asset' | 'all'>('expense')
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
@@ -501,6 +502,18 @@ export default function DteSatPage() {
     setStepperIsAnulado(!!row.anulado)
     setAccountMode('expense')
 
+    // Detectar Tasa Municipal: gap entre total SAT y (base IVA + IVA)
+    // Si totalIva > 0: base = totalIva / 0.12; gap = total - base - IVA
+    // Un gap > Q0.50 indica Tasa Municipal u otro impuesto adicional
+    const dteIvaAmt = Number(row.totalIva ?? 0)
+    if (dteIvaAmt > 0) {
+      const baseIva = Math.round((dteIvaAmt / 0.12) * 100) / 100
+      const gap     = Math.round((Number(row.total ?? 0) - baseIva - dteIvaAmt) * 100) / 100
+      setStepperTasaMunicipalAmount(gap > 0.50 ? gap : 0)
+    } else {
+      setStepperTasaMunicipalAmount(0)
+    }
+
     // Limpiar completamente el formulario para no heredar campos del DTE anterior
     stepperForm.resetFields()
 
@@ -654,6 +667,7 @@ export default function DteSatPage() {
     accountingDate?: Dayjs; employeeId?: string; idpAccountId?: string; idpType?: string; defaultUnit?: string
     originalInvoiceId?: string; creditNoteReason?: string
     timbrePrensaAccountId?: string; turismoAccountId?: string
+    tasaMunicipalAccountId?: string; bomberosAccountId?: string
   }) => {
     if (!stepperDte) return
     setStepperLoading(true)
@@ -692,6 +706,9 @@ export default function DteSatPage() {
         timbrePrensaAccountId:  timbrePrensaAmount > 0 ? values.timbrePrensaAccountId : undefined,
         turismoAmount:          turismoAmount || undefined,
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
+        tasaMunicipalAmount:    stepperTasaMunicipalAmount > 0 ? stepperTasaMunicipalAmount : undefined,
+        tasaMunicipalAccountId: stepperTasaMunicipalAmount > 0 ? values.tasaMunicipalAccountId : undefined,
+        bomberosAccountId:      stepperTasaMunicipalAmount > 0 ? values.bomberosAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
@@ -824,41 +841,90 @@ export default function DteSatPage() {
     await load(true)
   }
 
-  // Infiere tipo de compra (Bien/Servicio/Combustible), impuesto y cuenta de gasto
-  // a partir de los items del DTE (campo bien_o_servicio del XML SAT + descripción)
+  // Reglas de inferencia: señales en nombre del proveedor o descripción de ítems → keywords de cuenta de gasto
+  // Orden importa: la primera regla que coincide gana
+  const EXPENSE_RULES: { signals: string[]; accountKw: string[]; taxCode?: string; type?: 'B' | 'S' | 'C' }[] = [
+    // Combustibles (también determina impuesto RG-C08)
+    { signals: ['combustible','gasolina','diesel','diésel','bunker','kerosina','propano','petróleo','petroleo','gasolinera','estación de servicio','puma energy','texaco','shell','uno energy','despensa familiar combusti'],
+      accountKw: ['combustible','gasolina','diesel','petróleo','petroleo'], taxCode: 'RG-C08', type: 'C' },
+    // Energía eléctrica
+    { signals: ['eléctrica','electrica','eegsa','energuate','deorsa','deocsa','distribuidora de electricidad','energía eléctrica','consumo de energía'],
+      accountKw: ['energía','electricidad','luz y energía','luz y fuerza','energia electrica'] },
+    // Agua
+    { signals: ['agua','empagua','infom','acueducto','aguas','servicio de agua'],
+      accountKw: ['agua','servicio de agua'] },
+    // Seguros y pólizas
+    { signals: ['seguro','seguros','aseguradora','reaseguro','póliza','poliza','mapfre','qualitas','bantrab seguros','g&t seguros','general de seguros','la reforma','el roble'],
+      accountKw: ['seguro','póliza','poliza','prima de seguro'] },
+    // Telecomunicaciones / Internet
+    { signals: ['comunicaciones','claro','tigo','telgua','movistar','telefónica','telefonica','internet','celular','telefonía','telefonia','cable','fibra óptica','servicio telefónico','los olivos','comunicacion'],
+      accountKw: ['teléfono','telefono','internet','comunicacion','celular','telefonía'] },
+    // Alquiler / Arrendamiento
+    { signals: ['arrendamiento','alquiler','arrendadora','bienes raíces','inmobiliaria','renta de','alquiler de'],
+      accountKw: ['arrendamiento','alquiler','renta'] },
+    // Publicidad y Marketing
+    { signals: ['publicidad','marketing','medios','prensa libre','nuestro diario','periódico','radio','televisión','television','agencia de publicidad','banner','señal'],
+      accountKw: ['publicidad','propaganda','marketing','mercadeo'] },
+    // Transporte y Fletes
+    { signals: ['transporte','flete','courier','dhl','fedex','ups','guatex','cargo','envío','mensajería','mensajeria','distribución'],
+      accountKw: ['transporte','flete','envío','envio','courier','mensajería'] },
+    // Mantenimiento y Reparaciones
+    { signals: ['mantenimiento','reparación','reparacion','servicio técnico','tecnico','instalación','instalacion','plomero','electricista','pintura'],
+      accountKw: ['mantenimiento','reparación','reparacion','conservacion'] },
+    // Papelería y Útiles de Oficina
+    { signals: ['papelería','papeleria','librería','libreria','imprenta','office depot','staples','útiles de oficina','suministros de oficina','impresos','formularios'],
+      accountKw: ['papelería','papeleria','útiles de oficina','utiles de oficina','suministro'] },
+    // Servicios profesionales / Honorarios
+    { signals: ['abogado','notario','jurídico','juridico','legal','bufete','firma legal','consultoría legal','escritura','asesoría'],
+      accountKw: ['honorario','legal','jurídico','juridico','asesoría legal','servicio profesional'] },
+    // Auditoría / Contabilidad
+    { signals: ['auditor','contabilidad','contador','auditoria','auditoría','firma de auditores','deloitte','kpmg','pwc','ernst'],
+      accountKw: ['honorario','auditoría','auditoria','contabilidad'] },
+    // Alimentación / Viáticos
+    { signals: ['restaurante','comida','catering','alimentación','alimentos','cafetería','cafeteria','viveres','víveres','supermercado','walmart','paiz','la torre','maxi','pollo campero','campero','industrias de hamburguesas','hamburguesa','prismart'],
+      accountKw: ['alimentación','alimentacion','comida','restaurante','viático','viatico'] },
+    // Gastos menores / Misceláneos (tiendas varias, uso doméstico)
+    { signals: ['dollar city','dollarcity','cemaco','típica','tipica','mercado','bazar','ferretería','ferreteria','truper','multimax','quetzal'],
+      accountKw: ['gastos menor','útiles','utiles','misceláneo','miscela','varios'] },
+  ]
+
+  // Motor de inferencia: analiza nombre del proveedor + descripciones de ítems para
+  // asignar cuenta de gasto e impuesto IVA más acertados
   const inferFromDteItems = (dtes: SatDte[]): { taxId?: string; expenseAccountId?: string; detectedType: 'B' | 'S' | 'C' | 'mixed' } => {
     const allItems = dtes.flatMap(d => d.items ?? [])
     const expAccounts = accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('5') || a.code?.startsWith('6')))
     const findExp = (kws: string[]) => expAccounts.find(a => kws.some(k => (a.name ?? '').toLowerCase().includes(k)))?.id
 
-    if (allItems.length === 0) return { taxId: taxes.find(t => t.code === 'RG-C01')?.id, detectedType: 'B' }
-    const fuelKw = ['combustible', 'gasolina', 'diesel', 'diésel', 'bunker', 'kerosina', 'propano', 'petróleo']
-    const hasFuel = allItems.some(i => {
-      const desc = ((i as any).descripcion ?? (i as any).description ?? '').toLowerCase()
-      return fuelKw.some(k => desc.includes(k))
-    })
-    if (hasFuel) return {
-      taxId: taxes.find(t => t.code === 'RG-C08')?.id,
-      expenseAccountId: findExp(['combustible', 'gasolina', 'diesel', 'petróleo', 'petroleo']),
-      detectedType: 'C',
-    }
+    // Texto de búsqueda: nombre del proveedor + todas las descripciones de ítems
+    const vendorName = (dtes[0]?.nombreEmisor ?? '').toLowerCase()
+    const itemDescs = allItems.map(i => ((i as any).descripcion ?? (i as any).description ?? '').toLowerCase()).join(' ')
+    const searchText = `${vendorName} ${itemDescs}`
+
+    // Detectar tipo base desde bien_o_servicio (para impuesto por defecto)
     const types = allItems.map(i => (i as any).bien_o_servicio ?? 'B')
-    const allSvc = types.every(t => t === 'S')
+    const allSvc  = types.length > 0 && types.every(t => t === 'S')
     const hasBoth = types.some(t => t === 'B') && types.some(t => t === 'S')
-    if (allSvc) return {
-      taxId: taxes.find(t => t.code === 'RG-C02')?.id,
-      expenseAccountId: findExp(['servicio', 'honorario', 'consultor', 'asesor']),
-      detectedType: 'S',
+    const baseType: 'B' | 'S' | 'mixed' = allSvc ? 'S' : hasBoth ? 'mixed' : 'B'
+    const baseTaxCode = allSvc ? 'RG-C02' : 'RG-C01'
+
+    // Aplicar reglas en orden: primera coincidencia gana
+    for (const rule of EXPENSE_RULES) {
+      if (rule.signals.some(s => searchText.includes(s))) {
+        return {
+          taxId: taxes.find(t => t.code === (rule.taxCode ?? baseTaxCode))?.id,
+          expenseAccountId: findExp(rule.accountKw),
+          detectedType: rule.type ?? baseType,
+        }
+      }
     }
-    if (hasBoth) return {
-      taxId: taxes.find(t => t.code === 'RG-C01')?.id,
-      expenseAccountId: findExp(['compra', 'mercadería', 'mercaderia', 'inventario']),
-      detectedType: 'mixed',
-    }
+
+    // Sin coincidencia: fallback por tipo base
     return {
-      taxId: taxes.find(t => t.code === 'RG-C01')?.id,
-      expenseAccountId: findExp(['compra', 'mercadería', 'mercaderia', 'inventario']),
-      detectedType: 'B',
+      taxId: taxes.find(t => t.code === baseTaxCode)?.id,
+      expenseAccountId: allSvc
+        ? findExp(['servicio','honorario','consultor'])
+        : findExp(['compra','mercadería','mercaderia','inventario']),
+      detectedType: baseType,
     }
   }
 
@@ -1712,6 +1778,29 @@ export default function DteSatPage() {
                         </div>
                       )
                     })()}
+
+                    {/* Impuestos adicionales (Tasa Municipal / Bomberos) — auto-detectados del gap */}
+                    {stepperTasaMunicipalAmount > 0 && !stepperIsAnulado && (
+                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Impuestos adicionales detectados</Text>
+                          <Text strong style={{ fontSize: 13, color: '#1d4ed8' }}>
+                            Q {stepperTasaMunicipalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                          </Text>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
+                          El backend los identifica por tipo desde el XML FEL y genera una línea independiente en la póliza. Selecciona la(s) cuenta(s) que aplique.
+                        </Text>
+                        <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: 8 }}>
+                          <Select showSearch allowClear placeholder="Ej. 6112 — Tasa Municipal (EEGSA / Energuate)"
+                            options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                        </Form.Item>
+                        <Form.Item name="bomberosAccountId" label="Cuenta Bomberos" style={{ marginBottom: 0 }}>
+                          <Select showSearch allowClear placeholder="Ej. 6113 — Impuesto Bomberos (seguros)"
+                            options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                        </Form.Item>
+                      </div>
+                    )}
 
                     {/* Empleado — visible solo en modo Reembolso de Gastos */}
                     {stepperOcChoice === 'reimbursement' && (

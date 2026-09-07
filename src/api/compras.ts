@@ -666,6 +666,10 @@ export const postSatDte = (id: string, dto: {
   timbrePrensaAccountId?: string
   turismoAmount?: number
   turismoAccountId?: string
+  tasaMunicipalAmount?: number
+  tasaMunicipalAccountId?: string
+  bomberosAmount?: number
+  bomberosAccountId?: string
   forceZeroAmount?: boolean
   lineAccounts?: Array<{ index: number; accountId: string }>
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
