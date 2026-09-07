@@ -140,6 +140,11 @@ export default function FacturaProveedorFormPage() {
   const [bebidasMonto, setBebidasMonto] = useState<number | null>(null)
   const [bebidasLineas, setBebidasLineas] = useState<number[]>([])
   const [bebidasLineasOpen, setBebidasLineasOpen] = useState(false)
+  // Tasa Municipal (EEGSA / Energuate) y Bomberos (Dto. 112-97) — monto fijo del DTE
+  const [hasTasaMunicipal,   setHasTasaMunicipal]   = useState(false)
+  const [tasaMunicipalMonto, setTasaMunicipalMonto] = useState<number | null>(null)
+  const [hasBomberos,        setHasBomberos]        = useState(false)
+  const [bomberosMontoSt,    setBomberosMontoSt]    = useState<number | null>(null)
   const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number> } | null>(null)
 
   // Watched form values
@@ -306,6 +311,17 @@ export default function FacturaProveedorFormPage() {
           }
         }
         setLoadedIsrAccountId(bill.isrRetentionAccountId ?? undefined)
+        // Restaurar Tasa Municipal / Bomberos si la factura ya los tiene
+        if (Number(bill.tasaMunicipalAmount ?? 0) > 0) {
+          setHasTasaMunicipal(true)
+          setTasaMunicipalMonto(Number(bill.tasaMunicipalAmount))
+          form.setFieldValue('tasaMunicipalAccountId', bill.tasaMunicipalAccountId)
+        }
+        if (Number(bill.bomberosAmount ?? 0) > 0) {
+          setHasBomberos(true)
+          setBomberosMontoSt(Number(bill.bomberosAmount))
+          form.setFieldValue('bomberosAccountId', bill.bomberosAccountId)
+        }
         if (bill.journalEntryId) {
           getJournalEntry(bill.journalEntryId)
             .then(je => setJournalEntry(je))
@@ -506,6 +522,10 @@ export default function FacturaProveedorFormPage() {
     ? Math.round(totals.subtotal * (turismoRate / 100) * 100) / 100 : 0
 
   // Bebidas alcohólicas (Dto. 21-2004) — base sin IVA × tasa; se suma al total (no forma base del IVA)
+  // Tasa Municipal / Bomberos — monto fijo ingresado o pre-cargado del DTE
+  const tasaMunicipalAmount = hasTasaMunicipal ? Math.round((tasaMunicipalMonto ?? 0) * 100) / 100 : 0
+  const bomberosAmount      = hasBomberos      ? Math.round((bomberosMontoSt    ?? 0) * 100) / 100 : 0
+
   const bebidasRates = { ...DEFAULT_BEBIDAS_RATES, ...(orgImpEsp?.bebidasRates ?? {}) }
   const bebidasRate  = bebidasTipo ? (bebidasRates[bebidasTipo] ?? 0) : 0
   // Base sin IVA de las LÍNEAS marcadas con el impuesto (no va sobre toda la factura)
@@ -523,7 +543,7 @@ export default function FacturaProveedorFormPage() {
   const bebidasAmount = (invoiceType === 'goods' && hasBebidas) ? (bebidasMonto ?? bebidasCalc) : 0
 
   // IDP se suma al gross porque el precio SAT ("P. Unitario con IVA") no lo incluye
-  const netPayable = Math.round((totals.total + idpAmount + timbrePrensaAmount + turismoAmount + bebidasAmount - totalRetention) * 100) / 100
+  const netPayable = Math.round((totals.total + idpAmount + timbrePrensaAmount + turismoAmount + bebidasAmount + tasaMunicipalAmount + bomberosAmount - totalRetention) * 100) / 100
 
   // ── Account options ────────────────────────────────────────────────────────
 
@@ -591,6 +611,11 @@ export default function FacturaProveedorFormPage() {
       bebidasAmount:          (invoiceType === 'goods' && hasBebidas) ? (bebidasAmount || undefined) : undefined,
       bebidasTipo:            (invoiceType === 'goods' && hasBebidas && bebidasAmount) ? (bebidasTipo || undefined) : undefined,
       bebidasAccountId:       (invoiceType === 'goods' && hasBebidas && bebidasAmount) ? vals.bebidasAccountId : undefined,
+      // Tasa Municipal (EEGSA / servicios municipales) y Bomberos (Dto. 112-97)
+      tasaMunicipalAmount:    hasTasaMunicipal ? (tasaMunicipalAmount || undefined) : undefined,
+      tasaMunicipalAccountId: hasTasaMunicipal ? vals.tasaMunicipalAccountId : undefined,
+      bomberosAmount:         hasBomberos ? (bomberosAmount || undefined) : undefined,
+      bomberosAccountId:      hasBomberos ? vals.bomberosAccountId : undefined,
       status,
       notes: vals.notes,
       items: lineItems,
@@ -808,6 +833,12 @@ export default function FacturaProveedorFormPage() {
                       </Checkbox>
                       <Checkbox checked={hasTurismo} onChange={e => setHasTurismo(e.target.checked)}>
                         <span style={{ fontSize: 12 }}>Turismo INGUAT</span>
+                      </Checkbox>
+                      <Checkbox checked={hasTasaMunicipal} onChange={e => setHasTasaMunicipal(e.target.checked)}>
+                        <span style={{ fontSize: 12 }}>Tasa Municipal</span>
+                      </Checkbox>
+                      <Checkbox checked={hasBomberos} onChange={e => setHasBomberos(e.target.checked)}>
+                        <span style={{ fontSize: 12 }}>Bomberos (Dto. 112-97)</span>
                       </Checkbox>
                     </div>
                   )}
@@ -1088,6 +1119,22 @@ export default function FacturaProveedorFormPage() {
                   </div>
                 )}
 
+                {/* Tasa Municipal */}
+                {tasaMunicipalAmount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#1B3A6B' }}>Tasa Municipal</Text>
+                    <Text style={{ fontSize: 13, color: '#1B3A6B', fontWeight: 600 }}>+ Q {fmt(tasaMunicipalAmount)}</Text>
+                  </div>
+                )}
+
+                {/* Bomberos */}
+                {bomberosAmount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#1B3A6B' }}>Bomberos (Dto. 112-97)</Text>
+                    <Text style={{ fontSize: 13, color: '#1B3A6B', fontWeight: 600 }}>+ Q {fmt(bomberosAmount)}</Text>
+                  </div>
+                )}
+
                 {/* Equivalente GTQ — cuando la factura es en moneda extranjera */}
                 {vendorCurrency !== 'GTQ' && exchangeRate > 1 && (
                   <div style={{
@@ -1104,8 +1151,8 @@ export default function FacturaProveedorFormPage() {
                   </div>
                 )}
 
-                {/* Neto a Pagar — cuando hay retenciones o IDP */}
-                {(totalRetention > 0 || idpAmount > 0) && (
+                {/* Neto a Pagar — cuando hay retenciones, IDP o impuestos adicionales */}
+                {(totalRetention > 0 || idpAmount > 0 || tasaMunicipalAmount > 0 || bomberosAmount > 0) && (
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     background: '#1faec2', borderRadius: 8, padding: '10px 16px', marginTop: 2,
@@ -1355,6 +1402,44 @@ export default function FacturaProveedorFormPage() {
                     </div>
                     <Form.Item name="turismoAccountId" label="Cuenta Turismo INGUAT" style={{ marginBottom: 0 }}>
                       <Select showSearch placeholder="Ej. 6109 — Turismo INGUAT"
+                        filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
+                        options={allAccounts} allowClear />
+                    </Form.Item>
+                  </div>
+                )}
+              </Form>
+            </Card>
+          )}
+
+          {/* Tasa Municipal / Bomberos — montos fijos del DTE */}
+          {invoiceType === 'services' && (hasTasaMunicipal || hasBomberos) && (
+            <Card title={<span style={{ color: '#1B3A6B', fontWeight: 600 }}>Impuestos Adicionales DTE</span>}>
+              <Form form={form} layout="vertical" size="small">
+                {hasTasaMunicipal && (
+                  <div style={{ marginBottom: hasBomberos ? 12 : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, color: '#6b7280' }}>Tasa Municipal (monto fijo del DTE)</Text>
+                      <InputNumber size="small" min={0} precision={2} prefix="Q" style={{ width: 140 }}
+                        value={tasaMunicipalMonto ?? 0}
+                        onChange={v => setTasaMunicipalMonto(v ?? 0)} />
+                    </div>
+                    <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: 0 }}>
+                      <Select showSearch placeholder="Ej. 6112 — Tasa Municipal (EEGSA / Energuate)"
+                        filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
+                        options={allAccounts} allowClear />
+                    </Form.Item>
+                  </div>
+                )}
+                {hasBomberos && (
+                  <div style={{ marginTop: hasTasaMunicipal ? 12 : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, color: '#6b7280' }}>Bomberos (Dto. 112-97, monto fijo del DTE)</Text>
+                      <InputNumber size="small" min={0} precision={2} prefix="Q" style={{ width: 140 }}
+                        value={bomberosMontoSt ?? 0}
+                        onChange={v => setBomberosMontoSt(v ?? 0)} />
+                    </div>
+                    <Form.Item name="bomberosAccountId" label="Cuenta Bomberos" style={{ marginBottom: 0 }}>
+                      <Select showSearch placeholder="Ej. 6113 — Impuesto Bomberos (seguros)"
                         filterOption={(v, opt) => (opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
                         options={allAccounts} allowClear />
                     </Form.Item>

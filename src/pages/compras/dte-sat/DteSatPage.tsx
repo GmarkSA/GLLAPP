@@ -706,7 +706,7 @@ export default function DteSatPage() {
         timbrePrensaAccountId:  timbrePrensaAmount > 0 ? values.timbrePrensaAccountId : undefined,
         turismoAmount:          turismoAmount || undefined,
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
-        tasaMunicipalAmount:    stepperTasaMunicipalAmount > 0 ? stepperTasaMunicipalAmount : undefined,
+        // No enviar monto: el backend lo extrae exacto del XML (NombreCorto=TASA MUNICIPAL / BOMBEROS)
         tasaMunicipalAccountId: stepperTasaMunicipalAmount > 0 ? values.tasaMunicipalAccountId : undefined,
         bomberosAccountId:      stepperTasaMunicipalAmount > 0 ? values.bomberosAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
