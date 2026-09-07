@@ -851,18 +851,18 @@ export default function FacturaProveedorFormPage() {
                     <Select options={BILL_TYPES} />
                   </Form.Item>
                   {invoiceType === 'services' && (
-                    <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'nowrap' }}>
                       <Checkbox checked={hasTimbrePrens} onChange={e => setHasTimbrePrens(e.target.checked)}>
-                        <span style={{ fontSize: 12 }}>Timbre de Prensa</span>
+                        <span style={{ fontSize: 11 }}>Timbre de Prensa</span>
                       </Checkbox>
                       <Checkbox checked={hasTurismo} onChange={e => setHasTurismo(e.target.checked)}>
-                        <span style={{ fontSize: 12 }}>Turismo INGUAT</span>
+                        <span style={{ fontSize: 11 }}>Turismo INGUAT</span>
                       </Checkbox>
                       <Checkbox checked={hasTasaMunicipal} onChange={e => setHasTasaMunicipal(e.target.checked)}>
-                        <span style={{ fontSize: 12 }}>Tasa Municipal</span>
+                        <span style={{ fontSize: 11 }}>Tasa Municipal</span>
                       </Checkbox>
                       <Checkbox checked={hasBomberos} onChange={e => setHasBomberos(e.target.checked)}>
-                        <span style={{ fontSize: 12 }}>Bomberos (Dto. 112-97)</span>
+                        <span style={{ fontSize: 11 }}>Bomberos</span>
                       </Checkbox>
                     </div>
                   )}
