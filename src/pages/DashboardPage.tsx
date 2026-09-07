@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 import SetupProgressBanner from '../components/SetupProgressBanner'
+import AlertaCierreFiscalBanner from '../components/AlertaCierreFiscalBanner'
 import {
   Alert, Badge, Card, Col, Empty, Progress, Row,
   Space, Spin, Statistic, Table, Tag, Tooltip, Typography,
@@ -839,6 +840,7 @@ export default function DashboardPage() {
   return (
     <div>
       <SetupProgressBanner />
+      <AlertaCierreFiscalBanner />
       <TableroDueno />
     </div>
   )
