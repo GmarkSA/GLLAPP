@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Alert, Breadcrumb, Button, Card, Checkbox, Col, DatePicker, Empty, Row,
-  Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Typography,
+  Alert, Breadcrumb, Button, Card, Checkbox, Col, DatePicker, Empty, Modal,
+  Row, Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Typography,
 } from 'antd'
+import { ToolOutlined } from '@ant-design/icons'
 import {
   ApartmentOutlined, ArrowLeftOutlined, BankOutlined, CheckCircleOutlined,
   DownloadOutlined, ExclamationCircleOutlined, FileTextOutlined, HomeOutlined,
@@ -13,6 +14,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import * as XLSX from 'xlsx'
 import { useCompanyStore } from '../../store/companyStore'
 import { getBillingState } from '../../api/billing'
+import { companiesApi } from '../../api/companies'
 import {
   getBalanceGeneral, getEstadoResultados, getPlanificacionFiscal,
   getFlujoCaja, getMovimientoCapital, getEliminacionIntercompany,
@@ -473,7 +475,7 @@ function exportarExcel(params: {
 // ── Página principal ───────────────────────────────────────────────────────
 export default function ConsolidacionPage() {
   const navigate = useNavigate()
-  const { companies } = useCompanyStore()
+  const { companies, activeCompany, loadCompanies } = useCompanyStore()
   const [maxCompanies, setMaxCompanies] = useState<number>(10)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -489,12 +491,24 @@ export default function ConsolidacionPage() {
   const [icData, setIcData] = useState<EliminacionIntercompany | null>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+  const [migrando, setMigrando] = useState(false)
+  const autoSelected = useRef(false)
 
   useEffect(() => {
+    loadCompanies()
     getBillingState()
       .then(s => setMaxCompanies(s.subscription?.maxCompanies ?? s.plans?.find(p => p.plan === s.tenant?.plan)?.maxCompanies ?? 10))
       .catch(() => {})
   }, [])
+
+  // Auto-seleccionar la empresa activa la primera vez que se cargan las empresas
+  useEffect(() => {
+    if (autoSelected.current || companies.length === 0 || selectedIds.length > 0) return
+    if (activeCompany) {
+      autoSelected.current = true
+      setSelectedIds([activeCompany.id])
+    }
+  }, [companies, activeCompany, selectedIds])
 
   const companyNames: Record<string, string> = Object.fromEntries(
     companies.map(c => [c.id, c.tradeName || c.legalName])
@@ -521,6 +535,60 @@ export default function ConsolidacionPage() {
         getFlujoCaja(q), getMovimientoCapital(q), getEliminacionIntercompany(q),
       ])
       setBgData(bg); setErData(er); setPfData(pf); setFcData(fc); setMcData(mc); setIcData(ic)
+
+      // Detectar si todos los resultados están vacíos — posible causa: companyId NULL en asientos
+      const sinDatos = (!bg?.filas?.length) && (!er?.filas?.length)
+      if (sinDatos) {
+        const diag: any = await companiesApi.diagnoseData().catch(() => null)
+        const hayLegacy = diag && Object.values(diag).some((v: any) =>
+          Array.isArray(v) && v.some((r: any) => r.companyId === null && Number(r.total) > 0)
+        )
+        if (hayLegacy) {
+          // Empresa principal (default o primera seleccionada) a la que migrar los datos legados
+          const targetId = selectedIds[0]
+          const targetName = companies.find(c => c.id === targetId)?.tradeName
+            ?? companies.find(c => c.id === targetId)?.legalName
+            ?? targetId
+          Modal.confirm({
+            title: 'Asientos sin empresa asignada detectados',
+            content: (
+              <div>
+                <p style={{ marginBottom: 8 }}>
+                  Se encontraron registros contables sin empresa asignada.
+                  Esto ocurre cuando los datos fueron creados antes de activar el módulo multi-empresa.
+                </p>
+                <p style={{ marginBottom: 0 }}>
+                  ¿Deseas asignar esos registros a <strong>{targetName}</strong> para incluirlos en
+                  la consolidación? Esta acción es reversible solo manualmente.
+                </p>
+              </div>
+            ),
+            okText: `Migrar a ${targetName}`,
+            cancelText: 'Cancelar',
+            okButtonProps: { danger: false },
+            icon: <ToolOutlined />,
+            width: 520,
+            onOk: async () => {
+              setMigrando(true)
+              try {
+                await companiesApi.migrateLegacy(targetId)
+                setError(null)
+                // Re-generar automáticamente tras la migración
+                const q2: ConsolidacionQuery = { companyIds: selectedIds, startDate, endDate }
+                const [bg2, er2, pf2, fc2, mc2, ic2] = await Promise.all([
+                  getBalanceGeneral(q2), getEstadoResultados(q2), getPlanificacionFiscal(q2),
+                  getFlujoCaja(q2), getMovimientoCapital(q2), getEliminacionIntercompany(q2),
+                ])
+                setBgData(bg2); setErData(er2); setPfData(pf2); setFcData(fc2); setMcData(mc2); setIcData(ic2)
+              } catch {
+                setError('Error al migrar datos legados. Inténtalo desde Configuración → Empresas.')
+              } finally {
+                setMigrando(false)
+              }
+            },
+          })
+        }
+      }
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Error al generar el reporte consolidado')
     } finally {
@@ -614,7 +682,7 @@ export default function ConsolidacionPage() {
 
           <Col xs={24} md={4}>
             <Button type="primary" block size="middle" icon={<FileTextOutlined />}
-              disabled={selectedIds.length < 2} loading={loading} onClick={generar}
+              disabled={selectedIds.length < 2} loading={loading || migrando} onClick={generar}
               style={{ background: '#1faec2', borderColor: '#1faec2', marginTop: 22 }}>
               Generar
             </Button>
@@ -629,15 +697,17 @@ export default function ConsolidacionPage() {
 
       {error && <Alert type="error" message={error} style={{ marginBottom: 16, borderRadius: 8 }} showIcon />}
 
-      {loading && (
+      {(loading || migrando) && (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <Spin size="large" />
-          <div style={{ marginTop: 12, color: '#6b7280', fontSize: 12 }}>Consolidando datos…</div>
+          <div style={{ marginTop: 12, color: '#6b7280', fontSize: 12 }}>
+            {migrando ? 'Migrando datos legados y consolidando…' : 'Consolidando datos…'}
+          </div>
         </div>
       )}
 
       {/* Resultados */}
-      {!loading && hayResultados && (
+      {!loading && !migrando && hayResultados && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -699,10 +769,17 @@ export default function ConsolidacionPage() {
         </div>
       )}
 
-      {!loading && !hayResultados && (
+      {!loading && !migrando && !hayResultados && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>
           <ApartmentOutlined style={{ fontSize: 56, display: 'block', marginBottom: 16 }} />
           <Text type="secondary" style={{ fontSize: 13 }}>Selecciona al menos 2 empresas y el período, luego haz clic en Generar.</Text>
+          {companies.length > 0 && selectedIds.length === 1 && (
+            <div style={{ marginTop: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Tienes 1 empresa seleccionada — selecciona al menos una más para habilitar la consolidación.
+              </Text>
+            </div>
+          )}
         </div>
       )}
     </div>
