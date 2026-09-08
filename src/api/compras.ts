@@ -552,6 +552,9 @@ export interface SatImportJob {
   errorMessage?: string
   createdAt: string
   updatedAt?: string
+  finishedAt?: string | null
+  totalCount?: number
+  errorCount?: number
 }
 
 const DTE_SAT = '/compras/dte-sat'
