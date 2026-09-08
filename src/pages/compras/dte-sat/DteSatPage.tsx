@@ -126,6 +126,7 @@ export default function DteSatPage() {
   const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
   const [stepperIsAnulado, setStepperIsAnulado] = useState(false)
   const [stepperTasaMunicipalAmount, setStepperTasaMunicipalAmount] = useState(0)
+  const [stepperBomberosAmount, setStepperBomberosAmount] = useState(0)
   const [accountMode, setAccountMode] = useState<'expense' | 'asset' | 'all'>('expense')
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
@@ -502,17 +503,10 @@ export default function DteSatPage() {
     setStepperIsAnulado(!!row.anulado)
     setAccountMode('expense')
 
-    // Detectar Tasa Municipal: gap entre total SAT y (base IVA + IVA)
-    // Si totalIva > 0: base = totalIva / 0.12; gap = total - base - IVA
-    // Un gap > Q0.50 indica Tasa Municipal u otro impuesto adicional
-    const dteIvaAmt = Number(row.totalIva ?? 0)
-    if (dteIvaAmt > 0) {
-      const baseIva = Math.round((dteIvaAmt / 0.12) * 100) / 100
-      const gap     = Math.round((Number(row.total ?? 0) - baseIva - dteIvaAmt) * 100) / 100
-      setStepperTasaMunicipalAmount(gap > 0.50 ? gap : 0)
-    } else {
-      setStepperTasaMunicipalAmount(0)
-    }
+    // Impuestos adicionales REALES parseados por el backend (NombreCorto del XML).
+    // Ya no se usa el gap heurístico, que confundía el IDP y las líneas exentas.
+    setStepperTasaMunicipalAmount(Number((row as any).tasaMunicipal ?? 0))
+    setStepperBomberosAmount(Number((row as any).bomberos ?? 0))
 
     // Limpiar completamente el formulario para no heredar campos del DTE anterior
     stepperForm.resetFields()
@@ -708,7 +702,7 @@ export default function DteSatPage() {
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
         // No enviar monto: el backend lo extrae exacto del XML (NombreCorto=TASA MUNICIPAL / BOMBEROS)
         tasaMunicipalAccountId: stepperTasaMunicipalAmount > 0 ? values.tasaMunicipalAccountId : undefined,
-        bomberosAccountId:      stepperTasaMunicipalAmount > 0 ? values.bomberosAccountId : undefined,
+        bomberosAccountId:      stepperBomberosAmount > 0 ? values.bomberosAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
@@ -1810,26 +1804,37 @@ export default function DteSatPage() {
                       )
                     })()}
 
-                    {/* Impuestos adicionales (Tasa Municipal / Bomberos) — auto-detectados del gap */}
-                    {stepperTasaMunicipalAmount > 0 && !stepperIsAnulado && (
+                    {/* Impuestos adicionales REALES (parseados por NombreCorto del XML por el backend) */}
+                    {(stepperTasaMunicipalAmount > 0 || stepperBomberosAmount > 0) && !stepperIsAnulado && (
                       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Impuestos adicionales detectados</Text>
-                          <Text strong style={{ fontSize: 13, color: '#1d4ed8' }}>
-                            Q {stepperTasaMunicipalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-                          </Text>
-                        </div>
+                        <Text strong style={{ fontSize: 12, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>Impuestos adicionales detectados</Text>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
-                          El backend los identifica por tipo desde el XML FEL y genera una línea independiente en la póliza. Selecciona la(s) cuenta(s) que aplique.
+                          Identificados por tipo desde el XML FEL; cada uno genera una línea independiente en la póliza. Selecciona la cuenta que aplique.
                         </Text>
-                        <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: 8 }}>
-                          <Select showSearch allowClear placeholder="Ej. 6112 — Tasa Municipal (EEGSA / Energuate)"
-                            options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-                        </Form.Item>
-                        <Form.Item name="bomberosAccountId" label="Cuenta Bomberos" style={{ marginBottom: 0 }}>
-                          <Select showSearch allowClear placeholder="Ej. 6113 — Impuesto Bomberos (seguros)"
-                            options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
-                        </Form.Item>
+                        {stepperTasaMunicipalAmount > 0 && (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>Tasa Municipal</Text>
+                              <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Q {stepperTasaMunicipalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                            </div>
+                            <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: stepperBomberosAmount > 0 ? 8 : 0 }}>
+                              <Select showSearch allowClear placeholder="Ej. 6112 — Tasa Municipal (EEGSA / Energuate)"
+                                options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                            </Form.Item>
+                          </>
+                        )}
+                        {stepperBomberosAmount > 0 && (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>Bomberos</Text>
+                              <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Q {stepperBomberosAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                            </div>
+                            <Form.Item name="bomberosAccountId" label="Cuenta Bomberos" style={{ marginBottom: 0 }}>
+                              <Select showSearch allowClear placeholder="Ej. 6113 — Impuesto Bomberos (seguros)"
+                                options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                            </Form.Item>
+                          </>
+                        )}
                       </div>
                     )}
 
