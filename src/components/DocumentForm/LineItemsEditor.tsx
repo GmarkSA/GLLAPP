@@ -290,6 +290,7 @@ const TABLE_COMPONENTS = {
 
 export default function LineItemsEditor({ items, taxes, onChange, readOnly, accountEditable, docType = 'invoice', vendorDefaultTaxId, currency = 'GTQ' }: Props) {
   const [prodOptions, setProdOptions]     = useState<ProdOption[]>([])
+  const defaultTaxAppliedRef = useRef<string | null>(null) // (docType:vendor) ya recibió el impuesto por defecto — no volver a pisar elecciones por línea
   const [searching,   setSearching]       = useState(false)
   const [initialized, setInitialized]     = useState(false)
   const [allAccounts,  setAllAccounts]  = useState<Account[]>([])
@@ -423,17 +424,20 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
   // Se re-ejecuta cuando cargan los taxes O cuando cambia el proveedor / docType.
   useEffect(() => {
     if (!taxes.length) return
-    // Homologado ventas/compras: siempre se aplica el impuesto preferido de la lista de la empresa
-    // (cliente/proveedor → específico → ambos → primero). Antes en ventas solo se aplicaba si el cliente
-    // tenía impuesto configurado y la línea quedaba con el 'IVA 12%' plano (incorrecto p. ej. en Pequeño Contribuyente).
     const isDoc = docType === 'po' || docType === 'bill'
     const preferredTax = resolvePreferredTax(taxes, isDoc, vendorDefaultTaxId)
     if (!preferredTax) return
 
-    // Ventas sin impuesto de cliente: solo completar líneas que aún no tienen impuesto (no pisar una elección manual)
-    const soloVacias = !isDoc && !vendorDefaultTaxId
-    const aplica = (i: LineItem) => !i.productId && (soloVacias ? !i.taxId : i.taxId !== preferredTax.id)
+    // El impuesto por defecto se aplica UNA sola vez por combinación (docType, proveedor/cliente):
+    // rellena únicamente las líneas que aún NO tienen impuesto. Nunca vuelve a pisar una elección
+    // por línea del usuario (p. ej. una línea exenta y otra afecta en la misma factura) — antes en
+    // compras el efecto reimponía el impuesto del proveedor a TODAS las líneas en cada render.
+    const applyKey = `${docType}:${vendorDefaultTaxId ?? ''}`
+    if (defaultTaxAppliedRef.current === applyKey) return
+
+    const aplica = (i: LineItem) => !i.productId && !i.taxId
     const needsUpdate = items.some(aplica)
+    defaultTaxAppliedRef.current = applyKey
     if (!needsUpdate) return
 
     onChange(items.map(item => {
