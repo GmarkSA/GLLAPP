@@ -439,7 +439,11 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
     const applyKey = `${docType}:${vendorDefaultTaxId ?? ''}`
     if (defaultTaxAppliedRef.current === applyKey) return
 
-    const aplica = (i: LineItem) => !i.productId && !i.taxId
+    // Solo se rellenan líneas realmente EN BLANCO (sin impuesto y sin contenido). Una línea
+    // cargada de una factura existente/DTE (con descripción o monto) nunca se toca — así una
+    // línea exenta importada no se convierte en 12% al abrir la edición.
+    const enBlanco = (i: LineItem) => !i.productId && !i.taxId && !(i.description ?? '').trim() && !(Number(i.unitPrice) > 0)
+    const aplica = enBlanco
     const needsUpdate = items.some(aplica)
     defaultTaxAppliedRef.current = applyKey
     if (!needsUpdate) return
