@@ -470,6 +470,14 @@ function TaxModal({
         subtype:       values.subtype === 'pequeno_contribuyente' ? 'simple' : values.subtype,
         tiers:         subtype === 'progressive' ? tiers : null,
         isWithholding: ['isr', 'iva_retenida'].includes(values.category),
+        // Campos con allowClear: al limpiarlos el form entrega undefined y JSON descarta la
+        // clave → el PATCH no la envía y el backend conserva el valor viejo (imposible vaciar
+        // una cuenta o columna de libro). Enviar null explícito para que sí se borre.
+        salesAccountId:     values.salesAccountId     ?? null,
+        purchaseAccountId:  values.purchaseAccountId  ?? null,
+        retentionAccountId: values.retentionAccountId ?? null,
+        libroComprasCol:    values.libroComprasCol    ?? null,
+        libroVentasCol:     values.libroVentasCol     ?? null,
       }
       if (tax?.id) {
         await updateTax(tax.id, dto)
