@@ -50,6 +50,10 @@ export const newLineItem = (overrides?: Partial<LineItem>): LineItem => {
     lineTotal:       0,
     ...overrides,
   }
+  // _key SIEMPRE único: si el override lo dejó vacío (ítem cargado sin id — las líneas de
+  // factura de compra se guardan como jsonb sin id), generar uno. Sin esto, todas las
+  // líneas comparten _key undefined y update() por _key modifica TODAS a la vez.
+  if (!item._key) item._key = String(++_keySeq)
   return recalc(item)
 }
 
