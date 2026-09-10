@@ -475,6 +475,10 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
       isInclusive: t.isInclusive,
       name:        t.name,
     }))
+  // ¿La lista de configuración ya trae un impuesto real de 0% (p. ej. RG-C04 exento, RG-C06
+  // pequeño contribuyente)? Entonces el "Exento (0%)" sintético sobra: duplicaba la opción y
+  // al elegirlo asignaba "el primer 0% que encontrara" sin que el usuario escogiera cuál.
+  const hayCeroReal = taxOptions.some(o => Number(o.rate) === 0)
 
   // Modo del descuento por línea en facturas de compra: % (default) o valor Q exacto
   const [discQMode, setDiscQMode] = useState<Record<string, boolean>>({})
@@ -828,7 +832,10 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
             value={row.taxId || (taxOptions.length ? `flat:${row.taxPercent}` : undefined)}
             placeholder={taxOptions.length ? 'Impuesto' : 'Sin impuestos configurados'}
             options={taxOptions.length ? [
-              { value: 'flat:0', label: 'Exento (0%)' },
+              // Sintético solo como respaldo: si la lista no tiene un 0% real, o para seguir
+              // mostrando líneas viejas guardadas con 0% sin impuesto asignado (sin taxId).
+              ...(!hayCeroReal || (!row.taxId && Number(row.taxPercent) === 0)
+                ? [{ value: 'flat:0', label: 'Exento (0%)' }] : []),
               ...taxOptions,
             ] : []}
             onChange={(v: string) => {
