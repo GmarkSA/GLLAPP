@@ -408,8 +408,12 @@ function FiscalSection({
   const activeCompany = useCompanyStore(s => s.activeCompany)
   // Empresa completa: el régimen elegido al crearla y su NIT son la fuente de verdad del perfil fiscal
   const [fullCompany, setFullCompany] = useState<any>(null)
+  const [companySettings, setCompanySettings] = useState<any>(null)
   useEffect(() => {
-    if (activeCompany?.id) companiesApi.getOne(activeCompany.id).then(setFullCompany).catch(() => {})
+    if (activeCompany?.id) {
+      companiesApi.getOne(activeCompany.id).then(setFullCompany).catch(() => {})
+      companiesApi.getSettings(activeCompany.id).then(setCompanySettings).catch(() => setCompanySettings(null))
+    }
   }, [activeCompany?.id])
   const companyCountryCode = countryCodeFromValue((activeCompany as any)?.countryCode ?? (activeCompany as any)?.country ?? profile?.country)
   const watchedCountry = Form.useWatch(['settings', 'fiscalCountryCode'], form)
@@ -432,11 +436,13 @@ function FiscalSection({
           fiscalCountryCode: s.fiscalCountryCode ?? companyCountryCode,
           // Heredados de la empresa cuando el perfil aún no los tiene
           fiscalRegimeId: s.fiscalRegimeId ?? fullCompany?.fiscalRegimeId ?? undefined,
-          satNit:         s.satNit         ?? fullCompany?.taxId         ?? undefined,
+          // Credenciales SAT POR EMPRESA: la de la empresa gana; fallback org → NIT de la empresa
+          satNit:              companySettings?.settingsJson?.satNit ?? s.satNit ?? fullCompany?.taxId ?? undefined,
+          satAgenciaPassword:  companySettings?.settingsJson?.satAgenciaPassword ?? s.satAgenciaPassword ?? undefined,
         },
       })
     }
-  }, [profile, form, companyCountryCode, fullCompany])
+  }, [profile, form, companyCountryCode, fullCompany, companySettings])
 
   const handleSave = async () => {
     const values = await form.validateFields()
@@ -447,6 +453,13 @@ function FiscalSection({
         ...values,
         settings: { ...existingSettings, ...values.settings },
       })
+      // Credenciales SAT: se guardan en la EMPRESA activa (cada empresa importa su propio NIT)
+      if (activeCompany?.id && (values.settings?.satNit || values.settings?.satAgenciaPassword)) {
+        const curJson = companySettings?.settingsJson ?? {}
+        const nextJson = { ...curJson, satNit: values.settings?.satNit ?? curJson.satNit, satAgenciaPassword: values.settings?.satAgenciaPassword ?? curJson.satAgenciaPassword }
+        await companiesApi.updateSettings(activeCompany.id, { settingsJson: nextJson } as any).catch(() => {})
+        setCompanySettings((cs: any) => ({ ...(cs ?? {}), settingsJson: nextJson }))
+      }
       // La empresa es la fuente de verdad del régimen: si se cambió aquí, se actualiza también en la empresa
       const regimeId = values.settings?.fiscalRegimeId
       if (regimeId && fullCompany?.id && regimeId !== fullCompany.fiscalRegimeId) {
