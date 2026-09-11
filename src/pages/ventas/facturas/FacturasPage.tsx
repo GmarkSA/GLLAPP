@@ -25,6 +25,7 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -228,6 +229,7 @@ function applyInvFilters(data: Invoice[], f: InvAdFilters): Invoice[] {
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function FacturasPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [invoices, setInvoices]         = useState<Invoice[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -369,23 +371,25 @@ export default function FacturasPage() {
               <Button size="small" icon={<EyeOutlined />}
                 onClick={() => navigate(`/ventas/facturas/${r.id}`)} />
             </Tooltip>
-            {!isPaid && !isVoided && (
+            {!isPaid && !isVoided && can('ventas:pagos:create') && (
               <Tooltip title="Registrar pago">
                 <Button size="small" icon={<DollarOutlined />}
                   onClick={() => navigate(`/ventas/facturas/${r.id}?accion=pago`)}
                   style={{ color: '#2ea172', borderColor: '#2ea172' }} />
               </Tooltip>
             )}
-            {!isVoided && (
+            {!isVoided && can('ventas:facturas:update') && (
               <Tooltip title="Anular factura">
                 <Button size="small" danger icon={<StopOutlined />}
                   onClick={() => openVoid(r)} />
               </Tooltip>
             )}
-            <Tooltip title="Eliminar permanentemente">
-              <Button size="small" danger icon={<DeleteOutlined />}
-                onClick={() => handleDelete(r)} />
-            </Tooltip>
+            {can('ventas:facturas:delete') && (
+              <Tooltip title="Eliminar permanentemente">
+                <Button size="small" danger icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(r)} />
+              </Tooltip>
+            )}
           </Space>
         )
       },
@@ -405,9 +409,11 @@ export default function FacturasPage() {
         subtitle="Gestión de facturas emitidas a clientes"
         actions={
           <Space>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }} data-tour="ventas-nueva">
-              Nueva factura
-            </Button>
+            {can('ventas:facturas:create') && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/facturas/nueva')} style={{ background: '#1faec2' }} data-tour="ventas-nueva">
+                Nueva factura
+              </Button>
+            )}
           </Space>
         }
       />
@@ -506,9 +512,11 @@ export default function FacturasPage() {
       {selectedRowKeys.length > 0 && (
         <div style={{ background: '#e6f4ff', border: '1px solid #91caff', borderRadius: 8, padding: '8px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
           <Text strong style={{ color: '#1faec2' }}>{selectedRowKeys.length} factura(s) seleccionada(s)</Text>
-          <Button type="primary" size="small" icon={<CheckSquareOutlined />} loading={bulkLoading} onClick={handleBulkMarcarEnviadas} style={{ background: '#2ea172', borderColor: '#2ea172' }}>
-            Marcar como Enviadas
-          </Button>
+          {can('ventas:facturas:send') && (
+            <Button type="primary" size="small" icon={<CheckSquareOutlined />} loading={bulkLoading} onClick={handleBulkMarcarEnviadas} style={{ background: '#2ea172', borderColor: '#2ea172' }}>
+              Marcar como Enviadas
+            </Button>
+          )}
           <Button size="small" type="text" onClick={() => setSelectedRowKeys([])}>Deseleccionar</Button>
         </div>
       )}

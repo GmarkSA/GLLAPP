@@ -20,6 +20,7 @@ import {
 import { getInvoices } from '../../../api/facturas'
 import { getBankAccounts } from '../../../api/bancos'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const fmtQ  = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -29,6 +30,7 @@ export default function NotaCreditoDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [nc,          setNc]          = useState<NotaCredito | null>(null)
   const [company,     setCompany]     = useState<OrganizationProfile>({ name: '' })
   const [loading,     setLoading]     = useState(true)
@@ -239,12 +241,12 @@ export default function NotaCreditoDetallePage() {
           </Tag>
         )}
         <Divider type="vertical" />
-        {nc.status === 'draft' && (
+        {can('ventas:notas-credito:update') && nc.status === 'draft' && (
           <Button icon={<EditOutlined />} onClick={() => navigate(`/ventas/notas-credito/${nc.id}/editar`)}>
             Editar
           </Button>
         )}
-        {nc.status === 'draft' && (
+        {can('ventas:notas-credito:update') && nc.status === 'draft' && (
           <Button
             type="primary" icon={<SendOutlined />} loading={emitting} onClick={handleEmitir}
             style={{ background: nc.felTipoDocumento === 'NABN' ? '#ff7f00' : '#e5484d', borderColor: nc.felTipoDocumento === 'NABN' ? '#ff7f00' : '#e5484d' }}
@@ -252,7 +254,7 @@ export default function NotaCreditoDetallePage() {
             Emitir FEL ({nc.felTipoDocumento || 'NCRE'})
           </Button>
         )}
-        {canAct && Number(nc.creditBalance) > 0 && (
+        {can('ventas:notas-credito:update') && canAct && Number(nc.creditBalance) > 0 && (
           <>
             <Button
               icon={<CheckCircleOutlined />}
@@ -270,21 +272,23 @@ export default function NotaCreditoDetallePage() {
             </Button>
           </>
         )}
-        {(nc.status === 'sent' || nc.status === 'partial') && (
+        {can('ventas:notas-credito:update') && (nc.status === 'sent' || nc.status === 'partial') && (
           <Button danger icon={<StopOutlined />} onClick={() => setShowVoid(true)}>Anular</Button>
         )}
-        {nc.status !== 'draft' && (
+        {can('ventas:notas-credito:update') && nc.status !== 'draft' && (
           <Button icon={<SyncOutlined />} loading={recomputing} onClick={handleRecompute} style={{ color: '#6b7280', borderColor: '#6b7280' }}>
             Recalcular cuentas
           </Button>
         )}
-        <Popconfirm
-          title="¿Eliminar nota de crédito?"
-          description={nc.status !== 'draft' ? 'Se eliminarán también las pólizas contables.' : 'Esta acción no se puede deshacer.'}
-          onConfirm={handleDelete} okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
-        >
-          <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
-        </Popconfirm>
+        {can('ventas:notas-credito:delete') && (
+          <Popconfirm
+            title="¿Eliminar nota de crédito?"
+            description={nc.status !== 'draft' ? 'Se eliminarán también las pólizas contables.' : 'Esta acción no se puede deshacer.'}
+            onConfirm={handleDelete} okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+          >
+            <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
+          </Popconfirm>
+        )}
       </div>
 
       {/* ── Alerta borrador ───────────────────────────────────────────────── */}

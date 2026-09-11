@@ -18,6 +18,7 @@ import {
   type FacturaRecurrente, type HistorialGeneracion,
   type EstadoFacturaRecurrente,
 } from '../../../api/facturas-recurrentes'
+import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
 
@@ -38,6 +39,7 @@ function applyRecFilters(data: FacturaRecurrente[], f: RecAdFilters): FacturaRec
 
 export default function FacturasRecurrentesPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [data,    setData]    = useState<FacturaRecurrente[]>([])
   const [total,   setTotal]   = useState(0)
   const [loading, setLoading] = useState(false)
@@ -202,26 +204,30 @@ export default function FacturasRecurrentesPage() {
           </Tooltip>
           {r.estado === 'activa' && (
             <>
-              <Tooltip title="Generar ahora">
-                <Popconfirm title="¿Generar factura ahora?" onConfirm={() => handleGenerarAhora(r.id, r.codigoPlantilla)} okText="Sí" cancelText="No">
-                  <Button size="small" icon={<ThunderboltOutlined />} type="primary" />
-                </Popconfirm>
-              </Tooltip>
-              <Tooltip title="Pausar">
-                <Popconfirm title="¿Pausar recurrencia?" onConfirm={() => handlePausar(r.id)} okText="Sí" cancelText="No">
-                  <Button size="small" icon={<PauseCircleOutlined />} />
-                </Popconfirm>
-              </Tooltip>
+              {can('ventas:facturas:create') && (
+                <Tooltip title="Generar ahora">
+                  <Popconfirm title="¿Generar factura ahora?" onConfirm={() => handleGenerarAhora(r.id, r.codigoPlantilla)} okText="Sí" cancelText="No">
+                    <Button size="small" icon={<ThunderboltOutlined />} type="primary" />
+                  </Popconfirm>
+                </Tooltip>
+              )}
+              {can('ventas:facturas:update') && (
+                <Tooltip title="Pausar">
+                  <Popconfirm title="¿Pausar recurrencia?" onConfirm={() => handlePausar(r.id)} okText="Sí" cancelText="No">
+                    <Button size="small" icon={<PauseCircleOutlined />} />
+                  </Popconfirm>
+                </Tooltip>
+              )}
             </>
           )}
-          {r.estado === 'pausada' && (
+          {r.estado === 'pausada' && can('ventas:facturas:update') && (
             <Tooltip title="Reanudar">
               <Popconfirm title="¿Reanudar recurrencia?" onConfirm={() => handleReanudar(r.id)} okText="Sí" cancelText="No">
                 <Button size="small" icon={<PlayCircleOutlined />} type="primary" ghost />
               </Popconfirm>
             </Tooltip>
           )}
-          {(r.estado === 'activa' || r.estado === 'pausada') && (
+          {(r.estado === 'activa' || r.estado === 'pausada') && can('ventas:facturas:update') && (
             <Tooltip title="Cancelar">
               <Popconfirm title="¿Cancelar definitivamente?" onConfirm={() => handleCancelar(r.id)} okText="Sí" cancelText="No">
                 <Button size="small" icon={<CloseCircleOutlined />} danger />
@@ -243,9 +249,11 @@ export default function FacturasRecurrentesPage() {
             <Tooltip title="Esta factura fue eliminada">
               <Text delete type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{v}</Text>
             </Tooltip>
-            <Popconfirm title="¿Eliminar este registro del historial?" okText="Sí" cancelText="No" onConfirm={() => handleEliminarHistorial(r.id)}>
-              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
-            </Popconfirm>
+            {can('ventas:facturas:delete') && (
+              <Popconfirm title="¿Eliminar este registro del historial?" okText="Sí" cancelText="No" onConfirm={() => handleEliminarHistorial(r.id)}>
+                <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+              </Popconfirm>
+            )}
           </Space>
         )
         return <Link to={`/ventas/facturas/${r.facturaGeneradaId}`} style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{v}</Link>
@@ -269,9 +277,11 @@ export default function FacturasRecurrentesPage() {
             <Text type="secondary" style={{ fontSize: 13 }}>Plantillas de facturación automática</Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }} onClick={() => navigate('/ventas/facturas-recurrentes/nueva')}>
-          Nueva plantilla
-        </Button>
+        {can('ventas:facturas:create') && (
+          <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }} onClick={() => navigate('/ventas/facturas-recurrentes/nueva')}>
+            Nueva plantilla
+          </Button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>

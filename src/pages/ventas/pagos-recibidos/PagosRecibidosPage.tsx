@@ -22,6 +22,7 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
+import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -180,6 +181,7 @@ function applyPagoFilters(data: PagoRecibido[], f: PagoAdFilters): PagoRecibido[
 export default function PagosRecibidosPage() {
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [fromDate, setFromDate] = useState<string | undefined>(undefined)
   const [toDate,   setToDate]   = useState<string | undefined>(undefined)
   const [search,   setSearch]   = useState('')
@@ -287,24 +289,26 @@ export default function PagosRecibidosPage() {
                   loading={polizaLoading}
                   onClick={() => handleVerPoliza(r.journalEntryId!)} />
               </Tooltip>
-            ) : (
+            ) : can('ventas:pagos:create') ? (
               <Tooltip title="Generar póliza contable">
                 <Button size="small" type="text" icon={<SyncOutlined style={{ color: '#ff7f00' }} />}
                   loading={reprocessing === r.id}
                   onClick={() => handleGenerarPoliza(r.id)} />
               </Tooltip>
-            )
+            ) : null
           }
-          <Tooltip title="Eliminar pago">
-            <Popconfirm
-              title="¿Eliminar este pago?"
-              description="Se revertirá el saldo en la factura y se eliminará la póliza contable."
-              onConfirm={() => handleDelete(r.id)}
-              okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
-            >
-              <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          </Tooltip>
+          {can('ventas:pagos:delete') && (
+            <Tooltip title="Eliminar pago">
+              <Popconfirm
+                title="¿Eliminar este pago?"
+                description="Se revertirá el saldo en la factura y se eliminará la póliza contable."
+                onConfirm={() => handleDelete(r.id)}
+                okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+              >
+                <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -321,10 +325,12 @@ export default function PagosRecibidosPage() {
             <Text type="secondary">Registro de cobros aplicados a facturas</Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
-          onClick={() => navigate('/ventas/pagos-recibidos/nuevo')}>
-          Registrar Pago
-        </Button>
+        {can('ventas:pagos:create') && (
+          <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
+            onClick={() => navigate('/ventas/pagos-recibidos/nuevo')}>
+            Registrar Pago
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}

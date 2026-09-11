@@ -18,6 +18,7 @@ import { getPagosRecibidos, PAYMENT_MODE_LABELS, type PagoRecibido } from '../..
 import { getNotasCredito, NC_STATUS_CONFIG, type NotaCredito } from '../../../api/notas-credito'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import { getComments, addComment, type ActivityComment } from '../../../api/comments'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -47,6 +48,7 @@ export default function ClienteDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [customer,    setCustomer]    = useState<Customer | null>(null)
   const [company,     setCompany]     = useState<OrganizationProfile>({ name: '' })
   const [invoices,    setInvoices]    = useState<Invoice[]>([])
@@ -356,26 +358,34 @@ export default function ClienteDetallePage() {
         </div>
         <Badge status={statusCfg.color} text={statusCfg.label} style={{ marginLeft: 4 }} />
         <div style={{ flex: 1 }} />
-        <Button icon={<EditOutlined />} onClick={() => navigate(`/ventas/clientes/${customer.id}/editar`)}>
-          Editar
-        </Button>
-        <Button
-          type="primary" icon={<PlusOutlined />}
-          onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}
-          style={{ background: '#1faec2' }}
-        >
-          Nueva factura
-        </Button>
-        <Button
-          icon={<FileTextOutlined />}
-          onClick={() => navigate('/ventas/estimaciones/nueva', { state: { customerId: customer.id, customerName: customer.name } })}
-        >
-          Nueva cotización
-        </Button>
-        <Popconfirm title="¿Eliminar este cliente?" onConfirm={handleDelete}
-          okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
-          <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
-        </Popconfirm>
+        {can('ventas:clientes:update') && (
+          <Button icon={<EditOutlined />} onClick={() => navigate(`/ventas/clientes/${customer.id}/editar`)}>
+            Editar
+          </Button>
+        )}
+        {can('ventas:facturas:create') && (
+          <Button
+            type="primary" icon={<PlusOutlined />}
+            onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}
+            style={{ background: '#1faec2' }}
+          >
+            Nueva factura
+          </Button>
+        )}
+        {can('ventas:estimaciones:create') && (
+          <Button
+            icon={<FileTextOutlined />}
+            onClick={() => navigate('/ventas/estimaciones/nueva', { state: { customerId: customer.id, customerName: customer.name } })}
+          >
+            Nueva cotización
+          </Button>
+        )}
+        {can('ventas:clientes:delete') && (
+          <Popconfirm title="¿Eliminar este cliente?" onConfirm={handleDelete}
+            okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
+            <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
+          </Popconfirm>
+        )}
       </div>
 
       {/* ── Stats row ─────────────────────────────────────────────────────── */}
@@ -604,10 +614,12 @@ export default function ClienteDetallePage() {
                     children: (
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                          <Button size="small" type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
-                            onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
-                            Nueva factura
-                          </Button>
+                          {can('ventas:facturas:create') && (
+                            <Button size="small" type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
+                              onClick={() => navigate('/ventas/facturas/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
+                              Nueva factura
+                            </Button>
+                          )}
                         </div>
                         <Table columns={invCols} dataSource={invoices} rowKey="id" size="small"
                           pagination={{ pageSize: 10, showTotal: t => `${t} facturas` }}
@@ -632,10 +644,12 @@ export default function ClienteDetallePage() {
                     children: (
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                          <Button size="small" icon={<PlusOutlined />}
-                            onClick={() => navigate('/ventas/estimaciones/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
-                            Nueva cotización
-                          </Button>
+                          {can('ventas:estimaciones:create') && (
+                            <Button size="small" icon={<PlusOutlined />}
+                              onClick={() => navigate('/ventas/estimaciones/nueva', { state: { customerId: customer.id, customerName: customer.name } })}>
+                              Nueva cotización
+                            </Button>
+                          )}
                         </div>
                         <Table columns={estCols} dataSource={estimates} rowKey="id" size="small"
                           pagination={{ pageSize: 10, showTotal: t => `${t} cotizaciones` }}
