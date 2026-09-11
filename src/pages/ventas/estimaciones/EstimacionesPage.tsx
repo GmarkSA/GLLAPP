@@ -18,6 +18,7 @@ import {
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 
@@ -143,6 +144,7 @@ const STATUS_TABS = [
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function EstimacionesPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [estimates, setEstimates]       = useState<Estimate[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -235,23 +237,25 @@ export default function EstimacionesPage() {
               <Button size="small" icon={<EyeOutlined />}
                 onClick={() => navigate(`/ventas/estimaciones/${r.id}`)} />
             </Tooltip>
-            {canEdit && (
+            {canEdit && can('ventas:estimaciones:update') && (
               <Tooltip title="Editar">
                 <Button size="small" icon={<EditOutlined />}
                   onClick={() => navigate(`/ventas/estimaciones/${r.id}/editar`)} />
               </Tooltip>
             )}
-            {canConvert && (
+            {canConvert && can('ventas:facturas:create') && (
               <Tooltip title="Convertir a Factura">
                 <Button size="small" icon={<FileAddOutlined />}
                   style={{ color: '#1faec2', borderColor: '#1faec2' }}
                   onClick={() => openConvert(r)} />
               </Tooltip>
             )}
-            <Tooltip title="Eliminar">
-              <Button size="small" danger icon={<DeleteOutlined />}
-                onClick={() => handleDelete(r.id)} />
-            </Tooltip>
+            {can('ventas:estimaciones:delete') && (
+              <Tooltip title="Eliminar">
+                <Button size="small" danger icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(r.id)} />
+              </Tooltip>
+            )}
           </Space>
         )
       },
@@ -269,13 +273,15 @@ export default function EstimacionesPage() {
             <Text type="secondary">Propuestas y estimaciones enviadas a clientes</Text>
           </div>
         </div>
-        <Button
-          type="primary" icon={<PlusOutlined />}
-          onClick={() => navigate('/ventas/estimaciones/nueva')}
-          style={{ background: '#1faec2' }}
-        >
-          <span data-tour="ventas-cotizacion-nueva">Nueva cotización</span>
-        </Button>
+        {can('ventas:estimaciones:create') && (
+          <Button
+            type="primary" icon={<PlusOutlined />}
+            onClick={() => navigate('/ventas/estimaciones/nueva')}
+            style={{ background: '#1faec2' }}
+          >
+            <span data-tour="ventas-cotizacion-nueva">Nueva cotización</span>
+          </Button>
+        )}
       </div>
 
       {/* Filters + Tabs */}

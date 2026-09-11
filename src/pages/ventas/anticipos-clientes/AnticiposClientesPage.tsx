@@ -18,6 +18,7 @@ import {
 import { getJournalEntry } from '../../../api/compras'
 import { getInvoices, type Invoice } from '../../../api/facturas'
 import { getCustomers } from '../../../api/contactos'
+import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
 
@@ -67,6 +68,7 @@ function applyAntFilters(data: AnticipoCliente[], f: AntAdFilters): AnticipoClie
 }
 
 export default function AnticiposClientesPage() {
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [data,          setData]          = useState<AnticipoCliente[]>([])
   const [total,         setTotal]         = useState(0)
   const [loading,       setLoading]       = useState(false)
@@ -262,14 +264,16 @@ export default function AnticiposClientesPage() {
               onClick={() => openPoliza(r)}
             />
           </Tooltip>
-          <Tooltip title="Aplicar a factura">
-            <Button size="small" icon={<CheckCircleOutlined />}
-              style={r.status === 'paid' || r.status === 'voided' ? {} : { color: '#1faec2', borderColor: '#1faec2' }}
-              disabled={r.status === 'paid' || r.status === 'voided'}
-              onClick={() => openApply(r)}
-            />
-          </Tooltip>
-          {(r.status === 'partial' || r.status === 'paid') && (
+          {can('ventas:facturas:update') && (
+            <Tooltip title="Aplicar a factura">
+              <Button size="small" icon={<CheckCircleOutlined />}
+                style={r.status === 'paid' || r.status === 'voided' ? {} : { color: '#1faec2', borderColor: '#1faec2' }}
+                disabled={r.status === 'paid' || r.status === 'voided'}
+                onClick={() => openApply(r)}
+              />
+            </Tooltip>
+          )}
+          {(r.status === 'partial' || r.status === 'paid') && can('ventas:facturas:update') && (
             <Popconfirm
               title={`¿Desaplicar anticipo ${r.invoiceNumber}?`}
               description="Se revertirán todas las aplicaciones a facturas y sus pólizas."
@@ -286,7 +290,7 @@ export default function AnticiposClientesPage() {
               </Tooltip>
             </Popconfirm>
           )}
-          {r.status !== 'paid' && r.status !== 'voided' && (
+          {r.status !== 'paid' && r.status !== 'voided' && can('ventas:facturas:update') && (
             <Popconfirm
               title={`¿Anular anticipo ${r.invoiceNumber}?`}
               description="Se creará un asiento de reverso contable automáticamente."
@@ -300,7 +304,7 @@ export default function AnticiposClientesPage() {
               </Tooltip>
             </Popconfirm>
           )}
-          {r.status === 'voided' && (
+          {r.status === 'voided' && can('ventas:facturas:update') && (
             <Popconfirm
               title={`¿Restaurar anticipo ${r.invoiceNumber}?`}
               description="Vuelve a estado Pendiente para poder reembolsarlo correctamente."
@@ -317,7 +321,7 @@ export default function AnticiposClientesPage() {
               </Tooltip>
             </Popconfirm>
           )}
-          {r.status === 'voided' && (
+          {r.status === 'voided' && can('ventas:facturas:delete') && (
             <Popconfirm
               title={`¿Eliminar definitivamente ${r.invoiceNumber}?`}
               description="Se revertirá su póliza contable y se borrará el registro."

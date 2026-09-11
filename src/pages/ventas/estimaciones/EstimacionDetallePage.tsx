@@ -15,6 +15,7 @@ import {
   ESTIMATE_STATUS_CONFIG, type Estimate, type InvoiceItem,
 } from '../../../api/facturas'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -24,6 +25,7 @@ export default function EstimacionDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [est,       setEst]       = useState<Estimate | null>(null)
   const [company,   setCompany]   = useState<OrganizationProfile>({ name: '' })
   const [loading,   setLoading]   = useState(true)
@@ -139,12 +141,12 @@ export default function EstimacionDetallePage() {
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
         {isExpired && <Tag color="#ff7f00"><CalendarOutlined style={{ marginRight: 4 }} />Vencida</Tag>}
         <Divider type="vertical" />
-        {canEdit && (
+        {can('ventas:estimaciones:update') && canEdit && (
           <Button icon={<EditOutlined />} onClick={() => navigate(`/ventas/estimaciones/${est.id}/editar`)}>
             Editar
           </Button>
         )}
-        {est.status === 'draft' || est.status === 'sent' ? (
+        {can('ventas:estimaciones:send') && (est.status === 'draft' || est.status === 'sent') ? (
           <Button icon={<SendOutlined />} onClick={() => { sendForm.resetFields(); setShowSend(true) }}>
             Enviar correo
           </Button>
@@ -152,7 +154,7 @@ export default function EstimacionDetallePage() {
         <Button icon={<PrinterOutlined />} onClick={() => window.open(`/ventas/estimaciones/${est.id}/imprimir`, '_blank')}>
           Imprimir / PDF
         </Button>
-        {canConvert && (
+        {can('ventas:facturas:create') && canConvert && (
           <Button
             type="primary" icon={<FileTextOutlined />} loading={converting} onClick={handleConvert}
             style={{ background: '#1faec2', borderColor: '#1faec2' }}
@@ -165,10 +167,14 @@ export default function EstimacionDetallePage() {
             <Button icon={<FileTextOutlined />} style={{ color: '#6b7280', borderColor: '#6b7280' }}>Ver factura</Button>
           </Link>
         )}
-        <Button icon={<CopyOutlined />} onClick={handleDuplicate}>Duplicar</Button>
-        <Popconfirm title="¿Eliminar esta cotización?" onConfirm={handleDelete} okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
-          <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
-        </Popconfirm>
+        {can('ventas:estimaciones:create') && (
+          <Button icon={<CopyOutlined />} onClick={handleDuplicate}>Duplicar</Button>
+        )}
+        {can('ventas:estimaciones:delete') && (
+          <Popconfirm title="¿Eliminar esta cotización?" onConfirm={handleDelete} okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
+            <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
+          </Popconfirm>
+        )}
       </div>
 
       {/* ── Alerta vencimiento ────────────────────────────────────────────── */}

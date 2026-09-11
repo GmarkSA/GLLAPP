@@ -31,6 +31,7 @@ import PrintInvoiceButton from '../../../components/Print/PrintInvoiceButton'
 import DocumentLink from '../../../components/DocumentLink'
 import { requestDownloadUrl } from '../../../api/storage'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
+import { useCan } from '../../../auth/can'
 
 const isPdfFile   = (ct?: string, name?: string) => !!ct?.includes('pdf') || /\.pdf$/i.test(name ?? '')
 const isImageFile = (ct?: string, name?: string) => !!ct?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name ?? '')
@@ -79,6 +80,7 @@ function buildJournalEntries(inv: Invoice) {
 export default function FacturaDetallePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const location = useLocation()
   const fromCustomerId = (location.state as any)?.fromCustomerId as string | undefined
   const currentUser = useAuthStore().user
@@ -456,17 +458,17 @@ export default function FacturaDetallePage() {
       title: 'Póliza', dataIndex: 'journalEntryId', width: 70, align: 'center' as const,
       render: (jeId: string | undefined, row: any) => jeId
         ? <Tooltip title="Póliza contable generada"><CheckCircleOutlined style={{ color: '#2ea172' }} /></Tooltip>
-        : <Tooltip title="Sin póliza — click para reprocesar">
+        : can('ventas:pagos:create') ? <Tooltip title="Sin póliza — click para reprocesar">
             <Button size="small" icon={<SyncOutlined />} style={{ borderColor: '#ff7f00', color: '#ff7f00', padding: '0 6px' }} onClick={() => handleReprocessPayment(row.id)} />
-          </Tooltip>,
+          </Tooltip> : null,
     },
     {
       title: '', width: 50, align: 'center' as const,
-      render: (_: any, row: any) => (
+      render: (_: any, row: any) => can('ventas:pagos:delete') ? (
         <Popconfirm title={`¿Eliminar el pago ${row.paymentNumber}?`} description="Se revertirá el saldo y se eliminará la póliza y movimiento bancario asociados." okText="Sí, eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }} onConfirm={() => handleDeletePayment(row.id)}>
           <Tooltip title="Eliminar pago"><Button size="small" danger icon={<DeleteOutlined />} style={{ padding: '0 6px' }} /></Tooltip>
         </Popconfirm>
-      ),
+      ) : null,
     },
   ]
 
@@ -510,20 +512,24 @@ export default function FacturaDetallePage() {
         {isFelCertified && <Tag color="#2ea172" icon={<SafetyCertificateOutlined />} style={{ margin: 0 }}>FEL</Tag>}
         {invoice.felTipoDocumento && <Tag style={{ margin: 0, fontSize: 11 }}>{invoice.felTipoDocumento}</Tag>}
         <Divider type="vertical" />
-        <Button
-          icon={<EditOutlined />}
-          disabled={isVoided || isWritten}
-          onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`, { state: { fromCustomerId } })}
-        >
-          Editar
-        </Button>
-        <Button icon={<SendOutlined />} onClick={openSendModal}>
-          Enviar correo
-        </Button>
+        {can('ventas:facturas:update') && (
+          <Button
+            icon={<EditOutlined />}
+            disabled={isVoided || isWritten}
+            onClick={() => navigate(`/ventas/facturas/${invoice.id}/editar`, { state: { fromCustomerId } })}
+          >
+            Editar
+          </Button>
+        )}
+        {can('ventas:facturas:send') && (
+          <Button icon={<SendOutlined />} onClick={openSendModal}>
+            Enviar correo
+          </Button>
+        )}
         <span id="__print_btn__">
           <PrintInvoiceButton invoice={invoice} company={company} />
         </span>
-        {canPay && (
+        {canPay && can('ventas:pagos:create') && (
           <Button
             type="primary"
             icon={<DollarOutlined />}
@@ -533,7 +539,7 @@ export default function FacturaDetallePage() {
             Registrar pago
           </Button>
         )}
-        {!isVoided && !isWritten && !isFelCertified && (
+        {!isVoided && !isWritten && !isFelCertified && can('fel:certify') && (
           <Button size="small"
             icon={<SafetyCertificateOutlined />}
             style={{ borderColor: '#1faec2', color: '#1faec2' }}
@@ -542,23 +548,27 @@ export default function FacturaDetallePage() {
             Emitir FEL
           </Button>
         )}
-        {canVoid && (
+        {canVoid && can('ventas:facturas:update') && (
           <Button size="small" danger icon={<StopOutlined />} onClick={() => setVoidModal(true)}>
             {isFelCertified ? 'Anulación FEL' : 'Anular'}
           </Button>
         )}
-        <Button size="small" danger icon={<DeleteOutlined />} onClick={handleDelete}>
-          Eliminar
-        </Button>
-        {!isEditable && !isVoided && (
+        {can('ventas:facturas:delete') && (
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={handleDelete}>
+            Eliminar
+          </Button>
+        )}
+        {!isEditable && !isVoided && can('ventas:facturas:update') && (
           <Button size="small" icon={<BookOutlined />} loading={saving} onClick={handleRecompute}>
             Recalcular
           </Button>
         )}
-        <Button size="small" icon={<CopyOutlined />} loading={saving} onClick={handleDuplicate}>
-          Duplicar
-        </Button>
-        {canPay && (
+        {can('ventas:facturas:create') && (
+          <Button size="small" icon={<CopyOutlined />} loading={saving} onClick={handleDuplicate}>
+            Duplicar
+          </Button>
+        )}
+        {canPay && can('ventas:pagos:create') && (
           <Button size="small"
             icon={<ThunderboltOutlined />}
             style={{ borderColor: '#6b7280', color: '#6b7280' }}
@@ -568,9 +578,11 @@ export default function FacturaDetallePage() {
           </Button>
         )}
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
-        <Button size="small" icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
-          Cargar archivo
-        </Button>
+        {can('ventas:facturas:update') && (
+          <Button size="small" icon={<PaperClipOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
+            Cargar archivo
+          </Button>
+        )}
         {attachments.length > 0 && (
           <Popover
             trigger="click"
@@ -586,13 +598,15 @@ export default function FacturaDetallePage() {
                       <>
                         <Tooltip title="Vista previa"><Button size="small" type="text" icon={<EyeOutlined />} onClick={() => openPreview(a)} /></Tooltip>
                         <Tooltip title="Descargar"><Button size="small" type="text" icon={<DownloadOutlined />} onClick={() => downloadAttachment(a)} /></Tooltip>
-                        <Popconfirm
-                          title="¿Eliminar este archivo?"
-                          okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
-                          onConfirm={() => handleRemoveAttachment(a)}
-                        >
-                          <Tooltip title="Eliminar"><Button size="small" type="text" danger icon={<DeleteOutlined />} /></Tooltip>
-                        </Popconfirm>
+                        {can('ventas:facturas:update') && (
+                          <Popconfirm
+                            title="¿Eliminar este archivo?"
+                            okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+                            onConfirm={() => handleRemoveAttachment(a)}
+                          >
+                            <Tooltip title="Eliminar"><Button size="small" type="text" danger icon={<DeleteOutlined />} /></Tooltip>
+                          </Popconfirm>
+                        )}
                       </>
                     ) : (
                       <Text type="secondary" style={{ fontSize: 11 }}>sin archivo</Text>
@@ -654,7 +668,7 @@ export default function FacturaDetallePage() {
         <Alert
           type="error" showIcon icon={<ExclamationCircleOutlined />}
           message={`Factura vencida desde ${invoice.dueDate ? dayjs(invoice.dueDate).format('DD/MM/YYYY') : ''}. Saldo pendiente: ${fmt(invoice.balance)}`}
-          action={canPay ? <Button size="small" type="primary" danger onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayIsrEnabled(false); setPayIsrAmount(0); setPayModal(true) }}>Registrar pago</Button> : null}
+          action={canPay && can('ventas:pagos:create') ? <Button size="small" type="primary" danger onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayIsrEnabled(false); setPayIsrAmount(0); setPayModal(true) }}>Registrar pago</Button> : null}
           style={{ marginBottom: 12 }}
         />
       )}
@@ -960,7 +974,7 @@ export default function FacturaDetallePage() {
                 <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Historial de pagos
                 </Text>
-                {canPay && (
+                {canPay && can('ventas:pagos:create') && (
                   <Button size="small" type="primary" icon={<DollarOutlined />} style={{ background: '#2ea172', borderColor: '#2ea172' }}
                     onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayIsrEnabled(false); setPayIsrAmount(0); setPayModal(true) }}>
                     + Pago
@@ -1229,13 +1243,15 @@ export default function FacturaDetallePage() {
                     <Tooltip title="Vista previa">
                       <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => openPreview(a)} />
                     </Tooltip>
-                    <Popconfirm
-                      title="¿Eliminar este archivo?"
-                      okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
-                      onConfirm={() => handleRemoveAttachment(a)}
-                    >
-                      <Tooltip title="Eliminar"><Button type="text" size="small" danger icon={<DeleteOutlined />} /></Tooltip>
-                    </Popconfirm>
+                    {can('ventas:facturas:update') && (
+                      <Popconfirm
+                        title="¿Eliminar este archivo?"
+                        okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+                        onConfirm={() => handleRemoveAttachment(a)}
+                      >
+                        <Tooltip title="Eliminar"><Button type="text" size="small" danger icon={<DeleteOutlined />} /></Tooltip>
+                      </Popconfirm>
+                    )}
                   </>
                 )}
               </div>

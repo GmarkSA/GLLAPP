@@ -18,6 +18,7 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -261,6 +262,7 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ClientesPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading,   setLoading]   = useState(true)
   const [search,    setSearch]    = useState('')
@@ -336,20 +338,24 @@ export default function ClientesPage() {
             <Button size="small" icon={<EyeOutlined />}
               onClick={() => navigate(`/ventas/clientes/${r.id}`)} />
           </Tooltip>
-          <Tooltip title="Editar">
-            <Button size="small" icon={<EditOutlined />}
-              onClick={() => navigate(`/ventas/clientes/${r.id}/editar`)} />
-          </Tooltip>
-          <Tooltip title="Eliminar">
-            <Popconfirm
-              title="¿Eliminar este cliente?"
-              onConfirm={() => handleDelete(r.id!)}
-              okText="Sí" cancelText="No"
-              okButtonProps={{ danger: true }}
-            >
-              <Button size="small" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          </Tooltip>
+          {can('ventas:clientes:update') && (
+            <Tooltip title="Editar">
+              <Button size="small" icon={<EditOutlined />}
+                onClick={() => navigate(`/ventas/clientes/${r.id}/editar`)} />
+            </Tooltip>
+          )}
+          {can('ventas:clientes:delete') && (
+            <Tooltip title="Eliminar">
+              <Popconfirm
+                title="¿Eliminar este cliente?"
+                onConfirm={() => handleDelete(r.id!)}
+                okText="Sí" cancelText="No"
+                okButtonProps={{ danger: true }}
+              >
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -366,9 +372,11 @@ export default function ClientesPage() {
             <Text type="secondary">Datos maestros de clientes vinculados a impuestos y contabilidad</Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/clientes/nuevo')} style={{ background: '#1faec2' }}>
-          <span data-tour="ventas-cliente-nuevo">Nuevo cliente</span>
-        </Button>
+        {can('ventas:clientes:create') && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/clientes/nuevo')} style={{ background: '#1faec2' }}>
+            <span data-tour="ventas-cliente-nuevo">Nuevo cliente</span>
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}

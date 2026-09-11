@@ -29,6 +29,7 @@ import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getEstimates, getInvoices, type Estimate } from '../../../api/facturas'
 import { getUnidadesActivas, type UnidadMedida } from '../../../api/unidades-medida'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -83,6 +84,7 @@ function applyDteFilters(data: SatDteEmitidos[], f: DteAdFilters): SatDteEmitido
 
 export default function DteSatVentasPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const isMobile = useIsMobile()
   const [documents,  setDocuments]  = useState<SatDteEmitidos[]>([])
   const [jobs,       setJobs]       = useState<SatEmitidosJob[]>([])
@@ -806,7 +808,8 @@ export default function DteSatVentasPage() {
               </Tooltip>
             : r.status === 'duplicate'
               ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
-              : <Button
+              : can('ventas:facturas:create') ? (
+                <Button
                   size="small"
                   type="primary"
                   icon={<BookOutlined />}
@@ -815,8 +818,9 @@ export default function DteSatVentasPage() {
                 >
                   Procesar
                 </Button>
+              ) : null
           }
-          {r.status === 'posted' && (
+          {can('ventas:facturas:create') && r.status === 'posted' && (
             <Tooltip title="Re-procesar — usar si la factura vinculada fue eliminada">
               <Button
                 size="small"
@@ -826,10 +830,12 @@ export default function DteSatVentasPage() {
               />
             </Tooltip>
           )}
-          <Tooltip title="Eliminar de la bandeja">
-            <Button size="small" danger icon={<DeleteOutlined />}
-              onClick={() => handleDeleteDte(r)} style={{ fontSize: 11 }} />
-          </Tooltip>
+          {can('ventas:facturas:create') && (
+            <Tooltip title="Eliminar de la bandeja">
+              <Button size="small" danger icon={<DeleteOutlined />}
+                onClick={() => handleDeleteDte(r)} style={{ fontSize: 11 }} />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -1157,10 +1163,12 @@ export default function DteSatVentasPage() {
                               options={taxes.map(t => ({ value: t.code, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))}
                             />
                           </Form.Item>
-                          <Button type="primary" icon={<UserAddOutlined />} loading={stepperLoading}
-                            onClick={handleCreateCustomer}>
-                            Crear y vincular cliente
-                          </Button>
+                          {can('ventas:clientes:create') && (
+                            <Button type="primary" icon={<UserAddOutlined />} loading={stepperLoading}
+                              onClick={handleCreateCustomer}>
+                              Crear y vincular cliente
+                            </Button>
+                          )}
                         </Form>
                       </>
                     )}
@@ -1364,7 +1372,7 @@ export default function DteSatVentasPage() {
                     </Button>
                   </Tooltip>
                 )}
-                {stepperStep === 2 && (
+                {stepperStep === 2 && can('ventas:facturas:create') && (
                   <Button type="primary" icon={<BookOutlined />} loading={stepperLoading}
                     style={{ background: '#1faec2' }} onClick={handlePost}>
                     Registrar y Contabilizar
@@ -1559,21 +1567,23 @@ export default function DteSatVentasPage() {
         extra={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => loadAll()} loading={loading} size="small">Actualizar</Button>
-            <Button
-              size="small" danger icon={<DeleteOutlined />}
-              onClick={() => Modal.confirm({
-                title: 'Limpiar todo',
-                content: 'Se eliminarán todos los DTEs importados y el historial de importaciones. ¿Continuar?',
-                okText: 'Sí, limpiar', okButtonProps: { danger: true }, cancelText: 'Cancelar',
-                onOk: async () => {
-                  const r = await clearAllSatEmitidos()
-                  message.success(`Eliminados: ${r.deletedDtes} DTEs y ${r.deletedJobs} jobs`)
-                  loadAll()
-                },
-              })}
-            >
-              Limpiar todo
-            </Button>
+            {can('ventas:facturas:create') && (
+              <Button
+                size="small" danger icon={<DeleteOutlined />}
+                onClick={() => Modal.confirm({
+                  title: 'Limpiar todo',
+                  content: 'Se eliminarán todos los DTEs importados y el historial de importaciones. ¿Continuar?',
+                  okText: 'Sí, limpiar', okButtonProps: { danger: true }, cancelText: 'Cancelar',
+                  onOk: async () => {
+                    const r = await clearAllSatEmitidos()
+                    message.success(`Eliminados: ${r.deletedDtes} DTEs y ${r.deletedJobs} jobs`)
+                    loadAll()
+                  },
+                })}
+              >
+                Limpiar todo
+              </Button>
+            )}
           </Space>
         }
       >
@@ -1593,11 +1603,13 @@ export default function DteSatVentasPage() {
             />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
-              disabled={!satCredentials.satNit}
-              style={{ background: '#1faec2' }}>
-              Importar Emitidos
-            </Button>
+            {can('ventas:facturas:create') && (
+              <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
+                disabled={!satCredentials.satNit}
+                style={{ background: '#1faec2' }}>
+                Importar Emitidos
+              </Button>
+            )}
           </Form.Item>
           </div>
           <Form.Item style={{ marginBottom: 0 }}>
@@ -1682,7 +1694,7 @@ export default function DteSatVentasPage() {
                         </Button>
                       ) : null
                     })()}
-                    {selectedIds.length > 0 && (
+                    {selectedIds.length > 0 && can('ventas:facturas:create') && (
                       <Button
                         size="small"
                         icon={<ThunderboltOutlined />}

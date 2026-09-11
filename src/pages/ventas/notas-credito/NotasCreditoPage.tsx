@@ -19,6 +19,7 @@ import {
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -179,6 +180,7 @@ function applyNcFilters(data: NotaCredito[], f: NcAdFilters): NotaCredito[] {
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function NotasCreditoPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const today = dayjs()
 
   const [fromDate, setFromDate] = useState(today.startOf('month').format('YYYY-MM-DD'))
@@ -277,35 +279,37 @@ export default function NotasCreditoPage() {
             <Button size="small" type="text" icon={<EyeOutlined />}
               onClick={() => navigate(`/ventas/notas-credito/${r.id}`)} />
           </Tooltip>
-          {r.status === 'draft' && (
+          {r.status === 'draft' && can('ventas:notas-credito:update') && (
             <Tooltip title="Editar">
               <Button size="small" type="text" icon={<EditOutlined style={{ color: '#1faec2' }} />}
                 onClick={() => navigate(`/ventas/notas-credito/${r.id}/editar`)} />
             </Tooltip>
           )}
-          {r.status === 'draft' && (
+          {r.status === 'draft' && can('ventas:notas-credito:update') && (
             <Tooltip title="Emitir FEL">
               <Button size="small" type="text" icon={<SendOutlined style={{ color: '#2ea172' }} />}
                 loading={emitting === r.id}
                 onClick={() => handleEmitir(r.id)} />
             </Tooltip>
           )}
-          {(r.status === 'sent' || r.status === 'partial') && (
+          {(r.status === 'sent' || r.status === 'partial') && can('ventas:notas-credito:update') && (
             <Tooltip title="Anular">
               <Button size="small" type="text" icon={<StopOutlined style={{ color: '#fa541c' }} />}
                 onClick={() => setVoidTarget(r)} />
             </Tooltip>
           )}
-          <Tooltip title="Eliminar">
-            <Popconfirm
-              title="¿Eliminar esta nota de crédito?"
-              description={r.status !== 'draft' ? 'Se eliminarán también las pólizas contables.' : 'Esta acción no se puede deshacer.'}
-              onConfirm={() => handleDelete(r.id)}
-              okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
-            >
-              <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          </Tooltip>
+          {can('ventas:notas-credito:delete') && (
+            <Tooltip title="Eliminar">
+              <Popconfirm
+                title="¿Eliminar esta nota de crédito?"
+                description={r.status !== 'draft' ? 'Se eliminarán también las pólizas contables.' : 'Esta acción no se puede deshacer.'}
+                onConfirm={() => handleDelete(r.id)}
+                okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+              >
+                <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -322,10 +326,12 @@ export default function NotasCreditoPage() {
             <Text type="secondary">Gestión de devoluciones y ajustes a clientes</Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
-          onClick={() => navigate('/ventas/notas-credito/nueva')}>
-          Nueva Nota de Crédito
-        </Button>
+        {can('ventas:notas-credito:create') && (
+          <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1faec2' }}
+            onClick={() => navigate('/ventas/notas-credito/nueva')}>
+            Nueva Nota de Crédito
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}

@@ -15,6 +15,7 @@ import {
   getPagoRecibido, deletePagoRecibido, reprocessPagoJournal,
   type PagoRecibido, PAYMENT_MODE_LABELS,
 } from '../../../api/pagos-recibidos'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 
@@ -35,6 +36,7 @@ export default function PagoRecibidoDetallePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [pago,         setPago]         = useState<PagoRecibido | null>(null)
   const [loading,      setLoading]      = useState(true)
   const [deleting,     setDeleting]     = useState(false)
@@ -157,24 +159,28 @@ export default function PagoRecibidoDetallePage() {
           Volver
         </Button>
         <Space>
-          <Popconfirm
-            title="¿Reprocesar póliza contable?"
-            description="Elimina la póliza actual y crea una nueva con las cuentas del catálogo."
-            onConfirm={handleReprocess}
-            okText="Reprocesar" cancelText="Cancelar"
-          >
-            <Button icon={<SyncOutlined />} loading={reprocessing} style={{ borderColor: '#1faec2', color: '#1faec2' }}>
-              Reprocesar póliza
-            </Button>
-          </Popconfirm>
-          <Popconfirm
-            title="¿Eliminar este pago?"
-            description="Se revertirá el saldo en la factura y se eliminará la póliza contable."
-            onConfirm={handleDelete}
-            okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
-          >
-            <Button danger icon={<DeleteOutlined />} loading={deleting}>Eliminar</Button>
-          </Popconfirm>
+            {can('ventas:pagos:create') && (
+            <Popconfirm
+              title="¿Reprocesar póliza contable?"
+              description="Elimina la póliza actual y crea una nueva con las cuentas del catálogo."
+              onConfirm={handleReprocess}
+              okText="Reprocesar" cancelText="Cancelar"
+            >
+              <Button icon={<SyncOutlined />} loading={reprocessing} style={{ borderColor: '#1faec2', color: '#1faec2' }}>
+                Reprocesar póliza
+              </Button>
+            </Popconfirm>
+            )}
+            {can('ventas:pagos:delete') && (
+            <Popconfirm
+              title="¿Eliminar este pago?"
+              description="Se revertirá el saldo en la factura y se eliminará la póliza contable."
+              onConfirm={handleDelete}
+              okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<DeleteOutlined />} loading={deleting}>Eliminar</Button>
+            </Popconfirm>
+            )}
         </Space>
       </div>
 
