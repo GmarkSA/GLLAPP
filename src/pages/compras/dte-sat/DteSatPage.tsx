@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Alert, Badge, Button, Card, Checkbox, DatePicker, Descriptions, Divider, Form, Input,
+  Alert, Badge, Button, Card, Checkbox, DatePicker, Descriptions, Divider, Form, Input, InputNumber,
   message, Modal, Radio, Segmented, Select, Space, Spin, Steps, Switch, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -121,9 +121,13 @@ export default function DteSatPage() {
   const [unidades, setUnidades] = useState<UnidadMedida[]>([])
   const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
   const [originalBills, setOriginalBills] = useState<{ value: string; label: string }[]>([])
-  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
+  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; tasaMunicipalAccountCode?: string; bomberosAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
   const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
   const [stepperHasTurismo, setStepperHasTurismo] = useState(false)
+  // Tasa Municipal / Bomberos: se marcan solos cuando el XML los trae; el usuario puede
+  // activarlos o quitarlos y ajustar el monto (mismas 4 opciones que el registro individual)
+  const [stepperHasTasa, setStepperHasTasa] = useState(false)
+  const [stepperHasBomberos, setStepperHasBomberos] = useState(false)
   const [stepperIsAnulado, setStepperIsAnulado] = useState(false)
   const [stepperTasaMunicipalAmount, setStepperTasaMunicipalAmount] = useState(0)
   const [stepperBomberosAmount, setStepperBomberosAmount] = useState(0)
@@ -206,6 +210,8 @@ export default function DteSatPage() {
           idpAccountCode:          ie.idp?.accountCode,
           timbrePrensaAccountCode: ie.timbre_prensa?.accountCode,
           turismoAccountCode:      ie.turismo?.accountCode,
+          tasaMunicipalAccountCode: ie.tasa_municipal?.accountCode,
+          bomberosAccountCode:     ie.bomberos?.accountCode,
           timbrePrensaRate:        ie.timbre_prensa?.rate ?? 0.5,
           turismoRate:             ie.turismo?.rate ?? 10,
         })
@@ -497,6 +503,31 @@ export default function DteSatPage() {
     if (p) stepperForm.setFieldsValue(p)
   }, [stepperStep, stepperDte?.vendorId])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Tipo de factura a partir del DTE: tipo de documento SAT (FPEQ/FCAP → pequeño contribuyente,
+  // FESP → factura especial, RDON → donación, RECI → exenta) y, para FACT/FCAM/N/C, los ítems
+  // (bien_o_servicio: todos S → servicios; combustible por señales → fuel). `seguro` = el DTE lo
+  // determina sin ambigüedad; solo si no es seguro (ítems mixtos) manda la preferencia guardada.
+  const tipoFacturaDesdeDte = (d: SatDte): { tipo: string; seguro: boolean } => {
+    const td = ((d as any).tipoDocumento ?? '').toUpperCase()
+    const items: any[] = Array.isArray(d.items) ? d.items : []
+    const tipos = items.map(i => (i.bien_o_servicio ?? 'B') as string)
+    const todosS = items.length > 0 && tipos.every(t => t === 'S')
+    const todosB = items.length > 0 && tipos.every(t => t === 'B')
+    const texto = `${(d.nombreEmisor ?? '').toLowerCase()} ${items.map(i => (i.descripcion ?? i.description ?? '').toLowerCase()).join(' ')}`
+    const esCombustible = EXPENSE_RULES.find(r => r.type === 'C')?.signals.some(s => texto.includes(s)) ?? false
+    const esNC = ['NCRE', 'NABN'].includes(td)
+    if (!esNC) {
+      if (['FPEQ', 'FCAP', 'FAPE'].includes(td)) return { tipo: 'small_taxpayer', seguro: true }
+      if (td === 'FESP') return { tipo: 'special',  seguro: true }
+      if (td === 'RDON') return { tipo: 'donation', seguro: true }
+      if (td === 'RECI') return { tipo: 'exempt',   seguro: true }
+    }
+    if (esCombustible) return { tipo: 'fuel', seguro: true }
+    if (todosS) return { tipo: 'services', seguro: true }
+    if (todosB) return { tipo: 'goods', seguro: true }
+    return { tipo: 'goods', seguro: false }
+  }
+
   const openStepper = async (row: SatDte) => {
     const lineas: any[] = Array.isArray(row.items) ? row.items : []
     const autoConcepto = lineas.length > 0
@@ -518,6 +549,9 @@ export default function DteSatPage() {
     // Ya no se usa el gap heurístico, que confundía el IDP y las líneas exentas.
     setStepperTasaMunicipalAmount(Number((row as any).tasaMunicipal ?? 0))
     setStepperBomberosAmount(Number((row as any).bomberos ?? 0))
+    setStepperHasTasa(Number((row as any).tasaMunicipal ?? 0) > 0)
+    setStepperHasBomberos(Number((row as any).bomberos ?? 0) > 0)
+    const tipoAuto = tipoFacturaDesdeDte(row)
 
     // Limpiar completamente el formulario para no heredar campos del DTE anterior
     stepperForm.resetFields()
@@ -540,7 +574,7 @@ export default function DteSatPage() {
 
     // Valores base desde el maestro del proveedor
     const baseVals: Record<string, any> = {
-      invoiceType:    'goods',
+      invoiceType:    tipoAuto.tipo,   // del DTE (tipo de documento SAT + ítems), no "bienes" fijo
       taxId:          vendorDefaultTaxId,
       paymentTerms:   vendorPaymentTerms,
       accountingDate: row.fechaEmision ? dayjs(row.fechaEmision) : dayjs(),
@@ -554,7 +588,8 @@ export default function DteSatPage() {
       if (saved) {
         if (saved.accountId)   baseVals.accountId   = saved.accountId
         if (saved.taxId)       baseVals.taxId        = saved.taxId
-        if (saved.invoiceType) baseVals.invoiceType  = saved.invoiceType
+        // La preferencia del proveedor solo manda cuando el DTE no determina el tipo (ítems mixtos)
+        if (saved.invoiceType && !tipoAuto.seguro) baseVals.invoiceType = saved.invoiceType
         if (saved.defaultUnit) baseVals.defaultUnit  = saved.defaultUnit
         if (saved.idpType)     baseVals.idpType      = saved.idpType
       }
@@ -708,9 +743,13 @@ export default function DteSatPage() {
         timbrePrensaAccountId:  timbrePrensaAmount > 0 ? values.timbrePrensaAccountId : undefined,
         turismoAmount:          turismoAmount || undefined,
         turismoAccountId:       turismoAmount > 0 ? values.turismoAccountId : undefined,
-        // No enviar monto: el backend lo extrae exacto del XML (NombreCorto=TASA MUNICIPAL / BOMBEROS)
-        tasaMunicipalAccountId: stepperTasaMunicipalAmount > 0 ? values.tasaMunicipalAccountId : undefined,
-        bomberosAccountId:      stepperBomberosAmount > 0 ? values.bomberosAccountId : undefined,
+        // Tasa Municipal / Bomberos: el monto viene del XML (NombreCorto) y el usuario puede
+        // ajustarlo o desactivar la opción. Activo → se envía el monto (0 = el backend lo toma
+        // del XML); desactivado → 0 explícito para que el backend NO lo parsee del XML.
+        tasaMunicipalAmount:    stepperIsAnulado ? undefined : (stepperHasTasa ? (stepperTasaMunicipalAmount || undefined) : 0),
+        tasaMunicipalAccountId: stepperHasTasa ? values.tasaMunicipalAccountId : undefined,
+        bomberosAmount:         stepperIsAnulado ? undefined : (stepperHasBomberos ? (stepperBomberosAmount || undefined) : 0),
+        bomberosAccountId:      stepperHasBomberos ? values.bomberosAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
       })
       if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
@@ -767,8 +806,10 @@ export default function DteSatPage() {
       }))
       // Auto-detect tipo factura y unidad desde los items del DTE (bien_o_servicio / unidad_medida)
       const firstItem = (d.items as any[])?.[0]
-      const autoInvoiceType = savedInvoiceType
-        ?? ((firstItem?.bien_o_servicio === 'S') ? 'services' : 'goods')
+      // Mismo detector que el registro individual: el DTE manda (tipo SAT + ítems);
+      // la preferencia guardada solo cuando el DTE es ambiguo (ítems mixtos)
+      const tipoAutoFila = tipoFacturaDesdeDte(d)
+      const autoInvoiceType = tipoAutoFila.seguro ? tipoAutoFila.tipo : (savedInvoiceType ?? tipoAutoFila.tipo)
       const autoDefaultUnit = savedDefaultUnit ?? firstItem?.unidad_medida ?? undefined
       // Sin impuesto válido (preferencia vieja descartada o proveedor sin default): el de la
       // lista por código según el tipo detectado — mismo criterio del registro individual
@@ -1684,6 +1725,27 @@ export default function DteSatPage() {
                               }}>
                               <span style={{ fontSize: 11 }}>Turismo INGUAT</span>
                             </Checkbox>
+                            {/* Las mismas 4 opciones del registro individual de factura de compra */}
+                            <Checkbox checked={stepperHasTasa}
+                              onChange={e => {
+                                setStepperHasTasa(e.target.checked)
+                                if (e.target.checked && orgImpEsp?.tasaMunicipalAccountCode && !stepperForm.getFieldValue('tasaMunicipalAccountId')) {
+                                  const acc = accounts.find(a => a.code === orgImpEsp.tasaMunicipalAccountCode)
+                                  if (acc) stepperForm.setFieldValue('tasaMunicipalAccountId', acc.id)
+                                }
+                              }}>
+                              <span style={{ fontSize: 11 }}>Tasa Municipal</span>
+                            </Checkbox>
+                            <Checkbox checked={stepperHasBomberos}
+                              onChange={e => {
+                                setStepperHasBomberos(e.target.checked)
+                                if (e.target.checked && orgImpEsp?.bomberosAccountCode && !stepperForm.getFieldValue('bomberosAccountId')) {
+                                  const acc = accounts.find(a => a.code === orgImpEsp.bomberosAccountCode)
+                                  if (acc) stepperForm.setFieldValue('bomberosAccountId', acc.id)
+                                }
+                              }}>
+                              <span style={{ fontSize: 11 }}>Bomberos (Dto. 112-97)</span>
+                            </Checkbox>
                           </div>
                         )}
                       </div>
@@ -1814,33 +1876,40 @@ export default function DteSatPage() {
                       )
                     })()}
 
-                    {/* Impuestos adicionales REALES (parseados por NombreCorto del XML por el backend) */}
-                    {(stepperTasaMunicipalAmount > 0 || stepperBomberosAmount > 0) && !stepperIsAnulado && (
+                    {/* Tasa Municipal / Bomberos: montos REALES del XML (NombreCorto) pre-marcados; el
+                        usuario puede activarlos desde las 4 opciones (servicios), ajustar el monto o quitarlos */}
+                    {(stepperHasTasa || stepperHasBomberos) && !stepperIsAnulado && (
                       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
-                        <Text strong style={{ fontSize: 12, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>Impuestos adicionales detectados</Text>
+                        <Text strong style={{ fontSize: 12, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>Impuestos adicionales (Tasa Municipal / Bomberos)</Text>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
-                          Identificados por tipo desde el XML FEL; cada uno genera una línea independiente en la póliza. Selecciona la cuenta que aplique.
+                          Monto fijo del DTE (si el XML lo trae se llena solo); cada uno genera una línea independiente en la póliza. Selecciona la cuenta que aplique.
                         </Text>
-                        {stepperTasaMunicipalAmount > 0 && (
+                        {stepperHasTasa && (
                           <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <Text style={{ fontSize: 11, color: '#6b7280' }}>Tasa Municipal</Text>
-                              <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Q {stepperTasaMunicipalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>Tasa Municipal (monto fijo del DTE)</Text>
+                              <InputNumber size="small" min={0} precision={2} prefix="Q" style={{ width: 140 }}
+                                value={stepperTasaMunicipalAmount}
+                                onChange={v => setStepperTasaMunicipalAmount(Number(v ?? 0))} />
                             </div>
-                            <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: stepperBomberosAmount > 0 ? 8 : 0 }}>
+                            <Form.Item name="tasaMunicipalAccountId" label="Cuenta Tasa Municipal" style={{ marginBottom: stepperHasBomberos ? 8 : 0 }}>
                               <Select showSearch allowClear placeholder="Ej. 6112 — Tasa Municipal (EEGSA / Energuate)"
+                                filterOption={(v, opt) => String(opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
                                 options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                             </Form.Item>
                           </>
                         )}
-                        {stepperBomberosAmount > 0 && (
+                        {stepperHasBomberos && (
                           <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <Text style={{ fontSize: 11, color: '#6b7280' }}>Bomberos</Text>
-                              <Text strong style={{ fontSize: 12, color: '#1d4ed8' }}>Q {stepperBomberosAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                              <Text style={{ fontSize: 11, color: '#6b7280' }}>Bomberos (Dto. 112-97, monto fijo del DTE)</Text>
+                              <InputNumber size="small" min={0} precision={2} prefix="Q" style={{ width: 140 }}
+                                value={stepperBomberosAmount}
+                                onChange={v => setStepperBomberosAmount(Number(v ?? 0))} />
                             </div>
                             <Form.Item name="bomberosAccountId" label="Cuenta Bomberos" style={{ marginBottom: 0 }}>
                               <Select showSearch allowClear placeholder="Ej. 6113 — Impuesto Bomberos (seguros)"
+                                filterOption={(v, opt) => String(opt?.label ?? '').toLowerCase().includes(v.toLowerCase())}
                                 options={accounts.filter(a => !a.isHeader && a.isActive).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                             </Form.Item>
                           </>
