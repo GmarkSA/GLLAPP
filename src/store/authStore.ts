@@ -16,6 +16,9 @@ interface User {
   isSuperAdmin?: boolean
   /** Clave inicial asignada por el admin: debe cambiarla antes de operar (estilo SAP) */
   mustChangePassword?: boolean
+  /** /auth/me con X-Company-ID: la asignación a la empresa activa acota el perfil (rol por
+   *  empresa y/o acceso por módulo). Presente aunque el rol global sea admin. */
+  accesoEmpresa?: { companyId: string; rolPorEmpresa: boolean; moduleOverrides: Record<string, 'full' | 'read' | 'none' | undefined> }
 }
 
 const ROLES_ACCESO_TOTAL = new Set(['superadmin', 'admin'])
@@ -30,9 +33,11 @@ const extraerPermisos = (user: User | null | undefined): Set<string> => {
   }
   return slugs
 }
-/** Administrador (rol admin/superadmin del tenant o Super Admin de plataforma) → todo permitido */
+/** Administrador (rol admin/superadmin del tenant o Super Admin de plataforma) → todo permitido.
+ *  Excepción: si la asignación a la empresa activa acota el perfil (accesoEmpresa), rigen los
+ *  permisos que devolvió /auth/me — igual que el backend (PermissionsGuard). */
 const esAdminTotal = (user: User | null | undefined): boolean =>
-  !!user?.isSuperAdmin || (user?.roles ?? []).some(r => ROLES_ACCESO_TOTAL.has(nombreRol(r)))
+  !!user?.isSuperAdmin || (!user?.accesoEmpresa && (user?.roles ?? []).some(r => ROLES_ACCESO_TOTAL.has(nombreRol(r))))
 
 export interface Company {
   id: string

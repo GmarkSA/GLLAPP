@@ -955,9 +955,10 @@ export default function UsuariosPage() {
                 value: r.id, label: r.name,
               }))} />
           </Form.Item>
-          {/* Acceso por empresa en el mismo alta: un usuario no administrador solo ve y
-              opera las empresas marcadas; el rol por empresa (opcional) sustituye a su rol
-              general dentro de esa empresa. Un administrador accede a todas sin asignación. */}
+          {/* Acceso por empresa en el mismo alta: el usuario solo ve y opera las empresas
+              marcadas; el rol por empresa (opcional) sustituye a su rol general dentro de esa
+              empresa. Un administrador SIN empresas marcadas accede a todas; con alguna marcada
+              queda limitado a esas (la asignación manda, también para admin). */}
           <Form.Item noStyle shouldUpdate={(prev, cur) => prev.roleIds !== cur.roleIds}>
             {({ getFieldValue }) => {
               const esAdminGlobal = (getFieldValue('roleIds') ?? []).some((id: string) => roles.find(r => r.id === id)?.name === 'admin')
@@ -966,9 +967,12 @@ export default function UsuariosPage() {
                   <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 8px' }}>
                     Empresas a las que tendrá acceso
                   </Divider>
-                  {esAdminGlobal
-                    ? <Text type="secondary" style={{ fontSize: 12 }}>Un administrador accede a todas las empresas del plan; no necesita asignación.</Text>
-                    : companies.length === 0
+                  {esAdminGlobal && (
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                      Sin marcar ninguna, un administrador accede a todas las empresas del plan. Si marcas alguna, solo entrará a esas y dentro de cada una regirá el rol que elijas.
+                    </Text>
+                  )}
+                  {companies.length === 0
                       ? <Text type="secondary" style={{ fontSize: 12 }}>Aún no hay empresas creadas.</Text>
                       : companies.map(c => (
                           <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: 8, alignItems: 'center', marginBottom: 4 }}>
@@ -1063,7 +1067,7 @@ export default function UsuariosPage() {
         width={560}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          Activa las empresas a las que accede este usuario, elige su rol dentro de cada una (opcional: si no, rige su rol general) y ajusta el acceso por módulo. Un administrador accede a todas sin asignación.
+          Activa las empresas a las que accede este usuario, elige su rol dentro de cada una (opcional: si no, rige su rol general) y ajusta el acceso por módulo. Un administrador sin asignaciones accede a todas las empresas; en cuanto le activas una, solo entra a las activadas y ahí mandan el rol por empresa y el acceso por módulo.
         </Text>
         {loadingAssigned
           ? <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>

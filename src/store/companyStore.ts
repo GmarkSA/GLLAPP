@@ -14,7 +14,7 @@ export const normalizarModulosLegacy = (mods: any): string[] | null => {
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { companiesApi } from '../api/companies'
 import { branchesApi } from '../api/branches'
-import type { Company } from './authStore'
+import { useAuthStore, type Company } from './authStore'
 import type { Branch } from '../api/branches'
 
 interface CompanyStore {
@@ -124,6 +124,8 @@ export const useCompanyStore = create<CompanyStore>()(
         // Resetear enabledModules al cambiar empresa para no mostrar el plan de la empresa anterior
         // mientras carga el plan de la nueva. null = "todos" (optimista) hasta que el API responda.
         set({ activeCompany: company, activeBranch: null, branches: [], enabledModules: null, settingsReady: false })
+        // El perfil/permisos dependen de la empresa activa (rol por empresa, acceso por módulo)
+        useAuthStore.getState().loadPermissions().catch(() => {})
 
         const [branchResult, settingsResult] = await Promise.allSettled([
           branchesApi.getAll(company.id),
