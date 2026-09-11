@@ -248,6 +248,9 @@ export default function UsuariosPage() {
   // moduleOverrides por empresa: companyId → { module: 'full'|'read'|'none' }
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, Record<string, 'full' | 'read' | 'none'>>>({})
   const [savingOverride, setSavingOverride]     = useState<string | null>(null) // companyId saving
+  // Rol por empresa (company_users.roleIds): companyId → roleId. Dentro de esa empresa el
+  // usuario actúa con ese rol; sin rol por empresa rige su rol general.
+  const [companyRoleIds, setCompanyRoleIds] = useState<Record<string, string | undefined>>({})
 
   // Dropdown de roles (se cierra tras cada selección)
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
@@ -317,6 +320,7 @@ export default function UsuariosPage() {
     setModal('companies')
     setLoadingAssigned(true)
     setCompanyOverrides({})
+    setCompanyRoleIds({})
     try {
       const results = await Promise.all(
         companies.map(async c => {
@@ -324,6 +328,7 @@ export default function UsuariosPage() {
           const entry = cu.find((a: any) => a.userId === u.id)
           if (entry) {
             setCompanyOverrides(prev => ({ ...prev, [c.id]: entry.moduleOverrides ?? {} }))
+            setCompanyRoleIds(prev => ({ ...prev, [c.id]: (entry.roleIds ?? [])[0] }))
             return c.id
           }
           return null
@@ -339,7 +344,7 @@ export default function UsuariosPage() {
     setSaving(true)
     try {
       const invitar = vals.invitar !== false
-      await createUser({
+      const creado = await createUser({
         firstName: vals.firstName,
         lastName:  vals.lastName,
         email:     vals.email,
@@ -347,6 +352,16 @@ export default function UsuariosPage() {
         roleIds:   vals.roleIds ?? [],
         ...(soySuperAdmin ? { isSuperAdmin: vals.isSuperAdmin ?? false } : {}),
       })
+      // Empresas a las que accede (y rol dentro de cada una) en el mismo alta:
+      // un usuario no administrador solo ve/opera las empresas asignadas.
+      const accesos: Record<string, { on?: boolean; roleId?: string }> = vals.accesos ?? {}
+      const fallidas: string[] = []
+      for (const [companyId, a] of Object.entries(accesos)) {
+        if (!a?.on) continue
+        await companiesApi.assignUser(companyId, { userId: creado.id, roleIds: a.roleId ? [a.roleId] : [] })
+          .catch(() => fallidas.push(companies.find(c => c.id === companyId)?.legalName ?? companyId))
+      }
+      if (fallidas.length) message.warning(`Usuario creado, pero no se pudo asignar: ${fallidas.join(', ')}`)
       message.success(invitar ? 'Invitación enviada por correo' : 'Usuario creado')
       setModal(null)
       form.resetFields()
@@ -413,7 +428,8 @@ export default function UsuariosPage() {
     if (!selected) return
     try {
       if (assign) {
-        await companiesApi.assignUser(companyId, { userId: selected.id })
+        const roleId = companyRoleIds[companyId]
+        await companiesApi.assignUser(companyId, { userId: selected.id, roleIds: roleId ? [roleId] : [] })
         setAssignedCompanyIds(prev => [...prev, companyId])
         setCompanyOverrides(prev => ({ ...prev, [companyId]: {} }))
         message.success('Empresa asignada')
@@ -421,11 +437,25 @@ export default function UsuariosPage() {
         await companiesApi.removeCompanyUser(companyId, selected.id)
         setAssignedCompanyIds(prev => prev.filter(id => id !== companyId))
         setCompanyOverrides(prev => { const n = { ...prev }; delete n[companyId]; return n })
+        setCompanyRoleIds(prev => { const n = { ...prev }; delete n[companyId]; return n })
         message.success('Empresa removida')
       }
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al actualizar empresas')
     }
+  }
+
+  // Rol del usuario DENTRO de una empresa (company_users.roleIds). Vacío = rige su rol general.
+  const handleSaveCompanyRole = async (companyId: string, roleId?: string) => {
+    if (!selected) return
+    setCompanyRoleIds(prev => ({ ...prev, [companyId]: roleId }))
+    setSavingOverride(companyId)
+    try {
+      await companiesApi.updateCompanyUser(companyId, selected.id, { roleIds: roleId ? [roleId] : [] })
+      message.success(roleId ? 'Rol por empresa guardado' : 'Rol por empresa quitado (rige el rol general)')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar el rol por empresa')
+    } finally { setSavingOverride(null) }
   }
 
   const handleSaveModuleOverride = async (companyId: string, mod: string, val: 'full' | 'read' | 'none') => {
@@ -891,6 +921,41 @@ export default function UsuariosPage() {
                 value: r.id, label: r.name,
               }))} />
           </Form.Item>
+          {/* Acceso por empresa en el mismo alta: un usuario no administrador solo ve y
+              opera las empresas marcadas; el rol por empresa (opcional) sustituye a su rol
+              general dentro de esa empresa. Un administrador accede a todas sin asignación. */}
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.roleIds !== cur.roleIds}>
+            {({ getFieldValue }) => {
+              const esAdminGlobal = (getFieldValue('roleIds') ?? []).some((id: string) => roles.find(r => r.id === id)?.name === 'admin')
+              return (
+                <>
+                  <Divider titlePlacement="left" style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 8px' }}>
+                    Empresas a las que tendrá acceso
+                  </Divider>
+                  {esAdminGlobal
+                    ? <Text type="secondary" style={{ fontSize: 12 }}>Un administrador accede a todas las empresas del plan; no necesita asignación.</Text>
+                    : companies.length === 0
+                      ? <Text type="secondary" style={{ fontSize: 12 }}>Aún no hay empresas creadas.</Text>
+                      : companies.map(c => (
+                          <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                            <Form.Item name={['accesos', c.id, 'on']} valuePropName="checked" noStyle>
+                              <Checkbox><span style={{ fontSize: 13 }}>{c.legalName}</span></Checkbox>
+                            </Form.Item>
+                            <Form.Item noStyle shouldUpdate={(p, n) => p?.accesos?.[c.id]?.on !== n?.accesos?.[c.id]?.on}>
+                              {({ getFieldValue: gv }) => gv(['accesos', c.id, 'on']) ? (
+                                <Form.Item name={['accesos', c.id, 'roleId']} noStyle>
+                                  <Select size="small" allowClear placeholder="Rol en esta empresa"
+                                    options={roles.filter(r => !['superadmin', 'admin'].includes(r.name)).map(r => ({ value: r.id, label: r.name }))} />
+                                </Form.Item>
+                              ) : <span />}
+                            </Form.Item>
+                          </div>
+                        ))
+                  }
+                </>
+              )
+            }}
+          </Form.Item>
           {soySuperAdmin && (
             <Form.Item
               name="isSuperAdmin"
@@ -964,7 +1029,7 @@ export default function UsuariosPage() {
         width={560}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          Activa las empresas y ajusta el acceso por módulo para este usuario:
+          Activa las empresas a las que accede este usuario, elige su rol dentro de cada una (opcional: si no, rige su rol general) y ajusta el acceso por módulo. Un administrador accede a todas sin asignación.
         </Text>
         {loadingAssigned
           ? <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
@@ -983,10 +1048,23 @@ export default function UsuariosPage() {
                         <Text type="secondary" style={{ fontSize: 11 }}>{c.countryCode} · {c.currencyCode}</Text>
                       </div>
                     </Space>
-                    <Checkbox
-                      checked={assigned}
-                      onChange={e => handleToggleCompany(c.id, e.target.checked)}
-                    />
+                    <Space>
+                      {assigned && (
+                        <Select
+                          size="small"
+                          allowClear
+                          style={{ width: 170 }}
+                          placeholder="Rol en esta empresa"
+                          value={companyRoleIds[c.id]}
+                          onChange={(val?: string) => handleSaveCompanyRole(c.id, val)}
+                          options={roles.filter(r => !['superadmin', 'admin'].includes(r.name)).map(r => ({ value: r.id, label: r.name }))}
+                        />
+                      )}
+                      <Checkbox
+                        checked={assigned}
+                        onChange={e => handleToggleCompany(c.id, e.target.checked)}
+                      />
+                    </Space>
                   </div>
                   {/* Panel de módulos — solo si está asignado */}
                   {assigned && (
