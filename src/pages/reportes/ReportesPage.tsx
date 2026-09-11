@@ -12,6 +12,7 @@ import {
 import { getEmpresaInfo } from '../../api/reportes'
 import { companiesApi } from '../../api/companies'
 import { useCompanyStore } from '../../store/companyStore'
+import { useAuthStore } from '../../store/authStore'
 
 const { Title, Text } = Typography
 
@@ -155,6 +156,8 @@ export default function ReportesPage() {
   const isHub    = location.pathname === '/reportes' || location.pathname === '/reportes/'
 
   const activeCompany = useCompanyStore(s => s.activeCompany)
+  const permissions   = useAuthStore(s => s.permissions)
+  const can           = useAuthStore(s => s.can)
   const [fiscalRegimeCode, setFiscalRegimeCode] = useState<string | undefined>()
 
   useEffect(() => {
@@ -182,9 +185,13 @@ export default function ReportesPage() {
 
   const isPequeno = fiscalRegimeCode === 'gt_pequeno_contribuyente'
 
+  // Cada tarjeta exige su permiso de lectura (matriz de roles: reportes:<key>:read);
+  // admin/superadmin ven todas. Mientras los permisos no han cargado no se oculta nada.
   const visibleGroups = GROUPS.map(group => ({
     ...group,
-    reports: group.reports.filter(r => !(isPequeno && REGIMEN_GENERAL_ONLY.has(r.key))),
+    reports: group.reports.filter(r =>
+      !(isPequeno && REGIMEN_GENERAL_ONLY.has(r.key))
+      && (permissions.size === 0 || can(`reportes:${r.key}:read`))),
   })).filter(group => group.reports.length > 0)
 
   return (

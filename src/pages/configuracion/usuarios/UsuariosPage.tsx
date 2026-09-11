@@ -57,6 +57,7 @@ const MODULE_LABELS: Record<string, string> = {
   proyectos:     'Proyectos',
   reportes:      'Reportes',
   configuracion: 'Configuración',
+  automatizacion:'Automatización',
   fel:           'FEL',
   platform:      'Plataforma',
 }
@@ -138,6 +139,26 @@ const SUBMODULE_LABELS: Record<string, string> = {
   monedas:               'Monedas',
   integraciones:         'Integraciones',
   apikeys:               'API Keys',
+  impuestos:             'Impuestos',
+  // reportes nuevos (sep-2026)
+  dashboard:             'Dashboard ejecutivo',
+  'tipos-cambio':        'Tipos de cambio',
+  'libro-mayor':         'Libro Mayor',
+  'declaracion-iva':     'Declaración IVA',
+  'declaracion-isr':     'ISR Opcional Mensual (1311)',
+  'estados-financieros': 'Estados Financieros',
+  'integraciones-contables': 'Integraciones contables',
+  consolidacion:         'Consolidación',
+  // inventario nuevos
+  ajustes:               'Ajustes de inventario',
+  importaciones:         'Importaciones',
+  recepciones:           'Recepciones de compra',
+  // bancos
+  reglas:                'Reglas bancarias',
+  // automatizacion
+  blueprints:            'Blueprints',
+  webhooks:              'Webhooks',
+  workflows:             'Workflows',
   // platform
   tenants:               'Tenants',
   planes:                'Planes',
@@ -155,6 +176,10 @@ const MODULE_SUBMODULE_LABELS: Record<string, string> = {
   'reportes:activos-fijos':     'Reporte Activos fijos',
   'reportes:centros-beneficio': 'Rentabilidad C. Beneficio',
   'reportes:centros-costo':     'Ejecución C. Costo',
+  'reportes:inventario':        'Reporte de Inventario',
+  'inventario:centros':         'Centros de inventario',
+  'inventario:transferencias':  'Transferencias entre almacenes',
+  'bancos:transferencias':      'Transferencias bancarias',
 }
 
 // Orden de acciones en columnas (las primeras 5 son fijas; el resto son "otros")
@@ -165,13 +190,18 @@ const EXTRA_ACTIONS = ['approve', 'send', 'import', 'manage', 'certify', 'cancel
 const MODULE_ORDER: Record<string, string[]> = {
   ventas:        ['clientes', 'estimaciones', 'facturas', 'facturas-recurrentes', 'notas-credito', 'pagos', 'dte-sat'],
   compras:       ['proveedores', 'oc', 'facturas', 'notas-credito', 'dte-sat', 'anticipos', 'pagos', 'gastos'],
-  bancos:        ['cuentas', 'pagos-realizados', 'lote-cheques', 'config', 'conciliacion', 'transferencias'],
+  bancos:        ['cuentas', 'pagos-realizados', 'lote-cheques', 'config', 'conciliacion', 'transferencias', 'reglas'],
   contabilidad:  ['catalogo', 'asientos', 'diarios-recurrentes', 'activos-fijos', 'clases-activo-fijo', 'presupuesto', 'ajuste-moneda', 'bloqueo-transacciones', 'centros-costo', 'centros-beneficio', '_'],
-  inventario:    ['articulos', 'grupos', 'almacenes', 'entregas', 'expedientes', 'produccion', 'ubicaciones', 'movimientos'],
+  inventario:    ['articulos', 'grupos', 'almacenes', 'entregas', 'expedientes', 'importaciones', 'produccion', 'ubicaciones', 'movimientos', 'recepciones', 'transferencias', 'ajustes', 'centros'],
   planillas:     ['corridas', 'empleados', 'finiquitos', 'parametros-fiscales', 'datos-patrono', 'cuentas-contables', 'centros-trabajo'],
   proyectos:     ['_', 'tareas'],
-  reportes:      ['balance-general', 'estado-resultados', 'flujo-efectivo', 'tasas-rendimiento', 'movimiento-capital', 'balanza', 'libro-diario', 'libro-compras', 'libro-ventas', 'ap-aging', 'ar-aging', 'proyectado-pagos', 'activos-fijos', 'centros-beneficio', 'centros-costo'],
-  configuracion: ['general', 'empresas', 'sucursales', 'series', 'facturacion-electronica', 'bancos-perfiles', 'unidades-medida', 'monedas', 'integraciones', 'apikeys'],
+  // Mismo orden que el hub de Reportes: financieros · libros SAT · cartera · analíticos · impuestos · inventario · cierre
+  reportes:      ['dashboard', 'balance-general', 'estado-resultados', 'flujo-efectivo', 'tipos-cambio', 'tasas-rendimiento', 'movimiento-capital',
+                  'balanza', 'libro-diario', 'libro-mayor', 'libro-compras', 'libro-ventas',
+                  'ap-aging', 'ar-aging', 'proyectado-pagos', 'activos-fijos', 'centros-beneficio', 'centros-costo',
+                  'declaracion-iva', 'declaracion-isr', 'inventario', 'estados-financieros', 'integraciones-contables', 'consolidacion', '_'],
+  configuracion: ['general', 'empresas', 'sucursales', 'series', 'facturacion-electronica', 'bancos-perfiles', 'unidades-medida', 'impuestos', 'monedas', 'integraciones', 'apikeys'],
+  automatizacion:['blueprints', 'webhooks', 'workflows'],
   fel:           ['_'],
 }
 

@@ -32,7 +32,7 @@ export default function UsuariosPage() {
   const currentUserId = useAuthStore(s => s.user?.id)
   const me = useAuthStore(s => s.user)
   // Solo Super Admin administra usuarios (estilo SAP SU01) — el backend también lo exige
-  const esAdmin = !!me?.isSuperAdmin || (me?.roles ?? []).some(r => ['superadmin', 'admin'].includes(r))
+  const esAdmin = !!me?.isSuperAdmin || (me?.roles ?? []).some(r => ['superadmin', 'admin'].includes(typeof r === 'string' ? r : (r?.name ?? '')))
 
   const [users,   setUsers]   = useState<TenantUser[]>([])
   const [loading, setLoading] = useState(true)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag, Alert } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Badge, Space, Button, Tooltip, Tag, Alert, message } from 'antd'
 import {
   DashboardOutlined, ShoppingCartOutlined, ShopOutlined,
   BankOutlined, BarChartOutlined, SettingOutlined,
@@ -53,6 +53,70 @@ const ROLE_MODULES: Record<string, Set<string>> = {
   cajero:     new Set(['/pos']),
   lector:     new Set(['reportes', 'configuracion']),
   inventario: new Set(['inventario', 'ventas', 'reportes', 'configuracion']),
+}
+
+// ── Acceso por PERMISO (matriz de roles) ────────────────────────────────────
+// Un módulo del menú se muestra si el usuario tiene algún permiso con ese prefijo; ROLE_MODULES
+// queda como respaldo mientras los permisos aún no cargaron (permissions vacío).
+const MENU_PERMISSION_PREFIX: Record<string, string[]> = {
+  ventas:          ['ventas:'],
+  compras:         ['compras:'],
+  bancos:          ['bancos:'],
+  contabilidad:    ['contabilidad:catalogo', 'contabilidad:asientos', 'contabilidad:diarios-recurrentes', 'contabilidad:ajuste-moneda', 'contabilidad:bloqueo-transacciones', 'contabilidad:read', 'contabilidad:admin'],
+  'activos-fijos': ['contabilidad:activos-fijos', 'contabilidad:clases-activo-fijo', 'contabilidad:read'],
+  financiero:      ['contabilidad:presupuesto', 'contabilidad:centros-costo', 'contabilidad:centros-beneficio', 'contabilidad:read'],
+  inventario:      ['inventario:'],
+  '/pos':          ['ventas:facturas:create'],
+  planillas:       ['planillas:'],
+  '/proyectos':    ['proyectos:'],
+  '/reportes':     ['reportes:'],
+}
+// Ítem del submenú → permiso de lectura que lo habilita (sin entrada = visible si el módulo lo es)
+const MENU_ITEM_PERMISSION: Record<string, string> = {
+  '/ventas/clientes':                'ventas:clientes:read',
+  '/ventas/estimaciones':            'ventas:estimaciones:read',
+  '/ventas/facturas':                'ventas:facturas:read',
+  '/ventas/facturas-recurrentes':    'ventas:facturas:read',
+  '/ventas/notas-credito':           'ventas:notas-credito:read',
+  '/ventas/pagos-recibidos':         'ventas:pagos:read',
+  '/ventas/anticipos-clientes':      'ventas:facturas:read',
+  '/ventas/dte-sat':                 'ventas:facturas:read',
+  '/compras/proveedores':            'compras:proveedores:read',
+  '/compras/ordenes':                'compras:oc:read',
+  '/compras/facturas':               'compras:facturas:read',
+  '/compras/notas-credito-proveedor':'compras:facturas:read',
+  '/compras/dte-sat':                'compras:facturas:read',
+  '/compras/anticipos-proveedor':    'compras:facturas:read',
+  '/bancos':                         'bancos:cuentas:read',
+  '/bancos/pagos-realizados':        'compras:pagos:read',
+  '/bancos/pagos-realizados/lote':   'compras:pagos:read',
+  '/bancos/config-pagos':            'bancos:config:read',
+  '/contabilidad/catalogo':          'contabilidad:catalogo:read',
+  '/contabilidad/diarios-manuales':  'contabilidad:asientos:read',
+  '/contabilidad/diarios-recurrentes': 'contabilidad:asientos:read',
+  '/contabilidad/ajuste-moneda':     'contabilidad:ajuste-moneda:read',
+  '/contabilidad/bloqueo-transacciones': 'contabilidad:bloqueo-transacciones:read',
+  '/contabilidad/activos-fijos':     'contabilidad:read',
+  '/contabilidad/clases-activo-fijo':'contabilidad:clases-activo-fijo:read',
+  '/contabilidad/presupuesto':       'contabilidad:presupuesto:read',
+  '/contabilidad/centros-costo':     'contabilidad:read',
+  '/contabilidad/centros-beneficio': 'contabilidad:read',
+  '/inventario':                     'inventario:articulos:read',
+  '/inventario/grupos':              'inventario:grupos:read',
+  '/inventario/almacenes':           'inventario:almacenes:read',
+  '/inventario/entregas':            'inventario:entregas:read',
+  '/inventario/expedientes':         'inventario:expedientes:read',
+  '/inventario/produccion':          'inventario:produccion:read',
+  '/inventario/ubicaciones':         'inventario:ubicaciones:read',
+  '/inventario/movimientos':         'inventario:movimientos:read',
+  '/inventario/recepciones':         'inventario:movimientos:read',
+  '/planillas/corridas':             'planillas:corridas:read',
+  '/planillas/empleados':            'planillas:empleados:read',
+  '/planillas/finiquitos':           'planillas:finiquitos:read',
+  '/planillas/configuracion/parametros-fiscales': 'planillas:parametros-fiscales:read',
+  '/planillas/configuracion/datos-patrono':       'planillas:datos-patrono:read',
+  '/planillas/configuracion/cuentas-contables':   'planillas:cuentas-contables:read',
+  '/planillas/configuracion/centros-trabajo':     'planillas:centros-trabajo:read',
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -215,6 +279,10 @@ export default function MainLayout() {
   const lastNavKey = useRef('')
   const navigate = useNavigate()
   const location = useLocation()
+  // Permisos efectivos (matriz de roles) — vacío hasta que /auth/me los cargue
+  const permissions = useAuthStore(s => s.permissions)
+  const can         = useAuthStore(s => s.can)
+  const canAny      = useAuthStore(s => s.canAny)
   const { user, logout } = useAuthStore()
   useEffect(() => { void useCompanyStore.getState().loadTenantRestrictions() }, [])
 
@@ -247,9 +315,18 @@ export default function MainLayout() {
   const userRoles     = (user?.roles ?? []).map(getRoleName).filter(Boolean)
   const hasFullAccess = user?.isSuperAdmin || userRoles.some(r => FULL_ACCESS_ROLES.has(r))
 
+  // Por PERMISO (matriz de roles); ROLE_MODULES solo como respaldo mientras no hay permisos cargados
   const canSeeModule = (moduleKey: string): boolean => {
     if (hasFullAccess) return true
-    return userRoles.some(r => ROLE_MODULES[r]?.has(moduleKey) ?? false)
+    if (permissions.size === 0) return userRoles.some(r => ROLE_MODULES[r]?.has(moduleKey) ?? false)
+    const prefixes = MENU_PERMISSION_PREFIX[moduleKey] ?? MENU_PERMISSION_PREFIX[`/${moduleKey}`]
+    if (!prefixes) return true
+    return prefixes.some(p => canAny(p))
+  }
+  const canSeeItem = (itemKey: string): boolean => {
+    if (hasFullAccess || permissions.size === 0) return true
+    const slug = MENU_ITEM_PERMISSION[itemKey]
+    return slug ? can(slug) : true
   }
 
   const roleDisplayName = user?.isSuperAdmin
@@ -302,11 +379,33 @@ export default function MainLayout() {
   }, [isMobile])
 
   // Paso 2: filtrar por rol del usuario
-  const visibleMenuItems = filteredMenuItems.filter(item => {
-    if (item.key === '/dashboard')      return true
-    if (item.key === '/admin/platform') return !!user?.isSuperAdmin
-    return canSeeModule(resolveModuleKey(item.key))
-  })
+  const visibleMenuItems = filteredMenuItems
+    .filter(item => {
+      if (item.key === '/dashboard')      return true
+      if (item.key === '/admin/platform') return !!user?.isSuperAdmin
+      return canSeeModule(resolveModuleKey(item.key))
+    })
+    // Submenú: cada ítem exige su permiso de lectura (p. ej. Empleados → planillas:empleados:read)
+    .map(item => ('children' in item && Array.isArray((item as any).children)
+      ? { ...item, children: (item as any).children.filter((c: any) => canSeeItem(c.key)) }
+      : item))
+    .filter(item => !('children' in item) || ((item as any).children?.length ?? 0) > 0)
+
+  // Guard de ruta: si escriben la URL de un módulo/ítem sin permiso, de vuelta al dashboard
+  useEffect(() => {
+    if (hasFullAccess || permissions.size === 0) return
+    const path = location.pathname
+    const item = Object.keys(MENU_ITEM_PERMISSION).sort((a, b) => b.length - a.length).find(k => path === k || path.startsWith(k + '/'))
+    const seg  = path.split('/')[1] ?? ''
+    const modKey = path.startsWith('/contabilidad/activos-fijos') || path.startsWith('/contabilidad/clases-activo-fijo') ? 'activos-fijos'
+      : path.startsWith('/contabilidad/presupuesto') || path.startsWith('/contabilidad/centros-') ? 'financiero'
+      : seg === 'pos' ? '/pos' : seg
+    const permitido = (item ? canSeeItem(item) : true) && (MENU_PERMISSION_PREFIX[modKey] || MENU_PERMISSION_PREFIX[`/${modKey}`] ? canSeeModule(modKey) : true)
+    if (!permitido) {
+      message.warning('No tenés permiso para esa sección')
+      navigate('/dashboard', { replace: true })
+    }
+  }, [location.pathname, permissions, hasFullAccess]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const userMenu = {
     items: [
