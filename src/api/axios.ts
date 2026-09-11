@@ -78,9 +78,22 @@ api.interceptors.response.use(
       }
     }
 
+    // 403 (sin permiso por la matriz de roles): antes fallaba en silencio — tablas vacías o
+    // botones que "no hacían nada". Un aviso global, sin duplicar en ráfaga.
+    if (error.response?.status === 403) {
+      const ahora = Date.now()
+      if (ahora - ultimoAviso403 > 1500) {
+        ultimoAviso403 = ahora
+        import('antd').then(({ message }) =>
+          message.warning(getApiError(error, 'No tenés permiso para esta acción')),
+        ).catch(() => {})
+      }
+    }
+
     return Promise.reject(error)
   },
 )
+let ultimoAviso403 = 0
 
 export default api
 
