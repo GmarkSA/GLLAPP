@@ -16,6 +16,7 @@ import {
   type PurchaseInvoice, type JournalEntry,
 } from '../../../api/compras'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -25,6 +26,7 @@ export default function NotaCreditoProveedorDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [bill,         setBill]         = useState<PurchaseInvoice | null>(null)
   const [company,      setCompany]      = useState<OrganizationProfile>({ name: '' })
   const [journal,      setJournal]      = useState<JournalEntry | null>(null)
@@ -156,27 +158,27 @@ export default function NotaCreditoProveedorDetallePage() {
         <Divider type="vertical" />
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
         <Divider type="vertical" />
-        {canEdit && (
+        {canEdit && can('compras:facturas:update') && (
           <Button icon={<EditOutlined />} onClick={() => navigate(`/compras/notas-credito-proveedor/${bill.id}/editar`)}>
             Editar
           </Button>
         )}
-        {canApprove && (
+        {canApprove && can('compras:facturas:update') && (
           <Button type="primary" icon={<CheckOutlined />} loading={approving} onClick={handleApprove}
             style={{ background: '#2ea172', borderColor: '#2ea172' }}>
             Aprobar NC
           </Button>
         )}
-        {!canEdit && bill.status !== 'voided' && (
+        {!canEdit && bill.status !== 'voided' && can('compras:facturas:update') && (
           <Button icon={<SyncOutlined />} loading={regenerating} onClick={handleRegenerate}
             style={{ color: '#6b7280', borderColor: '#6b7280' }}>
             Regenerar póliza
           </Button>
         )}
-        {canVoid && (
+        {canVoid && can('compras:facturas:update') && (
           <Button danger icon={<StopOutlined />} onClick={() => setShowVoid(true)}>Anular</Button>
         )}
-        {canEdit && (
+        {canEdit && can('compras:facturas:delete') && (
           <Popconfirm title="¿Eliminar esta nota de crédito?" onConfirm={handleDelete}
             okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
             <Button danger icon={<DeleteOutlined />}>Eliminar</Button>

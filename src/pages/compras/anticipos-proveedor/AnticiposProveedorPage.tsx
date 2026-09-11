@@ -14,6 +14,7 @@ import {
   applyVendorAdvanceToBill, getBills, desaplicarAnticipoProveedor,
   type VendorAdvance, type PurchaseInvoice,
 } from '../../../api/compras'
+import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
 
@@ -35,6 +36,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export default function AnticiposProveedorPage() {
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [data,    setData]    = useState<VendorAdvance[]>([])
   const [total,   setTotal]   = useState(0)
   const [loading, setLoading] = useState(false)
@@ -186,7 +188,7 @@ export default function AnticiposProveedorPage() {
               }
             }} />
           </Tooltip>
-          {r.status !== 'voided' && r.status !== 'applied' && (
+          {r.status !== 'voided' && r.status !== 'applied' && can('compras:facturas:update') && (
             <Tooltip title="Aplicar a factura de compra">
               <Button
                 size="small"
@@ -196,7 +198,7 @@ export default function AnticiposProveedorPage() {
               />
             </Tooltip>
           )}
-          {(r.status === 'partial' || r.status === 'applied') && (
+          {(r.status === 'partial' || r.status === 'applied') && can('compras:facturas:update') && (
             <Popconfirm
               title={`¿Desaplicar anticipo ${r.advanceNumber}?`}
               description="Se revertirán todas las aplicaciones a facturas y sus pólizas."
@@ -213,7 +215,7 @@ export default function AnticiposProveedorPage() {
               </Tooltip>
             </Popconfirm>
           )}
-          {r.status !== 'voided' && r.status !== 'applied' && (
+          {r.status !== 'voided' && r.status !== 'applied' && can('compras:facturas:update') && (
             <Popconfirm
               title="¿Anular anticipo?"
               description="Se creará un asiento de reverso contable."
@@ -323,7 +325,7 @@ export default function AnticiposProveedorPage() {
               )}
             </Descriptions>
 
-            {detail.status === 'voided' && (
+            {detail.status === 'voided' && can('compras:facturas:update') && (
               <Popconfirm
                 title="¿Revertir anulación?"
                 description="Se eliminará la póliza de reverso y el anticipo quedará Abierto nuevamente."

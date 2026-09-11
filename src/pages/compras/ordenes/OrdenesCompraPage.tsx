@@ -19,6 +19,7 @@ import { getPaymentTermLabel } from '../../../components/PaymentTermsSelect'
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 
@@ -120,6 +121,7 @@ const STATUS_TABS = [
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function OrdenesCompraPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [orders, setOrders]             = useState<PurchaseOrder[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -213,20 +215,20 @@ export default function OrdenesCompraPage() {
               <Button size="small" icon={<EyeOutlined />}
                 onClick={() => navigate(`/compras/ordenes/${r.id}`)} />
             </Tooltip>
-            {isDraft && (
+            {isDraft && can('compras:oc:update') && (
               <Tooltip title="Editar">
                 <Button size="small" icon={<EditOutlined />}
                   onClick={() => navigate(`/compras/ordenes/${r.id}/editar`)} />
               </Tooltip>
             )}
-            {canApprove && (
+            {canApprove && can('compras:oc:approve') && (
               <Tooltip title="Aprobar">
                 <Button size="small" icon={<CheckCircleOutlined />}
                   style={{ color: '#2ea172', borderColor: '#2ea172' }}
                   onClick={() => { setApproveTarget(r); setApproveModal(true) }} />
               </Tooltip>
             )}
-            {!isCancelled && !isBilled && (
+            {!isCancelled && !isBilled && can('compras:oc:delete') && (
               <Tooltip title="Eliminar">
                 <Button size="small" danger icon={<DeleteOutlined />}
                   onClick={() => handleDelete(r.id)} />
@@ -249,13 +251,15 @@ export default function OrdenesCompraPage() {
             <Text type="secondary">Solicitudes de compra enviadas a proveedores</Text>
           </div>
         </div>
-        <Button
-          type="primary" icon={<PlusOutlined />}
-          onClick={() => navigate('/compras/ordenes/nueva')}
-          style={{ background: '#1faec2' }}
-        >
-          <span data-tour="compras-orden-nueva">Nueva orden</span>
-        </Button>
+        {can('compras:oc:create') && (
+          <Button
+            type="primary" icon={<PlusOutlined />}
+            onClick={() => navigate('/compras/ordenes/nueva')}
+            style={{ background: '#1faec2' }}
+          >
+            <span data-tour="compras-orden-nueva">Nueva orden</span>
+          </Button>
+        )}
       </div>
 
       {/* Filters + Tabs */}

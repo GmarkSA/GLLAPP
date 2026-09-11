@@ -15,6 +15,7 @@ import {
   BILL_STATUS_CONFIG,
   type PurchaseInvoice, type BillStatus,
 } from '../../../api/compras'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 
@@ -56,6 +57,7 @@ function applyNcpFilters(data: PurchaseInvoice[], f: NcpAdFilters): PurchaseInvo
 
 export default function NotasCreditoProveedorPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [data,      setData]      = useState<PurchaseInvoice[]>([])
   const [total,     setTotal]     = useState(0)
   const [loading,   setLoading]   = useState(true)
@@ -186,14 +188,16 @@ export default function NotasCreditoProveedorPage() {
             <Button size="small" icon={<EyeOutlined />}
               onClick={() => navigate(`/compras/notas-credito-proveedor/${r.id}`)} />
           </Tooltip>
-          {r.status !== 'voided' && (
+          {r.status !== 'voided' && can('compras:facturas:update') && (
             <Tooltip title="Anular">
               <Button size="small" danger icon={<StopOutlined />} onClick={() => handleVoid(r)} />
             </Tooltip>
           )}
-          <Tooltip title="Eliminar">
-            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r.id)} />
-          </Tooltip>
+          {can('compras:facturas:delete') && (
+            <Tooltip title="Eliminar">
+              <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r.id)} />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -209,14 +213,16 @@ export default function NotasCreditoProveedorPage() {
             <Text type="secondary">Documentos que reducen saldo a pagar a proveedor</Text>
           </div>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/compras/notas-credito-proveedor/nueva')}
-          style={{ background: '#e5484d', borderColor: '#e5484d' }}
-        >
-          Nueva nota de crédito
-        </Button>
+        {can('compras:facturas:create') && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/compras/notas-credito-proveedor/nueva')}
+            style={{ background: '#e5484d', borderColor: '#e5484d' }}
+          >
+            Nueva nota de crédito
+          </Button>
+        )}
       </div>
 
       <Card

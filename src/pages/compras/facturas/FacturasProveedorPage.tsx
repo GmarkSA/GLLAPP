@@ -24,6 +24,7 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 
@@ -296,6 +297,7 @@ const STATUS_TABS = [
 export default function FacturasProveedorPage() {
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   // Data state
   const [bills, setBills]             = useState<PurchaseInvoice[]>([])
   const [loading, setLoading]         = useState(true)
@@ -413,29 +415,31 @@ export default function FacturasProveedorPage() {
               <Button size="small" icon={<EyeOutlined />}
                 onClick={() => navigate(`/compras/facturas/${r.id}`)} />
             </Tooltip>
-            {isDraft && (
+            {isDraft && can('compras:facturas:update') && (
               <Tooltip title="Editar">
                 <Button size="small" icon={<EditOutlined />}
                   onClick={() => navigate(`/compras/facturas/${r.id}/editar`)} />
               </Tooltip>
             )}
-            {!isPaid && !isVoided && (
+            {!isPaid && !isVoided && can('compras:pagos:create') && (
               <Tooltip title="Ir a Pagos a Proveedores">
                 <Button size="small" icon={<DollarOutlined />}
                   style={{ color: '#2ea172', borderColor: '#2ea172' }}
                   onClick={() => openPay(r)} />
               </Tooltip>
             )}
-            {!isVoided && (
+            {!isVoided && can('compras:facturas:update') && (
               <Tooltip title="Anular factura">
                 <Button size="small" danger icon={<StopOutlined />}
                   onClick={() => { setVoidTarget(r); setVoidModal(true) }} />
               </Tooltip>
             )}
-            <Tooltip title="Eliminar permanentemente">
-              <Button size="small" danger icon={<DeleteOutlined />}
-                onClick={() => handleDelete(r.id)} />
-            </Tooltip>
+            {can('compras:facturas:delete') && (
+              <Tooltip title="Eliminar permanentemente">
+                <Button size="small" danger icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(r.id)} />
+              </Tooltip>
+            )}
           </Space>
         )
       },
@@ -453,13 +457,15 @@ export default function FacturasProveedorPage() {
             <Text type="secondary">Registro de facturas recibidas de proveedores</Text>
           </div>
         </div>
-        <Button
-          type="primary" icon={<PlusOutlined />}
-          onClick={() => navigate('/compras/facturas/nueva')}
-          style={{ background: '#1faec2' }}
-        >
-          <span data-tour="compras-factura-nueva">Nueva factura proveedor</span>
-        </Button>
+        {can('compras:facturas:create') && (
+          <Button
+            type="primary" icon={<PlusOutlined />}
+            onClick={() => navigate('/compras/facturas/nueva')}
+            style={{ background: '#1faec2' }}
+          >
+            <span data-tour="compras-factura-nueva">Nueva factura proveedor</span>
+          </Button>
+        )}
       </div>
 
       {/* Filters + Tabs */}

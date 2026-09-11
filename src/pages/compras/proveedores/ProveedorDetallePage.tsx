@@ -20,6 +20,7 @@ import {
 import { getPagosRealizados, type VendorPayment } from '../../../api/pagosRealizados'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import { getComments, addComment, type ActivityComment } from '../../../api/comments'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -50,6 +51,7 @@ export default function ProveedorDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [vendor,      setVendor]      = useState<Vendor | null>(null)
   const [company,     setCompany]     = useState<OrganizationProfile>({ name: '' })
   const [bills,       setBills]       = useState<PurchaseInvoice[]>([])
@@ -330,26 +332,34 @@ export default function ProveedorDetallePage() {
         </div>
         <Badge status={statusCfg.color} text={statusCfg.label} style={{ marginLeft: 4 }} />
         <div style={{ flex: 1 }} />
-        <Button icon={<EditOutlined />} onClick={() => navigate(`/compras/proveedores/${vendor.id}/editar`)}>
-          Editar
-        </Button>
-        <Button
-          type="primary" icon={<PlusOutlined />}
-          onClick={() => navigate('/compras/facturas/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}
-          style={{ background: '#ff7f00', borderColor: '#ff7f00' }}
-        >
-          Nueva factura
-        </Button>
-        <Button
-          icon={<FileTextOutlined />}
-          onClick={() => navigate('/compras/ordenes/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}
-        >
-          Nueva OC
-        </Button>
-        <Popconfirm title="¿Eliminar este proveedor?" onConfirm={handleDelete}
-          okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
-          <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
-        </Popconfirm>
+        {can('compras:proveedores:update') && (
+          <Button icon={<EditOutlined />} onClick={() => navigate(`/compras/proveedores/${vendor.id}/editar`)}>
+            Editar
+          </Button>
+        )}
+        {can('compras:facturas:create') && (
+          <Button
+            type="primary" icon={<PlusOutlined />}
+            onClick={() => navigate('/compras/facturas/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}
+            style={{ background: '#ff7f00', borderColor: '#ff7f00' }}
+          >
+            Nueva factura
+          </Button>
+        )}
+        {can('compras:oc:create') && (
+          <Button
+            icon={<FileTextOutlined />}
+            onClick={() => navigate('/compras/ordenes/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}
+          >
+            Nueva OC
+          </Button>
+        )}
+        {can('compras:proveedores:delete') && (
+          <Popconfirm title="¿Eliminar este proveedor?" onConfirm={handleDelete}
+            okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
+            <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
+          </Popconfirm>
+        )}
       </div>
 
       {/* ── Stats row ─────────────────────────────────────────────────────── */}
@@ -570,11 +580,13 @@ export default function ProveedorDetallePage() {
                   children: (
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                        <Button size="small" type="primary" icon={<PlusOutlined />}
-                          style={{ background: '#ff7f00', borderColor: '#ff7f00' }}
-                          onClick={() => navigate('/compras/facturas/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}>
-                          Nueva factura
-                        </Button>
+                        {can('compras:facturas:create') && (
+                          <Button size="small" type="primary" icon={<PlusOutlined />}
+                            style={{ background: '#ff7f00', borderColor: '#ff7f00' }}
+                            onClick={() => navigate('/compras/facturas/nueva', { state: { vendorId: vendor.id, vendorName: vendor.name } })}>
+                            Nueva factura
+                          </Button>
+                        )}
                       </div>
                       <Table columns={billCols} dataSource={bills} rowKey="id" size="small"
                         pagination={{ pageSize: 10, showTotal: t => `${t} facturas` }}
