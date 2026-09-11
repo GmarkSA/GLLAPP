@@ -1025,7 +1025,7 @@ export default function UsuariosPage() {
                               {({ getFieldValue: gv }) => gv(['accesos', c.id, 'on']) ? (
                                 <Form.Item name={['accesos', c.id, 'roleId']} noStyle>
                                   <Select size="small" allowClear placeholder="Rol en esta empresa"
-                                    options={roles.filter(r => !['superadmin', 'admin'].includes(r.name)).map(r => ({ value: r.id, label: r.name }))} />
+                                    options={roles.filter(r => r.name !== 'superadmin').map(r => ({ value: r.id, label: r.name }))} />
                                 </Form.Item>
                               ) : <span />}
                             </Form.Item>
@@ -1156,7 +1156,7 @@ export default function UsuariosPage() {
                           placeholder="Rol en esta empresa"
                           value={companyRoleIds[c.id]}
                           onChange={(val?: string) => handleSaveCompanyRole(c.id, val)}
-                          options={roles.filter(r => !['superadmin', 'admin'].includes(r.name)).map(r => ({ value: r.id, label: r.name }))}
+                          options={roles.filter(r => r.name !== 'superadmin').map(r => ({ value: r.id, label: r.name }))}
                         />
                       )}
                       <Checkbox
