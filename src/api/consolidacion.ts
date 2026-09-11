@@ -61,6 +61,7 @@ export interface PlanificacionFiscal {
   totalIngresos: number
   totalGastos: number
   utilidadConsolidada: number
+  ivaDebitoTotal?: number
   ivaCreditoTotal: number
   ivaPorPagarTotal: number
   isrConsolidado: number
