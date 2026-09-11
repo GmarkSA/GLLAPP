@@ -29,6 +29,7 @@ import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getVendor, getVendors } from '../../../api/contactos'
 import { getUnidadesActivas, type UnidadMedida } from '../../../api/unidades-medida'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -81,6 +82,7 @@ function getErrorMessage(err: unknown, fallback: string) {
 
 export default function DteSatPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const isMobile = useIsMobile()
   const [form] = Form.useForm()
   const [documents, setDocuments] = useState<SatDte[]>([])
@@ -1248,23 +1250,27 @@ export default function DteSatPage() {
               </Tooltip>
             : row.status === 'duplicate'
               ? <Tag color="volcano" style={{ fontSize: 10 }}>Duplicado</Tag>
-              : <Button size="small" type="primary" icon={<BookOutlined />}
+              : can('compras:facturas:create') ? (
+                <Button size="small" type="primary" icon={<BookOutlined />}
                   onClick={() => openStepper(row)}
                   style={{ fontSize: 11, background: '#1faec2' }}>
                   Procesar
                 </Button>
+              ) : null
           }
-          {row.status === 'posted' && (
+          {row.status === 'posted' && can('compras:facturas:create') && (
             <Tooltip title="Re-procesar — usar si la factura vinculada fue eliminada">
               <Button size="small" icon={<RollbackOutlined />}
                 onClick={() => handleReactivate(row)}
                 style={{ fontSize: 11, color: '#7c3aed', borderColor: '#c4b5fd' }} />
             </Tooltip>
           )}
-          <Tooltip title="Eliminar de la bandeja">
-            <Button size="small" danger icon={<DeleteOutlined />}
-              onClick={() => handleDeleteDte(row)} style={{ fontSize: 11 }} />
-          </Tooltip>
+          {can('compras:facturas:create') && (
+            <Tooltip title="Eliminar de la bandeja">
+              <Button size="small" danger icon={<DeleteOutlined />}
+                onClick={() => handleDeleteDte(row)} style={{ fontSize: 11 }} />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -1356,7 +1362,7 @@ export default function DteSatPage() {
     {
       title: 'Acciones',
       width: 130,
-      render: (_, row) => (
+      render: (_, row) => can('compras:facturas:create') ? (
         <Button
           size="small"
           icon={<CloudSyncOutlined />}
@@ -1366,7 +1372,7 @@ export default function DteSatPage() {
         >
           Sincronizar
         </Button>
-      ),
+      ) : null,
     },
   ]
 
@@ -1576,9 +1582,11 @@ export default function DteSatPage() {
                               options={taxes.filter(t => !t.isWithholding).map(t => ({ value: t.id, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
                           </Form.Item>
                         </div>
-                        <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1faec2' }}>
-                          Crear y vincular proveedor
-                        </Button>
+                        {can('compras:proveedores:create') && (
+                          <Button type="primary" htmlType="submit" loading={stepperLoading} style={{ background: '#1faec2' }}>
+                            Crear y vincular proveedor
+                          </Button>
+                        )}
                       </Form>
                     </div>
                   )
@@ -1641,7 +1649,7 @@ export default function DteSatPage() {
                 })()}
 
                 {/* Paso 3 — Registrar */}
-                {stepperStep === 3 && (
+                {stepperStep === 3 && can('compras:facturas:create') && (
                   <Form form={stepperForm} layout="vertical" size="small" onFinish={handleStepperPost}
                     initialValues={{ invoiceType: 'goods' }}>
                     {stepperIsAnulado && (
@@ -2499,11 +2507,13 @@ export default function DteSatPage() {
             />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
-              disabled={!satCredentials.satNit}
-              style={{ background: '#1faec2' }}>
-              Importar Recibidos
-            </Button>
+            {can('compras:facturas:create') && (
+              <Button type="primary" htmlType="submit" icon={<ApiOutlined />} loading={importing}
+                disabled={!satCredentials.satNit}
+                style={{ background: '#1faec2' }}>
+                Importar Recibidos
+              </Button>
+            )}
           </Form.Item>
           </div>
           <Form.Item style={{ marginBottom: 0 }}>
@@ -2581,7 +2591,7 @@ export default function DteSatPage() {
                       </div>
                     )}
                   </Space>
-                  {selectedIds.length > 0 && (
+                  {selectedIds.length > 0 && can('compras:facturas:create') && (
                     <Button
                       type="primary"
                       icon={<ThunderboltOutlined />}
@@ -2695,16 +2705,18 @@ export default function DteSatPage() {
             </Text>
             <Space>
               <Button onClick={() => setBulkVendorOpen(false)} disabled={bulkVendorRunning}>Cancelar</Button>
-              <Button
-                type="primary"
-                icon={<ThunderboltOutlined />}
-                loading={bulkVendorRunning}
-                disabled={bulkVendorRunning || bulkVendorRows.every(r => r.status === 'ok')}
-                onClick={handleBulkVendorPost}
-                style={{ background: '#1B3A6B' }}
-              >
-                Registrar todos
-              </Button>
+              {can('compras:proveedores:create') && (
+                <Button
+                  type="primary"
+                  icon={<ThunderboltOutlined />}
+                  loading={bulkVendorRunning}
+                  disabled={bulkVendorRunning || bulkVendorRows.every(r => r.status === 'ok')}
+                  onClick={handleBulkVendorPost}
+                  style={{ background: '#1B3A6B' }}
+                >
+                  Registrar todos
+                </Button>
+              )}
             </Space>
           </div>
         }

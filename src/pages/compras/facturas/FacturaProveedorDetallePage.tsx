@@ -24,6 +24,7 @@ import { getOrganizationProfile, type OrganizationProfile } from '../../../api/c
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getVendor } from '../../../api/contactos'
 import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -37,6 +38,7 @@ const PAYMENT_MODE_LABELS: Record<string, string> = {
 export default function FacturaProveedorDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const location = useLocation()
   const fromVendorId = (location.state as any)?.fromVendorId as string | undefined
 
@@ -485,7 +487,7 @@ export default function FacturaProveedorDetallePage() {
         <Divider type="vertical" />
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
         <Divider type="vertical" />
-        {canEditOpen && !inlineEdit && (
+        {canEditOpen && !inlineEdit && can('compras:facturas:update') && (
           <Button type="primary" icon={<EditOutlined />}
             style={{ background: '#1faec2', borderColor: '#1faec2' }}
             onClick={() => navigate(`/compras/facturas/${bill.id}/editar`, { state: { fromVendorId } })}>
@@ -503,34 +505,34 @@ export default function FacturaProveedorDetallePage() {
             </Button>
           </>
         )}
-        {canApprove && (
+        {canApprove && can('compras:facturas:update') && (
           <Button type="primary" icon={<CheckOutlined />} loading={approving} onClick={handleApprove}
             style={{ background: '#2ea172', borderColor: '#2ea172' }}>
             Aprobar
           </Button>
         )}
-        {canPay && (
+        {canPay && can('compras:pagos:create') && (
           <Button type="primary" icon={<DollarOutlined />} onClick={openPayModal}
             style={{ background: '#1faec2', borderColor: '#1faec2' }}>
             Registrar pago
           </Button>
         )}
-        {canPay && (
+        {canPay && can('compras:facturas:update') && (
           <Button icon={<ThunderboltOutlined />} onClick={openAdvModal}
             style={{ color: '#6b7280', borderColor: '#6b7280' }}>
             Aplicar anticipo
           </Button>
         )}
-        {!['draft', 'pending_approval', 'voided'].includes(bill.status) && (
+        {!['draft', 'pending_approval', 'voided'].includes(bill.status) && can('compras:facturas:update') && (
           <Button icon={<SyncOutlined />} loading={regenerating} onClick={handleRegenerate}
             style={{ color: '#6b7280', borderColor: '#6b7280' }}>
             Regenerar póliza
           </Button>
         )}
-        {canVoid && (
+        {canVoid && can('compras:facturas:update') && (
           <Button danger icon={<StopOutlined />} onClick={() => setShowVoid(true)}>Anular</Button>
         )}
-        {canEdit && (
+        {canEdit && can('compras:facturas:delete') && (
           <Popconfirm title="¿Eliminar esta factura?" onConfirm={handleDelete}
             okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
             <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
@@ -538,9 +540,11 @@ export default function FacturaProveedorDetallePage() {
         )}
         <Divider type="vertical" />
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadFile} />
-        <Button icon={<UploadOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
-          Cargar archivo
-        </Button>
+        {can('compras:facturas:update') && (
+          <Button icon={<UploadOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
+            Cargar archivo
+          </Button>
+        )}
         <Button icon={<MailOutlined />} onClick={openEmailModal}>
           Enviar por correo
         </Button>
@@ -940,7 +944,7 @@ export default function FacturaProveedorDetallePage() {
                 <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Historial de pagos
                 </Text>
-                {canPay && (
+                {canPay && can('compras:pagos:create') && (
                   <Button size="small" type="primary" icon={<DollarOutlined />}
                     style={{ background: '#2ea172', borderColor: '#2ea172' }}
                     onClick={openPayModal}>
@@ -976,7 +980,7 @@ export default function FacturaProveedorDetallePage() {
                       : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
                   },
                   { title: '', width: 50, align: 'center' as const,
-                    render: (_: any, row: any) => (
+                    render: (_: any, row: any) => can('compras:pagos:delete') ? (
                       <Popconfirm
                         title={`¿Eliminar el pago ${row.paymentNumber}?`}
                         description="Se revertirá el saldo de la factura y se eliminará la póliza asociada."
@@ -987,7 +991,7 @@ export default function FacturaProveedorDetallePage() {
                             loading={deletingPayment === row.id} style={{ padding: '0 6px' }} />
                         </Tooltip>
                       </Popconfirm>
-                    ),
+                    ) : null,
                   },
                 ]}
               />

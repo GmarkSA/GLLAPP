@@ -17,6 +17,7 @@ import {
   type VendorPayment, type AppliedInvoice,
 } from '../../../api/pagosRealizados'
 import { getAsiento } from '../../../api/asientos'
+import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
 
@@ -70,6 +71,7 @@ function applyPrFilters(data: VendorPayment[], f: PrAdFilters): VendorPayment[] 
 
 export default function PagosRealizadosPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [data,     setData]     = useState<VendorPayment[]>([])
   const [total,    setTotal]    = useState(0)
   const [loading,  setLoading]  = useState(false)
@@ -256,7 +258,7 @@ export default function PagosRealizadosPage() {
               />
             </Tooltip>
           )}
-          {r.status !== 'voided' && (
+          {r.status !== 'voided' && can('compras:pagos:update') && (
             <Popconfirm
               title="¿Anular pago?"
               description="Se revertirán los balances de las facturas asociadas."
@@ -270,7 +272,7 @@ export default function PagosRealizadosPage() {
               </Tooltip>
             </Popconfirm>
           )}
-          {r.status === 'voided' && (
+          {r.status === 'voided' && can('compras:pagos:delete') && (
             <Popconfirm
               title="¿Eliminar pago?"
               description="Esta acción elimina el registro permanentemente."
@@ -318,14 +320,16 @@ export default function PagosRealizadosPage() {
               Imprimir {selectedChecks.length} cheque{selectedChecks.length > 1 ? 's' : ''}
             </Button>
           )}
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            style={{ background: '#1faec2' }}
-            onClick={() => navigate('/bancos/pagos-realizados/nuevo')}
-          >
-            Nuevo pago
-          </Button>
+          {can('compras:pagos:create') && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              style={{ background: '#1faec2' }}
+              onClick={() => navigate('/bancos/pagos-realizados/nuevo')}
+            >
+              Nuevo pago
+            </Button>
+          )}
         </Space>
       </div>
 

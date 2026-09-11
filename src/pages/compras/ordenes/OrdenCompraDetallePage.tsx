@@ -16,6 +16,7 @@ import {
 import { getUbicaciones, type Ubicacion } from '../../../api/expedientes'
 import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -25,6 +26,7 @@ export default function OrdenCompraDetallePage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [po,          setPo]          = useState<PurchaseOrder | null>(null)
   const [company,     setCompany]     = useState<OrganizationProfile>({ name: '' })
   const [loading,     setLoading]     = useState(true)
@@ -193,12 +195,12 @@ export default function OrdenCompraDetallePage() {
         <Divider type="vertical" />
         <Tag color={statusCfg.color} style={{ margin: 0, fontSize: 12 }}>{statusCfg.label}</Tag>
         <Divider type="vertical" />
-        {canEdit && (
+        {canEdit && can('compras:oc:update') && (
           <Button icon={<EditOutlined />} onClick={() => navigate(`/compras/ordenes/${po.id}/editar`)}>
             Editar
           </Button>
         )}
-        {canSend && (
+        {canSend && can('compras:oc:send') && (
           <Button icon={<SendOutlined />} onClick={() => {
             const tpls = getEmailTemplates().filter(t => t.documentType === 'orden_compra')
             const defTpl = tpls.find(t => t.isDefault) ?? tpls[0] ?? getDefaultEmailTemplate('orden_compra')
@@ -211,26 +213,26 @@ export default function OrdenCompraDetallePage() {
             Enviar al proveedor
           </Button>
         )}
-        {canApprove && (
+        {canApprove && can('compras:oc:approve') && (
           <Button type="primary" icon={<CheckCircleOutlined />} loading={approving} onClick={handleApprove}
             style={{ background: '#06b6d4', borderColor: '#06b6d4' }}>
             Aprobar OC
           </Button>
         )}
-        {canReceive && (
+        {canReceive && can('inventario:movimientos:create') && (
           <Button icon={<InboxOutlined />} loading={receiving}
             onClick={() => { setDestino(undefined); setShowReceive(true) }}
             style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}>
             Recibir mercadería
           </Button>
         )}
-        {canConvert && (
+        {canConvert && can('compras:facturas:create') && (
           <Button type="primary" icon={<FileTextOutlined />} onClick={handleConvert}
             style={{ background: '#1faec2', borderColor: '#1faec2' }}>
             Convertir a factura proveedor
           </Button>
         )}
-        {(canEdit || po.status === 'cancelled') && (
+        {(canEdit || po.status === 'cancelled') && can('compras:oc:delete') && (
           <Popconfirm title="¿Eliminar esta orden de compra?" onConfirm={handleDelete}
             okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
             <Button danger icon={<DeleteOutlined />}>Eliminar</Button>
@@ -238,9 +240,11 @@ export default function OrdenCompraDetallePage() {
         )}
         <Divider type="vertical" />
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadFile} />
-        <Button icon={<UploadOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
-          Cargar archivo
-        </Button>
+        {can('compras:oc:update') && (
+          <Button icon={<UploadOutlined />} loading={uploadingFile} onClick={() => fileInputRef.current?.click()}>
+            Cargar archivo
+          </Button>
+        )}
       </div>
 
       {/* ── Alerta borrador ─────────────────────────────────────────────────── */}

@@ -16,6 +16,7 @@ import { getPaymentTermLabel } from '../../../components/PaymentTermsSelect'
 import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
+import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
 
@@ -250,6 +251,7 @@ function buildColDef(key: string, navigate: (p: string) => void): ColumnsType<Ve
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ProveedoresPage() {
   const navigate = useNavigate()
+  const can = useCan()   // gating de botones por permiso (matriz de roles)
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState(true)
   const [search,  setSearch]  = useState('')
@@ -321,20 +323,24 @@ export default function ProveedoresPage() {
             <Button size="small" icon={<EyeOutlined />}
               onClick={() => navigate(`/compras/proveedores/${r.id}`)} />
           </Tooltip>
-          <Tooltip title="Editar">
-            <Button size="small" icon={<EditOutlined />}
-              onClick={() => navigate(`/compras/proveedores/${r.id}/editar`)} />
-          </Tooltip>
-          <Tooltip title="Eliminar">
-            <Popconfirm
-              title="¿Eliminar este proveedor?"
-              onConfirm={() => handleDelete(r.id!)}
-              okText="Sí" cancelText="No"
-              okButtonProps={{ danger: true }}
-            >
-              <Button size="small" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          </Tooltip>
+          {can('compras:proveedores:update') && (
+            <Tooltip title="Editar">
+              <Button size="small" icon={<EditOutlined />}
+                onClick={() => navigate(`/compras/proveedores/${r.id}/editar`)} />
+            </Tooltip>
+          )}
+          {can('compras:proveedores:delete') && (
+            <Tooltip title="Eliminar">
+              <Popconfirm
+                title="¿Eliminar este proveedor?"
+                onConfirm={() => handleDelete(r.id!)}
+                okText="Sí" cancelText="No"
+                okButtonProps={{ danger: true }}
+              >
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -351,9 +357,11 @@ export default function ProveedoresPage() {
             <Text type="secondary">Datos maestros de proveedores vinculados a impuestos y contabilidad</Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/compras/proveedores/nuevo')} style={{ background: '#1faec2' }}>
-          <span data-tour="compras-proveedor-nuevo">Nuevo proveedor</span>
-        </Button>
+        {can('compras:proveedores:create') && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/compras/proveedores/nuevo')} style={{ background: '#1faec2' }}>
+            <span data-tour="compras-proveedor-nuevo">Nuevo proveedor</span>
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}
