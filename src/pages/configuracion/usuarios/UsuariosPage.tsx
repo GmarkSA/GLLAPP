@@ -16,6 +16,7 @@ import {
   createRole, updateRolePermissions, deleteRole,
   type TenantUser, type RoleSummary, type PermissionSummary,
 } from '../../../api/usuarios'
+import { nivelPorPermisos, nivelEfectivo, opcionesRecorte, valorSelector, NIVEL_LABEL } from '../../../auth/nivelModulo'
 import { companiesApi } from '../../../api/companies'
 import { getBillingState } from '../../../api/billing'
 import type { Company } from '../../../store/authStore'
@@ -1075,6 +1076,14 @@ export default function UsuariosPage() {
               const assigned = assignedCompanyIds.includes(c.id)
               const overrides = companyOverrides[c.id] ?? {}
               const moduleItems = Object.entries(MODULE_LABELS).filter(([k]) => k !== 'platform')
+              // Base del acceso por módulo = matriz del rol elegido en esta empresa (o, si no hay, la de su rol general).
+              // El selector solo recorta ese nivel; nunca lo amplía (misma regla que el backend).
+              const rolEmpresa  = companyRoleIds[c.id] ? roles.find(r => r.id === companyRoleIds[c.id]) : undefined
+              const rolesBase   = rolEmpresa ? [rolEmpresa] : (selected?.roles ?? []).map(r => roles.find(x => x.id === r.id) ?? r)
+              const adminBase   = !rolEmpresa && (!!selected?.isSuperAdmin || rolesBase.some(r => ['admin', 'superadmin'].includes(getRoleName(r))))
+              const permsBase   = rolesBase.flatMap(r => r.permissions ?? [])
+              const nivelRol    = (mod: string) => adminBase ? 'full' as const : nivelPorPermisos(permsBase, mod)
+              const nombreBase  = rolEmpresa ? rolEmpresa.name : (rolesBase.map(r => r.name).join(', ') || 'sin rol')
               return (
                 <div key={c.id} style={{ borderBottom: '1px solid rgba(10,10,10,0.08)', paddingBottom: 8, marginBottom: 8 }}>
                   {/* Fila empresa + checkbox */}
@@ -1119,24 +1128,35 @@ export default function UsuariosPage() {
                           </Space>
                         ),
                         children: (
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', paddingTop: 4 }}>
-                            {moduleItems.map(([mod, label]) => (
-                              <div key={mod} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                                <span style={{ color: '#444' }}>{label}</span>
-                                <Select
-                                  size="small"
-                                  style={{ width: 120 }}
-                                  value={overrides[mod] ?? 'full'}
-                                  onChange={(val: 'full' | 'read' | 'none') => handleSaveModuleOverride(c.id, mod, val)}
-                                  options={[
-                                    { value: 'full',  label: 'Completo' },
-                                    { value: 'read',  label: 'Solo lectura' },
-                                    { value: 'none',  label: 'Sin acceso' },
-                                  ]}
-                                />
-                              </div>
-                            ))}
-                          </div>
+                          <>
+                            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+                              Base: matriz del rol <b>{nombreBase}</b> (Configuración › Roles). Aquí solo puedes recortar ese acceso, no ampliarlo.
+                            </Text>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', paddingTop: 4 }}>
+                              {moduleItems.map(([mod, label]) => {
+                                const base = nivelRol(mod)
+                                const efectivo = nivelEfectivo(base, overrides[mod])
+                                return (
+                                  <div key={mod} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, gap: 6 }}>
+                                    <span style={{ color: base === 'none' ? '#9aa1ab' : '#444' }}>{label}</span>
+                                    <Space size={4}>
+                                      <Tag color={efectivo === 'full' ? '#2ea172' : efectivo === 'read' ? '#d97706' : 'default'} style={{ fontSize: 10, margin: 0 }}>
+                                        {NIVEL_LABEL[efectivo]}
+                                      </Tag>
+                                      <Select
+                                        size="small"
+                                        style={{ width: 150 }}
+                                        disabled={base === 'none'}
+                                        value={valorSelector(base, overrides[mod])}
+                                        onChange={(val: 'full' | 'read' | 'none') => handleSaveModuleOverride(c.id, mod, val)}
+                                        options={opcionesRecorte(base)}
+                                      />
+                                    </Space>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </>
                         ),
                       }]}
                     />
