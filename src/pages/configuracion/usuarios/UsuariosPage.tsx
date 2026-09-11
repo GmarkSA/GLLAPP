@@ -282,6 +282,21 @@ export default function UsuariosPage() {
   const [loadingAssigned, setLoadingAssigned]       = useState(false)
   // moduleOverrides por empresa: companyId → { module: 'full'|'read'|'none' }
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, Record<string, 'full' | 'read' | 'none'>>>({})
+  /** Asignaciones por empresa de TODOS los usuarios (company_users): userId → [{ empresa, rol por empresa }].
+   *  Con ellas la lista y el editor muestran el rol general y el rol por empresa juntos, sin contradecirse. */
+  type AsignacionEmpresa = { companyId: string; legalName: string; roleId?: string }
+  const [asignaciones, setAsignaciones] = useState<Record<string, AsignacionEmpresa[]>>({})
+  const loadAsignaciones = useCallback(async (cs: Company[]) => {
+    const porUsuario: Record<string, AsignacionEmpresa[]> = {}
+    await Promise.all(cs.map(async c => {
+      const cu: any[] = await companiesApi.getCompanyUsers(c.id).catch(() => [])
+      for (const a of cu) {
+        if (a?.isActive === false) continue
+        ;(porUsuario[a.userId] ??= []).push({ companyId: c.id, legalName: c.legalName, roleId: (a.roleIds ?? [])[0] })
+      }
+    }))
+    setAsignaciones(porUsuario)
+  }, [])
   const [savingOverride, setSavingOverride]     = useState<string | null>(null) // companyId saving
   // Rol por empresa (company_users.roleIds): companyId → roleId. Dentro de esa empresa el
   // usuario actúa con ese rol; sin rol por empresa rige su rol general.
@@ -308,6 +323,7 @@ export default function UsuariosPage() {
       setCompanies(Array.isArray(c) ? c : [])
       setRoles(Array.isArray(r) ? r : [])
       setAllPerms(Array.isArray(p) ? p : [])
+      loadAsignaciones(Array.isArray(c) ? c : []).catch(() => {})
     } catch { message.error('Error al cargar datos') }
     finally { setLoading(false) }
     getBillingState()
@@ -468,12 +484,14 @@ export default function UsuariosPage() {
         setAssignedCompanyIds(prev => [...prev, companyId])
         setCompanyOverrides(prev => ({ ...prev, [companyId]: {} }))
         message.success('Empresa asignada')
+        loadAsignaciones(companies).catch(() => {})
       } else {
         await companiesApi.removeCompanyUser(companyId, selected.id)
         setAssignedCompanyIds(prev => prev.filter(id => id !== companyId))
         setCompanyOverrides(prev => { const n = { ...prev }; delete n[companyId]; return n })
         setCompanyRoleIds(prev => { const n = { ...prev }; delete n[companyId]; return n })
         message.success('Empresa removida')
+        loadAsignaciones(companies).catch(() => {})
       }
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al actualizar empresas')
@@ -488,6 +506,7 @@ export default function UsuariosPage() {
     try {
       await companiesApi.updateCompanyUser(companyId, selected.id, { roleIds: roleId ? [roleId] : [] })
       message.success(roleId ? 'Rol por empresa guardado' : 'Rol por empresa quitado (rige el rol general)')
+      loadAsignaciones(companies).catch(() => {})
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar el rol por empresa')
     } finally { setSavingOverride(null) }
@@ -614,12 +633,33 @@ export default function UsuariosPage() {
     },
     {
       title: 'Rol',
-      width: 240,
-      render: (_, r) => r.roles?.length
-        ? r.roles.map(role => <Tag key={role.id} color="#1faec2" icon={<TeamOutlined />}>{role.name}</Tag>)
-        : r.isSuperAdmin
-          ? <Tag color="#e5484d" icon={<CrownOutlined />}>Super Admin</Tag>
-          : <Tag color="default">Sin rol</Tag>,
+      width: 300,
+      // Rol general (lápiz) + rol por empresa (icono de empresa): dentro de una empresa asignada
+      // manda el rol por empresa; el general rige solo donde no hay asignación.
+      render: (_, r) => {
+        const porEmpresa = asignaciones[r.id] ?? []
+        const general = r.roles?.length
+          ? r.roles.map(role => <Tag key={role.id} color="#1faec2" icon={<TeamOutlined />}>{role.name}</Tag>)
+          : r.isSuperAdmin
+            ? <Tag color="#e5484d" icon={<CrownOutlined />}>Super Admin</Tag>
+            : <Tag color="default">Sin rol</Tag>
+        if (porEmpresa.length === 0) return general
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Tooltip title="Rol general: rige en las empresas sin asignación propia">
+              <span>{general}</span>
+            </Tooltip>
+            {porEmpresa.map(a => {
+              const rol = a.roleId ? roles.find(x => x.id === a.roleId)?.name : undefined
+              return (
+                <Text key={a.companyId} type="secondary" style={{ fontSize: 11 }}>
+                  <BankOutlined style={{ marginRight: 4 }} />{a.legalName}: <b>{rol ?? 'rol general'}</b>
+                </Text>
+              )
+            })}
+          </div>
+        )
+      },
     },
     {
       title: 'Estado',
@@ -947,7 +987,8 @@ export default function UsuariosPage() {
               </Form.Item>
             ) : null}
           </Form.Item>
-          <Form.Item name="roleIds" label="Rol">
+          <Form.Item name="roleIds" label="Rol general"
+            tooltip="Rige en las empresas donde el usuario no tenga un rol propio (abajo puedes elegir uno por empresa).">
             <Select mode="multiple" placeholder="Selecciona rol(es)"
               open={roleDropdownOpen}
               onOpenChange={setRoleDropdownOpen}
@@ -1037,7 +1078,8 @@ export default function UsuariosPage() {
               { value: 'pending_verification', label: 'Pendiente de activación (aún no define su contraseña)', disabled: true },
             ]} />
           </Form.Item>
-          <Form.Item name="roleIds" label="Rol">
+          <Form.Item name="roleIds" label="Rol general"
+            tooltip="Rige en las empresas donde el usuario no tiene un rol propio. El rol por empresa se define desde el icono de empresa de la lista y manda dentro de esa empresa.">
             <Select mode="multiple" placeholder="Selecciona rol(es)"
               open={roleDropdownOpen}
               onOpenChange={setRoleDropdownOpen}
@@ -1046,6 +1088,16 @@ export default function UsuariosPage() {
                 value: r.id, label: r.name,
               }))} />
           </Form.Item>
+          {selected && (asignaciones[selected.id] ?? []).length > 0 && (
+            <div style={{ marginTop: -8, marginBottom: 12, fontSize: 12 }}>
+              <Text type="secondary">Rol por empresa (se cambia desde <BankOutlined /> Empresas):</Text>
+              {(asignaciones[selected.id] ?? []).map(a => (
+                <div key={a.companyId} style={{ fontSize: 12 }}>
+                  <BankOutlined style={{ marginRight: 4, color: '#1faec2' }} />{a.legalName}: <b>{a.roleId ? (roles.find(x => x.id === a.roleId)?.name ?? '—') : 'rol general'}</b>
+                </div>
+              ))}
+            </div>
+          )}
           {soySuperAdmin && (
             <Form.Item
               name="isSuperAdmin"
@@ -1068,7 +1120,7 @@ export default function UsuariosPage() {
         width={560}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          Activa las empresas a las que accede este usuario, elige su rol dentro de cada una (opcional: si no, rige su rol general) y ajusta el acceso por módulo. Un administrador sin asignaciones accede a todas las empresas; en cuanto le activas una, solo entra a las activadas y ahí mandan el rol por empresa y el acceso por módulo.
+          Rol general: <b>{selected?.roles?.map(r => r.name).join(', ') || (selected?.isSuperAdmin ? 'Super Admin' : 'sin rol')}</b>. Activa las empresas a las que accede este usuario y elige su rol dentro de cada una; ese rol manda en esa empresa (si no eliges uno, rige el general). Un administrador sin asignaciones accede a todas las empresas; en cuanto le activas una, solo entra a las activadas.
         </Text>
         {loadingAssigned
           ? <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
