@@ -477,13 +477,24 @@ export default function DteSatPage() {
     } catch { /* silent */ }
   }
 
+  // Preferencias guardadas que apunten a un impuesto que ya no existe en la lista de la
+  // empresa (p. ej. ids de impuestos compartidos migrados por empresa) se descartan: si no,
+  // el formulario mostraba el UUID crudo y el registro salía con un impuesto inexistente.
+  const readDtePrefs = (vendorId: string): Record<string, any> | null => {
+    try {
+      const raw = localStorage.getItem(`dte_compras_prefs_${vendorId}`)
+      if (!raw) return null
+      const p = JSON.parse(raw) ?? {}
+      if (p.taxId && !taxes.some(t => t.id === p.taxId)) delete p.taxId
+      return p
+    } catch { return null }
+  }
+
   // Carga prefs cuando el usuario llega al paso "Registrar" (step 3) y el proveedor está vinculado
   useEffect(() => {
     if (stepperStep !== 3 || !stepperDte?.vendorId) return
-    try {
-      const raw = localStorage.getItem(`dte_compras_prefs_${stepperDte.vendorId}`)
-      if (raw) stepperForm.setFieldsValue(JSON.parse(raw))
-    } catch { /* silent */ }
+    const p = readDtePrefs(stepperDte.vendorId)
+    if (p) stepperForm.setFieldsValue(p)
   }, [stepperStep, stepperDte?.vendorId])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const openStepper = async (row: SatDte) => {
@@ -539,17 +550,14 @@ export default function DteSatPage() {
 
     // Prefs guardadas de sesiones anteriores sobreescriben el maestro (más específicas)
     if (row.vendorId) {
-      try {
-        const raw = localStorage.getItem(`dte_compras_prefs_${row.vendorId}`)
-        if (raw) {
-          const saved = JSON.parse(raw)
-          if (saved.accountId)   baseVals.accountId   = saved.accountId
-          if (saved.taxId)       baseVals.taxId        = saved.taxId
-          if (saved.invoiceType) baseVals.invoiceType  = saved.invoiceType
-          if (saved.defaultUnit) baseVals.defaultUnit  = saved.defaultUnit
-          if (saved.idpType)     baseVals.idpType      = saved.idpType
-        }
-      } catch { /* silent */ }
+      const saved = readDtePrefs(row.vendorId)
+      if (saved) {
+        if (saved.accountId)   baseVals.accountId   = saved.accountId
+        if (saved.taxId)       baseVals.taxId        = saved.taxId
+        if (saved.invoiceType) baseVals.invoiceType  = saved.invoiceType
+        if (saved.defaultUnit) baseVals.defaultUnit  = saved.defaultUnit
+        if (saved.idpType)     baseVals.idpType      = saved.idpType
+      }
     }
 
     stepperForm.setFieldsValue(baseVals)
@@ -733,15 +741,12 @@ export default function DteSatPage() {
       let savedIdpType: string | undefined
       // 1. Preferencias guardadas de sesiones anteriores (más recientes)
       if (d.vendorId) {
-        try {
-          const raw = localStorage.getItem(`dte_compras_prefs_${d.vendorId}`)
-          if (raw) {
-            const p = JSON.parse(raw)
-            accountId = p.accountId; taxId = p.taxId
-            savedInvoiceType = p.invoiceType; savedDefaultUnit = p.defaultUnit
-            savedIdpType = p.idpType
-          }
-        } catch {}
+        const p = readDtePrefs(d.vendorId)
+        if (p) {
+          accountId = p.accountId; taxId = p.taxId
+          savedInvoiceType = p.invoiceType; savedDefaultUnit = p.defaultUnit
+          savedIdpType = p.idpType
+        }
       }
       // 2. Datos maestros del proveedor como fallback
       if (d.vendorId && (!accountId || !paymentTerms)) {
@@ -765,6 +770,11 @@ export default function DteSatPage() {
       const autoInvoiceType = savedInvoiceType
         ?? ((firstItem?.bien_o_servicio === 'S') ? 'services' : 'goods')
       const autoDefaultUnit = savedDefaultUnit ?? firstItem?.unidad_medida ?? undefined
+      // Sin impuesto válido (preferencia vieja descartada o proveedor sin default): el de la
+      // lista por código según el tipo detectado — mismo criterio del registro individual
+      // (RG-C02 servicios / RG-C01 bienes). Así el masivo siempre muestra con qué impuesto va.
+      const taxIdFinal  = taxObj ? taxId : taxes.find(t => t.code === (autoInvoiceType === 'services' ? 'RG-C02' : 'RG-C01'))?.id
+      const taxObjFinal = taxes.find(t => t.id === taxIdFinal)
       rows.push({
         id: d.id,
         label: `${d.nombreEmisor ?? 'Sin nombre'} · ${d.serie ?? '—'}/${d.numeroDte ?? '—'}`,
@@ -775,8 +785,8 @@ export default function DteSatPage() {
         status: 'pending',
         accountId,
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
-        taxId,
-        taxLabel: taxObj ? (taxObj.subtype === 'exempt' ? `Exento — ${taxObj.name}` : `${Number(taxObj.rate)}% — ${taxObj.name}`) : undefined,
+        taxId: taxIdFinal,
+        taxLabel: taxObjFinal ? (taxObjFinal.subtype === 'exempt' ? `Exento — ${taxObjFinal.name}` : `${Number(taxObjFinal.rate)}% — ${taxObjFinal.name}`) : undefined,
         invoiceType: autoInvoiceType,
         defaultUnit: autoDefaultUnit,
         idpType: savedIdpType,
@@ -1979,6 +1989,7 @@ export default function DteSatPage() {
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 165 }}>Tipo factura</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 195 }}>Registro</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 185 }}>Cuenta de gasto</th>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, minWidth: 150 }}>Impuesto</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 90 }}>Unidad</th>
                     <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11, width: 130 }}>Fecha contable</th>
                     <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, width: 80 }}>Total</th>
@@ -2086,6 +2097,12 @@ export default function DteSatPage() {
                             {row.missing && row.status === 'pending' && (
                               <div style={{ color: '#ff7f00', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
                             )}
+                          </td>
+                          {/* Impuesto con el que se registrará (visible para validar antes de contabilizar) */}
+                          <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+                            {row.taxLabel
+                              ? <Text style={{ fontSize: 11 }}>{row.taxLabel}</Text>
+                              : <Text style={{ fontSize: 11, color: '#ff7f00' }}>⚠ Sin impuesto en la lista — se resolverá por código al registrar</Text>}
                           </td>
                           <td style={{ padding: '4px 6px' }}>
                             {row.status === 'pending' ? (
