@@ -182,10 +182,14 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           { title: 'Ingresos', dataIndex: 'ingresos', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v)}</span> },
           { title: 'Gastos',   dataIndex: 'gastos',   align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#e5484d' }}>{Q(v)}</span> },
           { title: 'Utilidad', dataIndex: 'utilidad', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: posneg(v) }}>{Q(v)}</span> },
-          { title: 'IVA Crédito Fiscal', dataIndex: 'ivaCredito', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span> },
-          { title: 'IVA por Pagar', dataIndex: 'ivaPorPagar', align: 'right', render: (v: number) => (v ?? 0) < -0.005
+          // IVA del período (mes / trimestre / año), misma base que la Declaración IVA: débito
+          // (ventas), crédito (compras) y la variación = débito − crédito. Antes solo se veían el
+          // crédito y el neto etiquetado "IVA por Pagar", que se leía como un saldo.
+          { title: <span title="IVA débito fiscal de las ventas del período">IVA por Pagar (débito)</span>, dataIndex: 'ivaDebito', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#d46b08' }}>{Q(v ?? 0)}</span> },
+          { title: <span title="IVA crédito fiscal de las compras del período">IVA Crédito Fiscal</span>, dataIndex: 'ivaCredito', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span> },
+          { title: <span title="Débito − Crédito del período: a pagar si es positivo, saldo a favor si es negativo (sin remanente de períodos anteriores)">Variación IVA</span>, dataIndex: 'ivaPorPagar', align: 'right', render: (v: number) => (v ?? 0) < -0.005
               ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#2ea172' }}>{Q(Math.abs(v))} a favor</span>
-              : <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span> },
+              : <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)} a pagar</span> },
           { title: 'Tasa ISR', dataIndex: 'tasaIsr',  align: 'center', render: (v: number) => <span style={{ fontSize: 12 }}>{(v * 100).toFixed(0)}%</span> },
           { title: 'ISR Proyectado', dataIndex: 'isrProyectado', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v)}</span> },
           { title: 'Situación', dataIndex: 'situacion', align: 'center', render: (v: string) => <Tag color={situacionColor(v)}>{v.charAt(0).toUpperCase() + v.slice(1)}</Tag> },
@@ -463,8 +467,8 @@ function exportarExcel(params: {
   if (erData) XLSX.utils.book_append_sheet(wb, toSheet(erData), 'Est. Resultados')
 
   if (pfData) {
-    const headers = ['Empresa', 'NIT', 'Régimen', 'Ingresos', 'Gastos', 'Utilidad', 'Tasa ISR', 'ISR Proyectado', 'Situación']
-    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.ingresos, e.gastos, e.utilidad, e.tasaIsr, e.isrProyectado, e.situacion])
+    const headers = ['Empresa', 'NIT', 'Régimen', 'Ingresos', 'Gastos', 'Utilidad', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Variación IVA', 'Tasa ISR', 'ISR Proyectado', 'Situación']
+    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.ingresos, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.ivaPorPagar ?? 0, e.tasaIsr, e.isrProyectado, e.situacion])
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Plan. Fiscal')
   }
 
