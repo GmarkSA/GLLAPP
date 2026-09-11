@@ -227,8 +227,12 @@ const minutosBloqueo   = (r: TenantUser) => Math.max(1, Math.ceil((new Date(r.lo
 export default function UsuariosPage() {
   const soySuperAdmin = !!useAuthStore(s => s.user?.isSuperAdmin)
   const me = useAuthStore(s => s.user)
-  // Solo Super Admin administra usuarios (estilo SAP SU01) — el backend también lo exige
-  const esAdmin = soySuperAdmin || (me?.roles ?? []).some(r => ['superadmin', 'admin'].includes(r))
+  // Administran usuarios el Super Admin de plataforma y los roles admin/superadmin del
+  // tenant (el backend exige lo mismo). Los roles llegan como string[] tras el login y
+  // como objetos {id, name} tras /auth/me (recarga): normalizar como MainLayout, si no el
+  // Admin del tenant quedaba bloqueado en cuanto recargaba la página.
+  const getRoleName = (r: any): string => (typeof r === 'string' ? r : (r?.name ?? '')).toLowerCase()
+  const esAdmin = soySuperAdmin || (me?.roles ?? []).map(getRoleName).some(n => ['superadmin', 'admin'].includes(n))
   const [users, setUsers]         = useState<TenantUser[]>([])
   const [roles, setRoles]         = useState<RoleSummary[]>([])
   const [allPerms, setAllPerms]   = useState<PermissionSummary[]>([])
