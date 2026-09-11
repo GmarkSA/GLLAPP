@@ -613,9 +613,13 @@ export interface SatEmitidosJob {
   satNit?: string
   importedCount: number
   duplicateCount: number
+  totalCount?: number
+  errorCount?: number
   errorMessage?: string
   createdAt: string
   updatedAt?: string
+  /** Fin del procesamiento (métrica APIFY): duración = finishedAt − createdAt. Jobs previos: null */
+  finishedAt?: string | null
 }
 
 const DTE_EMIT = '/ventas/dte-sat'

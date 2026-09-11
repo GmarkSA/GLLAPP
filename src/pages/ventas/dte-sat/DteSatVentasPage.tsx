@@ -861,6 +861,38 @@ export default function DteSatVentasPage() {
         return <Badge status={cfg.color as any} text={cfg.label} />
       },
     },
+    // Métricas del actor APIFY, homologadas con DTE SAT Recibidos: hora de fin, duración y
+    // segundos por documento. Jobs previos a la métrica aproximan el fin con updatedAt.
+    {
+      title: 'Finalizado',
+      width: 90,
+      render: (_: unknown, row: SatEmitidosJob) => {
+        const fin = row.finishedAt ?? ((row.status === 'succeeded' || row.status === 'failed') ? row.updatedAt : null)
+        return fin ? <span style={{ fontSize: 11 }}>{dayjs(fin).format('HH:mm:ss')}</span> : <Text type="secondary">—</Text>
+      },
+    },
+    {
+      title: 'Duración',
+      width: 90,
+      render: (_: unknown, row: SatEmitidosJob) => {
+        const fin = row.finishedAt ?? ((row.status === 'succeeded' || row.status === 'failed') ? row.updatedAt : null)
+        if (!fin || !row.createdAt) return <Text type="secondary">—</Text>
+        const seg = Math.max(0, dayjs(fin).diff(dayjs(row.createdAt), 'second'))
+        const txt = seg >= 60 ? `${Math.floor(seg / 60)}m ${seg % 60}s` : `${seg}s`
+        return <Tag color={seg > 300 ? '#e5484d' : seg > 180 ? '#ff7f00' : '#2ea172'} style={{ fontSize: 10 }}>{txt}</Tag>
+      },
+    },
+    {
+      title: 'Seg/doc',
+      width: 80,
+      render: (_: unknown, row: SatEmitidosJob) => {
+        const fin = row.finishedAt ?? ((row.status === 'succeeded' || row.status === 'failed') ? row.updatedAt : null)
+        const docs = (row.totalCount ?? 0) || ((row.importedCount ?? 0) + (row.duplicateCount ?? 0))
+        if (!fin || !row.createdAt || docs <= 0) return <Text type="secondary">—</Text>
+        const spd = dayjs(fin).diff(dayjs(row.createdAt), 'second') / docs
+        return <Tooltip title={`${docs} documento(s) procesados`}><span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{spd.toFixed(1)}</span></Tooltip>
+      },
+    },
     {
       title: 'Importados',
       dataIndex: 'importedCount',
