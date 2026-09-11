@@ -1130,27 +1130,30 @@ export default function UsuariosPage() {
                         children: (
                           <>
                             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
-                              Base: matriz del rol <b>{nombreBase}</b> (Configuración › Roles). Aquí solo puedes recortar ese acceso, no ampliarlo.
+                              Nivel según la matriz del rol <b>{nombreBase}</b>. Donde hay acceso puedes recortarlo.
                             </Text>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', paddingTop: 4 }}>
                               {moduleItems.map(([mod, label]) => {
                                 const base = nivelRol(mod)
                                 const efectivo = nivelEfectivo(base, overrides[mod])
                                 return (
-                                  <div key={mod} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, gap: 6 }}>
+                                  <div key={mod} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, gap: 6, minHeight: 26 }}>
                                     <span style={{ color: base === 'none' ? '#9aa1ab' : '#444' }}>{label}</span>
                                     <Space size={4}>
                                       <Tag color={efectivo === 'full' ? '#2ea172' : efectivo === 'read' ? '#d97706' : 'default'} style={{ fontSize: 10, margin: 0 }}>
                                         {NIVEL_LABEL[efectivo]}
                                       </Tag>
-                                      <Select
-                                        size="small"
-                                        style={{ width: 150 }}
-                                        disabled={base === 'none'}
-                                        value={valorSelector(base, overrides[mod])}
-                                        onChange={(val: 'full' | 'read' | 'none') => handleSaveModuleOverride(c.id, mod, val)}
-                                        options={opcionesRecorte(base)}
-                                      />
+                                      {/* Recorte solo donde el rol da acceso; sin selector cuando no hay nada que recortar */}
+                                      {base !== 'none' && (
+                                        <Select
+                                          size="small"
+                                          variant="borderless"
+                                          style={{ width: 110, fontSize: 11 }}
+                                          value={valorSelector(base, overrides[mod])}
+                                          onChange={(val: 'full' | 'read' | 'none') => handleSaveModuleOverride(c.id, mod, val)}
+                                          options={opcionesRecorte(base)}
+                                        />
+                                      )}
                                     </Space>
                                   </div>
                                 )

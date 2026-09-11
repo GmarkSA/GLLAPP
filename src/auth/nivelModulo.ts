@@ -25,9 +25,9 @@ export function nivelEfectivo(base: NivelModulo, override?: NivelModulo | null):
   return ORDEN[override] < ORDEN[base] ? override : base
 }
 
-/** Opciones del selector de recorte para un módulo: "según rol" + solo los niveles inferiores al del rol */
+/** Opciones del selector de recorte para un módulo: sin recorte + solo los niveles inferiores al del rol */
 export function opcionesRecorte(base: NivelModulo): Array<{ value: NivelModulo; label: string }> {
-  const ops: Array<{ value: NivelModulo; label: string }> = [{ value: 'full', label: `Según rol · ${NIVEL_LABEL[base]}` }]
+  const ops: Array<{ value: NivelModulo; label: string }> = [{ value: 'full', label: 'Sin recorte' }]
   if (base === 'full') ops.push({ value: 'read', label: 'Solo lectura' })
   if (base !== 'none') ops.push({ value: 'none', label: 'Sin acceso' })
   return ops
