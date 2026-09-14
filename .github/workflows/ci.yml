@@ -1,0 +1,35 @@
+# Verificación de cada cambio antes de que llegue a master.
+# El proyecto no tenía ninguna: hasta ahora el único control era acordarse de
+# ejecutar `npm run typecheck` antes de subir.
+# ESLint queda fuera por ahora: hoy señala 57 errores en 17 archivos (31 de ellos
+# en un solo reporte, por componentes declarados dentro de otro componente).
+# Incluirlo dejaría la verificación en rojo desde el primer día y no serviría de
+# control. Entra en cuanto esos errores estén corregidos.
+name: Verificación
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  verificacion:
+    name: Tipos y compilación
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: TypeScript sin errores
+        run: npm run typecheck
+
+      - name: Compilación de producción
+        run: npm run build
