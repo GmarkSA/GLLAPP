@@ -1,5 +1,6 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Button, Result } from 'antd'
+import { reportarErrorDePantalla } from '../observabilidad/sentry'
 
 interface Props { children: ReactNode }
 interface State { error: Error | null; isChunkError: boolean }
@@ -22,11 +23,14 @@ export class ErrorBoundary extends Component<Props, State> {
     return { error, isChunkError: isChunkLoadError(error) }
   }
 
-  componentDidCatch(error: Error) {
+  componentDidCatch(error: Error, info: ErrorInfo) {
     // Si es un error de chunk stale (deployment nuevo), recargar automáticamente
     if (isChunkLoadError(error)) {
       window.location.reload()
+      return
     }
+    // Lo demás es un fallo de verdad: hasta ahora se mostraba al usuario y nadie más se enteraba
+    reportarErrorDePantalla(error, info?.componentStack ?? undefined)
   }
 
   render() {

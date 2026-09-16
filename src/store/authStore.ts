@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import api from '../api/axios'
+import { identificarUsuario, olvidarUsuario } from '../observabilidad/sentry'
 import { tenantsApi } from '../api/tenants'
 
 /** Los roles llegan como string[] (login/JWT) o como objetos {name, permissions} (/auth/me) */
@@ -108,7 +109,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loadPermissions: async () => {
     const { data: raw } = await api.get('/auth/me')
     const user = raw?.data ?? raw
-    if (user) set({ user, permissions: extraerPermisos(user) })
+    if (user) {
+      set({ user, permissions: extraerPermisos(user) })
+      identificarUsuario({ id: user.id, email: user.email, tenantId: get().tenantId, empresaId: sessionStorage.getItem('activeCompanyId') })
+    }
   },
 
   login: async (email, password) => {
@@ -164,6 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    olvidarUsuario()
     sessionStorage.clear()
     window.location.href = '/login'
   },
