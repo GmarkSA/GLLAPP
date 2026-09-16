@@ -10,8 +10,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Rutas que el servidor atiende sin sesión: aquí no se puede exigir cliente.
+// Deben coincidir con las marcadas @Public() en el backend; faltaba /auth/plans,
+// que es lo primero que pide la pantalla de registro, de modo que a un visitante
+// sin sesión se le cerraba la sesión y se le mandaba a iniciar sesión.
 const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout', '/public/',
-  '/auth/accept-invitation', '/auth/forgot-password', '/auth/reset-password']
+  '/auth/plans', '/auth/accept-invitation', '/auth/forgot-password', '/auth/reset-password']
 
 // sessionStorage → cada pestaña tiene sus propios tokens (usuario y empresa aislados por tab)
 api.interceptors.request.use((config) => {
