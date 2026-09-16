@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { anotarFalloDeServidor } from '../observabilidad/sentry'
 
 const getAuthStore = () => import('../store/authStore').then(m => m.useAuthStore)
 
@@ -45,6 +46,17 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     if (axios.isCancel(error)) return Promise.reject(error)
+
+    // Un 5xx del servidor deja rastro con su identificador: con él se encuentra la
+    // línea exacta en el registro del backend y en su panel de errores.
+    if (error?.response?.status >= 500) {
+      anotarFalloDeServidor({
+        metodo:     error?.config?.method?.toUpperCase(),
+        url:        error?.config?.url,
+        estado:     error.response.status,
+        peticionId: error?.response?.headers?.['x-request-id'],
+      })
+    }
 
     const original = error.config
 

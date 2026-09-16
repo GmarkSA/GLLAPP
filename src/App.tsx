@@ -222,7 +222,10 @@ export default function App() {
 
   return (
     <Suspense fallback={<PageLoader />}>
-      <Routes>
+      {/* Cubre TODAS las rutas: el POS y las de impresión viven fuera del layout y
+          hasta ahora un fallo ahí dejaba la pantalla en blanco sin aviso */}
+      <ErrorBoundary>
+        <Routes>
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/olvide-contrasena"      element={<OlvideContrasenaPage />} />
@@ -416,7 +419,8 @@ export default function App() {
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+        </Routes>
+      </ErrorBoundary>
     </Suspense>
   )
 }
