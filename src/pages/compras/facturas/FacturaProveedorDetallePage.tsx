@@ -1022,8 +1022,11 @@ export default function FacturaProveedorDetallePage() {
               <Select options={Object.entries(PAYMENT_MODE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
             </Form.Item>
           </div>
-          <Form.Item name="bankAccountId" label="Cuenta bancaria">
-            <Select allowClear placeholder="Seleccionar..."
+          {/* La póliza del pago acredita la cuenta contable de esta cuenta bancaria
+              o de caja: sin ella no hay cuenta que acreditar. */}
+          <Form.Item name="bankAccountId" label="Cuenta bancaria"
+            rules={[{ required: true, message: 'Selecciona la cuenta bancaria o de caja con la que se paga' }]}>
+            <Select placeholder="Seleccionar..."
               options={bankAccounts.map((b: any) => ({ value: b.id, label: `${b.name} — ${b.currency}` }))} />
           </Form.Item>
           <Form.Item name="reference" label="Referencia / N° cheque">
