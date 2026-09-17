@@ -34,6 +34,24 @@ export const DEFAULT_CONFIG: LibroSATConfig = {
   ventas:  DEFAULT_VENTAS,
 }
 
+/**
+ * Completa lo guardado con las columnas de serie que todavía no tenga.
+ *
+ * Lo que la empresa guardó manda: su orden, su nombre y las que haya desactivado
+ * se respetan tal cual. Solo se añaden al final las columnas de serie que no
+ * estuvieran. Sin esto, una empresa que guardó su configuración antes de que
+ * existiera una columna se quedaba sin ella para siempre, y los impuestos que
+ * apuntan ahí no aparecían en el libro.
+ */
+const completarConLasDeSerie = (guardadas: LibroColumn[] | undefined, deSerie: LibroColumn[]): LibroColumn[] => {
+  if (!guardadas?.length) return [...deSerie]
+  const presentes = new Set(guardadas.map(c => c.key))
+  const faltantes = deSerie
+    .filter(c => !presentes.has(c.key))
+    .map((c, i) => ({ ...c, sortOrder: Math.max(...guardadas.map(g => g.sortOrder), 0) + i + 1 }))
+  return [...guardadas, ...faltantes]
+}
+
 export async function getLibroSATConfig(): Promise<LibroSATConfig> {
   try {
     const companyId = sessionStorage.getItem('activeCompanyId')
@@ -42,8 +60,8 @@ export async function getLibroSATConfig(): Promise<LibroSATConfig> {
     const stored = settings?.settingsJson?.libroSATConfig as LibroSATConfig | undefined
     if (!stored) return { compras: [...DEFAULT_COMPRAS], ventas: [...DEFAULT_VENTAS] }
     return {
-      compras: stored.compras?.length ? stored.compras : [...DEFAULT_COMPRAS],
-      ventas:  stored.ventas?.length  ? stored.ventas  : [...DEFAULT_VENTAS],
+      compras: completarConLasDeSerie(stored.compras, DEFAULT_COMPRAS),
+      ventas:  completarConLasDeSerie(stored.ventas,  DEFAULT_VENTAS),
     }
   } catch {
     return { compras: [...DEFAULT_COMPRAS], ventas: [...DEFAULT_VENTAS] }
