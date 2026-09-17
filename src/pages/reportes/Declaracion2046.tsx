@@ -57,6 +57,20 @@ const MESES = [
 const r2  = (n: number) => Math.round(n * 100) / 100
 const fmt = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+// Vive fuera de la página a propósito: definida dentro, React la tomaba por un
+// componente distinto en cada render y volvía a montar la casilla, de modo que al
+// escribir un importe se perdía el foco tras la primera tecla.
+/** Importe con dos decimales: casilla de captura en edición, texto en lectura. */
+function NI({ editing, val, onChange }: { editing: boolean; val: number; onChange: (v: number) => void }) {
+  return editing ? (
+    <InputNumber size="small" value={val} onChange={v => onChange(v ?? 0)}
+      min={0} precision={2} controls={false}
+      style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }} />
+  ) : (
+    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{val !== 0 ? fmt(val) : ''}</span>
+  )
+}
+
 interface Edit2046 {
   ingresos:    number
   impuesto:    number
@@ -196,15 +210,6 @@ export default function Declaracion2046() {
     ? <span style={{ fontSize: 10, color: '#d97706', marginLeft: 6 }}>▼</span>
     : null
 
-  const NI = ({ val, onChange }: { val: number; onChange: (v: number) => void }) =>
-    editing ? (
-      <InputNumber size="small" value={val} onChange={v => onChange(v ?? 0)}
-        min={0} precision={2} controls={false}
-        style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }} />
-    ) : (
-      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{val !== 0 ? fmt(val) : ''}</span>
-    )
-
   return (
     <div style={{ padding: 24 }}>
       <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => navigate('/reportes')}
@@ -291,7 +296,7 @@ export default function Declaracion2046() {
                     Ingresos por venta de bienes y/o prestación de servicios{editMark}
                   </td>
                   <td style={editing ? ENUM : NUM}>
-                    <NI val={ev.ingresos}
+                    <NI editing={editing} val={ev.ingresos}
                       onChange={v => setEv(p => ({ ...p, ingresos: v, impuesto: r2(v * 0.05) }))} />
                   </td>
                 </tr>
@@ -316,7 +321,7 @@ export default function Declaracion2046() {
                     (-) Valor de constancias de retención del IVA recibidas en el período{editMark}
                   </td>
                   <td style={editing ? ENUM : NUM}>
-                    <NI val={ev.retencionIva}
+                    <NI editing={editing} val={ev.retencionIva}
                       onChange={v => setEv(p => ({ ...p, retencionIva: v }))} />
                   </td>
                 </tr>

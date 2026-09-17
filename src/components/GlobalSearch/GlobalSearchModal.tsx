@@ -43,6 +43,20 @@ const toArray = (v: unknown): any[] =>
 interface Props { open: boolean; onClose: () => void }
 
 // ── Componente ────────────────────────────────────────────────────────────────
+// Fuera del componente: definida dentro, React rehacía cada encabezado en cada
+// tecla escrita en el buscador.
+/** Encabezado de un grupo de resultados. */
+function SectionLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div style={{ padding: '10px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ color: '#9ca3af', fontSize: 12 }}>{icon}</span>
+      <Text style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+        {label}
+      </Text>
+    </div>
+  )
+}
+
 export default function GlobalSearchModal({ open, onClose }: Props) {
   const navigate   = useNavigate()
   const inputRef   = useRef<any>(null)
@@ -166,15 +180,6 @@ export default function GlobalSearchModal({ open, onClose }: Props) {
       {item.tag && (
         <Tag color={item.tagColor} style={{ fontSize: 11, margin: 0, flexShrink: 0 }}>{item.tag}</Tag>
       )}
-    </div>
-  )
-
-  const SectionLabel = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
-    <div style={{ padding: '10px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ color: '#9ca3af', fontSize: 12 }}>{icon}</span>
-      <Text style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.6 }}>
-        {label}
-      </Text>
     </div>
   )
 

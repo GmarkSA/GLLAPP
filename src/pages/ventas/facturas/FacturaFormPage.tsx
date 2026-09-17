@@ -66,7 +66,11 @@ export default function FacturaFormPage() {
   const [certifying, setCertifying] = useState(false)
   const [felCertResult, setFelCertResult] = useState<{ success: boolean; uuid?: string; serie?: string; numero?: string; url?: string; mensaje: string } | null>(null)
   // Estado real de la factura cargada — ref para evitar problemas de timing en React
+  // El estado con que se cargó la factura va por duplicado a propósito: el estado
+  // de React manda lo que se dibuja (una referencia cambiada no repinta la
+  // pantalla) y la referencia se lee al pulsar Guardar, fuera del ciclo de render.
   const loadedStatusRef = useRef<string>('draft')
+  const [loadedStatus, setLoadedStatus] = useState<string>('draft')
   const activeCompany = useCompanyStore(s => s.activeCompany)
   // Mejora 1 — impuesto preferido del cliente
   const [customerDefaultTaxId, setCustomerDefaultTaxId] = useState<string | undefined>()
@@ -189,6 +193,7 @@ export default function FacturaFormPage() {
         if (savedIsr > 0) setIsrAmount(savedIsr)
         setIsrWasZeroOnLoad(savedIsr === 0)
         loadedStatusRef.current = inv.status ?? 'draft'
+        setLoadedStatus(inv.status ?? 'draft')
 
         const loadedItems: LineItem[] = (inv.items ?? []).map((it) =>
           newLineItem({
@@ -394,7 +399,7 @@ export default function FacturaFormPage() {
   }
 
   // true cuando la factura ya fue emitida: limita los campos editables
-  const isSentEdit = !!id && loadedStatusRef.current !== 'draft'
+  const isSentEdit = !!id && loadedStatus !== 'draft'
 
   const handleSave = async (status: 'draft' | 'sent') => {
     // Leer el ref al momento del click, independiente del ciclo de render

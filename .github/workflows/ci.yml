@@ -1,10 +1,11 @@
 # Verificación de cada cambio antes de que llegue a master.
 # El proyecto no tenía ninguna: hasta ahora el único control era acordarse de
 # ejecutar `npm run typecheck` antes de subir.
-# ESLint queda fuera por ahora: hoy señala 57 errores en 17 archivos (31 de ellos
-# en un solo reporte, por componentes declarados dentro de otro componente).
-# Incluirlo dejaría la verificación en rojo desde el primer día y no serviría de
-# control. Entra en cuanto esos errores estén corregidos.
+#
+# El revisor de estilo detiene el cambio por errores, no por avisos. Los errores
+# están hoy en cero y ahí deben quedarse. Los avisos que quedan son casi todos
+# `any` heredados: retirarlos es un trabajo aparte y no debe bloquear a nadie
+# mientras tanto.
 name: Verificación
 
 on:
@@ -30,6 +31,9 @@ jobs:
 
       - name: TypeScript sin errores
         run: npm run typecheck
+
+      - name: Revisor de estilo sin errores
+        run: npm run lint
 
       - name: Pruebas
         run: npm test

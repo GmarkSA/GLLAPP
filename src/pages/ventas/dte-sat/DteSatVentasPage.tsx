@@ -202,7 +202,7 @@ export default function DteSatVentasPage() {
         for (const job of runningJobs) {
           try {
             await syncSatEmitidosJob(job.id)
-          } catch {}
+          } catch { /* que una descarga falle no debe cortar el seguimiento de las demás */ }
         }
         loadAll()
       }, POLL_INTERVAL_MS)
@@ -585,7 +585,7 @@ export default function DteSatVentasPage() {
         try {
           const raw = localStorage.getItem(`dte_prefs_${d.customerId}`)
           if (raw) { const p = JSON.parse(raw); accountId = p.accountId; taxId = p.taxId; savedDefaultUnit = p.defaultUnit }
-        } catch {}
+        } catch { /* preferencia guardada ilegible: se sigue con los valores del cliente */ }
       }
       // 2. Datos maestros del cliente como fallback
       if (d.customerId && (!accountId || !taxId)) {
@@ -597,7 +597,7 @@ export default function DteSatVentasPage() {
             const matched = taxes.find(t => t.code === c.taxCode)
             if (matched) taxId = matched.id
           }
-        } catch {}
+        } catch { /* el cliente solo aporta valores por defecto: sin él se usan los del formulario */ }
       }
       const accObj = incomeAccounts.find(a => a.id === accountId)
       const taxObj = taxes.find(t => t.id === taxId)

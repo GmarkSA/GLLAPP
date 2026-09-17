@@ -573,7 +573,7 @@ export default function UsuariosPage() {
   const toggleSlug = (slug: string, checked: boolean) => {
     setCheckedSlugs(prev => {
       const next = new Set(prev)
-      checked ? next.add(slug) : next.delete(slug)
+      if (checked) next.add(slug); else next.delete(slug)
       return next
     })
   }

@@ -10,6 +10,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'jsdom',          // varias piezas leen sessionStorage al cargarse
+    setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     restoreMocks: true,
   },

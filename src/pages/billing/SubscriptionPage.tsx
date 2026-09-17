@@ -758,6 +758,10 @@ function BillingFelModal({
 // ── SubscriptionPage ──────────────────────────────────────────────────────────
 
 export default function SubscriptionPage() {
+  // Los días de prueba se cuentan desde el momento de abrir la pantalla. Fijarlo
+  // aquí evita leer el reloj en cada repintado: el mismo dibujo daba resultados
+  // distintos según cuándo tocara repetirlo.
+  const [ahora] = useState(() => Date.now())
   const [state, setState]           = useState<BillingState | null>(null)
   const [loading, setLoading]       = useState(true)
   const [currency, setCurrency]     = useState<BillingCurrency>(() => {
@@ -861,7 +865,7 @@ export default function SubscriptionPage() {
 
   const trialEndsAt = state?.tenant?.trialEndsAt ? new Date(state.tenant.trialEndsAt) : null
   const trialDaysLeft = trialEndsAt
-    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - ahora) / 86400000))
     : null
   // isInTrial: para el banner de trial pre-existente (solo si el backend lo marca explícitamente)
   const isInTrial = state?.tenant?.status === 'trial'
@@ -873,7 +877,7 @@ export default function SubscriptionPage() {
   // Inferir fecha de inicio: trialEndsAt - 30 días
   const trialStartedAt = trialEndsAt ? new Date(trialEndsAt.getTime() - 30 * 24 * 60 * 60 * 1000) : null
   const trialDaysElapsed = trialStartedAt
-    ? Math.min(30, Math.max(0, Math.floor((Date.now() - trialStartedAt.getTime()) / 86400000)))
+    ? Math.min(30, Math.max(0, Math.floor((ahora - trialStartedAt.getTime()) / 86400000)))
     : null
   const trialProgressPct = trialDaysElapsed !== null ? Math.round((trialDaysElapsed / 30) * 100) : 0
   const trialColor = trialDaysLeft === null ? 'warning'
