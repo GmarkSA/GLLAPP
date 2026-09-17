@@ -4,20 +4,12 @@ import { getOrganizationProfile, type OrganizationProfile } from './configuracio
 /**
  * Quién emite el documento.
  *
- * Un cliente de Lucía puede llevar varias empresas, y cada factura, cotización,
- * boleta o reporte sale a nombre de la empresa en la que se está trabajando, no
- * del cliente. Las pantallas tomaban la cabecera de `/tenants/profile`, que es un
- * único registro por cliente: con dos empresas, las dos imprimían el nombre y el
- * NIT de la primera.
+ * El encabezado de cada documento muestra lo mismo que Perfil de organización
+ * muestra para la empresa activa, con la misma prioridad campo por campo
+ * (ConfiguracionPage.tsx, sección Organización). Así lo que ves en el perfil es
+ * lo que sale impreso.
  *
- * El NIT no se hereda nunca: es lo que distingue a una empresa de otra ante la
- * SAT, y heredarlo es justo el error que se corrige. Si la empresa no lo tiene,
- * sale vacío.
- *
- * La razón social encabeza el documento, no el nombre comercial: es la que
- * aparece en la factura. Y la dirección, el contacto y la marca sí heredan del
- * cliente mientras la empresa no tenga los suyos, porque el encabezado tiene que
- * salir completo: dejarlo en blanco empeora el documento sin proteger nada.
+ * La única diferencia es el título: el documento encabeza con la razón social.
  */
 export function emisorDesdeEmpresa(
   empresa: Record<string, any> | null | undefined,
@@ -25,32 +17,17 @@ export function emisorDesdeEmpresa(
 ): OrganizationProfile {
   if (!empresa) return cliente
 
-  const dir = (empresa.fiscalAddress ?? {}) as Record<string, string | undefined>
-  const calle = [dir.line1, dir.line2].filter(Boolean).join(', ')
+  const razonSocial     = empresa.legalName || cliente.legalName
+  const nombreComercial = empresa.tradeName || empresa.legalName || cliente.name
 
   return {
-    // Contacto, marca y ajustes del cliente: se heredan salvo que la empresa los tenga
+    // Dirección, ciudad, departamento, código postal, país y logotipo: igual que el perfil
     ...cliente,
-    logoUrl: empresa.logoUrl || cliente.logoUrl,
-    email:   empresa.email   || cliente.email,
-    phone:   empresa.phone   || cliente.phone,
-
-    // Encabeza la razón social, que es la que va en la factura
-    name:      empresa.legalName || empresa.tradeName || cliente.name,
-    legalName: empresa.legalName || cliente.legalName,
-
-    // El NIT nunca se hereda: es lo que distingue a una empresa de la otra ante
-    // la SAT, y heredarlo es justo el error que se está corrigiendo.
-    taxId:     empresa.taxId || '',
-
-    // Todo lo demás, mientras la empresa no tenga lo suyo
-    address:   calle       || cliente.address,
-    city:      dir.city    || cliente.city,
-    state:     dir.state   || cliente.state,
-    country:   dir.country || cliente.country,
-    zipCode:   dir.zip     || cliente.zipCode,
-    currency:  empresa.currencyCode || cliente.currency,
-    timezone:  empresa.timezone     || cliente.timezone,
+    name:      razonSocial || nombreComercial,
+    legalName: razonSocial,
+    taxId:     empresa.taxId || cliente.taxId,
+    email:     cliente.email || empresa.email,
+    phone:     cliente.phone || empresa.phone,
   }
 }
 

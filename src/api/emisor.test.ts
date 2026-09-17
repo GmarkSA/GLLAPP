@@ -5,127 +5,115 @@ import type { OrganizationProfile } from './configuracion'
 /**
  * Quién aparece emitiendo el documento.
  *
- * Un cliente de Lucía puede llevar varias empresas. Las pantallas tomaban la
- * cabecera del perfil del cliente, que es un único registro: con dos empresas,
- * las facturas de las dos salían a nombre y NIT de la primera. El dueño lo vio
- * estando en una empresa y leyendo una factura encabezada con la otra.
+ * El encabezado muestra lo mismo que Perfil de organización muestra para la
+ * empresa activa, con la misma prioridad campo por campo. El título es la razón
+ * social.
  *
- * El NIT no se hereda nunca: es lo que distingue a una empresa de otra ante la
- * SAT. La razón social encabeza el documento, no el nombre comercial. La
- * dirección y el contacto sí heredan mientras la empresa no tenga los suyos,
- * porque el encabezado tiene que salir completo.
+ * Caso real reportado: estando en Kaizen, la factura salía encabezada con Mario
+ * de Paz. Y en la primera corrección (#669) el encabezado quedó sin dirección y
+ * con el nombre comercial.
  */
-const CLIENTE: OrganizationProfile = {
+
+/** Lo que devuelve el perfil (`/tenants/profile`): la dirección y el contacto del perfil. */
+const PERFIL: OrganizationProfile = {
   name:      'Mario de Paz',
   legalName: 'Mario Alberto de Paz',
   taxId:     '9604707',
-  address:   '28-21 23 Avenida Residencial Portal de San Isidro 3 Zona 16',
-  city:      'Guatemala',
-  state:     'Guatemala',
+  address:   '28-21 23 AVENIDA RESIDENCIAL PORTAL DE SAN ISIDRO 3 ZONA 16',
+  city:      'GUATEMALA',
+  state:     'GUATEMALA',
   country:   'Guatemala',
   zipCode:   '01016',
-  email:     'contacto@mariodepaz.gt',
-  phone:     '2200-0000',
-  website:   'https://mariodepaz.gt',
-  logoUrl:   'https://cdn/logo-cliente.png',
+  email:     'l_chajon@hotmail.com',
+  phone:     '30199497',
+  website:   '',
+  logoUrl:   'https://cdn/logo.png',
   currency:  'GTQ',
   timezone:  'America/Guatemala',
 }
 
 const KAIZEN = {
-  id: 'empresa-kaizen',
+  id:        'empresa-kaizen',
   legalName: 'KAIZEN BUSINESS SOLUTIONS, SOCIEDAD ANÓNIMA',
   tradeName: 'KAIZEN BUSINESS SOLUTIONS',
-  taxId: '11745762-0',
-  currencyCode: 'GTQ',
-  timezone: 'America/Guatemala',
-  fiscalAddress: { line1: '5a Avenida 10-50', line2: 'Zona 14', city: 'Guatemala', state: 'Guatemala', zip: '01014', country: 'Guatemala' },
+  taxId:     '117457620',
 }
 
-describe('Emisor del documento', () => {
-  describe('con una empresa activa', () => {
-    const emisor = emisorDesdeEmpresa(KAIZEN, CLIENTE)
+const MARIO = {
+  id:        'empresa-mario',
+  legalName: 'Mario Alberto de Paz',
+  tradeName: 'Mario de Paz',
+  taxId:     '9604707',
+}
 
-    // El fallo que reportó el dueño: la factura de Kaizen decía Mario de Paz
-    it('sale la empresa, no el cliente', () => {
-      expect(emisor.legalName).toBe('KAIZEN BUSINESS SOLUTIONS, SOCIEDAD ANÓNIMA')
-      expect(emisor.name).not.toContain('Mario')
-    })
+describe('Encabezado del documento', () => {
+  describe('estando en Kaizen', () => {
+    const emisor = emisorDesdeEmpresa(KAIZEN, PERFIL)
 
-    // En la factura va la razón social, no el nombre comercial
-    it('encabeza con la razón social', () => {
+    // El fallo reportado: la factura de Kaizen decía Mario de Paz
+    it('encabeza con la razón social de Kaizen', () => {
       expect(emisor.name).toBe('KAIZEN BUSINESS SOLUTIONS, SOCIEDAD ANÓNIMA')
+      expect(emisor.legalName).toBe('KAIZEN BUSINESS SOLUTIONS, SOCIEDAD ANÓNIMA')
     })
 
-    it('sin razón social se usa el nombre comercial', () => {
-      const soloComercial = emisorDesdeEmpresa({ ...KAIZEN, legalName: undefined }, CLIENTE)
-      expect(soloComercial.name).toBe('KAIZEN BUSINESS SOLUTIONS')
+    it('lleva el NIT de Kaizen', () => {
+      expect(emisor.taxId).toBe('117457620')
     })
 
-    it('el encabezado nunca sale vacío: sin ninguno de los dos, queda el del cliente', () => {
-      const anonima = emisorDesdeEmpresa({ id: 'x', taxId: '111' }, CLIENTE)
-      expect(anonima.name).toBe(CLIENTE.name)
+    // Lo que rompió el #669: el encabezado quedó sin dirección
+    it('lleva la dirección que muestra su perfil', () => {
+      expect(emisor.address).toBe(PERFIL.address)
+      expect(emisor.city).toBe(PERFIL.city)
+      expect(emisor.state).toBe(PERFIL.state)
+      expect(emisor.zipCode).toBe(PERFIL.zipCode)
+      expect(emisor.country).toBe(PERFIL.country)
     })
 
-    it('el NIT es el de la empresa', () => {
-      expect(emisor.taxId).toBe('11745762-0')
-      expect(emisor.taxId).not.toBe(CLIENTE.taxId)
-    })
-
-    it('la dirección fiscal es la de la empresa', () => {
-      expect(emisor.address).toBe('5a Avenida 10-50, Zona 14')
-      expect(emisor.city).toBe('Guatemala')
-      expect(emisor.zipCode).toBe('01014')
-      expect(emisor.address).not.toBe(CLIENTE.address)
-    })
-
-  })
-
-  describe('lo que sí se hereda del cliente', () => {
-    const emisor = emisorDesdeEmpresa(KAIZEN, CLIENTE)
-
-    // Dejar el encabezado en blanco empeora el documento y no protege nada
-    it('la dirección, mientras la empresa no tenga la suya', () => {
-      const sinDireccion = emisorDesdeEmpresa({ ...KAIZEN, fiscalAddress: null }, CLIENTE)
-      expect(sinDireccion.address).toBe(CLIENTE.address)
-      expect(sinDireccion.city).toBe(CLIENTE.city)
-    })
-
-    it('el logotipo, el correo y el teléfono, que suelen compartirse', () => {
-      expect(emisor.logoUrl).toBe(CLIENTE.logoUrl)
-      expect(emisor.email).toBe(CLIENTE.email)
-      expect(emisor.phone).toBe(CLIENTE.phone)
-    })
-
-    it('pero la empresa manda si los tiene propios', () => {
-      const propio = emisorDesdeEmpresa(
-        { ...KAIZEN, email: 'facturacion@kaizen.gt', phone: '2300-1111', logoUrl: 'https://cdn/logo-kaizen.png' },
-        CLIENTE,
-      )
-      expect(propio.email).toBe('facturacion@kaizen.gt')
-      expect(propio.phone).toBe('2300-1111')
-      expect(propio.logoUrl).toBe('https://cdn/logo-kaizen.png')
+    it('lleva el correo, el teléfono y el logotipo que muestra su perfil', () => {
+      expect(emisor.email).toBe(PERFIL.email)
+      expect(emisor.phone).toBe(PERFIL.phone)
+      expect(emisor.logoUrl).toBe(PERFIL.logoUrl)
     })
   })
 
-  describe('cuando a la empresa le falta un dato fiscal', () => {
-    const incompleta = emisorDesdeEmpresa({ id: 'x', legalName: 'EMPRESA NUEVA, S.A.' }, CLIENTE)
+  describe('estando en Mario de Paz', () => {
+    const emisor = emisorDesdeEmpresa(MARIO, PERFIL)
 
-    // Heredarlo imprimiría el NIT de la otra empresa: el error que se corrige
-    it('el NIT sale vacío, nunca el del cliente', () => {
-      expect(incompleta.taxId).toBe('')
-      expect(incompleta.taxId).not.toBe(CLIENTE.taxId)
+    it('encabeza con la razón social y el NIT de Mario', () => {
+      expect(emisor.name).toBe('Mario Alberto de Paz')
+      expect(emisor.taxId).toBe('9604707')
     })
 
-    it('el nombre sí es el suyo', () => {
-      expect(incompleta.name).toBe('EMPRESA NUEVA, S.A.')
+    it('las dos empresas no se confunden', () => {
+      expect(emisor.taxId).not.toBe(emisorDesdeEmpresa(KAIZEN, PERFIL).taxId)
+    })
+  })
+
+  describe('misma prioridad que Perfil de organización', () => {
+    it('razón social: la de la empresa; si no tiene, la del perfil', () => {
+      expect(emisorDesdeEmpresa({ ...KAIZEN, legalName: '' }, PERFIL).legalName).toBe(PERFIL.legalName)
+    })
+
+    it('NIT: el de la empresa; si no tiene, el del perfil', () => {
+      expect(emisorDesdeEmpresa({ ...KAIZEN, taxId: '' }, PERFIL).taxId).toBe(PERFIL.taxId)
+    })
+
+    it('correo y teléfono: los del perfil; si no tiene, los de la empresa', () => {
+      const sinContacto = { ...PERFIL, email: '', phone: '' }
+      const e = emisorDesdeEmpresa({ ...KAIZEN, email: 'kaizen@kbs.gt', phone: '2300-0000' }, sinContacto)
+      expect(e.email).toBe('kaizen@kbs.gt')
+      expect(e.phone).toBe('2300-0000')
+    })
+
+    it('sin razón social en ningún lado, encabeza con el nombre comercial', () => {
+      const e = emisorDesdeEmpresa({ ...KAIZEN, legalName: '' }, { ...PERFIL, legalName: '' })
+      expect(e.name).toBe('KAIZEN BUSINESS SOLUTIONS')
     })
   })
 
   describe('sin empresa activa', () => {
-    it('se queda el perfil del cliente, como antes', () => {
-      expect(emisorDesdeEmpresa(null, CLIENTE)).toEqual(CLIENTE)
-      expect(emisorDesdeEmpresa(undefined, CLIENTE)).toEqual(CLIENTE)
+    it('muestra el perfil tal cual', () => {
+      expect(emisorDesdeEmpresa(null, PERFIL)).toEqual(PERFIL)
     })
   })
 })
