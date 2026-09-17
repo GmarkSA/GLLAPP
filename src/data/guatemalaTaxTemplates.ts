@@ -120,7 +120,11 @@ const RG_COMPRAS: TaxTemplateItem[] = [
     description: 'Decreto 27-92 Art. 16-17 — Crédito fiscal igual a compras de inventario. Separa para capitalizar en ERP.',
     category: 'iva', subtype: 'simple', applicability: 'purchases',
     rate: 12, isInclusive: true, isWithholding: false, isActive: true,
-    libroComprasCol: 'bienes', purchaseAccountCode: '1150',
+    // Columna propia: el formulario 2237 tiene una fila para activos fijos,
+    // separada de «Otras compras y adquisición de bienes» (RG-C01). Apuntaba a
+    // «bienes», de modo que las dos filas recibían lo mismo y la de activos fijos
+    // quedaba siempre en cero.
+    libroComprasCol: 'activosFijos', purchaseAccountCode: '1150',
   },
   {
     code: 'RG-C06', name: 'Compra a Pequeño Contribuyente',
