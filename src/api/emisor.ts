@@ -4,17 +4,12 @@ import { getOrganizationProfile, type OrganizationProfile } from './configuracio
 /**
  * Quién emite el documento.
  *
- * Un cliente de Lucía puede llevar varias empresas, y cada factura, cotización,
- * boleta o reporte sale a nombre de la empresa en la que se está trabajando, no
- * del cliente. Las pantallas tomaban la cabecera de `/tenants/profile`, que es un
- * único registro por cliente: con dos empresas, las dos imprimían el nombre y el
- * NIT de la primera.
+ * El encabezado de cada documento muestra lo mismo que Perfil de organización
+ * muestra para la empresa activa, con la misma prioridad campo por campo
+ * (ConfiguracionPage.tsx, sección Organización). Así lo que ves en el perfil es
+ * lo que sale impreso.
  *
- * Lo que identifica fiscalmente al emisor —nombre, NIT y dirección— sale de la
- * empresa y solo de la empresa. Si falta, se muestra vacío: es preferible un
- * hueco visible a imprimir el NIT de la empresa de al lado. Los datos de contacto
- * y la marca sí heredan del cliente, porque suelen compartirse y su ausencia no
- * equivoca a nadie.
+ * La única diferencia es el título: el documento encabeza con la razón social.
  */
 export function emisorDesdeEmpresa(
   empresa: Record<string, any> | null | undefined,
@@ -22,28 +17,17 @@ export function emisorDesdeEmpresa(
 ): OrganizationProfile {
   if (!empresa) return cliente
 
-  const dir = (empresa.fiscalAddress ?? {}) as Record<string, string | undefined>
-  const calle = [dir.line1, dir.line2].filter(Boolean).join(', ')
+  const razonSocial     = empresa.legalName || cliente.legalName
+  const nombreComercial = empresa.tradeName || empresa.legalName || cliente.name
 
   return {
-    // Contacto, marca y ajustes del cliente: se heredan salvo que la empresa los tenga
+    // Dirección, ciudad, departamento, código postal, país y logotipo: igual que el perfil
     ...cliente,
-    logoUrl: empresa.logoUrl || cliente.logoUrl,
-    email:   empresa.email   || cliente.email,
-    phone:   empresa.phone   || cliente.phone,
-
-    // Identidad fiscal: de la empresa, sin heredar
-    name:      empresa.tradeName || empresa.legalName || '',
-    legalName: empresa.legalName || '',
-    taxId:     empresa.taxId || '',
-    address:   calle,
-    city:      dir.city    ?? '',
-    state:     dir.state   ?? '',
-    country:   dir.country ?? '',
-    zipCode:   dir.zip     ?? '',
-
-    currency: empresa.currencyCode ?? cliente.currency,
-    timezone: empresa.timezone     ?? cliente.timezone,
+    name:      razonSocial || nombreComercial,
+    legalName: razonSocial,
+    taxId:     empresa.taxId || cliente.taxId,
+    email:     cliente.email || empresa.email,
+    phone:     cliente.phone || empresa.phone,
   }
 }
 
