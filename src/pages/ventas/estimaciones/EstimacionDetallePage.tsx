@@ -14,7 +14,8 @@ import {
   getEstimate, sendEstimate, convertEstimate, duplicateEstimate, deleteEstimate,
   ESTIMATE_STATUS_CONFIG, type Estimate, type InvoiceItem,
 } from '../../../api/facturas'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
@@ -40,7 +41,7 @@ export default function EstimacionDetallePage() {
     try {
       const [data, org] = await Promise.all([
         getEstimate(id),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
       ])
       setEst(data)
       setCompany(org)

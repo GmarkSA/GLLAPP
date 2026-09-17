@@ -18,7 +18,8 @@ import {
   type PurchaseInvoice,
 } from '../../../api/compras'
 import { getPagosRealizados, type VendorPayment } from '../../../api/pagosRealizados'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { getComments, addComment, type ActivityComment } from '../../../api/comments'
 import { useCan } from '../../../auth/can'
 
@@ -81,7 +82,7 @@ export default function ProveedorDetallePage() {
     try {
       const [vend, org, billsRes, paysRes, ncRes, cmtRes] = await Promise.all([
         getVendor(id),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
         getBills({ vendorId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getPagosRealizados({ vendorId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getCreditNotes({ vendorId: id, limit: 50 }).catch(() => ({ data: [], total: 0 })),

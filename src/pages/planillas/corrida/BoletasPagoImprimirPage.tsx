@@ -16,7 +16,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { getDetalleMensualPlanilla, type DetalleMensualPlanilla, type EmpleadoDetalleMensual } from '../../../api/planillas-corrida'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 
 type Format = 'carta' | 'media-carta' | 'ticket-80' | 'ticket-58'
 
@@ -99,7 +100,7 @@ export default function BoletasPagoImprimirPage() {
 
   useEffect(() => {
     if (!anio || !mes) return
-    Promise.all([getDetalleMensualPlanilla(Number(anio), Number(mes)), getOrganizationProfile()])
+    Promise.all([getDetalleMensualPlanilla(Number(anio), Number(mes)), getEmisor()])
       .then(([d, o]) => { setData(d); setOrg(o) })
       .finally(() => setLoading(false))
   }, [anio, mes])

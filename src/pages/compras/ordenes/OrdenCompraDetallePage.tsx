@@ -14,7 +14,8 @@ import {
   recibirPurchaseOrder, attachPoFile, PO_STATUS_CONFIG, type PurchaseOrder,
 } from '../../../api/compras'
 import { getUbicaciones, type Ubicacion } from '../../../api/expedientes'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { useCan } from '../../../auth/can'
 
@@ -49,7 +50,7 @@ export default function OrdenCompraDetallePage() {
     try {
       const [data, org] = await Promise.all([
         getPurchaseOrder(id),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
       ])
       setPo(data)
       setCompany(org)
