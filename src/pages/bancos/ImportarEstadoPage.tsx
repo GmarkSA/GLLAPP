@@ -220,7 +220,7 @@ export default function ImportarEstadoPage() {
     setFileName(file.name)
     setRows([])
 
-    let matrix: any[][] = []
+    let matrix: any[][]
 
     try {
       const buffer = await file.arrayBuffer()

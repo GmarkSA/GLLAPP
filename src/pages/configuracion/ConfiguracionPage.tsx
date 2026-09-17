@@ -201,7 +201,10 @@ function OrganizationSection({
       setSaving(false)
     }
   }
-  if (saveRef) saveRef.current = handleSave
+  // La guía de configuración guarda esta sección desde su propio botón. Se publica
+  // ya montado, no durante el dibujo: escribir una referencia mientras se dibuja
+  // deja a React con dos versiones de la pantalla si tiene que repetir el intento.
+  useEffect(() => { if (saveRef) saveRef.current = handleSave })
 
   return (
     <Spin spinning={loading}>
@@ -470,7 +473,10 @@ function FiscalSection({
     }
     finally { setSaving(false) }
   }
-  if (saveRef) saveRef.current = handleSave
+  // La guía de configuración guarda esta sección desde su propio botón. Se publica
+  // ya montado, no durante el dibujo: escribir una referencia mientras se dibuja
+  // deja a React con dos versiones de la pantalla si tiene que repetir el intento.
+  useEffect(() => { if (saveRef) saveRef.current = handleSave })
 
   return (
     <Spin spinning={loading}>
@@ -952,7 +958,10 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
     }
   }
 
-  if (saveRef) saveRef.current = handleSave
+  // La guía de configuración guarda esta sección desde su propio botón. Se publica
+  // ya montado, no durante el dibujo: escribir una referencia mientras se dibuja
+  // deja a React con dos versiones de la pantalla si tiene que repetir el intento.
+  useEffect(() => { if (saveRef) saveRef.current = handleSave })
 
   const sugerirCuentas = () => {
     const GLL: Record<keyof AccountDefaults, string> = {

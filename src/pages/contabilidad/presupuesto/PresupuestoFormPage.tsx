@@ -291,7 +291,7 @@ export default function PresupuestoFormPage() {
               <Button type="primary" style={{ background: '#1faec2' }}
                 onClick={async () => {
                   try { await form.validateFields(['nombre', 'anioFiscal', 'periodo']); setStep(1) }
-                  catch { }
+                  catch { /* faltan datos: el formulario ya los marca y se queda en este paso */ }
                 }}>
                 Siguiente →
               </Button>

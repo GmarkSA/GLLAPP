@@ -254,9 +254,8 @@ export default function PresupuestoDetallePage() {
     setEdited(updates)
     setModalExcel(false)
     setExcelText('')
-    aplicadas > 0
-      ? message.success(`${aplicadas} cuenta(s) actualizadas desde Excel`)
-      : message.warning('Ninguna cuenta coincidió. Verifica que el primer campo sea el código de cuenta.')
+    if (aplicadas > 0) message.success(`${aplicadas} cuenta(s) actualizadas desde Excel`)
+    else message.warning('Ninguna cuenta coincidió. Verifica que el primer campo sea el código de cuenta.')
   }
 
   // ── Herramienta 4: Volumen de ventas por producto ─────────────────────────

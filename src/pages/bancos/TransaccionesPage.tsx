@@ -394,7 +394,7 @@ function ImportModal({ open, account, onClose, onSaved }: {
         parsed = await parsePdfToMatrix(buffer)
         setRawMatrix(parsed)  // guardar para re-parsear al cambiar período
       } else if (ext === 'csv') {
-        parsed = parseCSV(new TextDecoder().decode(buffer).replace(/^﻿/, ''))
+        parsed = parseCSV(new TextDecoder().decode(buffer).replace(/^\uFEFF/, ''))
         setRawMatrix(null)
       } else {
         const workbook = XLSX.read(buffer, { type: 'array' })

@@ -250,7 +250,8 @@ export default function Declaracion1311Page() {
     if (!selected) return
     setActing(true)
     try { const d = await sincronizarEstadoIsr(selected.id); await cargarLista(); selectDecl(d) }
-    catch { } finally { setActing(false) }
+    catch { /* la consulta de estado es informativa: si falla se conserva lo que ya se mostraba */ }
+    finally { setActing(false) }
   }
 
   const handlePresentada = async () => {

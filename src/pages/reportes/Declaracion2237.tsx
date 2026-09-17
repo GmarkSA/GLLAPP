@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type CSSProperties } from 'react'
+import { useState, useEffect, useCallback, createContext, useContext, type CSSProperties } from 'react'
 import {
   Card, Select, Button, Space, Tag, Typography, Table,
   InputNumber, Tooltip, message, Spin, Badge, Divider,
@@ -60,6 +60,81 @@ const addBusinessDays = (date: Dayjs, n: number): Dayjs => {
 }
 // Julio tiene plazo reducido de 20 días hábiles; el resto 30 (SAT Guatemala)
 const businessDaysForMonth = (mes: number) => (mes === 7 ? 20 : 30)
+
+// ─── Filas del formulario ─────────────────────────────────────────────────────
+// Viven fuera de la página a propósito. Definidas dentro, React las tomaba por
+// componentes distintos en cada render y volvía a montar cada casilla: al escribir
+// un importe se perdía el foco tras la primera tecla. El modo edición viaja por
+// contexto para no repetirlo en las cuarenta filas.
+export const ModoEdicion = createContext(false)
+
+const MARCA_EDICION = <span style={{ fontSize: 10, color: '#d97706', marginLeft: 6 }}>▼</span>
+
+/** Importe con dos decimales: casilla de captura en edición, texto en lectura. */
+export function NI({ val, onChange }: { val: number; onChange: (v: number) => void }) {
+  const editing = useContext(ModoEdicion)
+  return editing ? (
+    <InputNumber size="small" value={val} onChange={nv => onChange(nv ?? 0)}
+      min={0} precision={2} controls={false}
+      style={{ width: '100%', fontFamily: 'monospace', fontSize: 12 }} />
+  ) : (
+    <span>{val !== 0 ? fmt(val) : ''}</span>
+  )
+}
+
+/** Cantidad de operaciones: entero, sin decimales. */
+function NIcount({ val, onChange }: { val: number; onChange: (v: number) => void }) {
+  const editing = useContext(ModoEdicion)
+  return editing ? (
+    <InputNumber size="small" value={val} onChange={nv => onChange(nv ?? 0)}
+      min={0} precision={0} controls={false}
+      style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, textAlign: 'center' }} />
+  ) : (
+    <span>{val !== 0 ? val : ''}</span>
+  )
+}
+
+/** Fila fija sin código de impuesto vinculado (siempre 0 para este régimen). */
+function ZRow({ label }: { label: string }) {
+  return <tr><td style={CCELL}>{label}</td><td style={NUM}></td><td style={NUM}></td></tr>
+}
+
+/** Fila de conteo (sección 9.1) con emitidas y recibidas. */
+function CRow({ label, em, onEm, re, onRe }: {
+  label: string; em: number; onEm: (v: number) => void; re: number; onRe: (v: number) => void
+}) {
+  const editing = useContext(ModoEdicion)
+  return (
+    <tr>
+      <td style={editing ? ECELL : CELL}>{label}{editing ? MARCA_EDICION : null}</td>
+      <td style={{ ...(editing ? ENUM : NUM), textAlign: 'center' }}><NIcount val={em} onChange={onEm} /></td>
+      <td style={{ ...(editing ? ENUM : NUM), textAlign: 'center' }}><NIcount val={re} onChange={onRe} /></td>
+    </tr>
+  )
+}
+
+/** Fila editable: BASE + IVA opcional; taxCode es informativo. */
+export function ERow({ label, taxCode, baseVal, onBase, ivaVal, onIva }: {
+  label: string; taxCode?: string
+  baseVal: number; onBase: (v: number) => void
+  ivaVal?: number; onIva?: (v: number) => void
+}) {
+  const editing = useContext(ModoEdicion)
+  return (
+    <tr>
+      <td style={editing ? ECELL : CELL}>
+        {label}{editing ? MARCA_EDICION : null}
+        {taxCode && <span style={CODE}>{taxCode}</span>}
+      </td>
+      <td style={editing ? ENUM : NUM}><NI val={baseVal} onChange={onBase} /></td>
+      <td style={editing ? ENUM : NUM}>
+        {ivaVal !== undefined && onIva !== undefined
+          ? <NI val={ivaVal} onChange={onIva} />
+          : null}
+      </td>
+    </tr>
+  )
+}
 
 // ─── Tipos de desglose ────────────────────────────────────────────────────────
 interface CatBI { base: number; iva: number }
@@ -326,66 +401,10 @@ export default function Declaracion2237() {
     businessDaysForMonth(mes),
   ).format('DD/MM/YYYY')
 
-  const editMark = editing ? <span style={{ fontSize: 10, color: '#d97706', marginLeft: 6 }}>▼</span> : null
-
-  // ─── Helpers de render ────────────────────────────────────────────────────
-  const NI = ({ val, onChange }: { val: number; onChange: (v: number) => void }) =>
-    editing ? (
-      <InputNumber size="small" value={val} onChange={nv => onChange(nv ?? 0)}
-        min={0} precision={2} controls={false}
-        style={{ width: '100%', fontFamily: 'monospace', fontSize: 12 }} />
-    ) : (
-      <span>{val !== 0 ? fmt(val) : ''}</span>
-    )
-
-  // Fila estática sin código de impuesto vinculado (siempre 0 para este régimen)
-  const ZRow = ({ label }: { label: string }) => (
-    <tr><td style={CCELL}>{label}</td><td style={NUM}></td><td style={NUM}></td></tr>
-  )
-
-  // InputNumber entero para cantidades de operaciones
-  const NIcount = ({ val, onChange }: { val: number; onChange: (v: number) => void }) =>
-    editing ? (
-      <InputNumber size="small" value={val} onChange={nv => onChange(nv ?? 0)}
-        min={0} precision={0} controls={false}
-        style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, textAlign: 'center' }} />
-    ) : (
-      <span>{val !== 0 ? val : ''}</span>
-    )
-
-  // Fila de conteo (sección 9.1) con emitidas y recibidas
-  const CRow = ({ label, em, onEm, re, onRe }: {
-    label: string; em: number; onEm: (v: number) => void; re: number; onRe: (v: number) => void
-  }) => (
-    <tr>
-      <td style={editing ? ECELL : CELL}>{label}{editing ? editMark : null}</td>
-      <td style={{ ...(editing ? ENUM : NUM), textAlign: 'center' }}><NIcount val={em} onChange={onEm} /></td>
-      <td style={{ ...(editing ? ENUM : NUM), textAlign: 'center' }}><NIcount val={re} onChange={onRe} /></td>
-    </tr>
-  )
+  const editMark = editing ? MARCA_EDICION : null
 
   const setCount = (key: keyof EditCounts, field: 'emitidas' | 'recibidas', val: number) =>
     setEc(p => ({ ...p, [key]: { ...p[key], [field]: val } }))
-
-  // Fila editable: BASE + IVA opcional; taxCode es informativo
-  const ERow = ({ label, taxCode, baseVal, onBase, ivaVal, onIva }: {
-    label: string; taxCode?: string
-    baseVal: number; onBase: (v: number) => void
-    ivaVal?: number; onIva?: (v: number) => void
-  }) => (
-    <tr>
-      <td style={editing ? ECELL : CELL}>
-        {label}{editMark}
-        {taxCode && <span style={CODE}>{taxCode}</span>}
-      </td>
-      <td style={editing ? ENUM : NUM}><NI val={baseVal} onChange={onBase} /></td>
-      <td style={editing ? ENUM : NUM}>
-        {ivaVal !== undefined && onIva !== undefined
-          ? <NI val={ivaVal} onChange={onIva} />
-          : null}
-      </td>
-    </tr>
-  )
 
   const setV = (cat: keyof EditVentas, field: 'base' | 'iva', val: number) =>
     setEv(p => ({ ...p, ventas: { ...p.ventas, [cat]: { ...(p.ventas[cat] as object), [field]: val } } }))
@@ -393,6 +412,7 @@ export default function Declaracion2237() {
     setEv(p => ({ ...p, compras: { ...p.compras, [cat]: { ...(p.compras[cat] as object), [field]: val } } }))
 
   return (
+    <ModoEdicion.Provider value={editing}>
     <div style={{ padding: 24 }}>
       <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => navigate('/reportes')}
         style={{ marginBottom: 8 }}>
@@ -776,5 +796,6 @@ export default function Declaracion2237() {
         </Card>
       )}
     </div>
+    </ModoEdicion.Provider>
   )
 }

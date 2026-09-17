@@ -796,7 +796,7 @@ export default function DteSatPage() {
           if (!accountId && v?.expenseAccountId) accountId = v.expenseAccountId
           if (!taxId && v?.defaultPurchaseTaxId) taxId = v.defaultPurchaseTaxId
           paymentTerms = v?.paymentTerms ?? 'immediate'
-        } catch {}
+        } catch { /* el proveedor solo aporta valores por defecto: sin él se usan los del formulario */ }
       }
       const accObj = accounts.find(a => a.id === accountId)
       const taxObj = taxes.find(t => t.id === taxId)

@@ -40,8 +40,10 @@ export default function ModuleTour() {
   const [welcome, setWelcome] = useState(false)
   const [open,    setOpen]    = useState(false)
   const [current, setCurrent] = useState(0)
+  // La ruta actual, para consultarla dentro de las esperas del recorrido. Se anota
+  // ya montado y no mientras se dibuja, que es cuando React puede repetir el intento.
   const pathRef = useRef(location.pathname)
-  pathRef.current = location.pathname
+  useEffect(() => { pathRef.current = location.pathname }, [location.pathname])
 
   // Ir a una parada: navegar si hace falta, esperar el ancla y mostrarla
   const goTo = async (t: ModuleTourDef, i: number) => {

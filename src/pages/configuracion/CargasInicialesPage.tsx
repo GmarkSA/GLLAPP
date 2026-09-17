@@ -204,22 +204,23 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState(false)
   const [result, setResult]   = useState<{ polizaId: string; updated: number } | null>(null)
-  const loaded = useRef(false)
+  // Decide qué se dibuja, así que es estado: una referencia no repinta la pantalla
+  const [loaded, setLoaded] = useState(false)
 
   const load = useCallback(async () => {
-    if (loaded.current) return
+    if (loaded) return
     setLoading(true)
     try {
       const accounts: Account[] = await getAccounts()
       const filterable = accounts.filter(a => !a.isHeader && a.isActive)
       setRows(filterable.map(a => ({ ...a, _debit: 0, _credit: 0 })))
-      loaded.current = true
+      setLoaded(true)
     } catch {
       message.error('Error cargando catálogo de cuentas')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [loaded])
 
   const setDebit  = (id: string, v: number) => setRows(prev => prev.map(r => r.id === id ? { ...r, _debit: v || 0,  _credit: 0 } : r))
   const setCredit = (id: string, v: number) => setRows(prev => prev.map(r => r.id === id ? { ...r, _debit: 0, _credit: v || 0 } : r))
@@ -274,7 +275,7 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
           }
           style={{ marginBottom: 12 }}
         />
-        <Button onClick={() => { setResult(null); loaded.current = false; setRows([]) }}>
+        <Button onClick={() => { setResult(null); setLoaded(false); setRows([]) }}>
           Cargar nuevamente
         </Button>
       </div>
@@ -319,7 +320,7 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
 
   return (
     <div style={{ padding: '12px 0' }}>
-      {!loaded.current ? (
+      {!loaded ? (
         <Button icon={<AuditOutlined />} onClick={load} loading={loading}
           style={{ marginBottom: 16 }}>
           Cargar catálogo de cuentas
