@@ -16,7 +16,8 @@ import { getCustomer, deleteCustomer, type Customer } from '../../../api/contact
 import { getInvoices, getEstimates, type Invoice, type Estimate, INVOICE_STATUS_CONFIG, ESTIMATE_STATUS_CONFIG } from '../../../api/facturas'
 import { getPagosRecibidos, PAYMENT_MODE_LABELS, type PagoRecibido } from '../../../api/pagos-recibidos'
 import { getNotasCredito, NC_STATUS_CONFIG, type NotaCredito } from '../../../api/notas-credito'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { getComments, addComment, type ActivityComment } from '../../../api/comments'
 import { useCan } from '../../../auth/can'
 
@@ -83,7 +84,7 @@ export default function ClienteDetallePage() {
     try {
       const [cust, org, invRes, payRes, estRes, ncRes, cmtRes] = await Promise.all([
         getCustomer(id),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
         getInvoices({ customerId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getPagosRecibidos({ customerId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getEstimates({ customerId: id, limit: 50 }).catch(() => ({ data: [], total: 0 })),

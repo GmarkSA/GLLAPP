@@ -3,7 +3,8 @@ import { useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import dayjs from 'dayjs'
 import { getBalanceGeneral, getEstadoResultados } from '../../api/reportes'
-import { getOrganizationProfile, type OrganizationProfile } from '../../api/configuracion'
+import { getEmisor } from '../../api/emisor'
+import type { OrganizationProfile } from '../../api/configuracion'
 
 const Q = (n: number) => `Q ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -85,7 +86,7 @@ export default function EstadosFinancierosImprimirPage() {
     Promise.all([
       getBalanceGeneral({ date: endOfMonth }),
       getEstadoResultados({ fromDate: jan1, toDate: endOfMonth }),
-      getOrganizationProfile().catch(() => null),
+      getEmisor().catch(() => null),
     ]).then(([b, e, o]) => { setBg(b); setEr(e); setOrg(o as OrganizationProfile | null) })
       .finally(() => setLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps

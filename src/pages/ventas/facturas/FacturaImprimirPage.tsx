@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { getInvoice, type Invoice } from '../../../api/facturas'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { getTemplateForFormat } from '../../../components/Print/printFormats'
 
 type Format = 'carta' | 'media-carta' | 'ticket-80' | 'ticket-58'
@@ -33,7 +34,7 @@ export default function FacturaImprimirPage() {
 
   useEffect(() => {
     if (!id) return
-    Promise.all([getInvoice(id), getOrganizationProfile()])
+    Promise.all([getInvoice(id), getEmisor()])
       .then(([inv, o]) => { setInvoice(inv); setOrg(o) })
       .finally(() => setLoading(false))
   }, [id])

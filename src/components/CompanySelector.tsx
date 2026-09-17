@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useCompanyStore } from '../store/companyStore'
 import { getBillingState } from '../api/billing'
+import { rutaAlCambiarDeEmpresa } from './rutaAlCambiarDeEmpresa'
 import type { Company } from '../store/authStore'
 
 const COUNTRY_FLAG: Record<string, string> = {
@@ -58,8 +59,12 @@ export default function CompanySelector({ placement = 'sidebar' }: CompanySelect
     await setActiveCompany(company)
     setOpen(false)
     setSearch('')
-    // Recargar la página actual para que todos los datos se refresquen
-    window.location.reload()
+    // Se recarga para que todos los datos se refresquen, pero soltando el
+    // documento abierto: pertenece a la empresa anterior y la nueva no lo
+    // encuentra. Se conserva la sección donde se estaba trabajando.
+    const destino = rutaAlCambiarDeEmpresa(window.location.pathname + window.location.search)
+    if (destino === window.location.pathname) window.location.reload()
+    else window.location.assign(destino)
   }
 
   const overlay = (

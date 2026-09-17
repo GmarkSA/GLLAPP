@@ -15,7 +15,8 @@ import {
   BILL_STATUS_CONFIG, BILL_TYPE_CONFIG,
   type PurchaseInvoice, type JournalEntry,
 } from '../../../api/compras'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
@@ -43,7 +44,7 @@ export default function NotaCreditoProveedorDetallePage() {
     try {
       const [b, org] = await Promise.all([
         getBill(id),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
       ])
       setBill(b)
       setCompany(org)

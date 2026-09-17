@@ -5,7 +5,8 @@ import dayjs from 'dayjs'
 import {
   getCierreIntegraciones, getDetalleIntegracion,
 } from '../../api/integraciones'
-import { getOrganizationProfile, type OrganizationProfile } from '../../api/configuracion'
+import { getEmisor } from '../../api/emisor'
+import type { OrganizationProfile } from '../../api/configuracion'
 import type {
   DetalleResult, IntegrationType, LineaPoliza,
   BancoEspecifico, CxcEspecifico, CxpEspecifico,
@@ -571,7 +572,7 @@ export default function IntegracionesImprimirPage() {
   const periodo    = `${MESES[mesNum - 1]} ${anioNum}`
 
   useEffect(() => {
-    getOrganizationProfile().then(setOrg).catch(() => null)
+    getEmisor().then(setOrg).catch(() => null)
   }, [])
 
   useEffect(() => {

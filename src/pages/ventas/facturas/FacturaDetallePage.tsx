@@ -26,7 +26,8 @@ import {
 import { deletePagoRecibido } from '../../../api/pagos-recibidos'
 import { getCustomer } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import PrintInvoiceButton from '../../../components/Print/PrintInvoiceButton'
 import DocumentLink from '../../../components/DocumentLink'
 import { requestDownloadUrl } from '../../../api/storage'
@@ -131,7 +132,7 @@ export default function FacturaDetallePage() {
       const [inv, accts, org] = await Promise.all([
         getInvoice(id),
         getBankAccounts({ status: 'active' }).catch(() => []),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
       ])
       setInvoice(inv)
       setAccounts(Array.isArray(accts) ? accts : [])

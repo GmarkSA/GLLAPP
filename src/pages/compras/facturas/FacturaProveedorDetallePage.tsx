@@ -20,7 +20,8 @@ import {
 } from '../../../api/compras'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { getBankAccounts } from '../../../api/bancos'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getVendor } from '../../../api/contactos'
 import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
@@ -94,7 +95,7 @@ export default function FacturaProveedorDetallePage() {
     try {
       const [b, org] = await Promise.all([
         getBill(id),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
       ])
       setBill(b)
       setCompany(org)
