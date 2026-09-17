@@ -852,7 +852,7 @@ export default function UsuariosPage() {
                                   <Button size="small" danger icon={<DeleteOutlined />}>Eliminar</Button>
                                 </Popconfirm>
                               )}
-                              {role.name !== 'superadmin' && (
+                              {!role.isSystem && (
                                 <Button type="primary" size="small" loading={savingPerms} onClick={handleSavePerms}
                                   icon={<SaveOutlined />} style={{ background: '#1faec2' }}>
                                   Guardar permisos
@@ -860,6 +860,16 @@ export default function UsuariosPage() {
                               )}
                             </Space>
                           </div>
+
+                          {/* Los roles de Lucía se vuelven a sembrar en cada actualización:
+                              antes se podían editar y el cambio se perdía en el siguiente despliegue. */}
+                          {role.isSystem && role.name !== 'superadmin' && (
+                            <Alert
+                              type="info" showIcon style={{ marginBottom: 16 }}
+                              message="Rol de Lucía"
+                              description="Se restablece en cada actualización del sistema, así que sus permisos no se pueden guardar. Para ajustar permisos, crea un rol propio de tu empresa."
+                            />
+                          )}
 
                           {/* Matriz de permisos */}
                           {role.name === 'superadmin' ? (
