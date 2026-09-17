@@ -10,11 +10,14 @@ import { getOrganizationProfile, type OrganizationProfile } from './configuracio
  * único registro por cliente: con dos empresas, las dos imprimían el nombre y el
  * NIT de la primera.
  *
- * Lo que identifica fiscalmente al emisor —nombre, NIT y dirección— sale de la
- * empresa y solo de la empresa. Si falta, se muestra vacío: es preferible un
- * hueco visible a imprimir el NIT de la empresa de al lado. Los datos de contacto
- * y la marca sí heredan del cliente, porque suelen compartirse y su ausencia no
- * equivoca a nadie.
+ * El NIT no se hereda nunca: es lo que distingue a una empresa de otra ante la
+ * SAT, y heredarlo es justo el error que se corrige. Si la empresa no lo tiene,
+ * sale vacío.
+ *
+ * La razón social encabeza el documento, no el nombre comercial: es la que
+ * aparece en la factura. Y la dirección, el contacto y la marca sí heredan del
+ * cliente mientras la empresa no tenga los suyos, porque el encabezado tiene que
+ * salir completo: dejarlo en blanco empeora el documento sin proteger nada.
  */
 export function emisorDesdeEmpresa(
   empresa: Record<string, any> | null | undefined,
@@ -32,18 +35,22 @@ export function emisorDesdeEmpresa(
     email:   empresa.email   || cliente.email,
     phone:   empresa.phone   || cliente.phone,
 
-    // Identidad fiscal: de la empresa, sin heredar
-    name:      empresa.tradeName || empresa.legalName || '',
-    legalName: empresa.legalName || '',
-    taxId:     empresa.taxId || '',
-    address:   calle,
-    city:      dir.city    ?? '',
-    state:     dir.state   ?? '',
-    country:   dir.country ?? '',
-    zipCode:   dir.zip     ?? '',
+    // Encabeza la razón social, que es la que va en la factura
+    name:      empresa.legalName || empresa.tradeName || cliente.name,
+    legalName: empresa.legalName || cliente.legalName,
 
-    currency: empresa.currencyCode ?? cliente.currency,
-    timezone: empresa.timezone     ?? cliente.timezone,
+    // El NIT nunca se hereda: es lo que distingue a una empresa de la otra ante
+    // la SAT, y heredarlo es justo el error que se está corrigiendo.
+    taxId:     empresa.taxId || '',
+
+    // Todo lo demás, mientras la empresa no tenga lo suyo
+    address:   calle       || cliente.address,
+    city:      dir.city    || cliente.city,
+    state:     dir.state   || cliente.state,
+    country:   dir.country || cliente.country,
+    zipCode:   dir.zip     || cliente.zipCode,
+    currency:  empresa.currencyCode || cliente.currency,
+    timezone:  empresa.timezone     || cliente.timezone,
   }
 }
 

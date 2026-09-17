@@ -10,9 +10,10 @@ import type { OrganizationProfile } from './configuracion'
  * las facturas de las dos salían a nombre y NIT de la primera. El dueño lo vio
  * estando en una empresa y leyendo una factura encabezada con la otra.
  *
- * La identidad fiscal sale de la empresa y solo de la empresa. Si falta, sale
- * vacía: un hueco visible es mejor que el NIT de la empresa de al lado, que es
- * exactamente el error que se está corrigiendo.
+ * El NIT no se hereda nunca: es lo que distingue a una empresa de otra ante la
+ * SAT. La razón social encabeza el documento, no el nombre comercial. La
+ * dirección y el contacto sí heredan mientras la empresa no tenga los suyos,
+ * porque el encabezado tiene que salir completo.
  */
 const CLIENTE: OrganizationProfile = {
   name:      'Mario de Paz',
@@ -47,9 +48,23 @@ describe('Emisor del documento', () => {
 
     // El fallo que reportó el dueño: la factura de Kaizen decía Mario de Paz
     it('sale la empresa, no el cliente', () => {
-      expect(emisor.name).toBe('KAIZEN BUSINESS SOLUTIONS')
       expect(emisor.legalName).toBe('KAIZEN BUSINESS SOLUTIONS, SOCIEDAD ANÓNIMA')
       expect(emisor.name).not.toContain('Mario')
+    })
+
+    // En la factura va la razón social, no el nombre comercial
+    it('encabeza con la razón social', () => {
+      expect(emisor.name).toBe('KAIZEN BUSINESS SOLUTIONS, SOCIEDAD ANÓNIMA')
+    })
+
+    it('sin razón social se usa el nombre comercial', () => {
+      const soloComercial = emisorDesdeEmpresa({ ...KAIZEN, legalName: undefined }, CLIENTE)
+      expect(soloComercial.name).toBe('KAIZEN BUSINESS SOLUTIONS')
+    })
+
+    it('el encabezado nunca sale vacío: sin ninguno de los dos, queda el del cliente', () => {
+      const anonima = emisorDesdeEmpresa({ id: 'x', taxId: '111' }, CLIENTE)
+      expect(anonima.name).toBe(CLIENTE.name)
     })
 
     it('el NIT es el de la empresa', () => {
@@ -64,18 +79,17 @@ describe('Emisor del documento', () => {
       expect(emisor.address).not.toBe(CLIENTE.address)
     })
 
-    it('el nombre comercial manda sobre la razón social', () => {
-      expect(emisor.name).toBe(KAIZEN.tradeName)
-    })
-
-    it('sin nombre comercial se usa la razón social', () => {
-      const sinComercial = emisorDesdeEmpresa({ ...KAIZEN, tradeName: undefined }, CLIENTE)
-      expect(sinComercial.name).toBe(KAIZEN.legalName)
-    })
   })
 
   describe('lo que sí se hereda del cliente', () => {
     const emisor = emisorDesdeEmpresa(KAIZEN, CLIENTE)
+
+    // Dejar el encabezado en blanco empeora el documento y no protege nada
+    it('la dirección, mientras la empresa no tenga la suya', () => {
+      const sinDireccion = emisorDesdeEmpresa({ ...KAIZEN, fiscalAddress: null }, CLIENTE)
+      expect(sinDireccion.address).toBe(CLIENTE.address)
+      expect(sinDireccion.city).toBe(CLIENTE.city)
+    })
 
     it('el logotipo, el correo y el teléfono, que suelen compartirse', () => {
       expect(emisor.logoUrl).toBe(CLIENTE.logoUrl)
@@ -97,14 +111,10 @@ describe('Emisor del documento', () => {
   describe('cuando a la empresa le falta un dato fiscal', () => {
     const incompleta = emisorDesdeEmpresa({ id: 'x', legalName: 'EMPRESA NUEVA, S.A.' }, CLIENTE)
 
-    // Heredar aquí imprimiría el NIT de la otra empresa: el error que se corrige
+    // Heredarlo imprimiría el NIT de la otra empresa: el error que se corrige
     it('el NIT sale vacío, nunca el del cliente', () => {
       expect(incompleta.taxId).toBe('')
-    })
-
-    it('la dirección sale vacía, nunca la del cliente', () => {
-      expect(incompleta.address).toBe('')
-      expect(incompleta.city).toBe('')
+      expect(incompleta.taxId).not.toBe(CLIENTE.taxId)
     })
 
     it('el nombre sí es el suyo', () => {
