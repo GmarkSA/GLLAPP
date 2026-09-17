@@ -3,7 +3,8 @@ import { useParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import dayjs from 'dayjs'
 import { getEstimate, type Estimate, ESTIMATE_STATUS_CONFIG } from '../../../api/facturas'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { getSavedTemplate } from '../../../components/Print/printFormats'
 
 const fmtQ = (n: number, currency = 'GTQ') =>
@@ -19,7 +20,7 @@ export default function EstimacionPrintPage() {
 
   useEffect(() => {
     if (!id) return
-    Promise.all([getEstimate(id), getOrganizationProfile()])
+    Promise.all([getEstimate(id), getEmisor()])
       .then(([est, o]) => { setEstimate(est); setOrg(o) })
       .finally(() => setLoading(false))
   }, [id])

@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { getPagoRealizado, type VendorPayment } from '../../api/pagosRealizados'
-import { getOrganizationProfile, type OrganizationProfile } from '../../api/configuracion'
+import { getEmisor } from '../../api/emisor'
+import type { OrganizationProfile } from '../../api/configuracion'
 
 const MODE_LABELS: Record<string, string> = {
   cash:          'Efectivo',
@@ -30,7 +31,7 @@ export default function TransferenciaPrintPage() {
 
   useEffect(() => {
     if (!id) return
-    Promise.all([getPagoRealizado(id), getOrganizationProfile()])
+    Promise.all([getPagoRealizado(id), getEmisor()])
       .then(([p, c]) => {
         setPayment(p)
         setCompany(c)

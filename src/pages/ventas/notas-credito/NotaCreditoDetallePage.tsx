@@ -19,7 +19,8 @@ import {
 } from '../../../api/notas-credito'
 import { getInvoices } from '../../../api/facturas'
 import { getBankAccounts } from '../../../api/bancos'
-import { getOrganizationProfile, type OrganizationProfile } from '../../../api/configuracion'
+import { getEmisor } from '../../../api/emisor'
+import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
@@ -55,7 +56,7 @@ export default function NotaCreditoDetallePage() {
     try {
       const [data, org] = await Promise.all([
         getNotaCredito(id),
-        getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile)),
+        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
       ])
       setNc(data)
       setCompany(org)
