@@ -77,6 +77,10 @@ export interface Vendor extends Omit<Customer, 'customerNumber' | 'receivableAcc
   payableAccountId?:     string
   expenseAccountId?:     string
   defaultPurchaseTaxId?: string
+  // Memoria de registro DTE SAT — último tipo de factura / tipo de combustible con
+  // que se contabilizó un DTE de este proveedor (DteSatService.postDte la actualiza sola)
+  defaultInvoiceType?:   string
+  defaultIdpType?:       string
   bankAccount?: {
     bankName?: string
     accountNumber?: string

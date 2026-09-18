@@ -47,6 +47,27 @@ const IDP_RATES_FE: Record<string, { label: string; rate: number }> = {
   other:    { label: 'Otros derivados',        rate: 0.50 },
 }
 
+// Palabras clave para adivinar el tipo de combustible IDP desde la descripción del
+// ítem del DTE cuando el proveedor todavía no tiene uno registrado (primera compra
+// de combustible a ese proveedor). Orden importa: los términos más específicos van
+// primero para no confundirlos con "super"/"regular", que son más genéricos.
+const IDP_TYPE_SIGNALS: Array<{ tipo: string; signals: string[] }> = [
+  { tipo: 'diesel',   signals: ['diesel', 'diésel', 'gas oil'] },
+  { tipo: 'propano',  signals: ['propano', 'glp'] },
+  { tipo: 'bunker',   signals: ['bunker', 'búnker', 'fuel oil'] },
+  { tipo: 'kerosina', signals: ['kerosina', 'kerosene', 'turbo'] },
+  { tipo: 'aviacion', signals: ['aviación', 'aviacion', 'avjet', 'jet fuel', 'turbosina'] },
+  { tipo: 'super',    signals: ['super', 'súper', 'superior'] },
+  { tipo: 'regular',  signals: ['regular', 'corriente'] },
+]
+
+const detectarTipoCombustible = (dtes: SatDte[]): string | undefined => {
+  const items = dtes.flatMap(d => (d.items ?? []) as any[])
+  const texto = items.map(i => (i.descripcion ?? i.description ?? '').toLowerCase()).join(' ')
+  if (!texto) return undefined
+  return IDP_TYPE_SIGNALS.find(s => s.signals.some(kw => texto.includes(kw)))?.tipo
+}
+
 const statusConfig: Record<SatDteStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:    { label: 'Proveedor pendiente', color: 'gold',    icon: <WarningOutlined /> },
   ready:      { label: 'Listo',               color: '#2ea172',   icon: <CheckCircleOutlined /> },
@@ -474,36 +495,12 @@ export default function DteSatPage() {
   }
 
   // ── Stepper handlers ───────────────────────────────────────────────────────
-
-  // ── Preferencias por proveedor (localStorage) ─────────────────────────────
-  const saveDtePrefs = (vendorId: string, vals: Record<string, any>) => {
-    try {
-      localStorage.setItem(`dte_compras_prefs_${vendorId}`, JSON.stringify({
-        taxId: vals.taxId, accountId: vals.accountId, defaultUnit: vals.defaultUnit,
-        invoiceType: vals.invoiceType, idpType: vals.idpType,
-      }))
-    } catch { /* silent */ }
-  }
-
-  // Preferencias guardadas que apunten a un impuesto que ya no existe en la lista de la
-  // empresa (p. ej. ids de impuestos compartidos migrados por empresa) se descartan: si no,
-  // el formulario mostraba el UUID crudo y el registro salía con un impuesto inexistente.
-  const readDtePrefs = (vendorId: string): Record<string, any> | null => {
-    try {
-      const raw = localStorage.getItem(`dte_compras_prefs_${vendorId}`)
-      if (!raw) return null
-      const p = JSON.parse(raw) ?? {}
-      if (p.taxId && !taxes.some(t => t.id === p.taxId)) delete p.taxId
-      return p
-    } catch { return null }
-  }
-
-  // Carga prefs cuando el usuario llega al paso "Registrar" (step 3) y el proveedor está vinculado
-  useEffect(() => {
-    if (stepperStep !== 3 || !stepperDte?.vendorId) return
-    const p = readDtePrefs(stepperDte.vendorId)
-    if (p) stepperForm.setFieldsValue(p)
-  }, [stepperStep, stepperDte?.vendorId])  // eslint-disable-line react-hooks/exhaustive-deps
+  // La memoria de registro por proveedor (cuenta de gasto, IVA, tipo de factura,
+  // tipo de combustible) vive en el proveedor mismo — expenseAccountId,
+  // defaultPurchaseTaxId, defaultInvoiceType, defaultIdpType — y el backend la
+  // actualiza sola al contabilizar (DteSatService.postDte). Antes vivía en
+  // localStorage (dte_compras_prefs_<vendorId>): solo la veía quien la había
+  // guardado, en ese mismo navegador.
 
   // Tipo de factura a partir del DTE: tipo de documento SAT (FPEQ/FCAP → pequeño contribuyente,
   // FESP → factura especial, RDON → donación, RECI → exenta) y, para FACT/FCAM/N/C, los ítems
@@ -558,43 +555,40 @@ export default function DteSatPage() {
     // Limpiar completamente el formulario para no heredar campos del DTE anterior
     stepperForm.resetFields()
 
-    // Pre-llenar desde datos maestros del proveedor (términos, cuenta de gasto, IVA)
+    // Pre-llenar desde datos maestros del proveedor — términos, cuenta de gasto, IVA,
+    // y la "memoria" del último registro (tipo de factura / tipo de combustible),
+    // que el backend actualiza sola cada vez que se contabiliza un DTE de este
+    // proveedor (ver DteSatService.postDte). Ya no depende de localStorage: es la
+    // misma memoria la vea quien la vea, desde cualquier dispositivo.
     let vendorPaymentTerms = 'immediate'
     let vendorExpenseAccountId: string | undefined
     let vendorDefaultTaxId: string | undefined
+    let vendorDefaultInvoiceType: string | undefined
+    let vendorDefaultIdpType: string | undefined
     if (row.vendorId) {
       try {
         const vendor = await getVendor(row.vendorId) as any
-        if (vendor?.paymentTerms)        vendorPaymentTerms    = vendor.paymentTerms
-        if (vendor?.expenseAccountId)    vendorExpenseAccountId = vendor.expenseAccountId
-        if (vendor?.defaultPurchaseTaxId) vendorDefaultTaxId   = vendor.defaultPurchaseTaxId
+        if (vendor?.paymentTerms)         vendorPaymentTerms       = vendor.paymentTerms
+        if (vendor?.expenseAccountId)     vendorExpenseAccountId   = vendor.expenseAccountId
+        if (vendor?.defaultPurchaseTaxId) vendorDefaultTaxId       = vendor.defaultPurchaseTaxId
+        if (vendor?.defaultInvoiceType)   vendorDefaultInvoiceType = vendor.defaultInvoiceType
+        if (vendor?.defaultIdpType)       vendorDefaultIdpType     = vendor.defaultIdpType
         setStepperVendorPayableMissing(!vendor?.payableAccountId)
       } catch { setStepperVendorPayableMissing(false) }
     } else {
       setStepperVendorPayableMissing(false)
     }
 
-    // Valores base desde el maestro del proveedor
     const baseVals: Record<string, any> = {
-      invoiceType:    tipoAuto.tipo,   // del DTE (tipo de documento SAT + ítems), no "bienes" fijo
+      // El DTE manda cuando es inequívoco (tipoAuto.seguro); si no (ítems mixtos),
+      // gana la memoria del proveedor sobre el "bienes" por defecto.
+      invoiceType:    tipoAuto.seguro ? tipoAuto.tipo : (vendorDefaultInvoiceType ?? tipoAuto.tipo),
       taxId:          vendorDefaultTaxId,
       paymentTerms:   vendorPaymentTerms,
       accountingDate: row.fechaEmision ? dayjs(row.fechaEmision) : dayjs(),
       concepto:       autoConcepto,
       accountId:      vendorExpenseAccountId,
-    }
-
-    // Prefs guardadas de sesiones anteriores sobreescriben el maestro (más específicas)
-    if (row.vendorId) {
-      const saved = readDtePrefs(row.vendorId)
-      if (saved) {
-        if (saved.accountId)   baseVals.accountId   = saved.accountId
-        if (saved.taxId)       baseVals.taxId        = saved.taxId
-        // La preferencia del proveedor solo manda cuando el DTE no determina el tipo (ítems mixtos)
-        if (saved.invoiceType && !tipoAuto.seguro) baseVals.invoiceType = saved.invoiceType
-        if (saved.defaultUnit) baseVals.defaultUnit  = saved.defaultUnit
-        if (saved.idpType)     baseVals.idpType      = saved.idpType
-      }
+      idpType:        vendorDefaultIdpType,
     }
 
     stepperForm.setFieldsValue(baseVals)
@@ -643,14 +637,6 @@ export default function DteSatPage() {
       })
       if ((result as any)?.dte) setStepperDte((result as any).dte as SatDte)
       setStepperVendorPayableMissing(!values.payableAccountId)
-      // Guardar preferencias para pre-llenar el paso Registrar
-      const createdVendorId = (result as any)?.dte?.vendorId
-      if (createdVendorId && (values.expenseAccountId || values.defaultPurchaseTaxId)) {
-        saveDtePrefs(createdVendorId, {
-          accountId: values.expenseAccountId,
-          taxId: values.defaultPurchaseTaxId,
-        })
-      }
 
       // Auto-vincular todos los demás DTEs del mismo NIT que aún están pendientes
       const sameNitPending = documents.filter(d =>
@@ -754,7 +740,8 @@ export default function DteSatPage() {
         bomberosAccountId:      stepperHasBomberos ? values.bomberosAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
       })
-      if (stepperDte.vendorId) saveDtePrefs(stepperDte.vendorId, values)
+      // La memoria (cuenta, IVA, tipo de factura, tipo de combustible) la actualiza
+      // el backend en el proveedor — ver comentario en openStepper().
       setStepperResult(result)
       if (result?.dte) setStepperDte(result.dte as SatDte)
       await load(true)
@@ -777,25 +764,19 @@ export default function DteSatPage() {
       let accountId: string | undefined
       let taxId: string | undefined
       let paymentTerms: string | undefined
-      let savedInvoiceType: string | undefined
-      let savedDefaultUnit: string | undefined
-      let savedIdpType: string | undefined
-      // 1. Preferencias guardadas de sesiones anteriores (más recientes)
+      let vendorInvoiceType: string | undefined
+      let vendorIdpType: string | undefined
+      // Datos maestros del proveedor — es la memoria del último registro de este
+      // proveedor (DteSatService.postDte la actualiza sola al contabilizar), no
+      // localStorage: la ve cualquier usuario, desde cualquier dispositivo.
       if (d.vendorId) {
-        const p = readDtePrefs(d.vendorId)
-        if (p) {
-          accountId = p.accountId; taxId = p.taxId
-          savedInvoiceType = p.invoiceType; savedDefaultUnit = p.defaultUnit
-          savedIdpType = p.idpType
-        }
-      }
-      // 2. Datos maestros del proveedor como fallback
-      if (d.vendorId && (!accountId || !paymentTerms)) {
         try {
           const v = await getVendor(d.vendorId) as any
-          if (!accountId && v?.expenseAccountId) accountId = v.expenseAccountId
-          if (!taxId && v?.defaultPurchaseTaxId) taxId = v.defaultPurchaseTaxId
-          paymentTerms = v?.paymentTerms ?? 'immediate'
+          accountId         = v?.expenseAccountId ?? undefined
+          taxId             = v?.defaultPurchaseTaxId ?? undefined
+          paymentTerms      = v?.paymentTerms ?? 'immediate'
+          vendorInvoiceType = v?.defaultInvoiceType ?? undefined
+          vendorIdpType     = v?.defaultIdpType ?? undefined
         } catch { /* el proveedor solo aporta valores por defecto: sin él se usan los del formulario */ }
       }
       const accObj = accounts.find(a => a.id === accountId)
@@ -808,14 +789,18 @@ export default function DteSatPage() {
       }))
       // Auto-detect tipo factura y unidad desde los items del DTE (bien_o_servicio / unidad_medida)
       const firstItem = (d.items as any[])?.[0]
-      // Mismo detector que el registro individual: el DTE manda (tipo SAT + ítems);
-      // la preferencia guardada solo cuando el DTE es ambiguo (ítems mixtos)
+      // El DTE manda cuando es inequívoco (tipo SAT + ítems); si no (ítems mixtos),
+      // gana la memoria del proveedor sobre el "bienes" por defecto.
       const tipoAutoFila = tipoFacturaDesdeDte(d)
-      const autoInvoiceType = tipoAutoFila.seguro ? tipoAutoFila.tipo : (savedInvoiceType ?? tipoAutoFila.tipo)
-      const autoDefaultUnit = savedDefaultUnit ?? firstItem?.unidad_medida ?? undefined
-      // Sin impuesto válido (preferencia vieja descartada o proveedor sin default): el de la
-      // lista por código según el tipo detectado — mismo criterio del registro individual
-      // (RG-C02 servicios / RG-C01 bienes). Así el masivo siempre muestra con qué impuesto va.
+      const autoInvoiceType = tipoAutoFila.seguro ? tipoAutoFila.tipo : (vendorInvoiceType ?? tipoAutoFila.tipo)
+      const autoDefaultUnit = firstItem?.unidad_medida ?? undefined
+      // Tipo de combustible: memoria del proveedor primero; si es la primera vez que
+      // le compramos combustible (proveedor sin memoria todavía), se adivina por
+      // palabra clave en la descripción del ítem — nunca se deja en blanco sin intentar.
+      const autoIdpType = autoInvoiceType === 'fuel' ? (vendorIdpType ?? detectarTipoCombustible([d])) : undefined
+      // Sin impuesto válido (proveedor sin default): el de la lista por código según el
+      // tipo detectado — mismo criterio del registro individual (RG-C02 servicios /
+      // RG-C01 bienes). Así el masivo siempre muestra con qué impuesto va.
       const taxIdFinal  = taxObj ? taxId : taxes.find(t => t.code === (autoInvoiceType === 'services' ? 'RG-C02' : 'RG-C01'))?.id
       const taxObjFinal = taxes.find(t => t.id === taxIdFinal)
       rows.push({
@@ -832,7 +817,7 @@ export default function DteSatPage() {
         taxLabel: taxObjFinal ? (taxObjFinal.subtype === 'exempt' ? `Exento — ${taxObjFinal.name}` : `${Number(taxObjFinal.rate)}% — ${taxObjFinal.name}`) : undefined,
         invoiceType: autoInvoiceType,
         defaultUnit: autoDefaultUnit,
-        idpType: savedIdpType,
+        idpType: autoIdpType,
         idpAccountId: idpAcc?.id,
         ocType: 'direct',
         paymentTerms: paymentTerms ?? 'immediate',
@@ -871,7 +856,8 @@ export default function DteSatPage() {
             ? row.dteItems!.map((item, idx) => ({ index: idx, accountId: item.accountId ?? row.accountId ?? '' }))
             : undefined,
         })
-        if (dte.vendorId) saveDtePrefs(dte.vendorId, { accountId: row.accountId, taxId: row.taxId, invoiceType: row.invoiceType, defaultUnit: row.defaultUnit, idpType: row.idpType })
+        // La memoria (cuenta, IVA, tipo de factura, tipo de combustible) la actualiza
+        // el backend en el proveedor — ver comentario en openBatchModal().
         setBatchRows(prev => prev.map(r => r.id === row.id
           ? { ...r, status: 'ok', result: result.invoice?.invoiceNumber ?? 'OK' }
           : r))
