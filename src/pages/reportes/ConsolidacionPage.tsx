@@ -372,6 +372,47 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
         onClose={() => setDetalleDe(null)}
       />
 
+      {data.proyeccionMesActual && (
+        <Card
+          size="small"
+          style={{ marginBottom: 20, borderRadius: 8, background: '#fffbf0', border: '1px solid #fadb95' }}
+          title={
+            <Space>
+              <span style={{ fontSize: 13 }}>
+                Proyección de {dayjs(`${data.proyeccionMesActual.mes}-01`).format('MMMM YYYY')} (mes en curso)
+              </span>
+              <Tag color="orange" style={{ fontSize: 10 }}>Estimado — sin declarar todavía</Tag>
+            </Space>
+          }
+        >
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10 }}>
+            Con las facturas registradas hasta hoy ({dayjs(data.proyeccionMesActual.cortadoAl).format('DD/MM/YYYY')})
+            y el remanente heredado del mes anterior. No está incluido en "IVA pagado / a favor" de arriba —
+            cambia cada vez que se registra una factura nueva, y desaparece de aquí en cuanto se genere la
+            declaración real del mes.
+          </Text>
+          <Table
+            size="small" pagination={false} rowKey="companyId"
+            dataSource={data.proyeccionMesActual.empresas}
+            columns={[
+              { title: 'Empresa', dataIndex: 'legalName', render: (v: string) => <span style={{ fontSize: 12, fontWeight: 600 }}>{v}</span> },
+              { title: 'Remanente heredado', dataIndex: 'remanenteHeredado', align: 'right',
+                render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v)}</span> },
+              { title: 'Débito estimado', dataIndex: 'ivaDebitoEstimado', align: 'right',
+                render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#d46b08' }}>{Q(v)}</span> },
+              { title: 'Crédito estimado', dataIndex: 'ivaCreditoEstimado', align: 'right',
+                render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v)}</span> },
+              { title: 'Neto estimado', dataIndex: 'ivaNetoEstimado', align: 'right',
+                render: (v: number) => (
+                  <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: v < -0.005 ? '#2ea172' : '#d46b08' }}>
+                    {v < -0.005 ? `${Q(Math.abs(v))} a favor` : `${Q(v)} pagado`}
+                  </span>
+                ) },
+            ]}
+          />
+        </Card>
+      )}
+
       {data.recomendaciones.length === 0 ? (
         <Alert type="success" icon={<CheckCircleOutlined />} showIcon
           message="Sin oportunidades de optimización fiscal identificadas para este período." />
