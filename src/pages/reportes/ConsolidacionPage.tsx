@@ -157,7 +157,7 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
       <Row gutter={16} style={{ marginBottom: 20 }}>
         {[
           { title: 'Ingresos consolidados', value: data.totalIngresos, color: '#2ea172' },
-          { title: 'Gastos consolidados',   value: data.totalGastos,   color: '#e5484d' },
+          { title: 'Compras realizadas',    value: data.totalGastos,   color: '#e5484d' },
           { title: 'Utilidad consolidada',  value: data.utilidadConsolidada, color: posneg(data.utilidadConsolidada) },
           { title: 'ISR determinado (5% / 7%)', value: data.isrDeterminadoTotal, color: '#d46b08' },
         ].map(s => (
@@ -178,7 +178,10 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
         style={{ marginBottom: 20 }}
         columns={[
           { title: 'Empresa', dataIndex: 'legalName', render: (v, r: any) => <><span style={{ fontSize: 12, fontWeight: 600 }}>{v}</span><div style={{ fontSize: 11, color: '#6b7280' }}>{r.regNombre} · NIT {r.taxId}</div></> },
-          { title: 'Ingresos', dataIndex: 'ingresos', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v)}</span> },
+          { title: <span title="Ingresos facturados afectos del período: sin exentas y menos notas de crédito. Es la base del ISR de este régimen.">Renta imponible</span>, dataIndex: 'rentaImponible', align: 'right',
+            render: (v: number, r: any) => r.aplicaIsr
+              ? <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span>
+              : <Tooltip title={`Ingresos contables del período: ${Q(r.ingresos ?? 0)}`}><span style={{ ...qStyle, fontSize: 12, color: '#9aa1ab' }}>{Q(v ?? 0)}</span></Tooltip> },
           { title: 'Compras realizadas', dataIndex: 'gastos', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#e5484d' }}>{Q(v)}</span> },
           { title: 'Utilidad', dataIndex: 'utilidad', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: posneg(v) }}>{Q(v)}</span> },
           // IVA del período (mes / trimestre / año), misma base que la Declaración IVA: débito
@@ -194,20 +197,23 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           // lo determinado, lo que ya le retuvieron, y el saldo.
           { title: <span title="5% sobre los primeros Q30,000 de cada mes y 7% sobre el excedente (SAT-1311)">ISR determinado</span>, dataIndex: 'isrDeterminado', align: 'right',
             render: (v: number, r: any) => r.aplicaIsr
-              ? <Tooltip title={`Calculado sobre la renta imponible del período: ${Q(r.rentaImponible ?? 0)} (facturado afecto, sin exentas y menos notas de crédito)`}>
-                  <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span>
-                </Tooltip>
+              ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span>
               : <Tooltip title="Este régimen no determina ISR sobre ingresos"><span style={{ fontSize: 12, color: '#9aa1ab' }}>No aplica</span></Tooltip> },
           { title: <span title="Retenciones de ISR que ya le practicaron sus clientes en el período">ISR retenido</span>, dataIndex: 'isrRetenido', align: 'right',
             render: (v: number, r: any) => r.aplicaIsr
               ? <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span>
               : <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span> },
-          { title: <span title="Retenido − determinado: lo pagado de más queda acreditable; si falta, es lo que toca pagar">Excedente ISR pagado</span>, dataIndex: 'isrPorPagar', align: 'right',
-            render: (v: number, r: any) => !r.aplicaIsr
-              ? <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span>
-              : (v ?? 0) < -0.005
-                ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#2ea172' }}>{Q(Math.abs(v))} acreditable</span>
-                : <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)} a pagar</span> },
+          // El ISR de este régimen es definitivo: lo retenido no queda a favor para otro
+          // período, se paga el excedente y ese pago es gasto del período.
+          { title: <span title="Determinado menos lo ya retenido: es lo que se paga. En este régimen el ISR es definitivo, no queda saldo a favor.">Excedente ISR pagado</span>, dataIndex: 'isrPorPagar', align: 'right',
+            render: (v: number, r: any) => {
+              if (!r.aplicaIsr) return <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span>
+              const retenidoDeMas = (r.isrRetenido ?? 0) - (r.isrDeterminado ?? 0)
+              const monto = <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span>
+              return retenidoDeMas > 0.005
+                ? <Tooltip title={`Le retuvieron ${Q(retenidoDeMas)} más que el impuesto determinado. En este régimen no queda a favor.`}>{monto}</Tooltip>
+                : monto
+            } },
         ]}
       />
 
@@ -482,8 +488,8 @@ function exportarExcel(params: {
   if (erData) XLSX.utils.book_append_sheet(wb, toSheet(erData), 'Est. Resultados')
 
   if (pfData) {
-    const headers = ['Empresa', 'NIT', 'Régimen', 'Ingresos', 'Compras realizadas', 'Utilidad', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Variación IVA', 'ISR determinado', 'ISR retenido', 'Excedente ISR pagado']
-    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.ingresos, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.ivaPorPagar ?? 0, e.aplicaIsr ? e.isrDeterminado : 'No aplica', e.aplicaIsr ? e.isrRetenido : '', e.aplicaIsr ? e.isrPorPagar : ''])
+    const headers = ['Empresa', 'NIT', 'Régimen', 'Renta imponible', 'Compras realizadas', 'Utilidad', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Variación IVA', 'ISR determinado', 'ISR retenido', 'Excedente ISR pagado']
+    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.rentaImponible, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.ivaPorPagar ?? 0, e.aplicaIsr ? e.isrDeterminado : 'No aplica', e.aplicaIsr ? e.isrRetenido : '', e.aplicaIsr ? e.isrPorPagar : ''])
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Plan. Fiscal')
   }
 
