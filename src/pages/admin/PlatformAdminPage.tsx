@@ -27,6 +27,7 @@ import {
   type TenantBillingInfo, type TenantBillingPayment,
 } from '../../api/billing'
 import { companiesApi } from '../../api/companies'
+import { tenantsApi } from '../../api/tenants'
 import { platformTemplatesApi, type PlatformTemplate } from '../../api/platformTemplates'
 import { getAccounts, type Account } from '../../api/catalogo'
 
@@ -1083,6 +1084,39 @@ export default function PlatformAdminPage() {
   }
 
   // Eliminar tenant basura (registro web sin uso) — solo Super Admin; el backend protege activos y con cobros
+  // Datos del cliente: hasta ahora no había forma de corregirlos. El cliente nace
+  // con el nombre de quien se registró («Mario de Paz»), y ese nombre es el que ve
+  // el administrador y el que lleva la factura de la suscripción.
+  const [clienteEditando, setClienteEditando] = useState<TenantSummary | null>(null)
+  const [datosCliente, setDatosCliente] = useState({ name: '', legalName: '', taxId: '' })
+  const [guardandoCliente, setGuardandoCliente] = useState(false)
+
+  const abrirEdicionCliente = (t: TenantSummary) => {
+    setClienteEditando(t)
+    setDatosCliente({ name: t.name ?? '', legalName: t.legalName ?? '', taxId: t.taxId ?? '' })
+  }
+
+  const guardarCliente = async () => {
+    if (!clienteEditando) return
+    const nombre = datosCliente.name.trim()
+    if (!nombre) { message.error('El nombre del cliente es obligatorio'); return }
+    setGuardandoCliente(true)
+    try {
+      await tenantsApi.updateCliente(clienteEditando.id, {
+        name:      nombre,
+        legalName: datosCliente.legalName.trim() || undefined,
+        taxId:     datosCliente.taxId.trim() || undefined,
+      })
+      message.success(`Cliente actualizado: ${nombre}`)
+      setClienteEditando(null)
+      await loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo actualizar el cliente')
+    } finally {
+      setGuardandoCliente(false)
+    }
+  }
+
   // Restricción de módulos por tenant (Platform Admin)
   const [modTenant, setModTenant] = useState<any | null>(null)
   const [modSel, setModSel] = useState<string[] | null>(null)
@@ -1452,6 +1486,9 @@ export default function PlatformAdminPage() {
           <Tooltip title="Detalle: empresas, usuarios y cobros">
             <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} />
           </Tooltip>
+          <Tooltip title="Editar datos del cliente (nombre, razón social, NIT)">
+            <Button size="small" icon={<EditOutlined />} onClick={() => abrirEdicionCliente(r)} />
+          </Tooltip>
           <Tooltip title="Facturación e historial de pagos">
             <Button size="small" icon={<DollarOutlined />} onClick={() => openBillingModal(r)}
               style={{ color: '#2ea172', borderColor: '#2ea172' }} />
@@ -1521,6 +1558,50 @@ export default function PlatformAdminPage() {
           </Button>
         </Space>
       </div>
+
+      {/* Modal: datos del cliente (nombre, razón social, NIT) */}
+      <Modal
+        title={<Space><EditOutlined />Datos del cliente — {clienteEditando?.name}</Space>}
+        open={!!clienteEditando}
+        onCancel={() => setClienteEditando(null)}
+        onOk={guardarCliente}
+        okText="Guardar"
+        okButtonProps={{ loading: guardandoCliente, style: { background: '#1faec2' } }}
+        cancelText="Cancelar"
+        width={460}
+        destroyOnClose
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>Nombre del cliente</Text>
+            <Input
+              value={datosCliente.name}
+              onChange={e => setDatosCliente(d => ({ ...d, name: e.target.value }))}
+              placeholder="Ej: GLL Consulting"
+            />
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
+              Es el nombre con el que el cliente aparece en este panel y en la factura de su
+              suscripción. No cambia el esquema de sus datos ni el nombre de sus empresas.
+            </div>
+          </div>
+          <div>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>Razón social</Text>
+            <Input
+              value={datosCliente.legalName}
+              onChange={e => setDatosCliente(d => ({ ...d, legalName: e.target.value }))}
+              placeholder="Opcional"
+            />
+          </div>
+          <div>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>NIT</Text>
+            <Input
+              value={datosCliente.taxId}
+              onChange={e => setDatosCliente(d => ({ ...d, taxId: e.target.value }))}
+              placeholder="Opcional"
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal: módulos permitidos por tenant */}
       <Modal
