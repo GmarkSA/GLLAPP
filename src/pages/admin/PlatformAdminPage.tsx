@@ -662,9 +662,14 @@ const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> 
   active: 'success', trial: 'default', suspended: 'warning', cancelled: 'error',
 }
 
+interface EmpresaDelCliente {
+  id: string; legalName: string; tradeName?: string | null; taxId?: string | null
+}
 interface TenantSummary {
   settings?: any
   id: string; name: string; legalName?: string; taxId?: string
+  /** Empresas del cliente: una empresa vive dentro de un cliente, y se busca por su nombre */
+  companies?: EmpresaDelCliente[]
   plan?: string; status?: string; companiesCount?: number
   usersCount?: number; createdAt?: string; trialEndsAt?: string
   trialDaysLeft?: number; customMonthlyPriceUSD?: number
@@ -1329,11 +1334,21 @@ export default function PlatformAdminPage() {
     .filter(t => t.status === 'trial' && t.trialDaysLeft != null)
     .sort((a, b) => (a.trialDaysLeft ?? 0) - (b.trialDaysLeft ?? 0))[0]
 
+  /** Empresas del cliente que coinciden con la búsqueda (vacío si no se busca). */
+  const empresasQueCoinciden = (t: TenantSummary, q: string): EmpresaDelCliente[] =>
+    q ? (t.companies ?? []).filter(c =>
+      [c.legalName, c.tradeName, c.taxId].some(v => (v ?? '').toLowerCase().includes(q)),
+    ) : []
+
+  // La búsqueda alcanza también a las empresas de cada cliente: escribir «Kaizen»
+  // antes no encontraba nada porque Kaizen es una empresa dentro de un cliente.
+  const busquedaTenant = tenantSearch.trim().toLowerCase()
   const filteredTenants = tenants.filter(t => {
     if (tenantFilter !== 'all' && t.status !== tenantFilter) return false
-    const q = tenantSearch.trim().toLowerCase()
-    if (q) return [t.name, t.legalName, t.taxId].some(v => (v ?? '').toLowerCase().includes(q))
-    return true
+    if (!busquedaTenant) return true
+    const enElCliente = [t.name, t.legalName, t.taxId]
+      .some(v => (v ?? '').toLowerCase().includes(busquedaTenant))
+    return enElCliente || empresasQueCoinciden(t, busquedaTenant).length > 0
   })
   const planOptions = plans.map(plan => ({
     value: plan.plan,
@@ -1342,14 +1357,24 @@ export default function PlatformAdminPage() {
 
   const tenantColumns: ColumnsType<TenantSummary> = [
     {
-      title: 'Tenant',
-      render: (_, r) => (
-        <div>
-          <b style={{ fontSize: 13 }}>{r.name}</b>
-          {r.legalName && r.legalName !== r.name && <div style={{ fontSize: 11, color: '#6b7280' }}>{r.legalName}</div>}
-          {r.taxId && <div style={{ fontSize: 11, color: '#aaa' }}>NIT: {r.taxId}</div>}
-        </div>
-      ),
+      title: 'Cliente',
+      render: (_, r) => {
+        // Al buscar una empresa se muestra cuál coincidió y de qué cliente es,
+        // sin tener que expandir la fila.
+        const coincidencias = empresasQueCoinciden(r, busquedaTenant)
+        return (
+          <div>
+            <b style={{ fontSize: 13 }}>{r.name}</b>
+            {r.legalName && r.legalName !== r.name && <div style={{ fontSize: 11, color: '#6b7280' }}>{r.legalName}</div>}
+            {r.taxId && <div style={{ fontSize: 11, color: '#aaa' }}>NIT: {r.taxId}</div>}
+            {coincidencias.map(c => (
+              <div key={c.id} style={{ fontSize: 11, color: '#1faec2', marginTop: 2 }}>
+                ↳ {c.tradeName || c.legalName}{c.taxId ? ` · NIT ${c.taxId}` : ''}
+              </div>
+            ))}
+          </div>
+        )
+      },
     },
     {
       title: 'Plan',
@@ -1636,7 +1661,7 @@ export default function PlatformAdminPage() {
                     allowClear
                     size="small"
                     prefix={<SearchOutlined style={{ color: '#aaa' }} />}
-                    placeholder="Buscar empresa, NIT…"
+                    placeholder="Buscar cliente o empresa, NIT…"
                     value={tenantSearch}
                     onChange={e => setTenantSearch(e.target.value)}
                     style={{ maxWidth: 260, marginLeft: 'auto' }}
