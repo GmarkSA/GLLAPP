@@ -60,6 +60,22 @@ export interface Recomendacion {
   empresa?: { id: string; nombre: string }
 }
 
+export interface EmpresaProyeccionIva {
+  companyId: string
+  legalName: string
+  remanenteHeredado: number
+  ivaDebitoEstimado: number
+  ivaCreditoEstimado: number
+  ivaNetoEstimado: number // >0 a pagar (estimado) · <0 a favor (estimado)
+}
+
+export interface ProyeccionMesActual {
+  mes: string       // 'YYYY-MM'
+  cortadoAl: string // fecha hasta la que se sumaron facturas (hoy)
+  empresas: EmpresaProyeccionIva[]
+  totalEstimado: number
+}
+
 export interface PlanificacionFiscal {
   periodo: { startDate: string; endDate: string }
   empresas: EmpresaFiscal[]
@@ -73,6 +89,10 @@ export interface PlanificacionFiscal {
   isrDeterminadoTotal: number
   isrRetenidoTotal: number
   isrPorPagarTotal: number
+  // Solo viene cuando el mes de hoy cae dentro del período consultado y hay
+  // empresas sin declaración de ese mes todavía — es una ESTIMACIÓN, nunca
+  // forma parte de ivaPorPagarTotal.
+  proyeccionMesActual: ProyeccionMesActual | null
   recomendaciones: Recomendacion[]
 }
 
