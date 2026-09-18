@@ -360,9 +360,6 @@ export const emitirFelInvoice = (id: string) =>
 export const anularFelInvoice = (id: string, motivo: string) =>
   api.post(`${BASE_INV}/${id}/anular-fel`, { motivo }).then(unwrap) as Promise<Invoice>
 
-export const writeOffInvoice = (id: string, reason: string) =>
-  api.post(`${BASE_INV}/${id}/condonar`, { reason }).then(unwrap) as Promise<Invoice>
-
 export const deleteInvoice = (id: string) =>
   api.delete(`${BASE_INV}/${id}`)
 
