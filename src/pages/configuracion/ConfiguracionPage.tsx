@@ -613,6 +613,14 @@ function FiscalSection({
                     </Select>
                   </Form.Item>
                 </Col>
+                <Col xs={24}>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                    Cada corrida trae los documentos desde 2 días antes de tu última importación hasta hoy
+                    (no exactamente desde donde terminó la semana pasada), porque SAT a veces publica un DTE
+                    unos días después de su fecha real de emisión. Es normal que las fechas se solapen con la
+                    semana anterior — el sistema reconoce cada documento por su UUID y nunca lo duplica.
+                  </Text>
+                </Col>
               </Row>
             )}
           </SectionCard>
