@@ -424,6 +424,7 @@ function FiscalSection({
   const fiscalMeta = COUNTRY_FISCAL_CONFIG[fiscalCountryCode] ?? COUNTRY_FISCAL_CONFIG.GT
   const watchedRegimeId = Form.useWatch(['settings', 'fiscalRegimeId'], form)
   const selectedRegime = regimes.find(r => r.id === watchedRegimeId)
+  const watchedSatAutoImport = Form.useWatch(['settings', 'satAutoImportEnabled'], form)
 
   useEffect(() => {
     fiscalRegimesApi.getAll(fiscalCountryCode).then(setRegimes).catch(() => {})
@@ -443,6 +444,7 @@ function FiscalSection({
           satNit:              companySettings?.settingsJson?.satNit ?? s.satNit ?? fullCompany?.taxId ?? undefined,
           satAgenciaPassword:  companySettings?.settingsJson?.satAgenciaPassword ?? s.satAgenciaPassword ?? undefined,
           satAutoImportEnabled: companySettings?.settingsJson?.satAutoImportEnabled ?? false,
+          satAutoImportDayOfWeek: companySettings?.settingsJson?.satAutoImportDayOfWeek ?? 5, // 5 = viernes
         },
       })
     }
@@ -462,9 +464,10 @@ function FiscalSection({
         const curJson = companySettings?.settingsJson ?? {}
         const nextJson = {
           ...curJson,
-          satNit:               values.settings?.satNit ?? curJson.satNit,
-          satAgenciaPassword:   values.settings?.satAgenciaPassword ?? curJson.satAgenciaPassword,
-          satAutoImportEnabled: values.settings?.satAutoImportEnabled ?? false,
+          satNit:                 values.settings?.satNit ?? curJson.satNit,
+          satAgenciaPassword:     values.settings?.satAgenciaPassword ?? curJson.satAgenciaPassword,
+          satAutoImportEnabled:   values.settings?.satAutoImportEnabled ?? false,
+          satAutoImportDayOfWeek: values.settings?.satAutoImportDayOfWeek ?? curJson.satAutoImportDayOfWeek ?? 5,
         }
         await companiesApi.updateSettings(activeCompany.id, { settingsJson: nextJson } as any).catch(() => {})
         setCompanySettings((cs: any) => ({ ...(cs ?? {}), settingsJson: nextJson }))
@@ -583,7 +586,8 @@ function FiscalSection({
               <Col flex="auto">
                 <Text strong>Importación automática de DTE recibidos</Text>
                 <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-                  El sistema importa solo, sin que nadie dé clic: cada viernes y también al cierre de mes (día 30/31).
+                  El sistema importa solo, sin que nadie dé clic, el día de la semana que elijas — y además una
+                  pasada extra al cierre de mes (día 30/31) para atrapar documentos que SAT publicó tarde.
                   Los documentos llegan a la bandeja "DTE SAT" en Compras para revisión y contabilización manual —
                   esto no contabiliza nada automáticamente.
                 </Text>
@@ -594,6 +598,23 @@ function FiscalSection({
                 </Form.Item>
               </Col>
             </Row>
+            {watchedSatAutoImport && (
+              <Row style={{ marginTop: 12 }}>
+                <Col xs={24} md={12}>
+                  <Form.Item name={['settings', 'satAutoImportDayOfWeek']} label="Día de la importación semanal" style={{ marginBottom: 0 }}>
+                    <Select size="large">
+                      <Option value={1}>Lunes</Option>
+                      <Option value={2}>Martes</Option>
+                      <Option value={3}>Miércoles</Option>
+                      <Option value={4}>Jueves</Option>
+                      <Option value={5}>Viernes</Option>
+                      <Option value={6}>Sábado</Option>
+                      <Option value={0}>Domingo</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+            )}
           </SectionCard>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
