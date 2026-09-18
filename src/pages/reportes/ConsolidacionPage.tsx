@@ -160,7 +160,7 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           { title: 'Ingresos consolidados', value: data.totalIngresos, color: '#2ea172' },
           { title: 'Gastos consolidados',   value: data.totalGastos,   color: '#e5484d' },
           { title: 'Utilidad consolidada',  value: data.utilidadConsolidada, color: posneg(data.utilidadConsolidada) },
-          { title: 'ISR proyectado total',  value: data.isrConsolidado, color: '#d46b08' },
+          { title: 'ISR determinado (5% / 7%)', value: data.isrDeterminadoTotal, color: '#d46b08' },
         ].map(s => (
           <Col span={6} key={s.title}>
             <Card size="small" style={{ borderRadius: 8 }}>
@@ -190,8 +190,27 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           { title: <span title="Débito − Crédito del período: a pagar si es positivo, saldo a favor si es negativo (sin remanente de períodos anteriores)">Variación IVA</span>, dataIndex: 'ivaPorPagar', align: 'right', render: (v: number) => (v ?? 0) < -0.005
               ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#2ea172' }}>{Q(Math.abs(v))} a favor</span>
               : <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)} a pagar</span> },
-          { title: 'Tasa ISR', dataIndex: 'tasaIsr',  align: 'center', render: (v: number) => <span style={{ fontSize: 12 }}>{(v * 100).toFixed(0)}%</span> },
-          { title: 'ISR Proyectado', dataIndex: 'isrProyectado', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v)}</span> },
+          // ISR del Opcional Simplificado: se paga sobre los INGRESOS facturados, no
+          // sobre la utilidad, y el tramo del 5% es mensual. Se lee igual que el IVA:
+          // lo determinado, lo que ya le retuvieron, y el saldo.
+          { title: <span title="Ingresos facturados afectos del período: sin exentas, menos notas de crédito">Renta imponible</span>, dataIndex: 'rentaImponible', align: 'right',
+            render: (v: number, r: any) => r.aplicaIsr
+              ? <span style={{ ...qStyle, fontSize: 12 }}>{Q(v ?? 0)}</span>
+              : <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span> },
+          { title: <span title="5% sobre los primeros Q30,000 de cada mes y 7% sobre el excedente (SAT-1311)">ISR determinado</span>, dataIndex: 'isrDeterminado', align: 'right',
+            render: (v: number, r: any) => r.aplicaIsr
+              ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span>
+              : <Tooltip title="Este régimen no determina ISR sobre ingresos"><span style={{ fontSize: 12, color: '#9aa1ab' }}>No aplica</span></Tooltip> },
+          { title: <span title="Retenciones de ISR que ya le practicaron sus clientes en el período">ISR retenido</span>, dataIndex: 'isrRetenido', align: 'right',
+            render: (v: number, r: any) => r.aplicaIsr
+              ? <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span>
+              : <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span> },
+          { title: <span title="Determinado − retenido: a pagar si es positivo, excedente acreditable si es negativo">Saldo ISR</span>, dataIndex: 'isrPorPagar', align: 'right',
+            render: (v: number, r: any) => !r.aplicaIsr
+              ? <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span>
+              : (v ?? 0) < -0.005
+                ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#2ea172' }}>{Q(Math.abs(v))} a favor</span>
+                : <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)} a pagar</span> },
           { title: 'Situación', dataIndex: 'situacion', align: 'center', render: (v: string) => <Tag color={situacionColor(v)}>{v.charAt(0).toUpperCase() + v.slice(1)}</Tag> },
         ]}
       />
@@ -467,8 +486,8 @@ function exportarExcel(params: {
   if (erData) XLSX.utils.book_append_sheet(wb, toSheet(erData), 'Est. Resultados')
 
   if (pfData) {
-    const headers = ['Empresa', 'NIT', 'Régimen', 'Ingresos', 'Gastos', 'Utilidad', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Variación IVA', 'Tasa ISR', 'ISR Proyectado', 'Situación']
-    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.ingresos, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.ivaPorPagar ?? 0, e.tasaIsr, e.isrProyectado, e.situacion])
+    const headers = ['Empresa', 'NIT', 'Régimen', 'Ingresos', 'Gastos', 'Utilidad', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Variación IVA', 'Renta imponible', 'ISR determinado', 'ISR retenido', 'Saldo ISR', 'Situación']
+    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.ingresos, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.ivaPorPagar ?? 0, e.aplicaIsr ? e.rentaImponible : '', e.aplicaIsr ? e.isrDeterminado : 'No aplica', e.aplicaIsr ? e.isrRetenido : '', e.aplicaIsr ? e.isrPorPagar : '', e.situacion])
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Plan. Fiscal')
   }
 
