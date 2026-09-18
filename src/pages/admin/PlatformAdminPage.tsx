@@ -1407,9 +1407,14 @@ export default function PlatformAdminPage() {
                 del panel con lo que muestran las tablas de la base. */}
             {r.schemaName && (
               <Tooltip title="Esquema donde viven los datos de este cliente">
-                <div style={{ fontSize: 10, color: '#c2c7cf', fontFamily: 'monospace' }}>
+                <span style={{
+                  display: 'inline-block', marginTop: 3,
+                  fontSize: 11, fontFamily: 'monospace', color: '#4b5563',
+                  background: '#f1f5f9', border: '1px solid #e2e8f0',
+                  borderRadius: 4, padding: '1px 6px',
+                }}>
                   tenant_{r.schemaName}
-                </div>
+                </span>
               </Tooltip>
             )}
             {coincidencias.map(c => (
@@ -1583,6 +1588,15 @@ export default function PlatformAdminPage() {
         destroyOnClose
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {clienteEditando?.schemaName && (
+            <div style={{ fontSize: 12, color: '#6b7280' }}>
+              Esquema:{' '}
+              <span style={{ fontFamily: 'monospace', color: '#0a0a0a' }}>
+                tenant_{clienteEditando.schemaName}
+              </span>
+              <div style={{ fontSize: 11, color: '#aaa' }}>No cambia al renombrar al cliente.</div>
+            </div>
+          )}
           <div>
             <Text style={{ fontSize: 12, color: '#6b7280' }}>Nombre del cliente</Text>
             <Input
