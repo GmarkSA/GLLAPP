@@ -18,4 +18,8 @@ export const tenantsApi = {
 
   updateProfile: (dto: Partial<TenantProfile> & { settings?: Record<string, any> }) =>
     api.patch('/tenants/profile', dto).then(unwrap) as Promise<TenantProfile>,
+
+  /** Datos del cliente desde el panel de plataforma (solo Super Admin). */
+  updateCliente: (id: string, dto: Partial<Pick<TenantProfile, 'name' | 'legalName' | 'taxId'>>) =>
+    api.patch(`/tenants/${id}`, dto).then(unwrap) as Promise<TenantProfile>,
 }
