@@ -21,6 +21,9 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     environment: import.meta.env.MODE,
+    // El commit con el que se construyó: es lo que permite que Sentry señale el
+    // cambio que introdujo un error, con el repositorio conectado.
+    release: __COMMIT__,
     tracesSampleRate: 0.1,
     integrations: [Sentry.browserTracingIntegration()],
   })
