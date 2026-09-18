@@ -669,6 +669,8 @@ interface EmpresaDelCliente {
 interface TenantSummary {
   settings?: any
   id: string; name: string; legalName?: string; taxId?: string
+  /** Esquema donde viven sus datos (tenant_<schemaName>): permite cruzar el panel con la base */
+  schemaName?: string
   /** Empresas del cliente: una empresa vive dentro de un cliente, y se busca por su nombre */
   companies?: EmpresaDelCliente[]
   plan?: string; status?: string; companiesCount?: number
@@ -1380,7 +1382,7 @@ export default function PlatformAdminPage() {
   const filteredTenants = tenants.filter(t => {
     if (tenantFilter !== 'all' && t.status !== tenantFilter) return false
     if (!busquedaTenant) return true
-    const enElCliente = [t.name, t.legalName, t.taxId]
+    const enElCliente = [t.name, t.legalName, t.taxId, t.schemaName]
       .some(v => (v ?? '').toLowerCase().includes(busquedaTenant))
     return enElCliente || empresasQueCoinciden(t, busquedaTenant).length > 0
   })
@@ -1401,6 +1403,15 @@ export default function PlatformAdminPage() {
             <b style={{ fontSize: 13 }}>{r.name}</b>
             {r.legalName && r.legalName !== r.name && <div style={{ fontSize: 11, color: '#6b7280' }}>{r.legalName}</div>}
             {r.taxId && <div style={{ fontSize: 11, color: '#aaa' }}>NIT: {r.taxId}</div>}
+            {/* El esquema donde viven sus datos: sin esto no se podía cruzar una fila
+                del panel con lo que muestran las tablas de la base. */}
+            {r.schemaName && (
+              <Tooltip title="Esquema donde viven los datos de este cliente">
+                <div style={{ fontSize: 10, color: '#c2c7cf', fontFamily: 'monospace' }}>
+                  tenant_{r.schemaName}
+                </div>
+              </Tooltip>
+            )}
             {coincidencias.map(c => (
               <div key={c.id} style={{ fontSize: 11, color: '#1faec2', marginTop: 2 }}>
                 ↳ {c.tradeName || c.legalName}{c.taxId ? ` · NIT ${c.taxId}` : ''}
