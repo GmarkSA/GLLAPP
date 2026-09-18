@@ -36,9 +36,14 @@ export interface EmpresaFiscal {
   ivaDebito: number
   ivaCredito: number
   ivaPorPagar: number // >0 a pagar · <0 saldo a favor
-  isrProyectado: number
-  baseIsr: number
-  tasaIsr: number
+  // ISR del Régimen Opcional Simplificado sobre Ingresos (SAT-1311): 5% sobre los
+  // primeros Q30,000 de cada mes y 7% sobre el excedente, sobre lo facturado.
+  aplicaIsr: boolean
+  rentaImponible: number
+  isrPorMes: Array<{ mes: string; renta: number; isr: number }>
+  isrDeterminado: number
+  isrRetenido: number
+  isrPorPagar: number // >0 a pagar · <0 excedente de retenciones
   situacion: 'rentable' | 'perdida' | 'equilibrio'
 }
 
@@ -64,7 +69,10 @@ export interface PlanificacionFiscal {
   ivaDebitoTotal?: number
   ivaCreditoTotal: number
   ivaPorPagarTotal: number
-  isrConsolidado: number
+  rentaImponibleTotal: number
+  isrDeterminadoTotal: number
+  isrRetenidoTotal: number
+  isrPorPagarTotal: number
   recomendaciones: Recomendacion[]
 }
 
@@ -155,7 +163,7 @@ export interface AlertaCierre {
   motivo?: string
   periodo?: { startDate: string; endDate: string }
   recomendaciones?: Recomendacion[]
-  empresas?: Array<{ companyId: string; legalName: string; utilidad: number; isrProyectado: number; ivaPorPagar: number }>
+  empresas?: Array<{ companyId: string; legalName: string; utilidad: number; isrDeterminado: number; ivaPorPagar: number }>
 }
 
 export const getAlertaCierre = (): Promise<AlertaCierre> =>
