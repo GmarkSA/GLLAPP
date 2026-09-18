@@ -442,6 +442,7 @@ function FiscalSection({
           // Credenciales SAT POR EMPRESA: la de la empresa gana; fallback org → NIT de la empresa
           satNit:              companySettings?.settingsJson?.satNit ?? s.satNit ?? fullCompany?.taxId ?? undefined,
           satAgenciaPassword:  companySettings?.settingsJson?.satAgenciaPassword ?? s.satAgenciaPassword ?? undefined,
+          satAutoImportEnabled: companySettings?.settingsJson?.satAutoImportEnabled ?? false,
         },
       })
     }
@@ -457,9 +458,14 @@ function FiscalSection({
         settings: { ...existingSettings, ...values.settings },
       })
       // Credenciales SAT: se guardan en la EMPRESA activa (cada empresa importa su propio NIT)
-      if (activeCompany?.id && (values.settings?.satNit || values.settings?.satAgenciaPassword)) {
+      if (activeCompany?.id && (values.settings?.satNit || values.settings?.satAgenciaPassword || values.settings?.satAutoImportEnabled !== undefined)) {
         const curJson = companySettings?.settingsJson ?? {}
-        const nextJson = { ...curJson, satNit: values.settings?.satNit ?? curJson.satNit, satAgenciaPassword: values.settings?.satAgenciaPassword ?? curJson.satAgenciaPassword }
+        const nextJson = {
+          ...curJson,
+          satNit:               values.settings?.satNit ?? curJson.satNit,
+          satAgenciaPassword:   values.settings?.satAgenciaPassword ?? curJson.satAgenciaPassword,
+          satAutoImportEnabled: values.settings?.satAutoImportEnabled ?? false,
+        }
         await companiesApi.updateSettings(activeCompany.id, { settingsJson: nextJson } as any).catch(() => {})
         setCompanySettings((cs: any) => ({ ...(cs ?? {}), settingsJson: nextJson }))
       }
@@ -572,6 +578,22 @@ function FiscalSection({
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 10 }}>
               Tu contraseña de Agencia Virtual se usa únicamente para importar los DTE emitidos y recibidos desde SAT.
             </Text>
+            <Divider style={{ margin: '16px 0' }} />
+            <Row align="middle" justify="space-between" gutter={[12, 8]}>
+              <Col flex="auto">
+                <Text strong>Importación automática de DTE recibidos</Text>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                  El sistema importa solo, sin que nadie dé clic: cada viernes y también al cierre de mes (día 30/31).
+                  Los documentos llegan a la bandeja "DTE SAT" en Compras para revisión y contabilización manual —
+                  esto no contabiliza nada automáticamente.
+                </Text>
+              </Col>
+              <Col>
+                <Form.Item name={['settings', 'satAutoImportEnabled']} valuePropName="checked" style={{ marginBottom: 0 }}>
+                  <Switch />
+                </Form.Item>
+              </Col>
+            </Row>
           </SectionCard>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
