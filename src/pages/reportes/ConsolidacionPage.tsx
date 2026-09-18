@@ -334,7 +334,7 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           { title: <span title="IVA crédito fiscal de las compras del período. Clic para ver los documentos.">IVA Crédito Fiscal</span>, dataIndex: 'ivaCredito', align: 'right',
             render: (v: number, r: any) => <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
               style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</a> },
-          { title: <span title="Débito − Crédito del período: se paga si es positivo, queda a favor si es negativo (sin remanente de períodos anteriores). Clic para revisar los documentos y lo declarado.">IVA pagado / a favor</span>, dataIndex: 'ivaPorPagar', align: 'right',
+          { title: <span title="Neto real: usa el IVA ya declarado mes a mes (con su remanente) para los meses presentados, y estima el mes en curso encadenando el mismo remanente. Puede no coincidir con Débito − Crédito de este cuadro si hay saldo a favor arrastrado. Clic para revisar los documentos y lo declarado.">IVA pagado / a favor</span>, dataIndex: 'ivaPorPagar', align: 'right',
             render: (v: number, r: any) => (
               <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
                  style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: (v ?? 0) < -0.005 ? '#2ea172' : '#d46b08' }}>
