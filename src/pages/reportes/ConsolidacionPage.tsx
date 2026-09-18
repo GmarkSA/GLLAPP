@@ -16,8 +16,8 @@ import { useCompanyStore } from '../../store/companyStore'
 import { companiesApi } from '../../api/companies'
 import {
   getBalanceGeneral, getEstadoResultados, getPlanificacionFiscal,
-  getFlujoCaja, getMovimientoCapital, getEliminacionIntercompany,
-  type ConsolidacionQuery, type ResultadoConsolidado,
+  getFlujoCaja, getMovimientoCapital, getEliminacionIntercompany, getDetalleIva,
+  type ConsolidacionQuery, type ResultadoConsolidado, type DetalleIva,
   type PlanificacionFiscal, type Recomendacion,
   type FlujoCaja, type MovimientoCapital, type EliminacionIntercompany,
 } from '../../api/consolidacion'
@@ -138,9 +138,142 @@ function TablaConsolidada({ data, companyNames }: { data: ResultadoConsolidado; 
 }
 
 // ── Panel de planificación fiscal ─────────────────────────────────────────
+/**
+ * Detalle del IVA de una empresa: qué documentos forman la cifra, qué incidencias
+ * tienen y si lo del período ya se declaró. Se abre desde el cuadro.
+ */
+function DetalleIvaModal({ empresa, periodo, onClose }: {
+  empresa: { companyId: string; legalName: string } | null
+  periodo: { startDate: string; endDate: string }
+  onClose: () => void
+}) {
+  const [detalle, setDetalle] = useState<DetalleIva | null>(null)
+  const [cargando, setCargando] = useState(false)
+  const [soloIncidencias, setSoloIncidencias] = useState(false)
+
+  useEffect(() => {
+    if (!empresa) { setDetalle(null); return }
+    setCargando(true)
+    getDetalleIva({ companyId: empresa.companyId, ...periodo })
+      .then(setDetalle)
+      .catch(() => setDetalle(null))
+      .finally(() => setCargando(false))
+  }, [empresa?.companyId, periodo.startDate, periodo.endDate])
+
+  const documentos = (detalle?.documentos ?? [])
+    .filter(d => !soloIncidencias || d.incidencias.length > 0)
+
+  const estadoDeclaracion: Record<string, { color: string; texto: string }> = {
+    presentada:      { color: 'green',  texto: 'Presentada' },
+    poliza_generada: { color: 'blue',   texto: 'Póliza generada' },
+    borrador:        { color: 'orange', texto: 'Borrador' },
+  }
+
+  return (
+    <Modal
+      open={!!empresa}
+      onCancel={onClose}
+      footer={null}
+      width={1100}
+      title={<span>Detalle del IVA — {empresa?.legalName}</span>}
+      destroyOnClose
+    >
+      {cargando ? <Spin /> : !detalle ? <Empty description="Sin datos" /> : (
+        <>
+          <Row gutter={12} style={{ marginBottom: 14 }}>
+            {[
+              { t: 'IVA débito (ventas)',  v: detalle.resumen.ivaDebito,  c: '#d46b08' },
+              { t: 'IVA crédito (compras)', v: detalle.resumen.ivaCredito, c: '#2ea172' },
+              { t: detalle.resumen.ivaNeto >= 0 ? 'IVA pagado' : 'IVA a favor', v: Math.abs(detalle.resumen.ivaNeto), c: detalle.resumen.ivaNeto >= 0 ? '#d46b08' : '#2ea172' },
+            ].map(x => (
+              <Col span={8} key={x.t}>
+                <Card size="small"><Statistic title={<span style={{ fontSize: 12 }}>{x.t}</span>} value={x.v}
+                  prefix="Q" precision={2} valueStyle={{ color: x.c, fontSize: 16, ...qStyle }} /></Card>
+              </Col>
+            ))}
+          </Row>
+
+          {detalle.declaraciones.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <Text strong style={{ fontSize: 13 }}>Declaraciones del período</Text>
+              <Table
+                size="small" pagination={false} rowKey={r => `${r.anio}-${r.mes}`}
+                dataSource={detalle.declaraciones}
+                style={{ marginTop: 6 }}
+                columns={[
+                  { title: 'Período', render: (_, r) => `${String(r.mes).padStart(2, '0')}/${r.anio}` },
+                  { title: 'Estado', render: (_, r) => {
+                      const e = estadoDeclaracion[r.status] ?? { color: 'default', texto: r.status }
+                      return <Tag color={e.color}>{e.texto}</Tag>
+                    } },
+                  { title: 'Débito declarado', align: 'right', render: (_, r) => <span style={qStyle}>{Q(r.ivaDebitoDeclarado)}</span> },
+                  { title: 'Crédito declarado', align: 'right', render: (_, r) => <span style={qStyle}>{Q(r.ivaCreditoDeclarado)}</span> },
+                  { title: 'Neto declarado', align: 'right', render: (_, r) => <span style={{ ...qStyle, fontWeight: 600 }}>{Q(r.ivaNetoDeclarado)}</span> },
+                ]}
+              />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <Text strong style={{ fontSize: 13 }}>
+              {detalle.resumen.documentos} documentos
+            </Text>
+            {detalle.resumen.conIncidencias > 0 && (
+              <Tag color="orange" style={{ cursor: 'pointer' }} onClick={() => setSoloIncidencias(v => !v)}>
+                {detalle.resumen.conIncidencias} con incidencias {soloIncidencias ? '(mostrando solo estos)' : '— ver solo estos'}
+              </Tag>
+            )}
+            {detalle.resumen.sinContabilizar > 0 && (
+              <Tag color="red">{detalle.resumen.sinContabilizar} sin póliza</Tag>
+            )}
+          </div>
+
+          <Table
+            size="small" rowKey="id" dataSource={documentos} pagination={{ pageSize: 15 }}
+            columns={[
+              { title: 'Documento', render: (_, r) => (
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>{r.numero}</span>
+                    {r.esNotaCredito && <Tag color="purple" style={{ marginLeft: 6, fontSize: 10 }}>N/C</Tag>}
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>
+                      {r.lado === 'venta' ? 'Venta' : 'Compra'} · {r.contraparte ?? '—'}{r.nit ? ` · NIT ${r.nit}` : ''}
+                    </div>
+                  </div>
+                ) },
+              { title: 'Fecha', dataIndex: 'fecha', width: 110, render: (v: string, r) => (
+                  <div style={{ fontSize: 12 }}>
+                    {dayjs(v).format('DD/MM/YYYY')}
+                    {r.fechaContable && r.fechaContable.slice(0, 7) !== v.slice(0, 7) && (
+                      <div style={{ fontSize: 10, color: '#d46b08' }}>contab. {dayjs(r.fechaContable).format('DD/MM/YYYY')}</div>
+                    )}
+                  </div>
+                ) },
+              { title: 'Base', dataIndex: 'base', align: 'right', render: (v: number, r) => (
+                  <span style={{ ...qStyle, fontSize: 12 }}>{Q(r.esNotaCredito ? -v : v)}</span>
+                ) },
+              { title: 'IVA', dataIndex: 'iva', align: 'right', render: (v: number, r) => (
+                  <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: r.lado === 'venta' ? '#d46b08' : '#2ea172' }}>
+                    {Q(r.esNotaCredito ? -v : v)}
+                  </span>
+                ) },
+              { title: 'Revisar', render: (_, r) => r.incidencias.length === 0
+                  ? <span style={{ fontSize: 11, color: '#9aa1ab' }}>—</span>
+                  : <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {r.incidencias.map((i, k) => <Tag key={k} color="orange" style={{ fontSize: 10, whiteSpace: 'normal' }}>{i}</Tag>)}
+                    </div> },
+            ]}
+          />
+        </>
+      )}
+    </Modal>
+  )
+}
+
 function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
   const navigate      = useNavigate()
   const activeCompany = useCompanyStore(s => s.activeCompany)
+  // Empresa cuyo IVA se está revisando en el detalle
+  const [detalleDe, setDetalleDe] = useState<{ companyId: string; legalName: string } | null>(null)
 
   // Crear la factura sugerida: solo desde la empresa EMISORA (la factura se emite
   // con la empresa activa) — si está en otra, el botón lo indica en lugar de emitir mal.
@@ -193,11 +326,21 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           // IVA del período (mes / trimestre / año), misma base que la Declaración IVA: débito
           // (ventas), crédito (compras) y la variación = débito − crédito. Antes solo se veían el
           // crédito y el neto etiquetado "IVA por Pagar", que se leía como un saldo.
-          { title: <span title="IVA débito fiscal de las ventas del período">IVA por Pagar (débito)</span>, dataIndex: 'ivaDebito', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#d46b08' }}>{Q(v ?? 0)}</span> },
-          { title: <span title="IVA crédito fiscal de las compras del período">IVA Crédito Fiscal</span>, dataIndex: 'ivaCredito', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span> },
-          { title: <span title="Débito − Crédito del período: se paga si es positivo, queda a favor si es negativo (sin remanente de períodos anteriores)">IVA pagado / a favor</span>, dataIndex: 'ivaPorPagar', align: 'right', render: (v: number) => (v ?? 0) < -0.005
-              ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#2ea172' }}>{Q(Math.abs(v))} a favor</span>
-              : <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)} pagado</span> },
+          // Las cifras de IVA se abren: muestran los documentos que las forman, sus
+          // incidencias y si el período ya se declaró.
+          { title: <span title="IVA débito fiscal de las ventas del período. Clic para ver los documentos.">IVA por Pagar (débito)</span>, dataIndex: 'ivaDebito', align: 'right',
+            render: (v: number, r: any) => <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
+              style={{ ...qStyle, fontSize: 12, color: '#d46b08' }}>{Q(v ?? 0)}</a> },
+          { title: <span title="IVA crédito fiscal de las compras del período. Clic para ver los documentos.">IVA Crédito Fiscal</span>, dataIndex: 'ivaCredito', align: 'right',
+            render: (v: number, r: any) => <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
+              style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</a> },
+          { title: <span title="Débito − Crédito del período: se paga si es positivo, queda a favor si es negativo (sin remanente de períodos anteriores). Clic para revisar los documentos y lo declarado.">IVA pagado / a favor</span>, dataIndex: 'ivaPorPagar', align: 'right',
+            render: (v: number, r: any) => (
+              <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
+                 style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: (v ?? 0) < -0.005 ? '#2ea172' : '#d46b08' }}>
+                {(v ?? 0) < -0.005 ? `${Q(Math.abs(v))} a favor` : `${Q(v ?? 0)} pagado`}
+              </a>
+            ) },
           // ISR del Opcional Simplificado: se paga sobre los INGRESOS facturados, no
           // sobre la utilidad, y el tramo del 5% es mensual. Se lee igual que el IVA:
           // lo determinado, lo que ya le retuvieron, y el saldo.
@@ -221,6 +364,12 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
                 : monto
             } },
         ]}
+      />
+
+      <DetalleIvaModal
+        empresa={detalleDe}
+        periodo={data.periodo}
+        onClose={() => setDetalleDe(null)}
       />
 
       {data.recomendaciones.length === 0 ? (

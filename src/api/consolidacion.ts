@@ -148,6 +148,39 @@ export const getEstadoResultados = (q: ConsolidacionQuery): Promise<ResultadoCon
 export const getPlanificacionFiscal = (q: ConsolidacionQuery): Promise<PlanificacionFiscal> =>
   api.post('/consolidacion/planificacion-fiscal', q).then(unwrap)
 
+/** Documentos que componen el IVA de una empresa, con sus incidencias y lo declarado. */
+export interface DocumentoIva {
+  id: string
+  lado: 'venta' | 'compra'
+  numero: string
+  tipo: string
+  fecha: string
+  fechaContable: string | null
+  contraparte: string | null
+  nit: string | null
+  base: number
+  iva: number
+  esNotaCredito: boolean
+  contabilizada: boolean
+  incidencias: string[]
+}
+export interface DetalleIva {
+  companyId: string
+  periodo: { startDate: string; endDate: string }
+  resumen: {
+    ivaDebito: number; ivaCredito: number; ivaNeto: number
+    documentos: number; conIncidencias: number; sinContabilizar: number
+  }
+  documentos: DocumentoIva[]
+  declaraciones: Array<{
+    mes: number; anio: number; status: string
+    ivaDebitoDeclarado: number; ivaCreditoDeclarado: number; ivaNetoDeclarado: number
+  }>
+}
+
+export const getDetalleIva = (q: { companyId: string; startDate: string; endDate: string }): Promise<DetalleIva> =>
+  api.post('/consolidacion/detalle-iva', q).then(unwrap)
+
 export const getFlujoCaja = (q: ConsolidacionQuery): Promise<FlujoCaja> =>
   api.post('/consolidacion/flujo-caja', q).then(unwrap)
 
