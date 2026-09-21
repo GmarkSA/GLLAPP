@@ -70,6 +70,8 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
   const [savingAccount, setSavingAccount] = useState<string | null>(null)
   const [cxcAccount, setCxcAccount]       = useState<string | undefined>()
   const [savingCxc, setSavingCxc]         = useState(false)
+  const [diasGracia, setDiasGracia]       = useState<number | null>(null)
+  const [savingGracia, setSavingGracia]   = useState(false)
   const [emitiendo, setEmitiendo] = useState(false)
   const [reconciliando, setReconciliando] = useState(false)
   const [simulando, setSimulando] = useState(false)
@@ -145,6 +147,9 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 
   useEffect(() => {
     getAccounts().then((a: Account[]) => setAccounts(Array.isArray(a) ? a : [])).catch(() => setAccounts([]))
+    api.get('/admin/suscripciones/dias-gracia')
+      .then(r => setDiasGracia((r.data?.data ?? r.data)?.dias ?? 5))
+      .catch(() => setDiasGracia(5))
     api.get('/admin/suscripciones/cuenta-por-cobrar')
       .then(r => setCxcAccount((r.data?.data ?? r.data)?.accountId ?? undefined))
       .catch(() => setCxcAccount(undefined))
@@ -177,6 +182,17 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar la cuenta')
     } finally { setSavingAccount(null) }
+  }
+
+  const saveDiasGracia = async () => {
+    if (diasGracia == null) return
+    setSavingGracia(true)
+    try {
+      await api.patch('/admin/suscripciones/dias-gracia', { dias: diasGracia })
+      message.success(`Días de gracia: ${diasGracia}`)
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar los días de gracia')
+    } finally { setSavingGracia(false) }
   }
 
   // Cuenta por cobrar del cliente de cada factura de suscripción: mismo criterio
@@ -361,6 +377,17 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
             />
             <Text type="secondary" style={{ fontSize: 12, flexBasis: '100%' }}>
               Cuenta por cobrar de todos los planes. Se asigna al cliente de la factura cuando se crea, o cuando ya existía sin cuenta.
+            </Text>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', flexWrap: 'wrap' }}>
+            <Text strong style={{ minWidth: 120, fontSize: 13 }}>Días de gracia</Text>
+            <InputNumber min={0} max={60} precision={0} value={diasGracia ?? undefined}
+              onChange={v => setDiasGracia(v == null ? null : Number(v))} addonAfter="días" style={{ width: 150 }} />
+            <Button size="small" loading={savingGracia} onClick={saveDiasGracia}>Guardar</Button>
+            <Text type="secondary" style={{ fontSize: 12, flexBasis: '100%' }}>
+              Al vencer el período pagado sin nuevo cobro (tarjeta, link de pago o transferencia) el cliente sigue operando
+              estos días; después pasa a solo lectura hasta que pague.
             </Text>
           </div>
 
@@ -729,7 +756,7 @@ interface TenantSummary {
   trialDaysLeft?: number; customMonthlyPriceUSD?: number
   // MRR real desde el backend (GET /admin/tenants); null si el tenant no factura
   mrrAmount?: number | null; mrrCurrency?: string | null
-  subscriptionStatus?: string | null; nextChargeAt?: string | null
+  subscriptionStatus?: string | null; nextChargeAt?: string | null; graciaHasta?: string | null
   lastInvoiceUrl?: string | null; lastInvoiceSerie?: string | null
 }
 interface PlatformStats {
@@ -1568,6 +1595,15 @@ export default function PlatformAdminPage() {
       render: (_, r) => {
         if (r.status === 'trial' && r.trialDaysLeft != null)
           return <Tag color={r.trialDaysLeft <= 7 ? 'orange' : 'blue'} icon={<ClockCircleOutlined />} style={{ fontSize: 11 }}>trial · {r.trialDaysLeft}d</Tag>
+        // Cobro vencido: se ve hasta cuándo sigue operando antes de pasar a solo lectura
+        if (r.subscriptionStatus === 'past_due')
+          return (
+            <Tooltip title={r.graciaHasta ? `Sin pago: pasa a solo lectura después del ${dayjs(r.graciaHasta).format('DD/MM/YYYY')}` : 'Cobro vencido'}>
+              <Tag color={r.status === 'suspended' ? 'red' : 'orange'} style={{ fontSize: 11 }}>
+                {r.status === 'suspended' ? 'Vencido · solo lectura' : `Vencido · gracia ${r.graciaHasta ? dayjs(r.graciaHasta).format('DD/MM') : ''}`}
+              </Tag>
+            </Tooltip>
+          )
         if (r.nextChargeAt)
           return <span style={{ fontSize: 12 }}>{new Date(r.nextChargeAt).toLocaleDateString('es-GT')}</span>
         return <Text type="secondary">—</Text>
