@@ -66,6 +66,8 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
   const [accounts, setAccounts]           = useState<Account[]>([])
   const [planAccounts, setPlanAccounts]   = useState<Record<string, string | undefined>>({})
   const [savingAccount, setSavingAccount] = useState<string | null>(null)
+  const [cxcAccount, setCxcAccount]       = useState<string | undefined>()
+  const [savingCxc, setSavingCxc]         = useState(false)
   const [emitiendo, setEmitiendo] = useState(false)
   const [reconciliando, setReconciliando] = useState(false)
   const [simulando, setSimulando] = useState(false)
@@ -141,6 +143,9 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 
   useEffect(() => {
     getAccounts().then((a: Account[]) => setAccounts(Array.isArray(a) ? a : [])).catch(() => setAccounts([]))
+    api.get('/admin/suscripciones/cuenta-por-cobrar')
+      .then(r => setCxcAccount((r.data?.data ?? r.data)?.accountId ?? undefined))
+      .catch(() => setCxcAccount(undefined))
   }, [])
   useEffect(() => {
     setPlanAccounts(Object.fromEntries(plans.map(p => [p.plan, p.incomeAccountId ?? undefined])))
@@ -170,6 +175,20 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar la cuenta')
     } finally { setSavingAccount(null) }
+  }
+
+  // Cuenta por cobrar del cliente de cada factura de suscripción: mismo criterio
+  // que la ficha del cliente (cuentas marcadas como «Cuenta de clientes»)
+  const customerAccounts = accounts.filter(a => a.isCustomerAccount)
+  const saveCxcAccount = async (accountId?: string) => {
+    setSavingCxc(true)
+    try {
+      await api.patch('/admin/suscripciones/cuenta-por-cobrar', { accountId: accountId ?? null })
+      setCxcAccount(accountId)
+      message.success('Cuenta por cobrar actualizada')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al guardar la cuenta')
+    } finally { setSavingCxc(false) }
   }
 
   const mesActual = new Date().toLocaleDateString('es-GT', { month: 'long' })
@@ -324,6 +343,24 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           {incomeAccounts.length === 0 && (
             <Text type="secondary" style={{ fontSize: 12 }}>No se cargaron cuentas de ingreso de la nomenclatura.</Text>
           )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0 8px', flexWrap: 'wrap' }}>
+            <Text strong style={{ minWidth: 120, fontSize: 13 }}>Clientes locales</Text>
+            <Select
+              showSearch
+              allowClear
+              optionFilterProp="label"
+              loading={savingCxc}
+              placeholder="Selecciona la cuenta por cobrar"
+              style={{ flex: 1, maxWidth: 480 }}
+              value={cxcAccount}
+              onChange={(val) => saveCxcAccount(val)}
+              options={customerAccounts.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+            />
+            <Text type="secondary" style={{ fontSize: 12, flexBasis: '100%' }}>
+              Cuenta por cobrar de todos los planes. Se asigna al cliente de la factura cuando se crea, o cuando ya existía sin cuenta.
+            </Text>
+          </div>
 
           <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed rgba(10,10,10,0.12)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <Button icon={<ReloadOutlined />} loading={reconciliando} onClick={handleReconciliar}>
