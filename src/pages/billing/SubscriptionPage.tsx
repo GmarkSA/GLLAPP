@@ -15,7 +15,7 @@ import dayjs from 'dayjs'
 import {
   getBillingState, changePlan, getGtqExchangeRate,
   requestBillingInvoice, deletePayment, cancelSubscription,
-  tokenizarTarjeta, activarCobros,
+  tokenizarTarjeta, activarCobros, METODO_COBRO_LABEL,
   type BillingState, type PlanConfig, type SubscriptionPayment,
   type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
 } from '../../api/billing'
@@ -459,7 +459,9 @@ function PaymentHistory({ payments, onDelete, esperandoCobro }: { payments: Subs
     },
     {
       title: 'Tarjeta',
-      render: (_, r) => r.cardLast4 ? (
+      render: (_, r) => r.metodo && r.metodo !== 'tarjeta'
+        ? <Text>{METODO_COBRO_LABEL[r.metodo]}</Text>
+        : r.cardLast4 ? (
         <Space>
           <CreditCardOutlined />
           <Text>{r.cardBrand} ••••{r.cardLast4}</Text>
@@ -477,8 +479,11 @@ function PaymentHistory({ payments, onDelete, esperandoCobro }: { payments: Subs
     },
     {
       title: 'Ref.',
-      dataIndex: 'qpayproTransactionId',
-      render: v => v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : '—',
+      // Los cobros de tarjeta llevan el idTrans de QPayPro; los manuales, la boleta o el link
+      render: (_, r) => {
+        const v = r.qpayproTransactionId ?? r.referencia
+        return v ? <Text code style={{ fontSize: 11 }}>{v}</Text> : '—'
+      },
     },
     {
       title: 'Voucher',

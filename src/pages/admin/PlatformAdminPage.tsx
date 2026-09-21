@@ -3,8 +3,9 @@ import {
   Card, Table, Tag, Badge, Space, Typography, Statistic, Row, Col,
   Button, message, Modal, Descriptions, Spin, Popconfirm, Tabs,
   Form, InputNumber, Input, Select, Tooltip, Segmented, Dropdown,
-  Checkbox, Radio,
+  Checkbox, Radio, DatePicker, Alert,
 } from 'antd'
+import dayjs from 'dayjs'
 import {
   BankOutlined, TeamOutlined, GlobalOutlined, ReloadOutlined,
   EyeOutlined, EditOutlined, CheckCircleOutlined,
@@ -23,8 +24,9 @@ import { useNavigate } from 'react-router-dom'
 import {
   getGtqExchangeRate, setGtqExchangeRate,
   adminActivateTrial, adminSetBillingConfig, adminGetTenantBilling, adminRequestInvoiceForTenant,
+  adminRegistrarCobroManual, METODO_COBRO_LABEL,
   planColorByIndex,
-  type TenantBillingInfo, type TenantBillingPayment,
+  type TenantBillingInfo, type TenantBillingPayment, type CobroManualDto,
 } from '../../api/billing'
 import { companiesApi } from '../../api/companies'
 import { tenantsApi } from '../../api/tenants'
@@ -1009,6 +1011,10 @@ export default function PlatformAdminPage() {
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
   const [felForm]                                 = Form.useForm()
   const [emittingFel, setEmittingFel]             = useState(false)
+  const [cobroModalOpen, setCobroModalOpen]       = useState(false)
+  const [cobroForm]                               = Form.useForm()
+  const [savingCobro, setSavingCobro]             = useState(false)
+  const planCobro                                 = Form.useWatch('plan', cobroForm)
 
 
   useEffect(() => {
@@ -1077,6 +1083,38 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al emitir FEL')
     } finally { setEmittingFel(false) }
+  }
+
+  // Cobro por link de pago QPayPro o transferencia: queda en el historial, asigna
+  // el plan y el período, y la factura sale sola vinculada al cobro
+  const handleRegistrarCobro = async (values: any) => {
+    if (!billingTenant) return
+    setSavingCobro(true)
+    try {
+      const dto: CobroManualDto = {
+        plan:       values.plan,
+        amount:     values.amount,
+        fecha:      values.fecha.format('YYYY-MM-DD'),
+        metodo:     values.metodo,
+        referencia: values.referencia,
+        meses:      values.meses,
+      }
+      const r = await adminRegistrarCobroManual(billingTenant.id, dto)
+      message.success(`Cobro registrado — plan activo hasta el ${dayjs(r.periodoHasta).format('DD/MM/YYYY')}`)
+      r.avisos.forEach(a => message.warning(a, 8))
+      setCobroModalOpen(false)
+      cobroForm.resetFields()
+      await loadTenants()
+      setBillingInfo(await adminGetTenantBilling(billingTenant.id))
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'Error al registrar el cobro')
+    } finally { setSavingCobro(false) }
+  }
+
+  // Monto sugerido = precio del plan × meses (se puede cambiar)
+  const sugerirMonto = (_: any, todos: any) => {
+    const p = plans.find(x => x.plan === todos.plan)
+    if (p) cobroForm.setFieldValue('amount', Math.round(Number(p.priceMonthly) * (todos.meses ?? 1) * 100) / 100)
   }
 
   const loadTenants = useCallback(async () => {
@@ -2325,7 +2363,20 @@ export default function PlatformAdminPage() {
               )}
 
               {/* Historial de cobros */}
-              <Card size="small" title={<Space><FileTextOutlined />Historial de cobros ({billingInfo.payments.length})</Space>}>
+              <Card
+                size="small"
+                title={<Space><FileTextOutlined />Historial de cobros ({billingInfo.payments.length})</Space>}
+                extra={
+                  <Button size="small" icon={<PlusOutlined />} onClick={() => {
+                    cobroForm.resetFields()
+                    cobroForm.setFieldsValue({ plan: billingTenant?.plan, meses: 1, metodo: 'transferencia', fecha: dayjs() })
+                    sugerirMonto(null, { plan: billingTenant?.plan, meses: 1 })
+                    setCobroModalOpen(true)
+                  }}>
+                    Registrar cobro manual
+                  </Button>
+                }
+              >
                 <Table<TenantBillingPayment>
                   rowKey="id"
                   dataSource={billingInfo.payments}
@@ -2349,8 +2400,13 @@ export default function PlatformAdminPage() {
                       ),
                     },
                     {
-                      title: 'No. Trans.', dataIndex: 'qpayproTransactionId', width: 120,
-                      render: (v?: string) => v ? <Text code style={{ fontSize: 11 }}>{v.slice(0, 12)}</Text> : <Text type="secondary">—</Text>,
+                      title: 'No. Trans.', dataIndex: 'qpayproTransactionId', width: 140,
+                      render: (v: string | undefined, p) => p.metodo && p.metodo !== 'tarjeta' ? (
+                        <Space direction="vertical" size={0}>
+                          <Tag style={{ fontSize: 11 }}>{METODO_COBRO_LABEL[p.metodo]}</Tag>
+                          {p.referencia && <Text code style={{ fontSize: 11 }}>{p.referencia}</Text>}
+                        </Space>
+                      ) : v ? <Text code style={{ fontSize: 11 }}>{v.slice(0, 12)}</Text> : <Text type="secondary">—</Text>,
                     },
                     {
                       title: 'FEL', width: 140,
@@ -2424,6 +2480,52 @@ export default function PlatformAdminPage() {
           <Form.Item name="customerEmail" label="Email (opcional — se envía copia de FEL)" style={{ marginBottom: 0 }}>
             <Input placeholder="facturacion@empresa.com" />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal registrar cobro manual (link de pago QPayPro / transferencia) */}
+      <Modal
+        title={<Space><DollarOutlined style={{ color: '#2ea172' }} />Registrar cobro manual — {billingTenant?.name}</Space>}
+        open={cobroModalOpen}
+        onCancel={() => setCobroModalOpen(false)}
+        onOk={() => cobroForm.submit()}
+        confirmLoading={savingCobro}
+        okText="Registrar cobro"
+        okButtonProps={{ style: { background: '#2ea172' } }}
+        width={560}
+      >
+        <Form form={cobroForm} layout="vertical" size="small" onFinish={handleRegistrarCobro}
+          onValuesChange={(cambio, todos) => { if ('plan' in cambio || 'meses' in cambio) sugerirMonto(cambio, todos) }}
+          style={{ marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Form.Item name="metodo" label="Forma de pago" rules={[{ required: true }]}>
+              <Select options={[
+                { value: 'transferencia', label: METODO_COBRO_LABEL.transferencia },
+                { value: 'link_qpaypro',  label: METODO_COBRO_LABEL.link_qpaypro },
+              ]} />
+            </Form.Item>
+            <Form.Item name="referencia" label="No. de boleta o transacción" rules={[{ required: true, whitespace: true, message: 'Requerido' }]}>
+              <Input maxLength={80} placeholder="Ej. 12345678" />
+            </Form.Item>
+            <Form.Item name="plan" label="Plan" rules={[{ required: true }]}>
+              <Select options={plans.map(p => ({ value: p.plan, label: p.displayName }))} />
+            </Form.Item>
+            <Form.Item name="meses" label="Meses que cubre" rules={[{ required: true }]}>
+              <InputNumber min={1} max={12} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="fecha" label="Fecha del pago" rules={[{ required: true }]}>
+              <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }}
+                disabledDate={d => d.isAfter(dayjs(), 'day')} />
+            </Form.Item>
+            <Form.Item name="amount" label="Monto recibido" rules={[{ required: true }]}>
+              <InputNumber min={0.01} step={0.01} precision={2} style={{ width: '100%' }}
+                addonAfter={plans.find(p => p.plan === planCobro)?.currency ?? 'GTQ'} />
+            </Form.Item>
+          </div>
+          <Alert type="info" showIcon style={{ fontSize: 12 }} message={
+            'Al registrarlo: queda en el historial de cobros del cliente, se le asigna el plan por los meses pagados '
+            + 'y la factura se emite sola, vinculada a este cobro. El pago se aplica a la factura en Ventas › Pagos recibidos.'
+          } />
         </Form>
       </Modal>
 
