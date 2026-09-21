@@ -57,6 +57,8 @@ export interface SubscriptionPayment {
   cardLast4?: string
   cardBrand?: string
   chargedAt: string
+  metodo?: MetodoCobro
+  referencia?: string
   felUuid?: string
   felSerie?: string
   felNumero?: string
@@ -185,6 +187,8 @@ export const activarCobros = (): Promise<ActivarCobrosResult> =>
 
 export interface TenantBillingPayment {
   id: string
+  metodo?: MetodoCobro
+  referencia?: string
   result: PaymentResult
   amount: number
   currency: string
@@ -215,6 +219,28 @@ export const adminActivateTrial = (tenantId: string, days = 30): Promise<{ trial
 
 export const adminSetBillingConfig = (tenantId: string, dto: { customMonthlyPriceUSD?: number | null }): Promise<{ updated: boolean }> =>
   api.patch(`/admin/tenants/${tenantId}/billing-config`, dto).then(unwrap)
+
+/** Cómo pagó el cliente: cobro recurrente con tarjeta, link de pago QPayPro o transferencia */
+export type MetodoCobro = 'tarjeta' | 'link_qpaypro' | 'transferencia'
+
+export const METODO_COBRO_LABEL: Record<MetodoCobro, string> = {
+  tarjeta:       'Tarjeta',
+  link_qpaypro:  'Link de pago QPayPro',
+  transferencia: 'Transferencia',
+}
+
+export interface CobroManualDto {
+  plan: string
+  amount: number
+  fecha: string          // YYYY-MM-DD
+  metodo: Exclude<MetodoCobro, 'tarjeta'>
+  referencia: string
+  meses?: number
+}
+
+export const adminRegistrarCobroManual = (tenantId: string, dto: CobroManualDto): Promise<{
+  pagoId: string; periodoDesde: string; periodoHasta: string; avisos: string[]
+}> => api.post(`/admin/tenants/${tenantId}/cobros-manuales`, dto).then(unwrap)
 
 export const adminGetTenantBilling = (tenantId: string): Promise<TenantBillingInfo> =>
   api.get(`/admin/tenants/${tenantId}/billing`).then(unwrap)
