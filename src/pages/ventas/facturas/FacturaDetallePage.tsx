@@ -41,41 +41,23 @@ const { Text, Title } = Typography
 const fmt = (n: any) => `Q ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 const fmtGTQ = (n: any) => `GTQ ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+/**
+ * Las líneas de la póliza de la factura, tal como se contabilizaron.
+ *
+ * Antes, si la factura no tenía póliza, esta función INVENTABA una con códigos
+ * escritos a mano ('1130 — Cuentas por Cobrar', '4110 — Ingresos', '2210 — IVA')
+ * que no existen en ningún catálogo: la pantalla mostraba como contabilizada una
+ * factura que no lo estaba. Ahora, sin póliza, no devuelve nada y la pantalla
+ * muestra el aviso «Sin partida contable».
+ */
 function buildJournalEntries(inv: Invoice) {
-  if (inv.journalLines?.length) {
-    return inv.journalLines.map(l => ({
-      key:    l.key,
-      cuenta: `${l.accountCode} — ${l.accountName}`,
-      debe:   Number(l.debe),
-      haber:  Number(l.haber),
-      tipo:   l.tipo,
-    }))
-  }
-  const total    = Number(inv.total)
-  const tax      = Number(inv.taxAmount)
-  const discount = Number(inv.discountAmount ?? 0)
-  const result: Array<{ key: string; cuenta: string; debe: number; haber: number; tipo: string }> = [
-    { key: 'cxc', cuenta: '1130 — Cuentas por Cobrar Clientes', debe: total, haber: 0, tipo: 'activo' },
-  ]
-  if (discount > 0) result.push({ key: 'desc', cuenta: '4130 — Descuentos sobre ventas', debe: discount, haber: 0, tipo: 'gasto' })
-  if (inv.items?.length) {
-    const groups: Record<string, { cuenta: string; haber: number }> = {}
-    inv.items.forEach((item) => {
-      const lineBase = Number(item.lineTotal) - Number((item as any).taxAmount ?? 0)
-      const grpKey   = (item as any).accountId ?? '_4110'
-      const label = (item as any).accountCode ? `${(item as any).accountCode} — ${(item as any).accountName}` : '4110 — Ingresos por Ventas'
-      if (!groups[grpKey]) groups[grpKey] = { cuenta: label, haber: 0 }
-      groups[grpKey].haber += lineBase
-    })
-    Object.entries(groups).forEach(([, g], i) => {
-      result.push({ key: `ing_${i}`, cuenta: g.cuenta, debe: 0, haber: Math.round(g.haber * 100) / 100, tipo: 'ingreso' })
-    })
-  } else {
-    const subtotal = Number(inv.subtotal)
-    result.push({ key: 'ing', cuenta: '4110 — Ingresos por Ventas', debe: 0, haber: subtotal + discount, tipo: 'ingreso' })
-  }
-  if (tax > 0) result.push({ key: 'iva', cuenta: '2210 — IVA por Pagar', debe: 0, haber: tax, tipo: 'pasivo' })
-  return result
+  return (inv.journalLines ?? []).map(l => ({
+    key:    l.key,
+    cuenta: `${l.accountCode} — ${l.accountName}`,
+    debe:   Number(l.debe),
+    haber:  Number(l.haber),
+    tipo:   l.tipo,
+  }))
 }
 
 export default function FacturaDetallePage() {
