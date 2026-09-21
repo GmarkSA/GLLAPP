@@ -246,7 +246,8 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
           style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}
         >
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-            Cómo verán los clientes los precios con este tipo de cambio:
+            Precio de cada plan en quetzales. Los planes en quetzales se muestran tal cual;
+            solo los que estén en dólares se convierten con este tipo de cambio.
           </Text>
           {plans.map(plan => (
             <div key={plan.plan} style={{
@@ -258,16 +259,27 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
               </Tag>
               {Number(plan.priceMonthly) === 0 ? (
                 <Tag color="success">Gratis</Tag>
-              ) : (
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1faec2' }}>
-                    Q {(Number(plan.priceMonthly) * rate).toFixed(2)}
+              ) : (() => {
+                // El precio está en la moneda del plan. Antes se multiplicaba SIEMPRE
+                // por el tipo de cambio, así que un plan de Q149 se mostraba como
+                // Q1,136.21 y rotulado «$149 USD».
+                const precio      = Number(plan.priceMonthly)
+                const enQuetzales = (plan.currency ?? 'GTQ') === 'GTQ'
+                const quetzales   = enQuetzales ? precio : precio * rate
+                const dolares     = enQuetzales ? (rate > 0 ? precio / rate : null) : precio
+                return (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#1faec2' }}>
+                      Q {quetzales.toFixed(2)}
+                    </div>
+                    {dolares != null && (
+                      <div style={{ fontSize: 11, color: '#9aa1ab' }}>
+                        {enQuetzales ? `≈ $${dolares.toFixed(2)} USD` : `($${dolares.toFixed(2)} USD)`}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontSize: 11, color: '#9aa1ab' }}>
-                    (${Number(plan.priceMonthly).toFixed(2)} USD)
-                  </div>
-                </div>
-              )}
+                )
+              })()}
             </div>
           ))}
         </Card>

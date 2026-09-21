@@ -158,21 +158,15 @@ export default function NotaCreditoDetallePage() {
   const canAct    = nc.status !== 'draft' && nc.status !== 'voided'
   const isFelCertified = !!nc.felUuid
 
-  const buildJournalEntries = () => {
-    if (nc.journalLines?.length) {
-      return nc.journalLines.map((l: any) => ({
-        key: l.key, cuenta: `${l.accountCode} — ${l.accountName}`,
-        debe: Number(l.debe), haber: Number(l.haber), tipo: l.tipo,
-        seccion: (l.key.startsWith('inv_') || l.key.startsWith('costo_')) ? 'costo' : 'venta',
-      }))
-    }
-    const subtotal = Number(nc.subtotal); const tax = Number(nc.taxAmount); const total = Number(nc.total)
-    return [
-      { key: 'cxc',  cuenta: '1130 — Cuentas por Cobrar Clientes', debe: 0, haber: total, tipo: 'activo', seccion: 'venta' },
-      { key: 'ing',  cuenta: '4110 — Ingresos por Ventas', debe: subtotal, haber: 0, tipo: 'ingreso', seccion: 'venta' },
-      ...(tax > 0 ? [{ key: 'iva', cuenta: '2210 — IVA por Pagar', debe: tax, haber: 0, tipo: 'pasivo', seccion: 'venta' }] : []),
-    ]
-  }
+  // Las líneas de la póliza tal como se contabilizaron. Antes, sin póliza, se
+  // inventaba una con códigos escritos a mano (1130, 4110, 2210) que no existen en
+  // ningún catálogo; ahora no se muestra nada y aparece el aviso correspondiente.
+  const buildJournalEntries = () =>
+    (nc.journalLines ?? []).map((l: any) => ({
+      key: l.key, cuenta: `${l.accountCode} — ${l.accountName}`,
+      debe: Number(l.debe), haber: Number(l.haber), tipo: l.tipo,
+      seccion: (l.key.startsWith('inv_') || l.key.startsWith('costo_')) ? 'costo' : 'venta',
+    }))
 
   const journalEntries = buildJournalEntries()
   const salesEntries   = journalEntries.filter(e => e.seccion === 'venta')
@@ -491,6 +485,10 @@ export default function NotaCreditoDetallePage() {
           {nc.status === 'draft' && (
             <Alert type="warning" showIcon style={{ marginBottom: 12 }}
               message="El asiento de reversión se generará al emitir la nota de crédito vía FEL." />
+          )}
+          {nc.status !== 'draft' && journalEntries.length === 0 && (
+            <Alert type="info" showIcon style={{ marginBottom: 12 }}
+              message="Sin partida contable — use Regenerar póliza para crearla." />
           )}
           {/* Póliza reversión venta */}
           {salesEntries.length > 0 && (
