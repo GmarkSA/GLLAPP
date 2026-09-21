@@ -1161,11 +1161,19 @@ export default function PlatformAdminPage() {
     } finally { setTrialActingId(null) }
   }
 
+  // El cobro de la tarjeta (QPayPro) sigue al plan: se informa qué se ajustó y qué no
+  const avisarSincronizacion = (sinc?: { actualizadas: number; errores: string[] }) => {
+    if (!sinc) return
+    if (sinc.actualizadas > 0) message.info(`Cobro con tarjeta actualizado en ${sinc.actualizadas} suscripción(es)`)
+    sinc.errores.forEach(e => message.warning(`No se ajustó el cobro con tarjeta — ${e}`, 10))
+  }
+
   const handleAssignPlan = async (tenantId: string, plan: string) => {
     setAssigningTenantId(tenantId)
     try {
-      await api.patch(`/admin/tenants/${tenantId}/plan`, { plan })
+      const r: any = await api.patch(`/admin/tenants/${tenantId}/plan`, { plan }).then(unwrap)
       message.success('Plan actualizado')
+      avisarSincronizacion(r?.sincronizacion)
       loadTenants()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al cambiar plan')
@@ -1382,8 +1390,9 @@ export default function PlatformAdminPage() {
         await api.post('/admin/plans', dto)
         message.success(`Plan "${vals.displayName}" creado`)
       } else if (editingPlan) {
-        await api.patch(`/admin/plans/${editingPlan.plan}`, dto)
+        const r: any = await api.patch(`/admin/plans/${editingPlan.plan}`, dto).then(unwrap)
         message.success(`Plan "${editingPlan.displayName}" actualizado`)
+        avisarSincronizacion(r?.sincronizacion)
       }
       setPlanModalOpen(false)
       loadPlans()
@@ -2553,7 +2562,8 @@ export default function PlatformAdminPage() {
             <Form.Item name="currency" label="Moneda">
               <Select options={[{ value: 'USD', label: 'USD' }, { value: 'GTQ', label: 'GTQ' }, { value: 'EUR', label: 'EUR' }]} />
             </Form.Item>
-            <Form.Item name="priceMonthly" label="Precio mensual" rules={[{ required: true }]}>
+            <Form.Item name="priceMonthly" label="Precio mensual" rules={[{ required: true }]}
+              extra={planMode === 'edit' ? 'Al guardar, los clientes de este plan con tarjeta pasan a pagar este precio.' : undefined}>
               <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix={simboloMoneda} addonAfter={planCurrency || 'USD'} />
             </Form.Item>
             <Form.Item name="maxCompanies" label="Máx. empresas" rules={[{ required: true }]}>
