@@ -66,7 +66,7 @@ export default function EmpresasPage() {
   const handleSetDefault = async (id: string) => {
     try {
       await companiesApi.setDefault(id)
-      message.success('Empresa marcada como predeterminada')
+      message.success('Empresa principal actualizada — la suscripción de Lucía se factura a su nombre')
       load()
     } catch {
       message.error('Error al cambiar empresa predeterminada')
@@ -215,7 +215,9 @@ export default function EmpresasPage() {
           <Button size="small" onClick={() => handleSwitch(r)}>Usar</Button>
           <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/configuracion/empresas/${r.id}`)}>Editar</Button>
           {!r.isDefault && (
-            <Popconfirm title="¿Marcar como empresa predeterminada?" onConfirm={() => handleSetDefault(r.id)}>
+            <Popconfirm title="¿Marcar como empresa principal?"
+              description="La suscripción de Lucía se factura a nombre y NIT de la empresa principal."
+              onConfirm={() => handleSetDefault(r.id)}>
               <Button size="small" icon={<StarOutlined />} />
             </Popconfirm>
           )}
