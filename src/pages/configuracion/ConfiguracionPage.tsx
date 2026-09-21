@@ -445,6 +445,7 @@ function FiscalSection({
           satAgenciaPassword:  companySettings?.settingsJson?.satAgenciaPassword ?? s.satAgenciaPassword ?? undefined,
           satAutoImportEnabled: companySettings?.settingsJson?.satAutoImportEnabled ?? false,
           satAutoImportDayOfWeek: companySettings?.settingsJson?.satAutoImportDayOfWeek ?? 5, // 5 = viernes
+          satAutoImportHour:      companySettings?.settingsJson?.satAutoImportHour ?? 8,       // 08:00 Guatemala
         },
       })
     }
@@ -468,6 +469,7 @@ function FiscalSection({
           satAgenciaPassword:     values.settings?.satAgenciaPassword ?? curJson.satAgenciaPassword,
           satAutoImportEnabled:   values.settings?.satAutoImportEnabled ?? false,
           satAutoImportDayOfWeek: values.settings?.satAutoImportDayOfWeek ?? curJson.satAutoImportDayOfWeek ?? 5,
+          satAutoImportHour:      values.settings?.satAutoImportHour ?? curJson.satAutoImportHour ?? 8,
         }
         await companiesApi.updateSettings(activeCompany.id, { settingsJson: nextJson } as any).catch(() => {})
         setCompanySettings((cs: any) => ({ ...(cs ?? {}), settingsJson: nextJson }))
@@ -586,12 +588,25 @@ function FiscalSection({
               <Col flex="auto">
                 <Text strong>Importación automática de DTE recibidos</Text>
                 <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-                  El sistema importa solo, sin que nadie dé clic, el día de la semana que elijas — y además una
+                  El sistema importa solo, sin que nadie dé clic, el día y la hora que elijas — y además una
                   pasada extra al cierre de mes (día 30/31) para atrapar documentos que SAT publicó tarde.
                   Los documentos llegan a la bandeja "DTE SAT" en Compras para revisión y contabilización manual —
                   esto no contabiliza nada automáticamente.
                 </Text>
               </Col>
+              {watchedSatAutoImport && (
+                <Col>
+                  <Form.Item name={['settings', 'satAutoImportHour']} style={{ marginBottom: 0 }}
+                    tooltip="Hora de Guatemala en que corre la importación">
+                    <Select style={{ width: 110 }} aria-label="Hora de la importación"
+                      options={Array.from({ length: 24 }, (_, h) => ({
+                        value: h,
+                        label: `${String(h).padStart(2, '0')}:00`,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+              )}
               <Col>
                 <Form.Item name={['settings', 'satAutoImportEnabled']} valuePropName="checked" style={{ marginBottom: 0 }}>
                   <Switch />
