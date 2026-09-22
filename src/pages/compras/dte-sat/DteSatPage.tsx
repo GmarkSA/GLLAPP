@@ -20,7 +20,7 @@ import {
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   getPurchaseOrders, getBills, postSatDte,
   resolveSatDteVendor, resubirR2SatDte,
-  startSatDteImport, syncSatDteJob, getSatDteSugerencias, type SugerenciaDte,
+  startSatDteImport, syncSatDteJob, getSatDteSugerencias, crearProveedoresAutomaticos, type SugerenciaDte,
   type PurchaseOrder, type SatDte, type SatDteStatus, type SatImportJob,
   PAYMENT_TERMS_CONFIG,
 } from '../../../api/compras'
@@ -962,6 +962,25 @@ export default function DteSatPage() {
     { signals: ['dollar city','dollarcity','cemaco','típica','tipica','mercado','bazar','ferretería','ferreteria','truper','multimax','quetzal'],
       accountKw: ['gastos menor','útiles','utiles','misceláneo','miscela','varios'] },
   ]
+
+  // Crea de una vez los proveedores que faltan, con lo que propone el motor.
+  // Lo que no se puede crear (sin cuenta por pagar de dónde copiar, DTE sin NIT)
+  // se queda pendiente y se dice por qué, para resolverlo en el registro masivo.
+  const [creandoProveedores, setCreandoProveedores] = useState(false)
+  const crearProveedoresPendientes = async () => {
+    setCreandoProveedores(true)
+    try {
+      const r = await crearProveedoresAutomaticos()
+      if (r.creados.length > 0) {
+        message.success(`${r.creados.length} proveedor(es) creados: ${r.creados.map(c => c.nombre).join(', ')}`, 8)
+      }
+      r.omitidos.slice(0, 5).forEach(o => message.warning(`${o.nombre || o.nit}: ${o.motivo}`, 8))
+      if (r.creados.length === 0 && r.omitidos.length === 0) message.info('No hay proveedores pendientes de crear')
+      await load(true)
+    } catch (err: unknown) {
+      message.error(getErrorMessage(err, 'No se pudieron crear los proveedores'))
+    } finally { setCreandoProveedores(false) }
+  }
 
   const openBulkVendorModal = async () => {
     const res = await getSatDteDocuments({ status: 'pending', limit: 500 })
@@ -2616,11 +2635,17 @@ export default function DteSatPage() {
                       </Button>
                     ))}
                     {stats.pending?.count > 0 && !statusFilter && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#92400e', cursor: 'pointer' }}
-                        onClick={openBulkVendorModal}>
-                        <WarningOutlined style={{ color: '#f59e0b' }} />
-                        <span><strong>{stats.pending.count}</strong> prov. pendientes — <strong>Registrar en lote</strong></span>
-                      </div>
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#92400e', cursor: 'pointer' }}
+                          onClick={openBulkVendorModal}>
+                          <WarningOutlined style={{ color: '#f59e0b' }} />
+                          <span><strong>{stats.pending.count}</strong> prov. pendientes — <strong>Registrar en lote</strong></span>
+                        </div>
+                        <Button size="small" loading={creandoProveedores} onClick={crearProveedoresPendientes}
+                          title="Los crea con la cuenta por pagar y el plazo que usan los demás proveedores de esta empresa">
+                          Crearlos con los datos sugeridos
+                        </Button>
+                      </>
                     )}
                     {stats.ready?.count > 0 && !statusFilter && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
