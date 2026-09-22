@@ -558,6 +558,8 @@ export interface SatImportJob {
   finishedAt?: string | null
   totalCount?: number
   errorCount?: number
+  /** Corrida de APIFY tal como la reportó al sincronizar (inicio y fin reales de la extracción) */
+  rawResponse?: { startedAt?: string | null; finishedAt?: string | null } | null
 }
 
 const DTE_SAT = '/compras/dte-sat'

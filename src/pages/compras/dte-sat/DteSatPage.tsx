@@ -36,6 +36,17 @@ const { RangePicker } = DatePicker
 
 const POLL_INTERVAL_MS = 20_000 // 20 segundos — polling para jobs en ejecución
 
+/** Lo que duró la corrida en APIFY (inicio → fin que reporta APIFY), o null si no lo trae */
+const segundosEnApify = (job: SatImportJob): number | null => {
+  const inicio = job.rawResponse?.startedAt
+  const fin = job.rawResponse?.finishedAt
+  if (!inicio || !fin) return null
+  const seg = dayjs(fin).diff(dayjs(inicio), 'second')
+  return seg >= 0 ? seg : null
+}
+
+const duracionTexto = (seg: number) => seg >= 60 ? `${Math.floor(seg / 60)}m ${seg % 60}s` : `${seg}s`
+
 const IDP_RATES_FE: Record<string, { label: string; rate: number }> = {
   super:    { label: 'Gasolina superior',      rate: 4.70 },
   regular:  { label: 'Gasolina regular',       rate: 4.60 },
@@ -1314,10 +1325,19 @@ export default function DteSatPage() {
       width: 90,
       render: (_, row) => {
         const fin = row.finishedAt ?? ((row.status === 'succeeded' || row.status === 'failed') ? row.updatedAt : null)
-        if (!fin || !row.createdAt) return <Text type="secondary">—</Text>
-        const seg = Math.max(0, dayjs(fin).diff(dayjs(row.createdAt), 'second'))
-        const txt = seg >= 60 ? `${Math.floor(seg / 60)}m ${seg % 60}s` : `${seg}s`
-        return <Tag color={seg > 300 ? '#e5484d' : seg > 180 ? '#ff7f00' : '#2ea172'} style={{ fontSize: 10 }}>{txt}</Tag>
+        const enLucia = fin && row.createdAt ? Math.max(0, dayjs(fin).diff(dayjs(row.createdAt), 'second')) : null
+        const apify = segundosEnApify(row)
+        // Lo que tardó la extracción en APIFY; sin ese dato, el tiempo hasta cerrarse en Lucía
+        const seg = apify ?? enLucia
+        if (seg == null) return <Text type="secondary">—</Text>
+        const detalle = apify != null
+          ? `APIFY: ${duracionTexto(apify)}${enLucia != null ? ` · hasta cerrarse en Lucía: ${duracionTexto(enLucia)}` : ''}`
+          : 'Tiempo hasta cerrarse en Lucía (sin dato de APIFY)'
+        return (
+          <Tooltip title={detalle}>
+            <Tag color={seg > 300 ? '#e5484d' : seg > 180 ? '#ff7f00' : '#2ea172'} style={{ fontSize: 10 }}>{duracionTexto(seg)}</Tag>
+          </Tooltip>
+        )
       },
     },
     {
@@ -1326,8 +1346,9 @@ export default function DteSatPage() {
       render: (_, row) => {
         const fin = row.finishedAt ?? ((row.status === 'succeeded' || row.status === 'failed') ? row.updatedAt : null)
         const docs = (row.totalCount ?? 0) || (row.importedCount + row.duplicateCount)
-        if (!fin || !row.createdAt || docs <= 0) return <Text type="secondary">—</Text>
-        const spd = dayjs(fin).diff(dayjs(row.createdAt), 'second') / docs
+        const seg = segundosEnApify(row) ?? (fin && row.createdAt ? dayjs(fin).diff(dayjs(row.createdAt), 'second') : null)
+        if (seg == null || docs <= 0) return <Text type="secondary">—</Text>
+        const spd = seg / docs
         return <Tooltip title={`${docs} documento(s) procesados`}><span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{spd.toFixed(1)}</span></Tooltip>
       },
     },
