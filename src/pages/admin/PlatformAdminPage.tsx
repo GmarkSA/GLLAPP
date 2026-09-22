@@ -419,6 +419,11 @@ function BillingConfigTab({ plans }: { plans: PlanConfig[] }) {
 }
 const unwrap = (r: any) => r.data?.data ?? r.data
 
+// El próximo cobro se guarda como el día que representa a medianoche UTC; en hora
+// de Guatemala eso cae a las 18:00 del día anterior (mostraba 21/10 un cobro del
+// 22/10). Se toma el día UTC, el mismo que usa el proceso de vencimientos.
+const diaDelCobro = (v: string | Date) => dayjs(new Date(v).toISOString().slice(0, 10)).format('DD/MM/YYYY')
+
 // ── Modal "Enviar demo" — crea un tenant demo e invita al prospecto por correo ──
 // ── Pestaña "Demos" — tablero de demos enviados: cuántos salen y quiénes activan ──
 function DemosTab() {
@@ -1601,7 +1606,7 @@ export default function PlatformAdminPage() {
             </Tooltip>
           )
         if (r.nextChargeAt)
-          return <span style={{ fontSize: 12 }}>{new Date(r.nextChargeAt).toLocaleDateString('es-GT')}</span>
+          return <span style={{ fontSize: 12 }}>{diaDelCobro(r.nextChargeAt)}</span>
         return <Text type="secondary">—</Text>
       },
     },
@@ -2174,7 +2179,7 @@ export default function PlatformAdminPage() {
                       {detailBilling?.trialDaysLeft != null
                         ? `${detailBilling.trialDaysLeft} días`
                         : detailBilling?.subscription?.nextChargeAt
-                          ? new Date(detailBilling.subscription.nextChargeAt).toLocaleDateString('es-GT')
+                          ? diaDelCobro(detailBilling.subscription.nextChargeAt)
                           : '—'}
                     </div>
                   </div>
@@ -2404,7 +2409,7 @@ export default function PlatformAdminPage() {
                       {billingInfo.subscription.billingCurrency} {Number(billingInfo.subscription.billingAmountLocal || billingInfo.subscription.monthlyPrice).toFixed(2)}
                     </Descriptions.Item>
                     <Descriptions.Item label="Próximo cobro">
-                      {billingInfo.subscription.nextChargeAt ? new Date(billingInfo.subscription.nextChargeAt).toLocaleDateString('es-GT') : '—'}
+                      {billingInfo.subscription.nextChargeAt ? diaDelCobro(billingInfo.subscription.nextChargeAt) : '—'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Tarjeta">
                       {billingInfo.subscription.qpayproCardLast4
