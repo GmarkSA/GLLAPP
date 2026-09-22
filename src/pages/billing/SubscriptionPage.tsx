@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Col, Divider, Form, Input, Modal,
   Popconfirm, Progress, Row, Select, Space, Spin, Table, Tag,
-  Tooltip, Typography, message,
+  Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -14,10 +14,10 @@ import {
 import dayjs from 'dayjs'
 import {
   getBillingState, changePlan, getGtqExchangeRate,
-  requestBillingInvoice, deletePayment, cancelSubscription,
+  deletePayment, cancelSubscription,
   tokenizarTarjeta, activarCobros, METODO_COBRO_LABEL,
   type BillingState, type PlanConfig, type SubscriptionPayment,
-  type BillingCurrency, type CardType, type BillingFelResult, type PaymentResponse,
+  type BillingCurrency, type CardType, type PaymentResponse,
 } from '../../api/billing'
 
 
@@ -554,209 +554,6 @@ function PaymentHistory({ payments, onDelete, esperandoCobro }: { payments: Subs
       pagination={{ pageSize: 8, size: 'small' }}
       scroll={{ x: 820 }}
     />
-  )
-}
-
-// ── BillingFelModal ───────────────────────────────────────────────────────────
-
-function BillingFelModal({
-  open, paymentId, currency, amount, planName, onClose,
-}: {
-  open:       boolean
-  paymentId:  string
-  currency:   BillingCurrency
-  amount:     number
-  planName:   string
-  onClose:    () => void
-}) {
-  const [form]       = Form.useForm()
-  const [loading,   setLoading]   = useState(false)
-  const [result,    setResult]    = useState<BillingFelResult | null>(null)
-  const isCF = Form.useWatch('customerTaxId', form)?.toUpperCase() === 'CF'
-
-  // Reset al abrir
-  const handleOpen = () => { form.resetFields(); setResult(null) }
-
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields()
-      setLoading(true)
-      const res = await requestBillingInvoice({
-        subscriptionPaymentId: paymentId,
-        customerTaxId:  values.customerTaxId.trim().toUpperCase(),
-        customerName:   values.customerName.trim().toUpperCase(),
-        customerEmail:  values.customerEmail || undefined,
-        customerAddress:values.customerAddress || undefined,
-        currency,
-      })
-      setResult(res)
-      if (res.success) {
-        message.success('¡Factura electrónica emitida ante SAT!')
-      } else {
-        message.error(res.message)
-      }
-    } catch (e: any) {
-      message.error(billingErrorMsg(e, 'Error al emitir la factura electrónica'), 6)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      afterOpenChange={o => { if (o) handleOpen() }}
-      title={
-        <Space>
-          <FileTextOutlined style={{ color: '#1faec2' }} />
-          <span style={{ color: '#1faec2', fontWeight: 600 }}>
-            Factura Electrónica — SAT Guatemala
-          </span>
-        </Space>
-      }
-      onCancel={onClose}
-      footer={null}
-      width={520}
-      destroyOnClose
-    >
-      {/* Resumen del pago */}
-      <div style={{
-        background: '#fafbfc', borderRadius: 8, padding: '12px 16px',
-        marginBottom: 20, border: '1px solid #d6e4ff',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>Pago por suscripción</Text>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#1faec2' }}>
-              {money(amount, currency)} — Plan {planName}
-            </div>
-          </div>
-          <Tag color="success" icon={<CheckCircleOutlined />}>Aprobado</Tag>
-        </div>
-      </div>
-
-      {/* Resultado exitoso */}
-      {result?.success ? (
-        <div style={{ textAlign: 'center', padding: '12px 0' }}>
-          <CheckCircleOutlined style={{ fontSize: 48, color: '#2ea172', marginBottom: 12 }} />
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#1faec2', marginBottom: 8 }}>
-            Factura emitida correctamente
-          </div>
-          {result.simulated && (
-            <Alert type="warning" showIcon style={{ marginBottom: 12, textAlign: 'left' }}
-              message="Modo simulado — configura PLATFORM_FEL_ENTITY_ID y PLATFORM_FEL_API_KEY para FEL real"
-            />
-          )}
-          <div style={{ background: '#f9fafb', borderRadius: 8, padding: '12px 16px', textAlign: 'left', marginBottom: 16 }}>
-            {result.felUuid && (
-              <div style={{ marginBottom: 6 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>UUID SAT</Text>
-                <div><Text code style={{ fontSize: 11 }}>{result.felUuid}</Text></div>
-              </div>
-            )}
-            {result.felSerie && result.felNumero && (
-              <div style={{ marginBottom: 6 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>Serie / Número</Text>
-                <div><Tag>{result.felSerie}</Tag><Tag>{result.felNumero}</Tag></div>
-              </div>
-            )}
-            {result.felInvoiceUrl && (
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>Verificación SAT</Text>
-                <div>
-                  <a href={result.felInvoiceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>
-                    Ver factura en SAT →
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
-          <Button type="primary" onClick={onClose} style={{ background: '#1faec2' }}>
-            Cerrar
-          </Button>
-        </div>
-      ) : (
-        /* Formulario de datos del receptor */
-        <Form form={form} layout="vertical" size="middle">
-          <div style={{ marginBottom: 12 }}>
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              Ingresa los datos para la emisión de tu factura electrónica (FACT) ante SAT Guatemala.
-              Puedes usar <Text code>CF</Text> si no necesitas factura con NIT.
-            </Text>
-          </div>
-
-          <Form.Item
-            name="customerTaxId"
-            label="NIT del receptor"
-            initialValue="CF"
-            rules={[{ required: true, message: 'Ingresa el NIT o CF' }]}
-          >
-            <Input
-              placeholder="12345678-9 o CF"
-              autoComplete="off"
-              style={{ textTransform: 'uppercase' }}
-              suffix={
-                <Tooltip title="Escribe CF para Consumidor Final sin NIT">
-                  <span style={{ color: '#6b7280', fontSize: 11, cursor: 'help' }}>?</span>
-                </Tooltip>
-              }
-              onChange={e => {
-                const v = e.target.value.toUpperCase()
-                form.setFieldValue('customerTaxId', v)
-                if (v === 'CF') form.setFieldValue('customerName', 'CONSUMIDOR FINAL')
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="customerName"
-            label="Nombre / Razón social del receptor"
-            initialValue="CONSUMIDOR FINAL"
-            rules={[{ required: true, message: 'Ingresa el nombre del receptor' }]}
-          >
-            <Input
-              placeholder="MI EMPRESA S.A."
-              style={{ textTransform: 'uppercase' }}
-              disabled={isCF}
-            />
-          </Form.Item>
-
-          <Form.Item name="customerEmail" label="Correo electrónico (para envío del PDF)">
-            <Input
-              type="email"
-              placeholder="facturacion@miempresa.com"
-              autoComplete="email"
-            />
-          </Form.Item>
-
-          <Form.Item name="customerAddress" label="Dirección del receptor (opcional)">
-            <Input placeholder="5a Avenida 4-50 Zona 1, Guatemala" />
-          </Form.Item>
-
-          {result?.success === false && (
-            <Alert type="error" showIcon style={{ marginBottom: 12 }}
-              message="Error al emitir" description={result.message}
-            />
-          )}
-
-          <div style={{ display: 'flex', gap: 10 }}>
-            <Button block onClick={onClose}>Omitir por ahora</Button>
-            <Button type="primary" block loading={loading} onClick={handleSubmit}
-              icon={<FileTextOutlined />}
-              style={{ background: '#1faec2', flex: 2 }}
-            >
-              Emitir factura FEL
-            </Button>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: 10 }}>
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              La factura electrónica es emitida por GLL Consulting (GMARK S.A.) ante SAT Guatemala
-            </Text>
-          </div>
-        </Form>
-      )}
-    </Modal>
   )
 }
 

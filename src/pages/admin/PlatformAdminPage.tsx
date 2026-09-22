@@ -23,7 +23,7 @@ import type { Company } from '../../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import {
   getGtqExchangeRate, setGtqExchangeRate,
-  adminActivateTrial, adminSetBillingConfig, adminGetTenantBilling, adminRequestInvoiceForTenant,
+  adminActivateTrial, adminSetBillingConfig, adminGetTenantBilling,
   adminRegistrarCobroManual, METODO_COBRO_LABEL,
   planColorByIndex,
   type TenantBillingInfo, type TenantBillingPayment, type CobroManualDto,
@@ -1007,10 +1007,6 @@ export default function PlatformAdminPage() {
   const [trialActivating, setTrialActivating]     = useState(false)
   const [customPrice, setCustomPrice]             = useState<number | null>(null)
   const [savingPrice, setSavingPrice]             = useState(false)
-  const [felModalOpen, setFelModalOpen]           = useState(false)
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
-  const [felForm]                                 = Form.useForm()
-  const [emittingFel, setEmittingFel]             = useState(false)
   const [cobroModalOpen, setCobroModalOpen]       = useState(false)
   const [cobroForm]                               = Form.useForm()
   const [savingCobro, setSavingCobro]             = useState(false)
@@ -1058,31 +1054,6 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar precio')
     } finally { setSavingPrice(false) }
-  }
-
-  const handleEmitFel = async (values: any) => {
-    if (!selectedPaymentId || !billingTenant) return
-    setEmittingFel(true)
-    try {
-      const result = await adminRequestInvoiceForTenant(selectedPaymentId, {
-        subscriptionPaymentId: selectedPaymentId,
-        customerTaxId: values.customerTaxId,
-        customerName: values.customerName,
-        customerEmail: values.customerEmail,
-        currency: values.currency,
-      })
-      if (result.success) {
-        message.success(`FEL emitida: ${result.felSerie}-${result.felNumero}`)
-        setFelModalOpen(false)
-        felForm.resetFields()
-        const info = await adminGetTenantBilling(billingTenant.id)
-        setBillingInfo(info)
-      } else {
-        message.error(`Error FEL: ${result.message}`)
-      }
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al emitir FEL')
-    } finally { setEmittingFel(false) }
   }
 
   // Cobro por link de pago QPayPro o transferencia: queda en el historial, asigna
@@ -2455,17 +2426,10 @@ export default function PlatformAdminPage() {
                           )}
                         </Space>
                       ) : p.result === 'approved' ? (
-                        <Button
-                          size="small" type="primary"
-                          style={{ background: '#2ea172', borderColor: '#2ea172', fontSize: 11 }}
-                          onClick={() => {
-                            setSelectedPaymentId(p.id)
-                            felForm.resetFields()
-                            setFelModalOpen(true)
-                          }}
-                        >
-                          Emitir FEL
-                        </Button>
+                        // La emite sola la facturación automática, vinculada al cobro
+                        <Tooltip title="La factura se emite automáticamente para cada cobro aprobado">
+                          <Tag style={{ fontSize: 11 }}>Por emitir</Tag>
+                        </Tooltip>
                       ) : <Text type="secondary">—</Text>,
                     },
                     {
@@ -2486,38 +2450,6 @@ export default function PlatformAdminPage() {
             </div>
           )
         }
-      </Modal>
-
-      {/* Modal emitir FEL */}
-      <Modal
-        title={<Space><FileTextOutlined style={{ color: '#2ea172' }} />Emitir Factura Electrónica (FEL)</Space>}
-        open={felModalOpen}
-        onCancel={() => { setFelModalOpen(false); felForm.resetFields() }}
-        onOk={() => felForm.submit()}
-        confirmLoading={emittingFel}
-        okText="Emitir FEL"
-        okButtonProps={{ style: { background: '#2ea172' } }}
-        width={520}
-      >
-        <Form form={felForm} layout="vertical" onFinish={handleEmitFel} style={{ marginTop: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-            <Form.Item name="customerTaxId" label="NIT del receptor" rules={[{ required: true, message: 'Requerido' }]}>
-              <Input placeholder="1234567-8 o CF" />
-            </Form.Item>
-            <Form.Item name="currency" label="Moneda" initialValue="GTQ">
-              <Select options={[
-                { value: 'GTQ', label: 'GTQ — Quetzales' },
-                { value: 'USD', label: 'USD — Dólares' },
-              ]} />
-            </Form.Item>
-          </div>
-          <Form.Item name="customerName" label="Nombre del receptor" rules={[{ required: true, message: 'Requerido' }]}>
-            <Input placeholder="EMPRESA S.A." />
-          </Form.Item>
-          <Form.Item name="customerEmail" label="Email (opcional — se envía copia de FEL)" style={{ marginBottom: 0 }}>
-            <Input placeholder="facturacion@empresa.com" />
-          </Form.Item>
-        </Form>
       </Modal>
 
       {/* Modal registrar cobro manual (link de pago QPayPro / transferencia) */}

@@ -124,28 +124,6 @@ export const getGtqExchangeRate = (): Promise<{ rate: number; updatedAt?: string
 export const setGtqExchangeRate = (rate: number): Promise<{ rate: number }> =>
   api.patch('/billing/exchange-rate', { rate }).then(unwrap)
 
-export interface RequestInvoiceDto {
-  subscriptionPaymentId: string
-  customerTaxId: string   // NIT o "CF"
-  customerName: string
-  customerEmail?: string
-  customerAddress?: string
-  currency?: BillingCurrency
-}
-
-export interface BillingFelResult {
-  success: boolean
-  message: string
-  felUuid?: string
-  felSerie?: string
-  felNumero?: string
-  felInvoiceUrl?: string
-  simulated?: boolean
-}
-
-export const requestBillingInvoice = (dto: RequestInvoiceDto): Promise<BillingFelResult> =>
-  api.post('/billing/request-invoice', dto).then(unwrap)
-
 export const simulateSubscription = (plan: string): Promise<{ success: boolean; message: string }> =>
   api.post('/billing/simulate', { plan }).then(unwrap)
 
@@ -245,8 +223,6 @@ export const adminRegistrarCobroManual = (tenantId: string, dto: CobroManualDto)
 export const adminGetTenantBilling = (tenantId: string): Promise<TenantBillingInfo> =>
   api.get(`/admin/tenants/${tenantId}/billing`).then(unwrap)
 
-export const adminRequestInvoiceForTenant = (paymentId: string, dto: RequestInvoiceDto): Promise<BillingFelResult> =>
-  api.post(`/billing/admin/payments/${paymentId}/invoice`, dto).then(unwrap)
 
 // Comprobante de pago (voucher) de un cobro de suscripción
 export interface ComprobantePago {
