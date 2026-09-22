@@ -20,7 +20,7 @@ import {
   getSatDteDocuments, getSatDteJobs, getSatDteStats,
   getPurchaseOrders, getBills, postSatDte,
   resolveSatDteVendor, resubirR2SatDte,
-  startSatDteImport, syncSatDteJob,
+  startSatDteImport, syncSatDteJob, getSatDteSugerencias, type SugerenciaDte,
   type PurchaseOrder, type SatDte, type SatDteStatus, type SatImportJob,
   PAYMENT_TERMS_CONFIG,
 } from '../../../api/compras'
@@ -166,6 +166,8 @@ export default function DteSatPage() {
   const [stepperTasaMunicipalAmount, setStepperTasaMunicipalAmount] = useState(0)
   const [stepperBomberosAmount, setStepperBomberosAmount] = useState(0)
   const [accountMode, setAccountMode] = useState<'expense' | 'asset' | 'all'>('expense')
+  // Lo que el motor propone para este DTE (cuenta e IVA por línea, con su motivo)
+  const [stepperSugerencia, setStepperSugerencia] = useState<SugerenciaDte | null>(null)
 
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'skipped' | 'error' | 'excluded'
@@ -590,15 +592,24 @@ export default function DteSatPage() {
       setStepperVendorPayableMissing(false)
     }
 
+    // El motor de sugerencias manda: la cuenta sale del historial de la empresa, con
+    // su motivo. La memoria del proveedor y el tipo deducido del DTE quedan de respaldo.
+    let sugerencia: SugerenciaDte | null = null
+    try {
+      sugerencia = await getSatDteSugerencias(row.id)
+    } catch { /* sin sugerencia: se llena como antes */ }
+    setStepperSugerencia(sugerencia)
+    const lineaConCuenta = sugerencia?.lineas.find(l => l.cuentaId)
+
     const baseVals: Record<string, any> = {
       // El DTE manda cuando es inequívoco (tipoAuto.seguro); si no (ítems mixtos),
       // gana la memoria del proveedor sobre el "bienes" por defecto.
       invoiceType:    tipoAuto.seguro ? tipoAuto.tipo : (vendorDefaultInvoiceType ?? tipoAuto.tipo),
-      taxId:          vendorDefaultTaxId,
+      taxId:          sugerencia?.lineas[0]?.taxId ?? vendorDefaultTaxId,
       paymentTerms:   vendorPaymentTerms,
       accountingDate: row.fechaEmision ? dayjs(row.fechaEmision) : dayjs(),
       concepto:       autoConcepto,
-      accountId:      vendorExpenseAccountId,
+      accountId:      lineaConCuenta?.cuentaId ?? vendorExpenseAccountId,
       idpType:        vendorDefaultIdpType,
     }
 
@@ -750,6 +761,7 @@ export default function DteSatPage() {
         bomberosAmount:         stepperIsAnulado ? undefined : (stepperHasBomberos ? (stepperBomberosAmount || undefined) : 0),
         bomberosAccountId:      stepperHasBomberos ? values.bomberosAccountId : undefined,
         forceZeroAmount:        stepperIsAnulado || undefined,
+        sugerencia:             stepperSugerencia ?? undefined,
       })
       // La memoria (cuenta, IVA, tipo de factura, tipo de combustible) la actualiza
       // el backend en el proveedor — ver comentario en openStepper().
@@ -1765,6 +1777,7 @@ export default function DteSatPage() {
                         )}
                       </div>
                       <Form.Item name="taxId" label="Impuesto"
+                        extra={stepperSugerencia?.lineas[0]?.motivoIva}
                         rules={[{ required: true, message: 'Selecciona el impuesto aplicable' }]}>
                         <Select
                           placeholder="Selecciona el impuesto (IVA)"
@@ -1772,6 +1785,35 @@ export default function DteSatPage() {
                         />
                       </Form.Item>
                     </div>
+                    {stepperSugerencia && (
+                      <Alert
+                        type={stepperSugerencia.nivel === 'automatico' ? 'success'
+                          : stepperSugerencia.nivel === 'bloqueado' ? 'error' : 'warning'}
+                        showIcon style={{ marginBottom: 10, fontSize: 12 }}
+                        message={
+                          stepperSugerencia.nivel === 'automatico' ? 'Lucía reconoce este gasto'
+                            : stepperSugerencia.nivel === 'bloqueado' ? 'Falta resolver algo antes de registrar'
+                            : 'Revisa la cuenta antes de registrar'
+                        }
+                        description={
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {stepperSugerencia.bloqueos.map((b, i) => <span key={`b${i}`}>{b}</span>)}
+                            {stepperSugerencia.avisos.map((a, i) => <span key={`a${i}`}>{a}</span>)}
+                            {stepperSugerencia.lineas.map(l => (
+                              <span key={l.indice} style={{ color: '#4b5563' }}>
+                                <b>{l.cuentaCodigo ? `${l.cuentaCodigo} ${l.cuentaNombre}` : 'Sin cuenta sugerida'}</b>
+                                {l.descripcion ? ` · ${l.descripcion}` : ''} — {l.motivoCuenta}
+                              </span>
+                            ))}
+                            <span style={{ color: '#6b7280' }}>
+                              Automático a partir de {stepperSugerencia.umbral.minFacturas} facturas
+                              con {stepperSugerencia.umbral.minPorcentaje}% de coincidencia.
+                            </span>
+                          </div>
+                        }
+                      />
+                    )}
+
                     <Form.Item name="paymentTerms" hidden><input /></Form.Item>
                     <Form.Item
                       label={
@@ -1790,6 +1832,7 @@ export default function DteSatPage() {
                         </div>
                       }
                       name="accountId"
+                      extra={stepperSugerencia?.lineas.find(l => l.cuentaId)?.motivoCuenta}
                       rules={[{ required: true, message: 'Selecciona la cuenta contable' }]}
                     >
                       <Select showSearch allowClear
