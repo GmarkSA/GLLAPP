@@ -698,6 +698,16 @@ export interface SugerenciaDte {
   lineas:    SugerenciaLinea[]
 }
 
+export interface ResultadoAltaProveedores {
+  creados:  Array<{ nit: string; nombre: string; cuentaPorPagar?: string; dtes: number }>
+  omitidos: Array<{ nit: string; nombre: string; motivo: string }>
+  motivo?:  string
+}
+
+/** Crea de una vez los proveedores que faltan, con lo que propone el motor */
+export const crearProveedoresAutomaticos = () =>
+  api.post(`${DTE_SAT}/proveedores-automaticos`).then(unwrap) as Promise<ResultadoAltaProveedores>
+
 /** Qué cuenta e IVA propone Lucía para este DTE, con el motivo. Solo lee. */
 export const getSatDteSugerencias = (id: string) =>
   api.get(`${DTE_SAT}/documentos/${id}/sugerencias`).then(unwrap) as Promise<SugerenciaDte>

@@ -444,6 +444,7 @@ function FiscalSection({
           satNit:              companySettings?.settingsJson?.satNit ?? s.satNit ?? fullCompany?.taxId ?? undefined,
           satAgenciaPassword:  companySettings?.settingsJson?.satAgenciaPassword ?? s.satAgenciaPassword ?? undefined,
           satAutoImportEnabled: companySettings?.settingsJson?.satAutoImportEnabled ?? false,
+          altaAutomaticaProveedores: companySettings?.settingsJson?.altaAutomaticaProveedores ?? false,
           satAutoImportDayOfWeek: companySettings?.settingsJson?.satAutoImportDayOfWeek ?? 5, // 5 = viernes
           satAutoImportHour:      companySettings?.settingsJson?.satAutoImportHour ?? 8,       // 08:00 Guatemala
         },
@@ -470,6 +471,7 @@ function FiscalSection({
           satAutoImportEnabled:   values.settings?.satAutoImportEnabled ?? false,
           satAutoImportDayOfWeek: values.settings?.satAutoImportDayOfWeek ?? curJson.satAutoImportDayOfWeek ?? 5,
           satAutoImportHour:      values.settings?.satAutoImportHour ?? curJson.satAutoImportHour ?? 8,
+          altaAutomaticaProveedores: values.settings?.altaAutomaticaProveedores ?? false,
         }
         await companiesApi.updateSettings(activeCompany.id, { settingsJson: nextJson } as any).catch(() => {})
         setCompanySettings((cs: any) => ({ ...(cs ?? {}), settingsJson: nextJson }))
@@ -627,6 +629,21 @@ function FiscalSection({
                       <Option value={0}>Domingo</Option>
                     </Select>
                   </Form.Item>
+                </Col>
+                <Col xs={24} style={{ marginTop: 12 }}>
+                  <Form.Item name={['settings', 'altaAutomaticaProveedores']} valuePropName="checked"
+                    style={{ marginBottom: 0 }}>
+                    <Switch />
+                  </Form.Item>
+                  <Text strong style={{ fontSize: 13, display: 'block', marginTop: 4 }}>
+                    Crear los proveedores nuevos al terminar la importación
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                    Nacen con la cuenta por pagar y el plazo que usan los demás proveedores de esta empresa,
+                    y con el IVA del tipo de documento. La cuenta de gasto la decide cada factura, así que la
+                    primera factura de un proveedor nuevo siempre pasa por revisión. Si la empresa todavía no
+                    tiene proveedores de los que copiar, no se crea ninguno.
+                  </Text>
                 </Col>
                 <Col xs={24}>
                   <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
