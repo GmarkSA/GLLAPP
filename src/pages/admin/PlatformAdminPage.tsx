@@ -1227,6 +1227,22 @@ export default function PlatformAdminPage() {
   const [confirmNombre, setConfirmNombre] = useState('')
   const [eliminandoTenant, setEliminandoTenant] = useState(false)
   const [expandedCompanies, setExpandedCompanies] = useState<Record<string, any[]>>({})
+  const [haciendoPrincipal, setHaciendoPrincipal] = useState<string | null>(null)
+
+  // La principal es la de la estrella en Configuración › Empresas; al elegirla,
+  // la cuenta toma su razón social y NIT (a su nombre se factura la suscripción)
+  const hacerPrincipal = async (tenantId: string, company: any) => {
+    setHaciendoPrincipal(company.id)
+    try {
+      await api.patch(`/admin/tenants/${tenantId}/companies/${company.id}/principal`)
+      message.success(`${company.legalName} es la empresa principal — la suscripción se factura a su nombre`)
+      const d: any = await api.get(`/admin/tenants/${tenantId}`).then(unwrap)
+      setExpandedCompanies(prev => ({ ...prev, [tenantId]: d.companies ?? [] }))
+      await loadTenants()
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo cambiar la empresa principal')
+    } finally { setHaciendoPrincipal(null) }
+  }
   const [loadingExpanded, setLoadingExpanded] = useState<Set<string>>(new Set())
   const handleEliminarTenant = async () => {
     if (!tenantAEliminar) return
@@ -1885,7 +1901,7 @@ export default function PlatformAdminPage() {
                                 {c.tradeName && c.tradeName !== c.legalName && (
                                   <span style={{ color: '#6b7280', fontSize: 11 }}> · {c.tradeName}</span>
                                 )}
-                                {r.taxId && c.taxId === r.taxId && (
+                                {c.isDefault && (
                                   <Tag color="blue" style={{ marginLeft: 6, fontSize: 10, padding: '0 5px', lineHeight: '16px' }}>Principal</Tag>
                                 )}
                               </span>
@@ -1898,6 +1914,27 @@ export default function PlatformAdminPage() {
                           {
                             title: 'Estado', dataIndex: 'isActive', width: 90,
                             render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Activa' : 'Inactiva'}</Tag>,
+                          },
+                          {
+                            title: 'Principal', width: 150, align: 'center' as const,
+                            render: (_: any, c: any) => {
+                              // La principal con otro NIT que la cuenta: la factura saldría a nombre equivocado
+                              const desalineada = c.isDefault && (c.taxId ?? '') !== (r.taxId ?? '')
+                              if (c.isDefault && !desalineada) return <StarFilled style={{ color: '#ff7f00' }} />
+                              return (
+                                <Popconfirm
+                                  title={desalineada ? '¿Facturar la suscripción a esta empresa?' : '¿Hacerla la empresa principal?'}
+                                  description={`La suscripción se facturará a ${c.legalName}, NIT ${c.taxId || 'CF'}.`}
+                                  onConfirm={() => hacerPrincipal(r.id, c)}
+                                  okText="Sí" cancelText="No"
+                                >
+                                  <Button size="small" loading={haciendoPrincipal === c.id}
+                                    icon={desalineada ? <StarFilled style={{ color: '#ff7f00' }} /> : <StarOutlined />}>
+                                    {desalineada ? 'Usar para facturar' : 'Hacer principal'}
+                                  </Button>
+                                </Popconfirm>
+                              )
+                            },
                           },
                         ]}
                       />
