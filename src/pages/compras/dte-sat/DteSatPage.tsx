@@ -189,6 +189,9 @@ export default function DteSatPage() {
     defaultUnit?: string
     accountingDate?: Dayjs
     dteItems?: BatchLineItem[]
+    motivoCuenta?: string
+    nivelSugerencia?: 'automatico' | 'revision' | 'bloqueado'
+    sugerencia?: SugerenciaDte
     result?: string; error?: string; missing?: string
   }
   const [batchOpen,    setBatchOpen]    = useState(false)
@@ -803,14 +806,25 @@ export default function DteSatPage() {
           vendorIdpType     = v?.defaultIdpType ?? undefined
         } catch { /* el proveedor solo aporta valores por defecto: sin él se usan los del formulario */ }
       }
+      // El motor manda: la cuenta sale del historial de la empresa (proveedor + concepto).
+      // La memoria del proveedor queda de respaldo cuando no hay evidencia.
+      const sugerencia = await getSatDteSugerencias(d.id).catch(() => null)
+      const lineaSugerida = sugerencia?.lineas.find(l => l.cuentaId)
+      if (lineaSugerida?.cuentaId) accountId = lineaSugerida.cuentaId
+      if (sugerencia?.lineas[0]?.taxId) taxId = sugerencia.lineas[0].taxId
+
       const accObj = accounts.find(a => a.id === accountId)
       const taxObj = taxes.find(t => t.id === taxId)
       const idpAcc = orgImpEsp?.idpAccountCode ? accounts.find(a => a.code === orgImpEsp!.idpAccountCode) : undefined
-      const dteItems: BatchLineItem[] = (d.items ?? []).map(it => ({
-        ...it,
-        accountId,
-        accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : undefined,
-      }))
+      const dteItems: BatchLineItem[] = (d.items ?? []).map((it, idx) => {
+        const cuentaLinea = sugerencia?.lineas.find(l => l.indice === idx)?.cuentaId ?? accountId
+        const cuentaObj   = accounts.find(a => a.id === cuentaLinea)
+        return {
+          ...it,
+          accountId: cuentaLinea,
+          accountLabel: cuentaObj ? `${cuentaObj.code} — ${cuentaObj.name}` : undefined,
+        }
+      })
       // Auto-detect tipo factura y unidad desde los items del DTE (bien_o_servicio / unidad_medida)
       const firstItem = (d.items as any[])?.[0]
       // El DTE manda cuando es inequívoco (tipo SAT + ítems); si no (ítems mixtos),
@@ -848,6 +862,9 @@ export default function DteSatPage() {
         paymentTermsLabel: PAYMENT_TERMS_CONFIG[(paymentTerms ?? 'immediate') as keyof typeof PAYMENT_TERMS_CONFIG] ?? paymentTerms ?? 'Inmediato',
         accountingDate: d.fechaEmision ? dayjs(d.fechaEmision) : dayjs(),
         dteItems,
+        motivoCuenta:    lineaSugerida?.motivoCuenta ?? sugerencia?.lineas[0]?.motivoCuenta,
+        nivelSugerencia: sugerencia?.nivel,
+        sugerencia:      sugerencia ?? undefined,
         missing: !accountId ? 'Falta cuenta de gasto — configúrala en el maestro del proveedor' : undefined,
       })
     }
@@ -879,6 +896,7 @@ export default function DteSatPage() {
           lineAccounts:           multiLine
             ? row.dteItems!.map((item, idx) => ({ index: idx, accountId: item.accountId ?? row.accountId ?? '' }))
             : undefined,
+          sugerencia:             row.sugerencia,
         })
         // La memoria (cuenta, IVA, tipo de factura, tipo de combustible) la actualiza
         // el backend en el proveedor — ver comentario en openBatchModal().
@@ -2192,6 +2210,12 @@ export default function DteSatPage() {
                             )}
                             {row.missing && row.status === 'pending' && (
                               <div style={{ color: '#ff7f00', fontSize: 10, marginTop: 2 }}>⚠ {row.missing}</div>
+                            )}
+                            {/* De dónde salió la cuenta: historial de la empresa, nunca el nombre de la cuenta */}
+                            {row.motivoCuenta && row.status === 'pending' && (
+                              <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2, lineHeight: 1.3 }}>
+                                {row.nivelSugerencia === 'automatico' ? '✓ ' : ''}{row.motivoCuenta}
+                              </div>
                             )}
                           </td>
                           {/* Impuesto con el que se registrará (visible para validar antes de contabilizar) */}
