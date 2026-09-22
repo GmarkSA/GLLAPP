@@ -78,7 +78,7 @@ function formatCardInput(value: string): string {
   return value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
 }
 function PlanCard({
-  plan, current, currency, exchangeRate, onSelect, onTrial,
+  plan, current, currency, exchangeRate, onSelect, onTrial, cancelada, disponibleDesde,
 }: {
   plan: PlanConfig
   current?: string
@@ -86,8 +86,19 @@ function PlanCard({
   exchangeRate: number
   onSelect: (plan: PlanConfig) => void
   onTrial?: boolean
+  /** La suscripción está cancelada: su plan se puede reactivar */
+  cancelada?: boolean
+  /** Cancelada con período pagado vigente: nada se contrata hasta que termine (DD/MM/YYYY) */
+  disponibleDesde?: string | null
 }) {
   const isActive = current === plan.plan
+  // QPayPro cobra el día en que se crea la suscripción: contratar antes de que
+  // termine el período ya pagado cobraría dos veces el mismo tramo
+  const bloqueado = !!disponibleDesde
+  const etiqueta = bloqueado
+    ? (isActive ? `Activo hasta ${disponibleDesde}` : `Disponible desde ${disponibleDesde}`)
+    : cancelada && isActive ? 'Reactivar'
+    : null
   const planCur = plan.currency || 'USD'
   const precioNativo = Number(plan.priceMonthly)
   const { value: displayPrice, cur: displayCur } = convertPrecio(precioNativo, planCur, currency, exchangeRate)
@@ -176,13 +187,13 @@ function PlanCard({
       </Space>
 
       <Button
-        type={isActive ? 'default' : 'primary'}
+        type={(isActive && !cancelada) || bloqueado ? 'default' : 'primary'}
         block
-        disabled={isActive}
+        disabled={bloqueado || (isActive && !cancelada)}
         onClick={() => onSelect(plan)}
-        style={isActive ? {} : { background: '#1faec2', borderColor: '#1faec2' }}
+        style={(isActive && !cancelada) || bloqueado ? {} : { background: '#1faec2', borderColor: '#1faec2' }}
       >
-        {isActive ? 'Plan actual' : isFree ? 'Usar gratis' : onTrial ? '30 días gratis' : 'Seleccionar'}
+        {etiqueta ?? (isActive ? 'Plan actual' : isFree ? 'Usar gratis' : onTrial ? '30 días gratis' : 'Seleccionar')}
       </Button>
     </Card>
   )
@@ -678,10 +689,16 @@ export default function SubscriptionPage() {
   // isInTrial: para el banner de trial pre-existente (solo si el backend lo marca explícitamente)
   const isInTrial = state?.tenant?.status === 'trial'
   // onTrial: para el botón "30 días gratis" — cubre también 'trialing' (QPayPro) y trialEndsAt futuro
-  const onTrialButton = state?.tenant?.status === 'trial'
+  // Quien ya tuvo una suscripción pagada y la canceló no tiene prueba gratis
+  const suscripcionCancelada = sub?.status === 'cancelled'
+  const onTrialButton = !suscripcionCancelada && (state?.tenant?.status === 'trial'
     || state?.tenant?.status === 'trialing'
     || state?.subscription?.status === 'trialing'
-    || trialDaysLeft !== null
+    || trialDaysLeft !== null)
+  // Cancelada con período pagado vigente: los planes se habilitan cuando termine
+  const disponibleDesde = suscripcionCancelada && finPeriodo && !finPeriodo.isBefore(dayjs(), 'day')
+    ? finPeriodo.format('DD/MM/YYYY')
+    : null
   // Inferir fecha de inicio: trialEndsAt - 30 días
   const trialStartedAt = trialEndsAt ? new Date(trialEndsAt.getTime() - 30 * 24 * 60 * 60 * 1000) : null
   const trialDaysElapsed = trialStartedAt
@@ -825,6 +842,8 @@ export default function SubscriptionPage() {
               exchangeRate={exchangeRate}
               onSelect={handleSelectPlan}
               onTrial={onTrialButton}
+              cancelada={suscripcionCancelada}
+              disponibleDesde={disponibleDesde}
             />
           </Col>
         ))}
