@@ -19,6 +19,8 @@ import {
   type BillingState, type PlanConfig, type SubscriptionPayment,
   type BillingCurrency, type CardType, type PaymentResponse,
 } from '../../api/billing'
+import { useAuthStore } from '../../store/authStore'
+import { esAdminUsuario } from '../../api/consolidacion'
 
 
 const MODULOS_LUCIA = [
@@ -599,6 +601,10 @@ export default function SubscriptionPage() {
 
   const exchangeRate = rateInfo.rate
   const sub = state?.subscription
+  // Cancelar es de administradores del cliente (el backend lo exige igual)
+  const esAdmin = esAdminUsuario(useAuthStore(s => s.user))
+  // Fin del período pagado: la fecha se guarda como el día a medianoche UTC
+  const finPeriodo = sub?.nextChargeAt ? dayjs(new Date(sub.nextChargeAt).toISOString().slice(0, 10)) : null
   // En trial no hay suscripción activa pero el tenant ya tiene un plan asignado;
   // usar tenant.plan como fallback para que el card correcto muestre "Plan actual".
   const activePlan = sub?.status === 'active'
@@ -648,7 +654,7 @@ export default function SubscriptionPage() {
     setCancelling(true)
     try {
       const res = await cancelSubscription()
-      message.success(res.message || 'Suscripción cancelada y datos de tarjeta eliminados.', 6)
+      message.success(res.message || 'Suscripción cancelada y datos de tarjeta eliminados.', 10)
       await load()
     } catch (e: any) {
       message.error(billingErrorMsg(e, 'No se pudo cancelar la suscripción'), 6)
@@ -902,8 +908,19 @@ export default function SubscriptionPage() {
         ) : null}
       </Modal>
 
-      {/* Cancelar suscripción — si hay suscripción activa o en proceso */}
-      {sub && hasCard && sub.status !== 'cancelled' && (
+      {/* Suscripción cancelada: hasta cuándo sigue operando */}
+      {sub?.status === 'cancelled' && (
+        <Alert
+          type="warning" showIcon style={{ marginTop: 24, borderRadius: 10 }}
+          message="Suscripción cancelada"
+          description={finPeriodo && !finPeriodo.isBefore(dayjs(), 'day')
+            ? `No habrá más cobros. Puedes seguir usando Lucía hasta el ${finPeriodo.format('DD/MM/YYYY')}; después quedará en solo lectura hasta que vuelvas a suscribirte.`
+            : 'No habrá más cobros. Tu cuenta está en solo lectura hasta que vuelvas a suscribirte.'}
+        />
+      )}
+
+      {/* Cancelar suscripción — si hay suscripción activa o en proceso; solo administradores */}
+      {sub && hasCard && sub.status !== 'cancelled' && esAdmin && (
         <Card
           style={{ marginTop: 24, borderRadius: 10, borderColor: '#ffccc7', background: '#fff7f6' }}
           bodyStyle={{ padding: '16px 20px' }}
@@ -923,7 +940,7 @@ export default function SubscriptionPage() {
             </div>
             <Popconfirm
               title="Cancelar suscripción"
-              description="Se cancelarán los cobros automáticos y se eliminará tu tarjeta guardada. ¿Deseas continuar?"
+              description={`Se cancelarán los cobros automáticos y se eliminará tu tarjeta guardada.${finPeriodo ? ` Podrás seguir usando Lucía hasta el ${finPeriodo.format('DD/MM/YYYY')}.` : ''} ¿Deseas continuar?`}
               okText="Sí, cancelar"
               cancelText="No"
               okButtonProps={{ danger: true, loading: cancelling }}
