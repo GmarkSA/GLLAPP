@@ -88,15 +88,14 @@ function PlanCard({
   onTrial?: boolean
   /** La suscripción está cancelada: su plan se puede reactivar */
   cancelada?: boolean
-  /** Cancelada con período pagado vigente: nada se contrata hasta que termine (DD/MM/YYYY) */
+  /** Cancelada con período pagado vigente: fin del período (DD/MM/YYYY) */
   disponibleDesde?: string | null
 }) {
   const isActive = current === plan.plan
-  // QPayPro cobra el día en que se crea la suscripción: contratar antes de que
-  // termine el período ya pagado cobraría dos veces el mismo tramo
-  const bloqueado = !!disponibleDesde
-  const etiqueta = bloqueado
-    ? (isActive ? `Activo hasta ${disponibleDesde}` : `Disponible desde ${disponibleDesde}`)
+  // Solo el plan ya pagado espera al fin de su período (reactivarlo antes cobraría
+  // dos veces el mismo tramo); los demás planes se pueden contratar
+  const bloqueado = isActive && !!disponibleDesde
+  const etiqueta = bloqueado ? `Activo hasta ${disponibleDesde}`
     : cancelada && isActive ? 'Reactivar'
     : null
   const planCur = plan.currency || 'USD'
@@ -616,14 +615,31 @@ export default function SubscriptionPage() {
   const esAdmin = esAdminUsuario(useAuthStore(s => s.user))
   // Fin del período pagado: la fecha se guarda como el día a medianoche UTC
   const finPeriodo = sub?.nextChargeAt ? dayjs(new Date(sub.nextChargeAt).toISOString().slice(0, 10)) : null
+  const suscripcionCancelada = sub?.status === 'cancelled'
+  // Cancelada con período pagado vigente: fin de ese período (su plan espera hasta entonces)
+  const disponibleDesde = suscripcionCancelada && finPeriodo && !finPeriodo.isBefore(dayjs(), 'day')
+    ? finPeriodo.format('DD/MM/YYYY')
+    : null
   // En trial no hay suscripción activa pero el tenant ya tiene un plan asignado;
   // usar tenant.plan como fallback para que el card correcto muestre "Plan actual".
-  const activePlan = sub?.status === 'active'
+  // Cancelada: el plan que se pagó (el de la suscripción), no el de la cuenta
+  const activePlan = sub?.status === 'active' || sub?.status === 'cancelled'
     ? sub.plan
     : (state?.tenant?.plan ?? undefined)
   const isProcesandoPago  = sub?.status === 'procesando_pago'
 
   const handleSelectPlan = (plan: PlanConfig) => {
+    // Cancelada con período vigente: otro plan se cobra el día que se contrata
+    if (disponibleDesde && Number(plan.priceMonthly) > 0) {
+      Modal.confirm({
+        title: `¿Contratar ${plan.displayName} ahora?`,
+        content: `Tu plan actual está pagado hasta el ${disponibleDesde}. Si contratas ${plan.displayName} hoy, `
+          + 'QPayPro cobra el nuevo plan hoy mismo y desde hoy corre su período.',
+        okText: 'Sí, continuar', cancelText: 'Esperar',
+        onOk: () => { setSelectedPlan(plan); setModalOpen(true) },
+      })
+      return
+    }
     if (!sub?.qpayproCardToken && Number(plan.priceMonthly) > 0) {
       // Sin tarjeta registrada → abrir formulario completo
       setSelectedPlan(plan)
@@ -690,15 +706,10 @@ export default function SubscriptionPage() {
   const isInTrial = state?.tenant?.status === 'trial'
   // onTrial: para el botón "30 días gratis" — cubre también 'trialing' (QPayPro) y trialEndsAt futuro
   // Quien ya tuvo una suscripción pagada y la canceló no tiene prueba gratis
-  const suscripcionCancelada = sub?.status === 'cancelled'
   const onTrialButton = !suscripcionCancelada && (state?.tenant?.status === 'trial'
     || state?.tenant?.status === 'trialing'
     || state?.subscription?.status === 'trialing'
     || trialDaysLeft !== null)
-  // Cancelada con período pagado vigente: los planes se habilitan cuando termine
-  const disponibleDesde = suscripcionCancelada && finPeriodo && !finPeriodo.isBefore(dayjs(), 'day')
-    ? finPeriodo.format('DD/MM/YYYY')
-    : null
   // Inferir fecha de inicio: trialEndsAt - 30 días
   const trialStartedAt = trialEndsAt ? new Date(trialEndsAt.getTime() - 30 * 24 * 60 * 60 * 1000) : null
   const trialDaysElapsed = trialStartedAt
