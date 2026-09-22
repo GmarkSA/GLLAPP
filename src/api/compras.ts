@@ -658,6 +658,38 @@ export const removePoAttachment = async (id: string, key: string, po: PurchaseOr
 }
 
 // ─── DTE SAT ─────────────────────────────────────────────────────────────────
+
+/** Sugerencia del motor para una línea del DTE: qué cuenta e IVA, y por qué */
+export interface SugerenciaLinea {
+  indice:        number
+  descripcion:   string
+  bienOServicio: 'B' | 'S' | null
+  cuentaId?:     string
+  cuentaCodigo?: string
+  cuentaNombre?: string
+  motivoCuenta:  string
+  confianza:     number
+  origen:        'proveedor_concepto' | 'proveedor' | 'concepto_empresa' | 'proveedor_ficha' | 'sin_evidencia'
+  nivel:         'automatico' | 'revision' | 'bloqueado'
+  taxCodigo?:    string
+  taxId?:        string
+  motivoIva:     string
+}
+
+export interface SugerenciaDte {
+  dteId:     string
+  nivel:     'automatico' | 'revision' | 'bloqueado'
+  bloqueos:  string[]
+  avisos:    string[]
+  umbral:    { minFacturas: number; minPorcentaje: number }
+  proveedor: { id?: string; nombre?: string; nit?: string; tieneCuentaPorPagar: boolean }
+  lineas:    SugerenciaLinea[]
+}
+
+/** Qué cuenta e IVA propone Lucía para este DTE, con el motivo. Solo lee. */
+export const getSatDteSugerencias = (id: string) =>
+  api.get(`${DTE_SAT}/documentos/${id}/sugerencias`).then(unwrap) as Promise<SugerenciaDte>
+
 export const postSatDte = (id: string, dto: {
   taxId?: string
   invoiceType?: string
@@ -684,6 +716,8 @@ export const postSatDte = (id: string, dto: {
   bomberosAccountId?: string
   forceZeroAmount?: boolean
   lineAccounts?: Array<{ index: number; accountId: string }>
+  /** Lo que el motor sugirió al abrir el registro — se guarda en la factura para medir aciertos */
+  sugerencia?: SugerenciaDte
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: PurchaseInvoice
   dte: SatDte
