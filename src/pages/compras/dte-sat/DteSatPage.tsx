@@ -205,6 +205,7 @@ export default function DteSatPage() {
     status: 'pending' | 'processing' | 'ok' | 'error'
     errorMsg?: string; dteCount: number
     detectedType?: 'B' | 'S' | 'C' | 'mixed'
+    motivoCuentaGasto?: string
   }
   const [bulkVendorOpen,    setBulkVendorOpen]    = useState(false)
   const [bulkVendorRows,    setBulkVendorRows]    = useState<BulkVendorRow[]>([])
@@ -944,46 +945,6 @@ export default function DteSatPage() {
       accountKw: ['gastos menor','útiles','utiles','misceláneo','miscela','varios'] },
   ]
 
-  // Motor de inferencia: analiza nombre del proveedor + descripciones de ítems para
-  // asignar cuenta de gasto e impuesto IVA más acertados
-  const inferFromDteItems = (dtes: SatDte[]): { taxId?: string; expenseAccountId?: string; detectedType: 'B' | 'S' | 'C' | 'mixed' } => {
-    const allItems = dtes.flatMap(d => d.items ?? [])
-    const expAccounts = accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('5') || a.code?.startsWith('6')))
-    const findExp = (kws: string[]) => expAccounts.find(a => kws.some(k => (a.name ?? '').toLowerCase().includes(k)))?.id
-
-    // Texto de búsqueda: nombre del proveedor + todas las descripciones de ítems
-    const vendorName = (dtes[0]?.nombreEmisor ?? '').toLowerCase()
-    const itemDescs = allItems.map(i => ((i as any).descripcion ?? (i as any).description ?? '').toLowerCase()).join(' ')
-    const searchText = `${vendorName} ${itemDescs}`
-
-    // Detectar tipo base desde bien_o_servicio (para impuesto por defecto)
-    const types = allItems.map(i => (i as any).bien_o_servicio ?? 'B')
-    const allSvc  = types.length > 0 && types.every(t => t === 'S')
-    const hasBoth = types.some(t => t === 'B') && types.some(t => t === 'S')
-    const baseType: 'B' | 'S' | 'mixed' = allSvc ? 'S' : hasBoth ? 'mixed' : 'B'
-    const baseTaxCode = allSvc ? 'RG-C02' : 'RG-C01'
-
-    // Aplicar reglas en orden: primera coincidencia gana
-    for (const rule of EXPENSE_RULES) {
-      if (rule.signals.some(s => searchText.includes(s))) {
-        return {
-          taxId: taxes.find(t => t.code === (rule.taxCode ?? baseTaxCode))?.id,
-          expenseAccountId: findExp(rule.accountKw),
-          detectedType: rule.type ?? baseType,
-        }
-      }
-    }
-
-    // Sin coincidencia: fallback por tipo base
-    return {
-      taxId: taxes.find(t => t.code === baseTaxCode)?.id,
-      expenseAccountId: allSvc
-        ? findExp(['servicio','honorario','consultor'])
-        : findExp(['compra','mercadería','mercaderia','inventario']),
-      detectedType: baseType,
-    }
-  }
-
   const openBulkVendorModal = async () => {
     const res = await getSatDteDocuments({ status: 'pending', limit: 500 })
     const pendingDtes = res.data ?? []
@@ -993,29 +954,37 @@ export default function DteSatPage() {
       if (!byNit.has(nit)) byNit.set(nit, [])
       byNit.get(nit)!.push(d)
     }
-    // Cuenta Proveedores Nacionales: busca por nombre, fallback a cualquier cuenta 2xxx activa de proveedor
-    const provNacAccount = accounts.find(a => {
-      const n = (a.name ?? '').toLowerCase()
-      return !a.isHeader && a.isActive && n.includes('proveedor') && (n.includes('nacional') || n.includes('local'))
-    }) ?? accounts.find(a => !a.isHeader && a.isActive && a.code?.startsWith('21'))
-    const rows: BulkVendorRow[] = Array.from(byNit.entries()).map(([nit, dtes]) => {
-      const { taxId, expenseAccountId, detectedType } = inferFromDteItems(dtes)
+
+    // Todo sale del motor: la cuenta por pagar y el plazo, de cómo están los proveedores
+    // que ya tiene la empresa; la cuenta de gasto y el IVA, del concepto de la factura en
+    // el historial de la empresa. Si no hay evidencia, el campo queda vacío: antes se
+    // adivinaba por el nombre de la cuenta y a Kaizen le proponía una cuenta 5 que no usa.
+    const entradas = Array.from(byNit.entries())
+    const sugerencias = await Promise.all(entradas.map(([, dtes]) =>
+      getSatDteSugerencias(dtes[0].id).catch(() => null)))
+
+    const rows: BulkVendorRow[] = entradas.map(([nit, dtes], i) => {
+      const sugerencia = sugerencias[i]
+      const linea = sugerencia?.lineas.find(l => l.cuentaId)
+      const tipos = dtes.flatMap(d => (d.items ?? []).map((it: any) => it.bien_o_servicio ?? 'B'))
       return {
         dteId:                dtes[0].id,
         nitEmisor:            nit,
         name:                 dtes[0].nombreEmisor ?? '',
-        payableAccountId:     provNacAccount?.id,
-        paymentTerms:         'net_30',
-        expenseAccountId,
-        defaultPurchaseTaxId: taxId,
+        payableAccountId:     sugerencia?.proveedorNuevo?.cuentaPorPagarId,
+        paymentTerms:         `net_${sugerencia?.proveedorNuevo?.diasCredito ?? 30}`,
+        expenseAccountId:     linea?.cuentaId,
+        defaultPurchaseTaxId: sugerencia?.lineas[0]?.taxId,
+        motivoCuentaGasto:    linea?.motivoCuenta ?? sugerencia?.lineas[0]?.motivoCuenta,
         status:               'pending' as const,
         dteCount:             dtes.length,
-        detectedType,
+        detectedType:         tipos.length > 0 && tipos.every(t => t === 'S') ? 'S'
+          : tipos.length > 0 && tipos.every(t => t === 'B') ? 'B' : 'mixed',
       }
     })
     setBulkVendorRows(rows)
-    setBulkCommonPayable(provNacAccount?.id)
-    setBulkCommonTerms('net_30')
+    setBulkCommonPayable(rows[0]?.payableAccountId)
+    setBulkCommonTerms(rows[0]?.paymentTerms ?? 'net_30')
     setBulkCommonExpense(undefined)
     setBulkCommonTax(undefined)
     setBulkVendorOpen(true)
@@ -2856,6 +2825,7 @@ export default function DteSatPage() {
             {
               title: 'Cuenta gasto', dataIndex: 'expenseAccountId', width: 240,
               render: (val: string | undefined, row: BulkVendorRow) => (
+                <div>
                 <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="Gasto..."
                   value={val} disabled={row.status === 'ok' || bulkVendorRunning}
                   onChange={v => setBulkVendorRows(prev => prev.map(r =>
@@ -2864,6 +2834,11 @@ export default function DteSatPage() {
                   filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
                   options={accounts.filter(a => !a.isHeader && a.isActive && (a.code?.startsWith('5') || a.code?.startsWith('6')))
                     .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+                {/* De dónde salió la cuenta: del historial de la empresa, nunca del nombre de la cuenta */}
+                {row.motivoCuentaGasto && (
+                  <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2, lineHeight: 1.3 }}>{row.motivoCuentaGasto}</div>
+                )}
+                </div>
               ),
             },
             {

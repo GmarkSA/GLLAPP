@@ -676,6 +676,16 @@ export interface SugerenciaLinea {
   motivoIva:     string
 }
 
+/** Con qué datos nacería un proveedor nuevo, tomados de cómo están los demás de la empresa */
+export interface SugerenciaProveedorNuevo {
+  cuentaPorPagarId?:     string
+  cuentaPorPagarCodigo?: string
+  cuentaPorPagarNombre?: string
+  motivoCuentaPorPagar:  string
+  diasCredito?:          number
+  motivoDiasCredito:     string
+}
+
 export interface SugerenciaDte {
   dteId:     string
   nivel:     'automatico' | 'revision' | 'bloqueado'
@@ -683,6 +693,8 @@ export interface SugerenciaDte {
   avisos:    string[]
   umbral:    { minFacturas: number; minPorcentaje: number }
   proveedor: { id?: string; nombre?: string; nit?: string; tieneCuentaPorPagar: boolean }
+  /** Solo cuando el DTE todavía no tiene proveedor */
+  proveedorNuevo?: SugerenciaProveedorNuevo
   lineas:    SugerenciaLinea[]
 }
 
