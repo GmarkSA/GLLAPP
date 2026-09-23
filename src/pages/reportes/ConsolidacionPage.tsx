@@ -334,6 +334,10 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           { title: <span title="IVA crédito fiscal de las compras del período. Clic para ver los documentos.">IVA Crédito Fiscal</span>, dataIndex: 'ivaCredito', align: 'right',
             render: (v: number, r: any) => <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
               style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</a> },
+          { title: <span title="Saldo a favor que viene de la declaración del mes anterior al período. Reduce el IVA por pagar de este mes y ya está considerado en las recomendaciones.">Remanente mes anterior</span>, dataIndex: 'remanenteMesAnterior', align: 'right',
+            render: (v: number) => (v ?? 0) > 0.005
+              ? <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v)}</span>
+              : <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span> },
           { title: <span title="Suma el IVA de los meses YA DECLARADOS del período (con su remanente ya resuelto) — los meses sin declaración generada todavía no cuentan aquí. Por eso puede no coincidir con Débito − Crédito de este cuadro, que sí es la actividad completa del período. Clic para revisar los documentos y lo declarado.">IVA pagado / a favor</span>, dataIndex: 'ivaPorPagar', align: 'right',
             render: (v: number, r: any) => (
               <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
@@ -643,8 +647,8 @@ function exportarExcel(params: {
   if (erData) XLSX.utils.book_append_sheet(wb, toSheet(erData), 'Est. Resultados')
 
   if (pfData) {
-    const headers = ['Empresa', 'NIT', 'Régimen', 'Renta imponible', 'Compras realizadas', 'Resultado del período', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'IVA pagado / a favor', 'ISR determinado', 'ISR retenido', 'Excedente ISR pagado']
-    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.rentaImponible, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.ivaPorPagar ?? 0, e.aplicaIsr ? e.isrDeterminado : 'No aplica', e.aplicaIsr ? e.isrRetenido : '', e.aplicaIsr ? e.isrPorPagar : ''])
+    const headers = ['Empresa', 'NIT', 'Régimen', 'Renta imponible', 'Compras realizadas', 'Resultado del período', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Remanente mes anterior', 'IVA pagado / a favor', 'ISR determinado', 'ISR retenido', 'Excedente ISR pagado']
+    const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.rentaImponible, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.remanenteMesAnterior ?? 0, e.ivaPorPagar ?? 0, e.aplicaIsr ? e.isrDeterminado : 'No aplica', e.aplicaIsr ? e.isrRetenido : '', e.aplicaIsr ? e.isrPorPagar : ''])
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Plan. Fiscal')
   }
 

@@ -36,6 +36,8 @@ export interface EmpresaFiscal {
   ivaDebito: number
   ivaCredito: number
   ivaPorPagar: number // >0 a pagar · <0 saldo a favor
+  /** Saldo a favor que viene de la declaración del mes anterior al período */
+  remanenteMesAnterior?: number
   // ISR del Régimen Opcional Simplificado sobre Ingresos (SAT-1311): 5% sobre los
   // primeros Q30,000 de cada mes y 7% sobre el excedente, sobre lo facturado.
   aplicaIsr: boolean
@@ -69,6 +71,7 @@ export interface PlanificacionFiscal {
   ivaDebitoTotal?: number
   ivaCreditoTotal: number
   ivaPorPagarTotal: number
+  remanenteMesAnteriorTotal?: number
   rentaImponibleTotal: number
   isrDeterminadoTotal: number
   isrRetenidoTotal: number
