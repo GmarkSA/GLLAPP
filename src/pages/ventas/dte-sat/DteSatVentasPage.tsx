@@ -753,6 +753,14 @@ export default function DteSatVentasPage() {
                 ANULADO
               </Tag>
             )}
+            {/* Anulada en la SAT después de registrarse: la venta sigue viva en Lucía */}
+            {r.anuladoTrasRegistro && (
+              <Tooltip title="La SAT la anuló después de que se registró en Lucía. Anula la factura de venta para que no quede la venta ni su póliza.">
+                <Tag color="#b91c1c" style={{ fontSize: 9, marginLeft: 6, padding: '0 5px', lineHeight: '16px' }}>
+                  ANULAR LA FACTURA
+                </Tag>
+              </Tooltip>
+            )}
           </Text>
           <Text type="secondary" style={{ fontSize: 10 }}>NIT: {r.nitReceptor ?? '—'}</Text>
         </div>
