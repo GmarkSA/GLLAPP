@@ -49,6 +49,11 @@ export const getCurrencies   = ()                              => api.get('/conf
 export const createCurrency  = (dto: Partial<Currency>)       => api.post('/configuracion/monedas', dto).then(unwrap)
 export const updateRate      = (id: string, rate: number)     => api.patch(`/configuracion/monedas/${id}/tasa`, { rate }).then(unwrap)
 export const syncBanguatRate = ()                              => api.post('/configuracion/monedas/sincronizar-banguat').then(unwrap) as Promise<BanguatExchangeRateSyncResult>
+/** Trae de Banguat el tipo de cambio oficial de todo un rango y lo registra en el historial. */
+export const importarHistorialBanguat = (desde: string, hasta: string) =>
+  api.post('/configuracion/monedas/importar-banguat', { desde, hasta }).then(unwrap) as
+    Promise<{ desde: string; hasta: string; registrados: number; actualizados: number; respetadosManual: number }>
+
 export const getExchangeRateHistory = (currency = 'USD', limit = 30) =>
   api.get('/configuracion/monedas/historial', { params: { currency, limit } }).then(unwrap) as Promise<CurrencyExchangeRate[]>
 export const getExchangeRateForDate = (currency = 'USD', date?: string) =>
