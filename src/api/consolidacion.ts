@@ -40,7 +40,14 @@ export interface EmpresaFiscal {
   remanenteMesAnterior?: number
   // ISR del Régimen Opcional Simplificado sobre Ingresos (SAT-1311): 5% sobre los
   // primeros Q30,000 de cada mes y 7% sobre el excedente, sobre lo facturado.
+  // Los regímenes de actividades lucrativas se calculan distinto:
+  //   simplificado     — 5% / 7% sobre los INGRESOS facturados, tramo mensual
+  //   sobre_utilidades — 25% sobre la UTILIDAD del período (anual, pagos trimestrales)
+  //   sin_isr          — PC y ONG: no determinan ISR
   aplicaIsr: boolean
+  isrRegla?: 'simplificado' | 'sobre_utilidades' | 'sin_isr'
+  /** Tasa única aplicada — solo en sobre_utilidades */
+  isrTasa?: number | null
   rentaImponible: number
   isrPorMes: Array<{ mes: string; renta: number; isr: number }>
   isrDeterminado: number
