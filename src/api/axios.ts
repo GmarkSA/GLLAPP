@@ -113,8 +113,14 @@ let ultimoAviso403 = 0
 
 export default api
 
-/** Extrae el mensaje de error del formato del HttpExceptionFilter del backend.
- *  La respuesta tiene forma: { success: false, error: { message: "..." } }
+/** Cuerpo del error tal como lo redacta el backend.
+ *  El HttpExceptionFilter lo anida: { success: false, statusCode, error: { ... } }.
+ *  Leerlo un nivel más arriba deja el mensaje —y cualquier código de la respuesta—
+ *  en undefined, y la pantalla termina mostrando su texto genérico.
  */
+export const getApiErrorBody = (e: any): any =>
+  e?.response?.data?.error ?? e?.response?.data
+
+/** Extrae el mensaje de error del formato del HttpExceptionFilter del backend. */
 export const getApiError = (e: any, fallback = 'Error inesperado'): string =>
-  e?.response?.data?.error?.message ?? e?.response?.data?.message ?? fallback
+  getApiErrorBody(e)?.message ?? fallback

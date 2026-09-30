@@ -17,6 +17,7 @@ import {
   type TenantUser, type RoleSummary, type PermissionSummary,
 } from '../../../api/usuarios'
 import { nivelPorPermisos, nivelEfectivo, opcionesRecorte, valorSelector, NIVEL_LABEL } from '../../../auth/nivelModulo'
+import { getApiError, getApiErrorBody } from '../../../api/axios'
 import { companiesApi } from '../../../api/companies'
 import { getBillingState } from '../../../api/billing'
 import type { Company } from '../../../store/authStore'
@@ -424,7 +425,7 @@ export default function UsuariosPage() {
       message.success(invitar ? 'Invitación enviada por correo' : 'Usuario creado')
       cerrarAlta()
     } catch (e: any) {
-      const data = e?.response?.data
+      const data = getApiErrorBody(e)
       // El correo ya tiene cuenta en Lucía, pero en otra empresa cliente: en vez de
       // dejar el alta trabada, se ofrece darle acceso a esta sin crear otro usuario.
       if (data?.code === 'usuario_existe_en_otra_cuenta') {
@@ -450,7 +451,7 @@ export default function UsuariosPage() {
         })
         return
       }
-      message.error(data?.message ?? 'Error al crear usuario')
+      message.error(getApiError(e, 'Error al crear usuario'))
     } finally { setSaving(false) }
   }
 
@@ -470,18 +471,18 @@ export default function UsuariosPage() {
       setModal(null)
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al actualizar')
+      message.error(getApiError(e, 'Error al actualizar'))
     } finally { setSaving(false) }
   }
 
   const handleBloquear = async (id: string) => {
     try { await bloquearUser(id); message.success('Usuario bloqueado — sus sesiones fueron cerradas'); load() }
-    catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo bloquear', 6) }
+    catch (e: any) { message.error(getApiError(e, 'No se pudo bloquear'), 6) }
   }
 
   const handleDesbloquear = async (id: string) => {
     try { await desbloquearUser(id); message.success('Usuario desbloqueado'); load() }
-    catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo desbloquear', 6) }
+    catch (e: any) { message.error(getApiError(e, 'No se pudo desbloquear'), 6) }
   }
 
   const openResetPassword = (u: TenantUser) => { setSelected(u); pwForm.resetFields(); setModal('password') }
@@ -494,8 +495,8 @@ export default function UsuariosPage() {
       message.success('Contraseña temporal asignada — el usuario deberá cambiarla al entrar y sus sesiones fueron cerradas', 6)
       setModal(null); load()
     } catch (e: any) {
-      const raw = e?.response?.data?.message
-      if (raw) message.error(Array.isArray(raw) ? raw.join(' · ') : String(raw), 6)
+      const raw = getApiErrorBody(e)?.message
+      message.error(Array.isArray(raw) ? raw.join(' · ') : String(raw ?? 'No se pudo asignar la contraseña'), 6)
     } finally { setSaving(false) }
   }
 
@@ -526,7 +527,7 @@ export default function UsuariosPage() {
         loadAsignaciones(companies).catch(() => {})
       }
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al actualizar empresas')
+      message.error(getApiError(e, 'Error al actualizar empresas'))
     }
   }
 
@@ -540,7 +541,7 @@ export default function UsuariosPage() {
       message.success(roleId ? 'Rol por empresa guardado' : 'Rol por empresa quitado (rige el rol general)')
       loadAsignaciones(companies).catch(() => {})
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar el rol por empresa')
+      message.error(getApiError(e, 'Error al guardar el rol por empresa'))
     } finally { setSavingOverride(null) }
   }
 
@@ -552,7 +553,7 @@ export default function UsuariosPage() {
     try {
       await companiesApi.updateCompanyUser(companyId, selected.id, { moduleOverrides: updated })
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar permiso')
+      message.error(getApiError(e, 'Error al guardar permiso'))
     } finally { setSavingOverride(null) }
   }
 
@@ -572,7 +573,7 @@ export default function UsuariosPage() {
       setRoles(prev => prev.map(r => r.id === updated.id ? updated : r))
       setEditingRole(updated)
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al guardar permisos')
+      message.error(getApiError(e, 'Error al guardar permisos'))
     } finally { setSavingPerms(false) }
   }
 
@@ -586,7 +587,7 @@ export default function UsuariosPage() {
       roleForm.resetFields()
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al crear rol')
+      message.error(getApiError(e, 'Error al crear rol'))
     } finally { setSaving(false) }
   }
 
@@ -596,7 +597,7 @@ export default function UsuariosPage() {
       message.success('Rol eliminado')
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'No se puede eliminar este rol')
+      message.error(getApiError(e, 'No se puede eliminar este rol'))
     }
   }
 
