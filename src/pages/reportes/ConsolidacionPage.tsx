@@ -285,6 +285,13 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
   }
   const prioridadColor = (p: string) => p === 'alta' ? 'red' : p === 'media' ? 'orange' : 'blue'
 
+  // Cada empresa puede estar en un régimen distinto: la etiqueta del total solo
+  // menciona los tramos si TODAS las que determinan ISR están en el Simplificado.
+  const reglasIsr = new Set(data.empresas.filter(e => e.aplicaIsr).map(e => e.isrRegla ?? 'simplificado'))
+  const tituloIsr = reglasIsr.size !== 1 ? ''
+    : reglasIsr.has('sobre_utilidades') ? ' (25% s/ utilidades)'
+    : ' (5% / 7%)'
+
   return (
     <div>
       <Row gutter={16} style={{ marginBottom: 20 }}>
@@ -292,7 +299,7 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           { title: 'Ingresos consolidados', value: data.totalIngresos, color: '#2ea172' },
           { title: 'Compras realizadas',    value: data.totalGastos,   color: '#e5484d' },
           { title: 'Resultado consolidado', value: data.utilidadConsolidada, color: posneg(data.utilidadConsolidada) },
-          { title: 'ISR determinado (5% / 7%)', value: data.isrDeterminadoTotal, color: '#d46b08' },
+          { title: `ISR determinado${tituloIsr}`, value: data.isrDeterminadoTotal, color: '#d46b08' },
         ].map(s => (
           <Col span={6} key={s.title}>
             <Card size="small" style={{ borderRadius: 8 }}>
@@ -311,9 +318,12 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
         style={{ marginBottom: 20 }}
         columns={[
           { title: 'Empresa', dataIndex: 'legalName', render: (v, r: any) => <><span style={{ fontSize: 12, fontWeight: 600 }}>{v}</span><div style={{ fontSize: 11, color: '#6b7280' }}>{r.regNombre} · NIT {r.taxId}</div></> },
-          { title: <span title="Ingresos facturados afectos del período: sin exentas y menos notas de crédito. Es la base del ISR de este régimen.">Renta imponible</span>, dataIndex: 'rentaImponible', align: 'right',
+          { title: <span title="Base del ISR del régimen de cada empresa: los ingresos facturados afectos (Opcional Simplificado) o la utilidad del período (Sobre las Utilidades).">Renta imponible</span>, dataIndex: 'rentaImponible', align: 'right',
             render: (v: number, r: any) => r.aplicaIsr
-              ? <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span>
+              ? <Tooltip title={r.isrRegla === 'sobre_utilidades'
+                  ? 'Utilidad del período: ingresos y otros ingresos, menos costos, gastos y otros gastos.'
+                  : 'Ingresos facturados afectos del período: sin exentas y menos notas de crédito.'}>
+                  <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span></Tooltip>
               : <Tooltip title={`Ingresos contables del período: ${Q(r.ingresos ?? 0)}`}><span style={{ ...qStyle, fontSize: 12, color: '#9aa1ab' }}>{Q(v ?? 0)}</span></Tooltip> },
           { title: 'Compras realizadas', dataIndex: 'gastos', align: 'right', render: (v: number) => <span style={{ ...qStyle, fontSize: 12, color: '#e5484d' }}>{Q(v)}</span> },
           { title: <span title="Resultado contable del período: ingresos menos gastos según la contabilidad. No se calcula con la renta imponible, que es una base fiscal.">Resultado del período</span>,
@@ -348,10 +358,13 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
           // ISR del Opcional Simplificado: se paga sobre los INGRESOS facturados, no
           // sobre la utilidad, y el tramo del 5% es mensual. Se lee igual que el IVA:
           // lo determinado, lo que ya le retuvieron, y el saldo.
-          { title: <span title="5% sobre los primeros Q30,000 de cada mes y 7% sobre el excedente (SAT-1311)">ISR determinado</span>, dataIndex: 'isrDeterminado', align: 'right',
+          { title: <span title="ISR del régimen de cada empresa: 5% / 7% sobre ingresos con tramo mensual (SAT-1311), o 25% sobre la utilidad del período (Sobre las Utilidades).">ISR determinado</span>, dataIndex: 'isrDeterminado', align: 'right',
             render: (v: number, r: any) => r.aplicaIsr
-              ? <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span>
-              : <Tooltip title="Este régimen no determina ISR sobre ingresos"><span style={{ fontSize: 12, color: '#9aa1ab' }}>No aplica</span></Tooltip> },
+              ? <Tooltip title={r.isrRegla === 'sobre_utilidades'
+                  ? `${r.isrTasa ?? 25}% sobre la utilidad del período. Es un impuesto anual: se paga en cuatro trimestres y se liquida al cierre.`
+                  : '5% sobre los primeros Q30,000 de cada mes y 7% sobre el excedente (SAT-1311).'}>
+                  <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span></Tooltip>
+              : <Tooltip title="Este régimen no determina ISR"><span style={{ fontSize: 12, color: '#9aa1ab' }}>No aplica</span></Tooltip> },
           { title: <span title="Retenciones de ISR que ya le practicaron sus clientes en el período">ISR retenido</span>, dataIndex: 'isrRetenido', align: 'right',
             render: (v: number, r: any) => r.aplicaIsr
               ? <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v ?? 0)}</span>
@@ -363,9 +376,10 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
               if (!r.aplicaIsr) return <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span>
               const retenidoDeMas = (r.isrRetenido ?? 0) - (r.isrDeterminado ?? 0)
               const monto = <span style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: '#d46b08' }}>{Q(v ?? 0)}</span>
-              return retenidoDeMas > 0.005
-                ? <Tooltip title={`Le retuvieron ${Q(retenidoDeMas)} más que el impuesto determinado. En este régimen no queda a favor.`}>{monto}</Tooltip>
-                : monto
+              if (retenidoDeMas <= 0.005) return monto
+              return <Tooltip title={r.isrRegla === 'sobre_utilidades'
+                ? `Le retuvieron ${Q(retenidoDeMas)} más que el impuesto determinado. En este régimen el ISR es anual: ese exceso se acredita en la liquidación del cierre.`
+                : `Le retuvieron ${Q(retenidoDeMas)} más que el impuesto determinado. En este régimen no queda a favor.`}>{monto}</Tooltip>
             } },
         ]}
       />
