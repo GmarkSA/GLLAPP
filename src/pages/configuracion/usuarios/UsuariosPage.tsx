@@ -429,9 +429,16 @@ export default function UsuariosPage() {
       // dejar el alta trabada, se ofrece darle acceso a esta sin crear otro usuario.
       if (data?.code === 'usuario_existe_en_otra_cuenta') {
         setSaving(false)
+        // Se nombran las empresas marcadas: es lo único que realmente cambia para
+        // ese usuario, porque su cuenta ya existe y no se le toca nada más.
+        const marcadas = Object.entries((vals.accesos ?? {}) as Record<string, { on?: boolean }>)
+          .filter(([, a]) => a?.on)
+          .map(([id]) => companies.find(c => c.id === id)?.legalName ?? id)
         Modal.confirm({
           title: 'Ese correo ya tiene una cuenta en Lucía',
-          content: `${data.message} ¿Le damos acceso a esta cuenta?`,
+          content: marcadas.length
+            ? `${data.message} Se le asignarán las empresas que marcaste: ${marcadas.join(', ')}.`
+            : `${data.message} ¿Le damos acceso a esta cuenta?`,
           okText: 'Sí, darle acceso',
           cancelText: 'Cancelar',
           onOk: async () => {
