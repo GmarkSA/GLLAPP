@@ -390,6 +390,15 @@ export default function Declaracion2237() {
   const liveCredito = r2(c.vehiculosNuevos.iva + c.combustibles.iva + c.bienes.iva + c.servicios.iva + c.fyduca.iva + c.importacion.iva + c.activosFijos.iva + c.activosFijosImportados.iva)
   const liveBaseC   = r2(c.medicamentos.base + c.pequenoContribuyente.base + c.vehiculosAntiguos.base + c.vehiculosNuevos.base + c.exento.base + c.combustibles.base + c.bienes.base + c.servicios.base + c.fyduca.base + c.importacion.base + c.activosFijos.base + c.activosFijosImportados.base)
   const liveRet     = c.retencionIva
+  // Secciones 4 y 6: la exportación se reporta aparte de las operaciones locales.
+  // Es exenta (art. 7 num. 2 LIVA), así que la sección 3 queda solo con lo local.
+  // El crédito del mes atribuible a la exportación —el que se puede pedir en
+  // devolución (art. 23)— sale del factor exportaciones ÷ total de ventas y NO se
+  // resta del crédito local: el impuesto a pagar se determina igual que siempre.
+  const liveBaseVLocal  = r2(liveBaseV - v.exportacion.base)
+  const liveDebitoLocal = r2(liveDebito - v.exportacion.iva)
+  const factorExp       = liveBaseV > 0 ? Math.round((v.exportacion.base / liveBaseV) * 10000) / 10000 : 0
+  const creditoExp      = r2(liveCredito * factorExp)
   const liveNeto    = liveDebito - liveCredito - remanente
   const livePagar   = Math.max(0, liveNeto) - liveRet
 
@@ -513,13 +522,25 @@ export default function Declaracion2237() {
                 <ERow label="Servicios gravados" taxCode="RG-V02"
                   baseVal={v.servicios.base}  onBase={val => setV('servicios', 'base', val)}
                   ivaVal={v.servicios.iva}    onIva={val  => setV('servicios', 'iva',  val)} />
-                <ERow label="Exportaciones" taxCode="RG-V03"
+                <tr>
+                  <td style={SUB}>Sumatoria BASE y DÉBITOS</td>
+                  <td style={SNUM}>{fmt(liveBaseVLocal)}</td>
+                  <td style={SNUM}>{fmt(liveDebitoLocal)}</td>
+                </tr>
+
+                {/* 4. DÉBITO FISCAL POR OPERACIONES DE EXPORTACIÓN */}
+                <tr>
+                  <td style={SEC}>4. DÉBITO FISCAL POR OPERACIONES DE EXPORTACIÓN</td>
+                  <td style={CHD}>BASE</td>
+                  <td style={CHD}>DÉBITOS</td>
+                </tr>
+                <ERow label="Exportaciones de bienes y servicios — exentas (Art. 7 num. 2)" taxCode="RG-V03"
                   baseVal={v.exportacion.base} onBase={val => setV('exportacion', 'base', val)}
                   ivaVal={v.exportacion.iva}   onIva={val  => setV('exportacion', 'iva',  val)} />
                 <tr>
-                  <td style={SUB}>Sumatoria BASE y DÉBITOS</td>
-                  <td style={SNUM}>{fmt(liveBaseV)}</td>
-                  <td style={SNUM}>{fmt(liveDebito)}</td>
+                  <td style={SUB}>Sumatoria BASE y DÉBITOS de exportación</td>
+                  <td style={SNUM}>{fmt(v.exportacion.base)}</td>
+                  <td style={SNUM}>{fmt(v.exportacion.iva)}</td>
                 </tr>
 
                 {/* 5. CRÉDITO FISCAL */}
@@ -574,6 +595,37 @@ export default function Declaracion2237() {
                   <td style={SUB}>Sumatoria BASE y CRÉDITOS</td>
                   <td style={SNUM}>{fmt(liveBaseC)}</td>
                   <td style={SNUM}>{fmt(liveCredito + remanente)}</td>
+                </tr>
+
+                {/* 6. CRÉDITO FISCAL POR OPERACIONES DE EXPORTACIÓN */}
+                <tr>
+                  <td style={SEC}>6. CRÉDITO FISCAL POR OPERACIONES DE EXPORTACIÓN</td>
+                  <td style={CHD}>FACTOR</td>
+                  <td style={CHD}>CRÉDITOS</td>
+                </tr>
+                <tr>
+                  <td style={CELL}>
+                    Factor de proporcionalidad — base de exportación ÷ base total de ventas
+                    <span style={{ fontSize: 10, color: '#6b7280', marginLeft: 6 }}>
+                      ({fmt(v.exportacion.base)} ÷ {fmt(liveBaseV)})
+                    </span>
+                  </td>
+                  <td style={{ ...NUM, textAlign: 'center' }}>{(factorExp * 100).toFixed(2)}%</td>
+                  <td style={NUM}></td>
+                </tr>
+                <tr>
+                  <td style={CELL}>
+                    Crédito fiscal del período atribuible a las exportaciones — sujeto a
+                    devolución (Art. 23)
+                  </td>
+                  <td style={NUM}></td>
+                  <td style={NUM}>{fmt(creditoExp)}</td>
+                </tr>
+                <tr>
+                  <td style={CCELL} colSpan={3}>
+                    No rebaja el impuesto determinado de las operaciones locales: se solicita
+                    en devolución o se acumula, según el régimen de devolución del exportador.
+                  </td>
                 </tr>
 
                 {/* 7. DETERMINACIÓN */}

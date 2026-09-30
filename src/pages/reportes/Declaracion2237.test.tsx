@@ -18,7 +18,12 @@ const DECLARACION = {
   baseCompras: 4000, ivaCreditoFiscal: 480,
   ivaNeto: 720, retencionIva: 0, polizaId: null,
   updatedAt: '2026-09-16T00:00:00.000Z',
-  snapshot: { notasCredito: { emitidas: 0, recibidas: 0 } },
+  snapshot: {
+    notasCredito: { emitidas: 0, recibidas: 0 },
+    // Con exportación: la empresa vende 10,000 local y exporta 2,500 (secciones 4 y 6)
+    ventasDesglose:  { bienes: { base: 10000, iva: 1200 }, exportacion: { base: 2500, iva: 0 } },
+    comprasDesglose: { bienes: { base: 4000,  iva: 480 } },
+  },
   ventasDesglose:  { bienes: { base: 10000, iva: 1200 } },
   comprasDesglose: { bienes: { base: 4000,  iva: 480 } },
 }
@@ -66,7 +71,9 @@ describe('Declaración 2237 en pantalla', () => {
       '1. NIT DEL CONTRIBUYENTE',
       '2. PERÍODO DE IMPOSICIÓN',
       '3. DÉBITO FISCAL POR OPERACIONES LOCALES',
+      '4. DÉBITO FISCAL POR OPERACIONES DE EXPORTACIÓN',
       '5. CRÉDITO FISCAL POR OPERACIONES LOCALES',
+      '6. CRÉDITO FISCAL POR OPERACIONES DE EXPORTACIÓN',
       '7. DETERMINACIÓN DEL CRÉDITO FISCAL O IMPUESTO A PAGAR',
       '8. INDICADORES COMERCIALES',
       '9.1 CANTIDAD DE OPERACIONES REALIZADAS',
@@ -95,7 +102,7 @@ describe('Declaración 2237 en pantalla', () => {
   // Número exacto a propósito: si alguien pierde o duplica un renglón al tocar
   // el reporte, esto lo dice en vez de dejarlo pasar
   it('cuenta los renglones que espera el formulario', () => {
-    expect(contenedor.querySelectorAll('tbody tr').length).toBe(61)
+    expect(contenedor.querySelectorAll('tbody tr').length).toBe(67)
   })
 
   it('muestra los totales calculados a partir del desglose', () => {
@@ -103,6 +110,16 @@ describe('Declaración 2237 en pantalla', () => {
     expect(texto()).toContain('TOTAL A PAGAR')
     expect(texto()).toContain('10,000.00')   // base de débitos
     expect(texto()).toContain('1,200.00')    // débito fiscal
+  })
+
+  // La exportación es exenta: reporta base sin débito, y el crédito del mes que le
+  // corresponde sale por proporcionalidad (el que se pide en devolución, Art. 23).
+  it('reporta la exportación aparte de lo local, con su factor y su crédito', () => {
+    expect(texto()).toContain('Exportaciones de bienes y servicios')
+    expect(texto()).toContain('20.00%')      // 2,500 ÷ 12,500
+    expect(texto()).toContain('96.00')       // 480 de crédito × 20%
+    expect(texto()).toContain('2,500.00')    // base de la sección 4
+    expect(texto()).toContain('10,000.00')   // la sección 3 queda solo con lo local
   })
 
   it('en modo lectura no ofrece ninguna casilla de captura', () => {
