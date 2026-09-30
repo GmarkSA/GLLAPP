@@ -671,6 +671,8 @@ export const postSatEmitidos = (id: string, dto: {
   isrRetentionAmount?: number
   isrRetentionAccountId?: string
   forceZeroAmount?: boolean
+  /** Tipo de cambio del día del documento; sin él, el backend lo resuelve solo */
+  exchangeRate?: number
 }) => api.post(`${DTE_EMIT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: Invoice
   dte: SatDteEmitidos

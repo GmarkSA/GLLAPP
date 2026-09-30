@@ -24,6 +24,7 @@ import {
   type SatDteEmitidos, type SatEmitidosJob, type SatEmitidosStatus,
 } from '../../../api/facturas'
 import { PAYMENT_TERMS_CONFIG } from '../../../api/compras'
+import { getExchangeRateForDate } from '../../../api/monedas'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
@@ -51,9 +52,10 @@ const jobStatusConfig: Record<string, { label: string; color: string }> = {
   failed:    { label: 'Error',      color: '#e5484d' },
 }
 
-function money(value: unknown) {
+function money(value: unknown, moneda?: string) {
   const n = Number(value ?? 0) || 0
-  return `Q ${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+  const simbolo = moneda && moneda.toUpperCase() !== 'GTQ' ? `${moneda.toUpperCase()} ` : 'Q '
+  return `${simbolo}${n.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 }
 
 function getErrorMessage(err: unknown, fallback: string) {
@@ -118,6 +120,9 @@ export default function DteSatVentasPage() {
 
   // ── Stepper ────────────────────────────────────────────────────────────────
   const [stepperDte,     setStepperDte]     = useState<SatDteEmitidos | null>(null)
+  // Documento en moneda extranjera: la póliza va en quetzales, con la tasa del día
+  // del documento. Se muestra antes de contabilizar para que no haya sorpresas.
+  const [stepperTc, setStepperTc] = useState<{ rate: number; effectiveDate: string; source: string } | null>(null)
   const [stepperStep,    setStepperStep]    = useState(0)
   const [stepperLoading, setStepperLoading] = useState(false)
   const [stepperResult,  setStepperResult]  = useState<{ invoice: any; dte: SatDteEmitidos } | null>(null)
@@ -426,6 +431,18 @@ export default function DteSatVentasPage() {
     setStepperDte(dte)
     setStepperStep(0)
     setStepperResult(null)
+    setStepperTc(null)
+    const monedaDte = (dte.moneda ?? 'GTQ').toUpperCase()
+    if (monedaDte !== 'GTQ') {
+      const fecha = dte.fechaEmision ? dayjs(dte.fechaEmision).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+      getExchangeRateForDate(monedaDte, fecha)
+        .then(r => setStepperTc({
+          rate: Number(r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 0)),
+          effectiveDate: r.effectiveDate,
+          source: r.source,
+        }))
+        .catch(() => setStepperTc(null))
+    }
     // Pre-marcar anulada si el portal SAT la reporta anulada → se registrará con Q0.
     setStepperIsAnulado(!!dte.anulado)
     setStepperCustomer(dte.customerId ? { id: dte.customerId, name: dte.nombreReceptor ?? '' } : null)
@@ -523,6 +540,7 @@ export default function DteSatVentasPage() {
     try {
       const res = await postSatEmitidos(stepperDte.id, {
         accountId:              vals.accountId,
+        exchangeRate:           stepperTc?.rate,
         taxId:                  stepperIsAnulado ? undefined : vals.taxId,
         accountingDate:         vals.accountingDate ? dayjs(vals.accountingDate).format('YYYY-MM-DD') : undefined,
         notes:                  vals.notes,
@@ -966,7 +984,7 @@ export default function DteSatVentasPage() {
                       <StopOutlined style={{ color: '#dc2626', fontSize: 14 }} />
                       <Text strong style={{ fontSize: 16, color: '#dc2626' }}>Q0.00 ANULADA</Text>
                     </span>
-                  : <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total)}</Text>
+                  : <Text strong style={{ fontSize: 18, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
                 }
               </div>
               <Steps current={stepperStep} size="small" style={{ marginBottom: 14 }} items={[
@@ -1036,11 +1054,27 @@ export default function DteSatVentasPage() {
                       <Text type="secondary" style={{ marginLeft: 8 }}>NIT: {stepperDte.nitReceptor}</Text>
                     )}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Subtotal">{money(stepperDte.subtotal)}</Descriptions.Item>
-                  <Descriptions.Item label="IVA">{money(stepperDte.totalIva)}</Descriptions.Item>
+                  <Descriptions.Item label="Subtotal">{money(stepperDte.subtotal, stepperDte.moneda)}</Descriptions.Item>
+                  <Descriptions.Item label="IVA">{money(stepperDte.totalIva, stepperDte.moneda)}</Descriptions.Item>
                   <Descriptions.Item label="Total" span={2}>
-                    <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(stepperDte.total)}</Text>
+                    <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
                   </Descriptions.Item>
+                  {(stepperDte.moneda ?? 'GTQ').toUpperCase() !== 'GTQ' && (
+                    <Descriptions.Item label="Tipo de cambio" span={2}>
+                      {stepperTc ? (
+                        <>
+                          <Text strong style={{ fontSize: 13 }}>
+                            1 {stepperDte.moneda} = {stepperTc.rate.toFixed(6)} GTQ
+                          </Text>
+                          <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>
+                            del {dayjs(stepperTc.effectiveDate).format('DD/MM/YYYY')}
+                            {stepperTc.source === 'banguat' ? ' · Banguat' : ` · ${stepperTc.source}`}
+                            {' '}· la póliza se registra en quetzales
+                          </Text>
+                        </>
+                      ) : <Text type="secondary" style={{ fontSize: 12 }}>Buscando la tasa del día del documento…</Text>}
+                    </Descriptions.Item>
+                  )}
                   <Descriptions.Item label="Archivos" span={2}>
                     <Space size={16}>
                       {stepperDte.xmlKey
@@ -1324,7 +1358,7 @@ export default function DteSatVentasPage() {
                     <div>
                       <Text type="secondary">Total registrado:</Text>{' '}
                       <Text strong style={{ color: stepperIsAnulado ? '#dc2626' : undefined }}>
-                        {stepperIsAnulado ? 'Q0.00 (ANULADA)' : money(stepperDte?.total)}
+                        {stepperIsAnulado ? 'Q0.00 (ANULADA)' : money(stepperDte?.total, stepperDte?.moneda)}
                       </Text>
                     </div>
                   </div>
