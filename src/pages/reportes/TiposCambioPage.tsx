@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Col, DatePicker, Row, Space, Statistic, Table, Tag, Typography, message } from 'antd'
-import { ArrowLeftOutlined, DollarOutlined, FileExcelOutlined, SyncOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, DollarOutlined, FileExcelOutlined, HistoryOutlined, SyncOutlined } from '@ant-design/icons'
 import type { RangePickerProps } from 'antd/es/date-picker'
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
-import { getExchangeRateHistory, syncBanguatRate, type CurrencyExchangeRate } from '../../api/monedas'
+import { getExchangeRateHistory, importarHistorialBanguat, syncBanguatRate, type CurrencyExchangeRate } from '../../api/monedas'
 import { getApiError } from '../../api/axios'
 
 const { Title, Text } = Typography
@@ -20,6 +20,7 @@ export default function TiposCambioPage() {
   const [rows, setRows] = useState<CurrencyExchangeRate[]>([])
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [trayendo, setTrayendo] = useState(false)
   const [range, setRange] = useState<[string, string] | null>(null)
 
   const load = useCallback(async () => {
@@ -66,6 +67,26 @@ export default function TiposCambioPage() {
     } finally { setSyncing(false) }
   }
 
+  /**
+   * Trae de Banguat los días que falten. Un cliente que entra a mitad de año no
+   * tiene las tasas de los meses anteriores y sus facturas en dólares las necesitan.
+   * Sin rango seleccionado, se trae el año en curso.
+   */
+  const handleHistorial = async () => {
+    const [desde, hasta] = range ?? [dayjs().startOf('year').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
+    setTrayendo(true)
+    try {
+      const r = await importarHistorialBanguat(desde, hasta)
+      const partes = [`${r.registrados} días nuevos`]
+      if (r.actualizados) partes.push(`${r.actualizados} actualizados`)
+      if (r.respetadosManual) partes.push(`${r.respetadosManual} con tasa manual, sin tocar`)
+      message.success(`Historial de Banguat ${dayjs(desde).format('DD/MM/YYYY')} a ${dayjs(hasta).format('DD/MM/YYYY')}: ${partes.join(' · ')}`, 6)
+      await load()
+    } catch (e: any) {
+      message.error(getApiError(e, 'No se pudo traer el historial de Banguat'))
+    } finally { setTrayendo(false) }
+  }
+
   const handleExcel = () => {
     const data = filtered.map(r => ({
       Fecha: dayjs(r.effectiveDate).format('DD/MM/YYYY'),
@@ -80,8 +101,12 @@ export default function TiposCambioPage() {
     XLSX.writeFile(wb, `tipos-de-cambio-usd-gtq-${dayjs().format('YYYY-MM-DD')}.xlsx`)
   }
 
-  const onRange: RangePickerProps['onChange'] = (_, strs) =>
-    setRange(strs[0] && strs[1] ? [strs[0], strs[1]] : null)
+  // Las fechas se guardan en YYYY-MM-DD: el segundo argumento viene con el `format`
+  // de la pantalla (DD/MM/YYYY) y comparado contra YYYY-MM-DD no filtraba nada.
+  const onRange: RangePickerProps['onChange'] = (dates) =>
+    setRange(dates?.[0] && dates?.[1]
+      ? [dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')]
+      : null)
 
   const fmt6 = (v: number | null) => v == null ? '—' : `Q ${v.toFixed(6)}`
 
@@ -101,6 +126,10 @@ export default function TiposCambioPage() {
         <Space wrap>
           <DatePicker.RangePicker size="small" onChange={onRange} format="DD/MM/YYYY" />
           <Button icon={<SyncOutlined />} loading={syncing} onClick={handleSync}>Actualizar Banguat</Button>
+          <Button icon={<HistoryOutlined />} loading={trayendo} onClick={handleHistorial}
+            title="Trae de Banguat las tasas del rango seleccionado (o del año en curso) y llena los días que falten">
+            Traer historial
+          </Button>
           <Button icon={<FileExcelOutlined />} style={{ color: '#2ea172', borderColor: '#2ea172' }} onClick={handleExcel}>Excel</Button>
         </Space>
       </div>
