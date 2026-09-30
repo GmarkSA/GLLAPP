@@ -596,6 +596,8 @@ export interface SatDteEmitidos {
   items?: Array<{ descripcion?: string; description?: string; cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string }>
   /** Derivado del portal SAT (rawData.tabla_sat.ESTADO): true si la factura está anulada. */
   anulado?: boolean
+  /** Anulada en el portal SAT DESPUÉS de registrarse: la factura de venta sigue viva en Lucía */
+  anuladoTrasRegistro?: boolean
   createdAt: string
   updatedAt?: string
 }
