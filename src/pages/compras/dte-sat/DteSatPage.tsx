@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { companiesApi } from '../../../api/companies'
+import { useCompanyStore } from '../../../store/companyStore'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Checkbox, DatePicker, Descriptions, Divider, Form, Input, InputNumber,
@@ -157,7 +159,32 @@ export default function DteSatPage() {
   const [stepperVendorPayableMissing, setStepperVendorPayableMissing] = useState(false)
   const [vendors, setVendors] = useState<{ value: string; label: string; type?: string }[]>([])
   const [unidades, setUnidades] = useState<UnidadMedida[]>([])
-  const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
+  const activeCompany = useCompanyStore(st => st.activeCompany)
+  const [satCredentials, setSatCredentials] = useState<{ satNit?: string; nivel?: 'empresa' | 'organizacion' }>({})
+
+  // El NIT que se muestra (y con el que se importa) es el de la EMPRESA ACTIVA.
+  // Leyéndolo de la organización, la bandeja de Mario decía «NIT 117457620
+  // configurado» —el de Kaizen— y se importaban documentos de la otra empresa.
+  // El nivel organización queda solo como respaldo para tenants de una sola empresa.
+  useEffect(() => {
+    let vigente = true
+    const cargarCredenciales = async () => {
+      const propio = activeCompany?.id
+        ? await companiesApi.getSettings(activeCompany.id)
+            .then((s: any) => s?.settingsJson?.satNit as string | undefined)
+            .catch(() => undefined)
+        : undefined
+      if (!vigente) return
+      if (propio) { setSatCredentials({ satNit: propio, nivel: 'empresa' }); return }
+      const org = await getOrganizationProfile()
+        .then((p: any) => p?.settings?.satNit as string | undefined)
+        .catch(() => undefined)
+      if (vigente) setSatCredentials({ satNit: org, nivel: org ? 'organizacion' : undefined })
+    }
+    cargarCredenciales()
+    return () => { vigente = false }
+  }, [activeCompany?.id])
+
   const [originalBills, setOriginalBills] = useState<{ value: string; label: string }[]>([])
   const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; tasaMunicipalAccountCode?: string; bomberosAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number } | null>(null)
   const [stepperHasTimbre, setStepperHasTimbre] = useState(false)
@@ -248,7 +275,6 @@ export default function DteSatPage() {
       .catch(() => {})
     getOrganizationProfile()
       .then((p: any) => {
-        setSatCredentials({ satNit: p?.settings?.satNit })
         const ie = p?.settings?.impuestosEspeciales
         if (ie) setOrgImpEsp({
           idpAccountCode:          ie.idp?.accountCode,
@@ -2573,11 +2599,15 @@ export default function DteSatPage() {
             </div>
             {!satCredentials.satNit ? (
               <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
-                ⚠ Configura credenciales SAT en <strong>Configuración → Configuración fiscal</strong>
+                ⚠ Configura las credenciales SAT de esta empresa en <strong>Configuración → Configuración fiscal</strong>
+              </div>
+            ) : satCredentials.nivel === 'organizacion' ? (
+              <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                ⚠ NIT {satCredentials.satNit} — configurado a nivel organización, no de esta empresa
               </div>
             ) : (
               <div style={{ fontSize: 11, color: '#2ea172', background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
-                ✓ NIT {satCredentials.satNit} configurado
+                ✓ NIT {satCredentials.satNit} configurado para {activeCompany?.legalName ?? 'esta empresa'}
               </div>
             )}
           </div>
