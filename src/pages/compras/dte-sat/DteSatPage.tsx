@@ -29,6 +29,7 @@ import { getOrganizationProfile } from '../../../api/configuracion'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getVendor, getVendors } from '../../../api/contactos'
 import { getUnidadesActivas, type UnidadMedida } from '../../../api/unidades-medida'
+import { getExchangeRateForDate } from '../../../api/monedas'
 import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
@@ -142,6 +143,9 @@ export default function DteSatPage() {
 
   // ── Stepper ────────────────────────────────────────────────────────────────
   const [stepperDte, setStepperDte]           = useState<SatDte | null>(null)
+  // Documento en moneda extranjera: la póliza va en quetzales, con la tasa del día
+  // de la factura. Se muestra antes de registrar para que no haya sorpresas.
+  const [stepperTc, setStepperTc] = useState<{ rate: number; effectiveDate: string; source: string } | null>(null)
   const [stepperStep, setStepperStep]         = useState(0)
   const [stepperLoading, setStepperLoading]   = useState(false)
   const [stepperOcChoice, setStepperOcChoice]       = useState<'select' | 'skip' | 'reimbursement' | null>(null)
@@ -551,6 +555,18 @@ export default function DteSatPage() {
       : ''
     setStepperDte(row)
     setStepperStep(0)
+    setStepperTc(null)
+    const monedaDte = (row.moneda ?? 'GTQ').toUpperCase()
+    if (monedaDte !== 'GTQ') {
+      const fecha = row.fechaEmision ? dayjs(row.fechaEmision).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+      getExchangeRateForDate(monedaDte, fecha)
+        .then(r => setStepperTc({
+          rate: Number(r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 0)),
+          effectiveDate: r.effectiveDate,
+          source: r.source,
+        }))
+        .catch(() => setStepperTc(null))
+    }
     setStepperOcChoice(null)
     setStepperOcId(undefined)
     setStepperPOs(undefined)
@@ -740,6 +756,7 @@ export default function DteSatPage() {
         ? Math.round(dteSubtotal * (turismoRate / 100) * 100) / 100 : 0
       const result = await postSatDte(stepperDte.id, {
         invoiceType:         invType,
+        exchangeRate:        stepperTc?.rate,
         taxId:               stepperIsAnulado ? undefined : values.taxId,
         accountId:           values.accountId,
         paymentTerms:        values.paymentTerms,
@@ -1533,6 +1550,22 @@ export default function DteSatPage() {
                     <Descriptions.Item label="Total" span={2}>
                       <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
                     </Descriptions.Item>
+                    {(stepperDte.moneda ?? 'GTQ').toUpperCase() !== 'GTQ' && (
+                      <Descriptions.Item label="Tipo de cambio" span={2}>
+                        {stepperTc ? (
+                          <>
+                            <Text strong style={{ fontSize: 13 }}>
+                              1 {stepperDte.moneda} = {stepperTc.rate.toFixed(6)} GTQ
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>
+                              del {dayjs(stepperTc.effectiveDate).format('DD/MM/YYYY')}
+                              {stepperTc.source === 'banguat' ? ' · Banguat' : ` · ${stepperTc.source}`}
+                              {' '}· la póliza se registra en quetzales
+                            </Text>
+                          </>
+                        ) : <Text type="secondary" style={{ fontSize: 12 }}>Buscando la tasa del día de la factura…</Text>}
+                      </Descriptions.Item>
+                    )}
                     <Descriptions.Item label="Archivos" span={2}>
                       <Space size={16}>
                         {stepperDte.xmlKey

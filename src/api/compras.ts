@@ -740,6 +740,8 @@ export const postSatDte = (id: string, dto: {
   lineAccounts?: Array<{ index: number; accountId: string }>
   /** Lo que el motor sugirió al abrir el registro — se guarda en la factura para medir aciertos */
   sugerencia?: SugerenciaDte
+  /** Tipo de cambio del día de la factura; sin él, el backend lo resuelve solo */
+  exchangeRate?: number
 }) => api.post(`${DTE_SAT}/documentos/${id}/contabilizar`, dto).then(unwrap) as Promise<{
   invoice: PurchaseInvoice
   dte: SatDte

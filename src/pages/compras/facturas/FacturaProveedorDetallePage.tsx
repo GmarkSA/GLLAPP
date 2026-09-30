@@ -28,7 +28,6 @@ import { useCentrosOptions } from '../../../components/SelectorDimensionesAnalit
 import { useCan } from '../../../auth/can'
 
 const { Title, Text } = Typography
-const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 const fmtGTQ = (n: number, cur = 'GTQ') => `${cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
@@ -344,7 +343,7 @@ export default function FacturaProveedorDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'P. Unitario', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'P. Unitario', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(v, bill.currency)}</Text> },
     ...(hasDiscounts ? [{
       title: 'Descuento', width: 110, align: 'right' as const,
       render: (_v: any, row: any) => {
@@ -353,7 +352,7 @@ export default function FacturaProveedorDetallePage() {
           || gross * Number(row.discountPercent ?? 0) / 100
           || Math.max(0, gross - Number(row.lineTotal ?? gross))
         return discAmt > 0.001
-          ? <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>−{fmtQ(discAmt)}</Text>
+          ? <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>−{fmtGTQ(discAmt, bill.currency)}</Text>
           : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
       },
     }] : []),
@@ -386,7 +385,7 @@ export default function FacturaProveedorDetallePage() {
         const price    = Number(row.unitPrice ?? 0)
         const discount = Number(row.discountPercent ?? 0)
         const total    = qty * price * (1 - discount / 100)
-        return <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(total)}</Text>
+        return <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtGTQ(total, bill.currency)}</Text>
       },
     },
   ]
@@ -1011,7 +1010,7 @@ export default function FacturaProveedorDetallePage() {
         </Text>
         <Form form={payForm} layout="vertical">
           <Form.Item name="amount" label="Monto pagado"
-            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(bill.balance), message: `Máximo ${fmtQ(Number(bill.balance))}` }]}>
+            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(bill.balance), message: `Máximo ${fmtGTQ(Number(bill.balance), bill.currency)}` }]}>
             <InputNumber style={{ width: '100%' }} min={0.01} precision={2} prefix={bill.currency === 'GTQ' ? 'Q' : bill.currency} />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
