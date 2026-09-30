@@ -352,7 +352,9 @@ export default function MainLayout() {
   }
 
   const filteredMenuItems = menuItems.filter(item => {
-    const alwaysVisible = ['/dashboard', '/admin/platform']
+    // Configuración nunca se oculta: no es un módulo que se elija (ni el onboarding ni
+    // los planes la listan), y sin ella la empresa se queda sin dónde habilitar módulos.
+    const alwaysVisible = ['/dashboard', '/admin/platform', '/configuracion']
     if (alwaysVisible.includes(item.key)) return true
     const moduleKey = resolveModuleKey(item.key.startsWith('/') ? item.key.slice(1) : item.key)
     return moduleEnabled(moduleKey)
