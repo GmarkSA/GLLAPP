@@ -390,35 +390,60 @@ export default function UsuariosPage() {
     finally { setLoadingAssigned(false) }
   }
 
+  /**
+   * Empresas a las que accede (y rol dentro de cada una) en el mismo alta:
+   * un usuario no administrador solo ve/opera las empresas asignadas.
+   */
+  const asignarEmpresas = async (userId: string, accesos: Record<string, { on?: boolean; roleId?: string }>) => {
+    const fallidas: string[] = []
+    for (const [companyId, a] of Object.entries(accesos ?? {})) {
+      if (!a?.on) continue
+      await companiesApi.assignUser(companyId, { userId, roleIds: a.roleId ? [a.roleId] : [] })
+        .catch(() => fallidas.push(companies.find(c => c.id === companyId)?.legalName ?? companyId))
+    }
+    if (fallidas.length) message.warning(`Usuario guardado, pero no se pudo asignar: ${fallidas.join(', ')}`)
+  }
+
+  const cerrarAlta = () => { setModal(null); form.resetFields(); load() }
+
   const handleCreate = async () => {
     const vals = await form.validateFields()
     setSaving(true)
+    const invitar = vals.invitar !== false
+    const datos = {
+      firstName: vals.firstName,
+      lastName:  vals.lastName,
+      email:     vals.email,
+      ...(invitar ? { sendInvitation: true } : { password: vals.password }),
+      roleIds:   vals.roleIds ?? [],
+      ...(soySuperAdmin ? { isSuperAdmin: vals.isSuperAdmin ?? false } : {}),
+    }
     try {
-      const invitar = vals.invitar !== false
-      const creado = await createUser({
-        firstName: vals.firstName,
-        lastName:  vals.lastName,
-        email:     vals.email,
-        ...(invitar ? { sendInvitation: true } : { password: vals.password }),
-        roleIds:   vals.roleIds ?? [],
-        ...(soySuperAdmin ? { isSuperAdmin: vals.isSuperAdmin ?? false } : {}),
-      })
-      // Empresas a las que accede (y rol dentro de cada una) en el mismo alta:
-      // un usuario no administrador solo ve/opera las empresas asignadas.
-      const accesos: Record<string, { on?: boolean; roleId?: string }> = vals.accesos ?? {}
-      const fallidas: string[] = []
-      for (const [companyId, a] of Object.entries(accesos)) {
-        if (!a?.on) continue
-        await companiesApi.assignUser(companyId, { userId: creado.id, roleIds: a.roleId ? [a.roleId] : [] })
-          .catch(() => fallidas.push(companies.find(c => c.id === companyId)?.legalName ?? companyId))
-      }
-      if (fallidas.length) message.warning(`Usuario creado, pero no se pudo asignar: ${fallidas.join(', ')}`)
+      const creado = await createUser(datos)
+      await asignarEmpresas(creado.id, vals.accesos)
       message.success(invitar ? 'Invitación enviada por correo' : 'Usuario creado')
-      setModal(null)
-      form.resetFields()
-      load()
+      cerrarAlta()
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Error al crear usuario')
+      const data = e?.response?.data
+      // El correo ya tiene cuenta en Lucía, pero en otra empresa cliente: en vez de
+      // dejar el alta trabada, se ofrece darle acceso a esta sin crear otro usuario.
+      if (data?.code === 'usuario_existe_en_otra_cuenta') {
+        setSaving(false)
+        Modal.confirm({
+          title: 'Ese correo ya tiene una cuenta en Lucía',
+          content: `${data.message} ¿Le damos acceso a esta cuenta?`,
+          okText: 'Sí, darle acceso',
+          cancelText: 'Cancelar',
+          onOk: async () => {
+            const usuario = await createUser({ ...datos, vincularExistente: true })
+            await asignarEmpresas(usuario.id, vals.accesos)
+            message.success('Listo: ese usuario ya tiene acceso a esta cuenta')
+            cerrarAlta()
+          },
+        })
+        return
+      }
+      message.error(data?.message ?? 'Error al crear usuario')
     } finally { setSaving(false) }
   }
 
