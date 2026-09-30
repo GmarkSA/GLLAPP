@@ -55,6 +55,8 @@ export const createUser = (dto: {
   sendInvitation?: boolean
   isSuperAdmin?: boolean
   roleIds?:     string[]
+  /** El correo ya tiene cuenta en Lucía y el administrador confirmó darle acceso a esta */
+  vincularExistente?: boolean
 }) => api.post(BASE, dto).then(unwrap) as Promise<TenantUser>
 
 export const updateUser = (id: string, dto: {
