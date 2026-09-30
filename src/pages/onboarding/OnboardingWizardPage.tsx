@@ -52,6 +52,7 @@ const MODULES: Array<{ value: string; label: string; icon: string; desc: string;
   { value: 'inventario',   label: 'Inventario',    icon: '📦', desc: 'Artículos, almacenes, movimientos de stock' },
   { value: 'activos',      label: 'Activos Fijos', icon: '🏠', desc: 'Registro, depreciación y clases ISR de activos fijos' },
   { value: 'financiero',   label: 'Financiero',    icon: '📈', desc: 'Presupuestos, centros de costo y divisiones' },
+  { value: 'reportes',     label: 'Reportes',      icon: '📑', desc: 'Libros de compras y ventas, declaraciones de IVA e ISR, consolidación' },
   { value: 'planillas',    label: 'Planillas',     icon: '👥', desc: 'Empleados, corridas de planilla, IGSS, finiquitos' },
   { value: 'pos',          label: 'Terminal POS',  icon: '🖥️', desc: 'Punto de venta, caja rápida para ventas al mostrador' },
   { value: 'proyectos',    label: 'Proyectos',     icon: '📋', desc: 'Gestión de proyectos, presupuestos y avance de obra' },
@@ -106,7 +107,7 @@ export default function OnboardingWizardPage() {
 
   // Paso 2 — Módulos
   const [selectedModules, setSelectedModules] = useState<string[]>([
-    'contabilidad', 'ventas', 'compras', 'bancos',
+    'contabilidad', 'ventas', 'compras', 'bancos', 'reportes',
   ])
 
   const getCountryMeta = (code: string) => COUNTRIES.find(c => c.code === code)
