@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import { companiesApi } from '../../../api/companies'
+import { useCompanyStore } from '../../../store/companyStore'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Button, Card, Col, DatePicker, Descriptions, Divider, Drawer, Form, Input, InputNumber,
@@ -101,7 +103,32 @@ export default function DteSatVentasPage() {
   const [page,         setPage]         = useState(1)
   const [total,        setTotal]        = useState(0)
   const PAGE_SIZE = 200
-  const [satCredentials, setSatCredentials] = useState<{ satNit?: string }>({})
+  const activeCompany = useCompanyStore(st => st.activeCompany)
+  const [satCredentials, setSatCredentials] = useState<{ satNit?: string; nivel?: 'empresa' | 'organizacion' }>({})
+
+  // El NIT que se muestra (y con el que se importa) es el de la EMPRESA ACTIVA.
+  // Leyéndolo de la organización, la bandeja de Mario decía «NIT 117457620
+  // configurado» —el de Kaizen— y se importaban documentos de la otra empresa.
+  // El nivel organización queda solo como respaldo para tenants de una sola empresa.
+  useEffect(() => {
+    let vigente = true
+    const cargarCredenciales = async () => {
+      const propio = activeCompany?.id
+        ? await companiesApi.getSettings(activeCompany.id)
+            .then((s: any) => s?.settingsJson?.satNit as string | undefined)
+            .catch(() => undefined)
+        : undefined
+      if (!vigente) return
+      if (propio) { setSatCredentials({ satNit: propio, nivel: 'empresa' }); return }
+      const org = await getOrganizationProfile()
+        .then((p: any) => p?.settings?.satNit as string | undefined)
+        .catch(() => undefined)
+      if (vigente) setSatCredentials({ satNit: org, nivel: org ? 'organizacion' : undefined })
+    }
+    cargarCredenciales()
+    return () => { vigente = false }
+  }, [activeCompany?.id])
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Filtros avanzados
@@ -163,11 +190,6 @@ export default function DteSatVentasPage() {
       })
       .catch(() => {})
     getUnidadesActivas().then(setUnidades).catch(() => {})
-    getOrganizationProfile()
-      .then((p: any) => setSatCredentials({
-        satNit: p?.settings?.satNit,
-      }))
-      .catch(() => {})
   }, [])
 
   // ── Cargar documentos / jobs / stats ──────────────────────────────────────
@@ -1555,11 +1577,15 @@ export default function DteSatVentasPage() {
             </div>
             {!satCredentials.satNit ? (
               <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
-                ⚠ Configura credenciales SAT en <strong>Configuración → Configuración fiscal</strong>
+                ⚠ Configura las credenciales SAT de esta empresa en <strong>Configuración → Configuración fiscal</strong>
+              </div>
+            ) : satCredentials.nivel === 'organizacion' ? (
+              <div style={{ fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                ⚠ NIT {satCredentials.satNit} — configurado a nivel organización, no de esta empresa
               </div>
             ) : (
               <div style={{ fontSize: 11, color: '#2ea172', background: '#e8f5ef', border: '1px solid #c3e5d8', borderRadius: 4, padding: '2px 10px', whiteSpace: 'nowrap' }}>
-                ✓ NIT {satCredentials.satNit} configurado
+                ✓ NIT {satCredentials.satNit} configurado para {activeCompany?.legalName ?? 'esta empresa'}
               </div>
             )}
           </div>
