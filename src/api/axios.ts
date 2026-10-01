@@ -71,8 +71,13 @@ api.interceptors.response.use(
       try {
         if (!refreshingPromise) {
           const refreshToken = sessionStorage.getItem('refreshToken')
+          // Con el refreshToken va la organización en la que está la sesión: sin
+          // ella el backend devolvía al usuario a la primera de su lista.
           refreshingPromise = axios
-            .post<any>(`${BASE_URL}/auth/refresh`, { refreshToken })
+            .post<any>(`${BASE_URL}/auth/refresh`, {
+              refreshToken,
+              tenantId: sessionStorage.getItem('tenantId') ?? undefined,
+            })
             .then((r) => {
               const payload = r.data?.data ?? r.data
               sessionStorage.setItem('accessToken',  payload.accessToken)

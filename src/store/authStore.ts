@@ -22,6 +22,33 @@ interface User {
   accesoEmpresa?: { companyId: string; rolPorEmpresa: boolean; moduleOverrides: Record<string, 'full' | 'read' | 'none' | undefined> }
 }
 
+/**
+ * Organización (cliente) con la que arranca la sesión.
+ *
+ * Un mismo correo puede tener acceso a varias. Antes se tomaba siempre la primera
+ * de la lista, también al recargar la página, así que cambiar de cliente no
+ * duraba nada. Ahora manda, en este orden: la de esta pestaña, la última que usó
+ * ese usuario y, si ninguna sirve, la primera.
+ */
+const CLAVE_ULTIMA_ORG = 'ultimaOrganizacion'
+
+export const recordarOrganizacion = (userId: string | undefined, tenantId: string) => {
+  if (userId) localStorage.setItem(`${CLAVE_ULTIMA_ORG}:${userId}`, tenantId)
+}
+
+export const organizacionDeEntrada = (user: any): string | undefined => {
+  const permitidas: string[] = user?.tenantIds ?? []
+  const sirve = (id?: string | null) => !!id && (permitidas.includes(id) || !!user?.isSuperAdmin)
+
+  const deLaPestana = sessionStorage.getItem('tenantId')
+  if (sirve(deLaPestana)) return deLaPestana!
+
+  const ultima = user?.id ? localStorage.getItem(`${CLAVE_ULTIMA_ORG}:${user.id}`) : null
+  if (sirve(ultima)) return ultima!
+
+  return permitidas[0]
+}
+
 const ROLES_ACCESO_TOTAL = new Set(['superadmin', 'admin'])
 const nombreRol = (r: UserRole): string => (typeof r === 'string' ? r : (r?.name ?? '')).toLowerCase()
 
@@ -128,7 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       sessionStorage.setItem('accessToken', accessToken)
       sessionStorage.setItem('refreshToken', refreshToken)
-      const tenantId = user?.tenantIds?.[0]
+      const tenantId = organizacionDeEntrada(user)
       if (tenantId) {
         sessionStorage.setItem('tenantId', tenantId)
         set({ tenantId })
@@ -154,7 +181,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       sessionStorage.setItem('accessToken', accessToken)
       sessionStorage.setItem('refreshToken', refreshToken)
-      const tenantId = user?.tenantIds?.[0]
+      const tenantId = organizacionDeEntrada(user)
       if (tenantId) {
         sessionStorage.setItem('tenantId', tenantId)
         set({ tenantId })
@@ -175,6 +202,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setTenant: (tenantId) => {
     sessionStorage.setItem('tenantId', tenantId)
+    recordarOrganizacion(get().user?.id, tenantId)
     set({ tenantId })
   },
 
@@ -190,7 +218,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { data: raw } = await api.get('/auth/me')
       const user = raw?.data ?? raw
-      const tenantId = user?.tenantIds?.[0]
+      const tenantId = organizacionDeEntrada(user)
       if (tenantId) {
         sessionStorage.setItem('tenantId', tenantId)
         set({ tenantId })
