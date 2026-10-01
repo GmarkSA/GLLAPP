@@ -18,6 +18,7 @@ import { useIsMobile } from '../hooks/useMediaQuery'
 import { useCompanyStore } from '../store/companyStore'
 import type { Company } from '../store/authStore'
 import CompanySelector from '../components/CompanySelector'
+import OrganizationSelector from '../components/OrganizationSelector'
 import NoCompanyGuard from '../components/NoCompanyGuard'
 import OnboardingProgressBadge from '../components/Onboarding/OnboardingProgressBadge'
 import OnboardingChatDrawer from '../components/Onboarding/OnboardingChatDrawer'
@@ -561,6 +562,8 @@ export default function MainLayout() {
                 style={{ color: '#6b7280', borderRadius: 8 }}
               />
             </Tooltip>
+            {/* Organización (cliente): solo aparece si el usuario tiene más de una */}
+            {!isMobile && <OrganizationSelector />}
             <CompanySelector placement="header" />
             {/* key fuerza remonte del badge al cambiar empresa → re-fetch del porcentaje */}
             {!isMobile && <OnboardingProgressBadge key={activeCompany?.id} />}
