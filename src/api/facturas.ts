@@ -594,6 +594,20 @@ export interface SatDteEmitidos {
   invoiceId?: string
   errorMessage?: string
   items?: Array<{ descripcion?: string; description?: string; cantidad?: string; precio_unitario?: string; total_linea?: string; iva?: string }>
+  /** Lo que trae el XML certificado: frases y complemento de exportación. */
+  rawData?: {
+    fel?: {
+      frases?: Array<{ tipoFrase: number; codigoEscenario: number }>
+      exportacion?: {
+        nombreConsignatario?: string
+        direccionConsignatario?: string
+        codigoConsignatario?: string
+        incoterm?: string
+        otraReferencia?: string
+      } | null
+    }
+    [k: string]: any
+  }
   /** Derivado del portal SAT (rawData.tabla_sat.ESTADO): true si la factura está anulada. */
   anulado?: boolean
   /** Anulada en el portal SAT DESPUÉS de registrarse: la factura de venta sigue viva en Lucía */

@@ -24,6 +24,7 @@ import {
   postSatEmitidos, resolveSatEmitidosCustomer,
   startSatEmitidosImport, syncSatEmitidosJob, clearAllSatEmitidos,
   type SatDteEmitidos, type SatEmitidosJob, type SatEmitidosStatus,
+  FEL_TIPOS_FRASE, INCOTERMS,
 } from '../../../api/facturas'
 import { PAYMENT_TERMS_CONFIG } from '../../../api/compras'
 import { getExchangeRateForDate } from '../../../api/monedas'
@@ -1089,6 +1090,42 @@ export default function DteSatVentasPage() {
                   <Descriptions.Item label="Total" span={2}>
                     <Text strong style={{ fontSize: 14, color: '#1faec2' }}>{money(stepperDte.total, stepperDte.moneda)}</Text>
                   </Descriptions.Item>
+                  {/* Leyendas y complemento de exportación, tal como vienen del XML
+                      certificado: lo mismo que captura el registro individual. */}
+                  {(stepperDte.rawData?.fel?.frases?.length ?? 0) > 0 && (
+                    <Descriptions.Item label="Leyendas" span={2}>
+                      <Space size={4} wrap>
+                        {stepperDte.rawData!.fel!.frases!.map(f => {
+                          const conocida = FEL_TIPOS_FRASE.find(
+                            x => x.tipoFrase === f.tipoFrase && x.codigoEscenario === f.codigoEscenario)
+                          return (
+                            <Tag key={`${f.tipoFrase}-${f.codigoEscenario}`} color="blue" style={{ fontSize: 11, margin: 0 }}>
+                              {conocida?.label ?? `Frase ${f.tipoFrase}-${f.codigoEscenario}`}
+                            </Tag>
+                          )
+                        })}
+                      </Space>
+                    </Descriptions.Item>
+                  )}
+                  {stepperDte.rawData?.fel?.exportacion?.nombreConsignatario && (() => {
+                    const exp = stepperDte.rawData!.fel!.exportacion!
+                    const incoterm = INCOTERMS.find(i => i.value === (exp.incoterm ?? '').toUpperCase())
+                    return (
+                      <Descriptions.Item label="Exportación" span={2}>
+                        <div style={{ fontSize: 12 }}>
+                          <div><Text strong>{exp.nombreConsignatario}</Text>
+                            {exp.incoterm && <Tag style={{ fontSize: 10, marginLeft: 6 }}>{incoterm?.label ?? exp.incoterm}</Tag>}
+                          </div>
+                          {exp.direccionConsignatario && (
+                            <div style={{ color: '#6b7280', fontSize: 11 }}>{exp.direccionConsignatario}</div>
+                          )}
+                          <div style={{ color: '#2ea172', fontSize: 11, marginTop: 2 }}>
+                            Se registra como exportación, exenta de IVA (Art. 7 núm. 2) y en su bloque del formulario.
+                          </div>
+                        </div>
+                      </Descriptions.Item>
+                    )
+                  })()}
                   {(stepperDte.moneda ?? 'GTQ').toUpperCase() !== 'GTQ' && (
                     <Descriptions.Item label="Tipo de cambio" span={2}>
                       {stepperTc ? (
