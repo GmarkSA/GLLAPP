@@ -167,7 +167,7 @@ export default function DteSatVentasPage() {
   // ── Batch (registro masivo) ────────────────────────────────────────────────
   type BatchRowStatus = 'pending' | 'processing' | 'ok' | 'skipped' | 'error'
   interface BatchRow {
-    id: string; label: string; total: number; status: BatchRowStatus
+    id: string; label: string; total: number; moneda?: string; status: BatchRowStatus
     accountId?: string; accountLabel?: string
     taxId?: string; taxLabel?: string
     defaultUnit?: string
@@ -650,6 +650,7 @@ export default function DteSatVentasPage() {
         id: d.id,
         label: `${d.nombreReceptor ?? d.nitReceptor ?? '—'} · ${d.serie}/${d.numeroDte}`,
         total: Number(d.total ?? 0),
+        moneda: d.moneda,
         status: 'pending',
         accountId,
         accountLabel: accObj ? `${accObj.code} — ${accObj.name}` : accountId ? '(cuenta configurada)' : undefined,
@@ -773,7 +774,9 @@ export default function DteSatVentasPage() {
       width: 115,
       align: 'right' as const,
       sorter: (a, b) => Number(a.total) - Number(b.total),
-      render: (v: number) => <Text strong style={{ fontSize: 12 }}>{money(v)}</Text>,
+      // Con la moneda del documento, como hace la bandeja de recibidos: sin esto la
+      // columna escribía «Q» aunque la factura estuviera guardada en dólares.
+      render: (v: number, row: SatDteEmitidos) => <Text strong style={{ fontSize: 12 }}>{money(v, row.moneda)}</Text>,
     },
     {
       title: 'Proceso',
@@ -1584,7 +1587,7 @@ export default function DteSatVentasPage() {
                           <Text style={{ fontSize: 11, color: '#6b7280' }}>{row.accountingDate?.format('DD/MM/YYYY') ?? '—'}</Text>
                         )}
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{money(row.total)}</td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{money(row.total, row.moneda)}</td>
                       <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                         {row.status === 'pending' && !row.missing && <Tag color="default" style={{ fontSize: 10 }}>Pendiente</Tag>}
                         {row.status === 'pending' && row.missing  && <Tag color="warning" style={{ fontSize: 10 }}>Sin cuenta</Tag>}
