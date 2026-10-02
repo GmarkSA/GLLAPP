@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import dayjs from 'dayjs'
 
 /**
  * El reporte de la declaración de IVA, dibujado entero.
@@ -12,8 +13,13 @@ import { createRoot, type Root } from 'react-dom/client'
  * queda anotado lo que debe verse.
  */
 
+// El período lo elige la pantalla con el mes de HOY: una declaración fija se
+// quedaba huérfana al cambiar de mes (el 1 de octubre dejó de encontrar la de
+// septiembre y no dibujaba el formulario).
+const HOY = dayjs()
+
 const DECLARACION = {
-  id: 'decl-1', mes: 9, anio: 2026, status: 'borrador',
+  id: 'decl-1', mes: HOY.month() + 1, anio: HOY.year(), status: 'borrador',
   baseVentas: 10000, ivaDebitoFiscal: 1200,
   baseCompras: 4000, ivaCreditoFiscal: 480,
   ivaNeto: 720, retencionIva: 0, polizaId: null,
@@ -85,10 +91,12 @@ describe('Declaración 2237 en pantalla', () => {
   })
 
   it('identifica a la empresa y el período', () => {
+    const MESES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO',
+      'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
     expect(texto()).toContain('4677003-9')
     expect(texto()).toContain('GMARK, S.A.')
-    expect(texto()).toContain('SEPTIEMBRE')
-    expect(texto()).toContain('2026')
+    expect(texto()).toContain(MESES[HOY.month()])
+    expect(texto()).toContain(String(HOY.year()))
   })
 
   it('dibuja los renglones de débito y de crédito', () => {
