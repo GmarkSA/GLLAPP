@@ -174,6 +174,22 @@ export default function DteSatVentasPage() {
     accountingDate?: Dayjs
     result?: string; error?: string; missing?: string
   }
+  /** Alta masiva de clientes, hermana de la de proveedores en recibidos. */
+  interface BulkCustomerRow {
+    dteId: string; nitReceptor: string; name: string
+    receivableAccountId?: string; incomeAccountId?: string; taxCode?: string
+    paymentTerms: string; currency: string
+    status: 'pending' | 'processing' | 'ok' | 'error'
+    errorMsg?: string; dteCount: number
+  }
+  const [bulkCustomerOpen,    setBulkCustomerOpen]    = useState(false)
+  const [bulkCustomerRows,    setBulkCustomerRows]    = useState<BulkCustomerRow[]>([])
+  const [bulkCustomerRunning, setBulkCustomerRunning] = useState(false)
+  const [bulkCommonCxC,   setBulkCommonCxC]   = useState<string | undefined>()
+  const [bulkCommonIngreso, setBulkCommonIngreso] = useState<string | undefined>()
+  const [bulkCommonTax,   setBulkCommonTax]   = useState<string | undefined>()
+  const [bulkCommonTerms, setBulkCommonTerms] = useState<string>('net_30')
+
   const [batchOpen,    setBatchOpen]    = useState(false)
   const [batchRows,    setBatchRows]    = useState<BatchRow[]>([])
   const [batchRunning, setBatchRunning] = useState(false)
@@ -527,7 +543,9 @@ export default function DteSatVentasPage() {
       const res: any = await createSatEmitidosCustomer(stepperDte.id, {
         name:               vals.name,
         legalName:          vals.legalName ?? vals.name,
-        currency:           'GTQ',
+        // La moneda del documento, no quetzales por omisión: el cliente del
+        // exterior se factura en la suya.
+        currency:           (stepperDte.moneda ?? 'GTQ').toUpperCase(),
         paymentTerms:       vals.paymentTerms,
         receivableAccountId: vals.receivableAccountId,
         incomeAccountId:    vals.incomeAccountId,
@@ -611,8 +629,70 @@ export default function DteSatVentasPage() {
   }
 
   // ── Batch: abrir modal ────────────────────────────────────────────────────
-  const openBatchModal = async () => {
-    const selected = documents.filter(d => selectedIds.includes(d.id) && isBatchable(d))
+  /**
+   * Los clientes que faltan, agrupados por NIT: un cliente puede venir en varias
+   * facturas y se crea una sola vez. Lo que no dice el documento no se inventa —
+   * las cuentas salen de la configuración común que elija el usuario.
+   */
+  const openBulkCustomerModal = async () => {
+    const res = await getSatEmitidosDocuments({ status: 'pending', limit: 500 })
+    const porNit = new Map<string, SatDteEmitidos[]>()
+    for (const d of res.data ?? []) {
+      const nit = d.nitReceptor ?? 'CF'
+      if (!porNit.has(nit)) porNit.set(nit, [])
+      porNit.get(nit)!.push(d)
+    }
+    if (porNit.size === 0) { message.info('No hay clientes pendientes'); return }
+
+    setBulkCustomerRows(Array.from(porNit.entries()).map(([nit, dtes]) => ({
+      dteId:       dtes[0].id,
+      nitReceptor: nit,
+      name:        dtes[0].nombreReceptor ?? '',
+      // La moneda del documento: un cliente del exterior se factura en la suya
+      currency:    (dtes[0].moneda ?? 'GTQ').toUpperCase(),
+      paymentTerms: bulkCommonTerms,
+      receivableAccountId: bulkCommonCxC,
+      incomeAccountId:     bulkCommonIngreso,
+      taxCode:             bulkCommonTax,
+      status:      'pending',
+      dteCount:    dtes.length,
+    })))
+    setBulkCustomerOpen(true)
+  }
+
+  const handleBulkCustomerPost = async () => {
+    setBulkCustomerRunning(true)
+    for (const row of bulkCustomerRows) {
+      if (row.status === 'ok') continue
+      setBulkCustomerRows(prev => prev.map(r => r.dteId === row.dteId ? { ...r, status: 'processing' } : r))
+      try {
+        await createSatEmitidosCustomer(row.dteId, {
+          name:                row.name || undefined,
+          legalName:           row.name || undefined,
+          currency:            row.currency,
+          paymentTerms:        row.paymentTerms,
+          receivableAccountId: row.receivableAccountId,
+          incomeAccountId:     row.incomeAccountId,
+          taxCode:             row.taxCode,
+        })
+        // Los demás documentos del mismo NIT quedan vinculados al cliente nuevo
+        const mismosNit = documents.filter(d =>
+          d.nitReceptor === row.nitReceptor && d.id !== row.dteId && d.status === 'pending')
+        for (const dte of mismosNit) {
+          try { await resolveSatEmitidosCustomer(dte.id) } catch { /* silencioso, como en recibidos */ }
+        }
+        setBulkCustomerRows(prev => prev.map(r => r.dteId === row.dteId ? { ...r, status: 'ok' } : r))
+      } catch (err: unknown) {
+        setBulkCustomerRows(prev => prev.map(r =>
+          r.dteId === row.dteId ? { ...r, status: 'error', errorMsg: getErrorMessage(err, 'Error al crear cliente') } : r))
+      }
+    }
+    setBulkCustomerRunning(false)
+    await loadAll()
+  }
+
+  const openBatchModal = async (soloEstos?: SatDteEmitidos[]) => {
+    const selected = soloEstos ?? documents.filter(d => selectedIds.includes(d.id) && isBatchable(d))
     if (selected.length === 0) { message.warning('Selecciona al menos un DTE Listo para registrar en masa'); return }
     setBatchLoading(true)
     setBatchOpen(true)
@@ -1502,6 +1582,155 @@ export default function DteSatVentasPage() {
         )}
       </Modal>
 
+
+      {/* ─── Alta masiva de clientes — hermana de la de proveedores en recibidos ── */}
+      <Modal
+        open={bulkCustomerOpen}
+        title={<Space><UserAddOutlined /><span>Registro masivo de clientes — {bulkCustomerRows.length} nuevo{bulkCustomerRows.length !== 1 ? 's' : ''}</span></Space>}
+        width="95vw"
+        style={{ maxWidth: 1400 }}
+        onCancel={() => !bulkCustomerRunning && setBulkCustomerOpen(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {bulkCustomerRows.filter(r => r.status === 'ok').length}/{bulkCustomerRows.length} registrados
+            </Text>
+            <Space>
+              <Button onClick={() => setBulkCustomerOpen(false)} disabled={bulkCustomerRunning}>Cancelar</Button>
+              {can('ventas:clientes:create') && (
+                <Button type="primary" icon={<ThunderboltOutlined />} loading={bulkCustomerRunning}
+                  disabled={bulkCustomerRunning || bulkCustomerRows.every(r => r.status === 'ok')}
+                  onClick={handleBulkCustomerPost} style={{ background: '#1B3A6B' }}>
+                  Registrar todos
+                </Button>
+              )}
+            </Space>
+          </div>
+        }
+      >
+        {/* Configuración común */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+          <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 10 }}>Configuración común (se aplica a todos)</Text>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 180px', gap: '8px 12px', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Cuenta por cobrar (CxC) <span style={{ color: '#ef4444' }}>*</span></div>
+              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="1130 — Clientes"
+                value={bulkCommonCxC} onChange={setBulkCommonCxC}
+                filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('1'))
+                  .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Cuenta de ingresos</div>
+              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="Busca por código o nombre"
+                value={bulkCommonIngreso} onChange={setBulkCommonIngreso}
+                filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('4'))
+                  .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Impuesto IVA</div>
+              <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="12% — Tasa general"
+                value={bulkCommonTax} onChange={setBulkCommonTax}
+                filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={taxes.map(t => ({ value: t.code, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Términos de pago</div>
+              <Select size="small" style={{ width: '100%' }} value={bulkCommonTerms} onChange={setBulkCommonTerms}
+                options={Object.entries(PAYMENT_TERMS_CONFIG).map(([k, v]) => ({ value: k, label: v }))} />
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <Button size="small" onClick={() => setBulkCustomerRows(prev => prev.map(r =>
+              r.status !== 'ok' ? {
+                ...r,
+                receivableAccountId: bulkCommonCxC,
+                incomeAccountId:     bulkCommonIngreso,
+                taxCode:             bulkCommonTax,
+                paymentTerms:        bulkCommonTerms,
+              } : r))}>
+              Aplicar a todos
+            </Button>
+          </div>
+        </div>
+
+        <Table<BulkCustomerRow>
+          size="small"
+          pagination={{ pageSize: 20, hideOnSinglePage: true, size: 'small' }}
+          rowKey="dteId"
+          dataSource={bulkCustomerRows}
+          scroll={{ x: 1000 }}
+          columns={[
+            {
+              title: 'NIT receptor', dataIndex: 'nitReceptor', width: 120, fixed: 'left',
+              render: (nit: string, row: BulkCustomerRow) => (
+                <Space size={4}>
+                  <Tag style={{ fontFamily: 'monospace', fontSize: 11, margin: 0 }}>{nit}</Tag>
+                  {row.currency !== 'GTQ' && <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>{row.currency}</Tag>}
+                </Space>
+              ),
+            },
+            {
+              title: 'Nombre del cliente', dataIndex: 'name', width: 280,
+              render: (name: string, row: BulkCustomerRow) => (
+                <Input size="small" value={name} disabled={row.status === 'ok' || bulkCustomerRunning}
+                  onChange={e => setBulkCustomerRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, name: e.target.value } : r))} />
+              ),
+            },
+            {
+              title: 'Cuenta CxC', dataIndex: 'receivableAccountId', width: 230,
+              render: (val: string | undefined, row: BulkCustomerRow) => (
+                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="1130 — Clientes"
+                  value={val} disabled={row.status === 'ok' || bulkCustomerRunning}
+                  onChange={v => setBulkCustomerRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, receivableAccountId: v } : r))}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('1'))
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+              ),
+            },
+            {
+              title: 'Cuenta de ingresos', dataIndex: 'incomeAccountId', width: 230,
+              render: (val: string | undefined, row: BulkCustomerRow) => (
+                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="Ingresos..."
+                  value={val} disabled={row.status === 'ok' || bulkCustomerRunning}
+                  onChange={v => setBulkCustomerRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, incomeAccountId: v } : r))}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={accounts.filter(a => !a.isHeader && a.isActive && a.code?.startsWith('4'))
+                    .map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
+              ),
+            },
+            {
+              title: 'Impuesto', dataIndex: 'taxCode', width: 200,
+              render: (val: string | undefined, row: BulkCustomerRow) => (
+                <Select showSearch allowClear size="small" style={{ width: '100%' }} placeholder="IVA..."
+                  value={val} disabled={row.status === 'ok' || bulkCustomerRunning}
+                  onChange={v => setBulkCustomerRows(prev => prev.map(r =>
+                    r.dteId === row.dteId ? { ...r, taxCode: v } : r))}
+                  filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  options={taxes.map(t => ({ value: t.code, label: t.subtype === 'exempt' ? `Exento — ${t.name}` : `${Number(t.rate)}% — ${t.name}` }))} />
+              ),
+            },
+            {
+              title: 'DTEs', dataIndex: 'dteCount', width: 50, align: 'center',
+              render: (n: number) => <Badge count={n} color="#6b7280" />,
+            },
+            {
+              title: 'Estado', dataIndex: 'status', width: 130, fixed: 'right',
+              render: (status: BulkCustomerRow['status'], row: BulkCustomerRow) => {
+                if (status === 'ok')         return <Tag color="success" style={{ fontSize: 11 }}>Creado</Tag>
+                if (status === 'processing') return <Tag color="processing" style={{ fontSize: 11 }}>Creando…</Tag>
+                if (status === 'error')      return <Tooltip title={row.errorMsg}><Tag color="error" style={{ fontSize: 11 }}>Error</Tag></Tooltip>
+                return <Tag style={{ fontSize: 11 }}>Pendiente</Tag>
+              },
+            },
+          ]}
+        />
+      </Modal>
+
       {/* ─── Batch Modal ──────────────────────────────────────────────────── */}
       {(() => {
         const allDone = batchRows.length > 0 && batchRows.every(r => r.status === 'ok' || r.status === 'skipped' || r.status === 'error' || !!r.missing)
@@ -1775,10 +2004,25 @@ export default function DteSatVentasPage() {
                         Filtros
                       </Button>
                     </Badge>
+                    {(stats.pending?.count ?? 0) > 0 && !statusFilter && (
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#92400e', cursor: 'pointer' }}
+                        onClick={openBulkCustomerModal}
+                        title="Crear de una vez los clientes que faltan, agrupados por NIT"
+                      >
+                        <WarningOutlined style={{ color: '#f59e0b' }} />
+                        <span><strong>{stats.pending.count}</strong> clientes pendientes — <strong>Registrar en lote</strong></span>
+                      </div>
+                    )}
                     {(stats.ready?.count ?? 0) > 0 && !statusFilter && (
                       <div
                         style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e8f5ef', border: '1px solid #6ee7b7', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#065f46', cursor: 'pointer' }}
-                        onClick={() => setStatusFilter('ready')}
+                        onClick={async () => {
+                          // Como en recibidos: abre la pantalla de registro masivo con
+                          // TODAS las listas, no solo filtra el listado.
+                          const res = await getSatEmitidosDocuments({ status: 'ready', limit: 500 })
+                          openBatchModal((res.data ?? []).filter(isBatchable))
+                        }}
                       >
                         <CheckCircleOutlined style={{ color: '#2ea172' }} />
                         <span><strong>{stats.ready.count} facturas listas</strong> — Registrar en lote</span>
@@ -1807,7 +2051,7 @@ export default function DteSatVentasPage() {
                         size="small"
                         icon={<ThunderboltOutlined />}
                         style={{ background: '#2ea172', borderColor: '#2ea172', color: '#fff' }}
-                        onClick={openBatchModal}
+                        onClick={() => openBatchModal()}
                       >
                         Registrar {selectedIds.length} seleccionado{selectedIds.length > 1 ? 's' : ''}
                       </Button>

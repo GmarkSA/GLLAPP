@@ -24,8 +24,16 @@ const DOCUMENTO = {
   subtotal: 6851,
   totalIva: 0,
   total: 6851,
-  status: 'pending',
+  status: 'ready',
+  customerId: 'cli-1',
 }
+
+const PENDIENTE = { ...DOCUMENTO, id: 'dte-2', uuid: 'OTRO', status: 'pending', customerId: undefined }
+
+const listas = vi.fn(async (params?: any) => ({
+  data: params?.status === 'pending' ? [PENDIENTE] : [DOCUMENTO, PENDIENTE],
+  total: 2,
+}))
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
 vi.mock('../../../store/companyStore', () => ({
@@ -48,9 +56,12 @@ vi.mock('../../../api/facturas', async () => {
   const real: any = await vi.importActual('../../../api/facturas')
   return {
     ...real,
-    getSatEmitidosDocuments: vi.fn(async () => ({ data: [DOCUMENTO], total: 1 })),
+    getSatEmitidosDocuments: listas,
     getSatEmitidosJobs:      vi.fn(async () => ({ data: [], total: 0 })),
-    getSatEmitidosStats:     vi.fn(async () => ({ pending: { count: 1, total: 6851 } })),
+    getSatEmitidosStats:     vi.fn(async () => ({
+      ready:   { count: 1, total: 6851 },
+      pending: { count: 1, total: 6851 },
+    })),
     getEstimates:            vi.fn(async () => []),
     getInvoices:             vi.fn(async () => []),
     startSatEmitidosImport:  vi.fn(),
@@ -91,5 +102,24 @@ describe('Bandeja de DTE SAT emitidos', () => {
 
   it('muestra el documento con su receptor', () => {
     expect(contenedor.textContent).toContain('The Concious Home LLC')
+  })
+
+  // Lo que tiene la bandeja de recibidos y a esta le faltaba
+  it('ofrece registrar en lote los clientes que faltan', () => {
+    expect(contenedor.textContent).toContain('clientes pendientes')
+    expect(contenedor.textContent).toContain('Registrar en lote')
+  })
+
+  it('la píldora verde abre la pantalla de registro masivo, no solo filtra', async () => {
+    // El más interno con ese texto: los contenedores de arriba tienen el mismo
+    const pildora = [...contenedor.querySelectorAll('div')]
+      .filter(d => d.textContent === '1 facturas listas — Registrar en lote')
+      .pop()
+    expect(pildora).toBeTruthy()
+
+    await act(async () => { pildora!.click() })
+
+    // Se abre la pantalla de registro masivo (antes solo filtraba el listado)
+    expect(document.body.textContent).toContain('Registro masivo')
   })
 })
