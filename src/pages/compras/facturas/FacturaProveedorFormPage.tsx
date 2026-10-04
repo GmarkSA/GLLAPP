@@ -146,7 +146,7 @@ export default function FacturaProveedorFormPage() {
   const [bebidasMonto, setBebidasMonto] = useState<number | null>(null)
   const [bebidasLineas, setBebidasLineas] = useState<number[]>([])
   const [bebidasLineasOpen, setBebidasLineasOpen] = useState(false)
-  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number>; tasaMunicipalAccountCode?: string; bomberosAccountCode?: string } | null>(null)
+  const [orgImpEsp, setOrgImpEsp] = useState<{ idpAccountCode?: string; timbrePrensaAccountCode?: string; turismoAccountCode?: string; timbrePrensaRate?: number; turismoRate?: number; bebidasAccountCode?: string; bebidasRates?: Record<string, number>; tasaMunicipalAccountCode?: string; bomberosAccountCode?: string; exencionCombustible?: { activa?: boolean; desde?: string; hasta?: string; decreto?: string } } | null>(null)
 
   // Watched form values
   const invoiceType      = Form.useWatch('invoiceType',              form) as BillType   ?? 'goods'
@@ -233,6 +233,7 @@ export default function FacturaProveedorFormPage() {
           turismoRate:             ie.turismo?.rate ?? 10,
           tasaMunicipalAccountCode: ie.tasa_municipal?.accountCode,
           bomberosAccountCode:      ie.bomberos?.accountCode,
+          exencionCombustible:      ie.idp?.exencion,
         })
       })
       .catch(() => null)
@@ -525,8 +526,19 @@ export default function FacturaProveedorFormPage() {
     (it.idpType && IDP_RATES[it.idpType] != null) ? it.idpType
       : (FUEL_UNITS.has(it.unit ?? '') ? it.unit : undefined)
 
+  // Exención temporal de combustibles (Dto. 22-2026 y los que vengan): manda la
+  // FECHA DE LA FACTURA, no la de hoy — una factura anterior sigue con su IDP.
+  const exencionCombustible = (() => {
+    const ex = orgImpEsp?.exencionCombustible
+    if (!ex?.activa || invoiceType !== 'fuel') return null
+    const fecha = (invoiceDate ? dayjs(invoiceDate) : dayjs()).format('YYYY-MM-DD')
+    if (ex.desde && fecha < ex.desde) return null
+    if (ex.hasta && fecha > ex.hasta) return null
+    return ex
+  })()
+
   // IDP calculation: por línea, según el tipo de combustible
-  const idpAmount = invoiceType === 'fuel'
+  const idpAmount = exencionCombustible ? 0 : invoiceType === 'fuel'
     ? Math.round(items.reduce((sum, it) => {
         const ft = fuelTypeDe(it)
         const rate = ft ? (IDP_RATES[ft] ?? 0) : 0
@@ -1132,6 +1144,19 @@ export default function FacturaProveedorFormPage() {
                         </>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Exenta: se dice por qué, en vez de dejar el renglón del IDP vacío */}
+                {exencionCombustible && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#92400e' }}>
+                      IDP Combustible
+                      <Tag color="warning" style={{ fontSize: 10, marginLeft: 6 }}>
+                        Exento · {exencionCombustible.decreto ?? 'disposición temporal'}
+                      </Tag>
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>Q 0.00</Text>
                   </div>
                 )}
 
