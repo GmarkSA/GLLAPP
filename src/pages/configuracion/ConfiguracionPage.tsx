@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 import {
   Layout, Menu, Form, Input, Button, Select, Upload, Avatar,
   Typography, Card, Row, Col, Divider, message, Spin, Space, Tag,
-  Modal, Table, Popconfirm, InputNumber, Switch, Collapse, Alert,
+  Modal, Table, Popconfirm, InputNumber, Switch, Collapse, Alert, DatePicker,
 } from 'antd'
 import {
   BankOutlined, GlobalOutlined, DollarOutlined,
@@ -1326,8 +1326,24 @@ const BEBIDAS_TIPOS = [
 const DEFAULT_BEBIDAS_RATES: Record<string, number> = Object.fromEntries(BEBIDAS_TIPOS.map(b => [b.key, b.rate]))
 
 
+/**
+ * Exención temporal del IDP y del IVA en combustibles. Nace con el Decreto
+ * 22-2026 (1 de octubre al 31 de diciembre de 2026) pero queda parametrizada:
+ * se prende, se apaga y se le corren las fechas si el Congreso la prorroga.
+ */
+interface ExencionCombustible {
+  activa:   boolean
+  desde?:   string     // YYYY-MM-DD
+  hasta?:   string     // YYYY-MM-DD, inclusive
+  decreto?: string
+}
+
+const EXENCION_22_2026: ExencionCombustible = {
+  activa: false, desde: '2026-10-01', hasta: '2026-12-31', decreto: 'Decreto 22-2026',
+}
+
 interface ImpuestosEspecialesConfig {
-  idp:              { rates: Record<string, number>; accountCode?: string }
+  idp:              { rates: Record<string, number>; accountCode?: string; exencion?: ExencionCombustible }
   turismo:          { rate: number; accountCode?: string }
   timbre_prensa:    { rate: number; accountCode?: string }
   timbres_fiscales: { rate: number; accountCode?: string }
@@ -1337,7 +1353,7 @@ interface ImpuestosEspecialesConfig {
 }
 
 const DEFAULT_IMPUESTOS_ESPECIALES: ImpuestosEspecialesConfig = {
-  idp:              { rates: { ...DEFAULT_IDP_RATES } },
+  idp:              { rates: { ...DEFAULT_IDP_RATES }, exencion: { ...EXENCION_22_2026 } },
   turismo:          { rate: 10 },
   timbre_prensa:    { rate: 0.5 },
   timbres_fiscales: { rate: 3 },
@@ -1367,7 +1383,11 @@ function ImpuestosEspecialesSection() {
             setCfg(prev => ({
               ...prev,
               ...saved,
-              idp:     { ...prev.idp, ...saved.idp, rates: { ...DEFAULT_IDP_RATES, ...(saved.idp?.rates ?? {}) } },
+              idp:     {
+                ...prev.idp, ...saved.idp,
+                rates:    { ...DEFAULT_IDP_RATES, ...(saved.idp?.rates ?? {}) },
+                exencion: { ...EXENCION_22_2026, ...(saved.idp?.exencion ?? {}) },
+              },
               bebidas: { ...prev.bebidas, ...(saved.bebidas ?? {}), rates: { ...DEFAULT_BEBIDAS_RATES, ...(saved.bebidas?.rates ?? {}) } },
             }))
           }
@@ -1381,6 +1401,12 @@ function ImpuestosEspecialesSection() {
 
   const setIdpAccount = (code: string) =>
     setCfg(prev => ({ ...prev, idp: { ...prev.idp, accountCode: code } }))
+
+  const setExencion = (cambio: Partial<ExencionCombustible>) =>
+    setCfg(prev => ({
+      ...prev,
+      idp: { ...prev.idp, exencion: { ...EXENCION_22_2026, ...prev.idp.exencion, ...cambio } },
+    }))
 
   const setBebidasRate = (key: string, value: number) =>
     setCfg(prev => ({ ...prev, bebidas: { ...prev.bebidas, rates: { ...prev.bebidas.rates, [key]: value } } }))
@@ -1446,7 +1472,50 @@ function ImpuestosEspecialesSection() {
                 Tarifa específica por galón americano. Se aplica al registrar facturas de compra con tipo <Text code>Combustible con IDP</Text>.
                 Actualizar cuando exista reforma legislativa.
               </Text>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              {/* Exención temporal: un interruptor y su vigencia, junto a la tabla
+                  del IDP porque es lo que deja de cobrarse. */}
+              {(() => {
+                const ex = cfg.idp.exencion ?? EXENCION_22_2026
+                return (
+                  <div style={{
+                    background: ex.activa ? '#fffbeb' : '#fafafa',
+                    border: `1px solid ${ex.activa ? '#fbbf24' : '#e8e8e8'}`,
+                    borderRadius: 6, padding: '10px 12px', marginBottom: 14,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Switch checked={!!ex.activa} onChange={activa => setExencion({ activa })} />
+                      <div style={{ flex: 1 }}>
+                        <Text strong style={{ fontSize: 13 }}>
+                          Exención temporal de combustibles
+                        </Text>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>
+                          {ex.decreto ?? 'Disposición temporal'} — las facturas de combustible se registran sin IDP y sin IVA
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Vigente desde</div>
+                        <DatePicker size="small" style={{ width: '100%' }} format="DD/MM/YYYY"
+                          value={ex.desde ? dayjs(ex.desde) : null}
+                          onChange={(d: any) => setExencion({ desde: d ? d.format('YYYY-MM-DD') : undefined })} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Hasta (inclusive)</div>
+                        <DatePicker size="small" style={{ width: '100%' }} format="DD/MM/YYYY"
+                          value={ex.hasta ? dayjs(ex.hasta) : null}
+                          onChange={(d: any) => setExencion({ hasta: d ? d.format('YYYY-MM-DD') : undefined })} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#92400e', marginTop: 8, lineHeight: 1.4 }}>
+                      Se aplica por la <strong>fecha de la factura</strong>: una anterior sigue llevando su IDP, y al
+                      pasar la fecha final las nuevas vuelven a llevarlo sin tocar nada. Si se prorroga, corré la fecha.
+                    </div>
+                  </div>
+                )
+              })()}
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, opacity: cfg.idp.exencion?.activa ? 0.55 : 1 }}>
                 <thead>
                   <tr style={{ background: '#f5f5f5' }}>
                     <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e8e8e8' }}>Producto</th>
