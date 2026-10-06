@@ -148,5 +148,17 @@ describe('Bonificación adicional en la ficha del empleado', () => {
       const botones = [...cont.querySelectorAll('button')].map(b => b.textContent ?? '')
       expect(botones.some(t => t.includes('bonificación'))).toBe(true)
     })
+
+    it('las tarjetas de historial van debajo de Datos laborales, no al final', async () => {
+      await pintar()
+
+      const texto = cont.textContent ?? ''
+      const posicion = (t: string) => texto.indexOf(t)
+
+      expect(posicion('Datos laborales')).toBeLessThan(posicion('Salario y bonificación vigentes'))
+      expect(posicion('Salario y bonificación vigentes')).toBeLessThan(posicion('Licencias y suspensiones'))
+      expect(posicion('Licencias y suspensiones')).toBeLessThan(posicion('Goces de vacaciones'))
+      expect(posicion('Goces de vacaciones')).toBeLessThan(posicion('Pago de planilla'))
+    })
   })
 })

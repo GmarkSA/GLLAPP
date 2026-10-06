@@ -528,6 +528,63 @@ export default function EmpleadoFormPage() {
             )}
           </Card>
 
+          {!esNuevo && empleado && (
+            <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
+              title={<Text strong>Salario y bonificación vigentes</Text>}
+              extra={
+                <Space size={14} wrap>
+                  {empleado.salarioVigente != null && (
+                    <Text style={{ fontSize: 12 }}>
+                      Salario: <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(empleado.salarioVigente)}</Text>
+                    </Text>
+                  )}
+                  <Text style={{ fontSize: 12 }}>
+                    Bonificación adicional:{' '}
+                    <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtQ(Number(empleado.bonificacionAdicionalVigente) || 0)}
+                    </Text>
+                    {bonifDeLey != null && (
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {' '}· {fmtQ(bonifDeLey + (Number(empleado.bonificacionAdicionalVigente) || 0))} al mes con la de ley
+                      </Text>
+                    )}
+                  </Text>
+                  {empleado.estado === 'ACTIVO' && (
+                    <Button size="small" icon={<DollarOutlined />} onClick={abrirCambioSalario}>Cambiar</Button>
+                  )}
+                </Space>
+              }>
+              <Table
+                size="small" rowKey="id" pagination={false}
+                dataSource={empleado.historialSalarios} columns={historialColumns}
+              />
+            </Card>
+          )}
+
+          {!esNuevo && empleado && (
+            <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
+              title={<Text strong>Licencias y suspensiones (IGSS)</Text>}
+              extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevaAusencia}>Registrar</Button>}>
+              <Table
+                size="small" rowKey="id" pagination={false}
+                dataSource={ausencias} columns={ausenciasColumns}
+                locale={{ emptyText: 'Sin licencias ni suspensiones registradas' }}
+              />
+            </Card>
+          )}
+
+          {!esNuevo && empleado && (
+            <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 0 } }}
+              title={<Text strong>Goces de vacaciones</Text>}
+              extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevoGoce}>Registrar</Button>}>
+              <Table
+                size="small" rowKey="id" pagination={false}
+                dataSource={goces} columns={gocesColumns}
+                locale={{ emptyText: 'Sin goces de vacaciones registrados — el saldo pendiente se acumula automáticamente' }}
+              />
+            </Card>
+          )}
+
           <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }}
             title={<Text strong>Pago de planilla</Text>}
             extra={<Text type="secondary" style={{ fontSize: 11 }}>Alimenta el lote de pagos que se sube al banco de la empresa</Text>}>
@@ -634,63 +691,6 @@ export default function EmpleadoFormPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
-
-        {!esNuevo && empleado && (
-          <Card size="small" style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
-            title={<Text strong>Salario y bonificación vigentes</Text>}
-            extra={
-              <Space size={14} wrap>
-                {empleado.salarioVigente != null && (
-                  <Text style={{ fontSize: 12 }}>
-                    Salario: <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(empleado.salarioVigente)}</Text>
-                  </Text>
-                )}
-                <Text style={{ fontSize: 12 }}>
-                  Bonificación adicional:{' '}
-                  <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtQ(Number(empleado.bonificacionAdicionalVigente) || 0)}
-                  </Text>
-                  {bonifDeLey != null && (
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      {' '}· {fmtQ(bonifDeLey + (Number(empleado.bonificacionAdicionalVigente) || 0))} al mes con la de ley
-                    </Text>
-                  )}
-                </Text>
-                {empleado.estado === 'ACTIVO' && (
-                  <Button size="small" icon={<DollarOutlined />} onClick={abrirCambioSalario}>Cambiar</Button>
-                )}
-              </Space>
-            }>
-            <Table
-              size="small" rowKey="id" pagination={false}
-              dataSource={empleado.historialSalarios} columns={historialColumns}
-            />
-          </Card>
-        )}
-
-        {!esNuevo && empleado && (
-          <Card size="small" style={{ borderRadius: 8, marginTop: 16 }} styles={{ body: { padding: 0 } }}
-            title={<Text strong>Licencias y suspensiones (IGSS)</Text>}
-            extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevaAusencia}>Registrar</Button>}>
-            <Table
-              size="small" rowKey="id" pagination={false}
-              dataSource={ausencias} columns={ausenciasColumns}
-              locale={{ emptyText: 'Sin licencias ni suspensiones registradas' }}
-            />
-          </Card>
-        )}
-
-        {!esNuevo && empleado && (
-          <Card size="small" style={{ borderRadius: 8, marginTop: 16 }} styles={{ body: { padding: 0 } }}
-            title={<Text strong>Goces de vacaciones</Text>}
-            extra={<Button size="small" icon={<PlusOutlined />} onClick={abrirNuevoGoce}>Registrar</Button>}>
-            <Table
-              size="small" rowKey="id" pagination={false}
-              dataSource={goces} columns={gocesColumns}
-              locale={{ emptyText: 'Sin goces de vacaciones registrados — el saldo pendiente se acumula automáticamente' }}
-            />
-          </Card>
-        )}
       </Spin>
 
       <Modal
