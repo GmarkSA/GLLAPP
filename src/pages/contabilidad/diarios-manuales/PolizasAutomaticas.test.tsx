@@ -64,12 +64,41 @@ describe('Pólizas automáticas en Diarios', () => {
     expect(TIPOS_DE_DIARIO).toContainEqual({ label: 'Automática', value: 'auto' })
   })
 
-  it('sin tocar ese filtro, el listado sigue pidiendo solo los manuales', async () => {
+  it('sin tocar nada, el listado sigue pidiendo solo los manuales', async () => {
     await pintar()
 
     expect(asientos).toHaveBeenCalledWith(
       expect.objectContaining({ soloManuales: true }))
     expect(asientos.mock.calls[0][0]).not.toHaveProperty('tipo')
+  })
+
+  /**
+   * El desplegable de tipos no bastó: el dueño siguió sin verlas porque la
+   * salida estaba escondida entre seis opciones. La casilla va a la vista en
+   * la barra, y pide el listado SIN acotar a manuales — así no depende de
+   * ningún cambio del servidor para funcionar.
+   */
+  describe('la casilla «Incluir pólizas automáticas»', () => {
+    const casilla = () =>
+      [...cont.querySelectorAll('label.ant-checkbox-wrapper')]
+        .find(l => l.textContent?.includes('Incluir pólizas automáticas'))
+
+    it('está a la vista en la barra de filtros', async () => {
+      await pintar()
+
+      expect(casilla()).toBeTruthy()
+    })
+
+    it('al marcarla pide el listado completo, sin acotar a manuales', async () => {
+      await pintar()
+
+      await act(async () => {
+        casilla()!.querySelector('input')!.click()
+      })
+
+      const ultima = asientos.mock.calls[asientos.mock.calls.length - 1][0]
+      expect(ultima).toMatchObject({ soloManuales: false })
+    })
   })
 
   it('una póliza automática se puede consultar', async () => {

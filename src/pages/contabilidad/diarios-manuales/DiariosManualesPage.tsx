@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Table, Tag, Space, Popconfirm, message, DatePicker, Select,
-  Typography, Tooltip, Input, Drawer, InputNumber, Divider, Badge,
+  Typography, Tooltip, Input, Drawer, InputNumber, Divider, Badge, Checkbox,
 } from 'antd'
 import {
   PlusOutlined, FileTextOutlined, CheckCircleOutlined,
@@ -84,6 +84,13 @@ export default function DiariosManualesPage() {
   const [filtroEstado, setFiltroEstado] = useState<string | undefined>()
   const [filtroTipo,   setFiltroTipo]   = useState<string | undefined>()
   const [acting,       setActing]       = useState<string | null>(null)
+  /**
+   * Las pólizas que genera el sistema —planilla, facturas, pagos, inventario,
+   * activos fijos— quedan fuera de este listado, que es el de los diarios que
+   * se capturan a mano. Este interruptor es la forma de verlas sin tener que
+   * saber que existen: pide el listado completo, sin acotar a los manuales.
+   */
+  const [incluirAutomaticas, setIncluirAutomaticas] = useState(false)
 
   // Filtros avanzados
   const [dmFilters,    setDmFilters]    = useState<DmAdFilters>(DM_EMPTY)
@@ -101,7 +108,7 @@ export default function DiariosManualesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params: GetAsientosParams = { page, limit: 200, soloManuales: true }
+      const params: GetAsientosParams = { page, limit: 200, soloManuales: !incluirAutomaticas }
       if (search)       params.search     = search
       if (filtroEstado) params.estado     = filtroEstado
       if (filtroTipo)   params.tipo       = filtroTipo
@@ -112,7 +119,7 @@ export default function DiariosManualesPage() {
       setTotal((res as any)?.meta?.total ?? res.total ?? 0)
     } catch { setData([]) }
     finally { setLoading(false) }
-  }, [page, search, filtroEstado, filtroTipo, rango])
+  }, [page, search, filtroEstado, filtroTipo, rango, incluirAutomaticas])
 
   useEffect(() => { load() }, [load])
 
@@ -314,6 +321,14 @@ export default function DiariosManualesPage() {
           onChange={v => { setFiltroTipo(v); setPage(1) }}
           options={TIPOS_DE_DIARIO}
         />
+        <Tooltip title="Las pólizas de planilla, facturas, pagos, inventario y activos fijos las genera el sistema y no salen en este listado, que es el de los diarios capturados a mano. Enciéndelo para verlas también.">
+          <Checkbox
+            checked={incluirAutomaticas}
+            onChange={e => { setIncluirAutomaticas(e.target.checked); setPage(1) }}
+          >
+            <Text style={{ fontSize: 13 }}>Incluir pólizas automáticas</Text>
+          </Checkbox>
+        </Tooltip>
         <Badge count={dmActiveCount} size="small">
           <Button
             icon={<FilterOutlined />}
