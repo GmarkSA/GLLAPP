@@ -18,6 +18,7 @@ import {
   getGocesVacaciones, guardarGoceVacaciones, eliminarGoceVacaciones,
   nombreCompleto, type EmpleadoDetalle, type ContratoLaboral, type CentroTrabajo, type AusenciaEmpleado, type GoceVacaciones,
 } from '../../../api/planillas-empleados'
+import { getParametroFiscal } from '../../../api/planillas'
 
 const { Text, Title } = Typography
 const NAVY = '#1faec2'
@@ -50,10 +51,25 @@ export default function EmpleadoFormPage() {
   const [modalGoce, setModalGoce] = useState(false)
   const [goceEditando, setGoceEditando] = useState<GoceVacaciones | null>(null)
   const [goceForm] = Form.useForm()
+  // Bonificación incentivo de ley (Parámetros fiscales) — para mostrar el total
+  // resultante y que no se confunda el extra con el monto completo pactado.
+  const [bonifDeLey, setBonifDeLey] = useState<number | null>(null)
 
   useEffect(() => {
     getCentrosTrabajo().then(setCentros).catch(() => {})
+    getParametroFiscal(dayjs().year())
+      .then(p => setBonifDeLey(p ? Number(p.montoBonificacionIncentivo) : null))
+      .catch(() => setBonifDeLey(null))
   }, [])
+
+  /** "Q 250.00 de ley + Q 500.00 = Q 750.00 al mes" */
+  const ayudaBonificacion = (extra: number | null | undefined) => {
+    if (bonifDeLey == null) return 'Monto que se le paga POR ENCIMA de la bonificación de ley. Dejar en 0 si solo lleva la de ley.'
+    const e = Number(extra) || 0
+    return e > 0
+      ? `${fmtQ(bonifDeLey)} de ley + ${fmtQ(e)} = ${fmtQ(bonifDeLey + e)} al mes`
+      : `Solo la de ley: ${fmtQ(bonifDeLey)} al mes`
+  }
 
   const cargarAusencias = () => {
     if (esNuevo) return
@@ -133,6 +149,7 @@ export default function EmpleadoFormPage() {
       const vals = await salarioForm.validateFields()
       const r = await cambiarSalario(id!, {
         salarioOrdinarioMensual: vals.salarioOrdinarioMensual,
+        bonificacionAdicional: vals.bonificacionAdicional ?? 0,
         fechaInicio: vals.fechaInicio.format('YYYY-MM-DD'),
         motivoCambio: vals.motivoCambio,
         notas: vals.notas,
@@ -307,6 +324,12 @@ export default function EmpleadoFormPage() {
       title: 'Salario mensual', dataIndex: 'salarioOrdinarioMensual', width: 140, align: 'right' as const,
       render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
     },
+    {
+      title: 'Bonif. adicional', dataIndex: 'bonificacionAdicional', width: 130, align: 'right' as const,
+      render: (v: number) => Number(v) > 0
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>
+        : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>,
+    },
     { title: 'Motivo', dataIndex: 'motivoCambio', width: 130, render: (v: string) => MOTIVO_LABEL[v] ?? v },
     { title: 'Tipo de contrato', dataIndex: 'tipoContrato', width: 140, render: (v: string) => TIPO_CONTRATO_LABORAL_LABEL[v] ?? v },
     { title: 'Notas', dataIndex: 'notas', render: (v: string | null) => <Text style={{ fontSize: 12 }}>{v ?? ''}</Text> },
@@ -340,12 +363,14 @@ export default function EmpleadoFormPage() {
               <Button icon={<DollarOutlined />} onClick={() => {
                 const vigente = empleado.historialSalarios.find(h => h.fechaFin == null)
                 salarioForm.setFieldsValue({
+                  salarioOrdinarioMensual: vigente ? Number(vigente.salarioOrdinarioMensual) : undefined,
+                  bonificacionAdicional: Number(vigente?.bonificacionAdicional) || 0,
                   tipoContratoLaboral: vigente?.tipoContrato ?? 'INDEFINIDO',
                   fechaFinPactada: vigente?.fechaFinPactada ? dayjs(vigente.fechaFinPactada) : null,
                   horarioTrabajo: vigente?.horarioTrabajo ?? null,
                 })
                 setModalSalario(true)
-              }}>Cambiar salario</Button>
+              }}>Cambiar salario o bonificación</Button>
               <Button danger icon={<UserDeleteOutlined />} onClick={() => navigate(`/planillas/finiquitos/nuevo/${id}`)}>
                 Dar de baja / Finiquito
               </Button>
@@ -470,6 +495,15 @@ export default function EmpleadoFormPage() {
                   tooltip="Crea la primera vigencia del historial salarial. Los cambios posteriores se hacen con 'Cambiar salario' para no perder trazabilidad."
                   rules={[{ required: true, message: 'Requerido' }]}>
                   <InputNumber style={{ width: '100%' }} min={0.01} precision={2} />
+                </Form.Item>
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.bonificacionAdicional !== cur.bonificacionAdicional}>
+                  {({ getFieldValue }) => (
+                    <Form.Item name="bonificacionAdicional" label="Bonificación adicional (Q/mes)"
+                      tooltip="Lo que se le paga POR ENCIMA de la bonificación incentivo de ley, que está en Parámetros fiscales. Si el bono pactado es Q750, aquí van Q500."
+                      extra={<Text type="secondary" style={{ fontSize: 11 }}>{ayudaBonificacion(getFieldValue('bonificacionAdicional'))}</Text>}>
+                      <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="0.00" />
+                    </Form.Item>
+                  )}
                 </Form.Item>
                 <Form.Item name="tipoContratoLaboral" label="Tipo de contrato laboral"
                   tooltip="Para el contrato laboral imprimible — plazo indefinido, plazo fijo u obra determinada">
@@ -692,7 +726,7 @@ export default function EmpleadoFormPage() {
       </Modal>
 
       <Modal
-        title="Cambiar salario"
+        title="Cambiar salario o bonificación"
         open={modalSalario}
         onCancel={() => setModalSalario(false)}
         onOk={aplicarCambioSalario}
@@ -707,6 +741,15 @@ export default function EmpleadoFormPage() {
           <Form.Item name="salarioOrdinarioMensual" label="Nuevo salario ordinario mensual (Q)"
             rules={[{ required: true, message: 'Requerido' }]}>
             <InputNumber style={{ width: '100%' }} min={0.01} precision={2} />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.bonificacionAdicional !== cur.bonificacionAdicional}>
+            {({ getFieldValue }) => (
+              <Form.Item name="bonificacionAdicional" label="Bonificación adicional (Q/mes)"
+                tooltip="Lo que se le paga por encima de la bonificación incentivo de ley. Si solo cambia el salario, déjala como está."
+                extra={<Text type="secondary" style={{ fontSize: 11 }}>{ayudaBonificacion(getFieldValue('bonificacionAdicional'))}</Text>}>
+                <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="0.00" />
+              </Form.Item>
+            )}
           </Form.Item>
           <Form.Item name="fechaInicio" label="Vigente desde" rules={[{ required: true, message: 'Requerido' }]}>
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
