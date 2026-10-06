@@ -26,7 +26,10 @@ export interface DetallePlanilla {
   horasExtraHabil: number
   horasExtraEspecial: number
   montoHorasExtra: number
+  /** Total pagado: la bonificación de ley más la adicional del empleado */
   bonificacionIncentivo: number
+  /** Parte pactada por encima de la de ley — ya incluida arriba, no sumarla */
+  bonificacionAdicional: number
   otrosIngresos: number
   otrosIngresosDescripcion: string | null
   totalDevengado: number

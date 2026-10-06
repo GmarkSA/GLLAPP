@@ -20,6 +20,8 @@ export interface ContratoLaboral {
   fechaInicio: string
   fechaFin: string | null
   salarioOrdinarioMensual: number
+  /** Bonificación incentivo pactada POR ENCIMA de la de ley (Parámetros fiscales) */
+  bonificacionAdicional: number
   motivoCambio: MotivoCambioSalario
   tipoContrato: TipoContratoLaboral
   fechaFinPactada: string | null
@@ -70,6 +72,8 @@ export interface Empleado {
   notas: string | null
   salarioVigente: number | null
   salarioDesde: string | null
+  /** Extra sobre la bonificación de ley; 0 = solo la de ley */
+  bonificacionAdicionalVigente: number
 }
 
 export interface EmpleadoDetalle extends Empleado {
@@ -103,6 +107,7 @@ export const getEmpleado = (id: string) =>
 
 export const crearEmpleado = (dto: Partial<Empleado> & {
   salarioInicial: number
+  bonificacionAdicional?: number
   tipoContratoLaboral?: TipoContratoLaboral
   fechaFinPactada?: string | null
   horarioTrabajo?: string | null
@@ -114,6 +119,7 @@ export const actualizarEmpleado = (id: string, dto: Partial<Empleado>) =>
 
 export const cambiarSalario = (empleadoId: string, dto: {
   salarioOrdinarioMensual: number
+  bonificacionAdicional?: number
   fechaInicio: string
   motivoCambio?: MotivoCambioSalario
   notas?: string

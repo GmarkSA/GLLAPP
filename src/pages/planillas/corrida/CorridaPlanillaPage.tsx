@@ -278,9 +278,15 @@ export default function CorridaPlanillaPage() {
       render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span>,
     },
     {
-      title: <Tooltip title="Q250 de ley (Dto. 78-89), proporcional a días del mes completo — no paga IGSS">Bonif.</Tooltip>,
+      title: <Tooltip title="Bonificación incentivo de ley (Dto. 78-89) más la adicional pactada con el empleado, proporcional a días del mes completo — no paga IGSS">Bonif.</Tooltip>,
       dataIndex: 'bonificacionIncentivo', width: 85, align: 'right',
-      render: v => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span>,
+      render: (v, d) => Number(d.bonificacionAdicional) > 0
+        ? (
+          <Tooltip title={`Incluye ${fmtQ(d.bonificacionAdicional)} de bonificación adicional pactada con el empleado`}>
+            <span style={{ fontFamily: 'monospace', fontSize: 12, borderBottom: '1px dotted #1faec2' }}>{fmtQ(v)}</span>
+          </Tooltip>
+        )
+        : <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtQ(v)}</span>,
     },
   ]
 
