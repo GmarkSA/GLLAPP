@@ -18,6 +18,10 @@ const asientos = vi.fn(async (_params?: any) => ({ data: filas, total: filas.len
 let filas: any[] = []
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
+vi.mock('../../../api/axios', () => ({
+  default: {},
+  getApiError: (e: any, d: string) => e?.response?.data?.error?.message ?? d,
+}))
 vi.mock('../../../api/asientos', () => ({
   getAsientos: (p?: any) => asientos(p),
   getAsiento: vi.fn(), postAsiento: vi.fn(), voidAsiento: vi.fn(),
@@ -89,6 +93,15 @@ describe('Pólizas automáticas en Diarios', () => {
       expect(casilla()).toBeTruthy()
     })
 
+    it('el vacío explica cómo llegar a las automáticas, en vez de «No hay datos»', async () => {
+      filas = []
+
+      await pintar()
+
+      expect(cont.textContent).toContain('Incluir pólizas automáticas')
+      expect(cont.textContent).toContain('planilla, factura o pago')
+    })
+
     it('al marcarla pide el listado completo, sin acotar a manuales', async () => {
       await pintar()
 
@@ -136,5 +149,33 @@ describe('Pólizas automáticas en Diarios', () => {
     expect(iconos).toContain('anticon-rollback')
     expect([...cont.querySelectorAll('tbody .ant-tag')].map(t => t.textContent))
       .not.toContain('automática')
+  })
+
+  /**
+   * Lo que de verdad dejaba al dueño sin respuesta: la pantalla se tragaba
+   * cualquier error y pintaba «No hay datos». Un permiso que falta, un 500 o
+   * la red caída se veían idénticos a un listado vacío de verdad.
+   */
+  describe('cuando la petición falla', () => {
+    it('lo dice, en vez de fingir que no hay datos', async () => {
+      asientos.mockRejectedValueOnce({
+        response: { data: { error: { message: 'No tienes permiso para ver asientos contables' } } },
+      })
+
+      await pintar()
+
+      expect(cont.textContent).toContain('No se pudo cargar el listado')
+      expect(cont.textContent).toContain('No tienes permiso para ver asientos contables')
+    })
+
+    it('ofrece reintentar', async () => {
+      asientos.mockRejectedValueOnce(new Error('Network Error'))
+
+      await pintar()
+
+      const reintentar = [...cont.querySelectorAll('button')]
+        .find(b => b.textContent?.includes('Reintentar'))
+      expect(reintentar).toBeTruthy()
+    })
   })
 })
