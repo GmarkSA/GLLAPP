@@ -29,6 +29,29 @@ const TYPE_LABEL: Record<string, string> = {
   opening: 'Apertura', closing: 'Cierre', adjustment: 'Ajuste',
 }
 
+/**
+ * Opciones del filtro «Tipo». «Automática» es la vía para llegar desde este
+ * listado a las pólizas que genera el sistema —planilla, facturas, pagos,
+ * inventario, activos fijos—, que por defecto quedan fuera porque esta
+ * pantalla es la de los diarios que se capturan a mano.
+ */
+export const TIPOS_DE_DIARIO = [
+  { label: 'Manual',     value: 'manual' },
+  { label: 'Recurrente', value: 'recurring' },
+  { label: 'Apertura',   value: 'opening' },
+  { label: 'Cierre',     value: 'closing' },
+  { label: 'Ajuste',     value: 'adjustment' },
+  { label: 'Automática', value: 'auto' },
+]
+
+/**
+ * La póliza la generó su documento de origen —planilla, factura, pago,
+ * movimiento de inventario, activo fijo— y ese documento guarda su id. Desde
+ * aquí solo se consulta: anularla o borrarla por un lado dejaría al documento
+ * apuntando a un asiento que ya no existe. Se deshace anulando el documento.
+ */
+const esAutomatica = (r: AsientoListItem) => r.type === 'auto'
+
 // ── Filtros avanzados ─────────────────────────────────────────────────────────
 interface DmAdFilters {
   filterEntryNumber?: string
@@ -187,7 +210,7 @@ export default function DiariosManualesPage() {
           </Tooltip>
 
           {/* Publicar (solo draft) */}
-          {r.status === 'draft' && (
+          {!esAutomatica(r) && r.status === 'draft' && (
             <Tooltip title="Publicar / Contabilizar">
               <Popconfirm title="¿Publicar este asiento? Quedará registrado en los reportes financieros."
                 okText="Publicar"
@@ -199,7 +222,7 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Colocar en borrador (solo posted) */}
-          {r.status === 'posted' && (
+          {!esAutomatica(r) && r.status === 'posted' && (
             <Tooltip title="Colocar en borrador">
               <Popconfirm title="¿Regresar a borrador? El asiento dejará de afectar los reportes financieros."
                 okText="Sí, borrador"
@@ -210,7 +233,7 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Revertir (solo posted) */}
-          {r.status === 'posted' && (
+          {!esAutomatica(r) && r.status === 'posted' && (
             <Tooltip title="Crear asiento de reversión">
               <Popconfirm title="¿Crear asiento de reversión? Se generará un borrador con débitos y créditos invertidos."
                 okText="Revertir"
@@ -221,7 +244,7 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Anular (solo posted) */}
-          {r.status === 'posted' && (
+          {!esAutomatica(r) && r.status === 'posted' && (
             <Tooltip title="Anular">
               <Popconfirm title="¿Anular este asiento? Esta acción no puede deshacerse."
                 okText="Anular" okButtonProps={{ danger: true }}
@@ -232,13 +255,18 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Eliminar (draft o void) */}
-          {(r.status === 'draft' || r.status === 'void') && (
+          {!esAutomatica(r) && (r.status === 'draft' || r.status === 'void') && (
             <Tooltip title="Eliminar">
               <Popconfirm title="¿Eliminar este asiento permanentemente?"
                 okText="Eliminar" okButtonProps={{ danger: true }}
                 onConfirm={() => act(r.id, () => deleteAsiento(r.id), 'Asiento eliminado')}>
                 <Button size="small" danger icon={<DeleteOutlined />} loading={acting === r.id} />
               </Popconfirm>
+            </Tooltip>
+          )}
+          {esAutomatica(r) && (
+            <Tooltip title="La genera su documento de origen (planilla, factura, pago…). Para deshacerla, anula ese documento — así los dos quedan consistentes.">
+              <Tag color="default" style={{ fontSize: 10, margin: 0 }}>automática</Tag>
             </Tooltip>
           )}
         </Space>
@@ -282,15 +310,9 @@ export default function DiariosManualesPage() {
           ]}
         />
         <Select
-          placeholder="Tipo" allowClear style={{ width: 140 }}
+          placeholder="Tipo" allowClear style={{ width: 175 }}
           onChange={v => { setFiltroTipo(v); setPage(1) }}
-          options={[
-            { label: 'Manual',     value: 'manual' },
-            { label: 'Recurrente', value: 'recurring' },
-            { label: 'Apertura',   value: 'opening' },
-            { label: 'Cierre',     value: 'closing' },
-            { label: 'Ajuste',     value: 'adjustment' },
-          ]}
+          options={TIPOS_DE_DIARIO}
         />
         <Badge count={dmActiveCount} size="small">
           <Button
