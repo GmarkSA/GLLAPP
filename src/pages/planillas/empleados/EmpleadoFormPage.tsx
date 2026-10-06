@@ -649,6 +649,20 @@ export default function EmpleadoFormPage() {
             </Form.Item>
           </Card>
 
+          <Card size="small" style={{ borderRadius: 8, marginBottom: 16 }}
+            title={<Text strong>Retención de ISR</Text>}
+            extra={<Text type="secondary" style={{ fontSize: 11 }}>Solo se usa si la planilla se corre con «ISR proyectado»</Text>}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px' }}>
+              <Form.Item name="isrProyectadoMensual" label="ISR proyectado mensual (Q)"
+                tooltip="El monto que registraste en RetenISR del SAT para este empleado, calculado sobre lo que recibió al cierre del año anterior. Si la corrida usa ISR proyectado, se le descuenta este monto fijo todos los meses, sin recalcular."
+                extra={<Text type="secondary" style={{ fontSize: 11 }}>
+                  Q 0.00 = sin proyección registrada en SAT
+                </Text>}>
+                <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="0.00" />
+              </Form.Item>
+            </div>
+          </Card>
+
           <Collapse
             style={{ marginBottom: 16 }}
             items={[{
