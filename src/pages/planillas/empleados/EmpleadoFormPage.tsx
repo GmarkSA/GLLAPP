@@ -144,6 +144,19 @@ export default function EmpleadoFormPage() {
     }
   }
 
+  /** Abre el modal con la vigencia actual cargada, para no perder lo ya pactado */
+  const abrirCambioSalario = () => {
+    const vigente = empleado?.historialSalarios.find(h => h.fechaFin == null)
+    salarioForm.setFieldsValue({
+      salarioOrdinarioMensual: vigente ? Number(vigente.salarioOrdinarioMensual) : undefined,
+      bonificacionAdicional: Number(vigente?.bonificacionAdicional) || 0,
+      tipoContratoLaboral: vigente?.tipoContrato ?? 'INDEFINIDO',
+      fechaFinPactada: vigente?.fechaFinPactada ? dayjs(vigente.fechaFinPactada) : null,
+      horarioTrabajo: vigente?.horarioTrabajo ?? null,
+    })
+    setModalSalario(true)
+  }
+
   const aplicarCambioSalario = async () => {
     try {
       const vals = await salarioForm.validateFields()
@@ -360,17 +373,7 @@ export default function EmpleadoFormPage() {
           )}
           {!esNuevo && empleado?.estado === 'ACTIVO' && (
             <>
-              <Button icon={<DollarOutlined />} onClick={() => {
-                const vigente = empleado.historialSalarios.find(h => h.fechaFin == null)
-                salarioForm.setFieldsValue({
-                  salarioOrdinarioMensual: vigente ? Number(vigente.salarioOrdinarioMensual) : undefined,
-                  bonificacionAdicional: Number(vigente?.bonificacionAdicional) || 0,
-                  tipoContratoLaboral: vigente?.tipoContrato ?? 'INDEFINIDO',
-                  fechaFinPactada: vigente?.fechaFinPactada ? dayjs(vigente.fechaFinPactada) : null,
-                  horarioTrabajo: vigente?.horarioTrabajo ?? null,
-                })
-                setModalSalario(true)
-              }}>Cambiar salario o bonificación</Button>
+              <Button icon={<DollarOutlined />} onClick={abrirCambioSalario}>Cambiar salario o bonificación</Button>
               <Button danger icon={<UserDeleteOutlined />} onClick={() => navigate(`/planillas/finiquitos/nuevo/${id}`)}>
                 Dar de baja / Finiquito
               </Button>
@@ -634,13 +637,29 @@ export default function EmpleadoFormPage() {
 
         {!esNuevo && empleado && (
           <Card size="small" style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
-            title={<Text strong>Historial salarial</Text>}
+            title={<Text strong>Salario y bonificación vigentes</Text>}
             extra={
-              empleado.salarioVigente != null && (
+              <Space size={14} wrap>
+                {empleado.salarioVigente != null && (
+                  <Text style={{ fontSize: 12 }}>
+                    Salario: <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(empleado.salarioVigente)}</Text>
+                  </Text>
+                )}
                 <Text style={{ fontSize: 12 }}>
-                  Vigente: <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(empleado.salarioVigente)}</Text>
+                  Bonificación adicional:{' '}
+                  <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtQ(Number(empleado.bonificacionAdicionalVigente) || 0)}
+                  </Text>
+                  {bonifDeLey != null && (
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {' '}· {fmtQ(bonifDeLey + (Number(empleado.bonificacionAdicionalVigente) || 0))} al mes con la de ley
+                    </Text>
+                  )}
                 </Text>
-              )
+                {empleado.estado === 'ACTIVO' && (
+                  <Button size="small" icon={<DollarOutlined />} onClick={abrirCambioSalario}>Cambiar</Button>
+                )}
+              </Space>
             }>
             <Table
               size="small" rowKey="id" pagination={false}
