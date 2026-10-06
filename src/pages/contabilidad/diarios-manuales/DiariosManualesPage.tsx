@@ -15,6 +15,7 @@ import {
   type AsientoListItem, type GetAsientosParams,
 } from '../../../api/asientos'
 import { getApiError } from '../../../api/axios'
+import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -94,6 +95,13 @@ export default function DiariosManualesPage() {
   const [incluirAutomaticas, setIncluirAutomaticas] = useState(false)
   /** Motivo real cuando el listado viene vacío porque la petición falló */
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
+  /**
+   * Cuántos registros dijo el servidor que hay. Se muestra cuando el listado
+   * sale vacío: un 0 del servidor y un listado que no pinta son dos problemas
+   * distintos, y sin este dato no hay forma de distinguirlos desde fuera.
+   */
+  const [totalServidor, setTotalServidor] = useState<number | null>(null)
+  const activeCompany = useCompanyStore(st => st.activeCompany)
 
   // Filtros avanzados
   const [dmFilters,    setDmFilters]    = useState<DmAdFilters>(DM_EMPTY)
@@ -118,14 +126,18 @@ export default function DiariosManualesPage() {
       if (rango?.[0])   params.fechaDesde = rango[0].format('YYYY-MM-DD')
       if (rango?.[1])   params.fechaHasta = rango[1].format('YYYY-MM-DD')
       const res = await getAsientos(params)
-      setData(res.data)
-      setTotal((res as any)?.meta?.total ?? res.total ?? 0)
+      const filas = res.data ?? []
+      const cuantos = (res as any)?.meta?.total ?? res.total ?? filas.length
+      setData(filas)
+      setTotal(cuantos)
+      setTotalServidor(cuantos)
       setErrorCarga(null)
     } catch (e: any) {
       // Tragarse el error aquí pintaba «No hay datos»: un permiso que falta o
       // una caída del servidor se veían idénticos a un listado vacío de verdad.
       setData([])
       setTotal(0)
+      setTotalServidor(null)
       setErrorCarga(getApiError(e, 'No se pudo cargar el listado de diarios'))
     }
     finally { setLoading(false) }
@@ -367,9 +379,22 @@ export default function DiariosManualesPage() {
         locale={{
           emptyText: errorCarga
             ? 'El listado no se pudo cargar — mira el aviso de arriba'
-            : incluirAutomaticas
-              ? 'No hay diarios ni pólizas en este período'
-              : 'No hay diarios capturados a mano. Si buscas la póliza de una planilla, factura o pago, marca «Incluir pólizas automáticas».',
+            : (
+              <div style={{ padding: '8px 0', lineHeight: 1.7 }}>
+                <div>
+                  {incluirAutomaticas
+                    ? 'No hay diarios ni pólizas que mostrar.'
+                    : 'No hay diarios capturados a mano. Si buscas la póliza de una planilla, factura o pago, marca «Incluir pólizas automáticas».'}
+                </div>
+                {/* Sin esto, un 0 del servidor y una pantalla que no pinta se
+                    ven igual. Con el dato a la vista se distinguen de un vistazo. */}
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  El servidor respondió {totalServidor ?? 0} registro(s)
+                  {activeCompany?.legalName ? ` para ${activeCompany.legalName}` : ''}
+                  {incluirAutomaticas ? ' · incluyendo pólizas automáticas' : ' · solo diarios manuales'}
+                </Text>
+              </div>
+            ),
         }}
         onRow={r => ({ onDoubleClick: () => navigate(`/contabilidad/diarios-manuales/${r.id}`) })}
         pagination={{

@@ -22,6 +22,10 @@ vi.mock('../../../api/axios', () => ({
   default: {},
   getApiError: (e: any, d: string) => e?.response?.data?.error?.message ?? d,
 }))
+vi.mock('../../../store/companyStore', () => ({
+  useCompanyStore: (sel: (s: any) => unknown) =>
+    sel({ activeCompany: { id: 'c-1', legalName: 'LUUM, SOCIEDAD ANONIMA' } }),
+}))
 vi.mock('../../../api/asientos', () => ({
   getAsientos: (p?: any) => asientos(p),
   getAsiento: vi.fn(), postAsiento: vi.fn(), voidAsiento: vi.fn(),
@@ -100,6 +104,16 @@ describe('Pólizas automáticas en Diarios', () => {
 
       expect(cont.textContent).toContain('Incluir pólizas automáticas')
       expect(cont.textContent).toContain('planilla, factura o pago')
+    })
+
+    it('el vacío dice cuántos registros respondió el servidor y para qué empresa', async () => {
+      filas = []
+
+      await pintar()
+
+      expect(cont.textContent).toContain('El servidor respondió 0 registro(s)')
+      expect(cont.textContent).toContain('LUUM, SOCIEDAD ANONIMA')
+      expect(cont.textContent).toContain('solo diarios manuales')
     })
 
     it('al marcarla pide el listado completo, sin acotar a manuales', async () => {
