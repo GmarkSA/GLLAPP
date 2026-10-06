@@ -69,6 +69,8 @@ export interface Empleado {
   isrRetenidoInicial: number
   igssLaboralInicial: number
   vacacionesDiasPendientesInicial: number
+  /** ISR mensual registrado en RetenISR del SAT; solo se usa si la corrida va con ISR proyectado */
+  isrProyectadoMensual: number
   notas: string | null
   salarioVigente: number | null
   salarioDesde: string | null

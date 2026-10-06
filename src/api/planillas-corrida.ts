@@ -36,6 +36,8 @@ export interface DetallePlanilla {
   baseIGSS: number
   cuotaIGSSLaboral: number
   isrRetenido: number
+  /** El ISR de arriba lo escribió el patrono a mano: recalcular no lo toca */
+  isrManual: boolean
   otrasDeducciones: number
   otrasDeduccionesDescripcion: string | null
   totalDeducciones: number
@@ -60,6 +62,8 @@ export interface PeriodoPlanilla {
   fechaInicio: string
   fechaFin: string
   estado: EstadoPeriodoPlanilla
+  /** Encendido: se descuenta el ISR proyectado de cada empleado en vez de calcularlo */
+  usarIsrProyectado: boolean
   totalDevengado: number
   totalDeducciones: number
   totalNeto: number
@@ -113,7 +117,14 @@ export const actualizarDetallePlanilla = (detalleId: string, dto: Partial<{
   otrasDeduccionesDescripcion: string
   centroCostoId: string | null
   centroBeneficioId: string | null
+  isrRetenido: number
+  isrManual: boolean
 }>) => api.patch(`${BASE}/detalles/${detalleId}`, dto).then(unwrap) as Promise<PeriodoPlanillaDetalle>
+
+/** Usar el ISR proyectado registrado en SAT o el cálculo real; recalcula la corrida */
+export const cambiarMetodoIsrPlanilla = (id: string, usarIsrProyectado: boolean) =>
+  api.patch(`${BASE}/${id}/metodo-isr`, { usarIsrProyectado })
+    .then(unwrap) as Promise<PeriodoPlanillaDetalle>
 
 export const aprobarPeriodoPlanilla = (id: string) =>
   api.post(`${BASE}/${id}/aprobar`).then(unwrap) as Promise<PeriodoPlanillaDetalle>

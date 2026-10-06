@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Button, Card, Col, DatePicker, Form, InputNumber, Modal, Popconfirm, Row, Select, Space, Spin,
-  Statistic, Table, Tag, Tooltip, Typography, message,
+  Statistic, Switch, Table, Tag, Tooltip, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla,
+  getPeriodoPlanilla, recalcularPeriodoPlanilla, actualizarDetallePlanilla, cambiarMetodoIsrPlanilla,
   aprobarPeriodoPlanilla, eliminarPeriodoPlanilla,
   contabilizarPeriodoPlanilla, pagarPeriodoPlanilla, previsualizarAsientoPlanilla,
   anularPagoPlanilla, anularPlanilla,
@@ -91,7 +91,7 @@ export default function CorridaPlanillaPage() {
 
   const editable = periodo?.estado === 'BORRADOR'
 
-  const commit = async (detalleId: string, campo: string, valor: number) => {
+  const commit = async (detalleId: string, campo: string, valor: number | boolean) => {
     try {
       setProcesando(true)
       const actualizado = await actualizarDetallePlanilla(detalleId, { [campo]: valor })
@@ -99,6 +99,27 @@ export default function CorridaPlanillaPage() {
       cargarPreview()
     } catch (e: any) {
       message.error(getApiError(e, 'Error al actualizar'))
+      cargar()
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  /**
+   * Encendido: a cada empleado se le descuenta el ISR mensual que el patrono
+   * registró en RetenISR del SAT (campo de su ficha), sin cálculo. Apagado:
+   * el motor calcula el ISR real del mes.
+   */
+  const cambiarMetodoIsr = async (usarProyectado: boolean) => {
+    try {
+      setProcesando(true)
+      setPeriodo(await cambiarMetodoIsrPlanilla(id!, usarProyectado))
+      cargarPreview()
+      message.success(usarProyectado
+        ? 'Se descontará el ISR proyectado de cada empleado'
+        : 'El ISR vuelve a calcularse mes a mes')
+    } catch (e: any) {
+      message.error(getApiError(e, 'Error al cambiar el método de ISR'))
       cargar()
     } finally {
       setProcesando(false)
@@ -309,9 +330,29 @@ export default function CorridaPlanillaPage() {
       render: v => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</span>,
     },
     {
-      title: <Tooltip title="Retención mensual por proyección anual (Dto. 10-2012/13-2026), calculada sobre el mes completo">ISR</Tooltip>,
-      dataIndex: 'isrRetenido', width: 90, align: 'right',
-      render: v => <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#cf1322' }}>{fmtQ(v)}</span>,
+      title: (
+        <Tooltip title={periodo?.usarIsrProyectado
+          ? 'Monto proyectado que registraste en RetenISR del SAT, tomado de la ficha de cada empleado'
+          : 'Retención mensual por proyección anual (Dto. 10-2012/13-2026), calculada sobre el mes completo. Se puede escribir a mano.'}>
+          ISR
+        </Tooltip>
+      ),
+      key: 'isrRetenido', width: 110, align: 'right',
+      render: (_, d) => (
+        <Space size={4}>
+          {d.isrManual && (
+            <Tooltip title="Valor escrito a mano — recalcular no lo cambia. Clic para volver al cálculo automático.">
+              <Button size="small" type="text" disabled={!editable}
+                style={{ padding: '0 4px', height: 18, fontSize: 10, color: '#ff7f00' }}
+                onClick={() => commit(d.id, 'isrManual', false as any)}>
+                manual ✕
+              </Button>
+            </Tooltip>
+          )}
+          <CellNumber value={d.isrRetenido} disabled={!editable}
+            onCommit={v => commit(d.id, 'isrRetenido', v)} />
+        </Space>
+      ),
     },
     {
       title: 'Otras ded.', key: 'otrasDeducciones', width: 100, align: 'right',
@@ -415,6 +456,20 @@ export default function CorridaPlanillaPage() {
           </div>
         </Space>
         <Space wrap>
+          {editable && !esEspecial && !esQuincena1 && (
+            <Tooltip title={periodo.usarIsrProyectado
+              ? 'Se descuenta el ISR mensual que registraste en RetenISR del SAT, tomado de la ficha de cada empleado. Apágalo para que Lucía lo calcule.'
+              : 'Lucía calcula el ISR real de cada mes. Enciéndelo para descontar el monto proyectado que registraste en RetenISR del SAT.'}>
+              <Space size={6} style={{
+                border: '1px solid rgba(10,10,10,0.12)', borderRadius: 8, padding: '3px 10px',
+                background: periodo.usarIsrProyectado ? '#fff7e6' : undefined,
+              }}>
+                <Text style={{ fontSize: 12 }}>ISR proyectado</Text>
+                <Switch size="small" checked={periodo.usarIsrProyectado} loading={procesando}
+                  onChange={cambiarMetodoIsr} />
+              </Space>
+            </Tooltip>
+          )}
           {editable && (
             <>
               <Button icon={<ReloadOutlined />} loading={procesando} onClick={recalcular}>Recalcular</Button>
