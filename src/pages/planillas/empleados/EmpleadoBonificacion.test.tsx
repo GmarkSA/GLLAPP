@@ -12,18 +12,34 @@ import { createRoot, type Root } from 'react-dom/client'
  * Por eso la ayuda del campo arma la cuenta a la vista: «Q 250.00 de ley +
  * Q 500.00 = Q 750.00 al mes».
  */
+/** 'nuevo' = alta; un uuid = ficha de un empleado que ya existe */
+let idEnLaRuta = 'nuevo'
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
-  useParams: () => ({ id: 'nuevo' }),
+  useParams: () => ({ id: idEnLaRuta }),
 }))
 vi.mock('../../../components/SelectorDimensionesAnaliticas', () => ({ default: () => null }))
 
 const getParametroFiscal = vi.fn(async (_anio: number) => ({ montoBonificacionIncentivo: 250 }))
 vi.mock('../../../api/planillas', () => ({ getParametroFiscal: (a: number) => getParametroFiscal(a) }))
 
+/** Nery, de la planilla real: Q4,250 de sueldo y Q750 de bono decreto */
+const EMPLEADO_EXISTENTE = {
+  id: 'e-1', codigo: 'E-001', primerNombre: 'Nery', primerApellido: 'Colorado',
+  estado: 'ACTIVO', fechaAlta: '2021-04-01', tipoJornada: 'DIURNA',
+  metodoPago: 'EFECTIVO', salarioVigente: 4250, salarioDesde: '2021-04-01',
+  bonificacionAdicionalVigente: 500,
+  historialSalarios: [{
+    id: 'c-1', empleadoId: 'e-1', fechaInicio: '2021-04-01', fechaFin: null,
+    salarioOrdinarioMensual: 4250, bonificacionAdicional: 500,
+    motivoCambio: 'ALTA', tipoContrato: 'INDEFINIDO',
+    fechaFinPactada: null, horarioTrabajo: null, notas: null, createdAt: '2021-04-01',
+  }],
+}
+
 const crearEmpleado = vi.fn(async (dto: any) => ({ id: 'e-1', ...dto, advertenciaSalarioMinimo: null }))
 vi.mock('../../../api/planillas-empleados', () => ({
-  getEmpleado: vi.fn(async () => null),
+  getEmpleado: vi.fn(async () => EMPLEADO_EXISTENTE),
   crearEmpleado: (dto: any) => crearEmpleado(dto),
   actualizarEmpleado: vi.fn(async () => ({})),
   cambiarSalario: vi.fn(async () => ({})),
@@ -59,6 +75,7 @@ describe('Bonificación adicional en la ficha del empleado', () => {
   }
 
   beforeEach(() => {
+    idEnLaRuta = 'nuevo'
     cont = document.createElement('div')
     document.body.appendChild(cont)
     root = createRoot(cont)
@@ -101,5 +118,35 @@ describe('Bonificación adicional en la ficha del empleado', () => {
 
     expect(campoPorEtiqueta('Bonificación adicional')).toBeTruthy()
     expect(ayudaDe('Bonificación adicional')).toContain('POR ENCIMA')
+  })
+
+  /**
+   * Lo que reportó el dueño: «veo el cambio, pero no me habilita el campo».
+   * Los empleados a los que hay que ponerles la bonificación YA EXISTEN —
+   * no se van a dar de alta otra vez. En su ficha el campo no aparecía por
+   * ningún lado: estaba solo en el bloque del alta.
+   */
+  describe('en la ficha de un empleado que ya existe', () => {
+    beforeEach(() => { idEnLaRuta = 'e-1' })
+
+    it('muestra la bonificación que tiene pactada hoy', async () => {
+      await pintar()
+
+      expect(cont.textContent).toContain('Bonificación adicional')
+      expect(cont.textContent).toContain('Q 500.00')
+    })
+
+    it('deja ver cuánto le queda en total al mes', async () => {
+      await pintar()
+
+      expect(cont.textContent).toContain('Q 750.00')
+    })
+
+    it('ofrece el botón para cambiarla', async () => {
+      await pintar()
+
+      const botones = [...cont.querySelectorAll('button')].map(b => b.textContent ?? '')
+      expect(botones.some(t => t.includes('bonificación'))).toBe(true)
+    })
   })
 })
