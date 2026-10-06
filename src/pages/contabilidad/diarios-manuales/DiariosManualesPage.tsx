@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Table, Tag, Space, Popconfirm, message, DatePicker, Select,
-  Typography, Tooltip, Input, Drawer, InputNumber, Divider, Badge, Checkbox,
+  Typography, Tooltip, Input, Drawer, InputNumber, Divider, Badge, Checkbox, Alert,
 } from 'antd'
 import {
   PlusOutlined, FileTextOutlined, CheckCircleOutlined,
@@ -14,6 +14,7 @@ import {
   getAsientos, getAsiento, postAsiento, voidAsiento, reverseAsiento, deleteAsiento, resetToDraftAsiento,
   type AsientoListItem, type GetAsientosParams,
 } from '../../../api/asientos'
+import { getApiError } from '../../../api/axios'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -91,6 +92,8 @@ export default function DiariosManualesPage() {
    * saber que existen: pide el listado completo, sin acotar a los manuales.
    */
   const [incluirAutomaticas, setIncluirAutomaticas] = useState(false)
+  /** Motivo real cuando el listado viene vacío porque la petición falló */
+  const [errorCarga, setErrorCarga] = useState<string | null>(null)
 
   // Filtros avanzados
   const [dmFilters,    setDmFilters]    = useState<DmAdFilters>(DM_EMPTY)
@@ -117,7 +120,14 @@ export default function DiariosManualesPage() {
       const res = await getAsientos(params)
       setData(res.data)
       setTotal((res as any)?.meta?.total ?? res.total ?? 0)
-    } catch { setData([]) }
+      setErrorCarga(null)
+    } catch (e: any) {
+      // Tragarse el error aquí pintaba «No hay datos»: un permiso que falta o
+      // una caída del servidor se veían idénticos a un listado vacío de verdad.
+      setData([])
+      setTotal(0)
+      setErrorCarga(getApiError(e, 'No se pudo cargar el listado de diarios'))
+    }
     finally { setLoading(false) }
   }, [page, search, filtroEstado, filtroTipo, rango, incluirAutomaticas])
 
@@ -340,11 +350,27 @@ export default function DiariosManualesPage() {
         </Badge>
       </Space>
 
+      {errorCarga && (
+        <Alert
+          type="error" showIcon style={{ marginBottom: 12 }}
+          message="No se pudo cargar el listado"
+          description={errorCarga}
+          action={<Button size="small" icon={<ReloadOutlined />} onClick={load}>Reintentar</Button>}
+        />
+      )}
+
       <Table
         scroll={{ y: 'calc(100vh - 330px)' }}
         dataSource={filteredData} columns={columns} rowKey="id"
         loading={loading} size="small"
         showSorterTooltip={false}
+        locale={{
+          emptyText: errorCarga
+            ? 'El listado no se pudo cargar — mira el aviso de arriba'
+            : incluirAutomaticas
+              ? 'No hay diarios ni pólizas en este período'
+              : 'No hay diarios capturados a mano. Si buscas la póliza de una planilla, factura o pago, marca «Incluir pólizas automáticas».',
+        }}
         onRow={r => ({ onDoubleClick: () => navigate(`/contabilidad/diarios-manuales/${r.id}`) })}
         pagination={{
           current: page, pageSize: 200, total,
