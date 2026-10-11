@@ -212,14 +212,26 @@ export default function CategorizarDrawer({
     setSelectedBills(prev => [...prev, { bill, amount: maxAmt }])
   }
 
+  /**
+   * Id de la póliza del último pago consultado por fetchJournalLines.
+   *
+   * La transacción bancaria tiene que guardarlo para poder abrir su póliza
+   * desde Bancos. Antes solo se guardaban el pago y la factura, así que el
+   * movimiento quedaba categorizado pero sin forma de llegar a su asiento —
+   * y sin poder corregirle el tipo de cambio.
+   */
+  let polizaDelPago: string | undefined
+
   // ── Obtener líneas de póliza del backend; fallback cliente si no llegan ─────
   const fetchJournalLines = async (pagoId: string): Promise<JournalLine[]> => {
     try {
       let detail = await getPagoRecibido(pagoId)
+      polizaDelPago = detail.journalEntry?.id ?? polizaDelPago
       let rawLines = detail.journalEntry?.lines || detail.journalEntry?.entries || []
       if (rawLines.length === 0) {
         await reprocessPagoJournal(pagoId).catch(() => null)
         detail = await getPagoRecibido(pagoId)
+        polizaDelPago = detail.journalEntry?.id ?? polizaDelPago
         rawLines = detail.journalEntry?.lines || detail.journalEntry?.entries || []
       }
       if (rawLines.length > 0) {
@@ -266,6 +278,14 @@ export default function CategorizarDrawer({
         refs.push(invoice.invoiceNumber)
         const lines = await fetchJournalLines(pago.id)
         allLines.push(...lines)
+        // El enlace a la póliza va DESPUÉS de consultarla: fetchJournalLines es
+        // quien trae su id. Con él, el movimiento puede abrir su asiento desde
+        // Bancos y corregirle el tipo de cambio sin reimportar el estado.
+        if (polizaDelPago) {
+          await updateTransaction(account.id, transaction.id, {
+            matchedJournalEntryId: polizaDelPago,
+          } as any).catch(() => null)
+        }
       }
 
       // Fallback: construir póliza esperada si el backend no la generó
@@ -317,7 +337,7 @@ export default function CategorizarDrawer({
           } catch { /* silent */ }
         }
 
-        await recordBillPayment(bill.id, {
+        const pagoProveedor: any = await recordBillPayment(bill.id, {
           amount,
           currency:          account.currency,
           exchangeRate:      isForeign ? exchangeRate : 1,
@@ -333,6 +353,9 @@ export default function CategorizarDrawer({
           sourceDocumentId:   bill.id,
           sourceDocumentType: 'bill',
           accountId:          bill.accountId || undefined,
+          ...(pagoProveedor?.journalEntryId
+            ? { matchedJournalEntryId: pagoProveedor.journalEntryId }
+            : {}),
         } as any)
 
         refs.push(bill.invoiceNumber)
