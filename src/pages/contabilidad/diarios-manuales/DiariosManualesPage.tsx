@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button, Table, Tag, Space, Popconfirm, message, DatePicker, Select,
-  Typography, Tooltip, Input, Drawer, InputNumber, Divider, Badge, Checkbox, Alert,
+  Typography, Tooltip, Input, Drawer, InputNumber, Divider, Badge,
 } from 'antd'
 import {
   PlusOutlined, FileTextOutlined, CheckCircleOutlined,
@@ -14,8 +14,6 @@ import {
   getAsientos, getAsiento, postAsiento, voidAsiento, reverseAsiento, deleteAsiento, resetToDraftAsiento,
   type AsientoListItem, type GetAsientosParams,
 } from '../../../api/asientos'
-import { getApiError } from '../../../api/axios'
-import { useCompanyStore } from '../../../store/companyStore'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -30,29 +28,6 @@ const TYPE_LABEL: Record<string, string> = {
   manual: 'Manual', auto: 'Automático', recurring: 'Recurrente',
   opening: 'Apertura', closing: 'Cierre', adjustment: 'Ajuste',
 }
-
-/**
- * Opciones del filtro «Tipo». «Automática» es la vía para llegar desde este
- * listado a las pólizas que genera el sistema —planilla, facturas, pagos,
- * inventario, activos fijos—, que por defecto quedan fuera porque esta
- * pantalla es la de los diarios que se capturan a mano.
- */
-export const TIPOS_DE_DIARIO = [
-  { label: 'Manual',     value: 'manual' },
-  { label: 'Recurrente', value: 'recurring' },
-  { label: 'Apertura',   value: 'opening' },
-  { label: 'Cierre',     value: 'closing' },
-  { label: 'Ajuste',     value: 'adjustment' },
-  { label: 'Automática', value: 'auto' },
-]
-
-/**
- * La póliza la generó su documento de origen —planilla, factura, pago,
- * movimiento de inventario, activo fijo— y ese documento guarda su id. Desde
- * aquí solo se consulta: anularla o borrarla por un lado dejaría al documento
- * apuntando a un asiento que ya no existe. Se deshace anulando el documento.
- */
-const esAutomatica = (r: AsientoListItem) => r.type === 'auto'
 
 // ── Filtros avanzados ─────────────────────────────────────────────────────────
 interface DmAdFilters {
@@ -86,22 +61,6 @@ export default function DiariosManualesPage() {
   const [filtroEstado, setFiltroEstado] = useState<string | undefined>()
   const [filtroTipo,   setFiltroTipo]   = useState<string | undefined>()
   const [acting,       setActing]       = useState<string | null>(null)
-  /**
-   * Las pólizas que genera el sistema —planilla, facturas, pagos, inventario,
-   * activos fijos— quedan fuera de este listado, que es el de los diarios que
-   * se capturan a mano. Este interruptor es la forma de verlas sin tener que
-   * saber que existen: pide el listado completo, sin acotar a los manuales.
-   */
-  const [incluirAutomaticas, setIncluirAutomaticas] = useState(false)
-  /** Motivo real cuando el listado viene vacío porque la petición falló */
-  const [errorCarga, setErrorCarga] = useState<string | null>(null)
-  /**
-   * Cuántos registros dijo el servidor que hay. Se muestra cuando el listado
-   * sale vacío: un 0 del servidor y un listado que no pinta son dos problemas
-   * distintos, y sin este dato no hay forma de distinguirlos desde fuera.
-   */
-  const [totalServidor, setTotalServidor] = useState<number | null>(null)
-  const activeCompany = useCompanyStore(st => st.activeCompany)
 
   // Filtros avanzados
   const [dmFilters,    setDmFilters]    = useState<DmAdFilters>(DM_EMPTY)
@@ -119,29 +78,18 @@ export default function DiariosManualesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params: GetAsientosParams = { page, limit: 200, soloManuales: !incluirAutomaticas }
+      const params: GetAsientosParams = { page, limit: 200, soloManuales: true }
       if (search)       params.search     = search
       if (filtroEstado) params.estado     = filtroEstado
       if (filtroTipo)   params.tipo       = filtroTipo
       if (rango?.[0])   params.fechaDesde = rango[0].format('YYYY-MM-DD')
       if (rango?.[1])   params.fechaHasta = rango[1].format('YYYY-MM-DD')
       const res = await getAsientos(params)
-      const filas = res.data ?? []
-      const cuantos = (res as any)?.meta?.total ?? res.total ?? filas.length
-      setData(filas)
-      setTotal(cuantos)
-      setTotalServidor(cuantos)
-      setErrorCarga(null)
-    } catch (e: any) {
-      // Tragarse el error aquí pintaba «No hay datos»: un permiso que falta o
-      // una caída del servidor se veían idénticos a un listado vacío de verdad.
-      setData([])
-      setTotal(0)
-      setTotalServidor(null)
-      setErrorCarga(getApiError(e, 'No se pudo cargar el listado de diarios'))
-    }
+      setData(res.data)
+      setTotal((res as any)?.meta?.total ?? res.total ?? 0)
+    } catch { setData([]) }
     finally { setLoading(false) }
-  }, [page, search, filtroEstado, filtroTipo, rango, incluirAutomaticas])
+  }, [page, search, filtroEstado, filtroTipo, rango])
 
   useEffect(() => { load() }, [load])
 
@@ -239,7 +187,7 @@ export default function DiariosManualesPage() {
           </Tooltip>
 
           {/* Publicar (solo draft) */}
-          {!esAutomatica(r) && r.status === 'draft' && (
+          {r.status === 'draft' && (
             <Tooltip title="Publicar / Contabilizar">
               <Popconfirm title="¿Publicar este asiento? Quedará registrado en los reportes financieros."
                 okText="Publicar"
@@ -251,7 +199,7 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Colocar en borrador (solo posted) */}
-          {!esAutomatica(r) && r.status === 'posted' && (
+          {r.status === 'posted' && (
             <Tooltip title="Colocar en borrador">
               <Popconfirm title="¿Regresar a borrador? El asiento dejará de afectar los reportes financieros."
                 okText="Sí, borrador"
@@ -262,7 +210,7 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Revertir (solo posted) */}
-          {!esAutomatica(r) && r.status === 'posted' && (
+          {r.status === 'posted' && (
             <Tooltip title="Crear asiento de reversión">
               <Popconfirm title="¿Crear asiento de reversión? Se generará un borrador con débitos y créditos invertidos."
                 okText="Revertir"
@@ -273,7 +221,7 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Anular (solo posted) */}
-          {!esAutomatica(r) && r.status === 'posted' && (
+          {r.status === 'posted' && (
             <Tooltip title="Anular">
               <Popconfirm title="¿Anular este asiento? Esta acción no puede deshacerse."
                 okText="Anular" okButtonProps={{ danger: true }}
@@ -284,18 +232,13 @@ export default function DiariosManualesPage() {
           )}
 
           {/* Eliminar (draft o void) */}
-          {!esAutomatica(r) && (r.status === 'draft' || r.status === 'void') && (
+          {(r.status === 'draft' || r.status === 'void') && (
             <Tooltip title="Eliminar">
               <Popconfirm title="¿Eliminar este asiento permanentemente?"
                 okText="Eliminar" okButtonProps={{ danger: true }}
                 onConfirm={() => act(r.id, () => deleteAsiento(r.id), 'Asiento eliminado')}>
                 <Button size="small" danger icon={<DeleteOutlined />} loading={acting === r.id} />
               </Popconfirm>
-            </Tooltip>
-          )}
-          {esAutomatica(r) && (
-            <Tooltip title="La genera su documento de origen (planilla, factura, pago…). Para deshacerla, anula ese documento — así los dos quedan consistentes.">
-              <Tag color="default" style={{ fontSize: 10, margin: 0 }}>automática</Tag>
             </Tooltip>
           )}
         </Space>
@@ -339,18 +282,16 @@ export default function DiariosManualesPage() {
           ]}
         />
         <Select
-          placeholder="Tipo" allowClear style={{ width: 175 }}
+          placeholder="Tipo" allowClear style={{ width: 140 }}
           onChange={v => { setFiltroTipo(v); setPage(1) }}
-          options={TIPOS_DE_DIARIO}
+          options={[
+            { label: 'Manual',     value: 'manual' },
+            { label: 'Recurrente', value: 'recurring' },
+            { label: 'Apertura',   value: 'opening' },
+            { label: 'Cierre',     value: 'closing' },
+            { label: 'Ajuste',     value: 'adjustment' },
+          ]}
         />
-        <Tooltip title="Las pólizas de planilla, facturas, pagos, inventario y activos fijos las genera el sistema y no salen en este listado, que es el de los diarios capturados a mano. Enciéndelo para verlas también.">
-          <Checkbox
-            checked={incluirAutomaticas}
-            onChange={e => { setIncluirAutomaticas(e.target.checked); setPage(1) }}
-          >
-            <Text style={{ fontSize: 13 }}>Incluir pólizas automáticas</Text>
-          </Checkbox>
-        </Tooltip>
         <Badge count={dmActiveCount} size="small">
           <Button
             icon={<FilterOutlined />}
@@ -362,40 +303,11 @@ export default function DiariosManualesPage() {
         </Badge>
       </Space>
 
-      {errorCarga && (
-        <Alert
-          type="error" showIcon style={{ marginBottom: 12 }}
-          message="No se pudo cargar el listado"
-          description={errorCarga}
-          action={<Button size="small" icon={<ReloadOutlined />} onClick={load}>Reintentar</Button>}
-        />
-      )}
-
       <Table
         scroll={{ y: 'calc(100vh - 330px)' }}
         dataSource={filteredData} columns={columns} rowKey="id"
         loading={loading} size="small"
         showSorterTooltip={false}
-        locale={{
-          emptyText: errorCarga
-            ? 'El listado no se pudo cargar — mira el aviso de arriba'
-            : (
-              <div style={{ padding: '8px 0', lineHeight: 1.7 }}>
-                <div>
-                  {incluirAutomaticas
-                    ? 'No hay diarios ni pólizas que mostrar.'
-                    : 'No hay diarios capturados a mano. Si buscas la póliza de una planilla, factura o pago, marca «Incluir pólizas automáticas».'}
-                </div>
-                {/* Sin esto, un 0 del servidor y una pantalla que no pinta se
-                    ven igual. Con el dato a la vista se distinguen de un vistazo. */}
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  El servidor respondió {totalServidor ?? 0} registro(s)
-                  {activeCompany?.legalName ? ` para ${activeCompany.legalName}` : ''}
-                  {incluirAutomaticas ? ' · incluyendo pólizas automáticas' : ' · solo diarios manuales'}
-                </Text>
-              </div>
-            ),
-        }}
         onRow={r => ({ onDoubleClick: () => navigate(`/contabilidad/diarios-manuales/${r.id}`) })}
         pagination={{
           current: page, pageSize: 200, total,
