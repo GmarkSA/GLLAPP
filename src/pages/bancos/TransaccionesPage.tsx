@@ -549,13 +549,13 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
       .catch(() => setTcBanguat(null))
   }, [jeId, isForeign, currency, transaction?.transactionDate])
 
-  const handleSave = async () => {
+  const guardar = async (nuevaFecha: string, nuevaTasa: number) => {
     if (!jeId || !transaction) return
     setSaving(true)
     try {
       await updateTransaction(accountId, transaction.id, {
-        transactionDate: date || undefined,
-        ...(isForeign ? { exchangeRate: rate } : {}),
+        transactionDate: nuevaFecha || undefined,
+        ...(isForeign ? { exchangeRate: nuevaTasa } : {}),
       } as any)
       cargar(jeId)
       setEditing(false)
@@ -567,6 +567,23 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
       setSaving(false)
     }
   }
+
+  const handleSave = () => guardar(date, rate)
+
+  /** El atajo del aviso: aplica el tipo de cambio de Banguat sin abrir la edición. */
+  const corregirABanguat = () => {
+    if (tcBanguat == null) return
+    setRate(tcBanguat)
+    void guardar(date, tcBanguat)
+  }
+
+  // Lo que la póliza debería decir si se hubiera usado el tipo de cambio del día.
+  const tasaPoliza = Number(je?.exchangeRate) || 1
+  const correcto = tcBanguat != null && transaction
+    ? Math.round(Number(transaction.amount) * tcBanguat * 100) / 100
+    : null
+  const desalineada = isForeign && tcBanguat != null
+    && Math.abs(tcBanguat - tasaPoliza) > 0.000001
 
   const handlePublish = async () => {
     if (!jeId) return
@@ -602,22 +619,43 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
           </div>
 
           {isForeign && transaction && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-              background: '#f8fafc', border: '1px solid #e8eef5', borderRadius: 8,
-              padding: '8px 12px', marginBottom: 12, fontVariantNumeric: 'tabular-nums',
-            }}>
-              <Text style={{ fontSize: 13 }}>{moneyFmt(Number(transaction.amount), currency)}</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>×</Text>
-              <Text style={{ fontSize: 13 }}>{Number(je.exchangeRate) || 1}</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>=</Text>
-              <Text strong style={{ fontSize: 13 }}>{fmtQ(Number(je.totalDebit) || Number(transaction.amount) * (Number(je.exchangeRate) || 1))}</Text>
-              {tcBanguat != null && Math.abs(tcBanguat - (Number(je.exchangeRate) || 1)) > 0.000001 && (
-                <Tag color="#ff7f00" style={{ marginLeft: 'auto', fontSize: 11 }}>
-                  Banguat ese día: {tcBanguat} → {fmtQ(Math.round(Number(transaction.amount) * tcBanguat * 100) / 100)}
-                </Tag>
-              )}
-            </div>
+            desalineada ? (
+              /* La póliza no está en el tipo de cambio de Banguat de su día. No se
+                 muestra la operación equivocada —eso es justo lo que hay que
+                 corregir—: se muestra la que corresponde y se aplica de un clic. */
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8,
+                padding: '10px 12px', marginBottom: 12, fontVariantNumeric: 'tabular-nums',
+              }}>
+                <div>
+                  <Text style={{ fontSize: 13 }}>
+                    {moneyFmt(Number(transaction.amount), currency)} × {tcBanguat} = <Text strong>{fmtQ(correcto!)}</Text>
+                  </Text>
+                  <div style={{ fontSize: 11, color: '#9a6b3f', marginTop: 2 }}>
+                    Tipo de cambio de Banguat del {String(transaction.transactionDate || '').split('T')[0].split('-').reverse().join('/')}.
+                    La póliza quedó contabilizada en {fmtQ(Number(je.totalDebit))}.
+                  </div>
+                </div>
+                <Button
+                  size="small" type="primary" loading={saving}
+                  style={{ background: NAVY, marginLeft: 'auto' }}
+                  onClick={() => corregirABanguat()}
+                >
+                  Corregir la póliza
+                </Button>
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                background: '#f8fafc', border: '1px solid #e8eef5', borderRadius: 8,
+                padding: '8px 12px', marginBottom: 12, fontVariantNumeric: 'tabular-nums',
+              }}>
+                <Text style={{ fontSize: 13 }}>
+                  {moneyFmt(Number(transaction.amount), currency)} × {Number(je.exchangeRate) || 1} = <Text strong>{fmtQ(Number(je.totalDebit))}</Text>
+                </Text>
+              </div>
+            )
           )}
 
           {editing && (
