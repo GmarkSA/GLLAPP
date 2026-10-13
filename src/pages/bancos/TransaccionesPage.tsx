@@ -878,6 +878,27 @@ export default function TransaccionesPage() {
     }
   }
 
+  /**
+   * El equivalente en quetzales del movimiento: el mismo monto con el que se
+   * escribió su póliza. En una cuenta en dólares el renglón del estado de
+   * cuenta está en USD y la contabilidad en GTQ; ver las dos cifras juntas es
+   * lo que deja ver de un vistazo si la conversión se hizo con la tasa que
+   * correspondía.
+   */
+  const esMonedaExtranjera = !!account?.currency && account.currency !== 'GTQ'
+
+  const enQuetzales = (row: BankTransaction) => {
+    if (!esMonedaExtranjera) return null
+    const tasa = Number(row.exchangeRate) || 0
+    const gtq  = Number(row.baseAmount) || Number(row.amount) * tasa
+    if (!gtq) return null
+    return (
+      <div style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>
+        {moneyFmt(gtq, 'GTQ')}{tasa > 0 && <span style={{ marginLeft: 4 }}>· TC {tasa}</span>}
+      </div>
+    )
+  }
+
   const columns: ColumnsType<BankTransaction> = [
     {
       title: 'Fecha',
@@ -917,7 +938,12 @@ export default function TransaccionesPage() {
       align: 'right',
       sorter: (a, b) => (a.type === 'credit' ? Number(a.amount) : 0) - (b.type === 'credit' ? Number(b.amount) : 0),
       render: (_, row) => row.type === 'credit'
-        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>+ {moneyFmt(Number(row.amount), account?.currency)}</Text>
+        ? (
+          <div>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>+ {moneyFmt(Number(row.amount), account?.currency)}</Text>
+            {enQuetzales(row)}
+          </div>
+        )
         : <Text type="secondary">—</Text>,
     },
     {
@@ -927,7 +953,12 @@ export default function TransaccionesPage() {
       align: 'right',
       sorter: (a, b) => (a.type === 'debit' ? Number(a.amount) : 0) - (b.type === 'debit' ? Number(b.amount) : 0),
       render: (_, row) => row.type === 'debit'
-        ? <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>- {moneyFmt(Number(row.amount), account?.currency)}</Text>
+        ? (
+          <div>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>- {moneyFmt(Number(row.amount), account?.currency)}</Text>
+            {enQuetzales(row)}
+          </div>
+        )
         : <Text type="secondary">—</Text>,
     },
     { title: 'Saldo', dataIndex: 'runningBalance', width: 130, align: 'right',
