@@ -527,10 +527,20 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
   const [rate, setRate]       = useState<number>(1)
   const [saving, setSaving]   = useState(false)
   const [tcBanguat, setTcBanguat] = useState<number | null>(null)
+  const [fallo, setFallo]     = useState<string | null>(null)
 
-  const recibir = (d: AsientoDetalle | null) => {
-    setJe(d)
-    if (d) { setDate(String(d.entryDate).split('T')[0]); setRate(Number(d.exchangeRate) || 1) }
+  /**
+   * Una póliza solo se da por buena si trae id. Sin esta guarda, una respuesta
+   * vacía o a medias se pintaba como si fuera una póliza: «Póliza undefined»,
+   * fecha undefined y «quedó contabilizada en Q NaN».
+   */
+  const recibir = (d: any) => {
+    const valida = d && typeof d === 'object' && d.id ? (d as AsientoDetalle) : null
+    setJe(valida)
+    if (valida) {
+      setDate(String(valida.entryDate ?? '').split('T')[0])
+      setRate(Number(valida.exchangeRate) || 1)
+    }
   }
 
   /**
@@ -540,12 +550,18 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
    */
   const cargar = (id: string) => {
     setLoading(true)
+    setFallo(null)
     const pide = id === SIN_POLIZA || !id
       ? (transaction ? getPolizaDelMovimiento(accountId, transaction.id) : Promise.resolve(null))
       : getAsiento(id)
     pide
-      .then(d => recibir(d as AsientoDetalle | null))
-      .catch(() => setJe(null))
+      .then(recibir)
+      .catch((e: unknown) => {
+        // Lo que responda el servidor se muestra. Tragarse el error dejaba el
+        // modal a medias sin decir por qué.
+        setJe(null)
+        setFallo(getApiError(e, 'No se pudo consultar la póliza de este movimiento'))
+      })
       .finally(() => setLoading(false))
   }
 
@@ -569,6 +585,7 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
     setEditing(false)
     setTcBanguat(null)
     setJe(null)
+    setFallo(null)
     cargar(jeId)
   }, [jeId])
 
@@ -645,10 +662,27 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
     >
       {loading && <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>}
 
+      {/* Si el servidor respondió con un error, se dice cuál: antes el modal se
+          pintaba a medias —«Póliza undefined», «Q NaN»— sin explicar nada. */}
+      {!loading && fallo && (
+        <div style={{ padding: '8px 0 4px' }}>
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+            padding: '12px 14px', marginBottom: 14,
+          }}>
+            <Text strong style={{ fontSize: 13 }}>No se pudo consultar la póliza</Text>
+            <div style={{ fontSize: 12, color: '#9b3a3a', marginTop: 4 }}>{fallo}</div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={onClose}>Cerrar</Button>
+          </div>
+        </div>
+      )}
+
       {/* El movimiento quedó categorizado pero su asiento nunca se creó. Antes
           esto no se podía ni ver: el botón salía apagado y había que volver a
           categorizar el movimiento para recuperarlo. */}
-      {!loading && !je && transaction && (
+      {!loading && !fallo && !je && transaction && (
         <div style={{ padding: '8px 0 4px' }}>
           <div style={{
             background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8,
