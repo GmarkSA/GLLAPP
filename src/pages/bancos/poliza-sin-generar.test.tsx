@@ -154,3 +154,46 @@ describe('un movimiento categorizado sin póliza', () => {
     expect(document.body.textContent).toContain('47,727.41')
   })
 })
+
+describe('cuando el servidor falla al consultar la póliza', () => {
+  it('dice qué respondió, en vez de pintar «Póliza undefined»', async () => {
+    const { getPolizaDelMovimiento } = await import('../../api/bancos')
+    vi.mocked(getPolizaDelMovimiento).mockRejectedValueOnce({
+      response: { status: 500, data: { error: { message: 'Internal server error' } } },
+    })
+
+    await render()
+    await abrirLaPoliza()
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('No se pudo consultar la póliza')
+    expect(texto).not.toContain('Póliza undefined')
+  })
+
+  it('no inventa montos: nada de «Q NaN»', async () => {
+    const { getPolizaDelMovimiento } = await import('../../api/bancos')
+    vi.mocked(getPolizaDelMovimiento).mockRejectedValueOnce({
+      response: { status: 500, data: { error: { message: 'Internal server error' } } },
+    })
+
+    await render()
+    await abrirLaPoliza()
+
+    expect(document.body.textContent).not.toContain('NaN')
+  })
+})
+
+describe('cuando el servidor devuelve algo incompleto', () => {
+  it('no lo pinta como si fuera una póliza', async () => {
+    const { getPolizaDelMovimiento } = await import('../../api/bancos')
+    vi.mocked(getPolizaDelMovimiento).mockResolvedValueOnce({} as any)
+
+    await render()
+    await abrirLaPoliza()
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).not.toContain('undefined')
+    expect(texto).not.toContain('NaN')
+    expect(texto).toContain('no tiene póliza contable')
+  })
+})
