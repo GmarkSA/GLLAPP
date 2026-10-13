@@ -76,10 +76,15 @@ import {
   type ReconciliationPeriod,
   type TransactionStatus,
   type TransactionType,
+  getPolizaDelMovimiento,
+  generarPolizaDelMovimiento,
 } from '../../api/bancos'
 import { getApiError } from '../../api/axios'
 import { getExchangeRateForDate, tipoDeCambioOficial } from '../../api/monedas'
 import { accountTypeIcon, formGrid, moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
+
+/** Marca para abrir el modal de un movimiento que no trae enlace a su póliza. */
+const SIN_POLIZA = 'sin-poliza'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -523,18 +528,47 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
   const [saving, setSaving]   = useState(false)
   const [tcBanguat, setTcBanguat] = useState<number | null>(null)
 
+  const recibir = (d: AsientoDetalle | null) => {
+    setJe(d)
+    if (d) { setDate(String(d.entryDate).split('T')[0]); setRate(Number(d.exchangeRate) || 1) }
+  }
+
+  /**
+   * Carga la póliza. Si el movimiento no trae el enlace guardado, la busca por
+   * el movimiento: muchos movimientos ya registrados quedaron sin enlace, y
+   * algunos directamente sin póliza. El modal tiene que distinguir los dos.
+   */
   const cargar = (id: string) => {
     setLoading(true)
-    getAsiento(id)
-      .then(d => { setJe(d); setDate(String(d.entryDate).split('T')[0]); setRate(Number(d.exchangeRate) || 1) })
+    const pide = id === SIN_POLIZA || !id
+      ? (transaction ? getPolizaDelMovimiento(accountId, transaction.id) : Promise.resolve(null))
+      : getAsiento(id)
+    pide
+      .then(d => recibir(d as AsientoDetalle | null))
       .catch(() => setJe(null))
       .finally(() => setLoading(false))
+  }
+
+  const generar = async () => {
+    if (!transaction) return
+    setSaving(true)
+    try {
+      const creada = await generarPolizaDelMovimiento(accountId, transaction.id)
+      recibir(creada as AsientoDetalle)
+      onSaved()
+      message.success(`Póliza ${creada?.entryNumber ?? ''} generada`)
+    } catch (e: unknown) {
+      message.error(getApiError(e, 'No se pudo generar la póliza'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   useEffect(() => {
     if (!jeId) return
     setEditing(false)
     setTcBanguat(null)
+    setJe(null)
     cargar(jeId)
   }, [jeId])
 
@@ -610,6 +644,31 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
       width={620}
     >
       {loading && <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>}
+
+      {/* El movimiento quedó categorizado pero su asiento nunca se creó. Antes
+          esto no se podía ni ver: el botón salía apagado y había que volver a
+          categorizar el movimiento para recuperarlo. */}
+      {!loading && !je && transaction && (
+        <div style={{ padding: '8px 0 4px' }}>
+          <div style={{
+            background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8,
+            padding: '12px 14px', marginBottom: 14,
+          }}>
+            <Text strong style={{ fontSize: 13 }}>Este movimiento está categorizado pero no tiene póliza contable.</Text>
+            <div style={{ fontSize: 12, color: '#9a6b3f', marginTop: 4 }}>
+              Se contabiliza {moneyFmt(Number(transaction.amount), currency)} del {String(transaction.transactionDate || '').split('T')[0].split('-').reverse().join('/')}
+              {' '}contra <Text strong style={{ fontSize: 12 }}>{transaction.accountCode ? `${transaction.accountCode} — ${transaction.accountName}` : 'la cuenta con la que se categorizó'}</Text>
+              {isForeign && tcBanguat != null && <> al tipo de cambio de Banguat de ese día ({tcBanguat}), es decir {fmtQ(correcto ?? 0)}</>}.
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Button type="primary" loading={saving} style={{ background: NAVY }} onClick={generar}>
+              Generar la póliza
+            </Button>
+            <Button onClick={onClose}>Cerrar</Button>
+          </div>
+        </div>
+      )}
       {!loading && je && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
@@ -1081,16 +1140,17 @@ export default function TransaccionesPage() {
       align: 'center',
       render: (_, row) => (
         <Space size={4}>
+          {/* Siempre habilitado en un movimiento categorizado: si no tiene póliza,
+              el modal lo dice y permite generarla. Apagarlo dejaba al usuario sin
+              salida justamente en el caso que había que arreglar. */}
           {(row.status === 'categorized' || row.status === 'reconciled') && (
-            <Tooltip title={row.matchedJournalEntryId ? 'Ver póliza contable' : 'Sin póliza registrada'}>
+            <Tooltip title={row.matchedJournalEntryId ? 'Ver póliza contable' : 'Revisar la contabilización'}>
               <Button
                 size="small" type="text"
-                icon={<FileTextOutlined style={{ color: row.matchedJournalEntryId ? NAVY : 'rgba(10,10,10,0.08)' }} />}
-                disabled={!row.matchedJournalEntryId}
+                icon={<FileTextOutlined style={{ color: row.matchedJournalEntryId ? NAVY : '#d08a3c' }} />}
                 onClick={() => {
-                  if (!row.matchedJournalEntryId) return
                   setPolizaTx(row)
-                  setPolizaJeId(row.matchedJournalEntryId)
+                  setPolizaJeId(row.matchedJournalEntryId || SIN_POLIZA)
                 }}
               />
             </Tooltip>

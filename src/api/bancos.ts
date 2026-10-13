@@ -211,6 +211,14 @@ export const addTransaction = (id: string, dto: Partial<BankTransaction>) =>
 export const updateTransaction = (id: string, txId: string, dto: Partial<BankTransaction>) =>
   api.patch(`${BASE}/${id}/movimientos/${txId}`, dto).then(unwrap) as Promise<BankTransaction>
 
+/** La póliza de un movimiento. La encuentra aunque el enlace no esté guardado; null si no existe. */
+export const getPolizaDelMovimiento = (id: string, txId: string) =>
+  api.get(`${BASE}/${id}/movimientos/${txId}/poliza`).then(unwrap) as Promise<any | null>
+
+/** Genera la póliza de un movimiento categorizado que nunca la tuvo. */
+export const generarPolizaDelMovimiento = (id: string, txId: string) =>
+  api.post(`${BASE}/${id}/movimientos/${txId}/poliza`).then(unwrap) as Promise<any>
+
 export const deleteTransaction = (id: string, txId: string) =>
   api.delete(`${BASE}/${id}/movimientos/${txId}`)
 
