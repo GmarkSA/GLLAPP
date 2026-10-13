@@ -43,6 +43,24 @@ export interface ExchangeRateForDate {
   officialRate?: number
 }
 
+/**
+ * El tipo de cambio con el que se contabiliza: el oficial de Banguat,
+ * «1 USD = X GTQ», que es por el que se multiplica para llegar a quetzales.
+ *
+ * La respuesta trae las dos caras porque la moneda base del historial es el
+ * quetzal: `officialRate` es la de Banguat y `rate` la inversa (1 GTQ = 0.13 USD).
+ * Tomar `rate` por error contabiliza los dólares en una octava parte.
+ */
+export const tipoDeCambioOficial = (
+  r?: Pick<ExchangeRateForDate, 'rate' | 'officialRate'> | null,
+): number => {
+  const oficial = Number(r?.officialRate)
+  if (oficial > 0) return oficial
+  const inverso = Number(r?.rate)
+  if (inverso > 0) return Math.round((1 / inverso) * 1_000_000) / 1_000_000
+  return 1
+}
+
 const unwrap = (r: any) => r.data?.data ?? r.data
 
 export const getCurrencies   = ()                              => api.get('/configuracion/monedas').then(unwrap)

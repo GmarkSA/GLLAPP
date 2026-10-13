@@ -11,7 +11,7 @@ import { getBills, getJournalEntry, recordBillPayment, getAccountDefaults, creat
 import { getCustomers, type Customer } from '../../api/contactos'
 import { createPagoRecibido, getPagoRecibido, reprocessPagoJournal } from '../../api/pagos-recibidos'
 import { createAsiento, updateAsiento } from '../../api/asientos'
-import { getExchangeRateForDate } from '../../api/monedas'
+import { getExchangeRateForDate, tipoDeCambioOficial } from '../../api/monedas'
 import { getApiError } from '../../api/axios'
 import { moneyFmt, NAVY } from './bancosShared'
 
@@ -143,7 +143,7 @@ export default function CategorizarDrawer({
     if (account?.currency && account.currency !== 'GTQ') {
       const txDate = String(transaction.transactionDate || '').split('T')[0]
       getExchangeRateForDate(account.currency, txDate)
-        .then(r => { if (r.rate > 0) setExchangeRate(r.rate) })
+        .then(r => { const tc = tipoDeCambioOficial(r); if (tc > 0) setExchangeRate(tc) })
         .catch(() => { /* mantiene default 1 */ })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
