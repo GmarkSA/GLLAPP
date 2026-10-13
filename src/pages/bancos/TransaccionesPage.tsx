@@ -78,6 +78,7 @@ import {
   type TransactionType,
 } from '../../api/bancos'
 import { getApiError } from '../../api/axios'
+import { getExchangeRateForDate, tipoDeCambioOficial } from '../../api/monedas'
 import { accountTypeIcon, formGrid, moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
 
 const { Title, Text } = Typography
@@ -497,9 +498,21 @@ function ImportModal({ open, account, onClose, onSaved }: {
   )
 }
 
-function PolizaModal({ jeId, isForeign, onClose }: {
+/**
+ * La póliza de un movimiento de tesorería.
+ *
+ * Guardar pasa por el MOVIMIENTO, no por el asiento: actualizar el asiento
+ * cambia su encabezado pero deja las líneas como estaban, así que corregir ahí
+ * el tipo de cambio no corregía la contabilización — se veía arreglado sin
+ * estarlo. Al guardar el movimiento, el backend reexpresa la póliza completa.
+ */
+function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSaved, onClose }: {
   jeId: string | null
+  transaction: BankTransaction | null
+  accountId: string
+  currency: string
   isForeign: boolean
+  onSaved: () => void
   onClose: () => void
 }) {
   const [je, setJe]           = useState<AsientoDetalle | null>(null)
@@ -508,24 +521,48 @@ function PolizaModal({ jeId, isForeign, onClose }: {
   const [date, setDate]       = useState('')
   const [rate, setRate]       = useState<number>(1)
   const [saving, setSaving]   = useState(false)
+  const [tcBanguat, setTcBanguat] = useState<number | null>(null)
+
+  const cargar = (id: string) => {
+    setLoading(true)
+    getAsiento(id)
+      .then(d => { setJe(d); setDate(String(d.entryDate).split('T')[0]); setRate(Number(d.exchangeRate) || 1) })
+      .catch(() => setJe(null))
+      .finally(() => setLoading(false))
+  }
 
   useEffect(() => {
     if (!jeId) return
-    setLoading(true)
     setEditing(false)
-    getAsiento(jeId).then(d => { setJe(d); setDate(String(d.entryDate).split('T')[0]); setRate(d.exchangeRate ?? 1) }).catch(() => setJe(null)).finally(() => setLoading(false))
+    setTcBanguat(null)
+    cargar(jeId)
   }, [jeId])
 
+  // El tipo de cambio que Banguat tenía ese día: es contra el que se compara el
+  // de la póliza para saber si la conversión se hizo con el que correspondía.
+  useEffect(() => {
+    if (!jeId || !isForeign || !transaction) return
+    const dia = String(transaction.transactionDate || '').split('T')[0]
+    if (!dia) return
+    getExchangeRateForDate(currency, dia)
+      .then(r => setTcBanguat(tipoDeCambioOficial(r)))
+      .catch(() => setTcBanguat(null))
+  }, [jeId, isForeign, currency, transaction?.transactionDate])
+
   const handleSave = async () => {
-    if (!jeId) return
+    if (!jeId || !transaction) return
     setSaving(true)
     try {
-      const updated = await updateAsiento(jeId, { entryDate: date || undefined, exchangeRate: isForeign ? rate : undefined })
-      setJe(updated)
+      await updateTransaction(accountId, transaction.id, {
+        transactionDate: date || undefined,
+        ...(isForeign ? { exchangeRate: rate } : {}),
+      } as any)
+      cargar(jeId)
       setEditing(false)
-      message.success('Póliza actualizada')
-    } catch {
-      message.error('No se pudo actualizar')
+      onSaved()
+      message.success('Póliza reexpresada con el tipo de cambio indicado')
+    } catch (e: unknown) {
+      message.error(getApiError(e, 'No se pudo actualizar'))
     } finally {
       setSaving(false)
     }
@@ -564,6 +601,25 @@ function PolizaModal({ jeId, isForeign, onClose }: {
             {isForeign && <div><Text type="secondary" style={{ fontSize: 11 }}>TIPO DE CAMBIO</Text><div><Text strong>{je.exchangeRate}</Text></div></div>}
           </div>
 
+          {isForeign && transaction && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              background: '#f8fafc', border: '1px solid #e8eef5', borderRadius: 8,
+              padding: '8px 12px', marginBottom: 12, fontVariantNumeric: 'tabular-nums',
+            }}>
+              <Text style={{ fontSize: 13 }}>{moneyFmt(Number(transaction.amount), currency)}</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>×</Text>
+              <Text style={{ fontSize: 13 }}>{Number(je.exchangeRate) || 1}</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>=</Text>
+              <Text strong style={{ fontSize: 13 }}>{fmtQ(Number(je.totalDebit) || Number(transaction.amount) * (Number(je.exchangeRate) || 1))}</Text>
+              {tcBanguat != null && Math.abs(tcBanguat - (Number(je.exchangeRate) || 1)) > 0.000001 && (
+                <Tag color="#ff7f00" style={{ marginLeft: 'auto', fontSize: 11 }}>
+                  Banguat ese día: {tcBanguat} → {fmtQ(Math.round(Number(transaction.amount) * tcBanguat * 100) / 100)}
+                </Tag>
+              )}
+            </div>
+          )}
+
           {editing && (
             <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12, marginBottom: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: isForeign ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 8 }}>
@@ -575,9 +631,17 @@ function PolizaModal({ jeId, isForeign, onClose }: {
                   <div>
                     <Text style={{ fontSize: 12 }}>Tipo de cambio (GTQ)</Text>
                     <InputNumber size="small" min={0.000001} precision={6} value={rate} onChange={v => setRate(Number(v) || 1)} style={{ width: '100%' }} />
+                    {tcBanguat != null && (
+                      <Button size="small" type="link" style={{ paddingLeft: 0, fontSize: 11 }} onClick={() => setRate(tcBanguat)}>
+                        Usar el de Banguat: {tcBanguat}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
+                Al guardar se reexpresan las líneas de la póliza con este tipo de cambio.
+              </Text>
               <Space>
                 <Button size="small" type="primary" loading={saving} style={{ background: NAVY }} onClick={handleSave}>Guardar</Button>
                 <Button size="small" onClick={() => setEditing(false)}>Cancelar</Button>
@@ -641,6 +705,7 @@ export default function TransaccionesPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [categorizarTx, setCategorizarTx] = useState<BankTransaction | null>(null)
   const [polizaJeId, setPolizaJeId]       = useState<string | null>(null)
+  const [polizaTx, setPolizaTx]           = useState<BankTransaction | null>(null)
   const [conciliarOpen, setConciliarOpen]  = useState(false)
   const [conciliarMes,  setConciliarMes]   = useState<number>(dayjs().month() + 1)
   const [conciliarAnio, setConciliarAnio]  = useState<number>(dayjs().year())
@@ -984,7 +1049,11 @@ export default function TransaccionesPage() {
                 size="small" type="text"
                 icon={<FileTextOutlined style={{ color: row.matchedJournalEntryId ? NAVY : 'rgba(10,10,10,0.08)' }} />}
                 disabled={!row.matchedJournalEntryId}
-                onClick={() => row.matchedJournalEntryId && setPolizaJeId(row.matchedJournalEntryId)}
+                onClick={() => {
+                  if (!row.matchedJournalEntryId) return
+                  setPolizaTx(row)
+                  setPolizaJeId(row.matchedJournalEntryId)
+                }}
               />
             </Tooltip>
           )}
@@ -1289,8 +1358,12 @@ export default function TransaccionesPage() {
       />
       <PolizaModal
         jeId={polizaJeId}
+        transaction={polizaTx}
+        accountId={id!}
+        currency={account.currency || 'GTQ'}
         isForeign={account.currency !== 'GTQ'}
-        onClose={() => setPolizaJeId(null)}
+        onSaved={loadTransactions}
+        onClose={() => { setPolizaJeId(null); setPolizaTx(null) }}
       />
 
       <Modal
