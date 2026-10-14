@@ -197,3 +197,49 @@ describe('cuando el servidor devuelve algo incompleto', () => {
     expect(texto).toContain('no tiene póliza contable')
   })
 })
+
+describe('cuando generar la póliza falla', () => {
+  /**
+   * El backend rechaza con el motivo exacto —falta la cuenta de contrapartida,
+   * la contable del banco, el tipo de cambio—. Ese motivo tiene que quedarse en
+   * el modal: en un aviso que se va, el usuario solo ve «error» y no sabe qué
+   * corregir.
+   */
+  const rechaza = async (mensaje: string) => {
+    const { generarPolizaDelMovimiento } = await import('../../api/bancos')
+    vi.mocked(generarPolizaDelMovimiento).mockRejectedValueOnce({
+      response: { status: 400, data: { error: { statusCode: 400, message: mensaje } } },
+    })
+  }
+
+  const pulsarGenerar = async () => {
+    await click(Array.from(document.querySelectorAll('button'))
+      .find(b => b.textContent?.includes('Generar la póliza'))!)
+    await act(async () => { await Promise.resolve() })
+  }
+
+  /**
+   * Cuántas veces aparece el motivo en pantalla. El aviso flotante de AntD lo
+   * muestra una vez y se va solo; si además se queda en el modal, aparece dos.
+   */
+  const vecesEnPantalla = (texto: string) =>
+    (document.body.textContent ?? '').split(texto).length - 1
+
+  it('deja el motivo a la vista en el modal, no solo en el aviso', async () => {
+    await rechaza('El movimiento no tiene cuenta contable de contrapartida.')
+    await render()
+    await abrirLaPoliza()
+    await pulsarGenerar()
+
+    expect(vecesEnPantalla('no tiene cuenta contable de contrapartida')).toBe(2)
+  })
+
+  it('el motivo de la cuenta del banco también se queda', async () => {
+    await rechaza('La cuenta bancaria "Luum USD" no tiene cuenta contable vinculada.')
+    await render()
+    await abrirLaPoliza()
+    await pulsarGenerar()
+
+    expect(vecesEnPantalla('no tiene cuenta contable vinculada')).toBe(2)
+  })
+})
