@@ -511,13 +511,14 @@ function ImportModal({ open, account, onClose, onSaved }: {
  * el tipo de cambio no corregía la contabilización — se veía arreglado sin
  * estarlo. Al guardar el movimiento, el backend reexpresa la póliza completa.
  */
-function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSaved, onClose }: {
+function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSaved, onCategorizar, onClose }: {
   jeId: string | null
   transaction: BankTransaction | null
   accountId: string
   currency: string
   isForeign: boolean
   onSaved: () => void
+  onCategorizar?: (tx: BankTransaction) => void
   onClose: () => void
 }) {
   const [je, setJe]           = useState<AsientoDetalle | null>(null)
@@ -528,6 +529,7 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
   const [saving, setSaving]   = useState(false)
   const [tcBanguat, setTcBanguat] = useState<number | null>(null)
   const [fallo, setFallo]     = useState<string | null>(null)
+  const [motivo, setMotivo]   = useState<string | null>(null)
 
   /**
    * Una póliza solo se da por buena si trae id. Sin esta guarda, una respuesta
@@ -568,13 +570,19 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
   const generar = async () => {
     if (!transaction) return
     setSaving(true)
+    setMotivo(null)
     try {
       const creada = await generarPolizaDelMovimiento(accountId, transaction.id)
-      recibir(creada as AsientoDetalle)
+      recibir(creada)
       onSaved()
       message.success(`Póliza ${creada?.entryNumber ?? ''} generada`)
     } catch (e: unknown) {
-      message.error(getApiError(e, 'No se pudo generar la póliza'))
+      // El motivo se queda en el modal, no solo en un aviso que se va: dice qué
+      // falta —la cuenta de contrapartida, la contable del banco, el tipo de
+      // cambio— y sin él el usuario solo ve «error» y no sabe qué corregir.
+      const texto = getApiError(e, 'No se pudo generar la póliza')
+      setMotivo(texto)
+      message.error(texto)
     } finally {
       setSaving(false)
     }
@@ -586,6 +594,7 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
     setTcBanguat(null)
     setJe(null)
     setFallo(null)
+    setMotivo(null)
     cargar(jeId)
   }, [jeId])
 
@@ -695,6 +704,25 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
               {isForeign && tcBanguat != null && <> al tipo de cambio de Banguat de ese día ({tcBanguat}), es decir {fmtQ(correcto ?? 0)}</>}.
             </div>
           </div>
+
+          {motivo && (
+            <div style={{
+              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+              padding: '12px 14px', marginBottom: 14,
+            }}>
+              <Text strong style={{ fontSize: 13 }}>No se pudo generar la póliza</Text>
+              <div style={{ fontSize: 12, color: '#9b3a3a', marginTop: 4 }}>{motivo}</div>
+              {!transaction.accountId && (
+                <Button
+                  size="small" type="link" style={{ paddingLeft: 0, marginTop: 4 }}
+                  onClick={() => { onClose(); onCategorizar?.(transaction) }}
+                >
+                  Categorizar el movimiento
+                </Button>
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Button type="primary" loading={saving} style={{ background: NAVY }} onClick={generar}>
               Generar la póliza
@@ -814,7 +842,7 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
           </div>
         </>
       )}
-      {!loading && !je && <Text type="secondary">No se encontró la póliza contable.</Text>}
+      {!loading && !je && !fallo && !transaction && <Text type="secondary">No se encontró la póliza contable.</Text>}
     </Modal>
   )
 }
@@ -1495,6 +1523,7 @@ export default function TransaccionesPage() {
         currency={account.currency || 'GTQ'}
         isForeign={account.currency !== 'GTQ'}
         onSaved={loadTransactions}
+        onCategorizar={setCategorizarTx}
         onClose={() => { setPolizaJeId(null); setPolizaTx(null) }}
       />
 
