@@ -121,7 +121,7 @@ const NO = new Set(['no', 'n', 'false', '0', 'falso'])
 const texto = (v: unknown) => String(v ?? '').trim()
 
 const numero = (v: unknown): number | undefined => {
-  const limpio = texto(v).replace(/[^0-9.\-]/g, '')
+  const limpio = texto(v).replace(/[^0-9.-]/g, '')
   if (!limpio) return undefined
   const n = Number(limpio)
   return Number.isFinite(n) ? n : undefined

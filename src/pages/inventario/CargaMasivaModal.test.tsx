@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRoot } from 'react-dom/client'
-import { act } from 'react'
+import { act, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import CargaMasivaModal from './CargaMasivaModal'
 
@@ -72,8 +72,10 @@ let subir: ((f: File) => any) | null = null
 vi.mock('antd', async () => {
   const real = await vi.importActual<any>('antd')
   const UploadReal = real.Upload
+  // La captura va en un efecto: asignar durante el render es un efecto
+  // secundario y el render puede repetirse.
   const UploadEspia = (props: any) => {
-    subir = props.beforeUpload
+    useEffect(() => { subir = props.beforeUpload }, [props.beforeUpload])
     return <UploadReal {...props} />
   }
   Object.assign(UploadEspia, UploadReal)
