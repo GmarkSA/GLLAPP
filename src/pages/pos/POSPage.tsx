@@ -276,6 +276,9 @@ interface ReceiptData {
   felMensaje?:    string
   total:          number
   paymentMethod:  string
+  subtotal?:      number
+  taxAmount?:     number
+  taxLabel?:      string
   customerName:   string
   items:          CartItem[]
   change?:        number
@@ -342,12 +345,17 @@ function ReceiptModal({ open, data, onClose }: {
           ))}
         </div>
         <div style={{ fontSize: 13 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span>Subtotal</span><span>Q {(data.total / 1.12).toFixed(2)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span>IVA (12%)</span><span>Q {(data.total - data.total / 1.12).toFixed(2)}</span>
-          </div>
+          {/* El impuesto del ticket es el de la venta, no un 12% recalculado aquí. */}
+          {Number(data.taxAmount ?? 0) > 0 && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span>Subtotal</span><span>Q {Number(data.subtotal ?? 0).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span>{data.taxLabel ?? 'IVA'}</span><span>Q {Number(data.taxAmount).toFixed(2)}</span>
+              </div>
+            </>
+          )}
           <Divider style={{ margin: '6px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16 }}>
             <span>TOTAL</span>
@@ -524,6 +532,15 @@ export default function POSPage() {
     return s + (tasa > 0 ? c.lineTotal - c.lineTotal / (1 + tasa / 100) : 0)
   }, 0) * 100) / 100
   const subtotalSinIva = Math.round((grandTotal - ivaTotal) * 100) / 100
+  /**
+   * La tasa que se le enseña al cajero. Sale de los artículos del carrito, no
+   * de un 12% escrito a mano: en Pequeño Contribuyente ese rótulo le mostraba
+   * un impuesto que la empresa no cobra. Con artículos de tasas distintas no
+   * hay una sola, y entonces se rotula sin porcentaje.
+   */
+  const tasasEnElCarrito = [...new Set(cart.map(c => tasaDe(c.product)))]
+  const rotuloImpuesto = tasasEnElCarrito.length === 1
+    ? `IVA (${tasasEnElCarrito[0]}%)` : 'IVA'
   const change         = (receivedAmt ?? 0) - grandTotal
 
   // ── Checkout ───────────────────────────────────────────────────────────────
@@ -580,6 +597,9 @@ export default function POSPage() {
         felSerie:      result?.felSerie,
         felNumero:     result?.felNumero,
         total:         grandTotal,
+        subtotal:      subtotalSinIva,
+        taxAmount:     ivaTotal,
+        taxLabel:      rotuloImpuesto,
         paymentMethod,
         customerName:  customer.name,
         items:         [...cart],
@@ -671,7 +691,7 @@ export default function POSPage() {
             ) : products.length === 0 ? (
               <Empty description="Sin artículos" style={{ marginTop: 60 }} />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, paddingBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 12, paddingBottom: 16 }}>
                 {products.map(p => (
                   <ProductCard key={p.id} product={p} onAdd={() => addToCart(p)} />
                 ))}
@@ -685,7 +705,7 @@ export default function POSPage() {
 
         {/* ── RIGHT: Cart + Checkout ───────────────────────────────────────── */}
         <div style={{
-          width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column',
+          width: 430, flexShrink: 0, display: 'flex', flexDirection: 'column',
           background: '#fff', borderLeft: '1px solid rgba(10,10,10,0.08)', overflow: 'hidden',
         }}>
 
@@ -749,12 +769,16 @@ export default function POSPage() {
 
           {/* Totals + Payment */}
           <div style={{ borderTop: '1px solid rgba(10,10,10,0.08)', padding: '10px 14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280', marginBottom: 3 }}>
-              <span>Subtotal (sin IVA)</span><span>Q {subtotalSinIva.toFixed(2)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280', marginBottom: 6 }}>
-              <span>IVA (12%)</span><span>Q {ivaTotal.toFixed(2)}</span>
-            </div>
+            {ivaTotal > 0 && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6b7280', marginBottom: 3 }}>
+                  <span>Subtotal (sin IVA)</span><span>Q {subtotalSinIva.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6b7280', marginBottom: 6 }}>
+                  <span>{rotuloImpuesto}</span><span>Q {ivaTotal.toFixed(2)}</span>
+                </div>
+              </>
+            )}
             <div style={{
               display: 'flex', justifyContent: 'space-between',
               fontSize: 20, fontWeight: 800, color: '#1faec2',
@@ -770,12 +794,12 @@ export default function POSPage() {
                 const linkedId  = bankConfig[paymentMethod as keyof POSBankConfig]
                 const linkedAcc = linkedId ? bankAccounts.find(a => a.id === linkedId) : null
                 return linkedAcc ? (
-                  <span style={{ fontSize: 10, color: '#2ea172' }}>
+                  <span style={{ fontSize: 12, color: '#2ea172' }}>
                     🏦 {linkedAcc.name}
                   </span>
                 ) : bankAccounts.length > 0 ? (
                   <button
-                    style={{ fontSize: 10, color: '#ff7f00', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    style={{ fontSize: 12, color: '#ff7f00', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     onClick={() => setShowBankConfig(true)}
                   >
                     Sin cuenta vinculada — configurar
@@ -789,7 +813,7 @@ export default function POSPage() {
             >
               {PAYMENT_METHODS.map(m => (
                 <Radio.Button key={m.value} value={m.value}
-                  style={{ textAlign: 'center', fontSize: 12, borderRadius: 6 }}>
+                  style={{ textAlign: 'center', fontSize: 13, borderRadius: 6, height: 38, lineHeight: '36px' }}>
                   {m.label}
                 </Radio.Button>
               ))}
@@ -800,14 +824,14 @@ export default function POSPage() {
               <>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Recibido (Q)</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>Recibido (Q)</div>
                     <InputNumber
                       style={{ width: '100%' }} min={0} step={10} prefix="Q"
                       placeholder="0.00" value={receivedAmt} onChange={v => setReceivedAmt(v)}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Cambio (Q)</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 4 }}>Cambio (Q)</div>
                     <div style={{
                       height: 32, lineHeight: '32px', textAlign: 'center', borderRadius: 6,
                       background: change >= 0 ? '#e8f5ef' : '#fff1f0',
@@ -821,10 +845,10 @@ export default function POSPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
                   {[20, 50, 100, 200, 500].map(amt => (
-                    <Button key={amt} size="small" style={{ borderRadius: 6, fontSize: 11 }}
+                    <Button key={amt} style={{ borderRadius: 6, fontSize: 13 }}
                       onClick={() => setReceivedAmt(amt)}>Q{amt}</Button>
                   ))}
-                  <Button size="small" style={{ borderRadius: 6, fontSize: 11 }}
+                  <Button style={{ borderRadius: 6, fontSize: 13 }}
                     onClick={() => setReceivedAmt(Math.ceil(grandTotal / 10) * 10)}>
                     Exacto
                   </Button>
