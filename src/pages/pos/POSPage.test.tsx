@@ -165,3 +165,29 @@ describe('el impuesto que manda el POS', () => {
     expect(loQueSeMando().items[0].taxPercent).toBe(0)
   })
 })
+
+describe('lo que el cajero ve en pantalla', () => {
+  /**
+   * El cálculo ya tomaba la tasa del artículo, pero el panel de totales
+   * seguía rotulando «IVA (12%)» fijo: en Pequeño Contribuyente le enseña al
+   * cajero un impuesto que no existe.
+   */
+  it('sin impuesto en el artículo, no aparece ningún IVA', async () => {
+    await render()
+    await agregarAlCarrito('ABACO BACO GRANDE')
+    expect(host.textContent).not.toContain('IVA (12%)')
+  })
+
+  it('y tampoco el subtotal: sin impuesto, subtotal y total son lo mismo', async () => {
+    await render()
+    await agregarAlCarrito('ABACO BACO GRANDE')
+    expect(host.textContent).not.toContain('Subtotal')
+  })
+
+  it('con un artículo que sí lleva IVA, se rotula con SU tasa', async () => {
+    articulos = [ARTICULO_IVA]
+    await render()
+    await agregarAlCarrito('ARTICULO CON IVA')
+    expect(host.textContent).toContain('IVA (12%)')
+  })
+})
