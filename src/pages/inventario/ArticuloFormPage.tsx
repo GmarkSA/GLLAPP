@@ -391,9 +391,7 @@ export default function ArticuloFormPage() {
                   </Select>
                 </Form.Item>
               </Col>
-            </Row>
 
-            <Row gutter={16}>
               <Col xs={24} sm={8}>
                 {/* División — lista compartida de Financiero › División */}
                 <SelectorDimensionesAnaliticas
