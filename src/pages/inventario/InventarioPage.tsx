@@ -7,9 +7,10 @@ import {
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined,
-  InboxOutlined, WarningOutlined, FilterOutlined,
+  InboxOutlined, WarningOutlined, FilterOutlined, PrinterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import EtiquetasModal from './EtiquetasModal'
 import {
   getProducts, ITEM_TYPE_CONFIG, USAGE_TYPE_CONFIG,
   type Product,
@@ -66,6 +67,9 @@ export default function InventarioPage() {
   const [invFilters,    setInvFilters]    = useState<InvAdFilters>(INV_EMPTY)
   const [invDraft,      setInvDraft]      = useState<InvAdFilters>(INV_EMPTY)
   const [invFilterOpen, setInvFilterOpen] = useState(false)
+  const [etiquetasOpen, setEtiquetasOpen] = useState(false)
+  // Artículos marcados para etiquetar. Vacío = todos los del listado.
+  const [etiquetasSeleccion, setEtiquetasSeleccion] = useState<string[]>([])
 
   const invActiveCount = useMemo(() =>
     Object.entries(invFilters).filter(([, v]) =>
@@ -244,15 +248,26 @@ export default function InventarioPage() {
           </Title>
           <Text type="secondary">Gestiona tus productos, servicios y materiales</Text>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/inventario/nuevo')}
-          style={{ background: '#1faec2' }}
-        >
-          Nuevo artículo
-        </Button>
+        <Space>
+          <Button icon={<PrinterOutlined />} onClick={() => setEtiquetasOpen(true)}>
+            Imprimir etiquetas
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/inventario/nuevo')}
+            style={{ background: '#1faec2' }}
+          >
+            Nuevo artículo
+          </Button>
+        </Space>
       </div>
+
+      <EtiquetasModal
+        open={etiquetasOpen}
+        seleccionados={etiquetasSeleccion}
+        onClose={() => setEtiquetasOpen(false)}
+      />
 
       {/* ── KPI Strip ── */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
@@ -365,6 +380,11 @@ export default function InventarioPage() {
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
         <Table
           columns={columns}
+          rowSelection={{
+            selectedRowKeys: etiquetasSeleccion,
+            onChange: keys => setEtiquetasSeleccion(keys as string[]),
+            preserveSelectedRowKeys: true,
+          }}
           dataSource={filteredProducts}
           loading={loading}
           rowKey="id"
