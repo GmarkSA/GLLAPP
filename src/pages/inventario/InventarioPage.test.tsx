@@ -252,3 +252,44 @@ describe('reordenar las columnas', () => {
     expect(arrastrables.length).toBeGreaterThan(0)
   })
 })
+
+describe('valor en existencia', () => {
+  /**
+   * El valor del inventario es cantidad × COSTO PROMEDIO, que es el método de
+   * valoración configurado y lo que respalda el saldo de la cuenta 130001. Con
+   * el precio de compra —que es un dato maestro, no el costo de lo que hay en
+   * bodega— la columna diría una cosa y el balance otra.
+   *
+   * Existencia con costo en cero no es un cero legítimo: es inventario sin
+   * costo, y hay que verlo antes de que llegue al balance.
+   */
+  const conStockYCosto = async (stockOnHand: number, averageCost: number) => {
+    const { getProducts } = await import('../../api/inventario')
+    vi.mocked(getProducts).mockResolvedValueOnce(
+      { data: [{ ...ARTICULO, stockOnHand, averageCost, purchasePrice: 17 }], total: 1 } as any)
+    localStorage.setItem('inventario.columnas',
+      JSON.stringify(['SKU', 'Valor en existencia']))
+    await render()
+  }
+
+  it('es cantidad por costo promedio', async () => {
+    await conStockYCosto(3, 17)
+    expect(host.textContent).toContain('Q 51.00')
+  })
+
+  it('con existencia y costo en cero, avisa en vez de mostrar un Q 0.00 mudo', async () => {
+    await conStockYCosto(1, 0)
+    expect(host.textContent).toContain('Sin costo')
+  })
+
+  it('sin existencia, un cero es un cero legítimo', async () => {
+    await conStockYCosto(0, 0)
+    expect(host.textContent).toContain('Q 0.00')
+    expect(host.textContent).not.toContain('Sin costo')
+  })
+
+  it('no usa el precio de compra: el balance se arma con el costo promedio', async () => {
+    await conStockYCosto(1, 0)
+    expect(host.textContent).not.toContain('Q 17.00')
+  })
+})
