@@ -98,10 +98,11 @@ describe('Cargas Iniciales › Inventario', () => {
     expect(boton('Descargar plantilla Excel')).toBeTruthy()
   })
 
-  it('conserva la plantilla CSV de saldos, que ya se usaba', async () => {
+  it('la plantilla Excel es la única: el CSV de 4 columnas se quitó', async () => {
     await render()
     await abrirInventario()
-    expect(boton('Plantilla CSV')).toBeTruthy()
+    expect(boton('Descargar plantilla Excel')).toBeTruthy()
+    expect(boton('Plantilla CSV')).toBeUndefined()
   })
 
   it('al descargarla pide las cuentas, impuestos y grupos de la empresa', async () => {
@@ -128,5 +129,26 @@ describe('Cargas Iniciales › Inventario', () => {
     await abrirInventario()
     const entradas = Array.from(document.querySelectorAll('input[type="file"]'))
     expect(entradas.some(e => (e as HTMLInputElement).accept.includes('xlsx'))).toBe(true)
+  })
+})
+
+describe('Cargas Iniciales › Inventario — el archivo manda', () => {
+  it('ya no ofrece la plantilla CSV de solo saldos', async () => {
+    await render()
+    await abrirInventario()
+    expect(boton('Plantilla CSV')).toBeUndefined()
+  })
+
+  it('el botón de subir habla de Excel, que es lo que se descarga', async () => {
+    await render()
+    await abrirInventario()
+    expect(boton('Subir archivo Excel')).toBeTruthy()
+  })
+
+  it('explica que la columna del archivo manda sobre el almacén destino', async () => {
+    await render()
+    await abrirInventario()
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('manda sobre esta selección')
   })
 })
