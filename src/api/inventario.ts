@@ -94,7 +94,7 @@ export interface Importacion {
 // ─── Products ─────────────────────────────────────────────────────────────────
 const BASE = '/inventario/articulos'
 
-export const getProducts = (params?: { page?: number; limit?: number; search?: string; itemType?: string; usageType?: string; lowStock?: boolean }) =>
+export const getProducts = (params?: { page?: number; limit?: number; search?: string; itemType?: string; usageType?: string; lowStock?: boolean; incluirInactivos?: boolean }) =>
   api.get(BASE, { params }).then(unwrap) as Promise<{ data: Product[]; total: number; page: number; limit: number }>
 
 /** Carga masiva de artículos. Las filas ya vienen mapeadas por la pantalla. */
@@ -108,6 +108,14 @@ export interface ResultadoCargaArticulos {
 
 export const cargaMasivaArticulos = (filas: any[], opciones: any = {}) =>
   api.post(`${BASE}/carga-masiva`, { filas, opciones }).then(unwrap) as Promise<ResultadoCargaArticulos>
+
+export const puedeEliminarseArticulo = (id: string) =>
+  api.get(`${BASE}/${id}/puede-eliminarse`).then(unwrap) as Promise<{ puede: boolean; motivo?: string }>
+
+export const cambiarEstadoArticulo = (id: string, isActive: boolean) =>
+  api.patch(`${BASE}/${id}/estado`, { isActive }).then(unwrap) as Promise<Product>
+
+export const eliminarArticulo = (id: string) => api.delete(`${BASE}/${id}`)
 
 export const getProduct = (id: string) => api.get(`${BASE}/${id}`).then(unwrap) as Promise<Product>
 export const createProduct = (dto: Partial<Product>) => api.post(BASE, dto).then(unwrap) as Promise<Product>

@@ -19,6 +19,9 @@ const ARTICULO = {
 
 vi.mock('../../api/inventario', () => ({
   getProducts: vi.fn(async () => ({ data: [ARTICULO], total: 1 })),
+  puedeEliminarseArticulo: vi.fn(async () => ({ puede: true })),
+  cambiarEstadoArticulo: vi.fn(async () => ({})),
+  eliminarArticulo: vi.fn(async () => ({})),
   ITEM_TYPE_CONFIG:  { bien: { label: 'Bien', color: '#1faec2' } },
   USAGE_TYPE_CONFIG: { both: { label: 'Compra y venta', color: '#2ea172' } },
 }))
@@ -291,5 +294,65 @@ describe('valor en existencia', () => {
   it('no usa el precio de compra: el balance se arma con el costo promedio', async () => {
     await conStockYCosto(1, 0)
     expect(host.textContent).not.toContain('Q 17.00')
+  })
+})
+
+describe('eliminar, bloquear y activar', () => {
+  /**
+   * Eliminar solo si el artículo nunca tuvo movimiento. Si ya tiene historia,
+   * borrarlo dejaría el kardex y las pólizas apuntando a algo que no existe:
+   * el servidor decide y la pantalla ofrece bloquear en su lugar.
+   */
+  it('ofrece los tres botones en la fila', async () => {
+    await render()
+    const acciones = host.querySelectorAll('tbody button')
+    const iconos = Array.from(acciones).map(b => b.querySelector('.anticon')?.className ?? '')
+    expect(iconos.some(c => c.includes('anticon-delete'))).toBe(true)
+    expect(iconos.some(c => c.includes('anticon-stop'))).toBe(true)
+  })
+
+  it('un artículo bloqueado muestra el botón de activar, no el de bloquear', async () => {
+    const { getProducts } = await import('../../api/inventario')
+    vi.mocked(getProducts).mockResolvedValueOnce(
+      { data: [{ ...ARTICULO, isActive: false }], total: 1 } as any)
+
+    await render()
+
+    const iconos = Array.from(host.querySelectorAll('tbody button'))
+      .map(b => b.querySelector('.anticon')?.className ?? '')
+    expect(iconos.some(c => c.includes('anticon-check-circle'))).toBe(true)
+    expect(iconos.some(c => c.includes('anticon-stop'))).toBe(false)
+  })
+
+  it('al eliminar pregunta primero al servidor si se puede', async () => {
+    const { puedeEliminarseArticulo } = await import('../../api/inventario')
+    await render()
+
+    const borrar = Array.from(host.querySelectorAll('tbody button'))
+      .find(b => b.querySelector('.anticon-delete'))!
+    await click(borrar)
+
+    expect(vi.mocked(puedeEliminarseArticulo)).toHaveBeenCalledWith('a-1')
+  })
+
+  it('si no se puede, propone bloquearlo en vez de fallar a secas', async () => {
+    const { puedeEliminarseArticulo } = await import('../../api/inventario')
+    vi.mocked(puedeEliminarseArticulo).mockResolvedValueOnce({
+      puede: false, motivo: 'Tiene ajustes de inventario. Lo factible es bloquearlo.',
+    })
+
+    await render()
+    const borrar = Array.from(host.querySelectorAll('tbody button'))
+      .find(b => b.querySelector('.anticon-delete'))!
+    await click(borrar)
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('Tiene ajustes de inventario')
+    expect(texto).toContain('Bloquear artículo')
+  })
+
+  it('hay forma de ver los bloqueados, o no se podrían reactivar', async () => {
+    await render()
+    expect(host.textContent).toContain('Ver bloqueados')
   })
 })

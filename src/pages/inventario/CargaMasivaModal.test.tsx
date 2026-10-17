@@ -154,10 +154,89 @@ describe('subir el archivo', () => {
   })
 })
 
-/**
- * PENDIENTE: las pruebas de confirmar la carga necesitan manejar el Select de
- * AntD en jsdom, que no responde al click sintético. El recorrido de subida sí
- * queda cubierto arriba; la confirmación está verificada en el backend
- * (inventario-carga-masiva y inventario-saldo-inicial-contabiliza) pero NO
- * desde esta pantalla.
- */
+describe('confirmar la carga', () => {
+  /**
+   * El Select de AntD abre con mousedown, no con click: en jsdom un click
+   * sintético no despliega las opciones y la prueba parecía fallar por la
+   * pantalla cuando era por el arnés.
+   */
+  const elegirGrupo = async () => {
+    // El primer Select del paso 2 es el de grupo de artículos.
+    const selector = document.querySelectorAll('.ant-select')[0]!
+    await act(async () => {
+      selector.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    })
+    await esperar()
+    const opcion = Array.from(document.querySelectorAll('.ant-select-item-option'))
+      .find(o => o.textContent?.includes('Papelería'))!
+    await act(async () => {
+      opcion.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await esperar()
+  }
+
+  const conGrupo = async () => {
+    await render()
+    await subirArchivo()
+    await elegirGrupo()
+  }
+
+  it('crea los artículos con el grupo elegido', async () => {
+    await conGrupo()
+    await click(boton('Cargar 3 artículos')!)
+
+    expect(cargaMasivaArticulos).toHaveBeenCalled()
+    const [, opciones] = cargaMasivaArticulos.mock.calls[0] as any[]
+    expect(opciones.grupoId).toBe('g1')
+  })
+
+  it('después carga la existencia con la fecha de contabilización', async () => {
+    await conGrupo()
+    await click(boton('Cargar 3 artículos')!)
+
+    expect(importSaldos).toHaveBeenCalled()
+    const [dto] = importSaldos.mock.calls[0] as any[]
+    expect(dto.fechaContabilizacion).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('manda la existencia y el costo de cada fila', async () => {
+    await conGrupo()
+    await click(boton('Cargar 3 artículos')!)
+
+    const [dto] = importSaldos.mock.calls[0] as any[]
+    const abaco = dto.items.find((i: any) => i.sku === 'ABA-GRAN')
+    expect(abaco.quantity).toBe(1)
+    expect(abaco.unitCost).toBe(17)
+  })
+
+  it('los artículos van PRIMERO y los saldos después', async () => {
+    await conGrupo()
+    await click(boton('Cargar 3 artículos')!)
+
+    expect(cargaMasivaArticulos.mock.invocationCallOrder[0])
+      .toBeLessThan(importSaldos.mock.invocationCallOrder[0])
+  })
+
+  it('al terminar dice el número de la póliza de apertura', async () => {
+    await conGrupo()
+    await click(boton('Cargar 3 artículos')!)
+
+    expect(document.body.textContent).toContain('POL-00001')
+    expect(document.body.textContent).toContain('Diarios')
+  })
+
+  it('si el servidor rechaza filas, las lista con su motivo', async () => {
+    cargaMasivaArticulos.mockResolvedValueOnce({
+      creados: 2, actualizados: 0, omitidos: 0,
+      errores: [{ fila: 3, sku: 'ABAC-JOC-KREA', nombre: 'ABACO',
+        motivo: 'No se pudo resolver la cuenta de inventario.' }],
+      avisos: [],
+    } as any)
+
+    await conGrupo()
+    await click(boton('Cargar 3 artículos')!)
+
+    expect(document.body.textContent).toContain('1 filas NO se importaron')
+    expect(document.body.textContent).toContain('cuenta de inventario')
+  })
+})
