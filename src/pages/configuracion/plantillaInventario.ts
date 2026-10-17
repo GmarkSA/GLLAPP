@@ -257,8 +257,11 @@ export function leerArchivoDeArticulos(datos: ArrayBuffer | Uint8Array): FilaDeA
   const crudas = XLSX.utils.sheet_to_json<Record<string, unknown>>(hoja, { defval: '' })
   const indice = indiceDeEncabezados()
 
+  // La fila 1 manda: la plantilla en blanco trae encabezados y ninguna fila,
+  // y decir «no se reconoció ninguna columna» ahí sería mentira.
+  const [filaDeEncabezados] = XLSX.utils.sheet_to_json<string[]>(hoja, { header: 1, defval: '' })
   const encabezadosConocidos = new Set<string>()
-  for (const encabezado of Object.keys(crudas[0] ?? {})) {
+  for (const encabezado of (filaDeEncabezados ?? []).map(h => String(h ?? '')).filter(Boolean)) {
     const clave = indice.get(encabezado.trim().toLowerCase())
     if (clave) encabezadosConocidos.add(clave)
   }
@@ -360,7 +363,10 @@ export function analizarArchivoDeArticulos(datos: ArrayBuffer | Uint8Array): Ana
     categoria_inventario: CATEGORIA_INVENTARIO, trazabilidad: TRAZABILIDAD,
   }
 
-  const encabezados = Object.keys(crudas[0] ?? {})
+  // De la fila 1, no de la primera fila de datos: la plantilla en blanco no
+  // tiene datos y aun así hay que poder decir qué columnas trae.
+  const [primeraFila] = XLSX.utils.sheet_to_json<string[]>(hoja, { header: 1, defval: '' })
+  const encabezados = (primeraFila ?? []).map(h => String(h ?? '').trim()).filter(Boolean)
   const columnas: AnalisisDeColumna[] = encabezados.map(encabezado => {
     const clave  = indice.get(encabezado.trim().toLowerCase())
     const def    = clave ? porClave.get(clave) : undefined
@@ -519,6 +525,10 @@ export function construirPlantillaInventario(catalogo: CatalogoDeLaEmpresa): Arr
 
   // Dos filas de ejemplo: una de inventario y una de servicio, que es donde se
   // ve que un servicio no necesita cuentas de inventario ni de costo.
+  //
+  // Van en su PROPIA hoja, no en la de carga. Un modelo con datos adentro se
+  // sube con datos adentro: el dueño descargó la plantilla, la subió tal cual
+  // y Lucía leyó el ejemplo como si fueran sus artículos.
   const ejemplos = [
     {
       nombre: 'ABACO BACO GRANDE', sku: 'ABA-GRAN',
@@ -548,16 +558,27 @@ export function construirPlantillaInventario(catalogo: CatalogoDeLaEmpresa): Arr
     },
   ]
 
-  return armarLibro(ejemplos, catalogo)
+  return armarLibro([], catalogo, ejemplos)
 }
 
 /** El libro con la hoja de artículos y las hojas de referencia de la empresa. */
-function armarLibro(filas: Array<Record<string, unknown>>, catalogo: CatalogoDeLaEmpresa): ArrayBuffer {
+function armarLibro(
+  filas: Array<Record<string, unknown>>,
+  catalogo: CatalogoDeLaEmpresa,
+  ejemplos?: Array<Record<string, unknown>>,
+): ArrayBuffer {
   const orden = COLUMNAS_PLANTILLA.map(c => c.titulo)
   const wb = XLSX.utils.book_new()
 
+  // Sin filas la hoja queda con los encabezados y nada más: es el modelo en
+  // blanco, listo para escribir debajo.
   XLSX.utils.book_append_sheet(wb,
     XLSX.utils.json_to_sheet(filas, { header: orden }), 'Artículos')
+
+  if (ejemplos?.length) {
+    XLSX.utils.book_append_sheet(wb,
+      XLSX.utils.json_to_sheet(ejemplos, { header: orden }), 'Ejemplo')
+  }
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
     COLUMNAS_PLANTILLA.map(c => ({

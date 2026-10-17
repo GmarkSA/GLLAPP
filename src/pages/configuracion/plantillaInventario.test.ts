@@ -51,7 +51,13 @@ describe('la plantilla de carga de inventario', () => {
   })
 
   describe('lleva los campos de las tres pestañas del artículo', () => {
-    const columnas = () => Object.keys(filasDe('Artículos')[0] ?? {})
+    // La hoja de carga viene en blanco, así que las columnas son el encabezado.
+    const columnas = () => {
+      const { wb } = hojas()
+      const [encabezados] = XLSX.utils.sheet_to_json<string[]>(
+        wb.Sheets['Artículos'], { header: 1, defval: '' })
+      return encabezados ?? []
+    }
 
     it('Identificación: nombre, SKU, tipo, uso, unidad, grupo, categoría, marca, descripción', () => {
       const c = columnas()
@@ -103,13 +109,13 @@ describe('la plantilla de carga de inventario', () => {
 
   describe('la fila de ejemplo', () => {
     it('viene llena, para que se vea qué poner en cada columna', () => {
-      const [ejemplo] = filasDe('Artículos')
+      const [ejemplo] = filasDe('Ejemplo')
       expect(String(ejemplo.nombre)).not.toBe('')
       expect(String(ejemplo.cuenta_ingresos)).toBe('410001')
     })
 
     it('usa el impuesto del régimen del cliente', () => {
-      const [ejemplo] = filasDe('Artículos')
+      const [ejemplo] = filasDe('Ejemplo')
       expect(String(ejemplo.impuesto_ventas)).toBe('PC-V01')
     })
   })
@@ -364,13 +370,14 @@ describe('el almacén en la plantilla', () => {
 
   it('la plantilla trae la columna', () => {
     const wb = XLSX.read(construirPlantillaInventario(CATALOGO), { type: 'array' })
-    const [ejemplo] = XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
-    expect(Object.keys(ejemplo)).toContain('almacen')
+    const [encabezados] = XLSX.utils.sheet_to_json<string[]>(
+      wb.Sheets['Artículos'], { header: 1, defval: '' })
+    expect(encabezados).toContain('almacen')
   })
 
   it('el ejemplo usa un almacén real de la empresa', () => {
     const wb = XLSX.read(construirPlantillaInventario(CATALOGO), { type: 'array' })
-    const [ejemplo] = XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
+    const [ejemplo] = XLSX.utils.sheet_to_json<any>(wb.Sheets['Ejemplo'], { defval: '' })
     expect(ejemplo.almacen).toBe('PRIN')
   })
 
@@ -631,5 +638,51 @@ describe('ver qué entendió Lucía del archivo', () => {
 
   it('si están todas, no falta ninguna', () => {
     expect(analizarArchivoDeArticulos(archivo([FILA])).faltantes).toHaveLength(0)
+  })
+})
+
+describe('la plantilla no debe cargarse a sí misma', () => {
+  /**
+   * El dueño descargó la plantilla y la subió tal cual. Lucía leyó las DOS
+   * filas de ejemplo —ABACO BACO GRANDE y EMPAQUE DE REGALO— como si fueran
+   * sus artículos. Un modelo con datos adentro se sube con datos adentro: el
+   * ejemplo va aparte, y la hoja de carga viene en blanco.
+   */
+  const plantilla = () => construirPlantillaInventario(CATALOGO)
+  const hoja = (nombre: string) => {
+    const wb = XLSX.read(plantilla(), { type: 'array' })
+    return wb.Sheets[nombre]
+  }
+
+  it('la hoja Artículos viene vacía: solo los encabezados', () => {
+    expect(XLSX.utils.sheet_to_json(hoja('Artículos'), { defval: '' })).toHaveLength(0)
+  })
+
+  it('pero con sus encabezados, que son la plantilla', () => {
+    const [encabezados] = XLSX.utils.sheet_to_json<any>(hoja('Artículos'), { header: 1, defval: '' })
+    expect(encabezados).toContain('nombre')
+    expect(encabezados).toContain('precio_venta')
+    expect(encabezados).toHaveLength(COLUMNAS_PLANTILLA.length)
+  })
+
+  it('el ejemplo sigue estando, en su propia hoja', () => {
+    const wb = XLSX.read(plantilla(), { type: 'array' })
+    expect(wb.SheetNames).toContain('Ejemplo')
+    expect(XLSX.utils.sheet_to_json(wb.Sheets['Ejemplo'], { defval: '' }).length).toBeGreaterThan(0)
+  })
+
+  it('subir la plantilla en blanco no crea ningún artículo', () => {
+    expect(leerArchivoDeArticulos(plantilla())).toHaveLength(0)
+  })
+
+  it('y el análisis igual reconoce las columnas, para poder decir qué falta', () => {
+    const r = analizarArchivoDeArticulos(plantilla())
+    expect(r.filas).toBe(0)
+    expect(r.columnas.filter(c => c.reconocida).length).toBe(COLUMNAS_PLANTILLA.length)
+  })
+
+  it('el ejemplo de la hoja aparte no se cuela en la carga', () => {
+    const filas = leerArchivoDeArticulos(plantilla())
+    expect(filas.map(f => f.sku)).not.toContain('ABA-GRAN')
   })
 })

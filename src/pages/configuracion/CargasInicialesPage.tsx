@@ -506,7 +506,15 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
         costo:       Number(r.costo_unitario || r.unitCost || r.costo || 0),
       }))
     }
-    if (!crudas.length) { message.error('El archivo no contiene datos válidos'); return false }
+    if (!crudas.length) {
+      message.error(
+        'El archivo no trae ninguna fila. Si es la plantilla recién descargada, ' +
+        'escribe tus artículos en la hoja «Artículos», debajo de los encabezados: ' +
+        'la hoja «Ejemplo» es solo de muestra y no se carga.',
+        10,
+      )
+      return false
+    }
 
     // El almacén de la fila manda sobre el «almacén destino» de la pantalla: el
     // archivo sabe dónde va cada artículo y la pantalla solo pone el de relleno.
@@ -700,6 +708,9 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
           {analisis && (
             <Collapse
               size="small"
+              /* Abierto de entrada: plegado, el usuario no ve qué se leyó del
+                 archivo y vuelve a cargar a ciegas. */
+              defaultActiveKey={['cols']}
               style={{ marginBottom: 12 }}
               items={[{
                 key: 'cols',
