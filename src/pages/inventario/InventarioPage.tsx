@@ -3,21 +3,25 @@ import { useNavigate } from 'react-router-dom'
 import {
   Typography, Button, Table, Tag, Space, Input, Select,
   Switch, Card, Row, Col, Statistic, Tooltip, message, Empty,
-  Drawer, InputNumber, Divider, Badge, Dropdown, Checkbox,
+  Drawer, InputNumber, Divider, Badge, Dropdown, Checkbox, Modal, Popconfirm,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined,
   InboxOutlined, WarningOutlined, FilterOutlined, PrinterOutlined,
-  DownloadOutlined, SettingOutlined, HolderOutlined,
+  DownloadOutlined, SettingOutlined, HolderOutlined, UploadOutlined,
+  DeleteOutlined, StopOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import EtiquetasModal from './EtiquetasModal'
+import CargaMasivaModal from './CargaMasivaModal'
+import { getApiError } from '../../api/axios'
 import { exportarArticulos } from '../configuracion/plantillaInventario'
 import { getAccounts } from '../../api/catalogo'
 import { getTaxes } from '../../api/impuestos'
 import { getGrupos } from '../../api/expedientes'
 import {
-  getProducts, ITEM_TYPE_CONFIG, USAGE_TYPE_CONFIG,
+  getProducts, puedeEliminarseArticulo, cambiarEstadoArticulo, eliminarArticulo,
+  ITEM_TYPE_CONFIG, USAGE_TYPE_CONFIG,
   type Product,
 } from '../../api/inventario'
 
@@ -82,6 +86,52 @@ export default function InventarioPage() {
   const [invDraft,      setInvDraft]      = useState<InvAdFilters>(INV_EMPTY)
   const [invFilterOpen, setInvFilterOpen] = useState(false)
   const [etiquetasOpen, setEtiquetasOpen] = useState(false)
+  const [cargaOpen,     setCargaOpen]     = useState(false)
+  const [verBloqueados, setVerBloqueados] = useState(false)
+
+  /**
+   * Eliminar solo si el artículo nunca tuvo movimiento. Si ya tiene historia,
+   * borrarlo dejaría el kardex y las pólizas apuntando a algo que no existe —
+   * por eso el servidor decide, y la pantalla ofrece bloquear en su lugar.
+   */
+  const intentarEliminar = async (r: Product) => {
+    try {
+      const { puede, motivo } = await puedeEliminarseArticulo(r.id)
+      if (!puede) {
+        Modal.confirm({
+          title: `No se puede eliminar «${r.name}»`,
+          content: (
+            <>
+              <p style={{ marginTop: 0 }}>{motivo}</p>
+              <p style={{ marginBottom: 0 }}>
+                Bloquearlo lo saca del POS y de los listados sin perder su historia.
+                ¿Quieres bloquearlo?
+              </p>
+            </>
+          ),
+          okText: 'Bloquear artículo',
+          cancelText: 'Cancelar',
+          onOk: () => bloquear(r, false),
+        })
+        return
+      }
+      await eliminarArticulo(r.id)
+      message.success(`«${r.name}» eliminado`)
+      load()
+    } catch (e: unknown) {
+      message.error(getApiError(e, 'No se pudo eliminar el artículo'))
+    }
+  }
+
+  const bloquear = async (r: Product, activo: boolean) => {
+    try {
+      await cambiarEstadoArticulo(r.id, activo)
+      message.success(activo ? `«${r.name}» activado` : `«${r.name}» bloqueado`)
+      load()
+    } catch (e: unknown) {
+      message.error(getApiError(e, 'No se pudo cambiar el estado'))
+    }
+  }
   // Artículos marcados para etiquetar. Vacío = todos los del listado.
   const [etiquetasSeleccion, setEtiquetasSeleccion] = useState<string[]>([])
 
@@ -200,6 +250,7 @@ export default function InventarioPage() {
         page,
         limit,
         search: search || undefined,
+        incluirInactivos: verBloqueados || undefined,
         itemType,
         usageType,
         lowStock: lowStock || undefined,
@@ -211,7 +262,7 @@ export default function InventarioPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, limit, search, itemType, usageType, lowStock])
+  }, [page, limit, search, itemType, usageType, lowStock, verBloqueados])
 
   useEffect(() => { load() }, [load])
 
@@ -456,6 +507,33 @@ export default function InventarioPage() {
               onClick={() => navigate(`/inventario/${r.id}/editar`)}
             />
           </Tooltip>
+          {r.isActive === false ? (
+            <Tooltip title="Activar">
+              <Button
+                type="text" size="small"
+                icon={<CheckCircleOutlined style={{ color: '#2ea172' }} />}
+                onClick={() => bloquear(r, true)}
+              />
+            </Tooltip>
+          ) : (
+            <Tooltip title="Bloquear — lo saca del POS sin perder su historia">
+              <Popconfirm
+                title={`¿Bloquear «${r.name}»?`}
+                description="Deja de aparecer en el POS y en los listados. Su historia se conserva."
+                okText="Bloquear" cancelText="No"
+                onConfirm={() => bloquear(r, false)}
+              >
+                <Button type="text" size="small" icon={<StopOutlined style={{ color: '#ff7f00' }} />} />
+              </Popconfirm>
+            </Tooltip>
+          )}
+          <Tooltip title="Eliminar — solo si nunca tuvo movimiento">
+            <Button
+              type="text" size="small" danger
+              icon={<DeleteOutlined />}
+              onClick={() => intentarEliminar(r)}
+            />
+          </Tooltip>
         </Space>
       ),
     },
@@ -547,6 +625,9 @@ export default function InventarioPage() {
           <Button icon={<DownloadOutlined />} onClick={descargarArticulos}>
             Descargar artículos
           </Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCargaOpen(true)}>
+            Cargar inventario
+          </Button>
           <Button icon={<PrinterOutlined />} onClick={() => setEtiquetasOpen(true)}>
             Imprimir etiquetas
           </Button>
@@ -560,6 +641,12 @@ export default function InventarioPage() {
           </Button>
         </Space>
       </div>
+
+      <CargaMasivaModal
+        open={cargaOpen}
+        onClose={() => setCargaOpen(false)}
+        onCargado={load}
+      />
 
       <EtiquetasModal
         open={etiquetasOpen}
@@ -658,6 +745,14 @@ export default function InventarioPage() {
                 onChange={v => { setLowStock(v); setPage(1) }}
               />
               <Text style={{ fontSize: 13 }}>Solo bajo mínimo</Text>
+            </Space>
+            <Space>
+              <Switch
+                size="small"
+                checked={verBloqueados}
+                onChange={v => { setVerBloqueados(v); setPage(1) }}
+              />
+              <Text style={{ fontSize: 13 }}>Ver bloqueados</Text>
             </Space>
           </Col>
           <Col>
