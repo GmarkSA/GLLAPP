@@ -397,7 +397,12 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
 const INV_HEADERS = ['sku', 'nombre', 'cantidad', 'costo_unitario']
 const INV_SAMPLE  = ['"ART-001"', '"Cemento gris 50kg"', '"100"', '"85.00"']
 
-interface InvRow { sku: string; nombre: string; quantity: number; unitCost: number; productId?: string }
+interface InvRow {
+  sku: string; nombre: string; quantity: number; unitCost: number; productId?: string
+  /** Almacén de la fila. Manda sobre el «almacén destino» de la pantalla. */
+  warehouseId?: string
+  almacenCodigo?: string
+}
 interface InvStep { step: number; rows: InvRow[]; result?: SaldoInicialInventarioResult }
 
 function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null }) {
@@ -491,17 +496,36 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
     }
     if (!crudas.length) { message.error('El archivo no contiene datos válidos'); return false }
 
+    // El almacén de la fila manda sobre el «almacén destino» de la pantalla: el
+    // archivo sabe dónde va cada artículo y la pantalla solo pone el de relleno.
+    const porCodigo = new Map(almacenes
+      .filter(a => a.code)
+      .map(a => [String(a.code).trim().toUpperCase(), a.id]))
+
     const rows: InvRow[] = crudas.map(r => {
-      const sku   = String(r.sku ?? '').trim()
-      const found = products.find(p => p.sku === sku)
+      const sku     = String(r.sku ?? '').trim()
+      const found   = products.find(p => p.sku === sku)
+      const codigo  = String(r.almacenCodigo ?? '').trim()
       return {
         sku,
-        nombre:    String(r.nombre ?? '') || found?.name || sku,
-        quantity:  Number(r.existencia ?? 0),
-        unitCost:  Number(r.costo ?? 0),
-        productId: found?.id,
+        nombre:        String(r.nombre ?? '') || found?.name || sku,
+        quantity:      Number(r.existencia ?? 0),
+        unitCost:      Number(r.costo ?? 0),
+        productId:     found?.id,
+        almacenCodigo: codigo || undefined,
+        warehouseId:   codigo ? porCodigo.get(codigo.toUpperCase()) : undefined,
       }
     }).filter(r => r.sku && r.quantity > 0)
+
+    const almacenDesconocido = rows.filter(r => r.almacenCodigo && !r.warehouseId)
+    if (almacenDesconocido.length > 0) {
+      message.warning(
+        `${almacenDesconocido.length} fila(s) traen un almacén que no existe ` +
+        `(${[...new Set(almacenDesconocido.map(r => r.almacenCodigo))].join(', ')}). ` +
+        'Se usará el almacén destino de la pantalla para esas filas.',
+        8,
+      )
+    }
 
     if (!rows.length) {
       message.warning(
@@ -523,7 +547,7 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
         productId:   r.productId,
         quantity:    r.quantity,
         unitCost:    r.unitCost,
-        warehouseId: warehouseId,
+        warehouseId: r.warehouseId ?? warehouseId,
       }))
       const result = await importSaldosInicialesInventario({
         fecha: fechaMigracion.format('YYYY-MM-DD'),
@@ -578,6 +602,10 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
               onFocus={loadData}
               options={almacenes.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
             />
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+              Solo para las filas que no traigan almacén en el archivo. La columna
+              <Text code style={{ fontSize: 11 }}>almacen</Text> manda sobre esta selección.
+            </Text>
           </div>
           <Space>
             <Button
@@ -589,26 +617,24 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
             >
               Descargar plantilla Excel
             </Button>
-            <Button
-              icon={<DownloadOutlined />}
-              onClick={() => downloadCsv('plantilla_inventario.csv', INV_HEADERS, INV_SAMPLE)}
-            >
-              Plantilla CSV (solo saldos)
-            </Button>
-            <Upload accept=".csv,.xlsx,.xls" showUploadList={false} beforeUpload={handleFile}>
+            <Upload accept=".xlsx,.xls,.csv" showUploadList={false} beforeUpload={handleFile}>
               <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
-                Subir archivo CSV
+                Subir archivo Excel
               </Button>
             </Upload>
           </Space>
           <div style={{ marginTop: 12 }}>
             <Alert
               type="info" showIcon
-              message="Formato del CSV"
+              message="Formato del archivo"
               description={
                 <div style={{ fontSize: 12 }}>
-                  Columnas requeridas: <code>sku, nombre, cantidad, costo_unitario</code><br />
-                  El SKU debe coincidir exactamente con el código del artículo en el sistema.
+                  La plantilla Excel lleva las columnas de las tres pestañas del artículo.
+                  Para el saldo bastan <code>sku</code>, <code>existencia_actual</code> y{' '}
+                  <code>precio_compra</code>; las que no use puede borrarlas.<br />
+                  El SKU debe coincidir con el código del artículo ya creado en el sistema.
+                  Si el archivo trae la columna <code>almacen</code>, esa decide; si no, se usa
+                  el almacén destino de arriba.
                 </div>
               }
             />
