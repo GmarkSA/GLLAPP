@@ -14,6 +14,7 @@ import { getProducts, type Product } from '../../api/inventario'
 import { getCustomers, createCustomer, type Customer } from '../../api/contactos'
 import { createPOSVenta, getUbicacion, type Ubicacion } from '../../api/expedientes'
 import { getBankAccounts, type BankAccount } from '../../api/bancos'
+import { getTaxes } from '../../api/impuestos'
 
 const { Text } = Typography
 
@@ -26,7 +27,6 @@ interface CartItem {
   lineTotal: number
 }
 
-const IVA_RATE = 0.12
 const CF_CUSTOMER: Customer = { id: 'consumidor-final', name: 'Consumidor Final' }
 
 const PAYMENT_METHODS = [
@@ -394,6 +394,7 @@ export default function POSPage() {
 
   // ── POS / payment state ────────────────────────────────────────────────────
   const [posInfo,        setPosInfo]        = useState<Ubicacion | null>(null)
+  const [tasaPorImpuesto, setTasaPorImpuesto] = useState<Map<string, number>>(new Map())
   const [paymentMethod,  setPaymentMethod]  = useState<string>('efectivo')
   const [receivedAmt,    setReceivedAmt]    = useState<number | null>(null)
   const [processing,     setProcessing]     = useState(false)
@@ -423,6 +424,14 @@ export default function POSPage() {
   useEffect(() => {
     getBankAccounts({ status: 'active' })
       .then(r => setBankAccounts(Array.isArray(r) ? r : []))
+      .catch(() => {})
+    // La tasa sale del impuesto del artículo. Antes era un 12% fijo: en
+    // Pequeño Contribuyente le inventaba al cliente un IVA que no se debe.
+    getTaxes()
+      .then((r: any) => {
+        const lista = Array.isArray(r) ? r : (r?.data ?? [])
+        setTasaPorImpuesto(new Map(lista.map((t: any) => [String(t.id), Number(t.rate) || 0])))
+      })
       .catch(() => {})
   }, [])
 
@@ -502,8 +511,19 @@ export default function POSPage() {
 
   // ── Totals ─────────────────────────────────────────────────────────────────
   const grandTotal     = cart.reduce((s, c) => s + c.lineTotal, 0)
-  const subtotalSinIva = grandTotal / (1 + IVA_RATE)
-  const ivaTotal       = grandTotal - subtotalSinIva
+  /**
+   * El precio del mostrador ya lleva el impuesto —igual que en el editor de
+   * facturas—, así que de cada línea se EXTRAE la base con la tasa de su
+   * propio artículo. Con un 12% fijo, el total de la factura no coincidía con
+   * lo que el cajero cobraba y la caja quedaba corta todos los días.
+   */
+  const tasaDe = (p: Product) =>
+    p.salesTaxId ? (tasaPorImpuesto.get(String(p.salesTaxId)) ?? 0) : 0
+  const ivaTotal = Math.round(cart.reduce((s, c) => {
+    const tasa = tasaDe(c.product)
+    return s + (tasa > 0 ? c.lineTotal - c.lineTotal / (1 + tasa / 100) : 0)
+  }, 0) * 100) / 100
+  const subtotalSinIva = Math.round((grandTotal - ivaTotal) * 100) / 100
   const change         = (receivedAmt ?? 0) - grandTotal
 
   // ── Checkout ───────────────────────────────────────────────────────────────
@@ -520,7 +540,10 @@ export default function POSPage() {
         quantity: c.quantity,
         unitPrice: c.unitPrice,
         discountPercent: c.discount,
-        taxPercent: IVA_RATE * 100,
+        taxPercent: tasaDe(c.product),
+        // El backend suma el impuesto sobre el precio salvo que se le diga que
+        // ya viene incluido. Sin esto facturaba Q51.52 por una venta de Q46.
+        taxInclusive: true,
         lineTotal: Number(c.lineTotal.toFixed(2)),
       }))
 
