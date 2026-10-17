@@ -14,10 +14,10 @@ import * as XLSX from 'xlsx'
  */
 
 export interface CatalogoDeLaEmpresa {
-  /** El `id` permite resolver las cuentas que el artículo guarda por id. */
+  /** El `id` permite resolver lo que el artículo guarda por id, no por código. */
   cuentas:   Array<{ id?: string; code: string; name: string }>
-  impuestos: Array<{ code: string; name: string; rate?: number }>
-  grupos:    Array<{ code: string; name: string }>
+  impuestos: Array<{ id?: string; code: string; name: string; rate?: number }>
+  grupos:    Array<{ id?: string; code: string; name: string }>
   unidades:  string[]
   almacenes: Array<{ id?: string; code: string; name: string }>
 }
@@ -117,6 +117,67 @@ export const COLUMNAS_PLANTILLA: ColumnaDePlantilla[] = [
 
 const SI = new Set(['si', 'sí', 's', 'yes', 'y', 'true', '1', 'verdadero'])
 const NO = new Set(['no', 'n', 'false', '0', 'falso'])
+
+/**
+ * El vocabulario de las columnas de opción fija.
+ *
+ * La base guarda `both`, `finished_good`, `none`; la pantalla muestra «Compra
+ * y venta», «Producto terminado», «Ninguno»; y la plantilla documenta
+ * `compra_venta`, `producto_terminado`, `ninguno`. Las tres hablan de lo
+ * mismo, así que la traducción vive aquí y en un solo lugar: el archivo se
+ * escribe con el término de la plantilla —el primero de cada lista— y se lee
+ * aceptando cualquiera de los tres, para que un archivo descargado antes de
+ * esto, o escrito a mano, siga cargando.
+ */
+type Vocabulario = Record<string, string[]>
+
+const USO: Vocabulario = {
+  both:     ['compra_venta', 'both', 'compra y venta', 'ambos', 'compraventa'],
+  sale:     ['solo_venta', 'sale', 'venta', 'solo venta', 'ventas'],
+  purchase: ['solo_compra', 'purchase', 'compra', 'solo compra', 'compras'],
+}
+
+const TIPO_ARTICULO: Vocabulario = {
+  bien:      ['bien', 'producto', 'good', 'goods', 'bienes'],
+  servicio:  ['servicio', 'service', 'servicios'],
+  exento:    ['exento', 'exempt'],
+  importado: ['importado', 'imported', 'importacion'],
+}
+
+const CATEGORIA_INVENTARIO: Vocabulario = {
+  finished_good:    ['producto_terminado', 'finished_good', 'producto terminado', 'terminado'],
+  raw_material:     ['materia_prima', 'raw_material', 'materia prima'],
+  work_in_progress: ['en_proceso', 'work_in_progress', 'en proceso', 'proceso'],
+  supply:           ['suministro', 'supply', 'suministros', 'insumo'],
+}
+
+const TRAZABILIDAD: Vocabulario = {
+  none:   ['ninguno', 'none', 'ninguna', 'sin', 'no'],
+  lot:    ['lote', 'lot', 'lotes'],
+  serial: ['serie', 'serial', 'series', 'numero de serie'],
+}
+
+/** Sin tildes, sin mayúsculas y sin espacios de sobra: así se comparan. */
+const llano = (v: unknown) =>
+  String(v ?? '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ')
+
+/** El término que entiende el sistema, venga como venga escrito en el archivo. */
+const interno = (vocabulario: Vocabulario, v: unknown): string | undefined => {
+  const t = llano(v)
+  if (!t) return undefined
+  for (const [clave, sinonimos] of Object.entries(vocabulario)) {
+    if (clave === t || sinonimos.some(s => llano(s) === t)) return clave
+  }
+  return undefined
+}
+
+/** El término de la plantilla, para escribirlo en el archivo que se descarga. */
+const deLaPlantilla = (vocabulario: Vocabulario, v: unknown): string => {
+  const clave = interno(vocabulario, v)
+  return clave ? vocabulario[clave][0] : ''
+}
 
 const texto = (v: unknown) => String(v ?? '').trim()
 
@@ -237,10 +298,12 @@ export function leerArchivoDeArticulos(datos: ArrayBuffer | Uint8Array): FilaDeA
       impuestoVentasCodigo:   texto(v.impuesto_ventas) || undefined,
       impuestoComprasCodigo:  texto(v.impuesto_compras) || undefined,
       moneda:                 texto(v.moneda) || undefined,
-      tipoArticulo:           texto(v.tipo_articulo) || undefined,
-      uso:                    texto(v.uso) || undefined,
-      categoriaInventario:    texto(v.categoria_inventario) || undefined,
-      trazabilidad:           texto(v.trazabilidad) || undefined,
+      // Las de opción fija se guardan ya traducidas al término del sistema: el
+      // backend recibe siempre `both`, no a veces «Compra y venta».
+      tipoArticulo:           interno(TIPO_ARTICULO, v.tipo_articulo),
+      uso:                    interno(USO, v.uso),
+      categoriaInventario:    interno(CATEGORIA_INVENTARIO, v.categoria_inventario),
+      trazabilidad:           interno(TRAZABILIDAD, v.trazabilidad),
     })
   }
   return filas
@@ -274,6 +337,10 @@ export interface ArticuloExportable {
   adjustmentAccountId?: string
   purchaseAccountId?: string
   warehouseId?: string
+  /** El impuesto y el grupo también viven por id en el artículo. */
+  salesTaxId?: string
+  purchaseTaxId?: string
+  groupId?: string
   /** Códigos ya resueltos, si el listado los trae. */
   cuentaIngresosCodigo?: string
   cuentaCostoCodigo?: string
@@ -305,34 +372,41 @@ export function exportarArticulos(
   // salían vacías y el archivo exportado no se podía volver a subir.
   const porId = new Map<string, string>()
   for (const c of catalogo.cuentas) if (c.id) porId.set(c.id, c.code)
+  // El impuesto, el grupo y el almacén también se guardan por id. Sin estos
+  // tres índices las columnas salían vacías aunque la pantalla las mostrara.
+  const impuestoPorId = new Map<string, string>()
+  for (const i of catalogo.impuestos) if (i.id) impuestoPorId.set(i.id, i.code)
+  const grupoPorId = new Map<string, string>()
+  for (const g of catalogo.grupos) if (g.id) grupoPorId.set(g.id, g.code)
   const almacenPorId = new Map<string, string>()
-  for (const a of catalogo.almacenes as Array<{ id?: string; code: string }>) {
-    if (a.id) almacenPorId.set(a.id, a.code)
-  }
-  const codigoDe = (id?: string, yaResuelto?: string) =>
-    yaResuelto ?? (id ? porId.get(id) ?? '' : '')
+  for (const a of catalogo.almacenes) if (a.id) almacenPorId.set(a.id, a.code)
+
+  /** Un id que ya no está en el catálogo sale vacío: el id no le sirve a nadie. */
+  const resolver = (indice: Map<string, string>, id?: string, yaResuelto?: string) =>
+    yaResuelto ?? (id ? indice.get(id) ?? '' : '')
+  const codigoDe = (id?: string, yaResuelto?: string) => resolver(porId, id, yaResuelto)
 
   const filas = articulos.map(a => ({
     nombre:        String(a.name ?? ''),
     sku:           String(a.sku ?? ''),
-    tipo_articulo: String(a.itemType ?? ''),
-    uso:           String(a.usageType ?? ''),
+    tipo_articulo: deLaPlantilla(TIPO_ARTICULO, a.itemType),
+    uso:           deLaPlantilla(USO, a.usageType),
     unidad:        String(a.unit ?? ''),
-    grupo:         String(a.grupoCodigo ?? ''),
-    almacen:       a.warehouseId ? almacenPorId.get(a.warehouseId) ?? '' : '',
+    grupo:         resolver(grupoPorId, a.groupId, a.grupoCodigo),
+    almacen:       resolver(almacenPorId, a.warehouseId),
     categoria:     String(a.category ?? ''),
     marca:         String(a.brand ?? ''),
     descripcion:   String(a.description ?? ''),
     moneda:        String(a.currency ?? 'GTQ'),
     precio_venta:     numeroOVacio(a.salesPrice),
     cuenta_ingresos:  codigoDe(a.salesAccountId, a.cuentaIngresosCodigo),
-    impuesto_ventas:  String(a.impuestoVentasCodigo ?? ''),
+    impuesto_ventas:  resolver(impuestoPorId, a.salesTaxId, a.impuestoVentasCodigo),
     precio_compra:    numeroOVacio(a.purchasePrice),
     cuenta_costo:     codigoDe(a.costAccountId, a.cuentaCostoCodigo),
-    impuesto_compras: String(a.impuestoComprasCodigo ?? ''),
+    impuesto_compras: resolver(impuestoPorId, a.purchaseTaxId, a.impuestoComprasCodigo),
     lleva_stock:          siNo(a.isInventoriable),
-    categoria_inventario: String(a.itemCategory ?? ''),
-    trazabilidad:         String(a.trackingType ?? ''),
+    categoria_inventario: deLaPlantilla(CATEGORIA_INVENTARIO, a.itemCategory),
+    trazabilidad:         deLaPlantilla(TRAZABILIDAD, a.trackingType),
     cuenta_inventario:    codigoDe(a.inventoryAccountId, a.cuentaInventarioCodigo),
     cuenta_ajustes:       codigoDe(a.adjustmentAccountId, a.cuentaAjustesCodigo),
     costo_promedio:    numeroOVacio(a.averageCost),

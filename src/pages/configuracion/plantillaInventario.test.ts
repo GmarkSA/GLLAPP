@@ -396,3 +396,144 @@ describe('el almacén en la plantilla', () => {
     expect(fila.almacen).toBe('PRIN')
   })
 })
+
+describe('los impuestos, el grupo y el almacén en la exportación', () => {
+  /**
+   * Lo que reportó el dueño: en la pantalla el artículo muestra PC-V01 y
+   * PC-C01, pero el archivo descargado traía las dos columnas de impuesto
+   * VACÍAS. El artículo guarda `salesTaxId` / `purchaseTaxId`, y la exportación
+   * solo sabía leer un código ya resuelto que el listado nunca manda.
+   *
+   * Lo mismo pasaba con el grupo (`groupId`) y el almacén (`warehouseId`).
+   * Sin esto el archivo exportado no se puede volver a subir: las tres
+   * columnas entran vacías y los 1,584 artículos quedan sin impuesto.
+   */
+  const CATALOGO_COMPLETO = {
+    ...CATALOGO,
+    cuentas:   [{ id: 'id-410', code: '410001', name: 'Ventas Gravadas' }],
+    impuestos: [
+      { id: 'id-v', code: 'PC-V01', name: 'Venta de bienes — registrada sin IVA', rate: 0 },
+      { id: 'id-c', code: 'PC-C01', name: 'Compra de bienes (IVA no acreditable)', rate: 12 },
+    ],
+    grupos:    [{ id: 'id-pap', code: 'PAP', name: 'Papelería' }],
+    almacenes: [{ id: 'id-alm', code: 'ALM', name: 'BODEGA ALMERIA' }],
+  }
+
+  const ARTICULO = {
+    sku: 'ABA-GRAN', name: 'ABACO BACO GRANDE', salesPrice: 23, purchasePrice: 17,
+    salesTaxId: 'id-v', purchaseTaxId: 'id-c',
+    groupId: 'id-pap', warehouseId: 'id-alm',
+  }
+
+  const fila = (extra: any = {}) => {
+    const wb = XLSX.read(
+      exportarArticulos([{ ...ARTICULO, ...extra }] as any, CATALOGO_COMPLETO), { type: 'array' })
+    return XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })[0]
+  }
+
+  it('el impuesto de ventas sale con su código', () => {
+    expect(fila().impuesto_ventas).toBe('PC-V01')
+  })
+
+  it('y el de compras', () => {
+    expect(fila().impuesto_compras).toBe('PC-C01')
+  })
+
+  it('el grupo sale con su código, no con el id', () => {
+    expect(fila().grupo).toBe('PAP')
+  })
+
+  it('el almacén también', () => {
+    expect(fila().almacen).toBe('ALM')
+  })
+
+  it('un impuesto que ya no existe sale vacío, no con el id', () => {
+    expect(fila({ salesTaxId: 'id-borrado' }).impuesto_ventas).toBe('')
+  })
+
+  it('sin impuesto de ventas la columna va vacía: el pequeño contribuyente no lo lleva', () => {
+    expect(fila({ salesTaxId: undefined }).impuesto_ventas).toBe('')
+  })
+})
+
+describe('el archivo descargado se puede volver a subir', () => {
+  /**
+   * La ida y vuelta completa. La exportación escribía los valores internos
+   * —`both`, `finished_good`, `none`— y la plantilla documenta los suyos
+   * —`compra_venta`, `producto_terminado`, `ninguno`—: el archivo descargado
+   * no coincidía con su propia plantilla.
+   */
+  const CATALOGO_COMPLETO = {
+    ...CATALOGO,
+    cuentas:   [{ id: 'id-410', code: '410001', name: 'Ventas Gravadas' }],
+    impuestos: [{ id: 'id-v', code: 'PC-V01', name: 'Venta', rate: 0 }],
+    grupos:    [{ id: 'id-pap', code: 'PAP', name: 'Papelería' }],
+    almacenes: [{ id: 'id-alm', code: 'ALM', name: 'BODEGA ALMERIA' }],
+  }
+
+  const ARTICULO = {
+    sku: 'ABA-GRAN', name: 'ABACO BACO GRANDE', salesPrice: 23, purchasePrice: 17,
+    itemType: 'bien', usageType: 'both', itemCategory: 'finished_good',
+    trackingType: 'none', isInventoriable: true, salesTaxId: 'id-v',
+    groupId: 'id-pap', warehouseId: 'id-alm', unit: 'UND',
+  }
+
+  const exportada = () => {
+    const wb = XLSX.read(exportarArticulos([ARTICULO] as any, CATALOGO_COMPLETO), { type: 'array' })
+    return XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })[0]
+  }
+  const releida = () =>
+    leerArchivoDeArticulos(exportarArticulos([ARTICULO] as any, CATALOGO_COMPLETO))[0]
+
+  it('«uso» se escribe como lo documenta la plantilla, no como lo guarda la base', () => {
+    expect(exportada().uso).toBe('compra_venta')
+  })
+
+  it('«categoria_inventario» también', () => {
+    expect(exportada().categoria_inventario).toBe('producto_terminado')
+  })
+
+  it('y «trazabilidad»', () => {
+    expect(exportada().trazabilidad).toBe('ninguno')
+  })
+
+  it('al releerlo, el uso vuelve a ser el que entiende el sistema', () => {
+    expect(releida().uso).toBe('both')
+  })
+
+  it('la categoría de inventario también', () => {
+    expect(releida().categoriaInventario).toBe('finished_good')
+  })
+
+  it('y la trazabilidad', () => {
+    expect(releida().trazabilidad).toBe('none')
+  })
+
+  it('el impuesto y el almacén sobreviven la vuelta', () => {
+    const r = releida()
+    expect(r.impuestoVentasCodigo).toBe('PC-V01')
+    expect(r.almacenCodigo).toBe('ALM')
+  })
+
+  it('un archivo con los valores internos sigue cargando: no se rompe lo ya descargado', () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { nombre: 'X', uso: 'both', categoria_inventario: 'finished_good', trazabilidad: 'none' },
+    ]), 'Artículos')
+    const [r] = leerArchivoDeArticulos(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }))
+    expect(r.uso).toBe('both')
+    expect(r.categoriaInventario).toBe('finished_good')
+    expect(r.trazabilidad).toBe('none')
+  })
+
+  it('y uno escrito a mano en español llano también', () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { nombre: 'X', uso: 'Compra y venta', categoria_inventario: 'Producto terminado', trazabilidad: 'Lote' },
+    ]), 'Artículos')
+    const [r] = leerArchivoDeArticulos(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }))
+    expect(r.uso).toBe('both')
+    expect(r.categoriaInventario).toBe('finished_good')
+    expect(r.trazabilidad).toBe('lot')
+  })
+})
