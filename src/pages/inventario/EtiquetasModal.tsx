@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Select, Radio, InputNumber, Typography, Space, Alert, Checkbox } from 'antd'
+import { Modal, Select, Radio, InputNumber, Typography, Space, Alert, Checkbox, message } from 'antd'
 import { FORMATOS_ETIQUETA } from './etiquetas'
 
 const { Text } = Typography
@@ -30,7 +30,17 @@ export default function EtiquetasModal({ open, seleccionados, onClose }: {
     else params.set('copias', String(copias))
     if (soloInternos) params.set('soloSinCodigoPropio', '1')
 
-    window.open(`/inventario/etiquetas?${params.toString()}`, '_blank')
+    // Si el navegador bloquea la ventana nueva, hay que decirlo: antes la
+    // impresión simplemente no aparecía y no había forma de saber por qué.
+    const ventana = window.open(`/inventario/etiquetas/imprimir?${params.toString()}`, '_blank')
+    if (!ventana) {
+      message.warning(
+        'El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes ' +
+        'para este sitio y vuelve a intentarlo.',
+        6,
+      )
+      return
+    }
     onClose()
   }
 

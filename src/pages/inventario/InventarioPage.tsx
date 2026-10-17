@@ -3,14 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import {
   Typography, Button, Table, Tag, Space, Input, Select,
   Switch, Card, Row, Col, Statistic, Tooltip, message, Empty,
-  Drawer, InputNumber, Divider, Badge,
+  Drawer, InputNumber, Divider, Badge, Dropdown, Checkbox,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined,
   InboxOutlined, WarningOutlined, FilterOutlined, PrinterOutlined,
+  DownloadOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import EtiquetasModal from './EtiquetasModal'
+import { exportarArticulos } from '../configuracion/plantillaInventario'
+import { getAccounts } from '../../api/catalogo'
+import { getTaxes } from '../../api/impuestos'
+import { getGrupos } from '../../api/expedientes'
 import {
   getProducts, ITEM_TYPE_CONFIG, USAGE_TYPE_CONFIG,
   type Product,
@@ -34,6 +39,15 @@ interface InvAdFilters {
 }
 
 const INV_EMPTY: InvAdFilters = {}
+
+/**
+ * Las columnas que se ven al entrar. El resto está disponible en el selector:
+ * el inventario tiene los campos de las tres pestañas del artículo y mostrarlos
+ * todos de golpe vuelve la tabla ilegible.
+ */
+const COLUMNAS_POR_OMISION = [
+  'SKU', 'Nombre', 'Tipo', 'Uso', 'Stock', 'Costo prom.', 'Precio venta',
+]
 
 function applyInvFilters(data: Product[], f: InvAdFilters): Product[] {
   return data.filter(r => {
@@ -70,6 +84,52 @@ export default function InventarioPage() {
   const [etiquetasOpen, setEtiquetasOpen] = useState(false)
   // Artículos marcados para etiquetar. Vacío = todos los del listado.
   const [etiquetasSeleccion, setEtiquetasSeleccion] = useState<string[]>([])
+
+  // Qué columnas ve el usuario. Se recuerda por navegador: con 26 campos
+  // posibles, volver a elegirlas en cada visita es un trabajo repetido.
+  const [columnasVisibles, setColumnasVisibles] = useState<string[]>(() => {
+    try {
+      const guardado = localStorage.getItem('inventario.columnas')
+      if (guardado) return JSON.parse(guardado) as string[]
+    } catch { /* sin almacenamiento: se usan las de siempre */ }
+    return COLUMNAS_POR_OMISION
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('inventario.columnas', JSON.stringify(columnasVisibles)) }
+    catch { /* no poder recordarlas no debe romper la pantalla */ }
+  }, [columnasVisibles])
+
+  const descargarArticulos = async () => {
+    try {
+      const [todos, cuentas, impuestos, grupos] = await Promise.all([
+        getProducts({ limit: 2000 }).then((r: any) => r?.data ?? r),
+        getAccounts().catch(() => []),
+        getTaxes().catch(() => []),
+        getGrupos().catch(() => []),
+      ])
+      const datos = exportarArticulos(Array.isArray(todos) ? todos : [], {
+        cuentas: (Array.isArray(cuentas) ? cuentas : [])
+          .filter((c: any) => c?.code).map((c: any) => ({ code: String(c.code), name: String(c.name ?? '') })),
+        impuestos: (Array.isArray(impuestos) ? impuestos : [])
+          .filter((t: any) => t?.code).map((t: any) => ({ code: String(t.code), name: String(t.name ?? ''), rate: Number(t.rate) || 0 })),
+        grupos: (Array.isArray(grupos) ? grupos : [])
+          .map((g: any) => ({ code: String(g.code ?? ''), name: String(g.name ?? '') })),
+        unidades:  ['UND', 'CAJA', 'BOLSA', 'PAQUETE', 'YARDA', 'RESMA', 'ROLLO', 'SET', 'KG', 'LT', 'MT'],
+        almacenes: [],
+      })
+      const url = URL.createObjectURL(new Blob([datos], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'Articulos de inventario.xlsx'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      message.error('No se pudo generar el archivo de artículos')
+    }
+  }
 
   const invActiveCount = useMemo(() =>
     Object.entries(invFilters).filter(([, v]) =>
@@ -212,6 +272,53 @@ export default function InventarioPage() {
       ),
     },
     {
+      title: 'Unidad', dataIndex: 'unit', width: 90,
+      sorter: (a, b) => (a.unit ?? '').localeCompare(b.unit ?? ''),
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Categoría', dataIndex: 'category', width: 140, ellipsis: true,
+      sorter: (a, b) => (a.category ?? '').localeCompare(b.category ?? ''),
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Marca', dataIndex: 'brand', width: 120, ellipsis: true,
+      sorter: (a, b) => (a.brand ?? '').localeCompare(b.brand ?? ''),
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Código de barras', dataIndex: 'barCodes', width: 150,
+      render: (v: string[] | undefined, r: Product) => {
+        const codigos = (v ?? []).map(c => String(c ?? '').trim()).filter(Boolean)
+        if (codigos.length === 0) {
+          return <Tooltip title="Sin código: no se puede escanear en el POS">
+            <Tag color="warning" style={{ fontSize: 11 }}>Sin código</Tag>
+          </Tooltip>
+        }
+        const propio = codigos[0].toUpperCase() !== String(r.sku ?? '').toUpperCase()
+        return (
+          <Tooltip title={propio ? 'Código del fabricante' : 'Código interno de Lucía'}>
+            <Text style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
+              {codigos[0]}{codigos.length > 1 && ` +${codigos.length - 1}`}
+            </Text>
+          </Tooltip>
+        )
+      },
+    },
+    {
+      title: 'Punto reorden', dataIndex: 'reorderPoint', width: 110, align: 'right',
+      sorter: (a, b) => Number(a.reorderPoint ?? 0) - Number(b.reorderPoint ?? 0),
+      render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+        {v == null ? '—' : Number(v).toLocaleString('es-GT')}</Text>,
+    },
+    {
+      title: 'Valor en existencia', width: 140, align: 'right',
+      sorter: (a, b) => (Number(a.stockOnHand ?? 0) * Number(a.averageCost ?? 0))
+                      - (Number(b.stockOnHand ?? 0) * Number(b.averageCost ?? 0)),
+      render: (_: any, r: Product) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+        {fmtQ(Number(r.stockOnHand ?? 0) * Number(r.averageCost ?? 0))}</Text>,
+    },
+    {
       title: 'Acciones',
       width: 100,
       render: (_: any, r: Product) => (
@@ -237,6 +344,16 @@ export default function InventarioPage() {
     },
   ]
 
+  // «Acciones» no se puede ocultar: sin ella la fila queda sin forma de abrirse.
+  const columnasOpcionales = columns
+    .map(c => String((c as any).title ?? ''))
+    .filter(t => t && t !== 'Acciones')
+
+  const columnasMostradas = columns.filter(c => {
+    const t = String((c as any).title ?? '')
+    return t === 'Acciones' || columnasVisibles.includes(t)
+  })
+
   return (
     <div>
       {/* ── Header ── */}
@@ -249,6 +366,26 @@ export default function InventarioPage() {
           <Text type="secondary">Gestiona tus productos, servicios y materiales</Text>
         </div>
         <Space>
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: columnasOpcionales.map(t => ({
+                key: t,
+                label: (
+                  <Checkbox
+                    checked={columnasVisibles.includes(t)}
+                    onChange={e => setColumnasVisibles(v =>
+                      e.target.checked ? [...v, t] : v.filter(x => x !== t))}
+                  >{t}</Checkbox>
+                ),
+              })),
+            }}
+          >
+            <Button icon={<SettingOutlined />}>Columnas</Button>
+          </Dropdown>
+          <Button icon={<DownloadOutlined />} onClick={descargarArticulos}>
+            Descargar artículos
+          </Button>
           <Button icon={<PrinterOutlined />} onClick={() => setEtiquetasOpen(true)}>
             Imprimir etiquetas
           </Button>
@@ -379,7 +516,7 @@ export default function InventarioPage() {
       {/* ── Table ── */}
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
         <Table
-          columns={columns}
+          columns={columnasMostradas}
           rowSelection={{
             selectedRowKeys: etiquetasSeleccion,
             onChange: keys => setEtiquetasSeleccion(keys as string[]),

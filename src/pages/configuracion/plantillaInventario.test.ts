@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as XLSX from 'xlsx'
-import { construirPlantillaInventario, leerArchivoDeArticulos, COLUMNAS_PLANTILLA } from './plantillaInventario'
+import { construirPlantillaInventario, leerArchivoDeArticulos, exportarArticulos, COLUMNAS_PLANTILLA } from './plantillaInventario'
 
 /**
  * La plantilla Excel de la carga de inventario.
@@ -172,5 +172,70 @@ describe('leer el archivo que sube el usuario', () => {
   it('la lista de columnas es la misma que usa la plantilla', () => {
     expect(COLUMNAS_PLANTILLA.map(c => c.clave)).toContain('nombre')
     expect(COLUMNAS_PLANTILLA.find(c => c.clave === 'nombre')!.requerida).toBe(true)
+  })
+})
+
+describe('exportar los artículos ya creados', () => {
+  /**
+   * El dueño pidió bajar lo que ya está cargado en el MISMO formato de la
+   * plantilla: así revisa en Excel, corrige y vuelve a subir sin traducir
+   * columnas a mano.
+   */
+  const CREADOS = [
+    {
+      id: '1', sku: 'ABA-GRAN', name: 'ABACO BACO GRANDE', unit: 'UND',
+      salesPrice: 23, purchasePrice: 17, averageCost: 17, stockOnHand: 1,
+      isInventoriable: true, barCodes: ['ABA-GRAN'], currency: 'GTQ',
+      category: 'Papelería', itemType: 'bien',
+    },
+    {
+      id: '2', sku: 'SERV-EMP', name: 'EMPAQUE DE REGALO', unit: 'UND',
+      salesPrice: 15, isInventoriable: false, barCodes: [], currency: 'GTQ',
+      itemType: 'servicio',
+    },
+  ]
+
+  const hojaExportada = () => {
+    const wb = XLSX.read(exportarArticulos(CREADOS as any, CATALOGO), { type: 'array' })
+    return XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
+  }
+
+  it('baja una fila por artículo', () => {
+    expect(hojaExportada()).toHaveLength(2)
+  })
+
+  it('usa las mismas columnas que la plantilla', () => {
+    const columnas = Object.keys(hojaExportada()[0])
+    for (const c of COLUMNAS_PLANTILLA.map(c => c.titulo)) {
+      expect(columnas).toContain(c)
+    }
+  })
+
+  it('trae los datos del artículo, no ejemplos', () => {
+    const [primero] = hojaExportada()
+    expect(primero.nombre).toBe('ABACO BACO GRANDE')
+    expect(Number(primero.precio_venta)).toBe(23)
+    expect(Number(primero.precio_compra)).toBe(17)
+    expect(primero.codigo_barras).toBe('ABA-GRAN')
+  })
+
+  it('el interruptor de stock se exporta como Sí / No', () => {
+    const [bien, servicio] = hojaExportada()
+    expect(bien.lleva_stock).toBe('Sí')
+    expect(servicio.lleva_stock).toBe('No')
+  })
+
+  it('lo exportado se puede volver a leer con el mismo lector', () => {
+    const datos = exportarArticulos(CREADOS as any, CATALOGO)
+    const filas = leerArchivoDeArticulos(datos)
+    expect(filas).toHaveLength(2)
+    expect(filas[0].sku).toBe('ABA-GRAN')
+    expect(filas[0].precioVenta).toBe(23)
+  })
+
+  it('conserva las hojas de referencia, para corregir sin adivinar códigos', () => {
+    const wb = XLSX.read(exportarArticulos(CREADOS as any, CATALOGO), { type: 'array' })
+    expect(wb.SheetNames).toContain('Cuentas')
+    expect(wb.SheetNames).toContain('Impuestos')
   })
 })

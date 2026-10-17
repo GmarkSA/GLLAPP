@@ -240,6 +240,86 @@ export function leerArchivoDeArticulos(datos: ArrayBuffer | Uint8Array): FilaDeA
   return filas
 }
 
+/** Un artículo ya creado, tal como lo devuelve el listado de inventario. */
+export interface ArticuloExportable {
+  sku?: string
+  name?: string
+  description?: string
+  unit?: string
+  category?: string
+  brand?: string
+  itemType?: string
+  usageType?: string
+  currency?: string
+  salesPrice?: number
+  purchasePrice?: number
+  averageCost?: number
+  stockOnHand?: number
+  reorderPoint?: number
+  weight?: number
+  isInventoriable?: boolean
+  itemCategory?: string
+  trackingType?: string
+  barCodes?: string[]
+  /** Códigos de cuenta e impuesto, cuando el listado los trae resueltos. */
+  cuentaIngresosCodigo?: string
+  cuentaCostoCodigo?: string
+  cuentaInventarioCodigo?: string
+  cuentaAjustesCodigo?: string
+  impuestoVentasCodigo?: string
+  impuestoComprasCodigo?: string
+  grupoCodigo?: string
+}
+
+const siNo = (v: unknown): string => (v === false ? 'No' : v === true ? 'Sí' : '')
+
+const numeroOVacio = (v: unknown): number | '' => {
+  const n = Number(v)
+  return Number.isFinite(n) && n !== 0 ? n : ''
+}
+
+/**
+ * Baja los artículos ya creados en el MISMO formato de la plantilla.
+ *
+ * Así se revisa en Excel, se corrige y se vuelve a subir sin traducir columnas
+ * a mano: lo exportado lo lee el mismo lector que lee la plantilla.
+ */
+export function exportarArticulos(
+  articulos: ArticuloExportable[],
+  catalogo: CatalogoDeLaEmpresa,
+): ArrayBuffer {
+  const filas = articulos.map(a => ({
+    nombre:        String(a.name ?? ''),
+    sku:           String(a.sku ?? ''),
+    tipo_articulo: String(a.itemType ?? ''),
+    uso:           String(a.usageType ?? ''),
+    unidad:        String(a.unit ?? ''),
+    grupo:         String(a.grupoCodigo ?? ''),
+    categoria:     String(a.category ?? ''),
+    marca:         String(a.brand ?? ''),
+    descripcion:   String(a.description ?? ''),
+    moneda:        String(a.currency ?? 'GTQ'),
+    precio_venta:     numeroOVacio(a.salesPrice),
+    cuenta_ingresos:  String(a.cuentaIngresosCodigo ?? ''),
+    impuesto_ventas:  String(a.impuestoVentasCodigo ?? ''),
+    precio_compra:    numeroOVacio(a.purchasePrice),
+    cuenta_costo:     String(a.cuentaCostoCodigo ?? ''),
+    impuesto_compras: String(a.impuestoComprasCodigo ?? ''),
+    lleva_stock:          siNo(a.isInventoriable),
+    categoria_inventario: String(a.itemCategory ?? ''),
+    trazabilidad:         String(a.trackingType ?? ''),
+    cuenta_inventario:    String(a.cuentaInventarioCodigo ?? ''),
+    cuenta_ajustes:       String(a.cuentaAjustesCodigo ?? ''),
+    costo_promedio:    numeroOVacio(a.averageCost),
+    existencia_actual: numeroOVacio(a.stockOnHand),
+    punto_reorden:     numeroOVacio(a.reorderPoint),
+    peso:              numeroOVacio(a.weight),
+    codigo_barras: (a.barCodes ?? []).map(c => String(c ?? '').trim()).find(Boolean) ?? '',
+  }))
+
+  return armarLibro(filas, catalogo)
+}
+
 /** Arma el archivo .xlsx del modelo con los datos reales de la empresa. */
 export function construirPlantillaInventario(catalogo: CatalogoDeLaEmpresa): ArrayBuffer {
   const cuenta = (prefijo: string) =>
@@ -277,11 +357,16 @@ export function construirPlantillaInventario(catalogo: CatalogoDeLaEmpresa): Arr
     },
   ]
 
+  return armarLibro(ejemplos, catalogo)
+}
+
+/** El libro con la hoja de artículos y las hojas de referencia de la empresa. */
+function armarLibro(filas: Array<Record<string, unknown>>, catalogo: CatalogoDeLaEmpresa): ArrayBuffer {
   const orden = COLUMNAS_PLANTILLA.map(c => c.titulo)
   const wb = XLSX.utils.book_new()
 
   XLSX.utils.book_append_sheet(wb,
-    XLSX.utils.json_to_sheet(ejemplos, { header: orden }), 'Artículos')
+    XLSX.utils.json_to_sheet(filas, { header: orden }), 'Artículos')
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
     COLUMNAS_PLANTILLA.map(c => ({
