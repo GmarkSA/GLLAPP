@@ -96,7 +96,28 @@ export default function InventarioPage() {
    */
   const intentarEliminar = async (r: Product) => {
     try {
-      const { puede, motivo } = await puedeEliminarseArticulo(r.id)
+      const { puede, motivo, advertencia } = await puedeEliminarseArticulo(r.id)
+      if (puede && advertencia) {
+        // Existencia que nunca llegó a la contabilidad: se puede borrar, pero
+        // el usuario tiene que saber que esa existencia se va con el artículo.
+        Modal.confirm({
+          title: `Eliminar «${r.name}»`,
+          content: (
+            <>
+              <p style={{ marginTop: 0 }}>{advertencia}</p>
+              <p style={{ marginBottom: 0 }}>¿Eliminarlo de todas formas?</p>
+            </>
+          ),
+          okText: 'Eliminar', okButtonProps: { danger: true },
+          cancelText: 'Cancelar',
+          onOk: async () => {
+            await eliminarArticulo(r.id)
+            message.success(`«${r.name}» eliminado`)
+            load()
+          },
+        })
+        return
+      }
       if (!puede) {
         Modal.confirm({
           title: `No se puede eliminar «${r.name}»`,

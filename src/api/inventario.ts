@@ -110,7 +110,7 @@ export const cargaMasivaArticulos = (filas: any[], opciones: any = {}) =>
   api.post(`${BASE}/carga-masiva`, { filas, opciones }).then(unwrap) as Promise<ResultadoCargaArticulos>
 
 export const puedeEliminarseArticulo = (id: string) =>
-  api.get(`${BASE}/${id}/puede-eliminarse`).then(unwrap) as Promise<{ puede: boolean; motivo?: string }>
+  api.get(`${BASE}/${id}/puede-eliminarse`).then(unwrap) as Promise<{ puede: boolean; motivo?: string; advertencia?: string }>
 
 export const cambiarEstadoArticulo = (id: string, isActive: boolean) =>
   api.patch(`${BASE}/${id}/estado`, { isActive }).then(unwrap) as Promise<Product>

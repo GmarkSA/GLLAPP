@@ -351,6 +351,23 @@ describe('eliminar, bloquear y activar', () => {
     expect(texto).toContain('Bloquear artículo')
   })
 
+  it('con existencia huérfana avisa antes de borrarla, pero deja hacerlo', async () => {
+    const { puedeEliminarseArticulo } = await import('../../api/inventario')
+    vi.mocked(puedeEliminarseArticulo).mockResolvedValueOnce({
+      puede: true,
+      advertencia: 'Tiene 1 de existencia que nunca llegó a la contabilidad.',
+    } as any)
+
+    await render()
+    const borrar = Array.from(host.querySelectorAll('tbody button'))
+      .find(b => b.querySelector('.anticon-delete'))!
+    await click(borrar)
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('nunca llegó a la contabilidad')
+    expect(texto).toContain('¿Eliminarlo de todas formas?')
+  })
+
   it('hay forma de ver los bloqueados, o no se podrían reactivar', async () => {
     await render()
     expect(host.textContent).toContain('Ver bloqueados')
