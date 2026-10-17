@@ -49,6 +49,7 @@ const EstimacionFormPage     = lazy(() => import('./pages/ventas/estimaciones/Es
 const EstimacionDetallePage  = lazy(() => import('./pages/ventas/estimaciones/EstimacionDetallePage'))
 const EstimacionPrintPage    = lazy(() => import('./pages/ventas/estimaciones/EstimacionPrintPage'))
 const FacturaImprimirPage    = lazy(() => import('./pages/ventas/facturas/FacturaImprimirPage'))
+const EtiquetasPrintPage     = lazy(() => import('./pages/inventario/EtiquetasPrintPage'))
 const NotasCreditoPage       = lazy(() => import('./pages/ventas/notas-credito/NotasCreditoPage'))
 const NotaCreditoFormPage    = lazy(() => import('./pages/ventas/notas-credito/NotaCreditoFormPage'))
 const NotaCreditoDetallePage = lazy(() => import('./pages/ventas/notas-credito/NotaCreditoDetallePage'))
@@ -238,6 +239,7 @@ export default function App() {
         <Route path="/planillas/mensual/:anio/:mes/imprimir-boletas" element={<PrivateRoute><BoletasPagoImprimirPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/cheque"         element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/comprobante"  element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
+        <Route path="/inventario/etiquetas"                     element={<PrivateRoute><EtiquetasPrintPage /></PrivateRoute>} />
         <Route path="/bancos/cheques/imprimir-lote"             element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
         <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
         <Route path="/reportes/integraciones/:anio/:mes/imprimir" element={<PrivateRoute><IntegracionesImprimirPage /></PrivateRoute>} />

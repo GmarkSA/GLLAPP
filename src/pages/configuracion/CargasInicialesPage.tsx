@@ -13,7 +13,9 @@ import type { ColumnType } from 'antd/es/table'
 import { batchImportClientes, batchImportProveedores, type BatchImportRow } from '../../api/contactos'
 import { getAccounts, setSaldosApertura, type Account, type SaldoAperturaLinea } from '../../api/catalogo'
 import { getProducts, importSaldosInicialesInventario, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
-import { getAlmacenes, type Almacen } from '../../api/expedientes'
+import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
+import { getTaxes } from '../../api/impuestos'
+import { construirPlantillaInventario, leerArchivoDeArticulos } from './plantillaInventario'
 
 const { Title, Text } = Typography
 const { Panel } = Collapse
@@ -402,6 +404,11 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
   const [almacenes,      setAlmacenes]      = useState<Almacen[]>([])
   const [warehouseId,    setWarehouseId]    = useState<string | undefined>()
   const [products,       setProducts]       = useState<Product[]>([])
+  const [catalogo,       setCatalogo]       = useState<{
+    cuentas: Array<{ code: string; name: string }>
+    impuestos: Array<{ code: string; name: string; rate?: number }>
+    grupos: Array<{ code: string; name: string }>
+  }>({ cuentas: [], impuestos: [], grupos: [] })
   const [state,          setState]          = useState<InvStep>({ step: 0, rows: [] })
   const [loading,        setLoading]        = useState(false)
   const [dataLoading,    setDataLoading]    = useState(false)
@@ -411,12 +418,28 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
     if (loaded.current) return
     setDataLoading(true)
     try {
-      const [alms, prods] = await Promise.all([
+      // Las cuentas, impuestos y grupos van DENTRO de la plantilla: así nadie
+      // tiene que adivinar que su cuenta de ingresos es la 410001 ni que su
+      // impuesto se llama PC-V01.
+      const [alms, prods, cuentas, impuestos, grupos] = await Promise.all([
         getAlmacenes(),
         getProducts({ limit: 500 }).then((r: any) => r.data ?? r),
+        getAccounts().catch(() => []),
+        getTaxes().catch(() => []),
+        getGrupos().catch(() => []),
       ])
       setAlmacenes(Array.isArray(alms) ? alms : [])
       setProducts(Array.isArray(prods) ? prods : [])
+      setCatalogo({
+        cuentas: (Array.isArray(cuentas) ? cuentas : [])
+          .filter((c: any) => c?.code && c?.isActive !== false)
+          .map((c: any) => ({ code: String(c.code), name: String(c.name ?? '') })),
+        impuestos: (Array.isArray(impuestos) ? impuestos : [])
+          .filter((t: any) => t?.code)
+          .map((t: any) => ({ code: String(t.code), name: String(t.name ?? ''), rate: Number(t.rate) || 0 })),
+        grupos: (Array.isArray(grupos) ? grupos : [])
+          .map((g: GrupoArticulo) => ({ code: String(g.code ?? ''), name: String(g.name ?? '') })),
+      })
       loaded.current = true
     } catch {
       message.error('Error cargando datos de inventario')
@@ -425,24 +448,68 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
     }
   }, [])
 
+  /**
+   * La plantilla con las cuentas, impuestos, grupos y unidades REALES de la
+   * empresa, y las 26 columnas de las tres pestañas del artículo.
+   */
+  const descargarPlantillaExcel = async () => {
+    await loadData()
+    const datos = construirPlantillaInventario({
+      ...catalogo,
+      unidades:  ['UND', 'CAJA', 'BOLSA', 'PAQUETE', 'YARDA', 'RESMA', 'ROLLO', 'SET', 'KG', 'LT', 'MT'],
+      almacenes: almacenes.map(a => ({ code: String(a.code ?? ''), name: String(a.name ?? '') })),
+    })
+    const url = URL.createObjectURL(new Blob([datos], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'Plantilla carga de inventario.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleFile = async (file: File) => {
     await loadData()
-    const text   = await file.text()
-    const parsed = parseCsvText(text)
-    if (!parsed.length) { message.error('El archivo no contiene datos válidos'); return false }
 
-    const rows: InvRow[] = parsed.map(r => {
-      const sku      = r.sku || r.SKU || r.codigo || ''
-      const found    = products.find(p => p.sku === sku)
+    // Excel o CSV: el lector reconoce los encabezados de la plantilla y también
+    // los que exporta Zoho, así el archivo se sube tal como sale del otro sistema.
+    let crudas: Array<Record<string, any>>
+    if (/\.xlsx?$/i.test(file.name)) {
+      try {
+        crudas = leerArchivoDeArticulos(await file.arrayBuffer()) as any[]
+      } catch (e: any) {
+        message.error(e?.message ?? 'No se pudo leer el archivo'); return false
+      }
+    } else {
+      crudas = parseCsvText(await file.text()).map(r => ({
+        sku:         r.sku || r.SKU || r.codigo || '',
+        nombre:      r.nombre || r.name || '',
+        existencia:  Number(r.cantidad || r.quantity || 0),
+        costo:       Number(r.costo_unitario || r.unitCost || r.costo || 0),
+      }))
+    }
+    if (!crudas.length) { message.error('El archivo no contiene datos válidos'); return false }
+
+    const rows: InvRow[] = crudas.map(r => {
+      const sku   = String(r.sku ?? '').trim()
+      const found = products.find(p => p.sku === sku)
       return {
         sku,
-        nombre:   r.nombre || r.name || found?.name || sku,
-        quantity: Number(r.cantidad || r.quantity || 0),
-        unitCost: Number(r.costo_unitario || r.unitCost || r.costo || 0),
+        nombre:    String(r.nombre ?? '') || found?.name || sku,
+        quantity:  Number(r.existencia ?? 0),
+        unitCost:  Number(r.costo ?? 0),
         productId: found?.id,
       }
     }).filter(r => r.sku && r.quantity > 0)
 
+    if (!rows.length) {
+      message.warning(
+        'El archivo se leyó, pero ninguna fila trae existencia mayor que cero. ' +
+        'Esta carga registra el SALDO: los artículos se crean en Inventario › Artículos.',
+      )
+      return false
+    }
     setState({ step: 1, rows })
     return false
   }
@@ -515,11 +582,20 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
           <Space>
             <Button
               icon={<DownloadOutlined />}
+              type="primary"
+              style={{ background: '#1B3A6B' }}
+              loading={dataLoading}
+              onClick={descargarPlantillaExcel}
+            >
+              Descargar plantilla Excel
+            </Button>
+            <Button
+              icon={<DownloadOutlined />}
               onClick={() => downloadCsv('plantilla_inventario.csv', INV_HEADERS, INV_SAMPLE)}
             >
-              Descargar plantilla CSV
+              Plantilla CSV (solo saldos)
             </Button>
-            <Upload accept=".csv" showUploadList={false} beforeUpload={handleFile}>
+            <Upload accept=".csv,.xlsx,.xls" showUploadList={false} beforeUpload={handleFile}>
               <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
                 Subir archivo CSV
               </Button>
