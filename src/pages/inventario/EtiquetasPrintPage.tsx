@@ -32,6 +32,7 @@ export default function EtiquetasPrintPage() {
     const opciones = {
       copias:        Number(params.get('copias')) || 1,
       porExistencia: params.get('porExistencia') === '1',
+      soloSinCodigoPropio: params.get('soloSinCodigoPropio') === '1',
     }
 
     getProducts({ limit: 2000 })
@@ -68,8 +69,9 @@ export default function EtiquetasPrintPage() {
       <div style={{ padding: 40, fontFamily: 'system-ui, sans-serif' }}>
         <h3 style={{ marginTop: 0 }}>No hay etiquetas que imprimir</h3>
         <p style={{ color: '#666', maxWidth: 520 }}>
-          Ningún artículo seleccionado tiene código de barras ni SKU, o la existencia
-          está en cero y pediste una etiqueta por unidad.
+          Ningún artículo seleccionado necesita etiqueta: o no tiene código de barras
+          ni SKU, o la existencia está en cero, o todos traen ya el código del
+          fabricante y pediste imprimir solo los que llevan el código interno.
         </p>
       </div>
     )

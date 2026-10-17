@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Select, Radio, InputNumber, Typography, Space, Alert } from 'antd'
+import { Modal, Select, Radio, InputNumber, Typography, Space, Alert, Checkbox } from 'antd'
 import { FORMATOS_ETIQUETA } from './etiquetas'
 
 const { Text } = Typography
@@ -21,12 +21,14 @@ export default function EtiquetasModal({ open, seleccionados, onClose }: {
   const [formato,  setFormato]  = useState(FORMATOS_ETIQUETA[0].id)
   const [cuantas,  setCuantas]  = useState<'fijas' | 'existencia'>('fijas')
   const [copias,   setCopias]   = useState(1)
+  const [soloInternos, setSoloInternos] = useState(true)
 
   const imprimir = () => {
     const params = new URLSearchParams({ formato })
     if (seleccionados.length > 0) params.set('ids', seleccionados.join(','))
     if (cuantas === 'existencia') params.set('porExistencia', '1')
     else params.set('copias', String(copias))
+    if (soloInternos) params.set('soloSinCodigoPropio', '1')
 
     window.open(`/inventario/etiquetas?${params.toString()}`, '_blank')
     onClose()
@@ -62,6 +64,16 @@ export default function EtiquetasModal({ open, seleccionados, onClose }: {
             options={FORMATOS_ETIQUETA.map(f => ({ value: f.id, label: f.label }))}
           />
           <Text type="secondary" style={{ fontSize: 11 }}>{elegido.description}</Text>
+        </div>
+
+        <div>
+          <Checkbox checked={soloInternos} onChange={e => setSoloInternos(e.target.checked)}>
+            Solo los que llevan el código interno de Lucía
+          </Checkbox>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginLeft: 24 }}>
+            Deja fuera los que ya traen el código del fabricante impreso: pegarles otra
+            etiqueta les dejaría dos códigos y la cajera escanearía el que esté más a mano.
+          </Text>
         </div>
 
         <div>
