@@ -120,6 +120,10 @@ export interface ResultadoActualizacionPrecios {
 export const actualizarPreciosArticulos = (filas: Array<{ sku?: string; precioVenta?: unknown }>) =>
   api.post(`${BASE}/actualizar-precios`, { filas }).then(unwrap) as Promise<ResultadoActualizacionPrecios>
 
+/** Reemplaza el código de barras (donde hoy es igual al SKU) por un EAN-13 interno. Un código real de fabricante no se toca. */
+export const regenerarCodigosDeBarras = () =>
+  api.post(`${BASE}/regenerar-codigos-barras`).then(unwrap) as Promise<{ actualizados: number }>
+
 export const puedeEliminarseArticulo = (id: string) =>
   api.get(`${BASE}/${id}/puede-eliminarse`).then(unwrap) as Promise<{ puede: boolean; motivo?: string; advertencia?: string }>
 

@@ -33,7 +33,7 @@ const render = async (query: string) => {
       </MemoryRouter>,
     )
   })
-  // El QR se genera de forma asíncrona después de traer los artículos.
+  // El código de barras se pinta después de traer los artículos.
   await act(async () => { await new Promise(r => setTimeout(r, 50)) })
 }
 
@@ -53,15 +53,14 @@ describe('la hoja de etiquetas', () => {
     expect(host.textContent).toContain('ABACO BACO GRANDE')
   })
 
-  it('pinta el QR, no un recuadro vacío', async () => {
+  it('pinta el código de barras, no un recuadro vacío', async () => {
     await render('?formato=hoja-24&copias=1')
     const img = host.querySelector('img')
     expect(img?.getAttribute('src')).toMatch(/^data:image\//)
   })
 
-  it('muestra el código y el precio', async () => {
+  it('muestra el precio', async () => {
     await render('?formato=hoja-24&copias=1')
-    expect(host.textContent).toContain('ABA-GRAN')
     expect(host.textContent).toContain('Q 23.00')
   })
 

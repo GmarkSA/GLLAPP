@@ -9,7 +9,7 @@ import {
   PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined,
   InboxOutlined, WarningOutlined, FilterOutlined, PrinterOutlined,
   DownloadOutlined, SettingOutlined, HolderOutlined, UploadOutlined,
-  DeleteOutlined, StopOutlined, CheckCircleOutlined,
+  DeleteOutlined, StopOutlined, CheckCircleOutlined, BarcodeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import EtiquetasModal from './EtiquetasModal'
@@ -21,6 +21,7 @@ import { getTaxes } from '../../api/impuestos'
 import { getGrupos, getAlmacenes } from '../../api/expedientes'
 import {
   getProducts, puedeEliminarseArticulo, cambiarEstadoArticulo, eliminarArticulo,
+  regenerarCodigosDeBarras,
   ITEM_TYPE_CONFIG, USAGE_TYPE_CONFIG,
   type Product,
 } from '../../api/inventario'
@@ -263,6 +264,25 @@ export default function InventarioPage() {
     } catch {
       message.error('No se pudo generar el archivo de artículos')
     }
+  }
+
+  const regenerarCodigos = () => {
+    Modal.confirm({
+      title: 'Regenerar códigos de barras',
+      content: 'Reemplaza el código de barras de los artículos cuyo código hoy es igual a su SKU ' +
+        '(la forma vieja, que no se puede escanear con un lector de código de barras si el SKU lleva ' +
+        'Ñ, tildes o espacios) por un EAN-13 interno. Un artículo con código real de fabricante no se toca.',
+      okText: 'Regenerar',
+      onOk: async () => {
+        try {
+          const r = await regenerarCodigosDeBarras()
+          message.success(`${r.actualizados} código(s) de barras regenerado(s)`)
+          load()
+        } catch (e: unknown) {
+          message.error(getApiError(e, 'No se pudieron regenerar los códigos de barras'))
+        }
+      },
+    })
   }
 
   const invActiveCount = useMemo(() =>
@@ -678,6 +698,9 @@ export default function InventarioPage() {
           </Button>
           <Button icon={<PrinterOutlined />} onClick={() => setEtiquetasOpen(true)}>
             Imprimir etiquetas
+          </Button>
+          <Button icon={<BarcodeOutlined />} onClick={regenerarCodigos}>
+            Regenerar códigos de barras
           </Button>
           <Button
             type="primary"
