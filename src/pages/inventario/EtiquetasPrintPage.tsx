@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { getProducts } from '../../api/inventario'
+import { getApiError } from '../../api/axios'
 import {
   FORMATOS_ETIQUETA, etiquetasDeArticulos, generarQRs,
   type ArticuloParaEtiqueta, type Etiqueta, type FormatoEtiqueta,
@@ -26,6 +27,7 @@ export default function EtiquetasPrintPage() {
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([])
   const [qrs,       setQrs]       = useState<Map<string, string>>(new Map())
   const [loading,   setLoading]   = useState(true)
+  const [fallo,     setFallo]     = useState<string | null>(null)
 
   useEffect(() => {
     const ids = (params.get('ids') ?? '').split(',').map(s => s.trim()).filter(Boolean)
@@ -35,15 +37,37 @@ export default function EtiquetasPrintPage() {
       soloSinCodigoPropio: params.get('soloSinCodigoPropio') === '1',
     }
 
-    getProducts({ limit: 2000 })
-      .then(async (res: any) => {
-        const todos: ArticuloParaEtiqueta[] = Array.isArray(res) ? res : res?.data ?? []
+    /**
+     * El listado topa el límite en 500 por página, así que se recorre por
+     * páginas: un inventario de 1,584 artículos no cabe en una sola, y pedir
+     * más de 500 devuelve 400.
+     */
+    const traerTodos = async (): Promise<ArticuloParaEtiqueta[]> => {
+      const POR_PAGINA = 500
+      const todos: ArticuloParaEtiqueta[] = []
+      for (let pagina = 1; pagina <= 20; pagina++) {
+        const res: any = await getProducts({ page: pagina, limit: POR_PAGINA })
+        const lote: ArticuloParaEtiqueta[] = Array.isArray(res) ? res : res?.data ?? []
+        todos.push(...lote)
+        const total = Number(res?.total ?? lote.length)
+        if (lote.length < POR_PAGINA || todos.length >= total) break
+      }
+      return todos
+    }
+
+    traerTodos()
+      .then(async todos => {
         const elegidos = ids.length > 0 ? todos.filter(a => ids.includes(a.id)) : todos
         const lista = etiquetasDeArticulos(elegidos, opciones)
         setEtiquetas(lista)
         setQrs(await generarQRs(lista))
       })
-      .catch(() => setEtiquetas([]))
+      // Lo que responda el servidor se muestra: tragarse el error hacía que la
+      // hoja dijera «no hay etiquetas» con el inventario lleno.
+      .catch((e: unknown) => {
+        setEtiquetas([])
+        setFallo(getApiError(e, 'No se pudieron traer los artículos del inventario'))
+      })
       .finally(() => setLoading(false))
   }, [params])
 
@@ -60,6 +84,15 @@ export default function EtiquetasPrintPage() {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
         <Spin size="large" tip="Generando etiquetas…" />
+      </div>
+    )
+  }
+
+  if (fallo) {
+    return (
+      <div style={{ padding: 40, fontFamily: 'system-ui, sans-serif' }}>
+        <h3 style={{ marginTop: 0 }}>No se pudieron traer los artículos</h3>
+        <p style={{ color: '#9b3a3a', maxWidth: 560 }}>{fallo}</p>
       </div>
     )
   }

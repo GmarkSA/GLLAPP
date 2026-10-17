@@ -239,3 +239,55 @@ describe('exportar los artículos ya creados', () => {
     expect(wb.SheetNames).toContain('Impuestos')
   })
 })
+
+describe('las cuentas del artículo en la exportación', () => {
+  /**
+   * El artículo guarda los ids de sus cuentas, no los códigos. Sin resolverlos
+   * contra el catálogo, las columnas cuenta_ingresos y cuenta_inventario salían
+   * VACÍAS: el archivo exportado no se podía volver a subir sin escribirlas a
+   * mano, que es justo lo que la ida y vuelta viene a evitar.
+   */
+  const CON_IDS = [{
+    id: '1', sku: 'ABA-GRAN', name: 'ABACO BACO GRANDE',
+    salesPrice: 23, purchasePrice: 17, isInventoriable: true,
+    salesAccountId: 'id-410', inventoryAccountId: 'id-130', costAccountId: 'id-520',
+  }]
+
+  const CATALOGO_CON_IDS = {
+    ...CATALOGO,
+    cuentas: [
+      { id: 'id-130', code: '130001', name: 'Inventario de Mercaderías' },
+      { id: 'id-410', code: '410001', name: 'Ventas Gravadas' },
+      { id: 'id-520', code: '520001', name: 'Costo de Mercaderías Vendidas' },
+    ],
+  }
+
+  const exportadas = () => {
+    const wb = XLSX.read(exportarArticulos(CON_IDS as any, CATALOGO_CON_IDS), { type: 'array' })
+    return XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
+  }
+
+  it('la cuenta de ingresos sale con su código', () => {
+    expect(exportadas()[0].cuenta_ingresos).toBe('410001')
+  })
+
+  it('la de inventario también', () => {
+    expect(exportadas()[0].cuenta_inventario).toBe('130001')
+  })
+
+  it('y la de costo', () => {
+    expect(exportadas()[0].cuenta_costo).toBe('520001')
+  })
+
+  it('el precio de compra sale como viene del artículo', () => {
+    expect(Number(exportadas()[0].precio_compra)).toBe(17)
+  })
+
+  it('una cuenta que ya no existe en el catálogo sale vacía, no con el id', () => {
+    const wb = XLSX.read(exportarArticulos(
+      [{ ...CON_IDS[0], salesAccountId: 'id-borrada' }] as any, CATALOGO_CON_IDS,
+    ), { type: 'array' })
+    const [fila] = XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
+    expect(fila.cuenta_ingresos).toBe('')
+  })
+})

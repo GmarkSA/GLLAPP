@@ -100,17 +100,71 @@ export default function InventarioPage() {
     catch { /* no poder recordarlas no debe romper la pantalla */ }
   }, [columnasVisibles])
 
+  // El artículo guarda sus cuentas por id; la tabla tiene que mostrar el código.
+  const [cuentasPorId, setCuentasPorId] = useState<Map<string, string>>(new Map())
+  const [cuentasCrudas, setCuentasCrudas] = useState<any[]>([])
+
+  const [impuestosPorId, setImpuestosPorId] = useState<Map<string, string>>(new Map())
+  const [gruposPorId,    setGruposPorId]    = useState<Map<string, string>>(new Map())
+
+  useEffect(() => {
+    const etiqueta = (c: any) => `${c.code ?? ''} — ${c.name ?? ''}`.replace(/^ — | — $/, '').trim()
+    Promise.all([
+      getAccounts().catch(() => []),
+      getTaxes().catch(() => []),
+      getGrupos().catch(() => []),
+    ]).then(([cuentas, impuestos, grupos]) => {
+      const lista = Array.isArray(cuentas) ? cuentas : []
+      setCuentasCrudas(lista)
+      setCuentasPorId(new Map(lista.filter((c: any) => c?.id && c?.code)
+        .map((c: any) => [String(c.id), etiqueta(c)])))
+      setImpuestosPorId(new Map((Array.isArray(impuestos) ? impuestos : [])
+        .filter((t: any) => t?.id).map((t: any) => [String(t.id), etiqueta(t)])))
+      setGruposPorId(new Map((Array.isArray(grupos) ? grupos : [])
+        .filter((g: any) => g?.id).map((g: any) => [String(g.id), etiqueta(g)])))
+    }).catch(() => { /* sin catálogo la tabla muestra «—», no se rompe */ })
+  }, [])
+
+  const cuenta = (id?: string) => (id ? cuentasPorId.get(id) ?? '—' : '—')
+
+  /** Una columna de texto corto, de las que vienen ocultas por omisión. */
+  const columnaTexto = (
+    title: string, leer: (r: Product) => string, width = 140,
+  ): ColumnsType<Product>[number] => ({
+    title, width, ellipsis: true,
+    render: (_: any, r: Product) => {
+      const v = leer(r)
+      return <Text style={{ fontSize: 11 }}>{v || '—'}</Text>
+    },
+  })
+
+  /** Una columna numérica, alineada a la derecha. */
+  const columnaNumero = (
+    title: string, leer: (r: Product) => number | undefined,
+    { moneda = false, width = 110 }: { moneda?: boolean; width?: number } = {},
+  ): ColumnsType<Product>[number] => ({
+    title, width, align: 'right',
+    sorter: (a, b) => Number(leer(a) ?? 0) - Number(leer(b) ?? 0),
+    render: (_: any, r: Product) => {
+      const v = leer(r)
+      return <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+        {v == null ? '—' : moneda ? fmtQ(v) : Number(v).toLocaleString('es-GT')}
+      </Text>
+    },
+  })
+
   const descargarArticulos = async () => {
     try {
       const [todos, cuentas, impuestos, grupos] = await Promise.all([
-        getProducts({ limit: 2000 }).then((r: any) => r?.data ?? r),
-        getAccounts().catch(() => []),
+        getProducts({ limit: 500 }).then((r: any) => r?.data ?? r),
+        cuentasCrudas.length > 0 ? Promise.resolve(cuentasCrudas) : getAccounts().catch(() => []),
         getTaxes().catch(() => []),
         getGrupos().catch(() => []),
       ])
       const datos = exportarArticulos(Array.isArray(todos) ? todos : [], {
         cuentas: (Array.isArray(cuentas) ? cuentas : [])
-          .filter((c: any) => c?.code).map((c: any) => ({ code: String(c.code), name: String(c.name ?? '') })),
+          .filter((c: any) => c?.code)
+          .map((c: any) => ({ id: String(c.id ?? ''), code: String(c.code), name: String(c.name ?? '') })),
         impuestos: (Array.isArray(impuestos) ? impuestos : [])
           .filter((t: any) => t?.code).map((t: any) => ({ code: String(t.code), name: String(t.name ?? ''), rate: Number(t.rate) || 0 })),
         grupos: (Array.isArray(grupos) ? grupos : [])
@@ -305,6 +359,52 @@ export default function InventarioPage() {
         )
       },
     },
+    {
+      title: 'Precio compra', dataIndex: 'purchasePrice', width: 115, align: 'right',
+      sorter: (a, b) => Number(a.purchasePrice ?? 0) - Number(b.purchasePrice ?? 0),
+      render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text>,
+    },
+    {
+      title: 'Cuenta de ingresos', width: 190, ellipsis: true,
+      render: (_: any, r: Product) => {
+        const texto = cuenta(r.salesAccountId)
+        return texto === '—'
+          ? <Tooltip title="Sin cuenta de ingresos: la factura no se podrá contabilizar">
+              <Tag color="error" style={{ fontSize: 11 }}>Sin cuenta</Tag>
+            </Tooltip>
+          : <Text style={{ fontSize: 11 }}>{texto}</Text>
+      },
+    },
+    {
+      title: 'Cuenta de inventario', width: 190, ellipsis: true,
+      render: (_: any, r: Product) => {
+        if (!r.isInventoriable) return <Text type="secondary" style={{ fontSize: 11 }}>N/A</Text>
+        const texto = cuenta(r.inventoryAccountId)
+        // Sin ella la venta NO falla: omite la línea de costo en silencio y el
+        // inventario nunca se descarga en la contabilidad.
+        return texto === '—'
+          ? <Tooltip title="Sin cuenta de inventario: al vender no se descarga el inventario en la contabilidad">
+              <Tag color="error" style={{ fontSize: 11 }}>Sin cuenta</Tag>
+            </Tooltip>
+          : <Text style={{ fontSize: 11 }}>{texto}</Text>
+      },
+    },
+    columnaTexto('Descripción',  r => r.description ?? '', 200),
+    columnaTexto('Categoría inv.', r => r.itemCategory ?? ''),
+    columnaTexto('Trazabilidad',  r => ({ none: 'Ninguno', lot: 'Lote', serial: 'Serie' } as any)[r.trackingType] ?? ''),
+    columnaTexto('Grupo',         r => (r.groupId ? gruposPorId.get(r.groupId) ?? '' : ''), 170),
+    columnaTexto('Impuesto ventas',  r => (r.salesTaxId ? impuestosPorId.get(r.salesTaxId) ?? '' : ''), 190),
+    columnaTexto('Impuesto compras', r => (r.purchaseTaxId ? impuestosPorId.get(r.purchaseTaxId) ?? '' : ''), 190),
+    columnaTexto('Cuenta de costo',   r => cuenta(r.costAccountId), 190),
+    columnaTexto('Cuenta de compras', r => cuenta(r.purchaseAccountId), 190),
+    columnaTexto('Cuenta de ajustes', r => cuenta(r.adjustmentAccountId), 190),
+    columnaTexto('Moneda',  r => r.currency ?? ''),
+    columnaTexto('Se produce', r => (r.isProduced ? 'Sí' : 'No'), 100),
+    columnaNumero('Último costo', r => r.lastCost, { moneda: true }),
+    columnaNumero('Stock mínimo', r => r.minimumStock),
+    columnaNumero('Stock máximo', r => r.maximumStock),
+    columnaNumero('Cant. de reorden', r => r.reorderQuantity, { width: 125 }),
+    columnaNumero('Peso (lb)', r => r.weight),
     {
       title: 'Punto reorden', dataIndex: 'reorderPoint', width: 110, align: 'right',
       sorter: (a, b) => Number(a.reorderPoint ?? 0) - Number(b.reorderPoint ?? 0),
