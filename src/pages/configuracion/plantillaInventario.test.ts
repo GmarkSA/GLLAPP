@@ -349,3 +349,50 @@ describe('qué pasa si el usuario borra columnas de la plantilla', () => {
     expect(filas[0].nombre).toBe('PRUEBA')
   })
 })
+
+describe('el almacén en la plantilla', () => {
+  /**
+   * Con más de un almacén no hay forma de decir en cuál entra cada artículo: ni
+   * en la pantalla de creación ni en el archivo. La columna lo resuelve, y la
+   * hoja «Listas» ya trae los códigos de los almacenes de la empresa.
+   */
+  const archivoCon = (filas: any[]) => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas), 'Artículos')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  it('la plantilla trae la columna', () => {
+    const wb = XLSX.read(construirPlantillaInventario(CATALOGO), { type: 'array' })
+    const [ejemplo] = XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
+    expect(Object.keys(ejemplo)).toContain('almacen')
+  })
+
+  it('el ejemplo usa un almacén real de la empresa', () => {
+    const wb = XLSX.read(construirPlantillaInventario(CATALOGO), { type: 'array' })
+    const [ejemplo] = XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
+    expect(ejemplo.almacen).toBe('PRIN')
+  })
+
+  it('el lector lo devuelve por código', () => {
+    const filas = leerArchivoDeArticulos(archivoCon([
+      { sku: 'ABA-GRAN', nombre: 'ABACO', almacen: 'PRIN' },
+    ]))
+    expect(filas[0].almacenCodigo).toBe('PRIN')
+  })
+
+  it('sin almacén la fila se lee igual: es opcional', () => {
+    const filas = leerArchivoDeArticulos(archivoCon([{ sku: 'A', nombre: 'UNO' }]))
+    expect(filas[0].almacenCodigo).toBeUndefined()
+  })
+
+  it('lo exportado trae el almacén del artículo', () => {
+    const datos = exportarArticulos(
+      [{ sku: 'A', name: 'UNO', warehouseId: 'w1' }] as any,
+      { ...CATALOGO, almacenes: [{ id: 'w1', code: 'PRIN', name: 'Bodega Principal' }] } as any,
+    )
+    const wb = XLSX.read(datos, { type: 'array' })
+    const [fila] = XLSX.utils.sheet_to_json<any>(wb.Sheets['Artículos'], { defval: '' })
+    expect(fila.almacen).toBe('PRIN')
+  })
+})

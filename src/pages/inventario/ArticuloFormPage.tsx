@@ -16,7 +16,7 @@ import BarcodeInput from '../../components/BarcodeInput'
 import SelectorDimensionesAnaliticas from '../../components/SelectorDimensionesAnaliticas'
 import { getTaxes, type Tax } from '../../api/impuestos'
 import { getAccounts, type Account } from '../../api/catalogo'
-import { getGrupos, type GrupoArticulo } from '../../api/expedientes'
+import { getGrupos, getAlmacenes, type GrupoArticulo, type Almacen } from '../../api/expedientes'
 import {
   getProduct, createProduct, updateProduct, uploadProductPhoto,
   ITEM_TYPE_CONFIG, ITEM_CATEGORY_CONFIG, UNITS,
@@ -43,6 +43,7 @@ export default function ArticuloFormPage() {
   const [taxes,    setTaxes]    = useState<Tax[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [grupos,   setGrupos]   = useState<GrupoArticulo[]>([])
+  const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [photoUploading, setPhotoUploading] = useState(false)
 
   // Live-watch fields to conditionally show sections
@@ -142,11 +143,14 @@ export default function ArticuloFormPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemType, accounts, taxes])
 
-  // ── Cargar grupos de artículos (Inventario › Grupos) ──────────────────────
+  // ── Cargar grupos y almacenes (Inventario › Grupos / Almacenes) ───────────
   useEffect(() => {
     getGrupos()
       .then((g: GrupoArticulo[]) => setGrupos(Array.isArray(g) ? g : []))
       .catch(() => setGrupos([]))
+    getAlmacenes()
+      .then((a: Almacen[]) => setAlmacenes(Array.isArray(a) ? a : []))
+      .catch(() => setAlmacenes([]))
   }, [])
 
   // Al elegir un Grupo de artículos, sugiere sus cuentas contables e impuesto
@@ -363,6 +367,28 @@ export default function ArticuloFormPage() {
               <Col xs={24} sm={8}>
                 <Form.Item name="brand" label="Marca">
                   <Input placeholder="Ej: Cementos Progreso" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col xs={24} sm={8}>
+                {/*
+                  Con más de un almacén, un artículo sin almacén no se sabe
+                  dónde entra. Es opcional: con uno solo da igual.
+                */}
+                <Form.Item
+                  name="warehouseId"
+                  label="Almacén"
+                  tooltip="Dónde se guarda este artículo. Con un solo almacén puede dejarse vacío."
+                >
+                  <Select allowClear showSearch optionFilterProp="label" placeholder="Sin almacén">
+                    {almacenes.map(a => (
+                      <Option key={a.id} value={a.id} label={`${a.code} ${a.name}`}>
+                        {a.code} — {a.name}
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
               </Col>
             </Row>
