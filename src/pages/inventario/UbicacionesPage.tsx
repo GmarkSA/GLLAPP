@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Typography, Button, Table, Space, Input, Card, message,
-  Modal, Form, Select, Tag, Popconfirm, Switch, Badge,
+  Modal, Form, Select, Tag, Popconfirm, Switch, Badge, Tooltip,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, SearchOutlined,
+  PlusOutlined, EditOutlined, SearchOutlined, DeleteOutlined,
   EnvironmentOutlined, ShopOutlined, PlayCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -178,7 +178,7 @@ export default function UbicacionesPage() {
       render: v => v || '—',
     },
     {
-      title: 'Estado', dataIndex: 'isActive', width: 90,
+      title: 'Estado', dataIndex: 'isActive', width: 160,
       render: (v, r) => (
         <Space size={4}>
           <Badge status={v ? 'success' : 'default'} text={v ? 'Activa' : 'Inactiva'} />
@@ -187,17 +187,20 @@ export default function UbicacionesPage() {
       ),
     },
     {
-      title: 'Acciones', width: 160, render: (_, row) => (
+      title: 'Acciones', width: 150, fixed: 'right' as const, align: 'center' as const,
+      render: (_, row) => (
         <Space size={4}>
           {row.type === 'pos' && (
-            <Button size="small" type="primary" icon={<PlayCircleOutlined />}
-              style={{ background: '#2ea172', borderColor: '#2ea172' }}
-              onClick={() => navigate(`/pos${row.id ? `?pos=${row.id}` : ''}`)}>
-              Abrir
-            </Button>
+            <Tooltip title="Abrir la Terminal POS">
+              <Button size="small" type="primary" icon={<PlayCircleOutlined />}
+                style={{ background: '#2ea172', borderColor: '#2ea172' }}
+                onClick={() => navigate(`/pos${row.id ? `?pos=${row.id}` : ''}`)} />
+            </Tooltip>
           )}
-          <Button size="small" type="text" icon={<EditOutlined />}
-            onClick={() => { setEditing(row); setModal(true) }} />
+          <Tooltip title="Editar">
+            <Button size="small" type="text" icon={<EditOutlined />}
+              onClick={() => { setEditing(row); setModal(true) }} />
+          </Tooltip>
           <Popconfirm
             title="¿Eliminar esta ubicación?"
             description="Esta acción no se puede deshacer."
@@ -207,7 +210,9 @@ export default function UbicacionesPage() {
             }}
             okText="Sí, eliminar" cancelText="Cancelar"
           >
-            <Button size="small" type="text" danger>Eliminar</Button>
+            <Tooltip title="Eliminar">
+              <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -270,7 +275,7 @@ export default function UbicacionesPage() {
       {/* Table */}
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
         <Table
-          scroll={{ y: 'calc(100vh - 330px)' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
           columns={columns}
           dataSource={items}
           loading={loading}

@@ -18,7 +18,7 @@ import { getApiError } from '../../api/axios'
 import { exportarArticulos } from '../configuracion/plantillaInventario'
 import { getAccounts } from '../../api/catalogo'
 import { getTaxes } from '../../api/impuestos'
-import { getGrupos } from '../../api/expedientes'
+import { getGrupos, getAlmacenes } from '../../api/expedientes'
 import {
   getProducts, puedeEliminarseArticulo, cambiarEstadoArticulo, eliminarArticulo,
   ITEM_TYPE_CONFIG, USAGE_TYPE_CONFIG,
@@ -96,7 +96,28 @@ export default function InventarioPage() {
    */
   const intentarEliminar = async (r: Product) => {
     try {
-      const { puede, motivo } = await puedeEliminarseArticulo(r.id)
+      const { puede, motivo, advertencia } = await puedeEliminarseArticulo(r.id)
+      if (puede && advertencia) {
+        // Existencia que nunca llegó a la contabilidad: se puede borrar, pero
+        // el usuario tiene que saber que esa existencia se va con el artículo.
+        Modal.confirm({
+          title: `Eliminar «${r.name}»`,
+          content: (
+            <>
+              <p style={{ marginTop: 0 }}>{advertencia}</p>
+              <p style={{ marginBottom: 0 }}>¿Eliminarlo de todas formas?</p>
+            </>
+          ),
+          okText: 'Eliminar', okButtonProps: { danger: true },
+          cancelText: 'Cancelar',
+          onOk: async () => {
+            await eliminarArticulo(r.id)
+            message.success(`«${r.name}» eliminado`)
+            load()
+          },
+        })
+        return
+      }
       if (!puede) {
         Modal.confirm({
           title: `No se puede eliminar «${r.name}»`,
@@ -156,6 +177,7 @@ export default function InventarioPage() {
 
   const [impuestosPorId, setImpuestosPorId] = useState<Map<string, string>>(new Map())
   const [gruposPorId,    setGruposPorId]    = useState<Map<string, string>>(new Map())
+  const [almacenesPorId, setAlmacenesPorId] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     const etiqueta = (c: any) => `${c.code ?? ''} — ${c.name ?? ''}`.replace(/^ — | — $/, '').trim()
@@ -163,7 +185,8 @@ export default function InventarioPage() {
       getAccounts().catch(() => []),
       getTaxes().catch(() => []),
       getGrupos().catch(() => []),
-    ]).then(([cuentas, impuestos, grupos]) => {
+      getAlmacenes().catch(() => []),
+    ]).then(([cuentas, impuestos, grupos, almacenes]) => {
       const lista = Array.isArray(cuentas) ? cuentas : []
       setCuentasCrudas(lista)
       setCuentasPorId(new Map(lista.filter((c: any) => c?.id && c?.code)
@@ -172,6 +195,8 @@ export default function InventarioPage() {
         .filter((t: any) => t?.id).map((t: any) => [String(t.id), etiqueta(t)])))
       setGruposPorId(new Map((Array.isArray(grupos) ? grupos : [])
         .filter((g: any) => g?.id).map((g: any) => [String(g.id), etiqueta(g)])))
+      setAlmacenesPorId(new Map((Array.isArray(almacenes) ? almacenes : [])
+        .filter((a: any) => a?.id).map((a: any) => [String(a.id), etiqueta(a)])))
     }).catch(() => { /* sin catálogo la tabla muestra «—», no se rompe */ })
   }, [])
 
@@ -444,6 +469,20 @@ export default function InventarioPage() {
     columnaTexto('Categoría inv.', r => r.itemCategory ?? ''),
     columnaTexto('Trazabilidad',  r => ({ none: 'Ninguno', lot: 'Lote', serial: 'Serie' } as any)[r.trackingType] ?? ''),
     columnaTexto('Grupo',         r => (r.groupId ? gruposPorId.get(r.groupId) ?? '' : ''), 170),
+    {
+      // Con más de un almacén hace falta ver dónde está cada artículo; con uno
+      // solo la columna sobra y por eso viene oculta.
+      title: 'Almacén', width: 180, ellipsis: true,
+      render: (_: any, r: Product) => {
+        if (!r.isInventoriable) return <Text type="secondary" style={{ fontSize: 11 }}>N/A</Text>
+        const texto = r.warehouseId ? almacenesPorId.get(r.warehouseId) ?? '' : ''
+        return texto
+          ? <Text style={{ fontSize: 11 }}>{texto}</Text>
+          : <Tooltip title="Sin almacén asignado: con más de una bodega no se sabe dónde está">
+              <Tag color="warning" style={{ fontSize: 11 }}>Sin almacén</Tag>
+            </Tooltip>
+      },
+    },
     columnaTexto('Impuesto ventas',  r => (r.salesTaxId ? impuestosPorId.get(r.salesTaxId) ?? '' : ''), 190),
     columnaTexto('Impuesto compras', r => (r.purchaseTaxId ? impuestosPorId.get(r.purchaseTaxId) ?? '' : ''), 190),
     columnaTexto('Cuenta de costo',   r => cuenta(r.costAccountId), 190),
