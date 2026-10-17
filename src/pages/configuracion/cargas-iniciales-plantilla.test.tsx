@@ -37,9 +37,17 @@ vi.mock('../../api/expedientes', () => ({
   getAlmacenes: vi.fn(async () => [{ id: 'w1', code: 'PRIN', name: 'Bodega Principal' }]),
   getGrupos: () => getGrupos(),
 }))
+/** Lo que hay creado en Lucía. Arranca vacío: nada existe todavía. */
+let creadosEnLucia: any[] = []
+const cargaMasivaArticulos = vi.fn(async (filas: any[]) => {
+  creadosEnLucia = filas.map((f, i) => ({ id: `nuevo-${i}`, sku: f.sku, name: f.nombre }))
+  return { creados: filas.length, actualizados: 0, omitidos: 0, errores: [], avisos: [] }
+})
+const importSaldos = vi.fn(async () => ({ ajusteId: 'aj-1', created: 1, errors: [] }))
 vi.mock('../../api/inventario', () => ({
-  getProducts: vi.fn(async () => ({ data: [], total: 0 })),
-  importSaldosInicialesInventario: vi.fn(),
+  getProducts: vi.fn(async () => ({ data: creadosEnLucia, total: creadosEnLucia.length })),
+  cargaMasivaArticulos: (...a: any[]) => (cargaMasivaArticulos as any)(...a),
+  importSaldosInicialesInventario: (...a: any[]) => (importSaldos as any)(...a),
 }))
 vi.mock('../../api/contactos', () => ({
   batchImportClientes: vi.fn(), batchImportProveedores: vi.fn(),
@@ -65,6 +73,22 @@ const click = async (el: Element) => {
 
 const boton = (texto: string) =>
   Array.from(document.querySelectorAll('button')).find(b => b.textContent?.includes(texto))
+
+/** La pantalla exige la fecha de migración antes de dejar importar. */
+const ponerFechaDeMigracion = async () => {
+  const input = document.querySelector('.ant-picker input') as HTMLInputElement
+  expect(input).toBeTruthy()
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype, 'value')!.set!
+  await act(async () => {
+    setter.call(input, '01/01/2026')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  })
+  await act(async () => { await new Promise(r => setTimeout(r, 40)) })
+}
 
 /** Abre el panel de Inventario, que viene plegado. */
 const abrirInventario = async () => {
@@ -197,14 +221,14 @@ describe('el paso «Revisar» enseña qué se leyó del archivo', () => {
     expect(document.body.textContent).toMatch(/\d+ columnas reconocidas/)
   })
 
-  it('avisa que el artículo no existe, en vez de fallar al final sin decir por qué', async () => {
+  it('avisa de los artículos nuevos antes de cargar, no al final', async () => {
     await subir([FILA])
-    expect(document.body.textContent).toContain('no existen todavía en Lucía')
+    expect(document.body.textContent).toContain('todavía no existen y se van a crear')
   })
 
-  it('y dice dónde crearlos: esta carga solo registra el saldo', async () => {
+  it('y dice con qué se van a crear: lo que trae el archivo', async () => {
     await subir([FILA])
-    expect(document.body.textContent).toContain('Cargar inventario')
+    expect(document.body.textContent).toContain('cuentas, el impuesto y el precio que trae el archivo')
   })
 
   it('las filas sin existencia se avisan, no se descartan en silencio', async () => {
@@ -225,6 +249,7 @@ describe('el panel de columnas se ve sin tener que abrirlo', () => {
     ]), 'Artículos')
     const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
     await render()
+    await ponerFechaDeMigracion()
     await abrirInventario()
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     Object.defineProperty(input, 'files', {
@@ -252,5 +277,88 @@ describe('el panel de columnas se ve sin tener que abrirlo', () => {
   it('y el valor que trae el archivo, para ver que se está llenando', async () => {
     await subirUno()
     expect(document.body.textContent).toContain('Se está llenando')
+  })
+})
+
+
+describe('el artículo que no existe se crea, no se omite', () => {
+  /**
+   * El dueño subió su archivo de inventario y recibió «SKU ABA-GRAN no
+   * encontrado». Su respuesta: «no debería dar ese mensaje porque se está
+   * creando». Tiene razón: quien sube un archivo de inventario espera que el
+   * inventario quede cargado, no que le digan que el artículo no existía.
+   *
+   * Esta carga ahora crea los que faltan —con las cuentas e impuestos que
+   * trae el archivo— y después les registra el saldo.
+   */
+  const ARCHIVO = [{
+    nombre: 'ABACO BACO GRANDE', sku: 'ABA-GRAN',
+    precio_venta: 23, precio_compra: 17, existencia_actual: 1,
+    cuenta_ingresos: '410001', impuesto_ventas: 'PC-V01',
+  }]
+
+  const subirYConfirmar = async (filas: any[] = ARCHIVO) => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas), 'Artículos')
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+    await render()
+    await ponerFechaDeMigracion()
+    await abrirInventario()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    Object.defineProperty(input, 'files', {
+      value: [new File([bytes], 'inv.xlsx')], configurable: true,
+    })
+    await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })) })
+    await act(async () => { await new Promise(r => setTimeout(r, 80)) })
+    await click(boton('Confirmar carga')!)
+    // El Popconfirm pide confirmar antes de disparar; tarda un tick en pintarse.
+    for (let intento = 0; intento < 5; intento++) {
+      const si = Array.from(document.querySelectorAll('button'))
+        .find(b => b.textContent?.trim() === 'Importar')
+      if (si) { await click(si); break }
+      await act(async () => { await new Promise(r => setTimeout(r, 40)) })
+    }
+    await act(async () => { await new Promise(r => setTimeout(r, 150)) })
+  }
+
+  beforeEach(() => {
+    creadosEnLucia = []
+    cargaMasivaArticulos.mockClear()
+    importSaldos.mockClear()
+  })
+
+  it('crea el artículo que no existe', async () => {
+    await subirYConfirmar()
+    expect(cargaMasivaArticulos).toHaveBeenCalled()
+    expect(cargaMasivaArticulos.mock.calls[0][0][0].sku).toBe('ABA-GRAN')
+  })
+
+  it('le manda las cuentas y el impuesto del archivo, no lo crea pelado', async () => {
+    await subirYConfirmar()
+    const fila = cargaMasivaArticulos.mock.calls[0][0][0] as any
+    expect(fila.cuentaIngresosCodigo).toBe('410001')
+    expect(fila.impuestoVentasCodigo).toBe('PC-V01')
+  })
+
+  it('y después le registra el saldo, ya con el artículo creado', async () => {
+    await subirYConfirmar()
+    expect(importSaldos).toHaveBeenCalled()
+    const items = (importSaldos.mock.calls[0] as any)[0].items
+    expect(items[0].productId).toBe('nuevo-0')
+  })
+
+  it('el paso 2 anuncia que se van a crear, no que se omiten', async () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ARCHIVO), 'Artículos')
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+    await render()
+    await abrirInventario()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [new File([bytes], 'i.xlsx')], configurable: true })
+    await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })) })
+    await act(async () => { await new Promise(r => setTimeout(r, 80)) })
+
+    expect(document.body.textContent).toContain('se van a crear')
+    expect(document.body.textContent).not.toContain('serán omitidos')
   })
 })
