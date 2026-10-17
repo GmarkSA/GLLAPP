@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import {
   Modal, Upload, Button, Table, Alert, Space, Typography, Select,
-  DatePicker, Steps, Tag, message, Checkbox,
+  DatePicker, Steps, Tag, message, Checkbox, Radio,
 } from 'antd'
 import { UploadOutlined, DownloadOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
-import { cargaMasivaArticulos, getProducts, importSaldosInicialesInventario } from '../../api/inventario'
+import {
+  cargaMasivaArticulos, getProducts, importSaldosInicialesInventario,
+  actualizarPreciosArticulos,
+} from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
 import { getTaxes } from '../../api/impuestos'
 import { getAccounts } from '../../api/catalogo'
@@ -36,6 +39,13 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
   const [filas,    setFilas]    = useState<FilaDeArticulo[]>([])
   const [cargando, setCargando] = useState(false)
   const [fallo,    setFallo]    = useState<string | null>(null)
+  /**
+   * 'precios' reutiliza el mismo archivo y el mismo parser, pero solo lee
+   * SKU + precio de venta e ignora cualquier otra columna — a propósito: la
+   * carga completa SÍ toca costo, cuentas e "inventariable" en cada fila, y
+   * dejarlas vacías ahí resetea o pisa datos que el usuario no quiso tocar.
+   */
+  const [modo, setModo] = useState<'completo' | 'precios'>('completo')
 
   const [grupos,    setGrupos]    = useState<GrupoArticulo[]>([])
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
@@ -105,6 +115,24 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
   }
 
   const confirmar = async () => {
+    if (modo === 'precios') {
+      setCargando(true)
+      setFallo(null)
+      try {
+        const r = await actualizarPreciosArticulos(
+          filas.map(f => ({ sku: f.sku, precioVenta: f.precioVenta })),
+        )
+        setResultado({ precios: r })
+        setPaso(2)
+        onCargado()
+      } catch (e: unknown) {
+        setFallo(getApiError(e, 'No se pudo actualizar los precios'))
+      } finally {
+        setCargando(false)
+      }
+      return
+    }
+
     if (cargarSaldos && !fechaContable) {
       message.error('Elige la fecha de contabilización')
       return
@@ -153,7 +181,7 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
   }
 
   const cerrar = () => {
-    setPaso(0); setFilas([]); setResultado(null); setFallo(null)
+    setPaso(0); setFilas([]); setResultado(null); setFallo(null); setModo('completo')
     onClose()
   }
 
@@ -163,7 +191,7 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
 
   return (
     <Modal
-      title="Cargar inventario desde archivo"
+      title={modo === 'precios' ? 'Actualizar precios desde archivo' : 'Cargar inventario desde archivo'}
       open={open}
       onCancel={cerrar}
       width={980}
@@ -174,18 +202,33 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
         size="small"
         current={paso}
         style={{ marginBottom: 18 }}
-        items={[{ title: 'Subir archivo' }, { title: 'Revisar y contabilizar' }, { title: 'Listo' }]}
+        items={modo === 'precios'
+          ? [{ title: 'Subir archivo' }, { title: 'Revisar' }, { title: 'Listo' }]
+          : [{ title: 'Subir archivo' }, { title: 'Revisar y contabilizar' }, { title: 'Listo' }]}
       />
 
       {fallo && <Alert type="error" showIcon message={fallo} style={{ marginBottom: 14 }} />}
 
       {paso === 0 && (
         <Space direction="vertical" size={14} style={{ width: '100%' }}>
-          <Alert
-            type="info" showIcon
-            message="La plantilla lleva las columnas de las tres pestañas del artículo"
-            description="También se acepta el archivo tal como lo exporta Zoho. Las columnas que no use puede borrarlas."
-          />
+          <Radio.Group value={modo} onChange={e => setModo(e.target.value)} optionType="button" buttonStyle="solid">
+            <Radio.Button value="completo">Crear / actualizar artículos completos</Radio.Button>
+            <Radio.Button value="precios">Actualizar solo precios de venta</Radio.Button>
+          </Radio.Group>
+
+          {modo === 'precios' ? (
+            <Alert
+              type="info" showIcon
+              message="Se usa el mismo archivo, pero solo se leen el código (SKU) y el precio de venta"
+              description="Cualquier otra columna que traiga el archivo se ignora por completo — nada más se toca."
+            />
+          ) : (
+            <Alert
+              type="info" showIcon
+              message="La plantilla lleva las columnas de las tres pestañas del artículo"
+              description="También se acepta el archivo tal como lo exporta Zoho. Las columnas que no use puede borrarlas."
+            />
+          )}
           <Space>
             <Button icon={<DownloadOutlined />} onClick={descargarPlantilla}>
               Descargar plantilla Excel
@@ -199,7 +242,42 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
         </Space>
       )}
 
-      {paso === 1 && (
+      {paso === 1 && modo === 'precios' && (
+        <Space direction="vertical" size={14} style={{ width: '100%' }}>
+          <Alert
+            type="success" showIcon
+            message={`${filas.length} filas listas`}
+            description="Se actualizará el precio de venta de cada código que exista en esta empresa. Las filas sin precio o con un código que no exista quedarán marcadas como error, sin afectar las demás."
+          />
+
+          <Table
+            size="small"
+            dataSource={filas.map((f, i) => ({ ...f, key: i }))}
+            pagination={{ pageSize: 8, showTotal: t => `${t} filas` }}
+            scroll={{ x: 'max-content' }}
+            columns={[
+              { title: 'SKU', dataIndex: 'sku', width: 160 },
+              { title: 'Nombre', dataIndex: 'nombre', ellipsis: true },
+              { title: 'Precio de venta nuevo', dataIndex: 'precioVenta', width: 160, align: 'right',
+                render: (v: number) => v ? `Q ${Number(v).toFixed(2)}` : '—' },
+              { title: 'Revisar', width: 150, render: (_: any, f: FilaDeArticulo) => {
+                if (!f.sku) return <Tag color="error">Sin código</Tag>
+                if (!f.precioVenta) return <Tag color="error">Sin precio</Tag>
+                return <Tag color="success">OK</Tag>
+              } },
+            ]}
+          />
+
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={() => setPaso(0)}>Atrás</Button>
+            <Button type="primary" loading={cargando} style={{ background: '#1B3A6B' }} onClick={confirmar}>
+              Actualizar precios de {filas.length} filas
+            </Button>
+          </Space>
+        </Space>
+      )}
+
+      {paso === 1 && modo === 'completo' && (
         <Space direction="vertical" size={14} style={{ width: '100%' }}>
           <Alert
             type="success" showIcon
@@ -308,7 +386,30 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
         </Space>
       )}
 
-      {paso === 2 && resultado && (
+      {paso === 2 && resultado?.precios && (
+        <Space direction="vertical" size={14} style={{ width: '100%' }}>
+          <Alert
+            type="success" showIcon
+            message={`${resultado.precios.actualizados} precios actualizados`}
+          />
+          {resultado.precios.errores.length > 0 && (
+            <Alert type="error" showIcon
+              message={`${resultado.precios.errores.length} filas NO se actualizaron`}
+              description={
+                <ul style={{ margin: 0, paddingLeft: 18, maxHeight: 180, overflow: 'auto' }}>
+                  {resultado.precios.errores.slice(0, 50).map((e: any, i: number) => (
+                    <li key={i} style={{ fontSize: 12 }}>Fila {e.fila} ({e.sku || 's/sku'}): {e.motivo}</li>
+                  ))}
+                </ul>
+              } />
+          )}
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button type="primary" style={{ background: '#1B3A6B' }} onClick={cerrar}>Listo</Button>
+          </Space>
+        </Space>
+      )}
+
+      {paso === 2 && resultado?.articulos && (
         <Space direction="vertical" size={14} style={{ width: '100%' }}>
           <Alert
             type="success" showIcon
