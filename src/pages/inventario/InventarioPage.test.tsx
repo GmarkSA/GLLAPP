@@ -27,7 +27,10 @@ vi.mock('../../api/inventario', () => ({
 }))
 vi.mock('../../api/catalogo',    () => ({ getAccounts: vi.fn(async () => []) }))
 vi.mock('../../api/impuestos',   () => ({ getTaxes: vi.fn(async () => []) }))
-vi.mock('../../api/expedientes', () => ({ getGrupos: vi.fn(async () => []) }))
+vi.mock('../../api/expedientes', () => ({
+  getGrupos:    vi.fn(async () => []),
+  getAlmacenes: vi.fn(async () => [{ id: 'w1', code: 'PRIN', name: 'Bodega Principal' }]),
+}))
 
 let host: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -371,5 +374,41 @@ describe('eliminar, bloquear y activar', () => {
   it('hay forma de ver los bloqueados, o no se podrían reactivar', async () => {
     await render()
     expect(host.textContent).toContain('Ver bloqueados')
+  })
+})
+
+describe('la columna de almacén', () => {
+  /**
+   * El campo se agregó al artículo, a la plantilla y a la carga, pero faltaba
+   * en el listado: con más de una bodega no había forma de ver dónde está cada
+   * artículo sin abrirlo uno por uno.
+   */
+  const conAlmacen = async (warehouseId?: string, isInventoriable = true) => {
+    const { getProducts } = await import('../../api/inventario')
+    vi.mocked(getProducts).mockResolvedValueOnce(
+      { data: [{ ...ARTICULO, warehouseId, isInventoriable }], total: 1 } as any)
+    localStorage.setItem('inventario.columnas', JSON.stringify(['SKU', 'Almacén']))
+    await render()
+  }
+
+  it('está disponible en el selector', async () => {
+    await render()
+    await click(boton('Columnas')!)
+    expect(document.body.textContent).toContain('Almacén')
+  })
+
+  it('muestra el código y el nombre, no el id', async () => {
+    await conAlmacen('w1')
+    expect(host.textContent).toContain('PRIN — Bodega Principal')
+  })
+
+  it('sin almacén lo señala: con más de una bodega no se sabe dónde está', async () => {
+    await conAlmacen(undefined)
+    expect(host.textContent).toContain('Sin almacén')
+  })
+
+  it('un servicio dice N/A: no se guarda en ninguna bodega', async () => {
+    await conAlmacen(undefined, false)
+    expect(host.textContent).toContain('N/A')
   })
 })

@@ -35,6 +35,8 @@ export interface Product {
   costAccountId?: string
   adjustmentAccountId?: string
   groupId?: string
+  /** Almacén donde se guarda. La entidad lo tiene; el tipo del frontend no lo declaraba. */
+  warehouseId?: string
   centroBeneficioId?: string
   stockOnHand: number
   minimumStock?: number
