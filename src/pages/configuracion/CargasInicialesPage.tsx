@@ -12,12 +12,12 @@ import dayjs, { type Dayjs } from 'dayjs'
 import type { ColumnType } from 'antd/es/table'
 import { batchImportClientes, batchImportProveedores, type BatchImportRow } from '../../api/contactos'
 import { getAccounts, setSaldosApertura, type Account, type SaldoAperturaLinea } from '../../api/catalogo'
-import { getProducts, importSaldosInicialesInventario, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
+import { getProducts, importSaldosInicialesInventario, cargaMasivaArticulos, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
 import { getTaxes } from '../../api/impuestos'
 import {
   construirPlantillaInventario, leerArchivoDeArticulos, analizarArchivoDeArticulos,
-  type AnalisisDelArchivo,
+  type AnalisisDelArchivo, type FilaDeArticulo,
 } from './plantillaInventario'
 
 const { Title, Text } = Typography
@@ -415,6 +415,12 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
   const [analisis,       setAnalisis]       = useState<AnalisisDelArchivo | null>(null)
   /** Filas que el archivo trae sin existencia: esta carga no tiene qué hacer con ellas. */
   const [sinExistencia,  setSinExistencia]  = useState(0)
+  /**
+   * El archivo completo, con sus 26 columnas. La vista previa solo enseña
+   * cuatro, pero para CREAR el artículo hacen falta sus cuentas e impuestos.
+   */
+  const [filasDelArchivo, setFilasDelArchivo] = useState<FilaDeArticulo[]>([])
+  const [articulosCreados, setArticulosCreados] = useState(0)
   const [products,       setProducts]       = useState<Product[]>([])
   const [catalogo,       setCatalogo]       = useState<{
     cuentas: Array<{ code: string; name: string }>
@@ -485,6 +491,8 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
     await loadData()
     setAnalisis(null)
     setSinExistencia(0)
+    setFilasDelArchivo([])
+    setArticulosCreados(0)
 
     // Excel o CSV: el lector reconoce los encabezados de la plantilla y también
     // los que exporta Zoho, así el archivo se sube tal como sale del otro sistema.
@@ -498,6 +506,7 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
       }
       // Qué entendió de cada columna, para enseñárselo antes de cargar.
       try { setAnalisis(analizarArchivoDeArticulos(bytes)) } catch { setAnalisis(null) }
+      setFilasDelArchivo(crudas as FilaDeArticulo[])
     } else {
       crudas = parseCsvText(await file.text()).map(r => ({
         sku:         r.sku || r.SKU || r.codigo || '',
@@ -567,7 +576,41 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
     if (!fechaMigracion) { message.error('Selecciona la fecha de migración'); return }
     setLoading(true)
     try {
-      const items: SaldoInicialInventarioItem[] = state.rows.map(r => ({
+      /**
+       * El artículo que todavía no existe se CREA, no se omite.
+       *
+       * Quien sube un archivo de inventario espera que el inventario quede
+       * cargado. Decirle «SKU no encontrado» y no hacer nada lo deja con el
+       * archivo en la mano y sin camino: tiene las cuentas y el impuesto en
+       * ese mismo archivo. Se crean primero y después se les registra el
+       * saldo, que es el orden que exige la contabilidad.
+       */
+      let filas = state.rows
+      const faltantes = filas.filter(r => !r.productId)
+      if (faltantes.length > 0) {
+        const skus = new Set(faltantes.map(r => r.sku.toUpperCase()))
+        const aCrear = filasDelArchivo.filter(f => skus.has(String(f.sku ?? '').toUpperCase()))
+        if (aCrear.length > 0) {
+          const creacion = await cargaMasivaArticulos(aCrear, { almacenId: warehouseId })
+          setArticulosCreados(creacion.creados)
+          if (creacion.errores?.length > 0) {
+            message.warning(
+              `${creacion.errores.length} artículo(s) no se pudieron crear: ` +
+              creacion.errores.slice(0, 3).map(e => `${e.sku || e.nombre}: ${e.motivo}`).join(' · '),
+              12,
+            )
+          }
+          // Releer para resolver el id de los recién creados.
+          const frescos = await getProducts({ limit: 500 }).then((r: any) => r?.data ?? r)
+          const porSku = new Map((Array.isArray(frescos) ? frescos : [])
+            .map((p: any) => [String(p.sku).toUpperCase(), p.id]))
+          filas = filas.map(r => r.productId
+            ? r
+            : { ...r, productId: porSku.get(r.sku.toUpperCase()) as string | undefined })
+        }
+      }
+
+      const items: SaldoInicialInventarioItem[] = filas.map(r => ({
         sku:         r.sku,
         productId:   r.productId,
         quantity:    r.quantity,
@@ -681,14 +724,16 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <Space>
               <Text strong>{state.rows.length} artículos</Text>
-              {notFound > 0 && <Tag color="orange">⚠ {notFound} SKU no encontrados (serán omitidos)</Tag>}
+              {notFound > 0 && <Tag color="blue">{notFound} artículo(s) nuevos — se van a crear</Tag>}
               <Tag color="blue">Valor total: Q {totalValor.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Tag>
             </Space>
             <Space>
               <Button onClick={() => setState({ step: 0, rows: [] })}>Cancelar</Button>
               <Popconfirm
                 title={`¿Cargar saldos iniciales de ${state.rows.length} artículos?`}
-                description="Se creará un ajuste tipo 'apertura' y se actualizará el stock de cada artículo."
+                description={notFound > 0
+                  ? `Se crean ${notFound} artículo(s) nuevos y se registra el saldo de los ${state.rows.length}, con su póliza de apertura.`
+                  : "Se creará un ajuste tipo 'apertura' y se actualizará el stock de cada artículo."}
                 onConfirm={handleImport}
                 okText="Importar"
                 okButtonProps={{ style: { background: '#1B3A6B' } }}
@@ -789,20 +834,16 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
             */}
           {notFound > 0 && (
             <Alert
-              type="error" showIcon style={{ marginBottom: 12 }}
-              message={`${notFound} de ${state.rows.length} artículos no existen todavía en Lucía`}
+              type="info" showIcon style={{ marginBottom: 12 }}
+              message={`${notFound} de ${state.rows.length} artículos todavía no existen y se van a crear`}
               description={
                 <div style={{ fontSize: 12 }}>
                   <div>
-                    Esta carga registra el <strong>saldo</strong> de artículos que ya están creados;
-                    no crea artículos. Los que no existen se van a omitir.
+                    Se crean con las cuentas, el impuesto y el precio que trae el archivo, y
+                    después se les registra su saldo con la póliza de apertura.
                   </div>
                   <div style={{ marginTop: 4 }}>
-                    Para crearlos y cargarles su saldo en un solo paso, usa
-                    <strong> Inventario › Cargar inventario</strong> con este mismo archivo.
-                  </div>
-                  <div style={{ marginTop: 4 }}>
-                    SKU que no existen: <Text code>{state.rows.filter(r => !r.productId)
+                    Nuevos: <Text code>{state.rows.filter(r => !r.productId)
                       .slice(0, 8).map(r => r.sku).join(', ')}</Text>
                     {notFound > 8 && <Text type="secondary"> y {notFound - 8} más</Text>}
                   </div>
