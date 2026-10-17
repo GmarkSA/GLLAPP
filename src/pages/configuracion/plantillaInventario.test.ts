@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as XLSX from 'xlsx'
-import { construirPlantillaInventario, leerArchivoDeArticulos, exportarArticulos, COLUMNAS_PLANTILLA } from './plantillaInventario'
+import { construirPlantillaInventario, leerArchivoDeArticulos, exportarArticulos, COLUMNAS_PLANTILLA, analizarArchivoDeArticulos } from './plantillaInventario'
 
 /**
  * La plantilla Excel de la carga de inventario.
@@ -535,5 +535,101 @@ describe('el archivo descargado se puede volver a subir', () => {
     expect(r.uso).toBe('both')
     expect(r.categoriaInventario).toBe('finished_good')
     expect(r.trazabilidad).toBe('lot')
+  })
+})
+
+describe('ver qué entendió Lucía del archivo', () => {
+  /**
+   * Lo que pidió el dueño: que antes de cargar se vea que las columnas se
+   * están llenando con la información del archivo —como hace Zoho al
+   * importar—, con el tipo de cada una: si es moneda, si es texto.
+   *
+   * El error que recibió decía «SKU no encontrado» y nada más: ni qué columna
+   * se leyó mal, ni qué dato no se estaba leyendo.
+   */
+  const archivo = (filas: any[]) => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas), 'Artículos')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  }
+
+  const analisis = (filas: any[]) => analizarArchivoDeArticulos(archivo(filas))
+  const columna  = (filas: any[], encabezado: string) =>
+    analisis(filas).columnas.find(c => c.encabezado === encabezado)
+
+  const FILA = {
+    nombre: 'ABACO BACO GRANDE', sku: 'ABA-GRAN', precio_venta: 23,
+    precio_compra: 17, existencia_actual: 2, lleva_stock: 'Sí',
+    uso: 'compra_venta', almacen: 'ALM',
+  }
+
+  it('dice cuántas filas trae el archivo', () => {
+    expect(analisis([FILA, { ...FILA, sku: 'OTRO' }]).filas).toBe(2)
+  })
+
+  it('reconoce la columna de la plantilla', () => {
+    expect(columna([FILA], 'precio_venta')?.reconocida).toBe(true)
+  })
+
+  it('y dice a qué campo de Lucía corresponde', () => {
+    expect(columna([FILA], 'precio_venta')?.titulo).toBe('precio_venta')
+  })
+
+  it('un precio se declara como moneda', () => {
+    expect(columna([FILA], 'precio_venta')?.tipo).toBe('moneda')
+  })
+
+  it('una cantidad como número', () => {
+    expect(columna([FILA], 'existencia_actual')?.tipo).toBe('numero')
+  })
+
+  it('un nombre como texto', () => {
+    expect(columna([FILA], 'nombre')?.tipo).toBe('texto')
+  })
+
+  it('«lleva_stock» como sí/no', () => {
+    expect(columna([FILA], 'lleva_stock')?.tipo).toBe('si_no')
+  })
+
+  it('«uso» como opción de una lista', () => {
+    expect(columna([FILA], 'uso')?.tipo).toBe('opcion')
+  })
+
+  it('muestra un ejemplo del propio archivo, para ver que se está llenando', () => {
+    expect(columna([FILA], 'nombre')?.ejemplo).toBe('ABACO BACO GRANDE')
+  })
+
+  it('una columna que no es de la plantilla se marca, no se calla', () => {
+    const c = columna([{ ...FILA, color_favorito: 'azul' }], 'color_favorito')
+    expect(c?.reconocida).toBe(false)
+  })
+
+  it('un precio que no es número se señala: ahí está el dato que no se lee', () => {
+    const c = columna([{ ...FILA, precio_venta: 'veintitrés' }], 'precio_venta')
+    expect(c?.problema).toMatch(/número|numero/i)
+  })
+
+  it('una opción que no existe también', () => {
+    const c = columna([{ ...FILA, uso: 'alquiler' }], 'uso')
+    expect(c?.problema).toMatch(/alquiler/)
+  })
+
+  it('un precio con formato de moneda —Q y comas— es válido', () => {
+    const c = columna([{ ...FILA, precio_venta: 'Q 1,234.50' }], 'precio_venta')
+    expect(c?.problema).toBeUndefined()
+  })
+
+  it('una columna vacía en todas las filas se avisa: no va a llenar nada', () => {
+    const c = columna([{ ...FILA, marca: '' }], 'marca')
+    expect(c?.vacia).toBe(true)
+  })
+
+  it('las columnas obligatorias que faltan se listan aparte', () => {
+    const r = analizarArchivoDeArticulos(archivo([{ sku: 'X', precio_venta: 1 }]))
+    expect(r.faltantes).toContain('nombre')
+  })
+
+  it('si están todas, no falta ninguna', () => {
+    expect(analizarArchivoDeArticulos(archivo([FILA])).faltantes).toHaveLength(0)
   })
 })

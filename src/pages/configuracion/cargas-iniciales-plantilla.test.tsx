@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
+import * as XLSX from 'xlsx'
 import CargasInicialesPage from './CargasInicialesPage'
 
 /**
@@ -150,5 +151,64 @@ describe('Cargas Iniciales › Inventario — el archivo manda', () => {
     await abrirInventario()
     const texto = document.body.textContent ?? ''
     expect(texto).toContain('manda sobre esta selección')
+  })
+})
+
+describe('el paso «Revisar» enseña qué se leyó del archivo', () => {
+  /**
+   * El dueño subió su archivo y la carga terminó con «Fila 1: SKU 'ABA-GRAN'
+   * no encontrado» y nada más: ni qué columna se leyó mal, ni qué dato no se
+   * estaba leyendo, ni qué hacer al respecto. Ahora el paso de revisión
+   * muestra columna por columna lo que entendió, con el tipo de dato y un
+   * ejemplo del propio archivo.
+   */
+  const archivo = (filas: any[]) => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas), 'Artículos')
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+    return new File([bytes], 'inventario.xlsx',
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  }
+
+  const FILA = {
+    nombre: 'ABACO BACO GRANDE', sku: 'ABA-GRAN',
+    precio_venta: 23, precio_compra: 17, existencia_actual: 2,
+  }
+
+  /** Sube el archivo por el mismo camino que el botón de la pantalla. */
+  const subir = async (filas: any[]) => {
+    await render()
+    await abrirInventario()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    expect(input).toBeTruthy()
+    const f = archivo(filas)
+    Object.defineProperty(input, 'files', { value: [f], configurable: true })
+    await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })) })
+    await act(async () => { await new Promise(r => setTimeout(r, 80)) })
+  }
+
+  it('llega al paso de revisión con el archivo leído', async () => {
+    await subir([FILA])
+    expect(document.body.textContent).toContain('Qué leyó Lucía de tu archivo')
+  })
+
+  it('dice cuántas columnas reconoció', async () => {
+    await subir([FILA])
+    expect(document.body.textContent).toMatch(/\d+ columnas reconocidas/)
+  })
+
+  it('avisa que el artículo no existe, en vez de fallar al final sin decir por qué', async () => {
+    await subir([FILA])
+    expect(document.body.textContent).toContain('no existen todavía en Lucía')
+  })
+
+  it('y dice dónde crearlos: esta carga solo registra el saldo', async () => {
+    await subir([FILA])
+    expect(document.body.textContent).toContain('Cargar inventario')
+  })
+
+  it('las filas sin existencia se avisan, no se descartan en silencio', async () => {
+    await subir([FILA, { ...FILA, sku: 'SIN-STOCK', existencia_actual: 0 }])
+    expect(document.body.textContent).toContain('no traen existencia')
   })
 })
