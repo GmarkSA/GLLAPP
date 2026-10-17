@@ -412,3 +412,38 @@ describe('la columna de almacén', () => {
     expect(host.textContent).toContain('N/A')
   })
 })
+
+/**
+ * Lo mismo que pasaba en el listado del POS: la columna de acciones medía 100px
+ * y lleva cuatro botones, así que el de eliminar quedaba cortado contra el
+ * borde. Y `scroll.x` era un número menor que la suma de los anchos, con lo
+ * que las columnas se salían de la pantalla en vez de desplazarse.
+ */
+describe('las columnas caben en la pantalla', () => {
+  const columnaAcciones = () =>
+    Array.from(host.querySelectorAll('thead th')).find(th => th.textContent?.includes('Acciones'))
+
+  it('«Acciones» queda fija a la derecha, para que nada la tape', async () => {
+    await render()
+    expect(columnaAcciones()?.className).toMatch(/ant-table-cell-fix-end/)
+  })
+
+  it('y las celdas de la fila también, o se despegarían del encabezado', async () => {
+    await render()
+    const celda = Array.from(host.querySelectorAll('tbody td'))
+      .find(td => td.querySelector('.anticon-eye'))
+    expect(celda?.className).toMatch(/ant-table-cell-fix-end/)
+  })
+
+  it('la columna mide lo que ocupan sus cuatro botones', async () => {
+    await render()
+    const cols = Array.from(host.querySelectorAll('colgroup col'))
+    const ancho = parseInt((cols[cols.length - 1] as HTMLElement)?.style.width || '0', 10)
+    expect(ancho).toBeGreaterThanOrEqual(140)
+  })
+
+  it('el botón de eliminar sigue ahí: es el que se cortaba', async () => {
+    await render()
+    expect(host.querySelector('tbody .anticon-delete')).toBeTruthy()
+  })
+})

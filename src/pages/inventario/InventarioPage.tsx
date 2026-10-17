@@ -526,8 +526,12 @@ export default function InventarioPage() {
       },
     },
     {
+      // Cuatro botones no caben en 100px: el de eliminar quedaba cortado contra
+      // el borde. Fija a la derecha para que no la tape el desplazamiento.
       title: 'Acciones',
-      width: 100,
+      width: 150,
+      fixed: 'right' as const,
+      align: 'center' as const,
       render: (_: any, r: Product) => (
         <Space size={4}>
           <Tooltip title="Ver detalle">
@@ -822,7 +826,7 @@ export default function InventarioPage() {
           rowKey="id"
           size="small"
           showSorterTooltip={false}
-          scroll={{ x: 900, y: 'calc(100vh - 312px)' }}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 312px)' }}
           pagination={{
             current: page,
             pageSize: limit,
