@@ -230,22 +230,27 @@ export default function InventarioPage() {
 
   const descargarArticulos = async () => {
     try {
-      const [todos, cuentas, impuestos, grupos] = await Promise.all([
+      const [todos, cuentas, impuestos, grupos, almacenes] = await Promise.all([
         getProducts({ limit: 500 }).then((r: any) => r?.data ?? r),
         cuentasCrudas.length > 0 ? Promise.resolve(cuentasCrudas) : getAccounts().catch(() => []),
         getTaxes().catch(() => []),
         getGrupos().catch(() => []),
+        getAlmacenes().catch(() => []),
       ])
+      // El `id` de cada uno es lo que permite resolver lo que el artículo
+      // guarda por id: sin él, impuesto, grupo y almacén salen vacíos.
       const datos = exportarArticulos(Array.isArray(todos) ? todos : [], {
         cuentas: (Array.isArray(cuentas) ? cuentas : [])
           .filter((c: any) => c?.code)
           .map((c: any) => ({ id: String(c.id ?? ''), code: String(c.code), name: String(c.name ?? '') })),
         impuestos: (Array.isArray(impuestos) ? impuestos : [])
-          .filter((t: any) => t?.code).map((t: any) => ({ code: String(t.code), name: String(t.name ?? ''), rate: Number(t.rate) || 0 })),
+          .filter((t: any) => t?.code)
+          .map((t: any) => ({ id: String(t.id ?? ''), code: String(t.code), name: String(t.name ?? ''), rate: Number(t.rate) || 0 })),
         grupos: (Array.isArray(grupos) ? grupos : [])
-          .map((g: any) => ({ code: String(g.code ?? ''), name: String(g.name ?? '') })),
+          .map((g: any) => ({ id: String(g.id ?? ''), code: String(g.code ?? ''), name: String(g.name ?? '') })),
         unidades:  ['UND', 'CAJA', 'BOLSA', 'PAQUETE', 'YARDA', 'RESMA', 'ROLLO', 'SET', 'KG', 'LT', 'MT'],
-        almacenes: [],
+        almacenes: (Array.isArray(almacenes) ? almacenes : [])
+          .map((a: any) => ({ id: String(a.id ?? ''), code: String(a.code ?? ''), name: String(a.name ?? '') })),
       })
       const url = URL.createObjectURL(new Blob([datos], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
