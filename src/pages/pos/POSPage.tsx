@@ -239,8 +239,8 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: () => void }
 }
 
 // ─── Cart Item Row ─────────────────────────────────────────────────────────────
-function CartRow({ item, onQty, onRemove }: {
-  item: CartItem; onQty: (d: number) => void; onRemove: () => void
+function CartRow({ item, onQty, onSetQty, onRemove }: {
+  item: CartItem; onQty: (d: number) => void; onSetQty: (q: number) => void; onRemove: () => void
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #fafbfc' }}>
@@ -255,7 +255,11 @@ function CartRow({ item, onQty, onRemove }: {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
         <Button size="small" type="text" icon={<MinusOutlined />} onClick={() => onQty(-1)} disabled={item.quantity <= 1} />
-        <span style={{ minWidth: 28, textAlign: 'center', fontWeight: 600, fontSize: 13 }}>{item.quantity}</span>
+        <InputNumber
+          size="small" min={1} value={item.quantity} controls={false}
+          onChange={v => onSetQty(Number(v) || 1)}
+          style={{ width: 44, textAlign: 'center' }}
+        />
         <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => onQty(1)} />
       </div>
       <div style={{ minWidth: 65, textAlign: 'right', fontWeight: 700, fontSize: 13, color: '#1faec2' }}>
@@ -515,6 +519,19 @@ export default function POSPage() {
     }))
   }
 
+  /**
+   * Escribir la cantidad directo, para cuando son varias unidades del mismo
+   * artículo: escanear el código una vez y teclear "10" en vez de darle a +
+   * nueve veces.
+   */
+  const setQty = (idx: number, nuevaQty: number) => {
+    setCart(prev => prev.map((c, i) => {
+      if (i !== idx) return c
+      const qty = Math.max(1, Math.floor(nuevaQty) || 1)
+      return { ...c, quantity: qty, lineTotal: qty * c.unitPrice * (1 - c.discount / 100) }
+    }))
+  }
+
   const removeFromCart = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx))
 
   // ── Totals ─────────────────────────────────────────────────────────────────
@@ -762,6 +779,7 @@ export default function POSPage() {
               cart.map((item, idx) => (
                 <CartRow key={item.product.id} item={item}
                   onQty={delta => updateQty(idx, delta)}
+                  onSetQty={qty => setQty(idx, qty)}
                   onRemove={() => removeFromCart(idx)} />
               ))
             )}
