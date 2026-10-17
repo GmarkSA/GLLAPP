@@ -111,6 +111,15 @@ export interface ResultadoCargaArticulos {
 export const cargaMasivaArticulos = (filas: any[], opciones: any = {}) =>
   api.post(`${BASE}/carga-masiva`, { filas, opciones }).then(unwrap) as Promise<ResultadoCargaArticulos>
 
+export interface ResultadoActualizacionPrecios {
+  actualizados: number
+  errores: Array<{ fila: number; sku: string; nombre: string; motivo: string }>
+}
+
+/** Actualiza SOLO el precio de venta por código (SKU) — no toca ningún otro campo. */
+export const actualizarPreciosArticulos = (filas: Array<{ sku?: string; precioVenta?: unknown }>) =>
+  api.post(`${BASE}/actualizar-precios`, { filas }).then(unwrap) as Promise<ResultadoActualizacionPrecios>
+
 export const puedeEliminarseArticulo = (id: string) =>
   api.get(`${BASE}/${id}/puede-eliminarse`).then(unwrap) as Promise<{ puede: boolean; motivo?: string; advertencia?: string }>
 
