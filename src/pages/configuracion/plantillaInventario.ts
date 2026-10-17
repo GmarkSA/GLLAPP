@@ -22,10 +22,15 @@ export interface CatalogoDeLaEmpresa {
   almacenes: Array<{ id?: string; code: string; name: string }>
 }
 
+/** Para que el usuario vea, antes de cargar, qué se espera en cada columna. */
+export type TipoDeColumna = 'texto' | 'moneda' | 'numero' | 'si_no' | 'opcion'
+
 export interface ColumnaDePlantilla {
   clave:      string
   titulo:     string
   requerida:  boolean
+  /** Qué clase de dato lleva. Por omisión, texto. */
+  tipo?:      TipoDeColumna
   pestana:    'Identificación' | 'Ventas, compra e inventario' | 'POS y otros'
   ayuda:      string
   /** Nombres que puede traer esa columna en un archivo de otro sistema. */
@@ -40,10 +45,10 @@ export const COLUMNAS_PLANTILLA: ColumnaDePlantilla[] = [
   { clave: 'sku', titulo: 'sku', requerida: false, pestana: 'Identificación',
     ayuda: 'Código del artículo. Si se deja vacío, Lucía genera uno correlativo.',
     alias: ['SKU', 'Código', 'Codigo', 'Item Code', 'SKU / Código'] },
-  { clave: 'tipo_articulo', titulo: 'tipo_articulo', requerida: false, pestana: 'Identificación',
+  { clave: 'tipo_articulo', titulo: 'tipo_articulo', requerida: false, tipo: 'opcion', pestana: 'Identificación',
     ayuda: 'bien (producto físico) o servicio. Por omisión: bien.',
     alias: ['Tipo de artículo', 'Tipo'] },
-  { clave: 'uso', titulo: 'uso', requerida: false, pestana: 'Identificación',
+  { clave: 'uso', titulo: 'uso', requerida: false, tipo: 'opcion', pestana: 'Identificación',
     ayuda: 'compra_venta, solo_venta o solo_compra. Por omisión: compra_venta.',
     alias: ['Uso'] },
   { clave: 'unidad', titulo: 'unidad', requerida: false, pestana: 'Identificación',
@@ -68,7 +73,7 @@ export const COLUMNAS_PLANTILLA: ColumnaDePlantilla[] = [
   // ── Pestaña 2 · Ventas, compra e inventario ────────────────────────────────
   { clave: 'moneda', titulo: 'moneda', requerida: false, pestana: 'Ventas, compra e inventario',
     ayuda: 'GTQ por omisión.', alias: ['Moneda', 'Currency'] },
-  { clave: 'precio_venta', titulo: 'precio_venta', requerida: true, pestana: 'Ventas, compra e inventario',
+  { clave: 'precio_venta', titulo: 'precio_venta', requerida: true, tipo: 'moneda', pestana: 'Ventas, compra e inventario',
     ayuda: 'Precio de venta SIN impuesto.',
     alias: ['Precio de venta (GTQ)', 'Precio de venta', 'Rate', 'Selling Price'] },
   { clave: 'cuenta_ingresos', titulo: 'cuenta_ingresos', requerida: false, pestana: 'Ventas, compra e inventario',
@@ -77,7 +82,7 @@ export const COLUMNAS_PLANTILLA: ColumnaDePlantilla[] = [
   { clave: 'impuesto_ventas', titulo: 'impuesto_ventas', requerida: false, pestana: 'Ventas, compra e inventario',
     ayuda: 'Código del impuesto de ventas. Vacío = el artículo no lleva impuesto.',
     alias: ['Impuesto de ventas', 'Tax'] },
-  { clave: 'precio_compra', titulo: 'precio_compra', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'precio_compra', titulo: 'precio_compra', requerida: false, tipo: 'moneda', pestana: 'Ventas, compra e inventario',
     ayuda: 'Costo de compra. Es también el costo promedio de arranque.',
     alias: ['Costo Zoho FIFO (GTQ)', 'Precio de compra', 'Costo', 'Purchase Rate', 'Cost Price'] },
   { clave: 'cuenta_costo', titulo: 'cuenta_costo', requerida: false, pestana: 'Ventas, compra e inventario',
@@ -86,12 +91,12 @@ export const COLUMNAS_PLANTILLA: ColumnaDePlantilla[] = [
   { clave: 'impuesto_compras', titulo: 'impuesto_compras', requerida: false, pestana: 'Ventas, compra e inventario',
     ayuda: 'Código del impuesto de compras.',
     alias: ['Impuesto de compras'] },
-  { clave: 'lleva_stock', titulo: 'lleva_stock', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'lleva_stock', titulo: 'lleva_stock', requerida: false, tipo: 'si_no', pestana: 'Ventas, compra e inventario',
     ayuda: 'Sí / No. Un servicio va en No y entonces no necesita cuentas de inventario ni costo.',
     alias: ['¿Lleva control de stock?', 'Lleva stock', 'Inventariable'] },
-  { clave: 'categoria_inventario', titulo: 'categoria_inventario', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'categoria_inventario', titulo: 'categoria_inventario', requerida: false, tipo: 'opcion', pestana: 'Ventas, compra e inventario',
     ayuda: 'Producto terminado, Materia prima, etc.', alias: ['Categoría de inventario'] },
-  { clave: 'trazabilidad', titulo: 'trazabilidad', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'trazabilidad', titulo: 'trazabilidad', requerida: false, tipo: 'opcion', pestana: 'Ventas, compra e inventario',
     ayuda: 'ninguno, lote o serie. Por omisión: ninguno.', alias: ['Control de trazabilidad'] },
   { clave: 'cuenta_inventario', titulo: 'cuenta_inventario', requerida: false, pestana: 'Ventas, compra e inventario',
     ayuda: 'Código de la cuenta de inventario (Activo).',
@@ -99,14 +104,14 @@ export const COLUMNAS_PLANTILLA: ColumnaDePlantilla[] = [
   { clave: 'cuenta_ajustes', titulo: 'cuenta_ajustes', requerida: false, pestana: 'Ventas, compra e inventario',
     ayuda: 'Código de la cuenta de ajustes de inventario.',
     alias: ['Cuenta de ajustes de inventario', 'Cuenta de ajustes'] },
-  { clave: 'costo_promedio', titulo: 'costo_promedio', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'costo_promedio', titulo: 'costo_promedio', requerida: false, tipo: 'moneda', pestana: 'Ventas, compra e inventario',
     ayuda: 'Si se deja vacío se usa el precio de compra.', alias: ['Costo promedio', 'Costo promedio (Q)'] },
-  { clave: 'existencia_actual', titulo: 'existencia_actual', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'existencia_actual', titulo: 'existencia_actual', requerida: false, tipo: 'numero', pestana: 'Ventas, compra e inventario',
     ayuda: 'Cantidad en existencia. NO entra con los artículos: entra por la carga de saldos iniciales, que genera su póliza.',
     alias: ['Cantidad', 'Existencia actual', 'Stock on Hand', 'Quantity'] },
-  { clave: 'punto_reorden', titulo: 'punto_reorden', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'punto_reorden', titulo: 'punto_reorden', requerida: false, tipo: 'numero', pestana: 'Ventas, compra e inventario',
     ayuda: 'Nivel de alerta de bajo stock.', alias: ['Punto de reorden', 'Reorder Point'] },
-  { clave: 'peso', titulo: 'peso', requerida: false, pestana: 'Ventas, compra e inventario',
+  { clave: 'peso', titulo: 'peso', requerida: false, tipo: 'numero', pestana: 'Ventas, compra e inventario',
     ayuda: 'Peso por unidad, en libras.', alias: ['Peso', 'Peso (lb)', 'Weight'] },
 
   // ── Pestaña 3 · POS y otros ────────────────────────────────────────────────
@@ -307,6 +312,92 @@ export function leerArchivoDeArticulos(datos: ArrayBuffer | Uint8Array): FilaDeA
     })
   }
   return filas
+}
+
+/** Lo que Lucía entendió de UNA columna del archivo que subió el usuario. */
+export interface AnalisisDeColumna {
+  /** El encabezado tal como viene escrito en el archivo. */
+  encabezado:  string
+  /** La columna de la plantilla a la que corresponde, si se reconoció. */
+  titulo?:     string
+  reconocida:  boolean
+  tipo:        TipoDeColumna
+  /** El primer valor con contenido, para ver que la columna se está llenando. */
+  ejemplo:     string
+  /** Sin un solo valor en todo el archivo: no va a llenar nada. */
+  vacia:       boolean
+  /** Qué tiene de malo el dato, cuando no corresponde con el tipo. */
+  problema?:   string
+}
+
+export interface AnalisisDelArchivo {
+  filas:     number
+  columnas:  AnalisisDeColumna[]
+  /** Columnas obligatorias de la plantilla que el archivo no trae. */
+  faltantes: string[]
+}
+
+/**
+ * Qué entendió Lucía del archivo, ANTES de cargarlo.
+ *
+ * Sin esto el usuario sube el archivo a ciegas y solo se entera de lo que
+ * falló cuando la carga termina —con un «SKU no encontrado» que no dice qué
+ * columna se leyó mal ni qué dato no se estaba leyendo—. Aquí se ve columna
+ * por columna: cuál reconoció, de qué tipo la espera, con qué valor del
+ * propio archivo, y qué no cuadra.
+ */
+export function analizarArchivoDeArticulos(datos: ArrayBuffer | Uint8Array): AnalisisDelArchivo {
+  const wb   = XLSX.read(datos, { type: 'array' })
+  const hoja = wb.Sheets[wb.SheetNames.find(n => /art[ií]culo/i.test(n)) ?? wb.SheetNames[0]]
+  if (!hoja) throw new Error('El archivo no tiene ninguna hoja con datos.')
+
+  const crudas = XLSX.utils.sheet_to_json<Record<string, unknown>>(hoja, { defval: '' })
+  const indice = indiceDeEncabezados()
+  const porClave = new Map(COLUMNAS_PLANTILLA.map(c => [c.clave, c]))
+
+  const vocabularioDe: Record<string, Vocabulario> = {
+    tipo_articulo: TIPO_ARTICULO, uso: USO,
+    categoria_inventario: CATEGORIA_INVENTARIO, trazabilidad: TRAZABILIDAD,
+  }
+
+  const encabezados = Object.keys(crudas[0] ?? {})
+  const columnas: AnalisisDeColumna[] = encabezados.map(encabezado => {
+    const clave  = indice.get(encabezado.trim().toLowerCase())
+    const def    = clave ? porClave.get(clave) : undefined
+    const tipo   = def?.tipo ?? 'texto'
+    const todos  = crudas.map(f => texto(f[encabezado]))
+    const ejemplo = todos.find(v => v !== '') ?? ''
+
+    let problema: string | undefined
+    if (ejemplo) {
+      if ((tipo === 'moneda' || tipo === 'numero') && numero(ejemplo) === undefined) {
+        problema = `«${ejemplo}» no es un número.`
+      } else if (tipo === 'si_no' && interruptor(ejemplo) === undefined) {
+        problema = `«${ejemplo}» no se entiende como Sí o No.`
+      } else if (tipo === 'opcion' && clave && vocabularioDe[clave]
+                 && interno(vocabularioDe[clave], ejemplo) === undefined) {
+        problema = `«${ejemplo}» no es un valor admitido. Se admite: `
+          + Object.values(vocabularioDe[clave]).map(v => v[0]).join(', ') + '.'
+      }
+    }
+
+    return {
+      encabezado,
+      titulo: def?.titulo,
+      reconocida: Boolean(clave),
+      tipo,
+      ejemplo,
+      vacia: ejemplo === '',
+      problema,
+    }
+  })
+
+  const reconocidas = new Set(columnas.filter(c => c.reconocida).map(c => c.titulo))
+  const faltantes = COLUMNAS_PLANTILLA
+    .filter(c => c.requerida && !reconocidas.has(c.titulo))
+    .map(c => c.titulo)
+
+  return { filas: crudas.length, columnas, faltantes }
 }
 
 /** Un artículo ya creado, tal como lo devuelve el listado de inventario. */

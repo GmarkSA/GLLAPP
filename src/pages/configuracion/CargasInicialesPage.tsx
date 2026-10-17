@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import {
   Typography, Button, Upload, Table, message, DatePicker, InputNumber,
-  Alert, Collapse, Tag, Space, Spin, Popconfirm, Steps, Empty, Select,
+  Alert, Collapse, Tag, Space, Spin, Popconfirm, Steps, Empty, Select, Tooltip,
 } from 'antd'
 import {
   DownloadOutlined, UploadOutlined, CheckCircleOutlined,
@@ -15,7 +15,10 @@ import { getAccounts, setSaldosApertura, type Account, type SaldoAperturaLinea }
 import { getProducts, importSaldosInicialesInventario, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
 import { getTaxes } from '../../api/impuestos'
-import { construirPlantillaInventario, leerArchivoDeArticulos } from './plantillaInventario'
+import {
+  construirPlantillaInventario, leerArchivoDeArticulos, analizarArchivoDeArticulos,
+  type AnalisisDelArchivo,
+} from './plantillaInventario'
 
 const { Title, Text } = Typography
 const { Panel } = Collapse
@@ -408,6 +411,10 @@ interface InvStep { step: number; rows: InvRow[]; result?: SaldoInicialInventari
 function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null }) {
   const [almacenes,      setAlmacenes]      = useState<Almacen[]>([])
   const [warehouseId,    setWarehouseId]    = useState<string | undefined>()
+  /** Lo que Lucía entendió del archivo, para enseñarlo antes de cargar. */
+  const [analisis,       setAnalisis]       = useState<AnalisisDelArchivo | null>(null)
+  /** Filas que el archivo trae sin existencia: esta carga no tiene qué hacer con ellas. */
+  const [sinExistencia,  setSinExistencia]  = useState(0)
   const [products,       setProducts]       = useState<Product[]>([])
   const [catalogo,       setCatalogo]       = useState<{
     cuentas: Array<{ code: string; name: string }>
@@ -476,16 +483,21 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
 
   const handleFile = async (file: File) => {
     await loadData()
+    setAnalisis(null)
+    setSinExistencia(0)
 
     // Excel o CSV: el lector reconoce los encabezados de la plantilla y también
     // los que exporta Zoho, así el archivo se sube tal como sale del otro sistema.
     let crudas: Array<Record<string, any>>
     if (/\.xlsx?$/i.test(file.name)) {
+      const bytes = await file.arrayBuffer()
       try {
-        crudas = leerArchivoDeArticulos(await file.arrayBuffer()) as any[]
+        crudas = leerArchivoDeArticulos(bytes) as any[]
       } catch (e: any) {
         message.error(e?.message ?? 'No se pudo leer el archivo'); return false
       }
+      // Qué entendió de cada columna, para enseñárselo antes de cargar.
+      try { setAnalisis(analizarArchivoDeArticulos(bytes)) } catch { setAnalisis(null) }
     } else {
       crudas = parseCsvText(await file.text()).map(r => ({
         sku:         r.sku || r.SKU || r.codigo || '',
@@ -515,9 +527,14 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
         almacenCodigo: codigo || undefined,
         warehouseId:   codigo ? porCodigo.get(codigo.toUpperCase()) : undefined,
       }
-    }).filter(r => r.sku && r.quantity > 0)
+    })
+    // Esta carga registra el SALDO: una fila sin existencia no tiene nada que
+    // registrar. Antes se descartaba en silencio y el usuario no sabía por qué
+    // el total no cuadraba con su archivo.
+    const conSaldo = rows.filter(r => r.sku && r.quantity > 0)
+    setSinExistencia(rows.length - conSaldo.length)
 
-    const almacenDesconocido = rows.filter(r => r.almacenCodigo && !r.warehouseId)
+    const almacenDesconocido = conSaldo.filter(r => r.almacenCodigo && !r.warehouseId)
     if (almacenDesconocido.length > 0) {
       message.warning(
         `${almacenDesconocido.length} fila(s) traen un almacén que no existe ` +
@@ -527,14 +544,14 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
       )
     }
 
-    if (!rows.length) {
+    if (!conSaldo.length) {
       message.warning(
         'El archivo se leyó, pero ninguna fila trae existencia mayor que cero. ' +
         'Esta carga registra el SALDO: los artículos se crean en Inventario › Artículos.',
       )
       return false
     }
-    setState({ step: 1, rows })
+    setState({ step: 1, rows: conSaldo })
     return false
   }
 
@@ -561,6 +578,15 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
     } finally {
       setLoading(false)
     }
+  }
+
+  /** Cómo se le enseña cada tipo de dato al usuario. */
+  const ETIQUETA_TIPO: Record<string, { label: string; color: string }> = {
+    texto:  { label: 'Texto',     color: 'default' },
+    moneda: { label: 'Moneda Q',  color: 'green'   },
+    numero: { label: 'Número',    color: 'blue'    },
+    si_no:  { label: 'Sí / No',   color: 'purple'  },
+    opcion: { label: 'Lista fija', color: 'orange' },
   }
 
   const previewCols: ColumnType<InvRow>[] = [
@@ -666,6 +692,114 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
               </Popconfirm>
             </Space>
           </div>
+          {/*
+            * Qué leyó del archivo. Sin esto el usuario sube a ciegas y solo se
+            * entera al final, con un «SKU no encontrado» que no dice qué
+            * columna se leyó mal ni qué dato no se estaba leyendo.
+            */}
+          {analisis && (
+            <Collapse
+              size="small"
+              style={{ marginBottom: 12 }}
+              items={[{
+                key: 'cols',
+                label: (
+                  <Space size={6}>
+                    <Text strong style={{ fontSize: 13 }}>Qué leyó Lucía de tu archivo</Text>
+                    <Tag color="blue">{analisis.filas} filas</Tag>
+                    <Tag color="success">{analisis.columnas.filter(c => c.reconocida).length} columnas reconocidas</Tag>
+                    {analisis.columnas.some(c => c.problema) && (
+                      <Tag color="error">
+                        {analisis.columnas.filter(c => c.problema).length} con datos que no cuadran
+                      </Tag>
+                    )}
+                  </Space>
+                ),
+                children: (
+                  <Table
+                    dataSource={analisis.columnas}
+                    rowKey="encabezado"
+                    size="small"
+                    pagination={false}
+                    scroll={{ x: 'max-content', y: 320 }}
+                    columns={[
+                      { title: 'Columna del archivo', dataIndex: 'encabezado', width: 190, ellipsis: true },
+                      { title: 'Campo en Lucía', dataIndex: 'titulo', width: 170,
+                        render: (v?: string, r?: any) => v
+                          ? <Text style={{ fontSize: 12 }}>{v}</Text>
+                          : <Tooltip title={`Lucía no conoce la columna «${r.encabezado}»: se va a ignorar. No es un error si no hace falta.`}>
+                              <Tag color="default" style={{ fontSize: 11 }}>No se usa</Tag>
+                            </Tooltip> },
+                      { title: 'Tipo', dataIndex: 'tipo', width: 110,
+                        render: (v: string) => <Tag style={{ fontSize: 11 }} color={ETIQUETA_TIPO[v]?.color}>
+                          {ETIQUETA_TIPO[v]?.label ?? v}</Tag> },
+                      { title: 'Ejemplo del archivo', dataIndex: 'ejemplo', width: 200, ellipsis: true,
+                        render: (v: string, r: any) => v
+                          ? <Text style={{ fontSize: 12 }} code>{v}</Text>
+                          : r.reconocida
+                            ? <Text type="secondary" style={{ fontSize: 11 }}>— vacía en todas las filas —</Text>
+                            : <Text type="secondary" style={{ fontSize: 11 }}>—</Text> },
+                      { title: 'Estado', width: 300,
+                        render: (_: any, r: any) => r.problema
+                          ? <Text type="danger" style={{ fontSize: 12 }}>⚠ {r.problema}</Text>
+                          : !r.reconocida
+                            ? <Text type="secondary" style={{ fontSize: 12 }}>Se ignora</Text>
+                            : r.vacia
+                              ? <Text type="warning" style={{ fontSize: 12 }}>No va a llenar nada</Text>
+                              : <Text type="success" style={{ fontSize: 12 }}>✓ Se está llenando</Text> },
+                    ]}
+                  />
+                ),
+              }]}
+            />
+          )}
+
+          {analisis && analisis.faltantes.length > 0 && (
+            <Alert
+              type="warning" showIcon style={{ marginBottom: 12 }}
+              message={`Tu archivo no trae: ${analisis.faltantes.join(', ')}`}
+              description="Son columnas obligatorias de la plantilla. Descárgala arriba y usa sus encabezados."
+            />
+          )}
+
+          {sinExistencia > 0 && (
+            <Alert
+              type="info" showIcon style={{ marginBottom: 12 }}
+              message={`${sinExistencia} fila(s) del archivo no traen existencia y no se van a cargar`}
+              description="Esta carga registra el SALDO del inventario: una fila sin cantidad no tiene saldo que registrar."
+            />
+          )}
+
+          {/*
+            * El error que veía el dueño era «SKU no encontrado» al final de la
+            * carga, sin decir qué hacer. Esta carga NO crea artículos: los
+            * actualiza. Si el artículo no existe todavía, el camino es la carga
+            * de inventario, que crea el artículo y su saldo en un solo paso.
+            */}
+          {notFound > 0 && (
+            <Alert
+              type="error" showIcon style={{ marginBottom: 12 }}
+              message={`${notFound} de ${state.rows.length} artículos no existen todavía en Lucía`}
+              description={
+                <div style={{ fontSize: 12 }}>
+                  <div>
+                    Esta carga registra el <strong>saldo</strong> de artículos que ya están creados;
+                    no crea artículos. Los que no existen se van a omitir.
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    Para crearlos y cargarles su saldo en un solo paso, usa
+                    <strong> Inventario › Cargar inventario</strong> con este mismo archivo.
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    SKU que no existen: <Text code>{state.rows.filter(r => !r.productId)
+                      .slice(0, 8).map(r => r.sku).join(', ')}</Text>
+                    {notFound > 8 && <Text type="secondary"> y {notFound - 8} más</Text>}
+                  </div>
+                </div>
+              }
+            />
+          )}
+
           <Table
             dataSource={state.rows}
             columns={previewCols}
