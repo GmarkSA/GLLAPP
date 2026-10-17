@@ -214,3 +214,41 @@ describe('las columnas salen de los campos reales del artículo', () => {
     }
   })
 })
+
+describe('reordenar las columnas', () => {
+  /**
+   * Las columnas se mostraban siempre en el orden del código. El usuario tiene
+   * que poder ponerlas como las lee: si trabaja con cuentas, que vayan antes
+   * que el stock.
+   */
+  it('respeta el orden guardado, no el del código', async () => {
+    localStorage.setItem('inventario.columnas',
+      JSON.stringify(['Precio venta', 'Nombre', 'SKU']))
+
+    await render()
+
+    const cols = encabezados().filter(c => c !== 'Acciones' && c !== '')
+    expect(cols).toEqual(['Precio venta', 'Nombre', 'SKU'])
+  })
+
+  it('al activar una columna, se agrega al final del orden', async () => {
+    localStorage.setItem('inventario.columnas', JSON.stringify(['SKU', 'Nombre']))
+    await render()
+
+    await click(boton('Columnas')!)
+    const casilla = Array.from(document.querySelectorAll('.ant-dropdown input[type="checkbox"]'))
+      .find(c => c.closest('label')?.textContent?.includes('Precio compra'))
+    await click(casilla!)
+
+    const cols = encabezados().filter(c => c !== 'Acciones' && c !== '')
+    expect(cols[cols.length - 1]).toBe('Precio compra')
+  })
+
+  it('las opciones del selector se pueden arrastrar', async () => {
+    await render()
+    await click(boton('Columnas')!)
+
+    const arrastrables = document.querySelectorAll('.ant-dropdown [draggable="true"]')
+    expect(arrastrables.length).toBeGreaterThan(0)
+  })
+})

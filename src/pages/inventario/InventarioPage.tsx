@@ -8,7 +8,7 @@ import {
 import {
   PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined,
   InboxOutlined, WarningOutlined, FilterOutlined, PrinterOutlined,
-  DownloadOutlined, SettingOutlined,
+  DownloadOutlined, SettingOutlined, HolderOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import EtiquetasModal from './EtiquetasModal'
@@ -449,10 +449,31 @@ export default function InventarioPage() {
     .map(c => String((c as any).title ?? ''))
     .filter(t => t && t !== 'Acciones')
 
-  const columnasMostradas = columns.filter(c => {
-    const t = String((c as any).title ?? '')
-    return t === 'Acciones' || columnasVisibles.includes(t)
-  })
+  // En el selector van primero las activas, en su orden: así se arrastran para
+  // reordenarlas y debajo quedan las que aún no se muestran.
+  const ordenDelSelector = [
+    ...columnasVisibles.filter(t => columnasOpcionales.includes(t)),
+    ...columnasOpcionales.filter(t => !columnasVisibles.includes(t)),
+  ]
+
+  // El orden sale de la elección del usuario, no del orden del código: por eso
+  // se recorre `columnasVisibles` y no `columns`. «Acciones» va siempre al final.
+  const porTitulo = new Map(columns.map(c => [String((c as any).title ?? ''), c]))
+  const columnasMostradas = [
+    ...columnasVisibles.map(t => porTitulo.get(t)).filter(Boolean) as ColumnsType<Product>,
+    ...columns.filter(c => String((c as any).title ?? '') === 'Acciones'),
+  ]
+
+  /** Mueve una columna al lugar de otra, al soltarla encima. */
+  const moverColumna = (desde: string, hasta: string) => {
+    if (desde === hasta) return
+    setColumnasVisibles(v => {
+      const orden = v.filter(t => t !== desde)
+      const destino = orden.indexOf(hasta)
+      orden.splice(destino < 0 ? orden.length : destino, 0, desde)
+      return orden
+    })
+  }
 
   return (
     <div>
@@ -469,16 +490,39 @@ export default function InventarioPage() {
           <Dropdown
             trigger={['click']}
             menu={{
-              items: columnasOpcionales.map(t => ({
-                key: t,
-                label: (
-                  <Checkbox
-                    checked={columnasVisibles.includes(t)}
-                    onChange={e => setColumnasVisibles(v =>
-                      e.target.checked ? [...v, t] : v.filter(x => x !== t))}
-                  >{t}</Checkbox>
-                ),
-              })),
+              items: [
+                {
+                  key: '__ayuda',
+                  disabled: true,
+                  label: (
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      Arrastra para cambiarlas de lugar
+                    </Text>
+                  ),
+                },
+                ...ordenDelSelector.map(t => ({
+                  key: t,
+                  label: (
+                    <div
+                      draggable
+                      onDragStart={e => { e.dataTransfer.setData('text/plain', t) }}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => {
+                        e.preventDefault()
+                        moverColumna(e.dataTransfer.getData('text/plain'), t)
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab' }}
+                    >
+                      <HolderOutlined style={{ color: '#bbb', fontSize: 11 }} />
+                      <Checkbox
+                        checked={columnasVisibles.includes(t)}
+                        onChange={e => setColumnasVisibles(v =>
+                          e.target.checked ? [...v, t] : v.filter(x => x !== t))}
+                      >{t}</Checkbox>
+                    </div>
+                  ),
+                })),
+              ],
             }}
           >
             <Button icon={<SettingOutlined />}>Columnas</Button>

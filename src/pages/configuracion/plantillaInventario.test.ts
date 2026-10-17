@@ -291,3 +291,61 @@ describe('las cuentas del artículo en la exportación', () => {
     expect(fila.cuenta_ingresos).toBe('')
   })
 })
+
+describe('qué pasa si el usuario borra columnas de la plantilla', () => {
+  /**
+   * Pregunta del dueño: las columnas que no llevan valor, ¿las puede borrar sin
+   * romper el archivo? El lector mapea por NOMBRE de encabezado, no por
+   * posición, así que borrar una columna es lo mismo que dejarla vacía. Esto lo
+   * deja fijado.
+   */
+  const archivoCon = (filas: any[]) => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas), 'Artículos')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  it('con solo nombre y precio, se lee', () => {
+    const filas = leerArchivoDeArticulos(archivoCon([
+      { nombre: 'ABACO BACO GRANDE', precio_venta: 23 },
+    ]))
+    expect(filas).toHaveLength(1)
+    expect(filas[0].nombre).toBe('ABACO BACO GRANDE')
+  })
+
+  it('borrar las columnas de cuentas no rompe nada: las pone el grupo', () => {
+    const filas = leerArchivoDeArticulos(archivoCon([
+      { sku: 'ABA-GRAN', nombre: 'ABACO', precio_venta: 23, precio_compra: 17 },
+    ]))
+    expect(filas[0].cuentaIngresosCodigo).toBeUndefined()
+    expect(filas[0].precioVenta).toBe(23)
+  })
+
+  it('el orden de las columnas no importa: se mapea por nombre', () => {
+    const filas = leerArchivoDeArticulos(archivoCon([
+      { codigo_barras: '750', precio_venta: 23, nombre: 'ABACO', sku: 'ABA-GRAN' },
+    ]))
+    expect(filas[0].sku).toBe('ABA-GRAN')
+    expect(filas[0].codigoBarras).toBe('750')
+  })
+
+  it('una columna de más, que Lucía no conoce, se ignora sin quejarse', () => {
+    const filas = leerArchivoDeArticulos(archivoCon([
+      { nombre: 'ABACO', precio_venta: 23, mi_columna_propia: 'lo que sea' },
+    ]))
+    expect(filas).toHaveLength(1)
+  })
+
+  it('borrarlas TODAS sí avisa, en vez de devolver filas vacías', () => {
+    expect(() => leerArchivoDeArticulos(archivoCon([{ cosa: 1 }])))
+      .toThrow(/columna/i)
+  })
+
+  it('toda columna de la plantilla la entiende el lector: están homologadas', () => {
+    const fila: Record<string, unknown> = {}
+    for (const c of COLUMNAS_PLANTILLA) fila[c.titulo] = c.clave === 'nombre' ? 'PRUEBA' : '1'
+    const filas = leerArchivoDeArticulos(archivoCon([fila]))
+    expect(filas).toHaveLength(1)
+    expect(filas[0].nombre).toBe('PRUEBA')
+  })
+})
