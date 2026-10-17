@@ -48,7 +48,7 @@ function ValorizacionTab() {
   const [loading,  setLoading]  = useState(true)
 
   useEffect(() => {
-    getProducts({ limit: 999 })
+    getProducts({ limit: 5000 })
       .then((r: any) => setAll((r.data ?? r) as Product[]))
       .catch(() => message.error('Error cargando artículos'))
       .finally(() => setLoading(false))
@@ -199,7 +199,7 @@ function KardexTab() {
     if (products.length) return
     setProdLoading(true)
     try {
-      const r: any = await getProducts({ limit: 999 })
+      const r: any = await getProducts({ limit: 5000 })
       setProducts(((r.data ?? r) as Product[]).filter(p => p.isInventoriable))
     } finally { setProdLoading(false) }
   }, [products.length])
