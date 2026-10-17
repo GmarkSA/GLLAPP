@@ -316,7 +316,7 @@ export default function FacturaImprimirPage() {
               <span style={{ color: '#666' }}>Subtotal {invoice.facturaExenta ? '(exento)' : '(base sin IVA)'}</span>
               <span>{fmtQ(subtotal)}</span>
             </div>
-            {!invoice.facturaExenta && tax > 0 && (
+            {!invoice.facturaExenta && tax >= 0.01 && (
               <div className="tot-row iva">
                 <span>IVA (12%)</span>
                 <span>{fmtQ(tax)}</span>
