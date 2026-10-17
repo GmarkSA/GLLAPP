@@ -239,7 +239,7 @@ export default function App() {
         <Route path="/planillas/mensual/:anio/:mes/imprimir-boletas" element={<PrivateRoute><BoletasPagoImprimirPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/cheque"         element={<PrivateRoute><ChequePrintPage /></PrivateRoute>} />
         <Route path="/bancos/pagos-realizados/:id/comprobante"  element={<PrivateRoute><TransferenciaPrintPage /></PrivateRoute>} />
-        <Route path="/inventario/etiquetas"                     element={<PrivateRoute><EtiquetasPrintPage /></PrivateRoute>} />
+        <Route path="/inventario/etiquetas/imprimir"            element={<PrivateRoute><EtiquetasPrintPage /></PrivateRoute>} />
         <Route path="/bancos/cheques/imprimir-lote"             element={<PrivateRoute><ChequeLotePrintPage /></PrivateRoute>} />
         <Route path="/bancos/:id/conciliacion/imprimir"         element={<PrivateRoute><ConciliacionImprimirPage /></PrivateRoute>} />
         <Route path="/reportes/integraciones/:anio/:mes/imprimir" element={<PrivateRoute><IntegracionesImprimirPage /></PrivateRoute>} />
@@ -339,6 +339,9 @@ export default function App() {
           <Route path="inventario"                       element={<InventarioPage />} />
           <Route path="inventario/nuevo"                 element={<ArticuloFormPage />} />
           <Route path="inventario/:id/editar"            element={<ArticuloFormPage />} />
+          {/* El ojo del listado abre el artículo por aquí; sin esta ruta el botón
+              navegaba a una dirección que no existía y no pasaba nada. */}
+          <Route path="inventario/:id"                   element={<ArticuloFormPage />} />
           <Route path="inventario/importaciones"         element={<ImportacionesPage />} />
           <Route path="inventario/importaciones/nueva"   element={<ImportacionFormPage />} />
           <Route path="inventario/importaciones/:id"     element={<ImportacionFormPage />} />
