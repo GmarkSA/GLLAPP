@@ -988,6 +988,13 @@ interface AccountDefaults {
   employeeAdvanceAccountCode?: string
   fxGainAccountCode?: string
   fxLossAccountCode?: string
+  /**
+   * La transitoria contra la que cuadran TODOS los saldos iniciales de la
+   * migración: activos fijos, cuentas de mayor, bancos, inventario, cuentas por
+   * cobrar y por pagar. Al terminar de migrar, su saldo debe quedar en cero —
+   * si no, falta cargar algo o algo se cargó dos veces.
+   */
+  openingBalanceAccountCode?: string
 }
 
 function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef?: React.MutableRefObject<null | (() => Promise<boolean>)> } = {}) {
@@ -1053,6 +1060,7 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
       employeeAdvanceAccountCode:  '122001',
       fxGainAccountCode:           '700002',
       fxLossAccountCode:           '710003',
+      openingBalanceAccountCode:   '310001',
     }
     const byCode = (code: string) => accounts.find(a => a.code === code)?.code
     setDefaults(prev => ({
@@ -1211,6 +1219,33 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
                 Valor actual: <Text code>{defaults.fxLossAccountCode || 'No configurado'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24}>
+              <div style={{ marginBottom: 8, marginTop: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Contrapartida de saldos iniciales</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  La cuenta transitoria contra la que cuadran todos los saldos de la migración:
+                  activos fijos, cuentas de mayor, bancos, inventario, cuentas por cobrar y por pagar.
+                  Al terminar de migrar su saldo debe quedar en cero; si no, falta cargar algo
+                  o algo se cargó dos veces.
+                </Text>
+              </div>
+              <Select
+                showSearch
+                style={{ width: '100%', maxWidth: 520 }}
+                value={defaults.openingBalanceAccountCode}
+                placeholder="Ej: 310001 — Saldos de apertura"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, openingBalanceAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.openingBalanceAccountCode || 'No configurado'}</Text>
               </Text>
             </Col>
           </Row>
