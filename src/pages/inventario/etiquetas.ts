@@ -97,6 +97,18 @@ export interface OpcionesDeEtiquetas {
   copias?: number
   /** Una etiqueta por unidad en existencia, en vez de un número fijo. */
   porExistencia?: boolean
+  /**
+   * Solo los que necesitan etiqueta de Lucía. El artículo que trae el EAN-13
+   * del fabricante ya viene etiquetado de fábrica: pegarle otra le deja DOS
+   * códigos y la cajera escanea el que esté más a mano.
+   */
+  soloSinCodigoPropio?: boolean
+}
+
+/** ¿El código es el interno de Lucía (el SKU) o uno propio del fabricante? */
+const esCodigoInterno = (a: ArticuloParaEtiqueta): boolean => {
+  const codigo = codigoDelArticulo(a)
+  return !codigo || codigo.toUpperCase() === String(a.sku ?? '').trim().toUpperCase()
 }
 
 /** Arma la lista de etiquetas a imprimir a partir de los artículos. */
@@ -109,6 +121,7 @@ export function etiquetasDeArticulos(
   for (const a of articulos) {
     const codigo = codigoDelArticulo(a)
     if (!codigo) continue
+    if (opciones.soloSinCodigoPropio && !esCodigoInterno(a)) continue
 
     const cuantas = opciones.porExistencia
       ? Math.max(0, Math.floor(Number(a.stockOnHand) || 0))

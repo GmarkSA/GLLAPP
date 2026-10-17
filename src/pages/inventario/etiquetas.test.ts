@@ -102,6 +102,35 @@ describe('armar la hoja de etiquetas', () => {
   })
 })
 
+describe('imprimir solo las que hacen falta', () => {
+  /**
+   * El artículo que trae el EAN-13 del fabricante ya viene etiquetado de
+   * fábrica: imprimirle una etiqueta de Lucía le deja DOS códigos pegados, y la
+   * cajera escanea el que esté más a mano. Solo necesitan etiqueta los que
+   * llevan código interno —el que Lucía generó del SKU— o ninguno.
+   */
+  const surtido: ArticuloParaEtiqueta[] = [
+    { id: '1', sku: 'ABA-GRAN', name: 'ABACO', salesPrice: 23, barCodes: ['ABA-GRAN'] },
+    { id: '2', sku: 'LAP-FABER', name: 'LAPIZ', salesPrice: 5, barCodes: ['7501234567890'] },
+    { id: '3', sku: 'SIN-COD', name: 'SIN CODIGO', salesPrice: 9, barCodes: [] },
+  ]
+
+  it('deja fuera el que trae código del fabricante', () => {
+    const etiquetas = etiquetasDeArticulos(surtido, { copias: 1, soloSinCodigoPropio: true })
+    expect(etiquetas.map(e => e.nombre)).not.toContain('LAPIZ')
+  })
+
+  it('incluye el que lleva el código interno de Lucía', () => {
+    const etiquetas = etiquetasDeArticulos(surtido, { copias: 1, soloSinCodigoPropio: true })
+    expect(etiquetas.map(e => e.nombre)).toContain('ABACO')
+  })
+
+  it('sin el filtro, se imprimen todos: el de SKU propio también lleva código', () => {
+    const etiquetas = etiquetasDeArticulos(surtido, { copias: 1 })
+    expect(etiquetas).toHaveLength(3)
+  })
+})
+
 describe('los formatos de etiqueta', () => {
   it('hay uno para hoja adhesiva y uno para impresora térmica', () => {
     const ids = FORMATOS_ETIQUETA.map(f => f.id)
