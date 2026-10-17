@@ -412,11 +412,28 @@ export default function InventarioPage() {
         {v == null ? '—' : Number(v).toLocaleString('es-GT')}</Text>,
     },
     {
-      title: 'Valor en existencia', width: 140, align: 'right',
+      // Cantidad × COSTO PROMEDIO, que es el método de valoración configurado y
+      // lo que respalda el saldo de la cuenta de inventario. Con el precio de
+      // compra —un dato maestro, no el costo de lo que hay en bodega— esta
+      // columna diría una cosa y el balance otra.
+      title: 'Valor en existencia', width: 150, align: 'right',
       sorter: (a, b) => (Number(a.stockOnHand ?? 0) * Number(a.averageCost ?? 0))
                       - (Number(b.stockOnHand ?? 0) * Number(b.averageCost ?? 0)),
-      render: (_: any, r: Product) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-        {fmtQ(Number(r.stockOnHand ?? 0) * Number(r.averageCost ?? 0))}</Text>,
+      render: (_: any, r: Product) => {
+        const stock = Number(r.stockOnHand ?? 0)
+        const costo = Number(r.averageCost ?? 0)
+        // Existencia con costo en cero no es un cero legítimo: es inventario sin
+        // costo, y así entra al balance valuado en nada.
+        if (stock > 0 && costo <= 0) {
+          return (
+            <Tooltip title="Hay existencia pero sin costo promedio: el inventario entraría al balance valuado en cero. Cárgale el saldo inicial desde Configuración › Cargas Iniciales.">
+              <Tag color="warning" style={{ fontSize: 11 }}>Sin costo</Tag>
+            </Tooltip>
+          )
+        }
+        return <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+          {fmtQ(stock * costo)}</Text>
+      },
     },
     {
       title: 'Acciones',
