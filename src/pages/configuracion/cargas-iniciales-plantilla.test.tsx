@@ -212,3 +212,45 @@ describe('el paso «Revisar» enseña qué se leyó del archivo', () => {
     expect(document.body.textContent).toContain('no traen existencia')
   })
 })
+
+describe('el panel de columnas se ve sin tener que abrirlo', () => {
+  /**
+   * El panel existía pero venía plegado, así que el usuario seguía sin saber
+   * qué estaba leyendo del archivo. Tiene que verse de entrada.
+   */
+  const subirUno = async () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { nombre: 'ABACO BACO GRANDE', sku: 'ABA-GRAN', precio_venta: 23, existencia_actual: 2 },
+    ]), 'Artículos')
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+    await render()
+    await abrirInventario()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    Object.defineProperty(input, 'files', {
+      value: [new File([bytes], 'inv.xlsx')], configurable: true,
+    })
+    await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })) })
+    await act(async () => { await new Promise(r => setTimeout(r, 80)) })
+  }
+
+  it('la tabla de columnas ya está desplegada', async () => {
+    await subirUno()
+    expect(document.body.textContent).toContain('Columna del archivo')
+  })
+
+  it('y muestra el campo de Lucía al que corresponde cada una', async () => {
+    await subirUno()
+    expect(document.body.textContent).toContain('Campo en Lucía')
+  })
+
+  it('con el tipo de dato que espera', async () => {
+    await subirUno()
+    expect(document.body.textContent).toContain('Moneda Q')
+  })
+
+  it('y el valor que trae el archivo, para ver que se está llenando', async () => {
+    await subirUno()
+    expect(document.body.textContent).toContain('Se está llenando')
+  })
+})
