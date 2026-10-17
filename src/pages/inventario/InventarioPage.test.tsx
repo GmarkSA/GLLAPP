@@ -158,3 +158,59 @@ describe('elegir qué columnas ver', () => {
     expect(host.textContent).toContain('Sin código')
   })
 })
+
+describe('las columnas salen de los campos reales del artículo', () => {
+  /**
+   * El dueño pidió no suponer: las columnas se arman leyendo lo que el artículo
+   * guarda de verdad (src/api/inventario.ts › Product), no lo que uno imagine
+   * que debería tener.
+   */
+  const ver = async (columnas: string[]) => {
+    localStorage.setItem('inventario.columnas', JSON.stringify(columnas))
+    await render()
+  }
+
+  it('precio de compra', async () => {
+    await ver(['SKU', 'Precio compra'])
+    expect(encabezados()).toContain('Precio compra')
+    expect(host.textContent).toContain('Q 0.00')
+  })
+
+  it('cuenta de ingresos, con su código y nombre', async () => {
+    await ver(['SKU', 'Cuenta de ingresos'])
+    expect(encabezados()).toContain('Cuenta de ingresos')
+  })
+
+  it('cuenta de inventario', async () => {
+    await ver(['SKU', 'Cuenta de inventario'])
+    expect(encabezados()).toContain('Cuenta de inventario')
+  })
+
+  it('un artículo sin cuenta de ingresos se marca: la factura no se contabilizaría', async () => {
+    await ver(['SKU', 'Cuenta de ingresos'])
+    expect(host.textContent).toContain('Sin cuenta')
+  })
+
+  it('un servicio no necesita cuenta de inventario: dice N/A, no «sin cuenta»', async () => {
+    const { getProducts } = await import('../../api/inventario')
+    vi.mocked(getProducts).mockResolvedValueOnce(
+      { data: [{ ...ARTICULO, isInventoriable: false }], total: 1 } as any)
+
+    await ver(['SKU', 'Cuenta de inventario'])
+
+    expect(host.textContent).toContain('N/A')
+  })
+
+  it('están disponibles los demás campos que el artículo guarda', async () => {
+    await render()
+    const boton = Array.from(document.querySelectorAll('button'))
+      .find(b => b.textContent?.includes('Columnas'))!
+    await click(boton)
+
+    const texto = document.body.textContent ?? ''
+    for (const campo of ['Descripción', 'Trazabilidad', 'Grupo', 'Impuesto ventas',
+                         'Cuenta de costo', 'Último costo', 'Stock mínimo', 'Peso (lb)']) {
+      expect(texto).toContain(campo)
+    }
+  })
+})

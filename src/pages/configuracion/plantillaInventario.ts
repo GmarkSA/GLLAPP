@@ -14,7 +14,8 @@ import * as XLSX from 'xlsx'
  */
 
 export interface CatalogoDeLaEmpresa {
-  cuentas:   Array<{ code: string; name: string }>
+  /** El `id` permite resolver las cuentas que el artículo guarda por id. */
+  cuentas:   Array<{ id?: string; code: string; name: string }>
   impuestos: Array<{ code: string; name: string; rate?: number }>
   grupos:    Array<{ code: string; name: string }>
   unidades:  string[]
@@ -261,7 +262,13 @@ export interface ArticuloExportable {
   itemCategory?: string
   trackingType?: string
   barCodes?: string[]
-  /** Códigos de cuenta e impuesto, cuando el listado los trae resueltos. */
+  /** El artículo guarda sus cuentas por id; se resuelven contra el catálogo. */
+  salesAccountId?: string
+  inventoryAccountId?: string
+  costAccountId?: string
+  adjustmentAccountId?: string
+  purchaseAccountId?: string
+  /** Códigos ya resueltos, si el listado los trae. */
   cuentaIngresosCodigo?: string
   cuentaCostoCodigo?: string
   cuentaInventarioCodigo?: string
@@ -288,6 +295,13 @@ export function exportarArticulos(
   articulos: ArticuloExportable[],
   catalogo: CatalogoDeLaEmpresa,
 ): ArrayBuffer {
+  // El artículo guarda los ids de sus cuentas. Sin resolverlos, estas columnas
+  // salían vacías y el archivo exportado no se podía volver a subir.
+  const porId = new Map<string, string>()
+  for (const c of catalogo.cuentas) if (c.id) porId.set(c.id, c.code)
+  const codigoDe = (id?: string, yaResuelto?: string) =>
+    yaResuelto ?? (id ? porId.get(id) ?? '' : '')
+
   const filas = articulos.map(a => ({
     nombre:        String(a.name ?? ''),
     sku:           String(a.sku ?? ''),
@@ -300,16 +314,16 @@ export function exportarArticulos(
     descripcion:   String(a.description ?? ''),
     moneda:        String(a.currency ?? 'GTQ'),
     precio_venta:     numeroOVacio(a.salesPrice),
-    cuenta_ingresos:  String(a.cuentaIngresosCodigo ?? ''),
+    cuenta_ingresos:  codigoDe(a.salesAccountId, a.cuentaIngresosCodigo),
     impuesto_ventas:  String(a.impuestoVentasCodigo ?? ''),
     precio_compra:    numeroOVacio(a.purchasePrice),
-    cuenta_costo:     String(a.cuentaCostoCodigo ?? ''),
+    cuenta_costo:     codigoDe(a.costAccountId, a.cuentaCostoCodigo),
     impuesto_compras: String(a.impuestoComprasCodigo ?? ''),
     lleva_stock:          siNo(a.isInventoriable),
     categoria_inventario: String(a.itemCategory ?? ''),
     trazabilidad:         String(a.trackingType ?? ''),
-    cuenta_inventario:    String(a.cuentaInventarioCodigo ?? ''),
-    cuenta_ajustes:       String(a.cuentaAjustesCodigo ?? ''),
+    cuenta_inventario:    codigoDe(a.inventoryAccountId, a.cuentaInventarioCodigo),
+    cuenta_ajustes:       codigoDe(a.adjustmentAccountId, a.cuentaAjustesCodigo),
     costo_promedio:    numeroOVacio(a.averageCost),
     existencia_actual: numeroOVacio(a.stockOnHand),
     punto_reorden:     numeroOVacio(a.reorderPoint),

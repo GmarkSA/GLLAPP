@@ -16,8 +16,8 @@ const UNO = {
   salesPrice: 23, barCodes: ['ABA-GRAN'], stockOnHand: 1,
 }
 
-const getProducts = vi.fn(async () => ({ data: [UNO], total: 1 }))
-vi.mock('../../api/inventario', () => ({ getProducts: () => getProducts() }))
+const getProducts = vi.fn(async (_p?: any) => ({ data: [UNO], total: 1 }))
+vi.mock('../../api/inventario', () => ({ getProducts: (p?: any) => getProducts(p) }))
 
 let host: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -86,5 +86,49 @@ describe('la hoja de etiquetas', () => {
     getProducts.mockResolvedValueOnce({ data: [], total: 0 } as any)
     await render('?formato=hoja-24&copias=1')
     expect(host.textContent).toContain('No hay etiquetas que imprimir')
+  })
+})
+
+describe('traer los artículos', () => {
+  /**
+   * El listado topa el límite en 500 por página. Se pedían 2000 de un golpe: el
+   * servidor respondía 400 y el error se tragaba, así que la hoja decía «No hay
+   * etiquetas que imprimir» con el inventario lleno. Y aunque el límite lo
+   * permitiera, 1,584 artículos no caben en una página.
+   */
+  it('nunca pide más de lo que el servidor admite', async () => {
+    await render('?formato=hoja-24&copias=1')
+    for (const llamada of getProducts.mock.calls) {
+      const limite = Number((llamada[0] as any)?.limit ?? 0)
+      expect(limite).toBeLessThanOrEqual(500)
+    }
+  })
+
+  it('recorre las páginas hasta traerlos todos', async () => {
+    const pagina = (desde: number, cuantos: number) => ({
+      data: Array.from({ length: cuantos }, (_, i) => ({
+        ...UNO, id: `a-${desde + i}`, sku: `SKU-${desde + i}`,
+      })),
+      total: 600,
+    })
+    getProducts
+      .mockResolvedValueOnce(pagina(1, 500) as any)
+      .mockResolvedValueOnce(pagina(501, 100) as any)
+
+    await render('?formato=hoja-24&copias=1')
+
+    expect(getProducts).toHaveBeenCalledTimes(2)
+    expect(host.querySelectorAll('.etiqueta')).toHaveLength(600)
+  })
+
+  it('si el servidor falla, lo dice: no finge que no hay artículos', async () => {
+    getProducts.mockRejectedValueOnce({
+      response: { status: 400, data: { error: { message: 'limit must not be greater than 500' } } },
+    })
+
+    await render('?formato=hoja-24&copias=1')
+
+    expect(host.textContent).toContain('No se pudieron traer los artículos')
+    expect(host.textContent).toContain('limit must not be greater than 500')
   })
 })
