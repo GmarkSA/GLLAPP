@@ -197,6 +197,22 @@ function OrganizationSection({
       const values = await form.validateFields()
       setSaving(true)
       await onSave({ ...values, logoUrl })
+      // NIT, razón social y nombre comercial también viven en la EMPRESA (no solo
+      // en el perfil del tenant) — y es la empresa la que manda al recargar esta
+      // pantalla (línea ~156: "co?.taxId || bas?.taxId || profile.taxId"), y la que
+      // usa el guardrail de importación de DTE SAT para decidir a quién pertenece
+      // cada factura. Sin este guardado, el cambio aquí nunca se ve reflejado (se
+      // revierte al recargar) y las facturas de compra siguen rechazándose por NIT
+      // receptor distinto aunque el usuario "ya lo haya cambiado".
+      if (activeCompany?.id) {
+        await companiesApi.update(activeCompany.id, {
+          taxId:     values.taxId,
+          legalName: values.legalName,
+          tradeName: values.name,
+        } as any).catch(() => {})
+        setFullCompany((c: any) => c ? { ...c, taxId: values.taxId, legalName: values.legalName, tradeName: values.name } : c)
+        useCompanyStore.getState().loadCompanies().catch(() => {})
+      }
     } finally {
       setSaving(false)
     }
