@@ -73,7 +73,9 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
         .map((t: any) => ({ code: String(t.code), name: String(t.name ?? ''), rate: Number(t.rate) || 0 })),
       grupos:    grupos.map(g => ({ code: String(g.code ?? ''), name: String(g.name ?? '') })),
       unidades:  ['UND', 'CAJA', 'BOLSA', 'PAQUETE', 'YARDA', 'RESMA', 'ROLLO', 'SET'],
-      almacenes: almacenes.map(a => ({ code: String(a.code ?? ''), name: String(a.name ?? '') })),
+      almacenes: almacenes.map(a => ({
+        id: String(a.id ?? ''), code: String(a.code ?? ''), name: String(a.name ?? ''),
+      })),
     })
     const url = URL.createObjectURL(new Blob([datos], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -113,6 +115,7 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
       // Paso 1 — los artículos, con sus cuentas e impuestos.
       const r = await cargaMasivaArticulos(filas, {
         grupoId,
+        almacenId,
         impuestoVentasId:  impVentas ?? null,
         impuestoComprasId: impCompras ?? null,
       })
@@ -229,6 +232,14 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
               />
             </div>
             <div>
+              <Text style={{ fontSize: 12 }}>Almacén</Text>
+              <Select
+                style={{ width: '100%' }} value={almacenId} onChange={setAlmacenId} allowClear
+                placeholder="Para las filas que no traigan el suyo"
+                options={almacenes.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+              />
+            </div>
+            <div>
               <Text style={{ fontSize: 12 }}>Impuesto de compras</Text>
               <Select
                 style={{ width: '100%' }} value={impCompras} onChange={setImpCompras} allowClear
@@ -257,11 +268,6 @@ export default function CargaMasivaModal({ open, onClose, onCargado }: {
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     Decide en qué período aparece el inventario en balance, libro mayor y dashboard.
                   </Text>
-                </div>
-                <div>
-                  <Text style={{ fontSize: 12 }}>Almacén</Text>
-                  <Select style={{ width: '100%' }} value={almacenId} onChange={setAlmacenId} allowClear
-                    options={almacenes.map(a => ({ value: a.id, label: `${a.code} — ${a.name}` }))} />
                 </div>
               </div>
             )}

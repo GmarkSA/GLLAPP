@@ -19,7 +19,7 @@ export interface CatalogoDeLaEmpresa {
   impuestos: Array<{ code: string; name: string; rate?: number }>
   grupos:    Array<{ code: string; name: string }>
   unidades:  string[]
-  almacenes: Array<{ code: string; name: string }>
+  almacenes: Array<{ id?: string; code: string; name: string }>
 }
 
 export interface ColumnaDePlantilla {
@@ -52,6 +52,9 @@ export const COLUMNAS_PLANTILLA: ColumnaDePlantilla[] = [
   { clave: 'grupo', titulo: 'grupo', requerida: false, pestana: 'Identificación',
     ayuda: 'Código del grupo de artículos. De él salen las cuentas por defecto.',
     alias: ['Grupo', 'Grupo de artículos'] },
+  { clave: 'almacen', titulo: 'almacen', requerida: false, pestana: 'Identificación',
+    ayuda: 'Código del almacén donde se guarda. Con más de uno, sin esto no se sabe dónde entra. Ver la hoja Listas.',
+    alias: ['Almacén', 'Almacen', 'Bodega', 'Warehouse'] },
   { clave: 'categoria', titulo: 'categoria', requerida: false, pestana: 'Identificación',
     ayuda: 'Familia o categoría, libre.',
     alias: ['Familia / Categoría', 'Categoría', 'Categoria', 'Category'] },
@@ -160,6 +163,7 @@ export interface FilaDeArticulo {
   puntoReorden?: number
   peso?: number
   grupoCodigo?: string
+  almacenCodigo?: string
   cuentaIngresosCodigo?: string
   cuentaCostoCodigo?: string
   cuentaInventarioCodigo?: string
@@ -225,6 +229,7 @@ export function leerArchivoDeArticulos(datos: ArrayBuffer | Uint8Array): FilaDeA
       puntoReorden: numero(v.punto_reorden),
       peso:         numero(v.peso),
       grupoCodigo:            texto(v.grupo) || undefined,
+      almacenCodigo:          texto(v.almacen) || undefined,
       cuentaIngresosCodigo:   texto(v.cuenta_ingresos) || undefined,
       cuentaCostoCodigo:      texto(v.cuenta_costo) || undefined,
       cuentaInventarioCodigo: texto(v.cuenta_inventario) || undefined,
@@ -268,6 +273,7 @@ export interface ArticuloExportable {
   costAccountId?: string
   adjustmentAccountId?: string
   purchaseAccountId?: string
+  warehouseId?: string
   /** Códigos ya resueltos, si el listado los trae. */
   cuentaIngresosCodigo?: string
   cuentaCostoCodigo?: string
@@ -299,6 +305,10 @@ export function exportarArticulos(
   // salían vacías y el archivo exportado no se podía volver a subir.
   const porId = new Map<string, string>()
   for (const c of catalogo.cuentas) if (c.id) porId.set(c.id, c.code)
+  const almacenPorId = new Map<string, string>()
+  for (const a of catalogo.almacenes as Array<{ id?: string; code: string }>) {
+    if (a.id) almacenPorId.set(a.id, a.code)
+  }
   const codigoDe = (id?: string, yaResuelto?: string) =>
     yaResuelto ?? (id ? porId.get(id) ?? '' : '')
 
@@ -309,6 +319,7 @@ export function exportarArticulos(
     uso:           String(a.usageType ?? ''),
     unidad:        String(a.unit ?? ''),
     grupo:         String(a.grupoCodigo ?? ''),
+    almacen:       a.warehouseId ? almacenPorId.get(a.warehouseId) ?? '' : '',
     categoria:     String(a.category ?? ''),
     marca:         String(a.brand ?? ''),
     descripcion:   String(a.description ?? ''),
@@ -347,7 +358,8 @@ export function construirPlantillaInventario(catalogo: CatalogoDeLaEmpresa): Arr
     {
       nombre: 'ABACO BACO GRANDE', sku: 'ABA-GRAN',
       tipo_articulo: 'bien', uso: 'compra_venta', unidad: 'UND',
-      grupo: catalogo.grupos[0]?.code ?? '', categoria: 'Papelería', marca: '',
+      grupo: catalogo.grupos[0]?.code ?? '', almacen: catalogo.almacenes[0]?.code ?? '',
+      categoria: 'Papelería', marca: '',
       descripcion: '',
       moneda: 'GTQ',
       precio_venta: 23, cuenta_ingresos: cuenta('4'), impuesto_ventas: impuesto(/V0|venta/i),
@@ -360,7 +372,7 @@ export function construirPlantillaInventario(catalogo: CatalogoDeLaEmpresa): Arr
     {
       nombre: 'EMPAQUE DE REGALO', sku: 'SERV-EMP',
       tipo_articulo: 'servicio', uso: 'solo_venta', unidad: 'UND',
-      grupo: '', categoria: 'Servicios', marca: '', descripcion: '',
+      grupo: '', almacen: '', categoria: 'Servicios', marca: '', descripcion: '',
       moneda: 'GTQ',
       precio_venta: 15, cuenta_ingresos: cuenta('4'), impuesto_ventas: impuesto(/V0|venta/i),
       precio_compra: '', cuenta_costo: '', impuesto_compras: '',
