@@ -8,10 +8,11 @@ import {
 import {
   PlusOutlined, EditOutlined, EyeOutlined, SearchOutlined,
   InboxOutlined, WarningOutlined, FilterOutlined, PrinterOutlined,
-  DownloadOutlined, SettingOutlined, HolderOutlined,
+  DownloadOutlined, SettingOutlined, HolderOutlined, UploadOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import EtiquetasModal from './EtiquetasModal'
+import CargaMasivaModal from './CargaMasivaModal'
 import { exportarArticulos } from '../configuracion/plantillaInventario'
 import { getAccounts } from '../../api/catalogo'
 import { getTaxes } from '../../api/impuestos'
@@ -82,6 +83,7 @@ export default function InventarioPage() {
   const [invDraft,      setInvDraft]      = useState<InvAdFilters>(INV_EMPTY)
   const [invFilterOpen, setInvFilterOpen] = useState(false)
   const [etiquetasOpen, setEtiquetasOpen] = useState(false)
+  const [cargaOpen,     setCargaOpen]     = useState(false)
   // Artículos marcados para etiquetar. Vacío = todos los del listado.
   const [etiquetasSeleccion, setEtiquetasSeleccion] = useState<string[]>([])
 
@@ -547,6 +549,9 @@ export default function InventarioPage() {
           <Button icon={<DownloadOutlined />} onClick={descargarArticulos}>
             Descargar artículos
           </Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCargaOpen(true)}>
+            Cargar inventario
+          </Button>
           <Button icon={<PrinterOutlined />} onClick={() => setEtiquetasOpen(true)}>
             Imprimir etiquetas
           </Button>
@@ -560,6 +565,12 @@ export default function InventarioPage() {
           </Button>
         </Space>
       </div>
+
+      <CargaMasivaModal
+        open={cargaOpen}
+        onClose={() => setCargaOpen(false)}
+        onCargado={load}
+      />
 
       <EtiquetasModal
         open={etiquetasOpen}
