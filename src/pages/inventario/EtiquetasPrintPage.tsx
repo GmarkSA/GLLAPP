@@ -4,7 +4,7 @@ import { Spin } from 'antd'
 import { getProducts } from '../../api/inventario'
 import { getApiError } from '../../api/axios'
 import {
-  FORMATOS_ETIQUETA, etiquetasDeArticulos, generarQRs,
+  FORMATOS_ETIQUETA, etiquetasDeArticulos, generarCodigosBarras,
   type ArticuloParaEtiqueta, type Etiqueta, type FormatoEtiqueta,
 } from './etiquetas'
 
@@ -25,7 +25,7 @@ export default function EtiquetasPrintPage() {
     FORMATOS_ETIQUETA.find(f => f.id === params.get('formato')) ?? FORMATOS_ETIQUETA[0]
 
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([])
-  const [qrs,       setQrs]       = useState<Map<string, string>>(new Map())
+  const [codigos,   setCodigos]   = useState<Map<string, string>>(new Map())
   const [loading,   setLoading]   = useState(true)
   const [fallo,     setFallo]     = useState<string | null>(null)
 
@@ -56,11 +56,11 @@ export default function EtiquetasPrintPage() {
     }
 
     traerTodos()
-      .then(async todos => {
+      .then(todos => {
         const elegidos = ids.length > 0 ? todos.filter(a => ids.includes(a.id)) : todos
         const lista = etiquetasDeArticulos(elegidos, opciones)
         setEtiquetas(lista)
-        setQrs(await generarQRs(lista))
+        setCodigos(generarCodigosBarras(lista))
       })
       // Lo que responda el servidor se muestra: tragarse el error hacía que la
       // hoja dijera «no hay etiquetas» con el inventario lleno.
@@ -71,14 +71,14 @@ export default function EtiquetasPrintPage() {
       .finally(() => setLoading(false))
   }, [params])
 
-  // El QR tiene que estar pintado antes de abrir el diálogo de impresión, o la
-  // hoja sale con los recuadros vacíos.
+  // El código de barras tiene que estar pintado antes de abrir el diálogo de
+  // impresión, o la hoja sale con los recuadros vacíos.
   useEffect(() => {
-    if (!loading && etiquetas.length > 0 && qrs.size > 0) {
+    if (!loading && etiquetas.length > 0 && codigos.size > 0) {
       const t = setTimeout(() => window.print(), 600)
       return () => clearTimeout(t)
     }
-  }, [loading, etiquetas.length, qrs.size])
+  }, [loading, etiquetas.length, codigos.size])
 
   if (loading) {
     return (
@@ -136,7 +136,7 @@ export default function EtiquetasPrintPage() {
           overflow: hidden;
           font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
         }
-        .etiqueta img { width: ${formato.qrMm}mm; height: ${formato.qrMm}mm; flex: none; }
+        .etiqueta img { height: ${formato.codigoAltoMm}mm; width: auto; max-width: 60%; flex: none; }
         .datos { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
         .nombre {
           font-size: ${formato.altoMm < 28 ? 6.5 : 7.5}pt; line-height: 1.15;
@@ -160,10 +160,9 @@ export default function EtiquetasPrintPage() {
           <div className="rejilla" style={{ minHeight: `${filas * formato.altoMm}mm` }}>
             {etiquetas.slice(h * formato.porHoja, (h + 1) * formato.porHoja).map((e, i) => (
               <div className="etiqueta" key={`${e.articuloId}-${i}`}>
-                {qrs.get(e.codigo) && <img src={qrs.get(e.codigo)} alt="" />}
+                {codigos.get(e.codigo) && <img src={codigos.get(e.codigo)} alt="" />}
                 <div className="datos">
                   <div className="nombre">{e.nombre}</div>
-                  <div className="codigo">{e.codigo}</div>
                   {e.precio && <div className="precio">{e.precio}</div>}
                 </div>
               </div>

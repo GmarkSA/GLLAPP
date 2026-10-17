@@ -3,7 +3,7 @@ import {
   FORMATOS_ETIQUETA,
   codigoDelArticulo,
   etiquetasDeArticulos,
-  generarQR,
+  generarCodigoBarras,
   type ArticuloParaEtiqueta,
 } from './etiquetas'
 
@@ -11,13 +11,14 @@ import {
  * Etiquetas de artículo para pegar en el producto.
  *
  * La carga masiva guarda el CÓDIGO (el SKU, o el que traiga la columna
- * codigo_barras). La imagen del QR no se guarda: se genera al imprimir, que es
- * lo correcto —un código que cambia no deja una imagen vieja pegada en la base
- * de datos— y además mantiene el archivo del artículo liviano con 1,584 filas.
+ * codigo_barras). La imagen del código de barras no se guarda: se genera al
+ * imprimir, que es lo correcto —un código que cambia no deja una imagen vieja
+ * pegada en la base de datos— y además mantiene el archivo del artículo
+ * liviano con 1,584 filas.
  *
- * El escáner de la librería es un Symcode MJ-1400CA y lee QR, lo que importa
- * porque 75 de sus SKUs llevan Ñ, tildes o espacios: Code 128 no los maneja
- * bien y QR sí.
+ * El código interno ahora es un EAN-13 generado por secuencia, no el SKU —
+ * antes el código de barras real (no el QR) se rompía con los SKUs que llevan
+ * Ñ, tildes o espacios, porque eso no es un EAN-13/Code128 válido.
  */
 const ARTICULO: ArticuloParaEtiqueta = {
   id: 'a-1', sku: 'ABA-GRAN', name: 'ABACO BACO GRANDE',
@@ -152,18 +153,18 @@ describe('los formatos de etiqueta', () => {
   })
 })
 
-describe('generar el QR', () => {
-  it('devuelve una imagen que el navegador puede pintar', async () => {
-    const img = await generarQR('ABA-GRAN')
+describe('generar el código de barras', () => {
+  it('devuelve una imagen que el navegador puede pintar', () => {
+    const img = generarCodigoBarras('ABA-GRAN')
     expect(img.startsWith('data:image/')).toBe(true)
   })
 
-  it('funciona con Ñ y tildes, que es para lo que se eligió QR', async () => {
-    const img = await generarQR('AÑE-TILDÉ')
+  it('un EAN-13 de 13 dígitos (con dígito verificador válido) también genera imagen', () => {
+    const img = generarCodigoBarras('2000000000015')
     expect(img.startsWith('data:image/')).toBe(true)
   })
 
-  it('un código vacío no genera imagen, en vez de una ilegible', async () => {
-    await expect(generarQR('')).resolves.toBe('')
+  it('un código vacío no genera imagen, en vez de una ilegible', () => {
+    expect(generarCodigoBarras('')).toBe('')
   })
 })
