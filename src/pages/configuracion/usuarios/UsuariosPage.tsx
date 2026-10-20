@@ -581,7 +581,17 @@ export default function UsuariosPage() {
     const vals = await roleForm.validateFields()
     setSaving(true)
     try {
-      await createRole({ name: vals.name, description: vals.description })
+      // Clonar de un rol existente (del sistema o propio) evita marcar los
+      // ~379 permisos a mano cuando lo que se quiere es "como Contador, pero
+      // con dos ajustes" — los roles del sistema no se pueden editar
+      // directo (son compartidos por toda la plataforma), así que esta es
+      // la forma de partir de ellos sin empezar de cero.
+      const origen = roles.find(r => r.id === vals.clonarDeId)
+      await createRole({
+        name: vals.name,
+        description: vals.description,
+        permissionSlugs: origen?.permissions.map(p => p.slug),
+      })
       message.success('Rol creado')
       setModal(null)
       roleForm.resetFields()
@@ -1281,6 +1291,15 @@ export default function UsuariosPage() {
           </Form.Item>
           <Form.Item name="description" label="Descripción">
             <Input.TextArea rows={2} placeholder="Describe qué puede hacer este rol" />
+          </Form.Item>
+          <Form.Item name="clonarDeId" label="Clonar permisos de (opcional)"
+            help="Parte de los permisos de un rol existente en vez de empezar en blanco — después los puedes ajustar.">
+            <Select allowClear placeholder="Empezar en blanco"
+              options={sortRoles(roles).map(r => ({
+                value: r.id,
+                label: `${r.name} (${r.permissions.length} permisos)`,
+              }))}
+            />
           </Form.Item>
         </Form>
       </Modal>
