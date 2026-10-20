@@ -1,0 +1,12 @@
+# Lucía — app de contabilidad con IA de GLL Consulting
+# Qué es: https://gllconsulting.com/lucia/
+
+# Antes este archivo no existía y la regla de reescritura devolvía el HTML de
+# la app: el robot pedía un archivo de texto y recibía una página web.
+
+User-agent: *
+Allow: /
+
+# El resto de la app vive detrás del ingreso: para un robot, toda ruta
+# devuelve esta misma pantalla. La canónica de esa pantalla apunta a la raíz,
+# así que las rutas internas no compiten entre sí en el buscador.

@@ -3,9 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lucía</title>
+    <!--
+      Lo que un buscador lee sin ejecutar nada. El título y la descripción son
+      el texto que sale en el resultado de Google: «Lucía» a secas no decía de
+      qué app se trata, y «una app de GLL» tampoco.
+
+      La canónica va aquí, en el HTML que se sirve para TODA ruta: la app es de
+      una sola página, así que /ventas/facturas y /pos devuelven esta misma
+      pantalla de acceso. Sin canónica, el buscador las trataría como páginas
+      distintas con el mismo contenido y competirían entre sí.
+    -->
+    <title>Lucía by GLL · Ingresar</title>
     <meta name="application-name" content="Lucía" />
-    <meta name="description" content="Lucía — una app de GLL" />
+    <meta name="description" content="Ingresa a Lucía, la app de contabilidad con IA de GLL Consulting para PyMEs en Guatemala." />
+    <link rel="canonical" href="https://lucia.gllconsulting.com/" />
 
     <!-- Favicons -->
     <link rel="icon" href="/favicon.ico" sizes="any" />

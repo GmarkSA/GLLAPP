@@ -189,6 +189,22 @@ export default function LoginPage() {
               Crear cuenta
             </Link>
           </div>
+
+          {/*
+            * Quien llega buscando «Lucía» cae aquí, en una pantalla de ingreso
+            * que no explica qué es ni a dónde ir si todavía no es cliente.
+            * En otra pestaña, para no sacar a medias a quien sí venía a entrar.
+            */}
+          <div style={{ fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+            <a
+              href="https://gllconsulting.com/lucia/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#6b7280' }}
+            >
+              ¿Qué es Lucía?
+            </a>
+          </div>
         </div>
 
         {/* ── RIGHT: carousel (oculto en < 1050px) ──────── */}
