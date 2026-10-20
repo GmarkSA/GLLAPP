@@ -111,8 +111,12 @@ export const useCompanyStore = create<CompanyStore>()(
             set({ enabledModules: mods, settingsReady: true })
           }
         } catch {
-          // silent — no interrumpir la UI
-          set({ settingsReady: true })
+          // silent — no interrumpir la UI. lastLoaded también se marca aquí:
+          // NoCompanyGuard se queda en su pantalla de carga mientras sea null,
+          // y un intento fallido (403 de un rol muy restringido, un 500, sin
+          // red) nunca lo tocaba — la pantalla se quedaba pensando para
+          // siempre, sin aviso, en vez de mostrar el estado de "sin empresas".
+          set({ settingsReady: true, lastLoaded: now })
         } finally {
           set({ isLoading: false })
         }
