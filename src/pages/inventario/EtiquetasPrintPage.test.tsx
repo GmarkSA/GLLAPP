@@ -33,9 +33,25 @@ const render = async (query: string) => {
       </MemoryRouter>,
     )
   })
-  // El código de barras se pinta después de traer los artículos.
-  await act(async () => { await new Promise(r => setTimeout(r, 50)) })
+  // El código de barras se pinta con un canvas real (encoding de PNG de
+  // verdad, no un mock) después de traer los artículos — cuánto tarda
+  // depende de la máquina. Un tiempo fijo de 50ms funcionaba en local pero
+  // se quedaba corto en CI y la prueba leía el estado a medio terminar
+  // ("Generando etiquetas…" en vez del resultado). Se espera a que la
+  // pantalla de carga desaparezca de verdad, con un tope generoso en vez de
+  // adivinar un número fijo.
+  const limite = Date.now() + 10_000
+  while (host.textContent?.includes('Generando etiquetas') && Date.now() < limite) {
+    await act(async () => { await new Promise(r => setTimeout(r, 25)) })
+  }
 }
+
+// El código de barras se renderiza con un canvas real (encoding de PNG de
+// verdad), y en CI puede tardar más que el tope por omisión de Vitest (5s)
+// — sobre todo con cientos de artículos. render() ya espera a que la
+// pantalla de carga termine de verdad; esto solo da margen de tiempo total
+// para que esa espera no se corte antes de tiempo.
+vi.setConfig({ testTimeout: 15_000 })
 
 beforeEach(() => {
   getProducts.mockClear()
