@@ -110,6 +110,14 @@ beforeEach(() => { generar.mockClear() })
 afterEach(async () => {
   await act(async () => root.unmount())
   host.remove()
+  /**
+   * Desmontar agenda trabajo en el planificador de React, que corre en un
+   * `setImmediate`. Si el archivo termina antes de que ese turno se ejecute,
+   * vitest desmonta jsdom y el planificador revienta con «window is not
+   * defined» — un error suelto que tumba el CI aunque las 357 pruebas pasen.
+   * Este turno vacío le da el espacio para terminar con el entorno vivo.
+   */
+  await act(async () => { await new Promise(r => setTimeout(r, 0)) })
 })
 
 describe('un movimiento categorizado sin póliza', () => {
