@@ -62,6 +62,12 @@ export interface CreatePagoRecibidoDto {
   currency?:            string
   exchangeRate?:        number
   isrRetentionAmount?:  number
+  /**
+   * Comisión que retuvo el procesador de la tarjeta. El banco recibe `amount`,
+   * la factura se abona por `amount + comisión` y la diferencia va al gasto.
+   */
+  commissionAmount?:    number
+  commissionAccountId?: string
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────

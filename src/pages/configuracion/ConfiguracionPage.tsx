@@ -1011,6 +1011,12 @@ interface AccountDefaults {
    * si no, falta cargar algo o algo se cargó dos veces.
    */
   openingBalanceAccountCode?: string
+  /**
+   * Dónde cae la comisión que se queda el procesador de la tarjeta. El banco
+   * deposita menos de lo facturado y esa diferencia es un gasto: sin esta
+   * cuenta, la factura no se puede cancelar al 100%.
+   */
+  cardCommissionAccountCode?: string
 }
 
 function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef?: React.MutableRefObject<null | (() => Promise<boolean>)> } = {}) {
@@ -1077,6 +1083,7 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
       fxGainAccountCode:           '700002',
       fxLossAccountCode:           '710003',
       openingBalanceAccountCode:   '310001',
+      cardCommissionAccountCode:   '650003',
     }
     const byCode = (code: string) => accounts.find(a => a.code === code)?.code
     setDefaults(prev => ({
@@ -1235,6 +1242,33 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
                 Valor actual: <Text code>{defaults.fxLossAccountCode || 'No configurado'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24}>
+              <div style={{ marginBottom: 8, marginTop: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Comisión de tarjeta de crédito</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta de gasto donde cae lo que se queda el procesador de la tarjeta.
+                  Cuando el banco deposita menos de lo facturado, la diferencia va aquí y la
+                  factura se cancela completa. Se puede cambiar en cada cobro.
+                </Text>
+              </div>
+              <Select
+                showSearch
+                allowClear
+                style={{ width: '100%', maxWidth: 520 }}
+                value={defaults.cardCommissionAccountCode}
+                placeholder="Ej: 650003 — Comisiones sobre Ventas"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, cardCommissionAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.cardCommissionAccountCode || 'No configurado'}</Text>
               </Text>
             </Col>
 
