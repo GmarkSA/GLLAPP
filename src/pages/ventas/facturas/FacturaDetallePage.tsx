@@ -25,6 +25,8 @@ import {
 } from '../../../api/facturas'
 import { deletePagoRecibido } from '../../../api/pagos-recibidos'
 import AccountSelect from '../../../components/AccountSelect'
+import { getAccountDefaults } from '../../../api/compras'
+import { getAccounts } from '../../../api/catalogo'
 import { getCustomer } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getEmisor } from '../../../api/emisor'
@@ -108,6 +110,24 @@ export default function FacturaDetallePage() {
   const [payComision,        setPayComision]        = useState<number>(0)
   const [payComisionCuenta,  setPayComisionCuenta]  = useState<string | undefined>()
   const [payModoEsTarjeta,   setPayModoEsTarjeta]   = useState(false)
+
+  /**
+   * La cuenta de gasto de Cuentas por defecto, ya elegida. Dejarla en blanco
+   * obligaba a buscarla en cada cobro, teniéndola configurada.
+   */
+  useEffect(() => {
+    if (!payModoEsTarjeta || payComisionCuenta) return
+    let vivo = true
+    ;(async () => {
+      const codigo = (await getAccountDefaults().catch(() => ({} as any))).cardCommissionAccountCode
+      if (!codigo || !vivo) return
+      const cuentas: any = await getAccounts({ activas: true }).catch(() => [])
+      const lista = Array.isArray(cuentas) ? cuentas : (cuentas?.data ?? [])
+      const cuenta = lista.find((c: any) => String(c.code) === String(codigo))
+      if (cuenta && vivo) setPayComisionCuenta(cuenta.id)
+    })()
+    return () => { vivo = false }
+  }, [payModoEsTarjeta, payComisionCuenta])
 
   const [emailTemplates,    setEmailTemplates]    = useState<EmailTemplate[]>([])
   const [selectedEmailTplId, setSelectedEmailTplId] = useState<string | undefined>()
@@ -1098,13 +1118,13 @@ export default function FacturaDetallePage() {
           {payModoEsTarjeta && (
             <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '12px 16px', marginBottom: 12 }}>
               <div style={{ fontSize: 12, color: '#9a3412', marginBottom: 10 }}>
-                Si el procesador retuvo su comisión, escribe arriba <strong>lo que de verdad
-                entró al banco</strong>: la diferencia se registra como gasto y la factura
-                queda cancelada completa.
+                Escribe arriba <strong>lo que de verdad entró al banco</strong>: la diferencia
+                contra el saldo se calcula sola como comisión y la factura queda cancelada
+                completa. Corrígela solo si el procesador cobró otra cosa.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 13, marginBottom: 4 }}>Comisión retenida</div>
+                  <div style={{ fontSize: 13, marginBottom: 4 }}>Comisión retenida (calculada)</div>
                   <InputNumber
                     style={{ width: '100%' }} prefix="Q" min={0} step={0.01} precision={2}
                     max={Number(invoice.balance)}
