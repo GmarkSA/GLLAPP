@@ -10,6 +10,8 @@ export interface AccountDefaults {
   customerAdvanceAccountCode?: string
   vendorAdvanceAccountCode?:   string
   employeeAdvanceAccountCode?: string
+  /** Gasto donde cae la comisión que se queda el procesador de la tarjeta. */
+  cardCommissionAccountCode?:  string
 }
 
 export const getAccountDefaults = async (): Promise<AccountDefaults> => {

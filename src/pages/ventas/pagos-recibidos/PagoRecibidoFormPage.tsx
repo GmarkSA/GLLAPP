@@ -14,6 +14,8 @@ import { getInvoices, type Invoice } from '../../../api/facturas'
 import { getCustomers } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import AccountSelect from '../../../components/AccountSelect'
+import { getAccountDefaults } from '../../../api/compras'
+import { getAccounts } from '../../../api/catalogo'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -93,13 +95,19 @@ export default function PagoRecibidoFormPage() {
   }, [selectedCust])
 
   // ── Auto-distribute oldest-first ─────────────────────────────────────────
-  const autoDistribute = useCallback((amount: number) => {
+  const autoDistribute = useCallback((amount: number, saldarCompletas = false) => {
     let remaining = r2(amount)
     const newAlloc: Record<string, number> = {}
     for (const inv of openInvoices) {
       if (remaining <= 0) { newAlloc[inv.id] = 0; continue }
       const bal   = r2(Number(inv.balance))
-      const apply = r2(Math.min(remaining, bal))
+      /**
+       * Con tarjeta la factura se salda COMPLETA aunque el banco haya
+       * depositado menos: lo que falta es la comisión del procesador, no un
+       * saldo que el cliente siga debiendo. Sin esto, escribir Q140 de una
+       * factura de Q150 aplicaba Q140 y dejaba Q10 colgando.
+       */
+      const apply = saldarCompletas ? bal : r2(Math.min(remaining, bal))
       newAlloc[inv.id] = apply
       remaining = r2(remaining - apply)
     }
@@ -119,6 +127,32 @@ export default function PagoRecibidoFormPage() {
    * es «recibido − aplicado» sino «recibido + comisión − aplicado».
    */
   const difference    = r2(totalReceived + comision - totalApplied)
+
+  /**
+   * La comisión no se escribe a mano: es lo que falta entre lo aplicado a las
+   * facturas y lo que de verdad entró al banco. Se recalcula sola y el usuario
+   * puede corregirla si el procesador cobró otra cosa.
+   */
+  useEffect(() => {
+    if (!esTarjeta) return
+    const falta = r2(totalApplied - totalReceived - (isrEnabled ? isrAmount : 0))
+    setComision(Math.max(0, falta))
+  }, [esTarjeta, totalApplied, totalReceived, isrEnabled, isrAmount])
+
+  /** La cuenta de gasto configurada en Cuentas por defecto, ya elegida. */
+  useEffect(() => {
+    if (!esTarjeta || comisionCuenta) return
+    let vivo = true
+    ;(async () => {
+      const codigo = (await getAccountDefaults().catch(() => ({} as any))).cardCommissionAccountCode
+      if (!codigo || !vivo) return
+      const cuentas: any = await getAccounts({ activas: true }).catch(() => [])
+      const lista = Array.isArray(cuentas) ? cuentas : (cuentas?.data ?? [])
+      const cuenta = lista.find((c: any) => String(c.code) === String(codigo))
+      if (cuenta && vivo) setComisionCuenta(cuenta.id)
+    })()
+    return () => { vivo = false }
+  }, [esTarjeta, comisionCuenta])
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -475,7 +509,7 @@ export default function PagoRecibidoFormPage() {
                         form.setFieldValue('amount', v)
                       } else {
                         setTotalAmount(v)
-                        if (v && v > 0) autoDistribute(v)
+                        if (v && v > 0) autoDistribute(v, esTarjeta)
                         else clearAllocations()
                       }
                     }}
@@ -484,7 +518,7 @@ export default function PagoRecibidoFormPage() {
                     <Button
                       icon={<ThunderboltOutlined />}
                       title="Distribuir automáticamente en facturas más antiguas"
-                      onClick={() => { if (totalAmount && totalAmount > 0) autoDistribute(totalAmount) }}
+                      onClick={() => { if (totalAmount && totalAmount > 0) autoDistribute(totalAmount, esTarjeta) }}
                       disabled={!totalAmount || totalAmount <= 0 || openInvoices.length === 0}
                     />
                   )}
@@ -502,7 +536,9 @@ export default function PagoRecibidoFormPage() {
                   onChange={(v: string) => {
                     const tarjeta = v === MODO_TARJETA
                     setEsTarjeta(tarjeta)
-                    if (!tarjeta) { setComision(0); setComisionCuenta(undefined) }
+                    if (!tarjeta) { setComision(0); setComisionCuenta(undefined); return }
+                    // Con lo ya escrito, rehacer el reparto saldando completas.
+                    if (totalAmount && totalAmount > 0) autoDistribute(totalAmount, true)
                   }}
                 >
                   {(Object.entries(PAYMENT_MODE_LABELS) as [PaymentMode, string][]).map(([k, v]) => (
@@ -548,13 +584,13 @@ export default function PagoRecibidoFormPage() {
           {!isAdvance && esTarjeta && (
             <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#9a3412', marginBottom: 10 }}>
-                Escribe arriba <strong>lo que de verdad entró al banco</strong> y aquí la comisión
-                que se quedó el procesador. La factura se aplica por la suma de las dos, así que
-                queda cancelada completa.
+                Escribe arriba <strong>lo que de verdad entró al banco</strong>: la factura se
+                aplica completa y la diferencia se calcula sola como comisión. Corrígela solo si
+                el procesador cobró otra cosa.
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ fontSize: 12, marginBottom: 4 }}>Comisión retenida</div>
+                  <div style={{ fontSize: 12, marginBottom: 4 }}>Comisión retenida (calculada)</div>
                   <InputNumber
                     style={{ width: 160 }} prefix="Q" min={0} step={0.01} precision={2}
                     value={comision || undefined} placeholder="0.00"
