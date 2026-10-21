@@ -213,6 +213,12 @@ export interface RecordPaymentDto {
   currency?:            string
   isrRetentionAmount?:  number
   isrRetentionAccountId?: string
+  /**
+   * Comisión que retuvo el procesador de la tarjeta. El banco recibe `amount`,
+   * la factura se abona por `amount + comisión` y la diferencia va al gasto.
+   */
+  commissionAmount?:    number
+  commissionAccountId?: string
 }
 
 // ─── Invoice API ──────────────────────────────────────────────────────────────

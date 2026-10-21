@@ -13,11 +13,15 @@ import { createPagoRecibido, type PaymentMode, PAYMENT_MODE_LABELS } from '../..
 import { getInvoices, type Invoice } from '../../../api/facturas'
 import { getCustomers } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
+import AccountSelect from '../../../components/AccountSelect'
 
 const { Title, Text } = Typography
 const { Option } = Select
 
 const r2 = (n: number) => Math.round(n * 100) / 100
+
+/** La forma de pago en la que el procesador se queda una comisión. */
+const MODO_TARJETA = 'credit_card'
 const fmtQ = (n: number | undefined) =>
   n !== undefined ? `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
 
@@ -37,6 +41,14 @@ export default function PagoRecibidoFormPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [isrEnabled,   setIsrEnabled]   = useState(false)
   const [isrAmount,    setIsrAmount]    = useState<number>(0)
+  /**
+   * La comisión que se queda el procesador de la tarjeta. Solo aparece con
+   * tarjeta de crédito: el banco deposita menos de lo facturado y esa
+   * diferencia es un gasto, no un saldo que el cliente siga debiendo.
+   */
+  const [comision,       setComision]       = useState<number>(0)
+  const [comisionCuenta, setComisionCuenta] = useState<string | undefined>()
+  const [esTarjeta,      setEsTarjeta]      = useState(false)
   // allocations: invoiceId → amount to apply
   const [allocations,  setAllocations]  = useState<Record<string, number>>({})
   const [totalAmount,  setTotalAmount]  = useState<number | null>(null)
@@ -101,7 +113,12 @@ export default function PagoRecibidoFormPage() {
   // derived totals
   const totalApplied  = r2(Object.values(allocations).reduce((s, v) => s + (v || 0), 0))
   const totalReceived = totalAmount ?? 0
-  const difference    = r2(totalReceived - totalApplied)
+  /**
+   * Con tarjeta, a la factura se le abona MÁS de lo que entró al banco: la
+   * comisión que se quedó el procesador también la salda. Por eso el cuadre no
+   * es «recibido − aplicado» sino «recibido + comisión − aplicado».
+   */
+  const difference    = r2(totalReceived + comision - totalApplied)
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -162,11 +179,39 @@ export default function PagoRecibidoFormPage() {
         notes:         vals.notes || undefined,
         currency:      'GTQ',
         ...(isrEnabled && isrAmount > 0 ? { isrRetentionAmount: isrAmount } : {}),
+        ...(comision > 0 && comisionCuenta ? { commissionAccountId: comisionCuenta } : {}),
       }
+
+      /**
+       * La comisión es UNA sola del depósito, pero cada factura se cobra por
+       * separado: se reparte en proporción a lo aplicado y la última absorbe
+       * el centavo del redondeo, para que la suma dé exacto.
+       */
+      const repartoComision = (() => {
+        if (comision <= 0) return {} as Record<string, number>
+        const porFactura: Record<string, number> = {}
+        let repartido = 0
+        invoicesToPay.forEach((inv, i) => {
+          const parte = i === invoicesToPay.length - 1
+            ? r2(comision - repartido)
+            : r2(comision * (allocations[inv.id] ?? 0) / (totalApplied || 1))
+          porFactura[inv.id] = parte
+          repartido = r2(repartido + parte)
+        })
+        return porFactura
+      })()
 
       const results = []
       for (const inv of invoicesToPay) {
-        const pago = await createPagoRecibido({ ...baseDto, invoiceId: inv.id, amount: allocations[inv.id] })
+        const suComision = repartoComision[inv.id] ?? 0
+        const pago = await createPagoRecibido({
+          ...baseDto,
+          invoiceId: inv.id,
+          // Al banco entra lo aplicado MENOS su parte de comisión: esa parte
+          // nunca llegó a la cuenta.
+          amount: r2((allocations[inv.id] ?? 0) - suComision),
+          ...(suComision > 0 ? { commissionAmount: suComision } : {}),
+        })
         results.push(pago)
       }
 
@@ -452,7 +497,14 @@ export default function PagoRecibidoFormPage() {
             {/* Forma de pago */}
             <Col xs={12} md={6}>
               <Form.Item name="mode" label="Forma de pago">
-                <Select placeholder="Seleccionar...">
+                <Select
+                  placeholder="Seleccionar..."
+                  onChange={(v: string) => {
+                    const tarjeta = v === MODO_TARJETA
+                    setEsTarjeta(tarjeta)
+                    if (!tarjeta) { setComision(0); setComisionCuenta(undefined) }
+                  }}
+                >
                   {(Object.entries(PAYMENT_MODE_LABELS) as [PaymentMode, string][]).map(([k, v]) => (
                     <Option key={k} value={k}>{v}</Option>
                   ))}
@@ -487,6 +539,39 @@ export default function PagoRecibidoFormPage() {
               </Form.Item>
             </Col>
           </Row>
+
+          {/*
+            * Tarjeta de crédito: el procesador deposita menos de lo facturado.
+            * Sin esto, aplicar lo depositado deja la factura con saldo que el
+            * cliente ya pagó, y aplicar el total descuadra el banco.
+            */}
+          {!isAdvance && esTarjeta && (
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: '#9a3412', marginBottom: 10 }}>
+                Escribe arriba <strong>lo que de verdad entró al banco</strong> y aquí la comisión
+                que se quedó el procesador. La factura se aplica por la suma de las dos, así que
+                queda cancelada completa.
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: 12, marginBottom: 4 }}>Comisión retenida</div>
+                  <InputNumber
+                    style={{ width: 160 }} prefix="Q" min={0} step={0.01} precision={2}
+                    value={comision || undefined} placeholder="0.00"
+                    onChange={v => setComision(v ?? 0)}
+                  />
+                </div>
+                <div style={{ minWidth: 280, flex: 1 }}>
+                  <div style={{ fontSize: 12, marginBottom: 4 }}>Cuenta de gasto</div>
+                  <AccountSelect
+                    value={comisionCuenta}
+                    onChange={setComisionCuenta}
+                    placeholder="La de Cuentas por defecto"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ISR (solo en pago a facturas) */}
           {!isAdvance && (

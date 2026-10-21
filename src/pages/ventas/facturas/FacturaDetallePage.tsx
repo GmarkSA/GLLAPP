@@ -24,6 +24,7 @@ import {
   type Invoice, type InvoiceItem, type Anticipo,
 } from '../../../api/facturas'
 import { deletePagoRecibido } from '../../../api/pagos-recibidos'
+import AccountSelect from '../../../components/AccountSelect'
 import { getCustomer } from '../../../api/contactos'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getEmisor } from '../../../api/emisor'
@@ -99,6 +100,14 @@ export default function FacturaDetallePage() {
 
   const [payIsrEnabled, setPayIsrEnabled] = useState(false)
   const [payIsrAmount,  setPayIsrAmount]  = useState<number>(0)
+  /**
+   * Comisión que se queda el procesador de la tarjeta. Se calcula sola —lo que
+   * falta entre el saldo y lo que de verdad entró al banco— y se puede
+   * corregir a mano. Solo aparece con tarjeta de crédito.
+   */
+  const [payComision,        setPayComision]        = useState<number>(0)
+  const [payComisionCuenta,  setPayComisionCuenta]  = useState<string | undefined>()
+  const [payModoEsTarjeta,   setPayModoEsTarjeta]   = useState(false)
 
   const [emailTemplates,    setEmailTemplates]    = useState<EmailTemplate[]>([])
   const [selectedEmailTplId, setSelectedEmailTplId] = useState<string | undefined>()
@@ -164,11 +173,19 @@ export default function FacturaDetallePage() {
         bankAccountId:        v.bankAccountId,
         notes:                v.notes,
         ...(payIsrEnabled && payIsrAmount > 0 ? { isrRetentionAmount: payIsrAmount } : {}),
+        // El procesador de la tarjeta deposita menos de lo facturado: la
+        // diferencia es un gasto y así la factura se cancela al 100%.
+        ...(payComision > 0
+          ? { commissionAmount: payComision, ...(payComisionCuenta ? { commissionAccountId: payComisionCuenta } : {}) }
+          : {}),
       })
       message.success('Pago registrado exitosamente')
       setPayModal(false)
       setPayIsrEnabled(false)
       setPayIsrAmount(0)
+      setPayComision(0)
+      setPayComisionCuenta(undefined)
+      setPayModoEsTarjeta(false)
       payForm.resetFields()
       load()
     } catch (e: any) {
@@ -987,7 +1004,20 @@ export default function FacturaDetallePage() {
         okButtonProps={{ loading: saving, style: { background: '#2ea172', borderColor: '#2ea172' } }}
         width={520}
       >
-        <Form form={payForm} layout="vertical" style={{ marginTop: 8 }}>
+        <Form
+          form={payForm} layout="vertical" style={{ marginTop: 8 }}
+          onValuesChange={(cambios, todos) => {
+            const esTarjeta = String(todos.mode ?? '') === 'credit_card'
+            setPayModoEsTarjeta(esTarjeta)
+            if (!esTarjeta) { setPayComision(0); return }
+            // Lo que falta entre el saldo y lo que entró al banco ES la comisión.
+            if ('amount' in cambios || 'mode' in cambios) {
+              const entro = Number(todos.amount ?? 0)
+              const falta = Math.round((Number(invoice.balance) - entro - payIsrAmount) * 100) / 100
+              setPayComision(Math.max(0, falta))
+            }
+          }}
+        >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="paymentDate" label="Fecha de pago" rules={[{ required: true }]} initialValue={dayjs()}>
               <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
@@ -1056,6 +1086,56 @@ export default function FacturaDetallePage() {
                   </div>
                 )
               })()}
+            </div>
+          )}
+
+          {/*
+            * Tarjeta de crédito: el procesador deposita menos de lo facturado.
+            * Sin este bloque el usuario tenía dos salidas y las dos dejaban un
+            * error — registrar lo depositado y dejar la factura con saldo, o
+            * registrar el total y descuadrar el banco.
+            */}
+          {payModoEsTarjeta && (
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '12px 16px', marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#9a3412', marginBottom: 10 }}>
+                Si el procesador retuvo su comisión, escribe arriba <strong>lo que de verdad
+                entró al banco</strong>: la diferencia se registra como gasto y la factura
+                queda cancelada completa.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, marginBottom: 4 }}>Comisión retenida</div>
+                  <InputNumber
+                    style={{ width: '100%' }} prefix="Q" min={0} step={0.01} precision={2}
+                    max={Number(invoice.balance)}
+                    value={payComision || undefined}
+                    placeholder="0.00"
+                    onChange={v => setPayComision(v ?? 0)}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, marginBottom: 4 }}>Cuenta de gasto</div>
+                  <AccountSelect
+                    value={payComisionCuenta}
+                    onChange={setPayComisionCuenta}
+                    placeholder="La de Cuentas por defecto"
+                  />
+                </div>
+              </div>
+              {payComision > 0 && (
+                <div style={{ fontSize: 12, color: '#9a3412', marginTop: 10, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Entra al banco:</span><span>{fmt(Number(payForm.getFieldValue('amount') ?? 0))}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Comisión al gasto:</span><span>{fmt(payComision)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #fed7aa', paddingTop: 4, marginTop: 2 }}>
+                    <span>Se abona a la factura:</span>
+                    <span>{fmt(Number(payForm.getFieldValue('amount') ?? 0) + payComision + payIsrAmount)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
