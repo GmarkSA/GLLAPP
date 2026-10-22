@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Typography, Button, Table, Space, Input, Card, message, Tag,
   Modal, Form, Select, DatePicker, InputNumber, Popconfirm,
@@ -21,6 +21,7 @@ import { getProducts, type Product } from '../../api/inventario'
 import { branchesApi, type Branch } from '../../api/branches'
 import { useCompanyStore } from '../../store/companyStore'
 import AccountSelect from '../../components/AccountSelect'
+import { getAccounts } from '../../api/catalogo'
 
 const { Title, Text } = Typography
 
@@ -58,6 +59,9 @@ interface PendingLine {
   lote?: string
 }
 
+const fmtQ = (n: number) =>
+  'Q ' + Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 // ─── Create / Edit modal ───────────────────────────────────────────────────────
 function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
   open: boolean
@@ -74,6 +78,58 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
   const [searching, setSearching] = useState(false)
   const [lineKey, setLineKey]     = useState(0)
   const [prodInit, setProdInit]   = useState(false)
+  /** Catálogo de cuentas, para enseñar la póliza con código y nombre. */
+  const [cuentasPorId, setCuentasPorId] = useState<Map<string, string>>(new Map())
+
+  useEffect(() => {
+    if (!open) return
+    getAccounts({ activas: true })
+      .then((r: any) => {
+        const lista = Array.isArray(r) ? r : (r?.data ?? [])
+        setCuentasPorId(new Map(lista.map((c: any) => [String(c.id), `${c.code} — ${c.name}`])))
+      })
+      .catch(() => setCuentasPorId(new Map()))
+  }, [open])
+
+  /**
+   * La póliza que el backend va a registrar al confirmar. Se arma con el mismo
+   * criterio: el valor contra la cuenta de inventario del artículo y su
+   * contrapartida en la de ajustes.
+   *
+   * Solo la baja/merma y el ajuste contabilizan desde esta pantalla. La
+   * entrada por compra tiene la suya (GR/IR) y los demás tipos no mueven
+   * valor o ya se contabilizan en su propio documento.
+   */
+  const polizaPrevista = useMemo(() => {
+    if (tipo !== 'salida_baja' && tipo !== 'ajuste') return null
+    const porCuenta = new Map<string, number>()
+    for (const l of pendingLines) {
+      const p = products.find(x => x.id === l.productId)
+      const valor = Math.round(Math.abs(l.quantity) * Number(l.unitCost || 0) * 100) / 100
+      if (!p?.isInventoriable || valor <= 0) continue
+      if (!p.inventoryAccountId || !p.adjustmentAccountId) return null
+      const sube = tipo === 'ajuste' && l.quantity > 0
+      const signo = sube ? 1 : -1
+      porCuenta.set(p.inventoryAccountId, (porCuenta.get(p.inventoryAccountId) ?? 0) + signo * valor)
+      porCuenta.set(p.adjustmentAccountId, (porCuenta.get(p.adjustmentAccountId) ?? 0) - signo * valor)
+    }
+    const lineas = [...porCuenta.entries()]
+      .map(([id, monto]) => ({
+        cuenta: cuentasPorId.get(id) ?? 'Cuenta del artículo',
+        debe:  monto > 0 ?  Math.round(monto * 100) / 100 : 0,
+        haber: monto < 0 ? -Math.round(monto * 100) / 100 : 0,
+      }))
+      .filter(l => l.debe > 0 || l.haber > 0)
+    return lineas.length > 0 ? { lineas } : null
+  }, [tipo, pendingLines, products, cuentasPorId])
+
+  /** Por qué este movimiento no genera póliza desde aquí. */
+  const avisoSinPoliza =
+    tipo === 'salida_baja' || tipo === 'ajuste'
+      ? 'Las líneas no tienen costo, o al artículo le faltan la cuenta de inventario y la de ajustes. Sin eso no se puede contabilizar.'
+      : tipo === 'entrada_compra'
+        ? 'La entrada por compra se contabiliza contra la cuenta transitoria de mercadería recibida (GR/IR).'
+        : 'Este movimiento no genera póliza: no cambia el valor del inventario, o ya se contabiliza en su propio documento.'
 
   useEffect(() => {
     if (!open) { setTipo(undefined); setPendingLines([]); form.resetFields(); lineForm.resetFields(); setProdInit(false) }
@@ -315,6 +371,18 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
                 filterOption={false}
                 onSearch={searchProducts}
                 onDropdownVisibleChange={open => { if (open) loadInitialProducts() }}
+                onChange={(id: string) => {
+                  /**
+                   * El costo sale del artículo, no del teclado. Sin esto, dar
+                   * de baja mercadería la valuaba en cero: la bodega bajaba y
+                   * la póliza no tenía qué descargar.
+                   * Queda editable — el usuario puede fijar otro costo.
+                   */
+                  const p = products.find(x => x.id === id)
+                  const costo = Number(p?.averageCost ?? 0) || Number(p?.lastCost ?? 0)
+                    || Number(p?.purchasePrice ?? 0)
+                  if (costo > 0) lineForm.setFieldValue('unitCost', Number(costo.toFixed(4)))
+                }}
                 loading={searching}
                 placeholder="Buscar artículo por nombre o SKU..."
                 notFoundContent={searching ? 'Buscando...' : 'Sin resultados'}
@@ -355,6 +423,38 @@ function MovimientoFormModal({ open, ubicaciones, onClose, onSaved }: {
               </Button>
             </Form.Item>
           </Form>
+
+          {/*
+            * Qué va a quedar contabilizado. Hasta ahora el usuario confirmaba
+            * el movimiento sin saber si generaba póliza ni contra qué cuentas.
+            */}
+          {polizaPrevista && (
+            <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '10px 14px', marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#237804', marginBottom: 6 }}>
+                Póliza que se registrará al confirmar
+              </div>
+              {polizaPrevista.lineas.map((l, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, fontSize: 12, padding: '2px 0' }}>
+                  <span>{l.cuenta}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 90, textAlign: 'right' }}>
+                    {l.debe > 0 ? fmtQ(l.debe) : ''}
+                  </span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 90, textAlign: 'right' }}>
+                    {l.haber > 0 ? fmtQ(l.haber) : ''}
+                  </span>
+                </div>
+              ))}
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6 }}>
+                Se publica como «Ajuste» y aparece en Contabilidad › Diarios Manuales.
+              </div>
+            </div>
+          )}
+          {tipo && !polizaPrevista && pendingLines.length > 0 && (
+            <Alert
+              type="warning" showIcon style={{ marginBottom: 10, padding: '6px 12px' }}
+              message={avisoSinPoliza}
+            />
+          )}
 
           {/* Lines table */}
           {pendingLines.length > 0 ? (
