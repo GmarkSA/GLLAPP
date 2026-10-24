@@ -60,7 +60,7 @@ export default function EtiquetasPrintPage() {
         const elegidos = ids.length > 0 ? todos.filter(a => ids.includes(a.id)) : todos
         const lista = etiquetasDeArticulos(elegidos, opciones)
         setEtiquetas(lista)
-        setCodigos(generarCodigosBarras(lista))
+        setCodigos(generarCodigosBarras(lista, formato))
       })
       // Lo que responda el servidor se muestra: tragarse el error hacía que la
       // hoja dijera «no hay etiquetas» con el inventario lleno.
@@ -69,7 +69,7 @@ export default function EtiquetasPrintPage() {
         setFallo(getApiError(e, 'No se pudieron traer los artículos del inventario'))
       })
       .finally(() => setLoading(false))
-  }, [params])
+  }, [params, formato])
 
   // El código de barras tiene que estar pintado antes de abrir el diálogo de
   // impresión, o la hoja sale con los recuadros vacíos.
@@ -129,29 +129,32 @@ export default function EtiquetasPrintPage() {
           justify-content: center;
           background: #fff;
         }
+        /*
+         * El nombre arriba, el código al centro y el precio abajo: apilados y
+         * no en fila, porque en fila el código no pasaba del 60% del ancho de
+         * la etiqueta y ahí es donde se quedaba corto —el ancho es lo que fija
+         * el grosor de la barra más angosta, que es lo que el lector lee—.
+         */
         .etiqueta {
-          display: flex; align-items: center; gap: 2mm;
-          padding: 1.5mm 2mm;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center; gap: 0.5mm;
+          padding: 1mm;
           box-sizing: border-box;
           overflow: hidden;
           font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
         }
-        .etiqueta img { height: ${formato.codigoAltoMm}mm; width: auto; max-width: 60%; flex: none; }
-        .datos { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+        /* El ancho manda; el alto sale de la proporción con la que se generó. */
+        .etiqueta img { width: ${formato.codigoAnchoMm}mm; height: auto; display: block; flex: none; }
         .nombre {
-          font-size: ${formato.altoMm < 28 ? 6.5 : 7.5}pt; line-height: 1.15;
-          font-weight: 600; color: #111;
-          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-        .codigo {
-          font-size: ${formato.altoMm < 28 ? 5.5 : 6}pt; color: #666;
-          font-variant-numeric: tabular-nums; margin-top: 0.6mm;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          font-size: ${formato.altoMm < 28 ? 6 : 7}pt; line-height: 1.1;
+          font-weight: 600; color: #111; text-align: center;
+          width: 100%;
+          display: -webkit-box; -webkit-line-clamp: ${formato.altoMm < 28 ? 1 : 2};
+          -webkit-box-orient: vertical; overflow: hidden;
         }
         .precio {
-          font-size: ${formato.altoMm < 28 ? 8 : 9.5}pt; font-weight: 700;
-          color: #111; margin-top: 0.6mm; font-variant-numeric: tabular-nums;
+          font-size: ${formato.altoMm < 28 ? 7.5 : 9}pt; font-weight: 700;
+          color: #111; font-variant-numeric: tabular-nums; line-height: 1;
         }
       `}</style>
 
@@ -160,11 +163,9 @@ export default function EtiquetasPrintPage() {
           <div className="rejilla" style={{ minHeight: `${filas * formato.altoMm}mm` }}>
             {etiquetas.slice(h * formato.porHoja, (h + 1) * formato.porHoja).map((e, i) => (
               <div className="etiqueta" key={`${e.articuloId}-${i}`}>
+                <div className="nombre">{e.nombre}</div>
                 {codigos.get(e.codigo) && <img src={codigos.get(e.codigo)} alt="" />}
-                <div className="datos">
-                  <div className="nombre">{e.nombre}</div>
-                  {e.precio && <div className="precio">{e.precio}</div>}
-                </div>
+                {e.precio && <div className="precio">{e.precio}</div>}
               </div>
             ))}
           </div>
