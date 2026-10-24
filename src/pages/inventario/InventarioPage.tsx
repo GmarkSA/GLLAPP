@@ -722,6 +722,7 @@ export default function InventarioPage() {
       <EtiquetasModal
         open={etiquetasOpen}
         seleccionados={etiquetasSeleccion}
+        articulos={filteredProducts}
         onClose={() => setEtiquetasOpen(false)}
       />
 

@@ -5,6 +5,7 @@ import {
   etiquetasDeArticulos,
   generarCodigoBarras,
   geometriaDelCodigo,
+  codigosBajoElMinimo,
   modulosDelCodigo,
   type ArticuloParaEtiqueta,
 } from './etiquetas'
@@ -246,5 +247,54 @@ describe('los códigos que no son EAN-13', () => {
   it('un SKU largo avisa que queda por debajo del mínimo', () => {
     const hoja = FORMATOS_ETIQUETA.find(f => f.id === 'hoja-24')!
     expect(geometriaDelCodigo('PAPEL-BOND-CARTA-75G', hoja).xMm).toBeLessThan(0.264)
+  })
+})
+
+/**
+ * Antes de imprimir hay que avisar cuáles no van a leer.
+ *
+ * Un artículo que todavía trae el SKU como código se imprime en Code128, que
+ * ocupa 11 módulos por carácter: con un SKU de ocho letras el símbolo necesita
+ * 143 módulos contra los 114 del EAN-13, y en el mismo ancho de etiqueta las
+ * barras salen un 30% más delgadas. Eso no se arregla imprimiendo —hay que
+ * regenerar el código—, así que la pantalla tiene que decirlo antes y no
+ * después de pegar 1,584 etiquetas que no leen.
+ */
+describe('avisar de los códigos que no van a leer', () => {
+  const hoja = () => FORMATOS_ETIQUETA.find(f => f.id === 'hoja-24')!
+  const articulo = (sku: string, codigo?: string): ArticuloParaEtiqueta =>
+    ({ id: sku, sku, name: `ARTICULO ${sku}`, salesPrice: 10, barCodes: codigo ? [codigo] : undefined })
+
+  it('el EAN-13 interno no se reporta: lee bien', () => {
+    const lista = etiquetasDeArticulos([articulo('ABA-GRAN', '2000000000015')])
+    expect(codigosBajoElMinimo(lista, hoja())).toHaveLength(0)
+  })
+
+  it('un SKU de ocho letras sí se reporta', () => {
+    const lista = etiquetasDeArticulos([articulo('ABA-GRAN')])
+    expect(codigosBajoElMinimo(lista, hoja())).toHaveLength(1)
+  })
+
+  it('dice qué artículo es y cuánto le falta', () => {
+    const lista = etiquetasDeArticulos([articulo('ABA-GRAN')])
+    const [corto] = codigosBajoElMinimo(lista, hoja())
+    expect(corto.nombre).toBe('ARTICULO ABA-GRAN')
+    expect(corto.codigo).toBe('ABA-GRAN')
+    expect(corto.magnificacion).toBeLessThan(0.8)
+  })
+
+  it('el mismo código repetido se reporta una sola vez', () => {
+    const lista = etiquetasDeArticulos([articulo('ABA-GRAN')], { copias: 5 })
+    expect(lista).toHaveLength(5)
+    expect(codigosBajoElMinimo(lista, hoja())).toHaveLength(1)
+  })
+
+  it('primero el peor, que es por donde hay que empezar', () => {
+    const lista = etiquetasDeArticulos([
+      articulo('ABA-GRAN'),
+      articulo('PAPEL-BOND-CARTA-75G'),
+    ])
+    const cortos = codigosBajoElMinimo(lista, hoja())
+    expect(cortos.map(c => c.codigo)).toEqual(['PAPEL-BOND-CARTA-75G', 'ABA-GRAN'])
   })
 })

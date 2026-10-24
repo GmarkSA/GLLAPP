@@ -333,6 +333,43 @@ export function generarCodigoBarras(codigo: string, formato?: FormatoEtiqueta): 
   }
 }
 
+export interface CodigoBajoElMinimo {
+  nombre: string
+  codigo: string
+  /** Ancho de la barra más angosta con la que saldría impreso, en mm. */
+  xMm: number
+  /** Qué fracción del EAN-13 nominal alcanza. Por debajo de 0.8 el lector falla. */
+  magnificacion: number
+}
+
+/**
+ * Cuáles de estas etiquetas van a salir por debajo del mínimo que lee el
+ * lector, peor primero.
+ *
+ * Casi siempre es el artículo que todavía trae el SKU como código: se imprime
+ * en Code128, que ocupa 11 módulos por carácter, y en el mismo ancho de
+ * etiqueta las barras salen mucho más delgadas que las de un EAN-13. Eso no se
+ * arregla imprimiendo —hay que regenerarle el código— y por eso conviene
+ * decirlo antes de pegar las etiquetas, no después.
+ */
+export function codigosBajoElMinimo(
+  etiquetas: Etiqueta[],
+  formato: FormatoEtiqueta,
+): CodigoBajoElMinimo[] {
+  const porCodigo = new Map<string, CodigoBajoElMinimo>()
+  for (const e of etiquetas) {
+    if (porCodigo.has(e.codigo)) continue
+    const g = geometriaDelCodigo(e.codigo, formato)
+    if (g.modulos && g.xMm < X_MINIMO_MM) {
+      porCodigo.set(e.codigo, {
+        nombre: e.nombre, codigo: e.codigo,
+        xMm: g.xMm, magnificacion: g.magnificacion,
+      })
+    }
+  }
+  return [...porCodigo.values()].sort((a, b) => a.xMm - b.xMm)
+}
+
 /** Los códigos de barras de una lista de etiquetas, sin repetir el trabajo por código igual. */
 export function generarCodigosBarras(
   etiquetas: Etiqueta[],
