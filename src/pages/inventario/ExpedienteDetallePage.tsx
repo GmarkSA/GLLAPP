@@ -12,6 +12,8 @@ import {
   GlobalOutlined, LinkOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { getAccounts } from '../../api/catalogo'
+import { getAccountDefaults } from '../../api/compras'
 import {
   getExpediente, createExpediente, addExpedienteDocumento, removeExpedienteDocumento,
   addExpedienteLinea, removeExpedienteLinea, recalcularExpediente,
@@ -406,6 +408,64 @@ export default function ExpedienteDetallePage() {
     }
   }
 
+  /**
+   * La póliza que se va a registrar al confirmar. Hasta ahora el usuario
+   * confirmaba sin saber si el expediente llegaba a la contabilidad — y no
+   * llegaba: la mercadería entraba a bodega y los libros quedaban sin el
+   * inventario y sin los gastos.
+   */
+  const [polizaPrevista, setPolizaPrevista] = useState<
+    { lineas: Array<{ cuenta: string; debe: number; haber: number }>; falta?: string } | null>(null)
+
+  useEffect(() => {
+    if (!exp?.lineas?.length) { setPolizaPrevista(null); return }
+    let vivo = true
+    ;(async () => {
+      const [cuentasRaw, defaults, prodsRaw] = await Promise.all([
+        getAccounts({ activas: true }).catch(() => []),
+        getAccountDefaults().catch(() => ({} as any)),
+        getProducts({ limit: 500 }).catch(() => ({ data: [] } as any)),
+      ])
+      if (!vivo) return
+      const cuentas: any[] = Array.isArray(cuentasRaw) ? cuentasRaw : ((cuentasRaw as any)?.data ?? [])
+      const porId = new Map(cuentas.map(c => [String(c.id), `${c.code} — ${c.name}`]))
+      const prods: any[] = (prodsRaw as any)?.data ?? []
+
+      const codigoTransitoria = (defaults as any).inventoryClearingAccountCode
+      const transitoria = cuentas.find(c => String(c.code) === String(codigoTransitoria ?? ''))
+      if (!transitoria) {
+        setPolizaPrevista({ lineas: [], falta:
+          'Falta la cuenta transitoria de importaciones. Configúrala en Configuración › Cuentas por defecto: sin ella no se puede confirmar.' })
+        return
+      }
+
+      const porInventario = new Map<string, number>()
+      for (const l of exp.lineas ?? []) {
+        const valor = Math.round(Number(l.quantity) * Number(l.landedCostPerUnit ?? 0) * 100) / 100
+        if (valor <= 0) continue
+        const p = prods.find(x => String(x.id) === String(l.productId))
+        if (!p?.isInventoriable) continue
+        if (!p.inventoryAccountId) {
+          setPolizaPrevista({ lineas: [], falta:
+            `El artículo «${`${p.sku ?? ''} ${p.name ?? ''}`.trim()}» no tiene cuenta de inventario. Asígnala en Inventario › Artículos.` })
+          return
+        }
+        porInventario.set(p.inventoryAccountId, (porInventario.get(p.inventoryAccountId) ?? 0) + valor)
+      }
+
+      const total = Math.round([...porInventario.values()].reduce((a, b) => a + b, 0) * 100) / 100
+      if (total <= 0) { setPolizaPrevista(null); return }
+
+      const lineas = [...porInventario.entries()].map(([id, monto]) => ({
+        cuenta: porId.get(id) ?? 'Cuenta de inventario del artículo',
+        debe: Math.round(monto * 100) / 100, haber: 0,
+      }))
+      lineas.push({ cuenta: `${transitoria.code} — ${transitoria.name}`, debe: 0, haber: total })
+      setPolizaPrevista({ lineas })
+    })()
+    return () => { vivo = false }
+  }, [exp])
+
   const handleConfirmar = async () => {
     if (!id) return
     setConfirming(true)
@@ -696,6 +756,37 @@ export default function ExpedienteDetallePage() {
           </Card>
         </Col>
       </Row>
+
+      {/* Póliza que se registrará al confirmar */}
+      {polizaPrevista && exp.status !== 'confirmado' && (
+        polizaPrevista.falta ? (
+          <Alert type="warning" showIcon style={{ marginBottom: 16 }}
+            message="Este expediente todavía no se puede contabilizar"
+            description={polizaPrevista.falta} />
+        ) : (
+          <Card
+            title={<Space>🧾 Póliza que se registrará al confirmar</Space>}
+            style={{ borderRadius: 10, marginBottom: 16 }}
+          >
+            {polizaPrevista.lineas.map((l, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 16, fontSize: 13, padding: '3px 0' }}>
+                <span>{l.cuenta}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 110, textAlign: 'right' }}>
+                  {l.debe > 0 ? fmtQ(l.debe) : ''}
+                </span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 110, textAlign: 'right' }}>
+                  {l.haber > 0 ? fmtQ(l.haber) : ''}
+                </span>
+              </div>
+            ))}
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+              La mercadería entra al inventario contra la transitoria. Las facturas del
+              proveedor, flete, seguro y DAI la liquidan después desde Compras: su saldo
+              debe terminar en cero. Aparece en Contabilidad › Diarios Manuales.
+            </Text>
+          </Card>
+        )
+      )}
 
       {/* Documents table */}
       <Card
