@@ -1017,6 +1017,12 @@ interface AccountDefaults {
    * cuenta, la factura no se puede cancelar al 100%.
    */
   cardCommissionAccountCode?: string
+  /**
+   * La transitoria de importaciones (GR/IR). El backend ya la leía en facturas
+   * de proveedor, entradas por compra y expedientes, pero no había dónde
+   * configurarla: sin ella, esas pólizas no se generaban y nadie se enteraba.
+   */
+  inventoryClearingAccountCode?: string
 }
 
 function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef?: React.MutableRefObject<null | (() => Promise<boolean>)> } = {}) {
@@ -1084,6 +1090,7 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
       fxLossAccountCode:           '710003',
       openingBalanceAccountCode:   '310001',
       cardCommissionAccountCode:   '650003',
+      inventoryClearingAccountCode: '140001',
     }
     const byCode = (code: string) => accounts.find(a => a.code === code)?.code
     setDefaults(prev => ({
@@ -1242,6 +1249,34 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
                 Valor actual: <Text code>{defaults.fxLossAccountCode || 'No configurado'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24}>
+              <div style={{ marginBottom: 8, marginTop: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>Importaciones y mercadería por liquidar</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Cuenta transitoria contra la que entra la mercadería mientras llegan sus
+                  facturas: el expediente de importación y la entrada por compra cargan el
+                  inventario y abonan aquí, y las facturas del proveedor, flete, seguro y DAI
+                  la liquidan después. Su saldo debe terminar en cero.
+                </Text>
+              </div>
+              <Select
+                showSearch
+                allowClear
+                style={{ width: '100%', maxWidth: 520 }}
+                value={defaults.inventoryClearingAccountCode}
+                placeholder="Ej: 140001 — Importaciones por liquidar"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, inventoryClearingAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.inventoryClearingAccountCode || 'No configurado'}</Text>
               </Text>
             </Col>
 
