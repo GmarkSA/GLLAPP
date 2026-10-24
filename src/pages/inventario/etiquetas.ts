@@ -48,34 +48,83 @@ export interface FormatoEtiqueta {
   /** Medidas de la etiqueta, en milímetros */
   anchoMm:     number
   altoMm:      number
-  /** Alto del código de barras, en milímetros (el ancho se ajusta solo) */
-  codigoAltoMm: number
+  /**
+   * Ancho impreso del código de barras, en milímetros. Es la medida que manda:
+   * de ella sale el ancho de la barra más angosta (X), que es lo que decide si
+   * el lector lee. Ver EL TAMAÑO DEL SÍMBOLO, más abajo.
+   */
+  codigoAnchoMm: number
+  /** Alto impreso de las barras, en milímetros. */
+  codigoBarrasMm: number
 }
+
+/**
+ * EL TAMAÑO DEL SÍMBOLO — por qué el lector fallaba una etiqueta sí y otra no.
+ *
+ * GS1 define el EAN-13 al 100%: la barra más angosta (X) mide 0.33 mm, el
+ * símbolo completo 113X = 37.3 mm y las barras 22.85 mm de alto. Se puede
+ * imprimir entre el 80% y el 200% de esa medida; por debajo del 80% la lectura
+ * se vuelve intermitente.
+ *
+ * Lucía imprimía por debajo. La imagen se escalaba por ALTO (10-12 mm) y el
+ * ancho salía de la proporción del PNG, así que X quedaba entre 0.21 y 0.26 mm
+ * (64%-80%) y las barras entre 6.6 y 8.4 mm: menos de la mitad del mínimo. Con
+ * barras tan cortas el haz del lector tiene que cruzar un símbolo de 25 mm de
+ * ancho dentro de una franja de 7 mm; basta inclinar un poco la pistola para
+ * que el haz salga por arriba o por abajo antes de terminar de leer. De ahí
+ * que una etiqueta lea y la siguiente, sostenida con otro ángulo, no.
+ *
+ * Y faltaba la zona de silencio derecha —los 7 módulos en blanco que el
+ * estándar exige después de la última barra—: el símbolo salía de 107 módulos
+ * en vez de 113. jsbarcode solo los dibuja cuando se le pasa `lastChar`.
+ *
+ * Ahora el tamaño se fija por ANCHO en milímetros, que es lo que determina X,
+ * y el alto de las barras se declara aparte: en la etiqueta chica hay que
+ * truncarlas para que quepan nombre y precio, pero truncadas a 11 mm siguen
+ * siendo el doble de lo que se imprimía.
+ */
+const X_NOMINAL_MM = 0.33
+/** El 80% de GS1: por debajo de esto el lector empieza a fallar. */
+export const X_MINIMO_MM = X_NOMINAL_MM * 0.8
+/** Alto de las barras del EAN-13 al 100%. */
+const ALTO_BARRAS_NOMINAL_MM = 22.85
+
+/**
+ * Píxeles por módulo del PNG que se genera. No es una medida física —el tamaño
+ * impreso lo pone el CSS en milímetros—, solo resolución: a 5 px por módulo y
+ * X ≈ 0.28 mm la imagen sale a ~450 ppp, nítida tanto en la térmica de rollo
+ * (203 ppp) como en la láser (600 ppp).
+ */
+const PX_POR_MODULO = 5
+/** Alto del texto legible bajo las barras, en módulos. */
+const TEXTO_MODULOS = 8
+/** Separación entre las barras y el texto, en módulos. */
+const TEXTO_MARGEN_MODULOS = 1
 
 export const FORMATOS_ETIQUETA: FormatoEtiqueta[] = [
   {
     id: 'hoja-24', label: 'Hoja adhesiva — 24 por página',
-    description: 'Carta, 3 columnas × 8 filas. Etiqueta de 63.5 × 33.9 mm',
+    description: 'Carta, 3 columnas × 8 filas. Etiqueta de 63.5 × 33.9 mm. La que mejor lee',
     pageSize: '8.5in 11in', porHoja: 24, columnas: 3,
-    anchoMm: 63.5, altoMm: 33.9, codigoAltoMm: 12,
+    anchoMm: 63.5, altoMm: 33.9, codigoAnchoMm: 32, codigoBarrasMm: 16,
   },
   {
     id: 'hoja-30', label: 'Hoja adhesiva — 30 por página',
-    description: 'Carta, 3 columnas × 10 filas. Etiqueta de 66 × 25.4 mm',
+    description: 'Carta, 3 columnas × 10 filas. Etiqueta de 66 × 25.4 mm. Barras truncadas',
     pageSize: '8.5in 11in', porHoja: 30, columnas: 3,
-    anchoMm: 66, altoMm: 25.4, codigoAltoMm: 10,
+    anchoMm: 66, altoMm: 25.4, codigoAnchoMm: 32, codigoBarrasMm: 11,
   },
   {
     id: 'termica-50x25', label: 'Térmica — 50 × 25 mm',
-    description: 'Una etiqueta por impresión. Impresora de rollo',
+    description: 'Una etiqueta por impresión. Impresora de rollo. Barras truncadas',
     pageSize: '50mm 25mm', porHoja: 1, columnas: 1,
-    anchoMm: 50, altoMm: 25, codigoAltoMm: 11,
+    anchoMm: 50, altoMm: 25, codigoAnchoMm: 32, codigoBarrasMm: 11,
   },
   {
     id: 'termica-40x30', label: 'Térmica — 40 × 30 mm',
-    description: 'Una etiqueta por impresión. Más alta, cabe nombre de dos líneas',
+    description: 'Una etiqueta por impresión. Más alta: barras más largas, mejor lectura',
     pageSize: '40mm 30mm', porHoja: 1, columnas: 1,
-    anchoMm: 40, altoMm: 30, codigoAltoMm: 10,
+    anchoMm: 40, altoMm: 30, codigoAnchoMm: 34, codigoBarrasMm: 14,
   },
 ]
 
@@ -155,6 +204,86 @@ export function etiquetasDeArticulos(
 }
 
 /**
+ * Las opciones con las que se dibuja el símbolo.
+ *
+ * `lastChar` es lo que hace que jsbarcode dibuje la zona de silencio derecha:
+ * agrega 2 + 5 módulos en blanco después de la última barra, que son justo los
+ * 7 que exige el estándar. Sin eso el símbolo sale de 107 módulos en vez de
+ * 113 y el texto de la etiqueta queda pegado a la última barra.
+ *
+ * `margin: 0` porque los márgenes de jsbarcode se miden en píxeles fijos: no
+ * escalan con el símbolo y ensucian la cuenta de módulos. El blanco que hace
+ * falta son las zonas de silencio, que sí van en módulos.
+ */
+const opcionesDe = (codigo: string, barrasModulos: number) => ({
+  format: /^\d{13}$/.test(codigo) ? ('EAN13' as const) : ('CODE128' as const),
+  width:        PX_POR_MODULO,
+  height:       Math.round(barrasModulos * PX_POR_MODULO),
+  displayValue: true,
+  fontSize:     TEXTO_MODULOS * PX_POR_MODULO,
+  textMargin:   TEXTO_MARGEN_MODULOS * PX_POR_MODULO,
+  margin:       0,
+  lastChar:     ' ',
+})
+
+/**
+ * Cuántos módulos de ancho ocupa el símbolo, zonas de silencio incluidas.
+ *
+ * Se le pregunta a jsbarcode en vez de calcularlo: un EAN-13 siempre da 114
+ * (12 de silencio izquierdo + 95 del símbolo + 7 de silencio derecho), pero un
+ * Code128 depende de cuántos caracteres tenga el código, y de eso depende el
+ * ancho de barra que sale al imprimirlo.
+ */
+export function modulosDelCodigo(codigo: string): number {
+  const limpio = String(codigo ?? '').trim()
+  if (!limpio) return 0
+  try {
+    const medido: any = {}
+    JsBarcode(medido, limpio, opcionesDe(limpio, 1))
+    return (medido.encodings ?? []).reduce(
+      (s: number, e: any) => s + String(e.data ?? '').length, 0)
+  } catch {
+    return 0
+  }
+}
+
+export interface GeometriaImpresa {
+  /** Módulos de ancho del símbolo, zonas de silencio incluidas. */
+  modulos: number
+  /** Ancho impreso del símbolo completo, en mm. */
+  anchoMm: number
+  /** Alto impreso del símbolo completo —barras más texto—, en mm. */
+  altoMm: number
+  /** Ancho de la barra más angosta, en mm. Es la medida que decide la lectura. */
+  xMm: number
+  /** Alto impreso de las barras, en mm. */
+  altoBarrasMm: number
+  /** Qué tan grande sale respecto al EAN-13 nominal. GS1 pide entre 0.8 y 2. */
+  magnificacion: number
+}
+
+/**
+ * Qué va a medir el código, impreso, en este formato de etiqueta.
+ *
+ * Un Code128 largo no cabe en el ancho del formato a la misma escala que un
+ * EAN-13: en ese caso se encoge para no desbordar la etiqueta, y la
+ * magnificación que devuelve avisa que ese código va a leer peor.
+ */
+export function geometriaDelCodigo(codigo: string, formato: FormatoEtiqueta): GeometriaImpresa {
+  const modulos = modulosDelCodigo(codigo)
+  if (!modulos) {
+    return { modulos: 0, anchoMm: 0, altoMm: 0, xMm: 0, altoBarrasMm: 0, magnificacion: 0 }
+  }
+
+  const anchoMm = Math.min(formato.codigoAnchoMm, formato.anchoMm - 4)
+  const xMm     = anchoMm / modulos
+  const altoBarrasMm = formato.codigoBarrasMm
+  const altoMm  = altoBarrasMm + (TEXTO_MODULOS + TEXTO_MARGEN_MODULOS) * xMm
+
+  return { modulos, anchoMm, altoMm, xMm, altoBarrasMm, magnificacion: xMm / X_NOMINAL_MM }
+}
+
+/**
  * El código de barras, como imagen lista para pintar.
  *
  * EAN-13 cuando el código son 13 dígitos (el interno de Lucía, o un EAN de
@@ -162,20 +291,23 @@ export function etiquetasDeArticulos(
  * cualquier otra cosa (un código de fabricante que no sea EAN-13, o un SKU
  * viejo sin regenerar): soporta texto arbitrario, aunque no Ñ/tildes/espacios
  * — si falla, se devuelve vacío en vez de romper toda la hoja.
+ *
+ * El PNG se genera con la proporción exacta que va a tener impreso: el CSS le
+ * fija el ANCHO en milímetros y el alto sale solo. Escalarlo por alto era lo
+ * que dejaba las barras por debajo del mínimo.
  */
-export function generarCodigoBarras(codigo: string): string {
+export function generarCodigoBarras(codigo: string, formato?: FormatoEtiqueta): string {
   const limpio = String(codigo ?? '').trim()
   if (!limpio) return ''
   try {
+    // Sin formato —una vista previa suelta— se dibuja a la proporción nominal
+    // del EAN-13: barras de 22.85 mm sobre un módulo de 0.33 mm.
+    const barrasModulos = formato
+      ? formato.codigoBarrasMm / geometriaDelCodigo(limpio, formato).xMm
+      : ALTO_BARRAS_NOMINAL_MM / X_NOMINAL_MM
+
     const canvas = document.createElement('canvas')
-    JsBarcode(canvas, limpio, {
-      format: /^\d{13}$/.test(limpio) ? 'EAN13' : 'CODE128',
-      width: 2.2,
-      height: 70,
-      displayValue: true,
-      fontSize: 16,
-      margin: 6,
-    })
+    JsBarcode(canvas, limpio, opcionesDe(limpio, barrasModulos))
     return canvas.toDataURL('image/png')
   } catch {
     return ''
@@ -183,10 +315,13 @@ export function generarCodigoBarras(codigo: string): string {
 }
 
 /** Los códigos de barras de una lista de etiquetas, sin repetir el trabajo por código igual. */
-export function generarCodigosBarras(etiquetas: Etiqueta[]): Map<string, string> {
+export function generarCodigosBarras(
+  etiquetas: Etiqueta[],
+  formato?: FormatoEtiqueta,
+): Map<string, string> {
   const porCodigo = new Map<string, string>()
   for (const codigo of new Set(etiquetas.map(e => e.codigo))) {
-    porCodigo.set(codigo, generarCodigoBarras(codigo))
+    porCodigo.set(codigo, generarCodigoBarras(codigo, formato))
   }
   return porCodigo
 }

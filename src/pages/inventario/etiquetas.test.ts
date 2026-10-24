@@ -4,6 +4,8 @@ import {
   codigoDelArticulo,
   etiquetasDeArticulos,
   generarCodigoBarras,
+  geometriaDelCodigo,
+  modulosDelCodigo,
   type ArticuloParaEtiqueta,
 } from './etiquetas'
 
@@ -166,5 +168,55 @@ describe('generar el código de barras', () => {
 
   it('un código vacío no genera imagen, en vez de una ilegible', () => {
     expect(generarCodigoBarras('')).toBe('')
+  })
+})
+
+/**
+ * El tamaño del símbolo, que es lo que decide si el lector lee.
+ *
+ * GS1 define el EAN-13 a 100%: la barra más angosta (X) mide 0.33 mm, el
+ * símbolo completo 113X = 37.3 mm y las barras 22.85 mm de alto. Se puede
+ * imprimir entre el 80% y el 200%; por debajo del 80% el lector empieza a
+ * fallar de forma intermitente — una etiqueta lee y la siguiente no.
+ *
+ * Lucía imprimía por debajo del mínimo: la imagen se escalaba por ALTO (10-12
+ * mm) y el ancho salía de la proporción, así que X quedaba entre 0.21 y 0.26
+ * mm y las barras entre 6.6 y 8.4 mm — menos de la mitad del mínimo. Y no se
+ * imprimía la zona de silencio derecha: 107 módulos en vez de los 113 que
+ * exige el estándar.
+ */
+describe('el tamaño del código impreso', () => {
+  const EAN = '2000000000015'
+
+  it('lleva las dos zonas de silencio: 113 módulos como pide el estándar', () => {
+    expect(modulosDelCodigo(EAN)).toBeGreaterThanOrEqual(113)
+  })
+
+  it('en todos los formatos la barra más angosta llega al 80% de GS1', () => {
+    for (const f of FORMATOS_ETIQUETA) {
+      const g = geometriaDelCodigo(EAN, f)
+      expect([f.id, g.xMm >= 0.264]).toEqual([f.id, true])
+    }
+  })
+
+  it('y las barras miden al menos 11 mm, no los 7 de antes', () => {
+    for (const f of FORMATOS_ETIQUETA) {
+      const g = geometriaDelCodigo(EAN, f)
+      expect([f.id, g.altoBarrasMm >= 11]).toEqual([f.id, true])
+    }
+  })
+
+  it('el código cabe en la etiqueta, con margen para la zona de silencio', () => {
+    for (const f of FORMATOS_ETIQUETA) {
+      const g = geometriaDelCodigo(EAN, f)
+      expect([f.id, g.anchoMm <= f.anchoMm - 3]).toEqual([f.id, true])
+    }
+  })
+
+  it('el símbolo completo cabe a lo alto junto con nombre y precio', () => {
+    for (const f of FORMATOS_ETIQUETA) {
+      const g = geometriaDelCodigo(EAN, f)
+      expect([f.id, g.altoMm <= f.altoMm - 7]).toEqual([f.id, true])
+    }
   })
 })
