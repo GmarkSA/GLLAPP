@@ -191,3 +191,63 @@ describe('lo que el cajero ve en pantalla', () => {
     expect(host.textContent).toContain('IVA (12%)')
   })
 })
+
+/**
+ * Un servicio no lleva inventario: su existencia siempre es cero porque no hay
+ * nada que contar. El POS trataba ese cero como «Sin stock» y dejaba la
+ * tarjeta en gris, sin poder tocarla: ningún servicio —impresiones, fletes,
+ * mano de obra— se podía facturar desde la caja. El backend nunca revisó
+ * existencias al cobrar; el bloqueo era solo de la pantalla.
+ */
+const SERVICIO = {
+  id: 'p3', sku: 'imp-blan', name: 'impresiones blanco y negro',
+  salesPrice: 5, stockOnHand: 0, isInventoriable: false, itemType: 'servicio',
+  salesTaxId: 'tax-iva', barCodes: ['imp-blan'],
+}
+
+describe('servicios en el POS', () => {
+  it('se pueden agregar al carrito aunque no tengan existencia', async () => {
+    articulos = [SERVICIO as any]
+    await render()
+    await agregarAlCarrito('impresiones blanco y negro')
+    expect(botonCobrar()!.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('no se rotulan como «Sin stock»', async () => {
+    articulos = [SERVICIO as any]
+    await render()
+    expect(host.textContent).not.toContain('Sin stock')
+  })
+
+  it('y se cobran: llegan a la factura como cualquier otra línea', async () => {
+    articulos = [SERVICIO as any]
+    await render()
+    await agregarAlCarrito('impresiones blanco y negro')
+    await cobrar()
+    expect(loQueSeMando().items[0].productId).toBe('p3')
+  })
+
+  it('un artículo de inventario sin existencia sí se sigue bloqueando', async () => {
+    articulos = [{ ...ARTICULO_PC, stockOnHand: 0 } as any]
+    await render()
+    expect(host.textContent).toContain('Sin stock')
+  })
+})
+
+/**
+ * La carga por Excel guarda `isInventoriable: fila.inventariable !== false`:
+ * un servicio cuya fila venga sin la columna «lleva_stock» queda marcado como
+ * inventariable y volvería a quedar bloqueado. El tipo de artículo es la otra
+ * señal, y es la que esas filas sí traen.
+ */
+describe('servicios cargados por Excel sin la columna lleva_stock', () => {
+  const SERVICIO_MAL_CARGADO = { ...SERVICIO, isInventoriable: true }
+
+  it('tampoco quedan bloqueados: manda el tipo de artículo', async () => {
+    articulos = [SERVICIO_MAL_CARGADO as any]
+    await render()
+    await agregarAlCarrito('impresiones blanco y negro')
+    await cobrar()
+    expect(loQueSeMando().items[0].productId).toBe('p3')
+  })
+})
