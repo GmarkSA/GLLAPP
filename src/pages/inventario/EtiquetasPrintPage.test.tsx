@@ -40,18 +40,21 @@ const render = async (query: string) => {
   // ("Generando etiquetas…" en vez del resultado). Se espera a que la
   // pantalla de carga desaparezca de verdad, con un tope generoso en vez de
   // adivinar un número fijo.
-  const limite = Date.now() + 10_000
+  // Tiene que quedar por debajo del tope de la prueba: así, si de verdad se
+  // cuelga, falla diciendo qué se quedó en pantalla y no un «timed out» pelado.
+  const limite = Date.now() + 30_000
   while (host.textContent?.includes('Generando etiquetas') && Date.now() < limite) {
     await act(async () => { await new Promise(r => setTimeout(r, 25)) })
   }
 }
 
-// El código de barras se renderiza con un canvas real (encoding de PNG de
-// verdad), y en CI puede tardar más que el tope por omisión de Vitest (5s)
-// — sobre todo con cientos de artículos. render() ya espera a que la
-// pantalla de carga termine de verdad; esto solo da margen de tiempo total
-// para que esa espera no se corte antes de tiempo.
-vi.setConfig({ testTimeout: 15_000 })
+// La prueba más pesada de esta suite monta 600 etiquetas de verdad, y en CI
+// se corre junto a otros 26 archivos en paralelo sobre un runner compartido:
+// lo que aquí tarda menos de un segundo allá puede tardar diez. Ya pasó —el
+// tope de 15s se quedó corto y la prueba se cortó a la mitad, reportada como
+// si el código estuviera colgado. render() espera a que la pantalla de carga
+// termine de verdad, así que el tope solo tiene que ser generoso, no exacto.
+vi.setConfig({ testTimeout: 45_000 })
 
 beforeEach(() => {
   getProducts.mockClear()

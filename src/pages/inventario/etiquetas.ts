@@ -90,12 +90,18 @@ export const X_MINIMO_MM = X_NOMINAL_MM * 0.8
 const ALTO_BARRAS_NOMINAL_MM = 22.85
 
 /**
- * Píxeles por módulo del PNG que se genera. No es una medida física —el tamaño
- * impreso lo pone el CSS en milímetros—, solo resolución: a 5 px por módulo y
- * X ≈ 0.28 mm la imagen sale a ~450 ppp, nítida tanto en la térmica de rollo
- * (203 ppp) como en la láser (600 ppp).
+ * Unidades del dibujo por cada módulo. No es una medida física —el tamaño
+ * impreso lo pone el CSS en milímetros—, solo la escala interna del SVG.
+ *
+ * El código se dibuja en SVG y no en PNG. Un PNG hay que generarlo a una
+ * resolución fija y apostar a que le sirva a la impresora: a 5 px por módulo
+ * salía a ~450 ppp, pero pesaba 15 KB por código y, con los 1,584 artículos
+ * del inventario, eran 23 MB de imágenes que el navegador tenía que decodificar
+ * para armar la hoja. El SVG es vector: pesa 4 KB, se arma 5 veces más rápido
+ * y lo rasteriza la impresora a su propia resolución, así que sale más nítido
+ * tanto en la térmica de rollo (203 ppp) como en la láser (600 ppp).
  */
-const PX_POR_MODULO = 5
+const UNIDADES_POR_MODULO = 5
 /** Alto del texto legible bajo las barras, en módulos. */
 const TEXTO_MODULOS = 8
 /** Separación entre las barras y el texto, en módulos. */
@@ -224,14 +230,14 @@ const esEan13 = (codigo: string) => /^\d{13}$/.test(codigo)
  * el alto de las barras.
  */
 const opcionesDe = (codigo: string, barrasModulos: number) => {
-  const silencio = esEan13(codigo) ? 0 : SILENCIO_CODE128_MODULOS * PX_POR_MODULO
+  const silencio = esEan13(codigo) ? 0 : SILENCIO_CODE128_MODULOS * UNIDADES_POR_MODULO
   return {
     format: esEan13(codigo) ? ('EAN13' as const) : ('CODE128' as const),
-    width:        PX_POR_MODULO,
-    height:       Math.round(barrasModulos * PX_POR_MODULO),
+    width:        UNIDADES_POR_MODULO,
+    height:       Math.round(barrasModulos * UNIDADES_POR_MODULO),
     displayValue: true,
-    fontSize:     TEXTO_MODULOS * PX_POR_MODULO,
-    textMargin:   TEXTO_MARGEN_MODULOS * PX_POR_MODULO,
+    fontSize:     TEXTO_MODULOS * UNIDADES_POR_MODULO,
+    textMargin:   TEXTO_MARGEN_MODULOS * UNIDADES_POR_MODULO,
     margin:       0,
     marginTop:    0,
     marginBottom: 0,
@@ -311,9 +317,9 @@ export function geometriaDelCodigo(codigo: string, formato: FormatoEtiqueta): Ge
  * viejo sin regenerar): soporta texto arbitrario, aunque no Ñ/tildes/espacios
  * — si falla, se devuelve vacío en vez de romper toda la hoja.
  *
- * El PNG se genera con la proporción exacta que va a tener impreso: el CSS le
- * fija el ANCHO en milímetros y el alto sale solo. Escalarlo por alto era lo
- * que dejaba las barras por debajo del mínimo.
+ * Sale en SVG, con la proporción exacta que va a tener impreso: el CSS le fija
+ * el ANCHO en milímetros y el alto sale solo. Escalarlo por alto era lo que
+ * dejaba las barras por debajo del mínimo.
  */
 export function generarCodigoBarras(codigo: string, formato?: FormatoEtiqueta): string {
   const limpio = String(codigo ?? '').trim()
@@ -325,9 +331,12 @@ export function generarCodigoBarras(codigo: string, formato?: FormatoEtiqueta): 
       ? formato.codigoBarrasMm / geometriaDelCodigo(limpio, formato).xMm
       : ALTO_BARRAS_NOMINAL_MM / X_NOMINAL_MM
 
-    const canvas = document.createElement('canvas')
-    JsBarcode(canvas, limpio, opcionesDe(limpio, barrasModulos))
-    return canvas.toDataURL('image/png')
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    JsBarcode(svg, limpio, opcionesDe(limpio, barrasModulos))
+    // `encodeURIComponent` y no base64: el SVG es texto, así pesa menos y no
+    // hay que pasar por btoa, que se cae con cualquier carácter no latino-1.
+    const dibujo = new XMLSerializer().serializeToString(svg)
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(dibujo)}`
   } catch {
     return ''
   }
