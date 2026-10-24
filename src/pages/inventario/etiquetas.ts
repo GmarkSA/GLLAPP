@@ -203,28 +203,43 @@ export function etiquetasDeArticulos(
   return etiquetas
 }
 
+/** Zona de silencio del Code128: 10 módulos en blanco de cada lado. */
+const SILENCIO_CODE128_MODULOS = 10
+
+const esEan13 = (codigo: string) => /^\d{13}$/.test(codigo)
+
 /**
  * Las opciones con las que se dibuja el símbolo.
  *
- * `lastChar` es lo que hace que jsbarcode dibuje la zona de silencio derecha:
- * agrega 2 + 5 módulos en blanco después de la última barra, que son justo los
- * 7 que exige el estándar. Sin eso el símbolo sale de 107 módulos en vez de
- * 113 y el texto de la etiqueta queda pegado a la última barra.
+ * En EAN-13 las zonas de silencio vienen en módulos, dentro del propio
+ * símbolo: los 12 del bloque donde va el dígito guía a la izquierda, y los 7
+ * que agrega `lastChar` a la derecha. Sin `lastChar` jsbarcode no dibuja la
+ * derecha y el símbolo sale de 107 módulos en vez de 113, con el texto de la
+ * etiqueta pegado a la última barra.
  *
- * `margin: 0` porque los márgenes de jsbarcode se miden en píxeles fijos: no
- * escalan con el símbolo y ensucian la cuenta de módulos. El blanco que hace
- * falta son las zonas de silencio, que sí van en módulos.
+ * El Code128 no las trae: hay que ponerlas con el margen. Como el margen de
+ * jsbarcode se mide en píxeles, se da en múltiplos del módulo para que escale
+ * igual que el resto del símbolo. Solo a los lados —arriba y abajo en cero—,
+ * porque un margen vertical descuadraría la proporción con la que se calcula
+ * el alto de las barras.
  */
-const opcionesDe = (codigo: string, barrasModulos: number) => ({
-  format: /^\d{13}$/.test(codigo) ? ('EAN13' as const) : ('CODE128' as const),
-  width:        PX_POR_MODULO,
-  height:       Math.round(barrasModulos * PX_POR_MODULO),
-  displayValue: true,
-  fontSize:     TEXTO_MODULOS * PX_POR_MODULO,
-  textMargin:   TEXTO_MARGEN_MODULOS * PX_POR_MODULO,
-  margin:       0,
-  lastChar:     ' ',
-})
+const opcionesDe = (codigo: string, barrasModulos: number) => {
+  const silencio = esEan13(codigo) ? 0 : SILENCIO_CODE128_MODULOS * PX_POR_MODULO
+  return {
+    format: esEan13(codigo) ? ('EAN13' as const) : ('CODE128' as const),
+    width:        PX_POR_MODULO,
+    height:       Math.round(barrasModulos * PX_POR_MODULO),
+    displayValue: true,
+    fontSize:     TEXTO_MODULOS * PX_POR_MODULO,
+    textMargin:   TEXTO_MARGEN_MODULOS * PX_POR_MODULO,
+    margin:       0,
+    marginTop:    0,
+    marginBottom: 0,
+    marginLeft:   silencio,
+    marginRight:  silencio,
+    lastChar:     ' ',
+  }
+}
 
 /**
  * Cuántos módulos de ancho ocupa el símbolo, zonas de silencio incluidas.
@@ -240,8 +255,12 @@ export function modulosDelCodigo(codigo: string): number {
   try {
     const medido: any = {}
     JsBarcode(medido, limpio, opcionesDe(limpio, 1))
-    return (medido.encodings ?? []).reduce(
+    const delSimbolo = (medido.encodings ?? []).reduce(
       (s: number, e: any) => s + String(e.data ?? '').length, 0)
+    if (!delSimbolo) return 0
+    // El margen del Code128 no sale en las encodings, pero sí ocupa ancho en
+    // la imagen: contarlo es lo que hace que X salga bien.
+    return delSimbolo + (esEan13(limpio) ? 0 : 2 * SILENCIO_CODE128_MODULOS)
   } catch {
     return 0
   }

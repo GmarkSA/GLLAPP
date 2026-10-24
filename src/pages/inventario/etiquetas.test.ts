@@ -220,3 +220,31 @@ describe('el tamaño del código impreso', () => {
     }
   })
 })
+
+/**
+ * El artículo que todavía trae el SKU como código se imprime en Code128, no
+ * en EAN-13. Ahí las zonas de silencio no vienen de los módulos del símbolo:
+ * hay que ponerlas a mano, 10 módulos de cada lado. Sin ellas el lector no
+ * encuentra dónde empieza el símbolo.
+ */
+describe('los códigos que no son EAN-13', () => {
+  it('llevan sus zonas de silencio: 10 módulos de cada lado', () => {
+    const conSilencio = modulosDelCodigo('ABA-GRAN')
+    // 123 módulos dibuja jsbarcode para ese código; con silencio, 20 más.
+    expect(conSilencio).toBe(123 + 20)
+  })
+
+  it('un SKU corto llega al ancho de barra mínimo', () => {
+    const hoja = FORMATOS_ETIQUETA.find(f => f.id === 'hoja-24')!
+    expect(geometriaDelCodigo('A1', hoja).xMm).toBeGreaterThanOrEqual(0.264)
+  })
+
+  /**
+   * Un SKU largo no cabe en la etiqueta sin bajar del mínimo. No se puede
+   * arreglar imprimiendo: ese artículo necesita el EAN-13 interno.
+   */
+  it('un SKU largo avisa que queda por debajo del mínimo', () => {
+    const hoja = FORMATOS_ETIQUETA.find(f => f.id === 'hoja-24')!
+    expect(geometriaDelCodigo('PAPEL-BOND-CARTA-75G', hoja).xMm).toBeLessThan(0.264)
+  })
+})
