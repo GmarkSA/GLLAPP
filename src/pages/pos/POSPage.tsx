@@ -197,7 +197,13 @@ function QuickCreateCustomerModal({ open, onClose, onCreated }: {
 // ─── Product Card ─────────────────────────────────────────────────────────────
 function ProductCard({ product, onAdd }: { product: Product; onAdd: () => void }) {
   const stock   = Number(product.stockOnHand ?? 0)
-  const noStock = stock <= 0
+  // Un servicio no lleva inventario: su existencia es cero porque no hay nada
+  // que contar. Tratar ese cero como «sin stock» dejaba la tarjeta bloqueada y
+  // ningún servicio se podía facturar desde la caja.
+  // El tipo también cuenta: un servicio cargado por Excel sin la columna
+  // «lleva_stock» queda con la bandera en sí, y seguiría bloqueado.
+  const llevaInventario = product.isInventoriable !== false && product.itemType !== 'servicio'
+  const noStock = llevaInventario && stock <= 0
   return (
     <div
       onClick={() => !noStock && onAdd()}
@@ -230,10 +236,14 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: () => void }
       <div style={{ fontSize: 15, fontWeight: 700, color: '#1faec2', marginBottom: 4 }}>
         Q {Number(product.salesPrice ?? 0).toFixed(2)}
       </div>
-      <Badge
-        count={noStock ? 'Sin stock' : `Stock: ${stock}`}
-        style={{ background: noStock ? '#e5484d' : stock < 5 ? '#ff7f00' : '#2ea172', fontSize: 10 }}
-      />
+      {llevaInventario ? (
+        <Badge
+          count={noStock ? 'Sin stock' : `Stock: ${stock}`}
+          style={{ background: noStock ? '#e5484d' : stock < 5 ? '#ff7f00' : '#2ea172', fontSize: 10 }}
+        />
+      ) : (
+        <Badge count="Servicio" style={{ background: '#1faec2', fontSize: 10 }} />
+      )}
     </div>
   )
 }
