@@ -15,14 +15,18 @@ import dayjs from 'dayjs'
 import { getAccounts } from '../../api/catalogo'
 import { getAccountDefaults } from '../../api/compras'
 import {
-  getExpediente, createExpediente, addExpedienteDocumento, removeExpedienteDocumento,
+  getExpediente, createExpediente, crearExpedienteDesdeOrden,
+  addExpedienteDocumento, removeExpedienteDocumento,
   addExpedienteLinea, removeExpedienteLinea, recalcularExpediente,
   confirmarExpediente, updateExpedienteStatus,
   EXPEDIENTE_STATUS, DOCUMENT_TYPE_CONFIG,
   type Expediente, type ExpedienteDocumento, type ExpedienteLinea,
 } from '../../api/expedientes'
 import { getProducts, type Product } from '../../api/inventario'
-import { getBills, getExpenses, type PurchaseInvoice, type Expense } from '../../api/compras'
+import {
+  getBills, getExpenses, getPurchaseOrders,
+  type PurchaseInvoice, type Expense, type PurchaseOrder,
+} from '../../api/compras'
 
 const { Title, Text } = Typography
 const { Option }      = Select
@@ -359,6 +363,16 @@ export default function ExpedienteDetallePage() {
   // New expediente form
   const [newForm] = Form.useForm()
   const [creating, setCreating] = useState(false)
+  const [ordenes, setOrdenes] = useState<PurchaseOrder[]>([])
+
+  // Las órdenes ya enviadas al proveedor son las que están por importarse: las
+  // recibidas y facturadas ya entraron a bodega por otra vía.
+  useEffect(() => {
+    if (!isNew) return
+    getPurchaseOrders({ limit: 200 })
+      .then(r => setOrdenes((r?.data ?? []).filter(o => o.status === 'draft' || o.status === 'sent')))
+      .catch(() => setOrdenes([]))
+  }, [isNew])
 
   const load = useCallback(async () => {
     if (isNew || !id) return
@@ -379,12 +393,18 @@ export default function ExpedienteDetallePage() {
   const handleCreate = async (values: any) => {
     setCreating(true)
     try {
-      const created = await createExpediente({
-        ...values,
+      const { purchaseOrderId, ...resto } = values
+      const dto = {
+        ...resto,
         openedDate: values.openedDate?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
         expectedDate: values.expectedDate?.format('YYYY-MM-DD'),
-        status: 'abierto',
-      })
+        status: 'abierto' as const,
+      }
+      // Con orden de compra el backend copia proveedor y líneas; sin ella, el
+      // expediente nace vacío como siempre.
+      const created = purchaseOrderId
+        ? await crearExpedienteDesdeOrden(purchaseOrderId, dto)
+        : await createExpediente(dto)
       message.success(`Expediente ${created.expedienteNo} creado`)
       navigate(`/inventario/expedientes/${created.id}`)
     } catch (err: any) {
@@ -524,6 +544,22 @@ export default function ExpedienteDetallePage() {
         <Card style={{ borderRadius: 10 }}>
           <Form form={newForm} layout="vertical" onFinish={handleCreate}
             initialValues={{ prorationMethod: 'by_value', openedDate: dayjs() }}>
+            <Form.Item
+              name="purchaseOrderId"
+              label="Orden de compra que origina la importación"
+              extra="Al elegirla se copian el proveedor y los artículos con su cantidad y precio. Opcional: sin orden, el expediente nace vacío."
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="Sin orden de compra"
+                options={ordenes.map(o => ({
+                  value: o.id,
+                  label: `${o.orderNumber} · ${o.vendorName} · ${o.currency} ${Number(o.total).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+                }))}
+              />
+            </Form.Item>
             <Form.Item name="description" label="Descripción del expediente">
               <Input placeholder='Ej: "Importación maquinaria industrial Q1 2026"' size="large" />
             </Form.Item>
@@ -653,6 +689,24 @@ export default function ExpedienteDetallePage() {
               <Badge color={cfg?.color} text={cfg?.label} />
             </Space>
             <Text type="secondary" style={{ fontSize: 13 }}>{exp.description || 'Sin descripción'}</Text>
+            {(exp.vendorName || exp.purchaseOrderNumber) && (
+              <div style={{ marginTop: 2 }}>
+                <Space size={6}>
+                  {exp.vendorName && (
+                    <Text style={{ fontSize: 12 }}>Proveedor: <Text strong style={{ fontSize: 12 }}>{exp.vendorName}</Text></Text>
+                  )}
+                  {exp.purchaseOrderNumber && (
+                    <Button
+                      type="link" size="small" icon={<LinkOutlined />}
+                      style={{ padding: 0, fontSize: 12 }}
+                      onClick={() => navigate(`/compras/ordenes/${exp.purchaseOrderId}`)}
+                    >
+                      {exp.purchaseOrderNumber}
+                    </Button>
+                  )}
+                </Space>
+              </div>
+            )}
           </div>
         </div>
         <Space>

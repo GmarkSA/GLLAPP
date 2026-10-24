@@ -52,6 +52,11 @@ export interface Expediente {
   expectedDate?: string
   receivedDate?: string
   description?: string
+  /** De dónde viene la importación, cuando nació de una orden de compra. */
+  purchaseOrderId?: string
+  purchaseOrderNumber?: string
+  vendorId?: string
+  vendorName?: string
   prorationMethod: ProrationMethod
   totalFob: number
   totalCosts: number
@@ -137,6 +142,12 @@ export const getExpedientes = (params?: { page?: number; limit?: number; search?
 
 export const getExpediente = (id: string) => api.get(`${EXP}/${id}`).then(unwrap) as Promise<Expediente>
 export const createExpediente = (dto: Partial<Expediente>) => api.post(EXP, dto).then(unwrap) as Promise<Expediente>
+/**
+ * Crea el expediente a partir de una orden de compra: trae el proveedor y las
+ * líneas con su cantidad y precio, para no recapturar lo que ya está escrito.
+ */
+export const crearExpedienteDesdeOrden = (purchaseOrderId: string, dto: Partial<Expediente> = {}) =>
+  api.post(`${EXP}/desde-orden/${purchaseOrderId}`, dto).then(unwrap) as Promise<Expediente>
 export const updateExpedienteStatus = (id: string, newStatus: string) =>
   api.post(`${EXP}/${id}/estado`, { newStatus }).then(unwrap)
 export const addExpedienteDocumento = (id: string, dto: Partial<ExpedienteDocumento>) =>
