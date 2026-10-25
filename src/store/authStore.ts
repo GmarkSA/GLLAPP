@@ -116,13 +116,27 @@ interface RegisterData {
   companyName: string
 }
 
+/**
+ * Leer la sesión guardada sin dar por hecho que sessionStorage esté ahí.
+ *
+ * Estas tres lecturas corren al CARGARSE el módulo, no dentro de una función:
+ * una excepción aquí no se puede atrapar más arriba y deja la aplicación en
+ * blanco antes de pintar nada. Y el acceso sí tira excepción cuando el
+ * navegador bloquea el almacenamiento —modo privado de Safari, un iframe en
+ * sandbox—. También pasaba en las pruebas, cuando el módulo se evaluaba
+ * después de que vitest desmontó el entorno del navegador.
+ */
+const deLaSesion = (clave: string): string | null => {
+  try { return sessionStorage.getItem(clave) } catch { return null }
+}
+
 // sessionStorage → aislado por pestaña
 // Cada pestaña mantiene su propia sesión (usuario + empresa + tokens)
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  tenantId: sessionStorage.getItem('tenantId'),
-  tenantGroupName: sessionStorage.getItem('tenantGroupName'),
-  isAuthenticated: !!sessionStorage.getItem('accessToken'),
+  tenantId: deLaSesion('tenantId'),
+  tenantGroupName: deLaSesion('tenantGroupName'),
+  isAuthenticated: !!deLaSesion('accessToken'),
   isLoading: false,
   permissions: new Set<string>(),
 
