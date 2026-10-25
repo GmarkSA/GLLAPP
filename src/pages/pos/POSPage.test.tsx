@@ -35,7 +35,13 @@ let articulos = [ARTICULO_PC]
 let totalDeArticulos: number | null = null
 
 vi.mock('../../api/inventario', () => ({
-  getProducts: vi.fn(async () => ({ data: articulos, total: totalDeArticulos ?? articulos.length })),
+  // Como responde el backend de verdad: PaginatedResult pone el total en
+  // `meta`, no al lado de `data`. Leerlo mal fue lo que dejó el paginador
+  // mostrando una sola página con 1,584 artículos en la bodega.
+  getProducts: vi.fn(async () => ({
+    data: articulos,
+    meta: { total: totalDeArticulos ?? articulos.length, page: 1, limit: 100 },
+  })),
 }))
 vi.mock('../../api/contactos', () => ({
   getCustomers:   vi.fn(async () => ({ data: [], total: 0 })),

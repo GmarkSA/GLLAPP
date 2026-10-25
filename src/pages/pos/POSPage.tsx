@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getProducts, type Product } from '../../api/inventario'
+import { totalDe } from '../../api/paginacion'
 import { getCustomers, createCustomer, type Customer } from '../../api/contactos'
 import { createPOSVenta, getUbicacion, type Ubicacion } from '../../api/expedientes'
 import { getBankAccounts, type BankAccount } from '../../api/bancos'
@@ -475,7 +476,7 @@ export default function POSPage() {
     try {
       const res: any = await getProducts({ search: q || undefined, page: p, limit: POR_PAGINA })
       setProducts(extractList(res))
-      setTotalProds(Number(res?.total ?? extractList(res).length))
+      setTotalProds(totalDe(res))
     } finally { setLoadingProds(false) }
   }, [])
 
