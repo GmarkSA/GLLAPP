@@ -13,5 +13,16 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     restoreMocks: true,
+    /**
+     * El tope por omisión de vitest son 5 s, pensados para pruebas de cálculo.
+     * Aquí la mayoría monta pantallas enteras de Ant Design, y el runner de CI
+     * levanta 28 procesos a la vez sobre una máquina compartida: lo que aquí
+     * tarda 200 ms allá tarda más de un segundo, y una prueba de un segundo se
+     * queda sin margen. Ya cortó dos veces pruebas que no tenían nada malo.
+     *
+     * Veinte segundos dan aire sin tapar nada: una prueba colgada de verdad
+     * sigue fallando, solo que más tarde.
+     */
+    testTimeout: 20_000,
   },
 })

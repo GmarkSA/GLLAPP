@@ -462,6 +462,12 @@ describe('las columnas caben en la pantalla', () => {
  * no es lo que manda el servidor. Esta prueba usa la forma de verdad.
  */
 describe('recorrer el inventario completo', () => {
+  /**
+   * La página trae pocas filas a propósito. Lo que se prueba es el paginador,
+   * y eso depende del TOTAL y del tamaño de página, no de cuántas filas se
+   * dibujen: pedir 200 solo hacía que la prueba tardara un segundo aquí —y más
+   * de cinco en CI, donde se corta—. Con cinco filas mide lo mismo en 100 ms.
+   */
   const comoRespondeElServidor = (cuantos: number, total: number) => ({
     data: Array.from({ length: cuantos }, (_, i) => ({ ...ARTICULO, id: `a-${i}`, sku: `SKU-${i}` })),
     meta: { total, page: 1, limit: 200, totalPages: Math.ceil(total / 200) },
@@ -471,14 +477,14 @@ describe('recorrer el inventario completo', () => {
 
   it('el pie muestra el total de la bodega, no el de la página', async () => {
     const { getProducts } = await import('../../api/inventario')
-    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(200, 1584) as any)
+    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(5, 1584) as any)
     await render()
     expect(pie()).toContain('1584')
   })
 
   it('y hay más de una página', async () => {
     const { getProducts } = await import('../../api/inventario')
-    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(200, 1584) as any)
+    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(5, 1584) as any)
     await render()
     const paginas = Array.from(host.querySelectorAll('.ant-pagination-item'))
       .map(el => el.textContent?.trim())
@@ -487,7 +493,7 @@ describe('recorrer el inventario completo', () => {
 
   it('al pasar de página le pide esa página al servidor', async () => {
     const { getProducts } = await import('../../api/inventario')
-    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(200, 1584) as any)
+    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(5, 1584) as any)
     await render()
     const dos = Array.from(host.querySelectorAll('.ant-pagination-item'))
       .find(el => el.textContent?.trim() === '2')
