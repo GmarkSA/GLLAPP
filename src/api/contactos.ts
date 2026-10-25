@@ -138,15 +138,48 @@ export const updateVendorBankAccount = (vendorId: string, id: string, dto: Parti
 export const deleteVendorBankAccount = (vendorId: string, id: string) =>
   api.delete(`/compras/proveedores/${vendorId}/bank-accounts/${id}`)
 
+/**
+ * Una fila de la plantilla de carga masiva.
+ *
+ * Lleva los campos de toda la pantalla de creación, no solo los cuatro del
+ * CSV viejo: un contacto que entra sin tratamiento fiscal, sin cuenta por
+ * cobrar y sin términos de pago hay que abrirlo uno por uno después.
+ *
+ * Todo es opcional menos el nombre, y una columna AUSENTE no es lo mismo que
+ * una vacía: el backend solo toca los campos que la fila trae, para no borrar
+ * lo que el contacto ya tenía guardado.
+ */
 export interface BatchImportRow {
   nombre: string
+  tipo?: string
+  razon_social?: string
   nit?: string
+  nombres?: string
+  apellidos?: string
   email?: string
   telefono?: string
+  celular?: string
+  sitio_web?: string
+  moneda?: string
+  terminos_pago?: string
+  limite_credito?: number
+  estado?: string
+  tratamiento_fiscal?: string
+  impuesto_iva?: string
+  retencion_iva?: string
+  retiene_isr?: boolean
+  impuesto_isr?: string
+  cuenta_por_cobrar?: string
+  cuenta_ingresos?: string
   direccion?: string
+  ciudad?: string
+  departamento?: string
+  codigo_postal?: string
+  pais?: string
   saldo_inicial?: number
   fecha_saldo_inicial?: string
-  moneda?: string
+  portal_habilitado?: boolean
+  notas?: string
 }
 
 export interface BatchImportResult {
@@ -155,8 +188,12 @@ export interface BatchImportResult {
   errors: string[]
 }
 
-export const batchImportClientes = (rows: BatchImportRow[]) =>
-  api.post('/ventas/clientes/batch', { rows }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>
+/**
+ * La fecha de migración viaja con la carga: los saldos iniciales que vengan
+ * sin fecha propia usan esa, que es el corte que el contador ya definió.
+ */
+export const batchImportClientes = (rows: BatchImportRow[], fechaMigracion?: string) =>
+  api.post('/ventas/clientes/batch', { rows, fechaMigracion }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>
 
-export const batchImportProveedores = (rows: BatchImportRow[]) =>
-  api.post('/compras/proveedores/batch', { rows }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>
+export const batchImportProveedores = (rows: BatchImportRow[], fechaMigracion?: string) =>
+  api.post('/compras/proveedores/batch', { rows, fechaMigracion }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>

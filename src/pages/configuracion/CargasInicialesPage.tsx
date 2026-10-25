@@ -19,6 +19,10 @@ import {
   construirPlantillaInventario, leerArchivoDeArticulos, analizarArchivoDeArticulos,
   type AnalisisDelArchivo, type FilaDeArticulo,
 } from './plantillaInventario'
+import {
+  construirPlantillaClientes, ESPECIFICACION_CLIENTES,
+} from './plantillaClientes'
+import { analizarArchivo, leerFilas, etiquetaDeTipo, type AnalisisDelArchivo as Revision } from './plantillaCarga'
 
 const { Title, Text } = Typography
 const { Panel } = Collapse
@@ -44,6 +48,73 @@ function downloadCsv(filename: string, headers: string[], sampleRow: string[]) {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Qué entendió Lucía del archivo, antes de cargar nada.
+ *
+ * Sin esto el usuario sube el archivo a ciegas y solo se entera de lo que
+ * falló cuando la carga terminó. Aquí ve columna por columna: cuál reconoció,
+ * de qué tipo la espera, con qué valor del propio archivo, y qué no cuadra.
+ */
+const COLOR_DE_TIPO: Record<string, string> = {
+  texto: 'default', moneda: 'green', numero: 'blue',
+  si_no: 'purple', opcion: 'orange', fecha: 'cyan',
+}
+
+function PanelDeRevision({ revision }: { revision: Revision }) {
+  const conProblema = revision.columnas.filter(c => c.problema).length
+  const sinUsar     = revision.columnas.filter(c => !c.reconocida).length
+
+  return (
+    <Collapse size="small" style={{ marginBottom: 12 }} defaultActiveKey={conProblema ? ['r'] : []}
+      items={[{
+        key: 'r',
+        label: (
+          <Space size={6} wrap>
+            <Text strong style={{ fontSize: 13 }}>
+              Qué leyó Lucía: {revision.columnas.length} columnas, {revision.filas} filas
+            </Text>
+            {conProblema > 0 && <Tag color="error" style={{ fontSize: 11 }}>{conProblema} con problema</Tag>}
+            {sinUsar > 0 && <Tag color="default" style={{ fontSize: 11 }}>{sinUsar} sin usar</Tag>}
+          </Space>
+        ),
+        children: (
+          <Table
+            dataSource={revision.columnas}
+            rowKey="encabezado"
+            size="small"
+            pagination={false}
+            scroll={{ x: 'max-content', y: 320 }}
+            columns={[
+              { title: 'Columna del archivo', dataIndex: 'encabezado', width: 190, ellipsis: true },
+              { title: 'Campo en Lucía', dataIndex: 'titulo', width: 170,
+                render: (v?: string, r?: any) => v
+                  ? <Text style={{ fontSize: 12 }}>{v}</Text>
+                  : <Tooltip title={`Lucía no conoce la columna «${r.encabezado}»: se va a ignorar. No es un error si no hace falta.`}>
+                      <Tag color="default" style={{ fontSize: 11 }}>No se usa</Tag>
+                    </Tooltip> },
+              { title: 'Tipo', dataIndex: 'tipo', width: 150,
+                render: (v: string) => <Tag style={{ fontSize: 11 }} color={COLOR_DE_TIPO[v]}>
+                  {etiquetaDeTipo(v as any)}</Tag> },
+              { title: 'Ejemplo del archivo', dataIndex: 'ejemplo', width: 200, ellipsis: true,
+                render: (v: string, r: any) => v
+                  ? <Text style={{ fontSize: 12 }} code>{v}</Text>
+                  : r.reconocida
+                    ? <Text type="secondary" style={{ fontSize: 11 }}>— vacía en todas las filas —</Text>
+                    : <Text type="secondary" style={{ fontSize: 11 }}>—</Text> },
+              { title: 'Estado', width: 300,
+                render: (_: any, r: any) => r.problema
+                  ? <Text type="danger" style={{ fontSize: 12 }}>⚠ {r.problema}</Text>
+                  : r.reconocida
+                    ? <Text type="success" style={{ fontSize: 12 }}>Se va a cargar</Text>
+                    : <Text type="secondary" style={{ fontSize: 12 }}>Se ignora</Text> },
+            ]}
+          />
+        ),
+      }]}
+    />
+  )
+}
+
 // ─── Clientes / Proveedores CSV section ──────────────────────────────────────
 
 const ENTITY_HEADERS = ['nombre', 'nit', 'email', 'telefono', 'direccion', 'saldo_inicial', 'fecha_saldo_inicial']
@@ -52,7 +123,13 @@ const ENTITY_SAMPLE  = [
   '"5555-5555"', '"4a Calle 12-55 zona 10"', '"15000.00"', '"2024-01-01"',
 ]
 
-interface EntityStep { step: number; rows: BatchImportRow[]; result?: { created: number; updated: number; errors: string[] } }
+interface EntityStep {
+  step: number
+  rows: BatchImportRow[]
+  /** Lo que Lucía entendió del Excel, para enseñarlo antes de cargar. */
+  revision?: Revision
+  result?: { created: number; updated: number; errors: string[]; avisos?: string[] }
+}
 
 function EntityImportSection({
   type, fechaMigracion,
@@ -80,11 +157,59 @@ function EntityImportSection({
     return false
   }
 
+  /**
+   * El Excel de la plantilla nueva, que lleva los campos de toda la pantalla.
+   *
+   * El CSV de siempre sigue funcionando: un archivo viejo tiene que seguir
+   * cargando. Lo que cambia es que ahora hay un camino que no obliga a
+   * completar a mano el tratamiento fiscal, la cuenta por cobrar y los
+   * términos de pago de cada cliente después de cargar.
+   */
+  const descargarPlantillaExcel = async () => {
+    setLoading(true)
+    try {
+      const [cuentas, impuestos] = await Promise.all([
+        getAccounts({ activas: true }).catch(() => [] as Account[]),
+        getTaxes().catch(() => [] as any[]),
+      ])
+      const datos = construirPlantillaClientes({
+        cuentas:   (cuentas ?? []).map((c: any) => ({ code: c.code, name: c.name, type: c.type })),
+        impuestos: (impuestos ?? []).map((i: any) => ({ code: i.code, name: i.name, rate: i.rate })),
+        monedas:   ['GTQ', 'USD'],
+      })
+      const url = URL.createObjectURL(
+        new Blob([datos], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const a = document.createElement('a')
+      a.href = url; a.download = 'Plantilla carga de clientes.xlsx'; a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      message.error('No se pudo generar la plantilla')
+    } finally { setLoading(false) }
+  }
+
+  const handleExcel = async (file: File) => {
+    try {
+      const datos = await file.arrayBuffer()
+      const revision = analizarArchivo(datos, ESPECIFICACION_CLIENTES)
+      const filas = leerFilas(datos, ESPECIFICACION_CLIENTES)
+        .filter(f => String(f.nombre ?? '').trim())
+
+      if (!filas.length) {
+        message.error('El archivo no trae ninguna fila con nombre.')
+        return false
+      }
+      setState({ step: 1, rows: filas as unknown as BatchImportRow[], revision })
+    } catch {
+      message.error('No se pudo leer el archivo. ¿Es el Excel de la plantilla?')
+    }
+    return false
+  }
+
   const handleImport = async () => {
     setLoading(true)
     try {
       const fn = type === 'clientes' ? batchImportClientes : batchImportProveedores
-      const result = await fn(state.rows)
+      const result = await fn(state.rows, fechaMigracion?.format('YYYY-MM-DD'))
       setState(s => ({ ...s, step: 2, result }))
       message.success(`Importación completada: ${result.created} creados, ${result.updated} actualizados`)
     } catch (e: any) {
@@ -115,6 +240,18 @@ function EntityImportSection({
 
       {state.step === 0 && (
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {type === 'clientes' && (
+            <>
+              <Button icon={<FileExcelOutlined />} loading={loading} onClick={descargarPlantillaExcel}>
+                Descargar plantilla Excel
+              </Button>
+              <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={handleExcel}>
+                <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
+                  Subir archivo Excel
+                </Button>
+              </Upload>
+            </>
+          )}
           <Button
             icon={<DownloadOutlined />}
             onClick={() => downloadCsv(`plantilla_${type}.csv`, ENTITY_HEADERS, ENTITY_SAMPLE)}
@@ -126,7 +263,8 @@ function EntityImportSection({
             showUploadList={false}
             beforeUpload={handleFile}
           >
-            <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
+            <Button icon={<UploadOutlined />} type={type === 'clientes' ? 'default' : 'primary'}
+              style={type === 'clientes' ? undefined : { background: '#1B3A6B' }}>
               Subir archivo CSV
             </Button>
           </Upload>
@@ -135,6 +273,12 @@ function EntityImportSection({
 
       {state.step === 1 && (
         <div>
+          {state.revision && <PanelDeRevision revision={state.revision} />}
+          {state.revision?.faltantes.length ? (
+            <Alert type="error" showIcon style={{ marginBottom: 12 }}
+              message={`Falta la columna obligatoria: ${state.revision.faltantes.join(', ')}`}
+              description="Sin ella no se puede crear el registro." />
+          ) : null}
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text strong>{state.rows.length} registros listos para importar</Text>
             <Space>
@@ -166,6 +310,15 @@ function EntityImportSection({
 
       {state.step === 2 && state.result && (
         <div>
+          {state.result.avisos?.length ? (
+            <Alert type="warning" showIcon style={{ marginBottom: 12 }}
+              message={`${state.result.avisos.length} dato(s) que no se pudieron asignar`}
+              description={
+                <ul style={{ margin: 0, paddingLeft: 18, maxHeight: 160, overflowY: 'auto' }}>
+                  {state.result.avisos.map((a, i) => <li key={i} style={{ fontSize: 12 }}>{a}</li>)}
+                </ul>
+              } />
+          ) : null}
           <Alert
             type="success"
             icon={<CheckCircleOutlined />}
