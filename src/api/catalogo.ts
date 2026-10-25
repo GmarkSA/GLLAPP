@@ -50,3 +50,21 @@ export const setSaldosApertura = (dto: {
   descripcion?: string
   lineas: SaldoAperturaLinea[]
 }) => api.post('/contabilidad/catalogo/saldos-apertura', dto).then(unwrap) as Promise<SaldosAperturaResult>
+
+export interface ImportarCatalogoResult {
+  imported: number
+  updated: number
+  errors: string[]
+  avisos: string[]
+}
+
+/**
+ * Carga masiva del catálogo de cuentas desde la plantilla Excel.
+ *
+ * El backend recorre las filas dos veces —primero las cuentas, después los
+ * padres—, así que el orden del archivo no importa: una hija puede venir
+ * antes que su madre.
+ */
+export const importarCatalogo = (rows: Array<Record<string, unknown>>) =>
+  api.post('/contabilidad/catalogo/importar', { accounts: rows })
+    .then(unwrap) as Promise<ImportarCatalogoResult>

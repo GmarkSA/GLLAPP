@@ -11,7 +11,10 @@ import {
 import dayjs, { type Dayjs } from 'dayjs'
 import type { ColumnType } from 'antd/es/table'
 import { batchImportClientes, batchImportProveedores, type BatchImportRow } from '../../api/contactos'
-import { getAccounts, setSaldosApertura, type Account, type SaldoAperturaLinea } from '../../api/catalogo'
+import {
+  getAccounts, setSaldosApertura, importarCatalogo,
+  type Account, type SaldoAperturaLinea, type ImportarCatalogoResult,
+} from '../../api/catalogo'
 import { getProducts, importSaldosInicialesInventario, cargaMasivaArticulos, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
 import { getTaxes } from '../../api/impuestos'
@@ -22,6 +25,12 @@ import {
 import {
   construirPlantillaClientes, ESPECIFICACION_CLIENTES,
 } from './plantillaClientes'
+import {
+  construirPlantillaProveedores, ESPECIFICACION_PROVEEDORES,
+} from './plantillaProveedores'
+import {
+  construirPlantillaCuentas, ESPECIFICACION_CUENTAS,
+} from './plantillaCuentas'
 import { analizarArchivo, leerFilas, etiquetaDeTipo, type AnalisisDelArchivo as Revision } from './plantillaCarga'
 
 const { Title, Text } = Typography
@@ -39,14 +48,6 @@ function parseCsvText(text: string): Record<string, string>[] {
   })
 }
 
-function downloadCsv(filename: string, headers: string[], sampleRow: string[]) {
-  const csv = [headers.join(','), sampleRow.join(',')].join('\n')
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href = url; a.download = filename; a.click()
-  URL.revokeObjectURL(url)
-}
 
 /**
  * Qué entendió Lucía del archivo, antes de cargar nada.
@@ -117,11 +118,6 @@ function PanelDeRevision({ revision }: { revision: Revision }) {
 
 // ─── Clientes / Proveedores CSV section ──────────────────────────────────────
 
-const ENTITY_HEADERS = ['nombre', 'nit', 'email', 'telefono', 'direccion', 'saldo_inicial', 'fecha_saldo_inicial']
-const ENTITY_SAMPLE  = [
-  '"Empresa Ejemplo S.A."', '"12345678-9"', '"contacto@empresa.com"',
-  '"5555-5555"', '"4a Calle 12-55 zona 10"', '"15000.00"', '"2024-01-01"',
-]
 
 interface EntityStep {
   step: number
@@ -138,25 +134,6 @@ function EntityImportSection({
   const [state, setState] = useState<EntityStep>({ step: 0, rows: [] })
   const [loading, setLoading] = useState(false)
 
-  const handleFile = async (file: File) => {
-    const text = await file.text()
-    const parsed = parseCsvText(text)
-    if (!parsed.length) { message.error('El archivo no contiene datos válidos'); return false }
-
-    const rows: BatchImportRow[] = parsed.map(r => ({
-      nombre:              r.nombre || r.name || '',
-      nit:                 r.nit || r.taxId || '',
-      email:               r.email || r.correo || '',
-      telefono:            r.telefono || r.phone || '',
-      direccion:           r.direccion || r.address || '',
-      saldo_inicial:       r.saldo_inicial ? Number(r.saldo_inicial) : undefined,
-      fecha_saldo_inicial: r.fecha_saldo_inicial || (fechaMigracion ? fechaMigracion.format('YYYY-MM-DD') : undefined),
-    })).filter(r => r.nombre)
-
-    setState({ step: 1, rows })
-    return false
-  }
-
   /**
    * El Excel de la plantilla nueva, que lleva los campos de toda la pantalla.
    *
@@ -172,15 +149,18 @@ function EntityImportSection({
         getAccounts({ activas: true }).catch(() => [] as Account[]),
         getTaxes().catch(() => [] as any[]),
       ])
-      const datos = construirPlantillaClientes({
+      const listas = {
         cuentas:   (cuentas ?? []).map((c: any) => ({ code: c.code, name: c.name, type: c.type })),
         impuestos: (impuestos ?? []).map((i: any) => ({ code: i.code, name: i.name, rate: i.rate })),
         monedas:   ['GTQ', 'USD'],
-      })
+      }
+      const datos = type === 'clientes'
+        ? construirPlantillaClientes(listas)
+        : construirPlantillaProveedores(listas)
       const url = URL.createObjectURL(
         new Blob([datos], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       const a = document.createElement('a')
-      a.href = url; a.download = 'Plantilla carga de clientes.xlsx'; a.click()
+      a.href = url; a.download = `Plantilla carga de ${type}.xlsx`; a.click()
       URL.revokeObjectURL(url)
     } catch {
       message.error('No se pudo generar la plantilla')
@@ -190,8 +170,9 @@ function EntityImportSection({
   const handleExcel = async (file: File) => {
     try {
       const datos = await file.arrayBuffer()
-      const revision = analizarArchivo(datos, ESPECIFICACION_CLIENTES)
-      const filas = leerFilas(datos, ESPECIFICACION_CLIENTES)
+      const spec = type === 'clientes' ? ESPECIFICACION_CLIENTES : ESPECIFICACION_PROVEEDORES
+      const revision = analizarArchivo(datos, spec)
+      const filas = leerFilas(datos, spec)
         .filter(f => String(f.nombre ?? '').trim())
 
       if (!filas.length) {
@@ -240,32 +221,12 @@ function EntityImportSection({
 
       {state.step === 0 && (
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          {type === 'clientes' && (
-            <>
-              <Button icon={<FileExcelOutlined />} loading={loading} onClick={descargarPlantillaExcel}>
-                Descargar plantilla Excel
-              </Button>
-              <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={handleExcel}>
-                <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
-                  Subir archivo Excel
-                </Button>
-              </Upload>
-            </>
-          )}
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={() => downloadCsv(`plantilla_${type}.csv`, ENTITY_HEADERS, ENTITY_SAMPLE)}
-          >
-            Descargar plantilla CSV
+          <Button icon={<FileExcelOutlined />} loading={loading} onClick={descargarPlantillaExcel}>
+            Descargar plantilla Excel
           </Button>
-          <Upload
-            accept=".csv"
-            showUploadList={false}
-            beforeUpload={handleFile}
-          >
-            <Button icon={<UploadOutlined />} type={type === 'clientes' ? 'default' : 'primary'}
-              style={type === 'clientes' ? undefined : { background: '#1B3A6B' }}>
-              Subir archivo CSV
+          <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={handleExcel}>
+            <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
+              Subir archivo Excel
             </Button>
           </Upload>
         </div>
@@ -364,6 +325,69 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
   const [result, setResult]   = useState<{ polizaId: string; updated: number } | null>(null)
   // Decide qué se dibuja, así que es estado: una referencia no repinta la pantalla
   const [loaded, setLoaded] = useState(false)
+
+  // ── Crear el catálogo desde la plantilla ──────────────────────────────────
+  const [cargando, setCargando]   = useState(false)
+  const [revision, setRevision]   = useState<Revision | null>(null)
+  const [porCargar, setPorCargar] = useState<Array<Record<string, unknown>>>([])
+  const [cargado, setCargado]     = useState<ImportarCatalogoResult | null>(null)
+
+  /**
+   * La plantilla se arma con las cuentas que la empresa YA tiene, en su propia
+   * hoja: sin eso, para colgar una cuenta nueva de su madre hay que ir a
+   * buscar el código a otra pantalla.
+   */
+  const descargarPlantillaCuentas = async () => {
+    setCargando(true)
+    try {
+      const existentes: Account[] = await getAccounts().catch(() => [])
+      const grupos = [...new Set((existentes ?? [])
+        .map(c => String(c.groupCode ?? '').trim()).filter(Boolean))].sort()
+      const datos = construirPlantillaCuentas({
+        existentes: (existentes ?? []).map(c => ({ code: c.code, name: c.name })),
+        grupos,
+      })
+      const url = URL.createObjectURL(
+        new Blob([datos], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const a = document.createElement('a')
+      a.href = url; a.download = 'Plantilla catalogo de cuentas.xlsx'; a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      message.error('No se pudo generar la plantilla')
+    } finally { setCargando(false) }
+  }
+
+  const leerCatalogo = async (file: File) => {
+    try {
+      const datos = await file.arrayBuffer()
+      setRevision(analizarArchivo(datos, ESPECIFICACION_CUENTAS))
+      const filas = leerFilas(datos, ESPECIFICACION_CUENTAS)
+        .filter(f => String(f.codigo ?? '').trim() && String(f.nombre ?? '').trim())
+      if (!filas.length) {
+        message.error('El archivo no trae ninguna fila con código y nombre.')
+        return false
+      }
+      setPorCargar(filas)
+      setCargado(null)
+    } catch {
+      message.error('No se pudo leer el archivo. ¿Es el Excel de la plantilla?')
+    }
+    return false
+  }
+
+  const cargarCatalogo = async () => {
+    setCargando(true)
+    try {
+      const r = await importarCatalogo(porCargar)
+      setCargado(r)
+      setPorCargar([]); setRevision(null)
+      message.success(`${r.imported} cuenta(s) creada(s), ${r.updated} actualizada(s)`)
+      // El catálogo cambió: lo de abajo —los saldos— tiene que releerlo.
+      setLoaded(false); setRows([])
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo cargar el catálogo')
+    } finally { setCargando(false) }
+  }
 
   const load = useCallback(async () => {
     if (loaded) return
@@ -478,10 +502,71 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
 
   return (
     <div style={{ padding: '12px 0' }}>
+      <Alert
+        type="info" showIcon style={{ marginBottom: 16 }}
+        message="Dos pasos distintos"
+        description="Arriba se CREA el catálogo desde la plantilla —códigos, nombres, tipos y los interruptores que hacen que ventas, compras e inventario encuentren sus cuentas—. Abajo se capturan los SALDOS de apertura de las cuentas que ya existen, que generan su póliza."
+      />
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Button icon={<FileExcelOutlined />} loading={cargando} onClick={descargarPlantillaCuentas}>
+          Descargar plantilla Excel
+        </Button>
+        <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={leerCatalogo}>
+          <Button icon={<UploadOutlined />} type="primary" style={{ background: '#1B3A6B' }}>
+            Subir catálogo Excel
+          </Button>
+        </Upload>
+      </div>
+
+      {revision && <PanelDeRevision revision={revision} />}
+      {revision?.faltantes.length ? (
+        <Alert type="error" showIcon style={{ marginBottom: 12 }}
+          message={`Falta la columna obligatoria: ${revision.faltantes.join(', ')}`}
+          description="Sin código, nombre y tipo no se puede crear la cuenta." />
+      ) : null}
+
+      {porCargar.length > 0 && (
+        <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+          <Text strong>{porCargar.length} cuenta(s) listas para cargar</Text>
+          <Popconfirm
+            title={`¿Cargar ${porCargar.length} cuenta(s)?`}
+            description="Las que ya existan (mismo código) se actualizan."
+            onConfirm={cargarCatalogo} okText="Cargar"
+            okButtonProps={{ style: { background: '#1B3A6B' } }}
+          >
+            <Button type="primary" icon={<ArrowRightOutlined />} loading={cargando}
+              style={{ background: '#1B3A6B' }}>
+              Confirmar carga del catálogo
+            </Button>
+          </Popconfirm>
+          <Button onClick={() => { setPorCargar([]); setRevision(null) }}>Cancelar</Button>
+        </div>
+      )}
+
+      {cargado && (
+        <Alert type="success" showIcon style={{ marginBottom: 16 }}
+          message={`${cargado.imported} cuenta(s) creada(s) · ${cargado.updated} actualizada(s)`}
+          description={
+            <div style={{ fontSize: 12 }}>
+              {cargado.avisos?.length > 0 && (
+                <ul style={{ margin: '4px 0', paddingLeft: 18, maxHeight: 140, overflowY: 'auto' }}>
+                  {cargado.avisos.map((a, i) => <li key={i}>{a}</li>)}
+                </ul>
+              )}
+              {cargado.errors?.length > 0 && (
+                <ul style={{ margin: '4px 0', paddingLeft: 18, color: '#b00' }}>
+                  {cargado.errors.map((a, i) => <li key={i}>{a}</li>)}
+                </ul>
+              )}
+            </div>
+          } />
+      )}
+
       {!loaded ? (
         <Button icon={<AuditOutlined />} onClick={load} loading={loading}
           style={{ marginBottom: 16 }}>
-          Cargar catálogo de cuentas
+          Cargar saldos de las cuentas existentes
         </Button>
       ) : (
         <Spin spinning={loading}>
