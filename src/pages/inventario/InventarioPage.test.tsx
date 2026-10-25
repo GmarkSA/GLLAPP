@@ -447,3 +447,54 @@ describe('las columnas caben en la pantalla', () => {
     expect(host.querySelector('tbody .anticon-delete')).toBeTruthy()
   })
 })
+
+/**
+ * La paginación, contra la forma REAL de la respuesta.
+ *
+ * El backend arma los listados con PaginatedResult: el total va en
+ * `meta.total`, no al lado de `data`. La pantalla leía `res.total` —que no
+ * existe— y se quedaba en cero; Ant Design, al ver un total vacío, usa el
+ * largo de la página como total. Con 1,584 artículos en la bodega, la tabla
+ * decía «200 de 200 artículos» y una sola página: no había forma de llegar a
+ * los otros 1,384.
+ *
+ * No se vio antes porque los mocks de arriba devuelven `{ data, total }`, que
+ * no es lo que manda el servidor. Esta prueba usa la forma de verdad.
+ */
+describe('recorrer el inventario completo', () => {
+  const comoRespondeElServidor = (cuantos: number, total: number) => ({
+    data: Array.from({ length: cuantos }, (_, i) => ({ ...ARTICULO, id: `a-${i}`, sku: `SKU-${i}` })),
+    meta: { total, page: 1, limit: 200, totalPages: Math.ceil(total / 200) },
+  })
+
+  const pie = () => host.querySelector('.ant-pagination')?.textContent ?? ''
+
+  it('el pie muestra el total de la bodega, no el de la página', async () => {
+    const { getProducts } = await import('../../api/inventario')
+    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(200, 1584) as any)
+    await render()
+    expect(pie()).toContain('1584')
+  })
+
+  it('y hay más de una página', async () => {
+    const { getProducts } = await import('../../api/inventario')
+    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(200, 1584) as any)
+    await render()
+    const paginas = Array.from(host.querySelectorAll('.ant-pagination-item'))
+      .map(el => el.textContent?.trim())
+    expect(paginas).toContain('2')
+  })
+
+  it('al pasar de página le pide esa página al servidor', async () => {
+    const { getProducts } = await import('../../api/inventario')
+    vi.mocked(getProducts).mockResolvedValue(comoRespondeElServidor(200, 1584) as any)
+    await render()
+    const dos = Array.from(host.querySelectorAll('.ant-pagination-item'))
+      .find(el => el.textContent?.trim() === '2')
+    await act(async () => { (dos as HTMLElement).click() })
+    await act(async () => { await new Promise(r => setTimeout(r, 40)) })
+    const ultima = vi.mocked(getProducts).mock.calls.at(-1)![0] as any
+    expect(ultima.page).toBe(2)
+    expect(ultima.limit).toBe(200)
+  })
+})

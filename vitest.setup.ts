@@ -72,3 +72,29 @@ afterEach(async () => {
 afterAll(async () => {
   await new Promise(resolve => setTimeout(resolve, 20))
 })
+
+/**
+ * Un lienzo de mentira, solo para medir texto.
+ *
+ * jsbarcode mide el ancho del texto legible del código de barras con un canvas
+ * —lo único que necesita es `measureText`— y jsdom no trae canvas. Para eso se
+ * había agregado el paquete nativo `canvas`, que se compila con node-gyp: en
+ * la imagen `node:20-alpine` del Dockerfile no están las librerías de C que
+ * pide (cairo, pango, libjpeg), así que `npm ci` fallaba y el despliegue de
+ * Railway quedó parado desde entonces.
+ *
+ * Ya no hace falta: el código de barras se dibuja en SVG, no en PNG, y la
+ * medida solo decide si el texto sobresale del símbolo —en un EAN-13 nunca
+ * sobresale—. Con responder un ancho aproximado alcanza, y el proyecto se
+ * queda sin dependencias que haya que compilar.
+ */
+const ANCHO_POR_LETRA = 0.6   // proporción habitual de una tipografía de palo seco
+window.HTMLCanvasElement.prototype.getContext = function (): any {
+  return {
+    font: '',
+    measureText(texto: string) {
+      const tamano = parseFloat(String(this.font).match(/(\d+(?:\.\d+)?)px/)?.[1] ?? '10')
+      return { width: String(texto).length * tamano * ANCHO_POR_LETRA }
+    },
+  }
+}

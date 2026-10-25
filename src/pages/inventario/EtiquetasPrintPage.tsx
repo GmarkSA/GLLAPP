@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Spin } from 'antd'
 import { getProducts } from '../../api/inventario'
+import { totalDe } from '../../api/paginacion'
 import { getApiError } from '../../api/axios'
 import {
   FORMATOS_ETIQUETA, etiquetasDeArticulos, generarCodigosBarras,
@@ -49,8 +50,17 @@ export default function EtiquetasPrintPage() {
         const res: any = await getProducts({ page: pagina, limit: POR_PAGINA })
         const lote: ArticuloParaEtiqueta[] = Array.isArray(res) ? res : res?.data ?? []
         todos.push(...lote)
-        const total = Number(res?.total ?? lote.length)
-        if (lote.length < POR_PAGINA || todos.length >= total) break
+        /**
+         * El total viene en `meta.total`. Leyéndolo como `res.total` salía
+         * indefinido y se caía al largo del lote —500—, con lo que la condición
+         * de abajo cortaba el recorrido en la primera vuelta: de 1,584
+         * artículos solo se imprimían etiquetas de los primeros 500, sin aviso.
+         *
+         * Si el servidor no manda total, se sigue hasta que una página venga
+         * incompleta, que es la última.
+         */
+        const total = totalDe(res)
+        if (lote.length < POR_PAGINA || (total > 0 && todos.length >= total)) break
       }
       return todos
     }

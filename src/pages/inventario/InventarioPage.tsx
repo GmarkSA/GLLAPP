@@ -25,6 +25,7 @@ import {
   ITEM_TYPE_CONFIG, USAGE_TYPE_CONFIG,
   type Product,
 } from '../../api/inventario'
+import { totalDe } from '../../api/paginacion'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -308,7 +309,7 @@ export default function InventarioPage() {
         lowStock: lowStock || undefined,
       })
       setProducts(Array.isArray(res?.data) ? res.data : [])
-      setTotal(res?.total ?? 0)
+      setTotal(totalDe(res))
     } catch {
       message.error('Error al cargar artículos')
     } finally {
