@@ -74,7 +74,9 @@ export default function InventarioPage() {
   const [loading, setLoading]     = useState(false)
   const [total, setTotal]         = useState(0)
   const [page, setPage]           = useState(1)
-  const [limit]                   = useState(20)
+  // 20 por página obligaba a 80 vueltas para recorrer 1,584 artículos. El
+  // servidor admite hasta 500 de un tiro.
+  const [limit, setLimit]         = useState(200)
 
   // Filters
   const [search, setSearch]       = useState('')
@@ -333,7 +335,9 @@ export default function InventarioPage() {
     {
       title: 'SKU',
       dataIndex: 'sku',
-      width: 120,
+      // Con 120 px un SKU como AGUJA-CROCHET-NO2 se partía en dos renglones.
+      // El ancho que gana sale del Nombre, que es la columna elástica.
+      width: 260,
       sorter: (a, b) => (a.sku ?? '').localeCompare(b.sku ?? ''),
       render: (v: string) => (
         <Text
@@ -860,9 +864,15 @@ export default function InventarioPage() {
             current: page,
             pageSize: limit,
             total,
-            showSizeChanger: false,
-            showTotal: t => `${t} artículos`,
-            onChange: p => setPage(p),
+            showSizeChanger: true,
+            pageSizeOptions: [50, 100, 200, 500],
+            showTotal: (t, [desde, hasta]) => `${desde}-${hasta} de ${t} artículos`,
+            onChange: (p, tamano) => {
+              // Cambiar el tamaño de página desde la página 7 dejaba al usuario
+              // en una página que ya no existe, con la tabla vacía.
+              if (tamano !== limit) { setLimit(tamano); setPage(1) }
+              else setPage(p)
+            },
           }}
           locale={{
             emptyText: (

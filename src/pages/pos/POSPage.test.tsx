@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import POSPage from './POSPage'
+import { getProducts } from '../../api/inventario'
 
 /**
  * Lo que el POS le manda al backend al cobrar.
@@ -30,9 +31,11 @@ const ARTICULO_IVA = {
 
 const createPOSVenta = vi.fn(async (_dto: any) => ({ invoiceNumber: 'FAC-1', felStatus: 'certificada' }))
 let articulos = [ARTICULO_PC]
+/** Cuántos dice el servidor que hay en total, para probar el paginador. */
+let totalDeArticulos: number | null = null
 
 vi.mock('../../api/inventario', () => ({
-  getProducts: vi.fn(async () => ({ data: articulos, total: articulos.length })),
+  getProducts: vi.fn(async () => ({ data: articulos, total: totalDeArticulos ?? articulos.length })),
 }))
 vi.mock('../../api/contactos', () => ({
   getCustomers:   vi.fn(async () => ({ data: [], total: 0 })),
@@ -95,11 +98,25 @@ const cobrar = async () => {
   await esperar(60)
 }
 
+/** Escribe en el buscador del catálogo y espera al debounce. */
+const escribirEnBuscador = async (texto: string) => {
+  const input = host.querySelector('input[placeholder*="Buscar art"]') as HTMLInputElement
+  expect(input).toBeTruthy()
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!
+  await act(async () => {
+    setter.call(input, texto)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await esperar(400)
+}
+
 const loQueSeMando = () => createPOSVenta.mock.calls[0]?.[0] as any
 
 beforeEach(() => {
   articulos = [ARTICULO_PC]
+  totalDeArticulos = null
   createPOSVenta.mockClear()
+  ;(getProducts as any).mockClear()
 })
 
 afterEach(async () => {
@@ -249,5 +266,61 @@ describe('servicios cargados por Excel sin la columna lleva_stock', () => {
     await agregarAlCarrito('impresiones blanco y negro')
     await cobrar()
     expect(loQueSeMando().items[0].productId).toBe('p3')
+  })
+})
+
+/**
+ * El POS pedía 80 artículos y punto: con 1,584 en el inventario, los que
+ * quedaban fuera no existían para la caja a menos que el cajero supiera el
+ * nombre exacto para buscarlos. Ahora se recorre por páginas.
+ */
+describe('recorrer el catálogo en el POS', () => {
+  const muchos = Array.from({ length: 100 }, (_, i) => ({
+    ...ARTICULO_IVA, id: `p-${i}`, sku: `SKU-${i}`, name: `ARTICULO ${i}`,
+  }))
+
+  const loQuePidio = (n: number) =>
+    (getProducts as any).mock.calls[n]?.[0] ?? {}
+
+  const pasarALaPagina = async (n: number) => {
+    const boton = Array.from(host.querySelectorAll('.ant-pagination-item'))
+      .find(el => el.textContent?.trim() === String(n))
+    expect(boton).toBeTruthy()
+    await click(boton!)
+    await esperar(60)
+  }
+
+  it('pide una página, no una tajada fija de 80', async () => {
+    articulos = muchos
+    await render()
+    expect(loQuePidio(0).page).toBe(1)
+    expect(loQuePidio(0).limit).toBeGreaterThanOrEqual(100)
+  })
+
+  it('muestra el paginador cuando hay más de una página', async () => {
+    articulos = muchos
+    totalDeArticulos = 450
+    await render()
+    expect(host.querySelector('.ant-pagination')).toBeTruthy()
+  })
+
+  it('al pasar de página le pide esa página al servidor', async () => {
+    articulos = muchos
+    totalDeArticulos = 450
+    await render()
+    await pasarALaPagina(2)
+    const ultima = (getProducts as any).mock.calls.at(-1)[0]
+    expect(ultima.page).toBe(2)
+  })
+
+  it('buscar vuelve a la página 1: si no, la búsqueda sale vacía', async () => {
+    articulos = muchos
+    totalDeArticulos = 450
+    await render()
+    await pasarALaPagina(2)
+    await escribirEnBuscador('ARTICULO 7')
+    const ultima = (getProducts as any).mock.calls.at(-1)[0]
+    expect(ultima.page).toBe(1)
+    expect(ultima.search).toBe('ARTICULO 7')
   })
 })

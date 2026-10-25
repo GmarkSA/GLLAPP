@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Input, Button, Badge, Tag, Modal, message, Select,
-  Divider, InputNumber, Radio, Typography, Spin, Empty, Form,
+  Divider, InputNumber, Radio, Typography, Spin, Empty, Form, Pagination,
 } from 'antd'
 import {
   SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined,
@@ -126,6 +126,15 @@ function BankConfigModal({ open, posId, accounts, onClose }: {
 }
 
 // ─── Helper: extract array from any API response shape ────────────────────────
+/**
+ * Cuántos artículos trae cada página del catálogo.
+ *
+ * Antes se pedían 80 y punto: con 1,584 en el inventario, los que quedaban
+ * fuera no existían para la caja a menos que el cajero supiera el nombre
+ * exacto. El servidor admite hasta 500 por llamada.
+ */
+const POR_PAGINA = 100
+
 function extractList(r: any): any[] {
   // After unwrap: plain array | { data: [...], total } | { items: [...] }
   if (Array.isArray(r))        return r
@@ -403,8 +412,11 @@ export default function POSPage() {
   const posId        = searchParams.get('pos')
 
   const [products,      setProducts]      = useState<Product[]>([])
+  const [totalProds,    setTotalProds]    = useState(0)
+  const [pagina,        setPagina]        = useState(1)
   const [loadingProds,  setLoadingProds]  = useState(false)
   const [search,        setSearch]        = useState('')
+  const [searchAplicado, setSearchAplicado] = useState('')
   const [cart,          setCart]          = useState<CartItem[]>([])
 
   // ── Customer state ─────────────────────────────────────────────────────────
@@ -458,20 +470,24 @@ export default function POSPage() {
   }, [])
 
   // ── Load products ──────────────────────────────────────────────────────────
-  const loadProducts = useCallback(async (q = '') => {
+  const loadProducts = useCallback(async (q = '', p = 1) => {
     setLoadingProds(true)
     try {
-      const res = await getProducts({ search: q || undefined, limit: 80 })
+      const res: any = await getProducts({ search: q || undefined, page: p, limit: POR_PAGINA })
       setProducts(extractList(res))
+      setTotalProds(Number(res?.total ?? extractList(res).length))
     } finally { setLoadingProds(false) }
   }, [])
 
-  useEffect(() => { loadProducts() }, [loadProducts])
-
+  // Solo lo que el cajero teclea se espera; abrir la caja y cambiar de página
+  // cargan de una. Meter la carga inicial en el debounce dejaba la rejilla en
+  // blanco un cuarto de segundo cada vez que se abría el POS.
   useEffect(() => {
-    const t = setTimeout(() => loadProducts(search), 250)
+    const t = setTimeout(() => setSearchAplicado(search), 250)
     return () => clearTimeout(t)
-  }, [search, loadProducts])
+  }, [search])
+
+  useEffect(() => { loadProducts(searchAplicado, pagina) }, [searchAplicado, pagina, loadProducts])
 
   // ── Load customers (initial + search) ─────────────────────────────────────
   const loadCustomers = useCallback(async (q = '') => {
@@ -707,7 +723,10 @@ export default function POSPage() {
             ref={searchRef}
             prefix={<SearchOutlined style={{ color: '#bbb' }} />}
             placeholder="Buscar artículo por nombre o SKU... (F2)"
-            value={search} onChange={e => setSearch(e.target.value)}
+            value={search}
+            // Buscar desde la página 3 devolvía la página 3 del resultado
+            // —vacía— y parecía que el artículo no existía.
+            onChange={e => { setSearch(e.target.value); setPagina(1) }}
             allowClear size="large" style={{ marginBottom: 10, borderRadius: 8 }}
           />
           <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -725,8 +744,22 @@ export default function POSPage() {
               </div>
             )}
           </div>
+          {totalProds > POR_PAGINA && (
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
+              <Pagination
+                size="small"
+                current={pagina}
+                pageSize={POR_PAGINA}
+                total={totalProds}
+                showSizeChanger={false}
+                onChange={p => setPagina(p)}
+              />
+            </div>
+          )}
           <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', paddingTop: 6 }}>
-            {products.length} artículo(s) · F2 = buscar · F10 = cobrar
+            {totalProds > POR_PAGINA
+              ? `${products.length} de ${totalProds} artículo(s)`
+              : `${products.length} artículo(s)`} · F2 = buscar · F10 = cobrar
           </div>
         </div>
 
