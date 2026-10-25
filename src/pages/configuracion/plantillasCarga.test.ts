@@ -1,0 +1,175 @@
+import { describe, it, expect } from 'vitest'
+import * as XLSX from 'xlsx'
+import { analizarArchivo, leerFilas } from './plantillaCarga'
+import {
+  construirPlantillaProveedores, ESPECIFICACION_PROVEEDORES, COLUMNAS_PROVEEDORES,
+} from './plantillaProveedores'
+import {
+  construirPlantillaCuentas, ESPECIFICACION_CUENTAS, COLUMNAS_CUENTAS,
+} from './plantillaCuentas'
+
+/**
+ * Las plantillas de proveedores y del catálogo de cuentas.
+ *
+ * Las dos salen del mismo motor que la de clientes; lo que se prueba aquí es
+ * lo que cada una tiene de propio: que el proveedor nombre su cuenta POR PAGAR
+ * y no la de clientes, y que el catálogo de cuentas traiga el tipo y el saldo
+ * normal, que son los dos campos que, mal cargados, desordenan el balance
+ * entero.
+ */
+const hojas = (datos: ArrayBuffer) => XLSX.read(datos, { type: 'array' }).SheetNames
+const filasDe = (datos: ArrayBuffer, hoja: string) =>
+  XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    XLSX.read(datos, { type: 'array' }).Sheets[hoja], { defval: '' })
+
+const archivoCon = (hoja: string, filas: Array<Record<string, unknown>>): ArrayBuffer => {
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas), hoja)
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+}
+
+const CAT_PROVEEDORES = {
+  cuentas: [
+    { code: '210101', name: 'Proveedores nacionales', type: 'liability' },
+    { code: '610001', name: 'Gastos de administración', type: 'expense' },
+    { code: '110201', name: 'Clientes nacionales', type: 'asset' },
+  ],
+  impuestos: [{ code: 'IVA-C', name: 'IVA por cobrar', rate: 12 }],
+  monedas: ['GTQ', 'USD'],
+}
+
+describe('la plantilla de proveedores', () => {
+  it('nombra la cuenta POR PAGAR, no la de clientes', () => {
+    const titulos = COLUMNAS_PROVEEDORES.map(c => c.titulo)
+    expect(titulos).toContain('cuenta_por_pagar')
+    expect(titulos).toContain('cuenta_gastos')
+    expect(titulos).not.toContain('cuenta_por_cobrar')
+  })
+
+  /**
+   * El Excel dice «cuenta_por_pagar» y el backend espera «cuenta_contacto»,
+   * que es el campo genérico que comparten cliente y proveedor. Si esa
+   * traducción se rompe, la cuenta del proveedor se pierde en silencio.
+   */
+  it('al leer, la cuenta por pagar llega como la cuenta del contacto', () => {
+    const [fila] = leerFilas(
+      archivoCon('Proveedores', [{ nombre: 'X', cuenta_por_pagar: '210101', cuenta_gastos: '610001' }]),
+      ESPECIFICACION_PROVEEDORES)
+
+    expect(fila.cuenta_contacto).toBe('210101')
+    expect(fila.cuenta_contrapartida).toBe('610001')
+  })
+
+  it('ofrece las cuentas de pasivo y gasto, no las de clientes', () => {
+    const cuentas = filasDe(construirPlantillaProveedores(CAT_PROVEEDORES), 'Cuentas')
+      .map(c => c.codigo)
+    expect(cuentas).toContain('210101')
+    expect(cuentas).toContain('610001')
+    expect(cuentas).not.toContain('110201')
+  })
+
+  it('el libro trae sus seis hojas', () => {
+    expect(hojas(construirPlantillaProveedores(CAT_PROVEEDORES)))
+      .toEqual(['Proveedores', 'Ejemplo', 'Instrucciones', 'Cuentas', 'Impuestos', 'Monedas'])
+  })
+
+  it('admite el régimen de pequeño contribuyente, que el de clientes no tiene', () => {
+    const [fila] = leerFilas(
+      archivoCon('Proveedores', [{ nombre: 'X', tratamiento_fiscal: 'pequeño contribuyente' }]),
+      ESPECIFICACION_PROVEEDORES)
+    expect(fila.tratamiento_fiscal).toBe('pequeno_contribuyente')
+  })
+})
+
+describe('la plantilla del catálogo de cuentas', () => {
+  const CAT = {
+    existentes: [{ code: '1101', name: 'Caja y bancos' }],
+    grupos: ['Activo corriente', 'Pasivo corriente'],
+  }
+
+  it('el código, el nombre y el tipo son obligatorios', () => {
+    expect(COLUMNAS_CUENTAS.filter(c => c.requerida).map(c => c.clave))
+      .toEqual(['codigo', 'nombre', 'tipo'])
+  })
+
+  it('traduce los cinco tipos del balance', () => {
+    const filas = leerFilas(archivoCon('Cuentas', [
+      { codigo: '1', nombre: 'A', tipo: 'activo' },
+      { codigo: '2', nombre: 'B', tipo: 'pasivo' },
+      { codigo: '3', nombre: 'C', tipo: 'patrimonio' },
+      { codigo: '4', nombre: 'D', tipo: 'ingresos' },
+      { codigo: '5', nombre: 'E', tipo: 'gasto' },
+    ]), ESPECIFICACION_CUENTAS)
+
+    expect(filas.map(f => f.tipo))
+      .toEqual(['asset', 'liability', 'equity', 'revenue', 'expense'])
+  })
+
+  /**
+   * Al revés el balance cuadra pero con los signos invertidos: la cuenta sale
+   * en negativo y nadie entiende por qué.
+   */
+  it('entiende el saldo normal como deudor o acreedor', () => {
+    const filas = leerFilas(archivoCon('Cuentas', [
+      { codigo: '1', nombre: 'A', tipo: 'activo', saldo_normal: 'deudor' },
+      { codigo: '2', nombre: 'B', tipo: 'pasivo', saldo_normal: 'acreedora' },
+    ]), ESPECIFICACION_CUENTAS)
+
+    expect(filas.map(f => f.saldo_normal)).toEqual(['debit', 'credit'])
+  })
+
+  it('lleva los interruptores que hacen que el resto del sistema encuentre sus cuentas', () => {
+    const claves = COLUMNAS_CUENTAS.map(c => c.clave)
+    for (const flag of ['es_cuenta_clientes', 'es_cuenta_proveedores',
+                        'es_cuenta_inventario', 'es_activo_fijo',
+                        'exige_centro_costo', 'exige_centro_beneficio']) {
+      expect([flag, claves.includes(flag)]).toEqual([flag, true])
+    }
+  })
+
+  it('los interruptores se leen como Sí / No', () => {
+    const [fila] = leerFilas(archivoCon('Cuentas', [
+      { codigo: '110201', nombre: 'Clientes', tipo: 'activo',
+        es_cuenta_clientes: 'Sí', es_titulo: 'No' }]), ESPECIFICACION_CUENTAS)
+
+    expect(fila.es_cuenta_clientes).toBe(true)
+    expect(fila.es_titulo).toBe(false)
+  })
+
+  it('avisa cuando falta el tipo, que es obligatorio', () => {
+    const a = analizarArchivo(archivoCon('Cuentas', [
+      { codigo: '1', nombre: 'A' }]), ESPECIFICACION_CUENTAS)
+    expect(a.faltantes).toEqual(['tipo'])
+  })
+
+  it('avisa cuando el tipo no es uno de los cinco, y dice cuáles son', () => {
+    const a = analizarArchivo(archivoCon('Cuentas', [
+      { codigo: '1', nombre: 'A', tipo: 'cuenta rara' }]), ESPECIFICACION_CUENTAS)
+    const problema = a.columnas.find(c => c.encabezado === 'tipo')!.problema!
+    expect(problema).toContain('no es un valor admitido')
+    expect(problema).toContain('patrimonio')
+  })
+
+  /**
+   * El ejemplo son tres filas encadenadas —una de título con dos hijas—
+   * porque el catálogo se entiende por su estructura, no por una fila suelta.
+   */
+  it('el ejemplo enseña cómo se encadenan las cuentas con su padre', () => {
+    const ejemplo = filasDe(construirPlantillaCuentas(CAT), 'Ejemplo')
+    expect(ejemplo).toHaveLength(3)
+    expect(ejemplo[0].es_titulo).toBe('Sí')
+    expect(ejemplo[1].cuenta_padre).toBe(ejemplo[0].codigo)
+  })
+
+  it('trae las cuentas que ya existen, para poder nombrar la cuenta padre', () => {
+    expect(filasDe(construirPlantillaCuentas(CAT), 'Cuentas existentes').map(c => c.codigo))
+      .toContain('1101')
+  })
+
+  it('la plantilla en blanco se analiza sin faltantes', () => {
+    const a = analizarArchivo(construirPlantillaCuentas(CAT), ESPECIFICACION_CUENTAS)
+    expect(a.filas).toBe(0)
+    expect(a.faltantes).toEqual([])
+    expect(a.columnas.every(c => c.reconocida)).toBe(true)
+  })
+})
