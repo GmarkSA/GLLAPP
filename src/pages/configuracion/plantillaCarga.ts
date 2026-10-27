@@ -303,6 +303,13 @@ export function armarLibro(
   filas: Array<Record<string, unknown>>,
   hojasDeApoyo: HojaDeApoyo[] = [],
   ejemplos: Array<Record<string, unknown>> = [],
+  /**
+   * Otra hoja de datos para llenar, con sus propias columnas e instrucciones.
+   *
+   * Es la de saldos pendientes: va en el mismo archivo que los contactos
+   * porque se llena en el mismo momento y con los mismos NIT.
+   */
+  segundaHoja?: { spec: EspecificacionDeCarga; ejemplos?: Array<Record<string, unknown>> },
 ): ArrayBuffer {
   const orden = spec.columnas.map(c => c.titulo)
   const wb = XLSX.utils.book_new()
@@ -317,8 +324,19 @@ export function armarLibro(
       XLSX.utils.json_to_sheet(ejemplos, { header: orden }), 'Ejemplo')
   }
 
+  if (segundaHoja) {
+    const ordenSegunda = segundaHoja.spec.columnas.map(c => c.titulo)
+    XLSX.utils.book_append_sheet(wb,
+      XLSX.utils.json_to_sheet([], { header: ordenSegunda }), segundaHoja.spec.hoja)
+    if (segundaHoja.ejemplos?.length) {
+      XLSX.utils.book_append_sheet(wb,
+        XLSX.utils.json_to_sheet(segundaHoja.ejemplos, { header: ordenSegunda }),
+        `Ejemplo ${segundaHoja.spec.hoja}`.slice(0, 31))
+    }
+  }
+
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-    spec.columnas.map(c => ({
+    [...spec.columnas, ...(segundaHoja?.spec.columnas ?? [])].map(c => ({
       columna: c.titulo,
       pestaña_en_Lucía: c.pestana,
       obligatoria: c.requerida ? 'Sí' : 'No',

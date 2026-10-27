@@ -2,6 +2,7 @@ import {
   armarLibro, type ColumnaDePlantilla, type EspecificacionDeCarga,
   type HojaDeApoyo, type Vocabulario,
 } from './plantillaCarga'
+import { ESPECIFICACION_SALDOS, ejemplosDeSaldos } from './plantillaSaldosPendientes'
 
 /**
  * La plantilla Excel de la carga masiva de clientes.
@@ -141,7 +142,7 @@ export const COLUMNAS_CLIENTES: ColumnaDePlantilla[] = [
   // ── Otros ──────────────────────────────────────────────────────────────────
   { clave: 'saldo_inicial', titulo: 'saldo_inicial', requerida: false, tipo: 'moneda',
     pestana: 'Otros',
-    ayuda: 'Lo que el cliente ya debía al empezar en Lucía. Genera su partida de apertura.',
+    ayuda: 'Una cifra única en quetzales. Si la cartera está en dólares o son varias facturas con distinto tipo de cambio, deja esto vacío y usa la hoja «Saldos pendientes».',
     alias: ['Saldo inicial (Q)', 'Saldo inicial', 'Opening Balance', 'Saldo'] },
   { clave: 'fecha_saldo_inicial', titulo: 'fecha_saldo_inicial', requerida: false, tipo: 'fecha',
     pestana: 'Otros',
@@ -204,5 +205,7 @@ const ejemploDeCliente = (catalogo: CatalogoDeClientes): Record<string, unknown>
 /** El modelo en blanco, con las listas de la empresa y una hoja de ejemplo. */
 export function construirPlantillaClientes(catalogo: CatalogoDeClientes): ArrayBuffer {
   return armarLibro(
-    ESPECIFICACION_CLIENTES, [], hojasDeClientes(catalogo), [ejemploDeCliente(catalogo)])
+    ESPECIFICACION_CLIENTES, [], hojasDeClientes(catalogo),
+    [ejemploDeCliente(catalogo)],
+    { spec: ESPECIFICACION_SALDOS, ejemplos: ejemplosDeSaldos('1234567-8') })
 }

@@ -192,8 +192,8 @@ export interface BatchImportResult {
  * La fecha de migración viaja con la carga: los saldos iniciales que vengan
  * sin fecha propia usan esa, que es el corte que el contador ya definió.
  */
-export const batchImportClientes = (rows: BatchImportRow[], fechaMigracion?: string) =>
-  api.post('/ventas/clientes/batch', { rows, fechaMigracion }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>
+export const batchImportClientes = (rows: BatchImportRow[], fechaMigracion?: string, documentos?: unknown[]) =>
+  api.post('/ventas/clientes/batch', { rows, fechaMigracion, documentos }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>
 
-export const batchImportProveedores = (rows: BatchImportRow[], fechaMigracion?: string) =>
-  api.post('/compras/proveedores/batch', { rows, fechaMigracion }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>
+export const batchImportProveedores = (rows: BatchImportRow[], fechaMigracion?: string, documentos?: unknown[]) =>
+  api.post('/compras/proveedores/batch', { rows, fechaMigracion, documentos }).then(r => r.data?.data ?? r.data) as Promise<BatchImportResult>

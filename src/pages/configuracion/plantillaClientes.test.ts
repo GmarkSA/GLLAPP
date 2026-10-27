@@ -56,9 +56,14 @@ describe('la plantilla de clientes', () => {
     expect(COLUMNAS_CLIENTES.filter(c => c.requerida).map(c => c.clave)).toEqual(['nombre'])
   })
 
-  it('el libro trae la hoja de datos, el ejemplo, las instrucciones y las listas', () => {
-    expect(hojas(construirPlantillaClientes(CATALOGO)))
-      .toEqual(['Clientes', 'Ejemplo', 'Instrucciones', 'Cuentas', 'Impuestos', 'Monedas'])
+  it('el libro trae la hoja de datos, el ejemplo, los saldos y las listas', () => {
+    expect(hojas(construirPlantillaClientes(CATALOGO))).toEqual([
+      'Clientes', 'Ejemplo',
+      // Los saldos pendientes van documento por documento: cada factura vieja
+      // trae su propio tipo de cambio y una cifra única no puede representarlo.
+      'Saldos pendientes', 'Ejemplo Saldos pendientes',
+      'Instrucciones', 'Cuentas', 'Impuestos', 'Monedas',
+    ])
   })
 
   it('la hoja de datos nace vacía: solo encabezados', () => {
