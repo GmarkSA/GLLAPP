@@ -115,8 +115,15 @@ export const COLUMNAS_CUENTAS: ColumnaDePlantilla[] = [
   // ── Saldo de apertura ──────────────────────────────────────────────────────
   { clave: 'saldo_inicial', titulo: 'saldo_inicial', requerida: false, tipo: 'moneda',
     pestana: 'Saldo de apertura',
-    ayuda: 'Saldo con el que la cuenta empieza en Lucía. Se carga con signo positivo; el tipo y el saldo normal deciden si va al debe o al haber.',
+    ayuda: 'Saldo con el que la cuenta empieza en Lucía, EN SU PROPIA MONEDA. Se carga con signo positivo; el tipo y el saldo normal deciden si va al debe o al haber.',
     alias: ['Saldo inicial', 'Saldo de apertura', 'Opening Balance', 'Saldo'] },
+  { clave: 'moneda', titulo: 'moneda', requerida: false, pestana: 'Saldo de apertura',
+    ayuda: 'Moneda del saldo. GTQ por omisión. Para una cuenta de banco en dólares, USD.',
+    alias: ['Moneda', 'Currency'] },
+  { clave: 'tipo_cambio', titulo: 'tipo_cambio', requerida: false, tipo: 'numero',
+    pestana: 'Saldo de apertura',
+    ayuda: 'Cuántos quetzales vale una unidad de esa moneda, a la fecha del saldo. OBLIGATORIO si la moneda no es GTQ: sin él el saldo no se carga, porque anotarlo a 1 × 1 metería la cuenta al balance por una séptima parte de su valor.',
+    alias: ['Tipo de cambio', 'TC', 'Exchange Rate', 'Tasa'] },
 ]
 
 export const ESPECIFICACION_CUENTAS: EspecificacionDeCarga = {
@@ -149,21 +156,33 @@ const ejemplosDeCuentas = (): Array<Record<string, unknown>> => [
     cuenta_padre: '11', es_titulo: 'Sí', grupo: '', descripcion: 'Agrupa el efectivo',
     estado: 'activa', es_cuenta_clientes: 'No', es_cuenta_proveedores: 'No',
     es_cuenta_inventario: 'No', es_activo_fijo: 'No', requiere_conciliacion: 'No',
-    exige_centro_costo: 'No', exige_centro_beneficio: 'No', saldo_inicial: '',
+    exige_centro_costo: 'No', exige_centro_beneficio: 'No', saldo_inicial: '', moneda: '', tipo_cambio: '',
   },
   {
     codigo: '110101', nombre: 'Caja chica', tipo: 'activo', saldo_normal: 'deudor',
     cuenta_padre: '1101', es_titulo: 'No', grupo: '', descripcion: '',
     estado: 'activa', es_cuenta_clientes: 'No', es_cuenta_proveedores: 'No',
     es_cuenta_inventario: 'No', es_activo_fijo: 'No', requiere_conciliacion: 'No',
-    exige_centro_costo: 'No', exige_centro_beneficio: 'No', saldo_inicial: 2000,
+    exige_centro_costo: 'No', exige_centro_beneficio: 'No', saldo_inicial: 2000, moneda: 'GTQ', tipo_cambio: '',
   },
   {
     codigo: '110201', nombre: 'Clientes nacionales', tipo: 'activo', saldo_normal: 'deudor',
     cuenta_padre: '1102', es_titulo: 'No', grupo: '', descripcion: '',
     estado: 'activa', es_cuenta_clientes: 'Sí', es_cuenta_proveedores: 'No',
     es_cuenta_inventario: 'No', es_activo_fijo: 'No', requiere_conciliacion: 'No',
-    exige_centro_costo: 'No', exige_centro_beneficio: 'No', saldo_inicial: 45000,
+    exige_centro_costo: 'No', exige_centro_beneficio: 'No',
+    saldo_inicial: 45000, moneda: 'GTQ', tipo_cambio: '',
+  },
+  {
+    // Una cuenta en dólares: el saldo va en dólares y el tipo de cambio lo
+    // convierte para los libros. Si está enlazada a una cuenta bancaria, su
+    // saldo inicial en dólares se actualiza solo.
+    codigo: '114001', nombre: 'Banco USD — Industrial-69', tipo: 'activo', saldo_normal: 'deudor',
+    cuenta_padre: '1101', es_titulo: 'No', grupo: '', descripcion: '',
+    estado: 'activa', es_cuenta_clientes: 'No', es_cuenta_proveedores: 'No',
+    es_cuenta_inventario: 'No', es_activo_fijo: 'No', requiere_conciliacion: 'Sí',
+    exige_centro_costo: 'No', exige_centro_beneficio: 'No',
+    saldo_inicial: 68.54, moneda: 'USD', tipo_cambio: 7.663360,
   },
 ]
 
