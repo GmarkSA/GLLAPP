@@ -8,6 +8,8 @@ export interface AjusteMonedaLinea {
   accountName:       string
   vendorId:          string | null
   vendorName:        string | null
+  customerId:        string | null
+  customerName:      string | null
   invoiceId:         string | null
   invoiceNumber:     string | null
   saldoUSD:          number
@@ -15,6 +17,13 @@ export interface AjusteMonedaLinea {
   tcHistorico:       number
   saldoRevaluado:    number
   gananciasPerdidas: number
+  /**
+   * El valor en libros de esta fila no es de fiar: sus pólizas se registraron
+   * con tipo de cambio 1, así que la «ganancia» que sale es la diferencia
+   * contra un saldo mal anotado, no una diferencia cambiaria. El backend se
+   * niega a publicar el ajuste mientras haya una fila así.
+   */
+  sinConvertir?:     boolean
 }
 
 export interface AjusteMoneda {

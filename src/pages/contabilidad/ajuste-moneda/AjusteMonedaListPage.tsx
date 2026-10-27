@@ -141,22 +141,38 @@ export default function AjusteMonedaListPage() {
           <div style={{ fontSize: 11, color: '#6b7280' }}>{r.accountCode}</div>
         </div>
       ) },
-    { title: 'Proveedor / Factura', key: 'aux', width: 190,
-      render: (_: any, r: AjusteMonedaLinea) => (
-        r.vendorName || r.invoiceNumber ? (
+    { title: 'Cliente / Proveedor / Factura', key: 'aux', width: 210,
+      render: (_: any, r: AjusteMonedaLinea) => {
+        const nombre = r.customerName ?? r.vendorName
+        return nombre || r.invoiceNumber ? (
           <div>
-            {r.vendorName && <div style={{ fontSize: 12, fontWeight: 500 }}>{r.vendorName}</div>}
+            {nombre && <div style={{ fontSize: 12, fontWeight: 500 }}>{nombre}</div>}
             {r.invoiceNumber && <div style={{ fontSize: 11, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{r.invoiceNumber}</div>}
           </div>
         ) : <span style={{ color: '#9aa1ab', fontSize: 11 }}>—</span>
-      ) },
+      } },
     { title: 'Monto USD', dataIndex: 'saldoUSD', key: 'usd', align: 'right' as const,
       render: (v: number) => (
         <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtUSD(v)}</span>
       ) },
+    /**
+     * Cuando el valor en libros nunca se convirtió —pólizas registradas a
+     * 1 × 1— el «tipo de cambio» que sale aquí no es un tipo de cambio, y la
+     * ganancia de esa fila es la diferencia contra un saldo mal anotado. El
+     * backend se niega a publicar el ajuste; aquí se dice por qué, en vez de
+     * dejar que el usuario lo descubra al guardar.
+     */
     { title: 'TC Histórico', dataIndex: 'tcHistorico', key: 'tch', align: 'right' as const,
-      render: (v: number) => (
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#6b7280' }}>{fmtTC(v)}</span>
+      render: (v: number, r: AjusteMonedaLinea) => (
+        r.sinConvertir ? (
+          <Tooltip title="El valor en libros de esta cuenta nunca se convirtió a quetzales: sus pólizas se registraron a 1 × 1. Corrige esas pólizas antes de revaluar — la ganancia que aparece aquí no es diferencia cambiaria.">
+            <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d', fontWeight: 600, cursor: 'help' }}>
+              {fmtTC(v)} ⚠
+            </span>
+          </Tooltip>
+        ) : (
+          <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#6b7280' }}>{fmtTC(v)}</span>
+        )
       ) },
     { title: 'Valor Libro GTQ', dataIndex: 'saldoGTQ', key: 'gtq', align: 'right' as const,
       render: (v: number) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> },
@@ -374,7 +390,7 @@ export default function AjusteMonedaListPage() {
 
                     const lineDesc = (l: AjusteMonedaLinea) => {
                       const base = `${l.accountCode}  ${l.accountName}`
-                      const aux = [l.invoiceNumber, l.vendorName].filter(Boolean).join('  |  ')
+                      const aux = [l.invoiceNumber, l.vendorName ?? l.customerName].filter(Boolean).join('  |  ')
                       return aux ? `${base}  |  ${aux}` : base
                     }
 
