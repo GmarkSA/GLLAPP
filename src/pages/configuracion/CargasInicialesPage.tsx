@@ -471,7 +471,8 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
   const handleSave = async () => {
     if (!fechaMigracion) { message.error('Selecciona la fecha de migración'); return }
     if (!touched.length)  { message.error('Ingresa al menos un saldo'); return }
-    if (!balanced)        { message.error(`La póliza no cuadra: Debe Q${totalDebit.toFixed(2)}, Haber Q${totalCredit.toFixed(2)}`); return }
+    // Ya no se exige cuadrar a mano: la diferencia va a la cuenta de apertura
+    // de Cuentas por defecto, que es la regularizadora del Balance General.
     if (sinTipoDeCambio.length) {
       message.error(
         `Falta el tipo de cambio de: ${sinTipoDeCambio.map(r => r.code).join(', ')}. ` +
@@ -691,8 +692,10 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
           {touched.length > 0 && (
             <div style={{
               padding: '10px 14px', borderRadius: 8, marginBottom: 16,
-              background: balanced ? '#f0fdf4' : '#fef9f0',
-              border: `1px solid ${balanced ? '#bbf7d0' : '#fed7aa'}`,
+              // Ya no hay estado de «error»: la diferencia es normal y tiene
+              // a dónde ir. El panel informa, no advierte.
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <Space>
@@ -700,8 +703,17 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
                 <Text style={{ color: '#1faec2' }}>Q {totalDebit.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
                 <Text strong style={{ marginLeft: 12 }}>Haber:</Text>
                 <Text style={{ color: '#e5484d' }}>Q {totalCredit.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>
-                {!balanced && <Tag color="orange">⚠ Descuadrado Q {Math.abs(totalDebit - totalCredit).toFixed(2)}</Tag>}
-                {balanced && touched.length > 0 && <Tag color="success">✓ Cuadrado</Tag>}
+                {/*
+                  * La diferencia va a la cuenta de apertura, que es la
+                  * regularizadora: si se carga el banco al debe, el abono es
+                  * ella. Antes esto se marcaba como error y no dejaba guardar,
+                  * cuando es el caso normal de una apertura.
+                  */}
+                {touched.length > 0 && (balanced
+                  ? <Tag color="success">✓ Cuadrado</Tag>
+                  : <Tag color="processing">
+                      Q {Math.abs(totalDebit - totalCredit).toLocaleString('es-GT', { minimumFractionDigits: 2 })} al {totalDebit > totalCredit ? 'haber' : 'debe'} de la cuenta de apertura
+                    </Tag>)}
               </Space>
               <Button
                 type="primary"
