@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Typography, Button, Upload, Table, message, DatePicker, InputNumber,
   Alert, Collapse, Tag, Space, Spin, Popconfirm, Steps, Empty, Select, Tooltip,
@@ -10,7 +11,11 @@ import {
 } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { ColumnType } from 'antd/es/table'
-import { batchImportClientes, batchImportProveedores, type BatchImportRow } from '../../api/contactos'
+import {
+  batchImportClientes, batchImportProveedores, type BatchImportRow,
+  getSaldosAperturaClientes, getSaldosAperturaProveedores,
+  type SaldoDeAperturaContacto,
+} from '../../api/contactos'
 import {
   getAccounts, setSaldosApertura, importarCatalogo,
   type Account, type SaldoAperturaLinea, type ImportarCatalogoResult,
@@ -131,6 +136,93 @@ interface EntityStep {
   result?: { created: number; updated: number; errors: string[]; avisos?: string[] }
 }
 
+/**
+ * Los saldos que se capturaron contacto por contacto, desde su propia ficha.
+ *
+ * El estado financiero de apertura es la suma de dos caminos: la carga masiva
+ * por Excel y la captura a mano en la ficha. Con dos o tres proveedores no
+ * tiene sentido armar un Excel, pero si esos saldos no se vieran aquí, quien
+ * revise la apertura creería que falta la mitad.
+ *
+ * Es de solo lectura a propósito: el saldo se corrige donde se capturó, en la
+ * ficha del contacto, que es también donde está la póliza que lo generó.
+ */
+function SaldosCapturadosEnLaFicha({ type }: { type: 'clientes' | 'proveedores' }) {
+  const [saldos, setSaldos]   = useState<SaldoDeAperturaContacto[]>([])
+  const [cargando, setCargando] = useState(true)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const traer = type === 'clientes' ? getSaldosAperturaClientes : getSaldosAperturaProveedores
+    traer()
+      .then(r => setSaldos(Array.isArray(r) ? r : []))
+      .catch(() => setSaldos([]))
+      .finally(() => setCargando(false))
+  }, [type])
+
+  if (cargando || !saldos.length) return null
+
+  const total = saldos.reduce((s, x) => s + Number(x.enQuetzales ?? 0), 0)
+  const ruta  = type === 'clientes' ? '/ventas/clientes' : '/compras/proveedores'
+
+  return (
+    <div style={{
+      border: '1px solid #dbe4f0', borderRadius: 10, padding: '14px 16px',
+      background: '#f8faff', marginBottom: 20,
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8,
+      }}>
+        <Space>
+          <CheckCircleOutlined style={{ color: '#2ea172' }} />
+          <Text strong>Saldos capturados en la ficha</Text>
+          <Tag color="blue">{saldos.length}</Tag>
+        </Space>
+        <Space>
+          <Text type="secondary" style={{ fontSize: 12 }}>Ya en los libros</Text>
+          <Tag color="#1B3A6B" style={{ fontSize: 13, padding: '2px 10px', margin: 0 }}>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              Q {total.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </Tag>
+        </Space>
+      </div>
+
+      <Table<SaldoDeAperturaContacto>
+        size="small"
+        rowKey="contactoId"
+        dataSource={saldos}
+        pagination={false}
+        columns={[
+          { title: type === 'clientes' ? 'Cliente' : 'Proveedor', dataIndex: 'nombre',
+            render: (v: string, r) => (
+              <Button type="link" style={{ padding: 0, height: 'auto' }}
+                onClick={() => navigate(`${ruta}/${r.contactoId}`)}>
+                {v}
+              </Button>
+            ) },
+          { title: 'Moneda', dataIndex: 'moneda', width: 90,
+            render: (v: string) => <Tag>{v}</Tag> },
+          { title: 'Documentos', dataIndex: 'lineas', width: 110, align: 'right',
+            render: (v: unknown[]) => (v ?? []).length },
+          { title: 'Saldo en libros', dataIndex: 'enQuetzales', width: 150, align: 'right',
+            render: (v: number) => (
+              <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                Q {Number(v ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            ) },
+        ]}
+      />
+
+      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
+        Cada uno generó su póliza de apertura contra la cuenta de orden. Para corregir
+        un saldo, ábrelo y edítalo en su ficha: la póliza se regenera sola.
+      </Text>
+    </div>
+  )
+}
+
 function EntityImportSection({
   type, fechaMigracion,
 }: { type: 'clientes' | 'proveedores'; fechaMigracion: Dayjs | null }) {
@@ -229,6 +321,8 @@ function EntityImportSection({
 
   return (
     <div style={{ padding: '12px 0' }}>
+      <SaldosCapturadosEnLaFicha type={type} />
+
       <Steps size="small" current={state.step} style={{ marginBottom: 24 }} items={[
         { title: 'Subir archivo' },
         { title: 'Revisar' },

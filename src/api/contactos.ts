@@ -64,8 +64,23 @@ export interface Customer {
   // Contactos
   contacts?:        ContactPerson[]
   // Extras
+  /** El total en QUETZALES que quedó en los libros, ya convertido. */
   openingBalance?:     number
   openingBalanceDate?: string
+  /**
+   * Los documentos pendientes con que el contacto arranca en Lucía.
+   *
+   * Una lista y no una cifra: cada factura vieja se registró al tipo de cambio
+   * de SU día, y promediarlas daría un número que no coincide con ninguna.
+   */
+  openingBalanceLines?: Array<{
+    referencia?: string
+    fecha?:      string
+    monto?:      number
+    tipoCambio?: number
+  }>
+  /** La póliza de apertura que generó este saldo. La asigna el servidor. */
+  openingJournalEntryId?: string | null
   portalEnabled?:      boolean
   notes?:           string
   tags?:            string[]
@@ -104,6 +119,29 @@ export const getVendor       = (id: string)   => api.get(`/compras/proveedores/$
 export const createVendor    = (dto: Vendor)  => api.post('/compras/proveedores', dto).then(unwrap)
 export const updateVendor    = (id: string, dto: Partial<Vendor>) => api.patch(`/compras/proveedores/${id}`, dto).then(unwrap)
 export const deleteVendor    = (id: string)   => api.delete(`/compras/proveedores/${id}`)
+
+/**
+ * Los saldos iniciales capturados contacto por contacto en su ficha.
+ *
+ * Cargas Iniciales los muestra junto a los de la carga masiva: el estado
+ * financiero de apertura es la suma de los dos caminos, y verlos por separado
+ * haría creer que falta la mitad.
+ */
+export interface SaldoDeAperturaContacto {
+  contactoId:     string
+  nombre:         string
+  numero?:        string
+  moneda:         string
+  lineas:         Array<{ referencia?: string; fecha?: string; monto?: number; tipoCambio?: number }>
+  enQuetzales:    number
+  journalEntryId: string | null
+}
+
+export const getSaldosAperturaClientes = () =>
+  api.get('/ventas/clientes/saldos-apertura').then(unwrap) as Promise<SaldoDeAperturaContacto[]>
+
+export const getSaldosAperturaProveedores = () =>
+  api.get('/compras/proveedores/saldos-apertura').then(unwrap) as Promise<SaldoDeAperturaContacto[]>
 
 // ── Cuentas bancarias del proveedor (guateACH) ────────────────────────────
 export interface VendorBankAccount {
