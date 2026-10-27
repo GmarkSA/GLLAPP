@@ -156,7 +156,8 @@ describe('la plantilla del catálogo de cuentas', () => {
    */
   it('el ejemplo enseña cómo se encadenan las cuentas con su padre', () => {
     const ejemplo = filasDe(construirPlantillaCuentas(CAT), 'Ejemplo')
-    expect(ejemplo).toHaveLength(3)
+    // Varias filas encadenadas: lo que enseña es la estructura, no el número.
+    expect(ejemplo.length).toBeGreaterThanOrEqual(3)
     expect(ejemplo[0].es_titulo).toBe('Sí')
     expect(ejemplo[1].cuenta_padre).toBe(ejemplo[0].codigo)
   })
@@ -171,5 +172,47 @@ describe('la plantilla del catálogo de cuentas', () => {
     expect(a.filas).toBe(0)
     expect(a.faltantes).toEqual([])
     expect(a.columnas.every(c => c.reconocida)).toBe(true)
+  })
+})
+
+/**
+ * Saldos de apertura en moneda extranjera.
+ *
+ * El dueño necesita cargar USD 68.54 al 31 de diciembre en su cuenta de banco
+ * en dólares. Sin moneda ni tipo de cambio en la plantilla, lo único que podía
+ * hacer era escribir el equivalente en quetzales — y entonces la cuenta
+ * bancaria se quedaba en cero, porque ella lleva su saldo en dólares.
+ */
+describe('el saldo de apertura en dólares', () => {
+  it('la plantilla trae moneda y tipo de cambio', () => {
+    const titulos = COLUMNAS_CUENTAS.map(c => c.titulo)
+    expect(titulos).toContain('moneda')
+    expect(titulos).toContain('tipo_cambio')
+  })
+
+  it('se leen con su tipo: el monto y la tasa como números', () => {
+    const [fila] = leerFilas(archivoCon('Cuentas', [{
+      codigo: '114001', nombre: 'Banco USD', tipo: 'activo',
+      saldo_inicial: '68.54', moneda: 'USD', tipo_cambio: '7.663360',
+    }]), ESPECIFICACION_CUENTAS)
+
+    expect(fila.saldo_inicial).toBe(68.54)
+    expect(fila.moneda).toBe('USD')
+    expect(fila.tipo_cambio).toBeCloseTo(7.66336, 5)
+  })
+
+  it('la instrucción avisa que sin tipo de cambio el saldo no entra', () => {
+    const inst = filasDe(construirPlantillaCuentas(
+      { existentes: [], grupos: [] }), 'Instrucciones')
+    const tc = inst.find(f => f.columna === 'tipo_cambio')!
+    expect(String(tc.qué_poner)).toContain('OBLIGATORIO')
+  })
+
+  it('el ejemplo incluye una cuenta de banco en dólares', () => {
+    const ejemplo = filasDe(construirPlantillaCuentas(
+      { existentes: [], grupos: [] }), 'Ejemplo')
+    const enDolares = ejemplo.find(f => f.moneda === 'USD')
+    expect(enDolares).toBeTruthy()
+    expect(Number(enDolares!.tipo_cambio)).toBeGreaterThan(7)
   })
 })
