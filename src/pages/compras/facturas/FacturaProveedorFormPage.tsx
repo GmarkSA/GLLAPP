@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getApiError } from '../../../api/axios'
+import { calcularIsrProgresivo } from '../../../utils/isrProgresivo'
 
 import {
   createBill, updateBill, getBill, approveBill, getVendors,
@@ -34,23 +35,6 @@ import SelectorDimensionesAnaliticas, { type DimensionesValue } from '../../../c
 const { Text } = Typography
 
 const fmt = (n: number) => n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
-/** Calcula ISR progresivo por tramos (igual que la vista previa de configuración fiscal).
- *  tiers deben tener upTo (null = sin límite) y rate (%). */
-function calcProgressiveISR(base: number, tiers: { upTo: number | null; rate: number }[]): number {
-  const sorted = [...tiers].sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
-  let total    = 0
-  let prevLimit = 0
-  for (const tier of sorted) {
-    if (base <= prevLimit) break
-    const limit   = tier.upTo ?? Infinity
-    const taxable = Math.min(base, limit) - prevLimit
-    total    += taxable * tier.rate / 100
-    prevLimit = limit
-  }
-  return Math.round(total * 100) / 100
-}
-
 
 // Impuesto sobre la Distribución de Bebidas Alcohólicas — Decreto 21-2004
 const BEBIDAS_TIPOS = [
@@ -448,12 +432,15 @@ export default function FacturaProveedorFormPage() {
     if (!vendorIsrTax) return
     if (id && !isrWasZeroOnLoad) return
     const subtotal = calcTotals(items).subtotal
+    // Los tramos del ISR están en QUETZALES (5% hasta Q30,000, 7% sobre el
+    // exceso). Sin el tipo de cambio, una factura en dólares se compara contra
+    // el tramo como si los dólares fueran quetzales y retiene de menos.
     const amount = vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length
-      ? calcProgressiveISR(subtotal, vendorIsrTax.tiers)
+      ? calcularIsrProgresivo(subtotal, vendorIsrTax.tiers, exchangeRate)
       : Math.round(subtotal * isrAppliedRate / 100 * 100) / 100
     setIsrAmount(amount)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, vendorIsrTax, isrAppliedRate, isrWasZeroOnLoad])
+  }, [items, vendorIsrTax, isrAppliedRate, isrWasZeroOnLoad, exchangeRate])
 
   // Auto-carga el tipo de cambio desde Banguat cuando cambia la moneda o la fecha de factura
   useEffect(() => {
@@ -1049,13 +1036,20 @@ export default function FacturaProveedorFormPage() {
                         <Tag color="#6b7280" style={{ margin: 0, fontSize: 11 }}>{vendorIsrTax.code}</Tag>
                         <Text style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 500 }}>{vendorIsrTax.name}</Text>
                       </Space>
+                      {/*
+                        * Los tramos del ISR están en quetzales, así que la base
+                        * que se compara contra ellos es la convertida. Decía
+                        * «Base Q 5,000.00» en una factura en dólares: el número
+                        * era de dólares y la Q, de adorno.
+                        */}
                       {vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length ? (
                         <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginTop: 2 }}>
-                          Progresivo — Base Q {fmt(totals.subtotal)}
+                          Progresivo — Base Q {fmt(totals.subtotal * exchangeRate)}
+                          {watchCurr !== 'GTQ' && ` (${watchCurr} ${fmt(totals.subtotal)} × ${exchangeRate})`}
                         </Text>
                       ) : (
                         <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginTop: 2 }}>
-                          Base Q {fmt(totals.subtotal)} × {isrAppliedRate}%
+                          Base {watchCurr} {fmt(totals.subtotal)} × {isrAppliedRate}%
                         </Text>
                       )}
                     </div>
@@ -1064,7 +1058,7 @@ export default function FacturaProveedorFormPage() {
                       {editingIsr ? (
                         <>
                           <InputNumber
-                            size="small" min={0} step={0.01} prefix="Q" precision={2}
+                            size="small" min={0} step={0.01} prefix={watchCurr === 'GTQ' ? 'Q' : watchCurr} precision={2}
                             value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
                             style={{ width: 120 }}
                             formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
@@ -1075,7 +1069,7 @@ export default function FacturaProveedorFormPage() {
                       ) : (
                         <>
                           <Text style={{ fontSize: 14, fontWeight: 700, color: '#0a0a0a', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
-                            Q {fmt(isrAmount)}
+                            {watchCurr === 'GTQ' ? 'Q' : watchCurr} {fmt(isrAmount)}
                           </Text>
                           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9aa1ab' }} />
                         </>
@@ -1090,7 +1084,7 @@ export default function FacturaProveedorFormPage() {
                       {editingIsr ? (
                         <>
                           <InputNumber
-                            size="small" min={0} step={0.01} prefix="Q" precision={2}
+                            size="small" min={0} step={0.01} prefix={watchCurr === 'GTQ' ? 'Q' : watchCurr} precision={2}
                             value={isrAmount} onChange={(v) => setIsrAmount(v ?? 0)}
                             style={{ width: 120 }}
                             formatter={v => { const p = `${v ?? ''}`.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.') }}
