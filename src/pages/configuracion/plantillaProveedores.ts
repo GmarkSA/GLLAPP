@@ -2,6 +2,7 @@ import {
   armarLibro, type ColumnaDePlantilla, type EspecificacionDeCarga,
   type HojaDeApoyo, type Vocabulario,
 } from './plantillaCarga'
+import { ESPECIFICACION_SALDOS, ejemplosDeSaldos } from './plantillaSaldosPendientes'
 
 /**
  * La plantilla Excel de la carga masiva de proveedores.
@@ -131,7 +132,7 @@ export const COLUMNAS_PROVEEDORES: ColumnaDePlantilla[] = [
   // ── Otros ──────────────────────────────────────────────────────────────────
   { clave: 'saldo_inicial', titulo: 'saldo_inicial', requerida: false, tipo: 'moneda',
     pestana: 'Otros',
-    ayuda: 'Lo que se le debía al proveedor al empezar en Lucía. Genera su partida de apertura.',
+    ayuda: 'Una cifra única en quetzales. Si la cartera está en dólares o son varias facturas con distinto tipo de cambio, deja esto vacío y usa la hoja «Saldos pendientes».',
     alias: ['Saldo inicial (Q)', 'Saldo inicial', 'Opening Balance', 'Saldo'] },
   { clave: 'fecha_saldo_inicial', titulo: 'fecha_saldo_inicial', requerida: false, tipo: 'fecha',
     pestana: 'Otros',
@@ -187,5 +188,7 @@ const ejemploDeProveedor = (catalogo: CatalogoDeProveedores): Record<string, unk
 
 export function construirPlantillaProveedores(catalogo: CatalogoDeProveedores): ArrayBuffer {
   return armarLibro(
-    ESPECIFICACION_PROVEEDORES, [], hojasDeProveedores(catalogo), [ejemploDeProveedor(catalogo)])
+    ESPECIFICACION_PROVEEDORES, [], hojasDeProveedores(catalogo),
+    [ejemploDeProveedor(catalogo)],
+    { spec: ESPECIFICACION_SALDOS, ejemplos: ejemplosDeSaldos('8765432-1') })
 }

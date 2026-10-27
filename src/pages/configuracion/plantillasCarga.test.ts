@@ -7,6 +7,8 @@ import {
 import {
   construirPlantillaCuentas, ESPECIFICACION_CUENTAS, COLUMNAS_CUENTAS,
 } from './plantillaCuentas'
+import { construirPlantillaClientes } from './plantillaClientes'
+import { ESPECIFICACION_SALDOS, COLUMNAS_SALDOS } from './plantillaSaldosPendientes'
 
 /**
  * Las plantillas de proveedores y del catálogo de cuentas.
@@ -68,9 +70,12 @@ describe('la plantilla de proveedores', () => {
     expect(cuentas).not.toContain('110201')
   })
 
-  it('el libro trae sus seis hojas', () => {
-    expect(hojas(construirPlantillaProveedores(CAT_PROVEEDORES)))
-      .toEqual(['Proveedores', 'Ejemplo', 'Instrucciones', 'Cuentas', 'Impuestos', 'Monedas'])
+  it('el libro trae la hoja de datos, el ejemplo, los saldos y las listas', () => {
+    expect(hojas(construirPlantillaProveedores(CAT_PROVEEDORES))).toEqual([
+      'Proveedores', 'Ejemplo',
+      'Saldos pendientes', 'Ejemplo Saldos pendientes',
+      'Instrucciones', 'Cuentas', 'Impuestos', 'Monedas',
+    ])
   })
 
   it('admite el régimen de pequeño contribuyente, que el de clientes no tiene', () => {
@@ -214,5 +219,79 @@ describe('el saldo de apertura en dólares', () => {
     const enDolares = ejemplo.find(f => f.moneda === 'USD')
     expect(enDolares).toBeTruthy()
     expect(Number(enDolares!.tipo_cambio)).toBeGreaterThan(7)
+  })
+})
+
+/**
+ * La hoja de saldos pendientes, documento por documento.
+ *
+ * El dueño confirmó que cada factura vieja trae su propio tipo de cambio. Una
+ * sola cifra por contacto no puede representar eso: promediar las tasas daría
+ * un número que no coincide con ninguna factura. Y un saldo suelto tampoco
+ * tiene vencimiento, así que el reporte de antigüedad no puede clasificarlo.
+ */
+describe('los saldos pendientes por documento', () => {
+  const CAT_CLI = {
+    cuentas: [{ code: '110201', name: 'Clientes', type: 'asset' }],
+    impuestos: [{ code: 'IVA-V', name: 'IVA', rate: 12 }],
+    monedas: ['GTQ', 'USD'],
+  }
+
+  it('la plantilla de clientes trae la hoja', () => {
+    expect(hojas(construirPlantillaClientes(CAT_CLI as any))).toContain('Saldos pendientes')
+  })
+
+  it('y la de proveedores también', () => {
+    expect(hojas(construirPlantillaProveedores(CAT_PROVEEDORES))).toContain('Saldos pendientes')
+  })
+
+  it('nace vacía: es para llenar', () => {
+    expect(filasDe(construirPlantillaClientes(CAT_CLI as any), 'Saldos pendientes')).toHaveLength(0)
+  })
+
+  it('cada documento lleva su propio tipo de cambio', () => {
+    const filas = leerFilas(archivoCon('Saldos pendientes', [
+      { nit: '1-1', documento: 'FAC-1', monto: 2500, moneda: 'USD', tipo_cambio: 7.712340 },
+      { nit: '1-1', documento: 'FAC-2', monto: 1800, moneda: 'USD', tipo_cambio: 7.668900 },
+    ]), ESPECIFICACION_SALDOS)
+
+    expect(filas).toHaveLength(2)
+    expect(filas[0].tipo_cambio).toBeCloseTo(7.71234, 5)
+    expect(filas[1].tipo_cambio).toBeCloseTo(7.66890, 5)
+    // El mismo contacto, dos tasas: justo lo que una cifra única no representa.
+    expect(filas[0].nit).toBe(filas[1].nit)
+  })
+
+  it('el NIT y el monto son lo único obligatorio', () => {
+    expect(COLUMNAS_SALDOS.filter(c => c.requerida).map(c => c.clave)).toEqual(['nit', 'monto'])
+  })
+
+  it('avisa si falta el monto', () => {
+    const a = analizarArchivo(archivoCon('Saldos pendientes', [
+      { nit: '1-1', documento: 'FAC-1' }]), ESPECIFICACION_SALDOS)
+    expect(a.faltantes).toEqual(['monto'])
+  })
+
+  it('las fechas se leen sin retroceder un día', () => {
+    const [fila] = leerFilas(archivoCon('Saldos pendientes', [
+      { nit: '1-1', monto: 100, fecha: '15/11/2025', vencimiento: '15/12/2025' },
+    ]), ESPECIFICACION_SALDOS)
+
+    expect(fila.fecha).toBe('2025-11-15')
+    expect(fila.vencimiento).toBe('2025-12-15')
+  })
+
+  it('el ejemplo enseña el caso que motiva la hoja: un contacto con dos tasas', () => {
+    const ej = filasDe(construirPlantillaClientes(CAT_CLI as any), 'Ejemplo Saldos pendientes')
+    const enDolares = ej.filter(f => f.moneda === 'USD')
+    expect(enDolares.length).toBeGreaterThanOrEqual(2)
+    expect(enDolares[0].tipo_cambio).not.toBe(enDolares[1].tipo_cambio)
+  })
+
+  it('las instrucciones incluyen las columnas de las dos hojas', () => {
+    const inst = filasDe(construirPlantillaClientes(CAT_CLI as any), 'Instrucciones')
+      .map(f => f.columna)
+    expect(inst).toContain('tratamiento_fiscal')   // de la hoja de clientes
+    expect(inst).toContain('tipo_cambio')          // de la de saldos
   })
 })

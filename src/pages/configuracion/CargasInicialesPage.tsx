@@ -31,6 +31,7 @@ import {
 import {
   construirPlantillaCuentas, ESPECIFICACION_CUENTAS,
 } from './plantillaCuentas'
+import { ESPECIFICACION_SALDOS } from './plantillaSaldosPendientes'
 import { analizarArchivo, leerFilas, etiquetaDeTipo, type AnalisisDelArchivo as Revision } from './plantillaCarga'
 
 const { Title, Text } = Typography
@@ -124,6 +125,8 @@ interface EntityStep {
   rows: BatchImportRow[]
   /** Lo que Lucía entendió del Excel, para enseñarlo antes de cargar. */
   revision?: Revision
+  /** Los documentos pendientes de la segunda hoja, cada uno con su tasa. */
+  documentos?: Array<Record<string, unknown>>
   result?: { created: number; updated: number; errors: string[]; avisos?: string[] }
 }
 
@@ -179,7 +182,19 @@ function EntityImportSection({
         message.error('El archivo no trae ninguna fila con nombre.')
         return false
       }
-      setState({ step: 1, rows: filas as unknown as BatchImportRow[], revision })
+
+      /**
+       * La segunda hoja: los documentos pendientes, cada uno con su tipo de
+       * cambio. Es opcional —si el archivo no la trae, el contacto puede venir
+       * con su saldo suelto— así que leerla no puede tumbar la carga.
+       */
+      let documentos: Array<Record<string, unknown>> = []
+      try {
+        documentos = leerFilas(datos, ESPECIFICACION_SALDOS)
+          .filter(f => String(f.nit ?? '').trim() && Number(f.monto ?? 0))
+      } catch { documentos = [] }
+
+      setState({ step: 1, rows: filas as unknown as BatchImportRow[], revision, documentos })
     } catch {
       message.error('No se pudo leer el archivo. ¿Es el Excel de la plantilla?')
     }
@@ -190,7 +205,7 @@ function EntityImportSection({
     setLoading(true)
     try {
       const fn = type === 'clientes' ? batchImportClientes : batchImportProveedores
-      const result = await fn(state.rows, fechaMigracion?.format('YYYY-MM-DD'))
+      const result = await fn(state.rows, fechaMigracion?.format('YYYY-MM-DD'), state.documentos)
       setState(s => ({ ...s, step: 2, result }))
       message.success(`Importación completada: ${result.created} creados, ${result.updated} actualizados`)
     } catch (e: any) {
@@ -235,6 +250,11 @@ function EntityImportSection({
       {state.step === 1 && (
         <div>
           {state.revision && <PanelDeRevision revision={state.revision} />}
+          {state.documentos?.length ? (
+            <Alert type="info" showIcon style={{ marginBottom: 12 }}
+              message={`${state.documentos.length} documento(s) pendientes, cada uno con su tipo de cambio`}
+              description="El saldo de cada contacto sale de sumar sus documentos convertidos con la tasa de cada uno, no con un promedio." />
+          ) : null}
           {state.revision?.faltantes.length ? (
             <Alert type="error" showIcon style={{ marginBottom: 12 }}
               message={`Falta la columna obligatoria: ${state.revision.faltantes.join(', ')}`}
