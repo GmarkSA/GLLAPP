@@ -3,11 +3,11 @@ import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import {
   Form, Select, DatePicker, InputNumber, Input, Button,
   Card, Breadcrumb, Typography, Spin, Divider, message,
-  Tag, Alert, Space, Table, Checkbox, Modal,
+  Tag, Alert, Space, Table, Checkbox, Modal, Tooltip
 } from 'antd'
 import {
   SaveOutlined, CheckOutlined, HomeOutlined, ThunderboltOutlined,
-  SwapOutlined, EditOutlined, SyncOutlined, TeamOutlined, DollarOutlined,
+  SwapOutlined, EditOutlined, SyncOutlined, TeamOutlined, DollarOutlined, ReloadOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getApiError } from '../../../api/axios'
@@ -111,6 +111,16 @@ export default function FacturaProveedorFormPage() {
   const [editingIvaRet, setEditingIvaRet] = useState(false)
   // true cuando la factura cargada tenía ISR = 0 (proveedor sin retención al momento de crear)
   const [isrWasZeroOnLoad, setIsrWasZeroOnLoad] = useState(false)
+  /**
+   * La retención tal como está GUARDADA en la factura.
+   *
+   * «Regenerar póliza contable» reconstruye el asiento leyendo la base de
+   * datos, no lo que está en pantalla. Si el usuario recalculó la retención y
+   * no guardó, la póliza salía con el número viejo y el botón no decía nada:
+   * parecía que regenerar no hacía efecto. Con esto se sabe si hay algo sin
+   * guardar antes de regenerar.
+   */
+  const [isrGuardado, setIsrGuardado] = useState(0)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -303,6 +313,7 @@ export default function FacturaProveedorFormPage() {
         if (bill.vendorTaxId) setVendorNit(bill.vendorTaxId)
         const savedIsr = Number(bill.isrRetentionAmount ?? 0)
         setIsrAmount(savedIsr)
+        setIsrGuardado(savedIsr)
         setIsrWasZeroOnLoad(savedIsr === 0)
         setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
         // Restaurar tipo de cambio si la factura es en moneda extranjera
@@ -426,19 +437,40 @@ export default function FacturaProveedorFormPage() {
     }
   }, [vendors, watchVendorId, taxes])
 
+  /**
+   * La retención que corresponde con los datos de ahora.
+   *
+   * Vive aparte del efecto porque también la usa el botón de recalcular: en
+   * edición el efecto NO corre a propósito —para no pisar una retención que el
+   * contador ajustó a mano—, y entonces no había forma de volver a calcularla
+   * sin teclear el número.
+   */
+  const retencionQueCorresponde = () => {
+    if (!vendorIsrTax) return 0
+    const subtotal = calcTotals(items).subtotal
+    return vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length
+      ? calcularIsrProgresivo(subtotal, vendorIsrTax.tiers, exchangeRate)
+      : Math.round(subtotal * isrAppliedRate / 100 * 100) / 100
+  }
+
+  /**
+   * ¿Lo guardado coincide con lo que corresponde?
+   *
+   * Solo se avisa en facturas ya registradas y con impuesto progresivo: es el
+   * caso de las que entraron antes de que los tramos se compararan en
+   * quetzales. Se deja un centavo de margen por el redondeo de la conversión.
+   */
+  const desajusteIsr = Boolean(
+    id && vendorIsrTax?.subtype === 'progressive' && vendorIsrTax.tiers?.length
+    && Math.abs(isrAmount - retencionQueCorresponde()) > 0.01,
+  )
+
   // Auto-calcula ISR en facturas nuevas, y en edición cuando el ISR guardado era Q 0.00
   // (caso: proveedor sin retención al crear la factura, configurado después)
   useEffect(() => {
     if (!vendorIsrTax) return
     if (id && !isrWasZeroOnLoad) return
-    const subtotal = calcTotals(items).subtotal
-    // Los tramos del ISR están en QUETZALES (5% hasta Q30,000, 7% sobre el
-    // exceso). Sin el tipo de cambio, una factura en dólares se compara contra
-    // el tramo como si los dólares fueran quetzales y retiene de menos.
-    const amount = vendorIsrTax.subtype === 'progressive' && vendorIsrTax.tiers?.length
-      ? calcularIsrProgresivo(subtotal, vendorIsrTax.tiers, exchangeRate)
-      : Math.round(subtotal * isrAppliedRate / 100 * 100) / 100
-    setIsrAmount(amount)
+    setIsrAmount(retencionQueCorresponde())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, vendorIsrTax, isrAppliedRate, isrWasZeroOnLoad, exchangeRate])
 
@@ -690,6 +722,29 @@ export default function FacturaProveedorFormPage() {
     if (!id) return
     setRegenerating(true)
     try {
+      /**
+       * Regenerar lee la factura de la base, no la pantalla. Si la retención
+       * en pantalla no es la guardada —porque se acaba de recalcular—, hay que
+       * guardarla antes o la póliza sale otra vez con el número viejo.
+       *
+       * En una factura pagada no se puede guardar, así que ahí se avisa en vez
+       * de regenerar en falso.
+       */
+      const sinGuardar = Math.abs(isrAmount - isrGuardado) > 0.001
+      if (sinGuardar) {
+        if (['open', 'partial', 'overdue'].includes(billStatus)) {
+          await updateBill(id, buildDto(billStatus) as any)
+          setIsrGuardado(isrAmount)
+        } else {
+          message.warning(
+            'La retención en pantalla no está guardada y esta factura no se puede editar en su estado actual. ' +
+            'Anula el pago para poder corregirla.',
+            8,
+          )
+          return
+        }
+      }
+
       const updated = await regenerateBillJournalEntry(id)
       if (updated.journalEntryId) {
         const je = await getJournalEntry(updated.journalEntryId)
@@ -717,6 +772,7 @@ export default function FacturaProveedorFormPage() {
     try {
       const dto = buildDto(billStatus)
       await updateBill(id, dto as any)
+      setIsrGuardado(isrAmount)
       const updated = await regenerateBillJournalEntry(id)
       if (updated.journalEntryId) {
         const je = await getJournalEntry(updated.journalEntryId)
@@ -1036,6 +1092,11 @@ export default function FacturaProveedorFormPage() {
                         <Tag color="#6b7280" style={{ margin: 0, fontSize: 11 }}>{vendorIsrTax.code}</Tag>
                         <Text style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 500 }}>{vendorIsrTax.name}</Text>
                       </Space>
+                      {desajusteIsr && (
+                        <Text style={{ fontSize: 11, color: '#e5484d', display: 'block', marginTop: 2 }}>
+                          ⚠ Debería ser {fmt(retencionQueCorresponde())} — usa el botón de recalcular
+                        </Text>
+                      )}
                       {/*
                         * Los tramos del ISR están en quetzales, así que la base
                         * que se compara contra ellos es la convertida. Decía
@@ -1072,6 +1133,22 @@ export default function FacturaProveedorFormPage() {
                             {watchCurr === 'GTQ' ? 'Q' : watchCurr} {fmt(isrAmount)}
                           </Text>
                           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9aa1ab' }} />
+                          {/*
+                            * Recalcular a mano, para las facturas ya registradas.
+                            * En edición el cálculo automático no corre —protege la
+                            * retención que el contador ajustó—, así que sin esto la
+                            * única forma de corregir una factura vieja era teclear
+                            * el número.
+                            */}
+                          {id && (
+                            <Tooltip title={`Recalcular con los datos de ahora: ${fmt(retencionQueCorresponde())}`}>
+                              <Button
+                                size="small" type="text" icon={<ReloadOutlined />}
+                                onClick={() => setIsrAmount(retencionQueCorresponde())}
+                                style={{ color: desajusteIsr ? '#e5484d' : '#9aa1ab' }}
+                              />
+                            </Tooltip>
+                          )}
                         </>
                       )}
                     </div>
@@ -1095,7 +1172,7 @@ export default function FacturaProveedorFormPage() {
                       ) : (
                         <>
                           <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
-                            Q {fmt(isrAmount)}
+                            {watchCurr === 'GTQ' ? 'Q' : watchCurr} {fmt(isrAmount)}
                           </Text>
                           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9aa1ab' }} />
                         </>
