@@ -7,6 +7,7 @@ import {
   Typography, Space, Card, Divider, Tag, Alert, message,
   InputNumber, Radio, Spin,
 } from 'antd'
+import SaldoInicialContacto from '../../../components/SaldoInicial/SaldoInicialContacto'
 import {
   SaveOutlined, ArrowLeftOutlined, UserOutlined, BankOutlined,
   BookOutlined, PlusOutlined, DeleteOutlined, CheckOutlined,
@@ -173,6 +174,8 @@ export default function ClienteFormPage() {
   const setupCompanyId = useCompanyStore(s => s.activeCompany?.id)
   const [form]    = Form.useForm()
   const isNew     = !id || id === 'nuevo'
+  /** De ella depende que el saldo inicial pida tipo de cambio o no. */
+  const moneda    = Form.useWatch('currency', form) as string | undefined
 
   const [loading,      setLoading]      = useState(!isNew)
   const [saving,       setSaving]       = useState(false)
@@ -196,6 +199,11 @@ export default function ClienteFormPage() {
             openingBalanceDate: c.openingBalanceDate
               ? String(c.openingBalanceDate).slice(0, 10)
               : undefined,
+            // La fecha llega como timestamp; el input de fecha quiere YYYY-MM-DD.
+            openingBalanceLines: (c.openingBalanceLines ?? []).map(l => ({
+              ...l,
+              fecha: l.fecha ? String(l.fecha).slice(0, 10) : undefined,
+            })),
           })
           setContactCount(c.contacts?.length || 1)
           setTaxTreatment(c.taxTreatment ?? 'taxable')
@@ -628,24 +636,7 @@ export default function ClienteFormPage() {
                     </Row>
 
                     <Divider titlePlacement="left">Saldo inicial</Divider>
-                    <Row gutter={16}>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="openingBalance" label="Saldo inicial (Q)">
-                          <InputNumber<number>
-                            style={{ width: '100%' }}
-                            formatter={v => `Q ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={v => Number(v?.replace(/Q\s?|(,*)/g, '') ?? 0)}
-                            min={0}
-                            placeholder="0.00"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="openingBalanceDate" label="Fecha de saldo inicial">
-                          <Input type="date" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <SaldoInicialContacto lado="cliente" moneda={moneda} />
                   </div>
                 ),
               },
