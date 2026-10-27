@@ -111,6 +111,16 @@ export default function FacturaProveedorFormPage() {
   const [editingIvaRet, setEditingIvaRet] = useState(false)
   // true cuando la factura cargada tenía ISR = 0 (proveedor sin retención al momento de crear)
   const [isrWasZeroOnLoad, setIsrWasZeroOnLoad] = useState(false)
+  /**
+   * La retención tal como está GUARDADA en la factura.
+   *
+   * «Regenerar póliza contable» reconstruye el asiento leyendo la base de
+   * datos, no lo que está en pantalla. Si el usuario recalculó la retención y
+   * no guardó, la póliza salía con el número viejo y el botón no decía nada:
+   * parecía que regenerar no hacía efecto. Con esto se sabe si hay algo sin
+   * guardar antes de regenerar.
+   */
+  const [isrGuardado, setIsrGuardado] = useState(0)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -303,6 +313,7 @@ export default function FacturaProveedorFormPage() {
         if (bill.vendorTaxId) setVendorNit(bill.vendorTaxId)
         const savedIsr = Number(bill.isrRetentionAmount ?? 0)
         setIsrAmount(savedIsr)
+        setIsrGuardado(savedIsr)
         setIsrWasZeroOnLoad(savedIsr === 0)
         setIvaRetAmount(Number(bill.ivaRetentionAmount ?? 0))
         // Restaurar tipo de cambio si la factura es en moneda extranjera
@@ -711,6 +722,29 @@ export default function FacturaProveedorFormPage() {
     if (!id) return
     setRegenerating(true)
     try {
+      /**
+       * Regenerar lee la factura de la base, no la pantalla. Si la retención
+       * en pantalla no es la guardada —porque se acaba de recalcular—, hay que
+       * guardarla antes o la póliza sale otra vez con el número viejo.
+       *
+       * En una factura pagada no se puede guardar, así que ahí se avisa en vez
+       * de regenerar en falso.
+       */
+      const sinGuardar = Math.abs(isrAmount - isrGuardado) > 0.001
+      if (sinGuardar) {
+        if (['open', 'partial', 'overdue'].includes(billStatus)) {
+          await updateBill(id, buildDto(billStatus) as any)
+          setIsrGuardado(isrAmount)
+        } else {
+          message.warning(
+            'La retención en pantalla no está guardada y esta factura no se puede editar en su estado actual. ' +
+            'Anula el pago para poder corregirla.',
+            8,
+          )
+          return
+        }
+      }
+
       const updated = await regenerateBillJournalEntry(id)
       if (updated.journalEntryId) {
         const je = await getJournalEntry(updated.journalEntryId)
@@ -738,6 +772,7 @@ export default function FacturaProveedorFormPage() {
     try {
       const dto = buildDto(billStatus)
       await updateBill(id, dto as any)
+      setIsrGuardado(isrAmount)
       const updated = await regenerateBillJournalEntry(id)
       if (updated.journalEntryId) {
         const je = await getJournalEntry(updated.journalEntryId)
