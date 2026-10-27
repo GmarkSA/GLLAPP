@@ -42,7 +42,18 @@ export const deleteAccount = (id: string, force = false) =>
 export const seedGLL = (mode: 'complement' | 'sync_properties' = 'complement') =>
   api.get('/contabilidad/catalogo/seed/gll', { params: { mode } }).then(unwrap)
 
-export interface SaldoAperturaLinea { accountId: string; debit: number; credit: number }
+export interface SaldoAperturaLinea {
+  accountId: string
+  debit: number
+  credit: number
+  /**
+   * Para las cuentas que son una cuenta de banco en moneda extranjera: con la
+   * moneda y la tasa, el backend deja el saldo de la cuenta bancaria EN SU
+   * MONEDA, que es el número que se concilia contra el estado de cuenta.
+   */
+  moneda?: string
+  tipoCambio?: number
+}
 export interface SaldosAperturaResult { polizaId: string; updated: number }
 
 export const setSaldosApertura = (dto: {

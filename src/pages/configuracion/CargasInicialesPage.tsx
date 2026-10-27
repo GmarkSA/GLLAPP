@@ -18,6 +18,7 @@ import {
 import { getProducts, importSaldosInicialesInventario, cargaMasivaArticulos, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
 import { getTaxes } from '../../api/impuestos'
+import { getBankAccounts, type BankAccount } from '../../api/bancos'
 import {
   construirPlantillaInventario, leerArchivoDeArticulos, analizarArchivoDeArticulos,
   type AnalisisDelArchivo, type FilaDeArticulo,
@@ -330,7 +331,20 @@ function EntityImportSection({
 
 // ─── Saldos de cuentas de mayor ───────────────────────────────────────────────
 
-interface AccountRow extends Account { _debit: number; _credit: number }
+interface AccountRow extends Account {
+  _debit: number
+  _credit: number
+  /**
+   * La moneda de la cuenta bancaria enlazada, cuando no es el quetzal.
+   *
+   * El catálogo no guarda moneda: la que manda es la de la cuenta de banco que
+   * cuelga de esa cuenta contable. Si está en dólares, el saldo de apertura
+   * necesita su tipo de cambio — sin él la cuenta bancaria queda en cero y el
+   * balance entra por una séptima parte de su valor.
+   */
+  _moneda?: string
+  _tipoCambio?: number
+}
 
 const BALANCE_TYPE_ORDER = ['Activo', 'Pasivo', 'Capital', 'Ingresos', 'Costo', 'Gasto', 'Otros']
 const BALANCE_TYPE_COLOR: Record<string, string> = {
@@ -413,9 +427,22 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
     if (loaded) return
     setLoading(true)
     try {
-      const accounts: Account[] = await getAccounts()
+      const [accounts, bancos] = await Promise.all([
+        getAccounts() as Promise<Account[]>,
+        getBankAccounts().catch(() => [] as BankAccount[]),
+      ])
+      // Qué cuentas del catálogo son, en realidad, cuentas en moneda extranjera.
+      const monedaPorCuenta = new Map<string, string>()
+      for (const b of bancos ?? []) {
+        const moneda = String((b as any).currency ?? 'GTQ').toUpperCase()
+        if ((b as any).glAccountId && moneda !== 'GTQ') {
+          monedaPorCuenta.set(String((b as any).glAccountId), moneda)
+        }
+      }
       const filterable = accounts.filter(a => !a.isHeader && a.isActive)
-      setRows(filterable.map(a => ({ ...a, _debit: 0, _credit: 0 })))
+      setRows(filterable.map(a => ({
+        ...a, _debit: 0, _credit: 0, _moneda: monedaPorCuenta.get(a.id),
+      })))
       setLoaded(true)
     } catch {
       message.error('Error cargando catálogo de cuentas')
@@ -426,6 +453,15 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
 
   const setDebit  = (id: string, v: number) => setRows(prev => prev.map(r => r.id === id ? { ...r, _debit: v || 0,  _credit: 0 } : r))
   const setCredit = (id: string, v: number) => setRows(prev => prev.map(r => r.id === id ? { ...r, _debit: 0, _credit: v || 0 } : r))
+  const setTipoCambio = (id: string, v: number) => setRows(prev => prev.map(r => r.id === id ? { ...r, _tipoCambio: v || undefined } : r))
+
+  /**
+   * Una cuenta en moneda extranjera con saldo y sin tipo de cambio no se puede
+   * guardar: la cuenta bancaria quedaría en cero y nadie lo notaría hasta
+   * conciliar, o peor, hasta intentar revaluar.
+   */
+  const sinTipoDeCambio = rows.filter(r =>
+    r._moneda && (r._debit > 0 || r._credit > 0) && !(Number(r._tipoCambio) > 0))
 
   const touched     = rows.filter(r => r._debit > 0 || r._credit > 0)
   const totalDebit  = touched.reduce((s, r) => s + r._debit,  0)
@@ -436,6 +472,12 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
     if (!fechaMigracion) { message.error('Selecciona la fecha de migración'); return }
     if (!touched.length)  { message.error('Ingresa al menos un saldo'); return }
     if (!balanced)        { message.error(`La póliza no cuadra: Debe Q${totalDebit.toFixed(2)}, Haber Q${totalCredit.toFixed(2)}`); return }
+    if (sinTipoDeCambio.length) {
+      message.error(
+        `Falta el tipo de cambio de: ${sinTipoDeCambio.map(r => r.code).join(', ')}. ` +
+        'Sin él la cuenta bancaria queda en cero.')
+      return
+    }
 
     setSaving(true)
     try {
@@ -443,6 +485,11 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
         accountId: r.id,
         debit:     r._debit,
         credit:    r._credit,
+        // Con esto el backend actualiza el saldo de la cuenta bancaria EN SU
+        // MONEDA, que es el número que se concilia contra el estado de cuenta.
+        ...(r._moneda && Number(r._tipoCambio) > 0
+          ? { moneda: r._moneda, tipoCambio: Number(r._tipoCambio) }
+          : {}),
       }))
       const res = await setSaldosApertura({
         fecha:       fechaMigracion.format('YYYY-MM-DD'),
@@ -489,9 +536,41 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
     items: rows.filter(r => (r.balanceType ?? 'Otros') === bt),
   })).filter(g => g.items.length > 0)
 
+  /** El saldo en la moneda de la cuenta, a partir de los quetzales y la tasa. */
+  const enSuMoneda = (r: AccountRow) => {
+    const monto = r._debit || r._credit
+    const tc = Number(r._tipoCambio)
+    return monto > 0 && tc > 0 ? Math.round((monto / tc) * 100) / 100 : null
+  }
+
   const cols: ColumnType<AccountRow>[] = [
     { title: 'Código', dataIndex: 'code', width: 90 },
-    { title: 'Cuenta', dataIndex: 'name', ellipsis: true },
+    {
+      title: 'Cuenta', dataIndex: 'name', ellipsis: true,
+      render: (v: string, r: AccountRow) => r._moneda
+        ? <Space size={6}>
+            <Text>{v}</Text>
+            <Tag color="#2ea172" style={{ margin: 0, fontSize: 10 }}>{r._moneda}</Tag>
+          </Space>
+        : v,
+    },
+    {
+      /**
+       * El tipo de cambio solo aparece donde hace falta: en las cuentas que
+       * son, en realidad, una cuenta de banco en moneda extranjera. En las
+       * demás la columna queda vacía y no estorba.
+       */
+      title: 'Tipo de cambio', width: 130,
+      render: (_: any, r: AccountRow) => r._moneda ? (
+        <InputNumber
+          value={r._tipoCambio}
+          min={0} step={0.000001} precision={6} size="small" style={{ width: '100%' }}
+          placeholder="7.663360"
+          status={(r._debit > 0 || r._credit > 0) && !(Number(r._tipoCambio) > 0) ? 'error' : undefined}
+          onChange={v => setTipoCambio(r.id, Number(v) || 0)}
+        />
+      ) : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>,
+    },
     {
       title: 'Debe (Db)', width: 150,
       render: (_: any, r: AccountRow) => (
@@ -504,6 +583,25 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
           placeholder="0.00"
         />
       ),
+    },
+    {
+      /**
+       * El equivalente en la moneda de la cuenta, como lo enseña Zoho: se
+       * escribe el valor en quetzales y la tasa, y debajo aparece a cuántos
+       * dólares corresponde. Es el número que va a quedar en la cuenta
+       * bancaria y el que se concilia contra el estado de cuenta.
+       */
+      title: 'Equivalente', width: 150, align: 'right' as const,
+      render: (_: any, r: AccountRow) => {
+        const eq = enSuMoneda(r)
+        if (!r._moneda) return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>
+        if (eq === null) return <Text type="secondary" style={{ fontSize: 11 }}>pon la tasa</Text>
+        return (
+          <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+            {r._moneda} {eq.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+          </Text>
+        )
+      },
     },
     {
       title: 'Haber (Cr)', width: 150,
