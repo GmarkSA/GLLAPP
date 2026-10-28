@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { BALANCE_TYPE_ORDER, BALANCE_TYPE_COLOR } from './CargasInicialesPage'
+import {
+  BALANCE_TYPE_ORDER, BALANCE_TYPE_COLOR, moduloQueAlimenta,
+} from './CargasInicialesPage'
 
 /**
  * Las cuentas de orden en la captura de saldos de apertura.
@@ -51,5 +53,41 @@ describe('los grupos que muestra la captura', () => {
       .toBeGreaterThan(BALANCE_TYPE_ORDER.indexOf('Gasto'))
     expect(BALANCE_TYPE_ORDER.indexOf('Cuentas de Orden'))
       .toBeLessThan(BALANCE_TYPE_ORDER.indexOf('Otros'))
+  })
+})
+
+/**
+ * Qué cuentas NO se capturan en esta pantalla.
+ *
+ * Clientes y proveedores entran por su ficha o su Excel, inventario y activos
+ * fijos por su módulo, y cada uno genera su propia póliza contra la cuenta de
+ * orden. Capturar aquí el mismo saldo lo contabilizaría dos veces, y la cuenta
+ * de orden nunca llegaría a cero — que es la señal de que la apertura está
+ * completa.
+ */
+describe('las cuentas que alimenta otro módulo', () => {
+  it('la cuenta de clientes viene de Clientes', () => {
+    expect(moduloQueAlimenta({ isCustomerAccount: true })).toBe('Clientes')
+  })
+
+  it('la de proveedores, de Proveedores', () => {
+    expect(moduloQueAlimenta({ isVendorAccount: true })).toBe('Proveedores')
+  })
+
+  it('la de inventario, de Inventario', () => {
+    expect(moduloQueAlimenta({ isInventoryAccount: true })).toBe('Inventario')
+  })
+
+  it('la de activos fijos, de Activos Fijos', () => {
+    expect(moduloQueAlimenta({ isFixedAsset: true })).toBe('Activos Fijos')
+  })
+
+  /** Las demás sí se capturan aquí: no deben llevar aviso. */
+  it('una cuenta de banco o de impuestos se captura aquí', () => {
+    expect(moduloQueAlimenta({})).toBeNull()
+    expect(moduloQueAlimenta({
+      isCustomerAccount: false, isVendorAccount: false,
+      isInventoryAccount: false, isFixedAsset: false,
+    })).toBeNull()
   })
 })

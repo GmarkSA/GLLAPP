@@ -18,9 +18,9 @@ import {
 } from '../../api/contactos'
 import {
   getAccounts, setSaldosApertura, importarCatalogo,
-  getBorradorApertura, guardarBorradorApertura,
+  getBorradorApertura, guardarBorradorApertura, getEstadoCuentaDeOrden,
   type Account, type SaldoAperturaLinea, type ImportarCatalogoResult,
-  type BorradorApertura,
+  type BorradorApertura, type EstadoCuentaDeOrden,
 } from '../../api/catalogo'
 import { getProducts, importSaldosInicialesInventario, cargaMasivaArticulos, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
@@ -452,9 +452,80 @@ interface AccountRow extends Account {
 export const BALANCE_TYPE_ORDER = [
   'Activo', 'Pasivo', 'Capital', 'Ingresos', 'Costo', 'Gasto', 'Cuentas de Orden', 'Otros',
 ]
+
+/**
+ * Qué módulo alimenta esta cuenta, si no es esta pantalla.
+ *
+ * Clientes y proveedores entran por su ficha o su Excel, inventario y activos
+ * fijos por su módulo, y cada uno genera su propia póliza contra la cuenta de
+ * orden. Capturar aquí el mismo saldo lo contabilizaría DOS VECES, y la cuenta
+ * de orden nunca llegaría a cero — que es la señal de que la apertura está
+ * completa.
+ */
+export function moduloQueAlimenta(cuenta: {
+  isCustomerAccount?: boolean
+  isVendorAccount?: boolean
+  isInventoryAccount?: boolean
+  isFixedAsset?: boolean
+}): string | null {
+  if (cuenta.isCustomerAccount)  return 'Clientes'
+  if (cuenta.isVendorAccount)    return 'Proveedores'
+  if (cuenta.isInventoryAccount) return 'Inventario'
+  if (cuenta.isFixedAsset)       return 'Activos Fijos'
+  return null
+}
+
 export const BALANCE_TYPE_COLOR: Record<string, string> = {
   Activo: '#1faec2', Pasivo: '#e5484d', Capital: '#7c3aed', Ingresos: '#2ea172',
   Costo: '#f59e0b', Gasto: '#ef4444', 'Cuentas de Orden': '#0f766e', Otros: '#6b7280',
+}
+
+/**
+ * Cómo va la migración, según la cuenta de orden.
+ *
+ * Toda carga inicial entra contra ella: las cuentas de mayor desde su captura,
+ * clientes y proveedores desde su ficha o su Excel, inventario y activos fijos
+ * desde su módulo. Su saldo es, por definición, lo que todavía no se ha
+ * cargado — y en cero significa que la apertura está completa.
+ *
+ * Sin esto había que sumar a mano lo que cada módulo había contabilizado para
+ * saber si faltaba algo.
+ */
+function EstadoDeLaApertura() {
+  const [estado, setEstado] = useState<EstadoCuentaDeOrden | null>(null)
+
+  useEffect(() => {
+    getEstadoCuentaDeOrden().then(setEstado).catch(() => setEstado(null))
+  }, [])
+
+  if (!estado || !estado.configurada) return null
+
+  const fmt = (n: number) =>
+    `Q ${Math.abs(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  return (
+    <Alert
+      type={estado.enCero ? 'success' : 'info'}
+      showIcon
+      icon={estado.enCero ? <CheckCircleOutlined /> : undefined}
+      style={{ marginBottom: 16 }}
+      message={estado.enCero
+        ? 'Apertura completa — la cuenta de orden quedó en cero'
+        : `Faltan ${fmt(estado.saldo)} por cargar`}
+      description={
+        <div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {estado.codigo} {estado.nombre}
+            {' · '}
+            {estado.enCero
+              ? 'Todo lo que entró por cada módulo se compensó contra esta cuenta.'
+              : `Su saldo es lo que todavía no se ha cargado, al ${estado.saldo > 0 ? 'debe' : 'haber'}. `
+                + 'Cuando termines de cargar clientes, proveedores, inventario y activos fijos desde sus módulos, debe quedar en cero.'}
+          </Text>
+        </div>
+      }
+    />
+  )
 }
 
 function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null }) {
@@ -709,12 +780,29 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
     { title: 'Código', dataIndex: 'code', width: 90 },
     {
       title: 'Cuenta', dataIndex: 'name', ellipsis: true,
-      render: (v: string, r: AccountRow) => r._moneda
-        ? <Space size={6}>
+      render: (v: string, r: AccountRow) => {
+        const modulo = moduloQueAlimenta(r)
+        return (
+          <Space size={6}>
             <Text>{v}</Text>
-            <Tag color="#2ea172" style={{ margin: 0, fontSize: 10 }}>{r._moneda}</Tag>
+            {r._moneda && (
+              <Tag color="#2ea172" style={{ margin: 0, fontSize: 10 }}>{r._moneda}</Tag>
+            )}
+            {/*
+              * Capturar aquí un saldo que ya entra por su módulo lo
+              * contabilizaría dos veces, y la cuenta de orden nunca llegaría a
+              * cero.
+              */}
+            {modulo && (
+              <Tooltip title={`Este saldo entra desde ${modulo} y genera su propia póliza contra la cuenta de orden. Si lo capturas aquí también, se contabiliza dos veces.`}>
+                <Tag color="warning" style={{ margin: 0, fontSize: 10, cursor: 'help' }}>
+                  desde {modulo}
+                </Tag>
+              </Tooltip>
+            )}
           </Space>
-        : v,
+        )
+      },
     },
     {
       /**
@@ -1471,6 +1559,8 @@ export default function CargasInicialesPage() {
           Migración de datos maestros y saldos de apertura. Carga clientes, proveedores y saldos contables de tu sistema anterior.
         </Text>
       </div>
+
+      <EstadoDeLaApertura />
 
       {/* Fecha de migración — aplica a todas las secciones */}
       <div style={{
