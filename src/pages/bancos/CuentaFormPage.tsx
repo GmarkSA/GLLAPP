@@ -33,6 +33,15 @@ export default function CuentaFormPage() {
   const [glAccountId, setGlAccountId] = useState<string | undefined>()
   const isEdit = Boolean(id)
 
+  /**
+   * En quetzales no hay conversión que hacer, así que el tipo de cambio del
+   * saldo inicial ni se muestra.
+   */
+  const moneda        = (Form.useWatch('currency', form) ?? 'GTQ') as string
+  const esMonedaLocal = moneda.toUpperCase() === 'GTQ'
+  const saldoInicial  = Form.useWatch('openingBalance', form) as number | undefined
+  const tasaInicial   = Form.useWatch('openingBalanceExchangeRate', form) as number | undefined
+
   useEffect(() => {
     if (!id) return
     setLoading(true)
@@ -166,6 +175,45 @@ export default function CuentaFormPage() {
             <Form.Item name="openingBalanceDate" label="Fecha de saldo inicial">
               <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
             </Form.Item>
+            {/*
+              * Solo en cuentas en moneda extranjera. Cada movimiento del banco
+              * ya guarda su tasa; sin la del saldo inicial esa parte de la
+              * cuenta no se puede valuar a su costo histórico y la
+              * revaluación se detiene.
+              */}
+            {!esMonedaLocal && (
+              <Form.Item
+                name="openingBalanceExchangeRate"
+                label="Tipo de cambio del saldo inicial"
+                tooltip={`El tipo de cambio del día en que ese saldo en ${moneda} entró a los libros, `
+                  + 'no el de hoy. Con él la revaluación puede calcular el diferencial de esa parte.'}
+                rules={[({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!Number(getFieldValue('openingBalance') ?? 0)) return Promise.resolve()
+                    if (Number(value) > 0) return Promise.resolve()
+                    return Promise.reject(new Error('Requerido si hay saldo inicial'))
+                  },
+                })]}
+              >
+                <InputNumber<number>
+                  style={{ width: '100%' }}
+                  min={0}
+                  precision={6}
+                  placeholder="7.700000"
+                />
+              </Form.Item>
+            )}
+            {!esMonedaLocal && (
+              <Form.Item label="Saldo inicial en quetzales">
+                <div style={{
+                  paddingTop: 4, fontVariantNumeric: 'tabular-nums',
+                  fontWeight: 600, color: '#1B3A6B',
+                }}>
+                  Q {(Number(saldoInicial ?? 0) * Number(tasaInicial ?? 0))
+                    .toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </Form.Item>
+            )}
             <Form.Item name="bankBalance" label="Saldo segun banco">
               <InputNumber<number>
                 style={{ width: '100%' }}

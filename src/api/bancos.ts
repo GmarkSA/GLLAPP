@@ -27,6 +27,13 @@ export interface BankAccount {
   currency: string
   openingBalance: number
   openingBalanceDate?: string
+  /**
+   * El tipo de cambio con que entró el saldo inicial, en cuentas en moneda
+   * extranjera. Cada movimiento del banco ya guarda el suyo; sin este, esa
+   * parte de la cuenta no se puede valuar a su costo histórico y la
+   * revaluación se detiene.
+   */
+  openingBalanceExchangeRate?: number | null
   currentBalance: number
   bankBalance?: number
   glAccountId?: string
