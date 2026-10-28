@@ -77,6 +77,29 @@ export interface BorradorApertura {
   generadaEn?: string | null
 }
 
+/**
+ * Cómo va la migración, según la cuenta de orden.
+ *
+ * Toda carga inicial entra contra ella —cuentas de mayor, clientes,
+ * proveedores, inventario, activos fijos—, así que su saldo es lo que todavía
+ * no se ha cargado. En cero: la apertura está completa.
+ */
+export type EstadoCuentaDeOrden =
+  | { configurada: false; codigo?: string }
+  | {
+      configurada: true
+      codigo: string
+      nombre: string
+      debe: number
+      haber: number
+      saldo: number
+      enCero: boolean
+    }
+
+export const getEstadoCuentaDeOrden = () =>
+  api.get('/contabilidad/catalogo/cuenta-de-orden')
+    .then(unwrap) as Promise<EstadoCuentaDeOrden>
+
 export const getBorradorApertura = () =>
   api.get('/contabilidad/catalogo/saldos-apertura/borrador')
     .then(unwrap) as Promise<BorradorApertura | null>

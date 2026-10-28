@@ -31,6 +31,12 @@ const getGrupos = vi.fn(async () => ([{ code: 'PAP', name: 'Papelería' }]))
 vi.mock('../../api/catalogo', () => ({
   getAccounts: () => getAccounts(),
   setSaldosApertura: vi.fn(),
+  // La pantalla consulta al montar cómo va la apertura y si hay captura
+  // guardada. Aquí no hay ninguna de las dos.
+  getEstadoCuentaDeOrden: vi.fn(async () => ({ configurada: false })),
+  getBorradorApertura:    vi.fn(async () => null),
+  guardarBorradorApertura: vi.fn(),
+  importarCatalogo:       vi.fn(),
 }))
 vi.mock('../../api/impuestos', () => ({ getTaxes: () => getTaxes() }))
 vi.mock('../../api/expedientes', () => ({
