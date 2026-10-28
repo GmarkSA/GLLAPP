@@ -1088,7 +1088,12 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
       employeeAdvanceAccountCode:  '122001',
       fxGainAccountCode:           '700002',
       fxLossAccountCode:           '710003',
-      openingBalanceAccountCode:   '310001',
+      // 390001 Saldos de Apertura, no 310001 Capital Social Pagado: la
+      // diferencia de la migración es lo que falta por capturar, no capital
+      // aportado por los socios. Sugerir Capital Social metía toda la apertura
+      // —cuentas de mayor, clientes, proveedores, inventario— dentro del
+      // patrimonio escriturado.
+      openingBalanceAccountCode:   '390001',
       cardCommissionAccountCode:   '650003',
       inventoryClearingAccountCode: '140001',
     }
