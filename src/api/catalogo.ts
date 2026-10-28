@@ -87,16 +87,6 @@ export const guardarBorradorApertura = (dto: {
   lineas: SaldoAperturaLinea[]
 }) => api.put('/contabilidad/catalogo/saldos-apertura/borrador', dto).then(unwrap)
 
-/**
- * Crea y configura la cuenta contra la que cuadra toda la carga inicial.
- *
- * El catálogo estándar no traía ninguna, así que una empresa nueva no tenía
- * contra qué cuadrar la póliza de apertura.
- */
-export const prepararCuentaDeApertura = () =>
-  api.post('/contabilidad/catalogo/cuenta-de-apertura').then(unwrap) as Promise<{
-    code: string; name: string; creada: boolean; yaConfigurada: boolean
-  }>
 
 export const setSaldosApertura = (dto: {
   fecha: string

@@ -18,14 +18,13 @@ import {
 } from '../../api/contactos'
 import {
   getAccounts, setSaldosApertura, importarCatalogo,
-  getBorradorApertura, guardarBorradorApertura, prepararCuentaDeApertura,
+  getBorradorApertura, guardarBorradorApertura,
   type Account, type SaldoAperturaLinea, type ImportarCatalogoResult,
   type BorradorApertura,
 } from '../../api/catalogo'
 import { getProducts, importSaldosInicialesInventario, cargaMasivaArticulos, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
 import { getTaxes } from '../../api/impuestos'
-import { getAccountDefaults, type AccountDefaults } from '../../api/compras'
 import { getBankAccounts, type BankAccount } from '../../api/bancos'
 import {
   construirPlantillaInventario, leerArchivoDeArticulos, analizarArchivoDeArticulos,
@@ -443,10 +442,19 @@ interface AccountRow extends Account {
   _tipoCambio?: number
 }
 
-const BALANCE_TYPE_ORDER = ['Activo', 'Pasivo', 'Capital', 'Ingresos', 'Costo', 'Gasto', 'Otros']
-const BALANCE_TYPE_COLOR: Record<string, string> = {
+/**
+ * Los grupos que la captura muestra, en orden.
+ *
+ * «Cuentas de Orden» faltaba, y la pantalla solo dibuja los grupos de esta
+ * lista: las cuentas 8xx —entre ellas la 800001, que es contra la que cuadra
+ * toda la carga inicial— no se veían ni se podían capturar.
+ */
+export const BALANCE_TYPE_ORDER = [
+  'Activo', 'Pasivo', 'Capital', 'Ingresos', 'Costo', 'Gasto', 'Cuentas de Orden', 'Otros',
+]
+export const BALANCE_TYPE_COLOR: Record<string, string> = {
   Activo: '#1faec2', Pasivo: '#e5484d', Capital: '#7c3aed', Ingresos: '#2ea172',
-  Costo: '#f59e0b', Gasto: '#ef4444', Otros: '#6b7280',
+  Costo: '#f59e0b', Gasto: '#ef4444', 'Cuentas de Orden': '#0f766e', Otros: '#6b7280',
 }
 
 function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null }) {
@@ -455,8 +463,6 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
   const [saving, setSaving]   = useState(false)
   /** Lo capturado y guardado sin contabilizar, más la póliza que ya generó. */
   const [borrador, setBorrador]           = useState<BorradorApertura | null>(null)
-  /** El código de la cuenta contra la que cuadra la apertura, si está configurada. */
-  const [cuentaDeOrden, setCuentaDeOrden] = useState<string | undefined>()
   const [result, setResult]   = useState<{ polizaId: string; updated: number } | null>(null)
   // Decide qué se dibuja, así que es estado: una referencia no repinta la pantalla
   const [loaded, setLoaded] = useState(false)
@@ -542,14 +548,8 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
       }
       // Lo capturado antes, para seguir donde se quedó; y si ya hay cuenta
       // contra la que cuadrar, para no pedirla de nuevo.
-      const [guardado, defaults] = await Promise.all([
-        getBorradorApertura().catch(() => null),
-        getAccountDefaults().catch(() => ({} as AccountDefaults)),
-      ])
+      const guardado = await getBorradorApertura().catch(() => null)
       setBorrador(guardado)
-      const codigo = defaults.openingBalanceAccountCode
-      setCuentaDeOrden(
-        codigo && accounts.some(a => a.code === codigo) ? codigo : undefined)
       const porCuenta = new Map(
         (guardado?.lineas ?? []).map(l => [String(l.accountId), l] as const))
 
@@ -622,24 +622,6 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
     } finally { setSaving(false) }
   }
 
-  /**
-   * Crea la cuenta contra la que cuadra la carga inicial y la deja
-   * configurada. El catálogo estándar no traía ninguna.
-   */
-  const crearCuentaDeApertura = async () => {
-    setSaving(true)
-    try {
-      const r = await prepararCuentaDeApertura()
-      setCuentaDeOrden(r.code)
-      message.success(r.creada
-        ? `Cuenta ${r.code} ${r.name} creada y configurada`
-        : `Cuenta ${r.code} ${r.name} configurada`)
-      setLoaded(false); setRows([])
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'No se pudo preparar la cuenta')
-    } finally { setSaving(false) }
-  }
-
   const handleSave = async () => {
     if (!fechaMigracion) { message.error('Selecciona la fecha de migración'); return }
     if (!touched.length)  { message.error('Ingresa al menos un saldo'); return }
@@ -691,8 +673,21 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
           }
           style={{ marginBottom: 12 }}
         />
-        <Button onClick={() => { setResult(null); setLoaded(false); setRows([]) }}>
-          Cargar nuevamente
+        {/*
+          * Volver a la captura con lo cargado puesto.
+          *
+          * Antes la pantalla se quedaba en este mensaje y, al reabrirla, todas
+          * las cuentas salían en cero: lo cargado existía en el mayor pero no
+          * se podía ver ni corregir desde aquí. Y falta agregar cuentas por
+          * cobrar, por pagar, inventario, activos fijos y los anticipos — que
+          * es justo lo que se hace volviendo a esta misma captura.
+          */}
+        <Button
+          type="primary"
+          onClick={() => { setResult(null); setLoaded(false); setRows([]) }}
+          style={{ background: '#1B3A6B' }}
+        >
+          Seguir editando los saldos
         </Button>
       </div>
     )
@@ -855,34 +850,6 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
         </Button>
       ) : (
         <Spin spinning={loading}>
-          {/*
-            * Sin cuenta de apertura no hay contra qué cuadrar la póliza, y el
-            * catálogo estándar no traía ninguna: toda carga inicial —cuentas
-            * de mayor, clientes, proveedores, inventario— se detenía pidiendo
-            * elegir en Cuentas por defecto una cuenta que no existía.
-            */}
-          {!cuentaDeOrden && (
-            <Alert
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Falta la cuenta contra la que cuadra la carga inicial"
-              description={
-                <div>
-                  La diferencia entre el Debe y el Haber de una apertura es normal: es lo que
-                  todavía no se ha capturado. Esa diferencia va a una cuenta regularizadora, y
-                  esta empresa no tiene ninguna configurada.
-                  <div style={{ marginTop: 8 }}>
-                    <Button size="small" type="primary" loading={saving}
-                      onClick={crearCuentaDeApertura} style={{ background: '#1B3A6B' }}>
-                      Crear y configurar «Saldos de Apertura»
-                    </Button>
-                  </div>
-                </div>
-              }
-            />
-          )}
-
           {borrador?.journalEntryId && (
             <Alert
               type="info"
