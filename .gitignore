@@ -25,3 +25,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Repos anidados y worktrees de sesión: el backend vive en su propio
+# repositorio y no debe entrar como gitlink en los PRs del frontend.
+contaerp-backend/
+.claude/worktrees/
