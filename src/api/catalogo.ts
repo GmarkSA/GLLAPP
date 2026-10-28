@@ -54,7 +54,39 @@ export interface SaldoAperturaLinea {
   moneda?: string
   tipoCambio?: number
 }
-export interface SaldosAperturaResult { polizaId: string; updated: number }
+export interface SaldosAperturaResult {
+  polizaId: string
+  updated: number
+  /** true = se reemplazó la póliza anterior en vez de agregar otra. */
+  reemplazo?: boolean
+}
+
+/**
+ * El borrador de la captura, para seguir mañana donde se quedó hoy.
+ *
+ * Cargar la apertura de una empresa no se hace de una sentada: primero las
+ * cuentas de mayor sin integración, después cuentas por cobrar, por pagar,
+ * inventario, activos fijos y los anticipos.
+ */
+export interface BorradorApertura {
+  fecha?: string | null
+  descripcion?: string | null
+  lineas: SaldoAperturaLinea[]
+  /** La póliza que generó esta captura, si ya se generó. */
+  journalEntryId?: string | null
+  generadaEn?: string | null
+}
+
+export const getBorradorApertura = () =>
+  api.get('/contabilidad/catalogo/saldos-apertura/borrador')
+    .then(unwrap) as Promise<BorradorApertura | null>
+
+export const guardarBorradorApertura = (dto: {
+  fecha?: string
+  descripcion?: string
+  lineas: SaldoAperturaLinea[]
+}) => api.put('/contabilidad/catalogo/saldos-apertura/borrador', dto).then(unwrap)
+
 
 export const setSaldosApertura = (dto: {
   fecha: string

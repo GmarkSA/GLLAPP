@@ -18,7 +18,9 @@ import {
 } from '../../api/contactos'
 import {
   getAccounts, setSaldosApertura, importarCatalogo,
+  getBorradorApertura, guardarBorradorApertura,
   type Account, type SaldoAperturaLinea, type ImportarCatalogoResult,
+  type BorradorApertura,
 } from '../../api/catalogo'
 import { getProducts, importSaldosInicialesInventario, cargaMasivaArticulos, type Product, type SaldoInicialInventarioItem, type SaldoInicialInventarioResult } from '../../api/inventario'
 import { getAlmacenes, getGrupos, type Almacen, type GrupoArticulo } from '../../api/expedientes'
@@ -440,16 +442,27 @@ interface AccountRow extends Account {
   _tipoCambio?: number
 }
 
-const BALANCE_TYPE_ORDER = ['Activo', 'Pasivo', 'Capital', 'Ingresos', 'Costo', 'Gasto', 'Otros']
-const BALANCE_TYPE_COLOR: Record<string, string> = {
+/**
+ * Los grupos que la captura muestra, en orden.
+ *
+ * «Cuentas de Orden» faltaba, y la pantalla solo dibuja los grupos de esta
+ * lista: las cuentas 8xx —entre ellas la 800001, que es contra la que cuadra
+ * toda la carga inicial— no se veían ni se podían capturar.
+ */
+export const BALANCE_TYPE_ORDER = [
+  'Activo', 'Pasivo', 'Capital', 'Ingresos', 'Costo', 'Gasto', 'Cuentas de Orden', 'Otros',
+]
+export const BALANCE_TYPE_COLOR: Record<string, string> = {
   Activo: '#1faec2', Pasivo: '#e5484d', Capital: '#7c3aed', Ingresos: '#2ea172',
-  Costo: '#f59e0b', Gasto: '#ef4444', Otros: '#6b7280',
+  Costo: '#f59e0b', Gasto: '#ef4444', 'Cuentas de Orden': '#0f766e', Otros: '#6b7280',
 }
 
 function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null }) {
   const [rows, setRows]       = useState<AccountRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState(false)
+  /** Lo capturado y guardado sin contabilizar, más la póliza que ya generó. */
+  const [borrador, setBorrador]           = useState<BorradorApertura | null>(null)
   const [result, setResult]   = useState<{ polizaId: string; updated: number } | null>(null)
   // Decide qué se dibuja, así que es estado: una referencia no repinta la pantalla
   const [loaded, setLoaded] = useState(false)
@@ -533,10 +546,24 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
           monedaPorCuenta.set(String((b as any).glAccountId), moneda)
         }
       }
+      // Lo capturado antes, para seguir donde se quedó; y si ya hay cuenta
+      // contra la que cuadrar, para no pedirla de nuevo.
+      const guardado = await getBorradorApertura().catch(() => null)
+      setBorrador(guardado)
+      const porCuenta = new Map(
+        (guardado?.lineas ?? []).map(l => [String(l.accountId), l] as const))
+
       const filterable = accounts.filter(a => !a.isHeader && a.isActive)
-      setRows(filterable.map(a => ({
-        ...a, _debit: 0, _credit: 0, _moneda: monedaPorCuenta.get(a.id),
-      })))
+      setRows(filterable.map(a => {
+        const previa = porCuenta.get(a.id)
+        return {
+          ...a,
+          _debit:      Number(previa?.debit  ?? 0),
+          _credit:     Number(previa?.credit ?? 0),
+          _moneda:     monedaPorCuenta.get(a.id),
+          _tipoCambio: previa?.tipoCambio ? Number(previa.tipoCambio) : undefined,
+        }
+      }))
       setLoaded(true)
     } catch {
       message.error('Error cargando catálogo de cuentas')
@@ -562,6 +589,39 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
   const totalCredit = touched.reduce((s, r) => s + r._credit, 0)
   const balanced    = Math.abs(totalDebit - totalCredit) < 0.01
 
+  const lineasCapturadas = (): SaldoAperturaLinea[] => touched.map(r => ({
+    accountId: r.id,
+    debit:     r._debit,
+    credit:    r._credit,
+    // Con esto el backend actualiza el saldo de la cuenta bancaria EN SU
+    // MONEDA, que es el número que se concilia contra el estado de cuenta.
+    ...(r._moneda && Number(r._tipoCambio) > 0
+      ? { moneda: r._moneda, tipoCambio: Number(r._tipoCambio) }
+      : {}),
+  }))
+
+  /**
+   * Guardar sin contabilizar.
+   *
+   * La apertura no se carga de una sentada: primero las cuentas de mayor sin
+   * integración, después cuentas por cobrar, por pagar, inventario, activos
+   * fijos y los anticipos. Sin esto había que generar la póliza con lo que
+   * hubiera escrito hasta ese momento, o volver a escribirlo todo.
+   */
+  const guardarSinContabilizar = async () => {
+    setSaving(true)
+    try {
+      await guardarBorradorApertura({
+        fecha:       fechaMigracion?.format('YYYY-MM-DD'),
+        descripcion: 'Saldos de apertura / migración inicial',
+        lineas:      lineasCapturadas(),
+      })
+      message.success('Captura guardada. Puedes cerrar y seguir después.')
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? 'No se pudo guardar la captura')
+    } finally { setSaving(false) }
+  }
+
   const handleSave = async () => {
     if (!fechaMigracion) { message.error('Selecciona la fecha de migración'); return }
     if (!touched.length)  { message.error('Ingresa al menos un saldo'); return }
@@ -576,23 +636,17 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
 
     setSaving(true)
     try {
-      const lineas: SaldoAperturaLinea[] = touched.map(r => ({
-        accountId: r.id,
-        debit:     r._debit,
-        credit:    r._credit,
-        // Con esto el backend actualiza el saldo de la cuenta bancaria EN SU
-        // MONEDA, que es el número que se concilia contra el estado de cuenta.
-        ...(r._moneda && Number(r._tipoCambio) > 0
-          ? { moneda: r._moneda, tipoCambio: Number(r._tipoCambio) }
-          : {}),
-      }))
+      const lineas = lineasCapturadas()
       const res = await setSaldosApertura({
         fecha:       fechaMigracion.format('YYYY-MM-DD'),
         descripcion: 'Saldos de apertura / migración inicial',
         lineas,
       })
       setResult(res)
-      message.success('Saldos de apertura guardados y póliza OPENING generada')
+      setBorrador(b => ({ ...(b ?? { lineas: [] }), journalEntryId: res.polizaId }))
+      message.success(res.reemplazo
+        ? 'Póliza de apertura actualizada — se reemplazó la anterior'
+        : 'Saldos de apertura guardados y póliza OPENING generada')
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al guardar')
     } finally {
@@ -619,8 +673,21 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
           }
           style={{ marginBottom: 12 }}
         />
-        <Button onClick={() => { setResult(null); setLoaded(false); setRows([]) }}>
-          Cargar nuevamente
+        {/*
+          * Volver a la captura con lo cargado puesto.
+          *
+          * Antes la pantalla se quedaba en este mensaje y, al reabrirla, todas
+          * las cuentas salían en cero: lo cargado existía en el mayor pero no
+          * se podía ver ni corregir desde aquí. Y falta agregar cuentas por
+          * cobrar, por pagar, inventario, activos fijos y los anticipos — que
+          * es justo lo que se hace volviendo a esta misma captura.
+          */}
+        <Button
+          type="primary"
+          onClick={() => { setResult(null); setLoaded(false); setRows([]) }}
+          style={{ background: '#1B3A6B' }}
+        >
+          Seguir editando los saldos
         </Button>
       </div>
     )
@@ -783,6 +850,16 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
         </Button>
       ) : (
         <Spin spinning={loading}>
+          {borrador?.journalEntryId && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Ya hay una póliza de apertura generada"
+              description="Al volver a generar se reemplaza por una con los saldos de ahora. Puedes agregar cuentas por cobrar, por pagar, inventario y anticipos sin que nada se duplique."
+            />
+          )}
+
           {touched.length > 0 && (
             <div style={{
               padding: '10px 14px', borderRadius: 8, marginBottom: 16,
@@ -809,16 +886,38 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
                       Q {Math.abs(totalDebit - totalCredit).toLocaleString('es-GT', { minimumFractionDigits: 2 })} al {totalDebit > totalCredit ? 'haber' : 'debe'} de la cuenta de apertura
                     </Tag>)}
               </Space>
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                onClick={handleSave}
-                loading={saving}
-                disabled={!balanced || !fechaMigracion}
-                style={{ background: '#1B3A6B' }}
-              >
-                Generar póliza de apertura
-              </Button>
+              <Space>
+                <Button onClick={guardarSinContabilizar} loading={saving}>
+                  Guardar sin contabilizar
+                </Button>
+                {/*
+                  * `balanced` NO entra en disabled a propósito.
+                  *
+                  * La diferencia tiene a dónde ir —la cuenta de apertura, que
+                  * es la regularizadora—, así que exigir que cuadre obligaba a
+                  * meter la diferencia a mano en otra cuenta, que es
+                  * exactamente lo que la cuenta de orden evita.
+                  */}
+                <Popconfirm
+                  title={borrador?.journalEntryId ? 'Actualizar la póliza de apertura' : 'Generar la póliza de apertura'}
+                  description={borrador?.journalEntryId
+                    ? 'Se reemplaza la póliza anterior por una con estos saldos. No se duplica nada.'
+                    : 'Se contabilizarán estos saldos contra la cuenta de apertura.'}
+                  okText={borrador?.journalEntryId ? 'Actualizar' : 'Generar'}
+                  cancelText="Cancelar"
+                  onConfirm={handleSave}
+                >
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    loading={saving}
+                    disabled={!fechaMigracion}
+                    style={{ background: '#1B3A6B' }}
+                  >
+                    {borrador?.journalEntryId ? 'Editar póliza de apertura' : 'Generar póliza de apertura'}
+                  </Button>
+                </Popconfirm>
+              </Space>
             </div>
           )}
 

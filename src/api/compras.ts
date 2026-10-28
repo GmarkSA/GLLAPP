@@ -12,6 +12,11 @@ export interface AccountDefaults {
   employeeAdvanceAccountCode?: string
   /** Gasto donde cae la comisión que se queda el procesador de la tarjeta. */
   cardCommissionAccountCode?:  string
+  /**
+   * La regularizadora de la migración: contra ella cuadra toda carga inicial
+   * —cuentas de mayor, clientes, proveedores, inventario, activos fijos—.
+   */
+  openingBalanceAccountCode?:  string
 }
 
 export const getAccountDefaults = async (): Promise<AccountDefaults> => {
