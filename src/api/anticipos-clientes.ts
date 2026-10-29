@@ -48,6 +48,19 @@ export const getAnticipoCliente = (id: string) =>
 export const aplicarAnticipoCliente = (id: string, dto: { invoiceId: string; amount?: number; date?: string }) =>
   api.post(`${BASE}/${id}/aplicar`, dto).then(unwrap)
 
+/**
+ * Anular un anticipo registrado por equivocación.
+ *
+ * No es lo mismo que reembolsar: reembolsar devuelve el dinero al cliente y
+ * por eso exige cuenta bancaria. Anular dice que ese anticipo nunca debió
+ * existir — nadie devolvió nada— y revierte su propia póliza.
+ *
+ * La pantalla llamaba a `reembolsar` para anular, así que pedía una cuenta que
+ * no viene en ningún lado y devolvía 400.
+ */
+export const anularAnticipoCliente = (id: string, dto?: { date?: string }) =>
+  api.post(`${BASE}/${id}/anular`, dto ?? {}).then(unwrap)
+
 export const reembolsarAnticipoCliente = (id: string, dto?: { date?: string; bankAccountId?: string }) =>
   api.post(`${BASE}/${id}/reembolsar`, dto ?? {}).then(unwrap)
 

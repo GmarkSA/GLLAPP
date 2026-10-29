@@ -11,7 +11,7 @@ import {
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  getAnticiposClientes, aplicarAnticipoCliente, reembolsarAnticipoCliente,
+  getAnticiposClientes, aplicarAnticipoCliente, anularAnticipoCliente,
   desaplicarAnticipoCliente, restaurarAnticipoCliente, eliminarAnticipoCliente,
   crearAnticipoCliente,
   type AnticipoCliente,
@@ -214,8 +214,8 @@ export default function AnticiposClientesPage() {
   const handleVoid = async (id: string, invoiceNumber: string) => {
     setVoiding(id)
     try {
-      await reembolsarAnticipoCliente(id)
-      message.success(`Anticipo ${invoiceNumber} anulado — póliza de reverso creada automáticamente`)
+      await anularAnticipoCliente(id)
+      message.success(`Anticipo ${invoiceNumber} anulado — se revirtió su póliza`)
       load()
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? 'Error al anular el anticipo')
@@ -300,7 +300,7 @@ export default function AnticiposClientesPage() {
           {r.status !== 'paid' && r.status !== 'voided' && can('ventas:facturas:update') && (
             <Popconfirm
               title={`¿Anular anticipo ${r.invoiceNumber}?`}
-              description="Se creará un asiento de reverso contable automáticamente."
+              description="Se revertirá su póliza. Úsalo si el anticipo se registró por equivocación; para devolverle el dinero al cliente, usa Reembolsar."
               okText="Anular"
               cancelText="Cancelar"
               okButtonProps={{ danger: true }}
