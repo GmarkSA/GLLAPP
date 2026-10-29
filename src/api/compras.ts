@@ -267,7 +267,25 @@ export interface ApAgingReport {
     over_90:  ApAgingBucket
   }
   grandTotal:   number
+  /**
+   * Los mismos saldos agrupados por moneda.
+   *
+   * Los tramos van en quetzales porque es la moneda funcional y así se pueden
+   * sumar entre sí, pero una cartera en dólares hay que verla también EN
+   * DÓLARES: es el saldo que el proveedor reconoce y el que se revalúa.
+   */
+  porMoneda?:   SaldoPorMoneda[]
+  advances?:    Array<{ currency?: string; balance: number; balanceGTQ: number }>
+  totalAdvances?: number
+  netTotal?:    number
   generatedAt:  string
+}
+
+export interface SaldoPorMoneda {
+  moneda:     string
+  saldo:      number
+  saldoGTQ:   number
+  documentos: number
 }
 
 // ─── Libro de Compras ─────────────────────────────────────────────────────────

@@ -317,7 +317,22 @@ export interface ArAgingReport {
   advances:      any[]
   totalAdvances: number
   netTotal:      number
+  /**
+   * Los mismos saldos agrupados por moneda.
+   *
+   * Los tramos van en quetzales porque es la moneda funcional y así se pueden
+   * sumar entre sí, pero una cartera en dólares hay que verla también EN
+   * DÓLARES: es el saldo que el cliente reconoce y el que se revalúa.
+   */
+  porMoneda?:    SaldoPorMoneda[]
   generatedAt:   string
+}
+
+export interface SaldoPorMoneda {
+  moneda:     string
+  saldo:      number
+  saldoGTQ:   number
+  documentos: number
 }
 
 export const getArAging = (asOf?: string) =>

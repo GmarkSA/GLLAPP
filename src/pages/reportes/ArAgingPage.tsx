@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import SaldosPorMoneda from '../../components/Cartera/SaldosPorMoneda'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
   Select, Space, Progress, Tooltip,
@@ -573,6 +574,9 @@ export default function ArAgingPage() {
               </>
             )}
           </div>
+
+          <SaldosPorMoneda saldos={data.porMoneda} lado="cliente" />
+
 
           {/* Top 5 clientes con mayor urgencia */}
           {top5.length > 0 && (
