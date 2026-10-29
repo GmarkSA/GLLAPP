@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import {
-  getAjustesMoneda, createAjusteMoneda, deleteAjusteMoneda,
+  getAjustesMoneda, getCuentasDeDiferencial, type CuentasDeDiferencial, createAjusteMoneda, deleteAjusteMoneda,
   previewAjusteMoneda, type AjusteMoneda, type AjusteMonedaLinea,
 } from '../../../api/ajuste-moneda'
 import { getExchangeRateForDate } from '../../../api/monedas'
@@ -36,6 +36,12 @@ export default function AjusteMonedaListPage() {
   const [open,      setOpen]      = useState(false)
   const [step,      setStep]      = useState<Step>('form')
   const [preview,   setPreview]   = useState<AjusteMonedaLinea[]>([])
+  /** Las cuentas donde cae el diferencial, para que la vista previa las muestre. */
+  const [cuentasFx, setCuentasFx] = useState<CuentasDeDiferencial | null>(null)
+
+  useEffect(() => {
+    getCuentasDeDiferencial().then(setCuentasFx).catch(() => setCuentasFx(null))
+  }, [])
   const [savedDto,  setSavedDto]  = useState<{ moneda: string; fechaAjuste: string; tipoCambio: number } | null>(null)
   const [saving,    setSaving]    = useState(false)
   const [tcLoading, setTcLoading] = useState(false)
@@ -388,6 +394,21 @@ export default function AjusteMonedaListPage() {
 
                     const polizaRows: { key: string; descripcion: string; debito: number; credito: number; tipo: 'header' | 'normal' | 'fx' }[] = []
 
+                    /**
+                     * La línea del diferencial, con su cuenta.
+                     *
+                     * Antes salía solo el texto: la póliza de la vista previa
+                     * no era igual a la que se iba a contabilizar. Si la
+                     * cuenta no está configurada se dice, en vez de dejar
+                     * creer que la hay.
+                     */
+                    const cuentaFx = (
+                      cuenta: { code: string; name: string } | null | undefined,
+                      texto: string,
+                    ) => cuenta
+                      ? `${cuenta.code}  ${cuenta.name}  |  ${texto}`
+                      : `${texto}  —  sin cuenta configurada en Cuentas por defecto`
+
                     const lineDesc = (l: AjusteMonedaLinea) => {
                       const base = `${l.accountCode}  ${l.accountName}`
                       const aux = [l.invoiceNumber, l.vendorName ?? l.customerName].filter(Boolean).join('  |  ')
@@ -404,7 +425,7 @@ export default function AjusteMonedaListPage() {
                       }))
                       polizaRows.push({
                         key: 'fx-gain',
-                        descripcion: 'Ganancia diferencial cambiario',
+                        descripcion: cuentaFx(cuentasFx?.ganancia, 'Ganancia diferencial cambiario'),
                         debito: 0,
                         credito: totalGain,
                         tipo: 'fx',
@@ -413,7 +434,7 @@ export default function AjusteMonedaListPage() {
                     if (losses.length > 0) {
                       polizaRows.push({
                         key: 'fx-loss',
-                        descripcion: 'Pérdida diferencial cambiario',
+                        descripcion: cuentaFx(cuentasFx?.perdida, 'Pérdida diferencial cambiario'),
                         debito: totalLoss,
                         credito: 0,
                         tipo: 'fx',
