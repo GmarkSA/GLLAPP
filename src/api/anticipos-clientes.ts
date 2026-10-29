@@ -20,6 +20,24 @@ export interface AnticipoCliente {
 
 const BASE = '/ventas/facturas-anticipo'
 
+/**
+ * Registrar un anticipo de cliente.
+ *
+ * Con `esSaldoInicial` no se pide cuenta bancaria: el anticipo ya existía
+ * antes de Lucía y su contrapartida es la cuenta de saldos de apertura.
+ */
+export const crearAnticipoCliente = (dto: {
+  customerId:      string
+  amount:          number
+  date?:           string
+  currency?:       string
+  exchangeRate?:   number
+  reference?:      string
+  notes?:          string
+  bankAccountId?:  string
+  esSaldoInicial?: boolean
+}) => api.post(BASE, dto).then(unwrap)
+
 export const getAnticiposClientes = (params?: {
   customerId?: string; status?: string; page?: number; limit?: number
 }) => api.get(BASE, { params }).then(unwrap) as Promise<{ data: AnticipoCliente[]; total: number; page: number; limit: number }>

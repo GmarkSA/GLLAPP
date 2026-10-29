@@ -12,8 +12,11 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   getVendorAdvances, voidVendorAdvance, unvoidVendorAdvance, getJournalEntry,
   applyVendorAdvanceToBill, getBills, desaplicarAnticipoProveedor,
+  createVendorAdvance,
   type VendorAdvance, type PurchaseInvoice,
 } from '../../../api/compras'
+import { getVendors } from '../../../api/contactos'
+import AnticipoDeAperturaModal from '../../../components/SaldoInicial/AnticipoDeAperturaModal'
 import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
@@ -47,6 +50,20 @@ export default function AnticiposProveedorPage() {
   const [detail,   setDetail]   = useState<VendorAdvance | null>(null)
   const [jeLines,  setJeLines]  = useState<any[]>([])
   const [jeLoading, setJeLoading] = useState(false)
+
+  /** Registrar un anticipo que ya existía antes de Lucía. */
+  const [aperturaAbierta, setAperturaAbierta] = useState(false)
+  const [proveedores, setProveedores] = useState<Array<{ id: string; name: string; currency?: string }>>([])
+
+  useEffect(() => {
+    if (!aperturaAbierta || proveedores.length) return
+    getVendors({ limit: 500 })
+      .then((r: any) => setProveedores(
+        (Array.isArray(r) ? r : r?.data ?? []).map((v: any) => ({
+          id: v.id, name: v.name, currency: v.currency,
+        }))))
+      .catch(() => setProveedores([]))
+  }, [aperturaAbierta, proveedores.length])
 
   // Modal: aplicar a factura de compra
   const [applying,     setApplying]     = useState<VendorAdvance | null>(null)
@@ -244,9 +261,20 @@ export default function AnticiposProveedorPage() {
             <Text type="secondary">Prepagos y anticipos registrados a proveedores</Text>
           </div>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
-          Actualizar
-        </Button>
+        <Space>
+          {/*
+            * Los anticipos nacen de un movimiento de banco —este desde Pagos
+            * Realizados—, así que no había dónde cargar uno que ya existía
+            * antes de Lucía: pedir un banco obligaba a inventar un movimiento
+            * que nunca ocurrió.
+            */}
+          <Button onClick={() => setAperturaAbierta(true)}>
+            Anticipo de saldo inicial
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
+              Actualizar
+          </Button>
+        </Space>
       </div>
 
       <Card
@@ -396,6 +424,24 @@ export default function AnticiposProveedorPage() {
           </>
         )}
       </Modal>
+
+      <AnticipoDeAperturaModal
+        open={aperturaAbierta}
+        onClose={() => setAperturaAbierta(false)}
+        lado="proveedor"
+        contactos={proveedores}
+        onGuardar={dto => createVendorAdvance({
+          vendorId:     dto.contactoId,
+          amount:       dto.monto,
+          date:         dto.fecha,
+          currency:     dto.moneda,
+          exchangeRate: dto.tipoCambio,
+          reference:    dto.referencia,
+          notes:        dto.notas,
+          esSaldoInicial: true,
+        })}
+        onGuardado={() => load()}
+      />
 
       {/* ── Modal: Aplicar anticipo a factura de compra ─────────────── */}
       <Modal
