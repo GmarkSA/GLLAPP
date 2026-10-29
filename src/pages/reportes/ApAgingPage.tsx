@@ -185,12 +185,13 @@ export default function ApAgingPage() {
     [data, vistaDeMoneda])
 
   /** Los anticipos, en la misma vista. También pueden estar en divisa. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const totalDeAnticipos = useMemo(
     () => totalEnVista(
       (data?.advances ?? []).map((a: any) => ({
         currency: a.currency, balance: a.balance, balanceGTQ: a.balanceGTQ,
       })),
-      vistaDeMoneda),
+      vistaDeMoneda, totalGeneral.simbolo),
     [data, vistaDeMoneda])
 
   const hayDivisas = useMemo(
@@ -398,7 +399,7 @@ export default function ApAgingPage() {
         )
       },
     },
-  ], [highlightBucket, sortedInfo, showAdvances])
+  ], [highlightBucket, sortedInfo, showAdvances, vistaDeMoneda])
 
   const handleExcel = () => {
     if (!data) return
@@ -459,7 +460,7 @@ export default function ApAgingPage() {
             <Table.Summary.Cell key={key} index={i + 2} align="right">
               {(data.buckets[key]?.total ?? 0) > 0 ? (
                 <Text strong style={{ fontSize: 12, color: BUCKET_COLORS[key], fontVariantNumeric: 'tabular-nums' }}>
-                  {formatearTotal(data.buckets[key]?.items ?? [], vistaDeMoneda)}
+                  {formatearTotal(data.buckets[key]?.items ?? [], vistaDeMoneda, totalGeneral.simbolo)}
                 </Text>
               ) : (
                 <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
@@ -581,8 +582,8 @@ export default function ApAgingPage() {
               >
                 <Statistic
                   title={<span style={{ fontSize: 11, color: BUCKET_COLORS[key] }}>{BUCKET_LABELS[key]}</span>}
-                  value={totalEnVista(data.buckets[key]?.items ?? [], vistaDeMoneda).valor}
-                  prefix={totalEnVista(data.buckets[key]?.items ?? [], vistaDeMoneda).simbolo}
+                  value={totalEnVista(data.buckets[key]?.items ?? [], vistaDeMoneda, totalGeneral.simbolo).valor}
+                  prefix={totalEnVista(data.buckets[key]?.items ?? [], vistaDeMoneda, totalGeneral.simbolo).simbolo}
                   precision={2}
                   valueStyle={{ fontSize: showAdvances ? 14 : 16, color: BUCKET_COLORS[key] }}
                 />

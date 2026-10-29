@@ -107,13 +107,25 @@ const redondear = (n: number) => Math.round(n * 100) / 100
 export function totalEnVista(
   documentos: DocumentoDeTotal[],
   vista: VistaDeMoneda,
+  /**
+   * La moneda del resto del reporte, para los grupos vacíos.
+   *
+   * Un tramo sin documentos no tiene moneda propia. Rotularlo «Q 0.00» al lado
+   * de tramos en USD hace dudar de todo el reporte, así que hereda la del
+   * conjunto.
+   */
+  monedaDelReporte?: string,
 ): TotalDeGrupo {
   const docs = documentos ?? []
   const enQuetzales = redondear(
     docs.reduce((s, d) => s + Number(d.balanceGTQ ?? d.balance ?? 0), 0))
 
-  if (vista === 'funcional' || !docs.length) {
+  if (vista === 'funcional') {
     return { valor: enQuetzales, simbolo: 'Q', mixto: false }
+  }
+
+  if (!docs.length) {
+    return { valor: 0, simbolo: monedaDelReporte ?? 'Q', mixto: false }
   }
 
   const monedas = new Set(docs.map(d => String(d.currency ?? 'GTQ').toUpperCase()))
@@ -134,8 +146,9 @@ export function totalEnVista(
 export function formatearTotal(
   documentos: DocumentoDeTotal[],
   vista: VistaDeMoneda,
+  monedaDelReporte?: string,
 ): string {
-  const { valor, simbolo } = totalEnVista(documentos, vista)
+  const { valor, simbolo } = totalEnVista(documentos, vista, monedaDelReporte)
   const n = valor.toLocaleString('es-GT', {
     minimumFractionDigits: 2, maximumFractionDigits: 2,
   })
