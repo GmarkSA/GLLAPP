@@ -72,3 +72,72 @@ export const formatearImporte = (
 export const hayMonedaExtranjera = (
   documentos: Array<{ currency?: string | null }>,
 ): boolean => (documentos ?? []).some(d => !esMonedaLocal(d.currency))
+
+/**
+ * Un total solo puede ir en dólares si TODO lo que lo compone son dólares.
+ *
+ * Los tramos de antigüedad son sumas de documentos, y esos documentos pueden
+ * estar en monedas distintas. Sumar dólares con quetzales y rotular el
+ * resultado «USD» daría un número que no existe, y que además no cuadraría con
+ * nada: ni con el cliente ni con los libros.
+ *
+ * Por eso la regla es por composición: si todos los documentos del grupo
+ * comparten moneda, el total va en esa moneda. Si hay mezcla, el único
+ * denominador común es el quetzal —la moneda funcional— y ahí se queda, aunque
+ * el usuario haya pedido ver en divisa. `mixto` lo declara para que la pantalla
+ * pueda decirlo en vez de dejarlo pasar.
+ */
+export interface DocumentoDeTotal {
+  currency?: string | null
+  /** El importe en la moneda del documento. */
+  balance?: number | null
+  /** Su equivalente en quetzales, que es lo que está en libros. */
+  balanceGTQ?: number | null
+}
+
+export interface TotalDeGrupo {
+  valor: number
+  simbolo: string
+  /** El grupo mezcla monedas, así que el total quedó en quetzales. */
+  mixto: boolean
+}
+
+const redondear = (n: number) => Math.round(n * 100) / 100
+
+export function totalEnVista(
+  documentos: DocumentoDeTotal[],
+  vista: VistaDeMoneda,
+): TotalDeGrupo {
+  const docs = documentos ?? []
+  const enQuetzales = redondear(
+    docs.reduce((s, d) => s + Number(d.balanceGTQ ?? d.balance ?? 0), 0))
+
+  if (vista === 'funcional' || !docs.length) {
+    return { valor: enQuetzales, simbolo: 'Q', mixto: false }
+  }
+
+  const monedas = new Set(docs.map(d => String(d.currency ?? 'GTQ').toUpperCase()))
+  if (monedas.size > 1) {
+    return { valor: enQuetzales, simbolo: 'Q', mixto: true }
+  }
+
+  const [unica] = [...monedas]
+  if (unica === 'GTQ') return { valor: enQuetzales, simbolo: 'Q', mixto: false }
+
+  return {
+    valor:   redondear(docs.reduce((s, d) => s + Number(d.balance ?? 0), 0)),
+    simbolo: unica,
+    mixto:   false,
+  }
+}
+
+export function formatearTotal(
+  documentos: DocumentoDeTotal[],
+  vista: VistaDeMoneda,
+): string {
+  const { valor, simbolo } = totalEnVista(documentos, vista)
+  const n = valor.toLocaleString('es-GT', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  })
+  return simbolo === 'Q' ? `Q ${n}` : `${simbolo} ${n}`
+}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   formatearImporte, importeAMostrar, hayMonedaExtranjera, simboloDe, esMonedaLocal,
+  formatearTotal, totalEnVista,
 } from './monedaDelDocumento'
 
 /**
@@ -90,5 +91,85 @@ describe('conciliando con un cliente en dólares', () => {
 
   it('la contabilidad ve lo que está en libros', () => {
     expect(formatearImporte(INV_116, 'funcional')).toBe('Q 2,314.15')
+  })
+})
+
+/**
+ * Los totales: un tramo solo va en dólares si TODO lo que lo compone son
+ * dólares.
+ *
+ * Los tramos de antigüedad son sumas de documentos, y esos documentos pueden
+ * estar en monedas distintas. Sumar dólares con quetzales y rotular el
+ * resultado «USD» daría un número que no existe y que no cuadra con nada.
+ */
+describe('el total de un grupo de documentos', () => {
+  const SOLO_USD = [
+    { currency: 'USD', balance: 301.93,  balanceGTQ: 2314.15 },
+    { currency: 'USD', balance: 9064.00, balanceGTQ: 69471.12 },
+  ]
+  const MEZCLADO = [
+    { currency: 'USD', balance: 301.93, balanceGTQ: 2314.15 },
+    { currency: 'GTQ', balance: 8940,   balanceGTQ: 8940 },
+  ]
+
+  it('en la vista funcional, siempre quetzales', () => {
+    expect(formatearTotal(SOLO_USD, 'funcional')).toBe('Q 71,785.27')
+  })
+
+  /** Es lo que el usuario pidió ver: el total del cliente en su moneda. */
+  it('si todo es de una moneda, el total va en esa moneda', () => {
+    expect(formatearTotal(SOLO_USD, 'documento')).toBe('USD 9,365.93')
+  })
+
+  /**
+   * Con monedas mezcladas el único denominador común es el quetzal. Sumar
+   * dólares con quetzales sería inventar una cifra.
+   */
+  it('con monedas mezcladas se queda en quetzales y lo declara', () => {
+    const t = totalEnVista(MEZCLADO, 'documento')
+
+    expect(t.simbolo).toBe('Q')
+    expect(t.mixto).toBe(true)
+    expect(t.valor).toBeCloseTo(11254.15, 2)
+  })
+
+  it('un grupo solo de quetzales no es mezcla', () => {
+    const t = totalEnVista([{ currency: 'GTQ', balance: 100, balanceGTQ: 100 }], 'documento')
+    expect(t.simbolo).toBe('Q')
+    expect(t.mixto).toBe(false)
+  })
+
+  it('un grupo vacío vale cero en quetzales', () => {
+    expect(formatearTotal([], 'documento')).toBe('Q 0.00')
+  })
+
+  /** La suma en divisa usa los importes originales, no los convertidos. */
+  it('no reconvierte: suma los importes originales', () => {
+    expect(totalEnVista(SOLO_USD, 'documento').valor).toBeCloseTo(9365.93, 2)
+  })
+})
+
+/**
+ * La pantalla completa de The Concious Home LLC.
+ *
+ * Seis facturas, todas en dólares: tanto el detalle como el total del cliente
+ * tienen que poder verse en USD.
+ */
+describe('el total de un cliente que factura solo en dólares', () => {
+  const SUS_FACTURAS = [
+    { currency: 'USD', balance: 301.93,  balanceGTQ: 2314.15 },
+    { currency: 'USD', balance: 9064.00, balanceGTQ: 69471.12 },
+    { currency: 'USD', balance: 872.32,  balanceGTQ: 6685.91 },
+    { currency: 'USD', balance: 9003.00, balanceGTQ: 69003.58 },
+    { currency: 'USD', balance: 9654.00, balanceGTQ: 74001.87 },
+    { currency: 'USD', balance: 9276.00, balanceGTQ: 71095.99 },
+  ]
+
+  it('en quetzales cuadra con lo que está en libros', () => {
+    expect(formatearTotal(SUS_FACTURAS, 'funcional')).toBe('Q 292,572.62')
+  })
+
+  it('en su moneda, el total es el que el cliente reconoce', () => {
+    expect(formatearTotal(SUS_FACTURAS, 'documento')).toBe('USD 38,171.25')
   })
 })
