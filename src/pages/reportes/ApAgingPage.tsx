@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  formatearImporte, hayMonedaExtranjera, type VistaDeMoneda,
+  formatearImporte, formatearTotal, totalEnVista, hayMonedaExtranjera,
+  type VistaDeMoneda,
 } from './monedaDelDocumento'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
@@ -176,6 +177,22 @@ export default function ApAgingPage() {
    */
   const [vistaDeMoneda, setVistaDeMoneda] = useState<VistaDeMoneda>('funcional')
 
+  /** El total general en la vista elegida; en quetzales si hay mezcla de monedas. */
+  const totalGeneral = useMemo(
+    () => totalEnVista(
+      Object.values(data?.buckets ?? {}).flatMap((b: any) => b?.items ?? []),
+      vistaDeMoneda),
+    [data, vistaDeMoneda])
+
+  /** Los anticipos, en la misma vista. También pueden estar en divisa. */
+  const totalDeAnticipos = useMemo(
+    () => totalEnVista(
+      (data?.advances ?? []).map((a: any) => ({
+        currency: a.currency, balance: a.balance, balanceGTQ: a.balanceGTQ,
+      })),
+      vistaDeMoneda),
+    [data, vistaDeMoneda])
+
   const hayDivisas = useMemo(
     () => hayMonedaExtranjera(
       Object.values(data?.buckets ?? {}).flatMap((b: any) => b?.items ?? [])),
@@ -296,14 +313,15 @@ export default function ApAgingPage() {
             ? `${BUCKET_COLORS[key]}0f` : undefined,
         },
       }),
-      render: (v: number) => v > 0 ? (
+      render: (v: number, row: any) => v > 0 ? (
         <Text style={{
           fontSize: 13,
           fontWeight: (key === 'days_90' || key === 'over_90') ? 600 : 400,
           color: BUCKET_COLORS[key],
           fontVariantNumeric: 'tabular-nums',
         }}>
-          {fmt(v)}
+          {formatearTotal(
+            (row.invoices ?? []).filter((d: any) => d.bucket === key), vistaDeMoneda)}
         </Text>
       ) : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>,
     })),
@@ -318,7 +336,7 @@ export default function ApAgingPage() {
       render: (v: number, row) => (
         <div>
           <Text strong style={{ fontSize: 13, color: '#1B3A6B', fontVariantNumeric: 'tabular-nums', display: 'block' }}>
-            {fmt(v)}
+            {formatearTotal(row.invoices ?? [], vistaDeMoneda)}
           </Text>
           {showAdvances && row.anticipo > 0 && (
             <Text style={{ fontSize: 10, color: '#ff7f00', fontVariantNumeric: 'tabular-nums', display: 'block' }}>
@@ -441,7 +459,7 @@ export default function ApAgingPage() {
             <Table.Summary.Cell key={key} index={i + 2} align="right">
               {(data.buckets[key]?.total ?? 0) > 0 ? (
                 <Text strong style={{ fontSize: 12, color: BUCKET_COLORS[key], fontVariantNumeric: 'tabular-nums' }}>
-                  {fmt(data.buckets[key].total)}
+                  {formatearTotal(data.buckets[key]?.items ?? [], vistaDeMoneda)}
                 </Text>
               ) : (
                 <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
@@ -450,7 +468,9 @@ export default function ApAgingPage() {
           ))}
           <Table.Summary.Cell index={7} align="right">
             <Text strong style={{ fontSize: 12, color: '#1B3A6B', fontVariantNumeric: 'tabular-nums' }}>
-              {fmt(data.grandTotal ?? 0)}
+              {formatearTotal(
+                Object.values(data.buckets ?? {}).flatMap((b: any) => b?.items ?? []),
+                vistaDeMoneda)}
             </Text>
           </Table.Summary.Cell>
           <Table.Summary.Cell index={8} />
@@ -561,8 +581,8 @@ export default function ApAgingPage() {
               >
                 <Statistic
                   title={<span style={{ fontSize: 11, color: BUCKET_COLORS[key] }}>{BUCKET_LABELS[key]}</span>}
-                  value={data.buckets[key].total}
-                  prefix="Q"
+                  value={totalEnVista(data.buckets[key]?.items ?? [], vistaDeMoneda).valor}
+                  prefix={totalEnVista(data.buckets[key]?.items ?? [], vistaDeMoneda).simbolo}
                   precision={2}
                   valueStyle={{ fontSize: showAdvances ? 14 : 16, color: BUCKET_COLORS[key] }}
                 />
@@ -573,8 +593,8 @@ export default function ApAgingPage() {
             <Card size="small" style={{ textAlign: 'center', background: '#1faec2', borderColor: '#1faec2' }}>
               <Statistic
                 title={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>TOTAL CxP</span>}
-                value={data.grandTotal}
-                prefix="Q"
+                value={totalGeneral.valor}
+                prefix={totalGeneral.simbolo}
                 precision={2}
                 valueStyle={{ fontSize: showAdvances ? 14 : 16, color: '#fff', fontWeight: 700 }}
               />
@@ -585,8 +605,8 @@ export default function ApAgingPage() {
                 <Card size="small" style={{ textAlign: 'center', background: '#e8f5ef', borderColor: '#2ea17244' }}>
                   <Statistic
                     title={<span style={{ fontSize: 11, color: '#2ea172' }}>Anticipos</span>}
-                    value={data.totalAdvances ?? 0}
-                    prefix="Q"
+                    value={totalDeAnticipos.valor}
+                    prefix={totalDeAnticipos.simbolo}
                     precision={2}
                     valueStyle={{ fontSize: 14, color: '#2ea172', fontWeight: 700 }}
                   />
