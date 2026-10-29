@@ -41,6 +41,23 @@ export interface AjusteMoneda {
   lines?:            AjusteMonedaLinea[]
 }
 
+/**
+ * Las cuentas donde cae el diferencial cambiario, según Cuentas por defecto.
+ *
+ * La vista previa escribía «Ganancia diferencial cambiario» a secas, sin
+ * código ni nombre: la pantalla no sabe cuáles son porque se resuelven en el
+ * servidor al publicar, y el usuario veía una póliza distinta de la que se iba
+ * a contabilizar.
+ */
+export interface CuentasDeDiferencial {
+  ganancia: { code: string; name: string } | null
+  perdida:  { code: string; name: string } | null
+}
+
+export const getCuentasDeDiferencial = () =>
+  api.get('/contabilidad/ajuste-moneda/cuentas-diferencial')
+    .then(unwrap) as Promise<CuentasDeDiferencial>
+
 export const getAjustesMoneda = () =>
   api.get('/contabilidad/ajuste-moneda').then(unwrap) as Promise<AjusteMoneda[]>
 
