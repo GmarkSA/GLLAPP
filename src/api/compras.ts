@@ -56,6 +56,11 @@ export const createVendorAdvance = (dto: {
   notes?:              string
   bankAccountId?:      string
   advanceAccountCode?: string
+  /**
+   * El anticipo ya existía antes de Lucía: no mueve banco y su contrapartida
+   * es la cuenta de saldos de apertura.
+   */
+  esSaldoInicial?:     boolean
 }) => api.post('/compras/anticipos-proveedor', dto).then(unwrap) as Promise<VendorAdvance>
 
 export const getVendorAdvances = (params?: { vendorId?: string; status?: string; page?: number; limit?: number }) =>

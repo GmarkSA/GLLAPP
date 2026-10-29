@@ -13,8 +13,10 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   getAnticiposClientes, aplicarAnticipoCliente, reembolsarAnticipoCliente,
   desaplicarAnticipoCliente, restaurarAnticipoCliente, eliminarAnticipoCliente,
+  crearAnticipoCliente,
   type AnticipoCliente,
 } from '../../../api/anticipos-clientes'
+import AnticipoDeAperturaModal from '../../../components/SaldoInicial/AnticipoDeAperturaModal'
 import { getJournalEntry } from '../../../api/compras'
 import { getInvoices, type Invoice } from '../../../api/facturas'
 import { getCustomers } from '../../../api/contactos'
@@ -126,9 +128,14 @@ export default function AnticiposClientesPage() {
   useEffect(() => {
     getCustomers({ limit: 200 }).then((res: any) => {
       const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
-      setCustomers(list.map((c: any) => ({ id: c.id, name: c.name, taxId: c.taxId })))
+      setCustomers(list.map((c: any) => ({
+        id: c.id, name: c.name, taxId: c.taxId, currency: c.currency,
+      })))
     }).catch(() => {})
   }, [])
+
+  /** Registrar un anticipo que ya existía antes de Lucía. */
+  const [aperturaAbierta, setAperturaAbierta] = useState(false)
 
   // Abrir póliza en modal
   const openPoliza = (ant: AnticipoCliente) => {
@@ -344,7 +351,16 @@ export default function AnticiposClientesPage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0, color: '#0a0a0a' }}>Anticipos de Clientes</Title>
-        <Button icon={<ReloadOutlined />} onClick={load}>Actualizar</Button>
+        <Space>
+          {/*
+            * Los anticipos nacen de un movimiento de banco —este desde Pagos
+            * Recibidos—, así que no había dónde cargar uno que ya existía
+            * antes de Lucía: pedir un banco obligaba a inventar un movimiento
+            * que nunca ocurrió.
+            */}
+          <Button onClick={() => setAperturaAbierta(true)}>Anticipo de saldo inicial</Button>
+          <Button icon={<ReloadOutlined />} onClick={load}>Actualizar</Button>
+        </Space>
       </div>
 
       <Space style={{ marginBottom: 12 }}>
@@ -373,6 +389,24 @@ export default function AnticiposClientesPage() {
         scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         pagination={{ current: page, pageSize: 50, total, onChange: p => setPage(p), showTotal: t => `${t} anticipos` }}
         locale={{ emptyText: 'No hay anticipos registrados' }}
+      />
+
+      <AnticipoDeAperturaModal
+        open={aperturaAbierta}
+        onClose={() => setAperturaAbierta(false)}
+        lado="cliente"
+        contactos={customers}
+        onGuardar={dto => crearAnticipoCliente({
+          customerId:   dto.contactoId,
+          amount:       dto.monto,
+          date:         dto.fecha,
+          currency:     dto.moneda,
+          exchangeRate: dto.tipoCambio,
+          reference:    dto.referencia,
+          notes:        dto.notas,
+          esSaldoInicial: true,
+        })}
+        onGuardado={load}
       />
 
       {/* ── Modal: Ver póliza ──────────────────────────────────── */}
