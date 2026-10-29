@@ -173,3 +173,31 @@ describe('el total de un cliente que factura solo en dólares', () => {
     expect(formatearTotal(SUS_FACTURAS, 'documento')).toBe('USD 38,171.25')
   })
 })
+
+/**
+ * Los tramos vacíos.
+ *
+ * Un tramo sin documentos no tiene moneda propia. En la pantalla quedaban
+ * «Q 0.00» al lado de tramos en USD: tres tarjetas en dólares y dos en
+ * quetzales, lo que hace dudar de todo el reporte.
+ */
+describe('un grupo sin documentos', () => {
+  it('hereda la moneda del reporte', () => {
+    expect(formatearTotal([], 'documento', 'USD')).toBe('USD 0.00')
+  })
+
+  it('sin moneda del reporte, se queda en quetzales', () => {
+    expect(formatearTotal([], 'documento')).toBe('Q 0.00')
+  })
+
+  /** En la vista funcional todo es quetzales, aunque se pase otra moneda. */
+  it('en la vista funcional no hereda nada', () => {
+    expect(formatearTotal([], 'funcional', 'USD')).toBe('Q 0.00')
+  })
+
+  it('un grupo con documentos no hereda: manda su propia moneda', () => {
+    expect(formatearTotal(
+      [{ currency: 'GTQ', balance: 100, balanceGTQ: 100 }], 'documento', 'USD'))
+      .toBe('Q 100.00')
+  })
+})
