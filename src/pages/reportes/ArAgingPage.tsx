@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import SaldosPorMoneda from '../../components/Cartera/SaldosPorMoneda'
+import {
+  formatearImporte, hayMonedaExtranjera, type VistaDeMoneda,
+} from './monedaDelDocumento'
 import {
   Card, Button, Table, Typography, Breadcrumb, Spin, Tag, Statistic,
   Select, Space, Progress, Tooltip,
@@ -165,6 +167,20 @@ export default function ArAgingPage() {
     }
   }
 
+  /**
+   * En qué moneda se lee el detalle.
+   *
+   * Los tramos siguen en quetzales —es la moneda funcional y la única con la
+   * que se pueden sumar entre sí—, pero conciliar con un contacto que factura
+   * en dólares se hace documento por documento y en su moneda.
+   */
+  const [vistaDeMoneda, setVistaDeMoneda] = useState<VistaDeMoneda>('funcional')
+
+  const hayDivisas = useMemo(
+    () => hayMonedaExtranjera(
+      Object.values(data?.buckets ?? {}).flatMap((b: any) => b?.items ?? [])),
+    [data])
+
   const expandedRowRender = useCallback((row: ClientAgingRow) => {
     const invCols: ColumnsType<any> = [
       {
@@ -208,7 +224,9 @@ export default function ArAgingPage() {
         title: 'Total', width: 130, align: 'right' as const,
         render: (_: any, inv: any) => (
           <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-            {fmt(Number((inv as any).totalGTQ ?? inv.total))}
+            {formatearImporte(
+              { currency: inv.currency, original: inv.total, enQuetzales: (inv as any).totalGTQ },
+              vistaDeMoneda)}
           </Text>
         ),
       },
@@ -216,7 +234,9 @@ export default function ArAgingPage() {
         title: 'Saldo', width: 130, align: 'right' as const,
         render: (_: any, inv: any) => (
           <Text strong style={{ fontSize: 12, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>
-            {fmt(Number((inv as any).balanceGTQ ?? inv.balance))}
+            {formatearImporte(
+              { currency: inv.currency, original: inv.balance, enQuetzales: (inv as any).balanceGTQ },
+              vistaDeMoneda)}
           </Text>
         ),
       },
@@ -231,7 +251,7 @@ export default function ArAgingPage() {
         style={{ background: '#fafbfc', margin: '0 32px' }}
       />
     )
-  }, [])
+  }, [vistaDeMoneda])
 
   const columns: ColumnsType<ClientAgingRow> = useMemo((): ColumnsType<ClientAgingRow> => [
     {
@@ -472,6 +492,20 @@ export default function ArAgingPage() {
           >
             {showAdvances ? 'Ocultar anticipos' : 'Incluir anticipos'}
           </Button>
+          {/*
+            * El interruptor solo aparece si hay cartera en otra moneda: con
+            * todo en quetzales no cambia nada y solo estorbaría.
+            */}
+          {hayDivisas && (
+            <Button
+              type={vistaDeMoneda === 'documento' ? 'primary' : 'default'}
+              style={vistaDeMoneda === 'documento'
+                ? { background: '#1B3A6B', borderColor: '#1B3A6B' } : {}}
+              onClick={() => setVistaDeMoneda(v => v === 'documento' ? 'funcional' : 'documento')}
+            >
+              {vistaDeMoneda === 'documento' ? 'Ver en quetzales' : 'Ver en su moneda'}
+            </Button>
+          )}
           {data && (
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
               Actualizar
@@ -574,8 +608,6 @@ export default function ArAgingPage() {
               </>
             )}
           </div>
-
-          <SaldosPorMoneda saldos={data.porMoneda} lado="cliente" />
 
 
           {/* Top 5 clientes con mayor urgencia */}
