@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { simulaciones, type SimulacionDeFactura } from './simulacionFiscal'
+import {
+  simulaciones, gastoParaIvaCero, type SimulacionDeFactura,
+} from './simulacionFiscal'
 import {
   Alert, Breadcrumb, Button, Card, Checkbox, Col, DatePicker, Empty, Modal,
   Row, Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
@@ -430,39 +432,49 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
                 </Table.Summary.Row>,
 
                 /*
-                 * La referencia: el mismo IVA se consigue comprándole a un
-                 * tercero, y cuesta lo mismo —se calcula sobre la misma base—.
-                 * La diferencia es que ese dinero sale del grupo y no vuelve.
+                 * La referencia: cuánto habría que gastar DE VERDAD para dejar
+                 * el IVA en cero. Después de la factura entre empresas todavía
+                 * queda saldo; borrarlo comprándole a un tercero cuesta nueve
+                 * veces el impuesto que evita, y ese dinero sale del grupo.
                  */
-                <Table.Summary.Row key={`ref-${i}`} style={{ background: '#fffbeb' }}>
-                  <Table.Summary.Cell index={0}>
-                    <span style={{ fontSize: 11, color: '#92400e' }}>
-                      Referencia — comprándole a un tercero, {sim.receptor} tendría que gastar
-                    </span>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={1} align="right">
-                    <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>{Q(sim.base)}</span>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={2} align="right">
-                    <Tooltip title={`Para rebajar ${Q(sim.iva)} de IVA hay que desembolsar ${Q(sim.total)}: ese dinero sale del grupo y no vuelve.`}>
-                      <span style={{ ...qStyle, fontSize: 12, fontWeight: 700, color: '#92400e' }}>
-                        {Q(sim.total)}
-                      </span>
-                    </Tooltip>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={3} />
-                  <Table.Summary.Cell index={4} />
-                  <Table.Summary.Cell index={5} align="right">
-                    <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>+{Q(sim.iva)}</span>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={6} />
-                  <Table.Summary.Cell index={7} align="right">
-                    <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>{Q(sim.ivaDespues)}</span>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={8} />
-                  <Table.Summary.Cell index={9} />
-                  <Table.Summary.Cell index={10} />
-                </Table.Summary.Row>,
+                (() => {
+                  const g = gastoParaIvaCero(sim)
+                  if (!g) return null
+                  return (
+                    <Table.Summary.Row key={`ref-${i}`} style={{ background: '#fffbeb' }}>
+                      <Table.Summary.Cell index={0}>
+                        <span style={{ fontSize: 11, color: '#92400e' }}>
+                          Referencia — para dejar el IVA en cero, {sim.receptor} tendría
+                          que comprarle a un tercero
+                        </span>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right">
+                        <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>{Q(g.base)}</span>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right">
+                        <Tooltip title={`${Q(g.base)} + IVA ${Q(g.iva)}. Para no pagar ${Q(g.iva)} de impuesto hay que desembolsar ${Q(g.total)}, y ese dinero sale del grupo.`}>
+                          <span style={{ ...qStyle, fontSize: 12, fontWeight: 700, color: '#92400e' }}>
+                            {Q(g.total)}
+                          </span>
+                        </Tooltip>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} />
+                      <Table.Summary.Cell index={4} />
+                      <Table.Summary.Cell index={5} align="right">
+                        <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>+{Q(g.iva)}</span>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={6} />
+                      <Table.Summary.Cell index={7} align="right">
+                        <span style={{ ...qStyle, fontSize: 12, fontWeight: 700, color: '#92400e' }}>
+                          {Q(0)}
+                        </span>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={8} />
+                      <Table.Summary.Cell index={9} />
+                      <Table.Summary.Cell index={10} />
+                    </Table.Summary.Row>
+                  )
+                })(),
               ])}
             </Table.Summary>
           )
