@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { simulaciones, type SimulacionDeFactura } from './simulacionFiscal'
 import {
   Alert, Breadcrumb, Button, Card, Checkbox, Col, DatePicker, Empty, Modal,
   Row, Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
@@ -382,6 +383,90 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
                 : `Le retuvieron ${Q(retenidoDeMas)} más que el impuesto determinado. En este régimen no queda a favor.`}>{monto}</Tooltip>
             } },
         ]}
+        summary={() => {
+          /*
+           * Lo que pasaría si se siguen las recomendaciones, debajo de las
+           * empresas. La recomendación ya lo dice en su párrafo; puesto aquí
+           * se lee de un vistazo, en las mismas columnas que el resto del
+           * cuadro.
+           */
+          const sims = simulaciones(data.recomendaciones, data.empresas as any)
+          if (!sims.length) return null
+
+          return (
+            <Table.Summary>
+              {sims.map((sim: SimulacionDeFactura, i: number) => [
+                /* Lo que pasa si la factura se emite dentro del grupo. */
+                <Table.Summary.Row key={`sim-${i}`} style={{ background: '#f0fdf4' }}>
+                  <Table.Summary.Cell index={0}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#15803d' }}>
+                      Si {sim.emisor} factura a {sim.receptor}
+                    </span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={1} align="right">
+                    <span style={{ ...qStyle, fontSize: 12, color: '#15803d' }}>{Q(sim.base)}</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={2} align="right">
+                    <Tooltip title={`Factura: ${Q(sim.base)} + IVA ${Q(sim.iva)} = ${Q(sim.total)}`}>
+                      <span style={{ ...qStyle, fontSize: 12, color: '#15803d' }}>{Q(sim.total)}</span>
+                    </Tooltip>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={3} />
+                  <Table.Summary.Cell index={4} />
+                  <Table.Summary.Cell index={5} align="right">
+                    <span style={{ ...qStyle, fontSize: 12, color: '#15803d' }}>+{Q(sim.iva)}</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={6} />
+                  <Table.Summary.Cell index={7} align="right">
+                    <Tooltip title={`Antes: ${Q(sim.ivaAntes)}`}>
+                      <span style={{ ...qStyle, fontSize: 12, fontWeight: 700, color: '#15803d' }}>
+                        {Q(sim.ivaDespues)}
+                      </span>
+                    </Tooltip>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={8} />
+                  <Table.Summary.Cell index={9} />
+                  <Table.Summary.Cell index={10} />
+                </Table.Summary.Row>,
+
+                /*
+                 * La referencia: el mismo IVA se consigue comprándole a un
+                 * tercero, y cuesta lo mismo —se calcula sobre la misma base—.
+                 * La diferencia es que ese dinero sale del grupo y no vuelve.
+                 */
+                <Table.Summary.Row key={`ref-${i}`} style={{ background: '#fffbeb' }}>
+                  <Table.Summary.Cell index={0}>
+                    <span style={{ fontSize: 11, color: '#92400e' }}>
+                      Referencia — comprándole a un tercero, {sim.receptor} tendría que gastar
+                    </span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={1} align="right">
+                    <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>{Q(sim.base)}</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={2} align="right">
+                    <Tooltip title={`Para rebajar ${Q(sim.iva)} de IVA hay que desembolsar ${Q(sim.total)}: ese dinero sale del grupo y no vuelve.`}>
+                      <span style={{ ...qStyle, fontSize: 12, fontWeight: 700, color: '#92400e' }}>
+                        {Q(sim.total)}
+                      </span>
+                    </Tooltip>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={3} />
+                  <Table.Summary.Cell index={4} />
+                  <Table.Summary.Cell index={5} align="right">
+                    <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>+{Q(sim.iva)}</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={6} />
+                  <Table.Summary.Cell index={7} align="right">
+                    <span style={{ ...qStyle, fontSize: 12, color: '#92400e' }}>{Q(sim.ivaDespues)}</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={8} />
+                  <Table.Summary.Cell index={9} />
+                  <Table.Summary.Cell index={10} />
+                </Table.Summary.Row>,
+              ])}
+            </Table.Summary>
+          )
+        }}
       />
 
       <DetalleIvaModal
