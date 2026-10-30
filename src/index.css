@@ -239,3 +239,27 @@ body {
 
   /* Las facturas se imprimen en VENTANA NUEVA via PrintInvoiceButton — no aplica @page aquí */
 }
+
+/* ── Declaración de IVA (SAT-2237): la hoja impresa es el formulario ───────── */
+@media print {
+  /*
+   * Lo de la pantalla que no pertenece al formulario: el encabezado de la
+   * página, el selector de período y los botones de acción. El 2237 ya trae
+   * su propio título, el NIT, la empresa y el período, así que repetirlos
+   * arriba haría que la hoja no se parezca al formulario de la SAT.
+   */
+  .no-imprimir { display: none !important; }
+
+  /*
+   * Los fondos de las secciones son parte de la forma: sin esto el navegador
+   * los descarta y el formulario sale como una tabla plana, irreconocible.
+   */
+  #formulario-2237 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    border: 1px solid #000 !important;
+  }
+
+  /* Una sección no se parte entre dos hojas. */
+  #formulario-2237 tr { break-inside: avoid; }
+}

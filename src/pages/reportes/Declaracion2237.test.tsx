@@ -134,6 +134,58 @@ describe('Declaración 2237 en pantalla', () => {
     expect(casillas().length).toBe(0)
   })
 
+  /**
+   * Descargar el borrador en PDF.
+   *
+   * El contador compara la hoja contra el formulario oficial antes de
+   * presentar, y la archiva. Lo que se imprime tiene que ser el FORMULARIO: si
+   * se cuela el encabezado de la pantalla, el selector de período o la botonera,
+   * la hoja deja de parecerse al 2237.
+   */
+  describe('la descarga en PDF', () => {
+    it('ofrece el botón', () => {
+      expect(texto()).toContain('Descargar PDF')
+    })
+
+    it('abre el diálogo de impresión del navegador', () => {
+      const imprimir = vi.fn()
+      const original = window.print
+      window.print = imprimir
+
+      const boton = [...contenedor.querySelectorAll('button')]
+        .find(b => (b.textContent ?? '').includes('Descargar PDF'))
+      expect(boton).toBeDefined()
+
+      act(() => { boton!.click() })
+      expect(imprimir).toHaveBeenCalled()
+
+      window.print = original
+    })
+
+    /** El área que va al papel, marcada para que el CSS de impresión la respete. */
+    it('el formulario es el área que se imprime', () => {
+      expect(contenedor.querySelector('#formulario-2237')).not.toBeNull()
+    })
+
+    /**
+     * Lo que NO va al papel. El formulario ya trae su título, el NIT, la
+     * empresa y el período: repetirlos arriba desfigura la hoja.
+     */
+    it('el encabezado de pantalla y el selector quedan fuera del papel', () => {
+      const fuera = [...contenedor.querySelectorAll('.no-imprimir')]
+      expect(fuera.length).toBeGreaterThanOrEqual(2)
+
+      const textoFuera = fuera.map(e => e.textContent ?? '').join(' ')
+      expect(textoFuera).toContain('Período')
+      expect(textoFuera).toContain('Declaración IVA — SAT Formulario 2237')
+    })
+
+    it('el formulario mismo NO está marcado como excluido', () => {
+      const form = contenedor.querySelector('#formulario-2237')
+      expect(form?.closest('.no-imprimir')).toBeNull()
+    })
+  })
+
   describe('al entrar en modo edición', () => {
     beforeEach(() => {
       const boton = [...contenedor.querySelectorAll('button')]

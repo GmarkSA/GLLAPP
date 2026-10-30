@@ -6,7 +6,7 @@ import {
 import {
   CalculatorOutlined, FileProtectOutlined, CheckCircleOutlined,
   EditOutlined, SaveOutlined, CloseOutlined, FileDoneOutlined,
-  ArrowLeftOutlined,
+  ArrowLeftOutlined, FilePdfOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -423,16 +423,23 @@ export default function Declaracion2237() {
   return (
     <ModoEdicion.Provider value={editing}>
     <div style={{ padding: 24 }}>
-      <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => navigate('/reportes')}
-        style={{ marginBottom: 8 }}>
-        Reportes
-      </Button>
-      <Title level={4} style={{ marginBottom: 0 }}>Declaración IVA — SAT Formulario 2237</Title>
-      <Text type="secondary">Impuesto al Valor Agregado · Régimen General · Declaración jurada mensual</Text>
-      <Divider style={{ margin: '12px 0' }} />
+      {/*
+        * El encabezado de pantalla no va al papel: el formulario ya trae su
+        * propio título, el NIT, la empresa y el período. Repetirlo arriba
+        * haría que la hoja impresa no se parezca al 2237.
+        */}
+      <div className="no-imprimir">
+        <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => navigate('/reportes')}
+          style={{ marginBottom: 8 }}>
+          Reportes
+        </Button>
+        <Title level={4} style={{ marginBottom: 0 }}>Declaración IVA — SAT Formulario 2237</Title>
+        <Text type="secondary">Impuesto al Valor Agregado · Régimen General · Declaración jurada mensual</Text>
+        <Divider style={{ margin: '12px 0' }} />
+      </div>
 
       {/* Selector de período */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: 16 }} className="no-imprimir">
         <Space wrap>
           <Text strong>Período:</Text>
           <Select value={mes} onChange={nv => { setMes(nv); setEditing(false) }} style={{ width: 140 }}>
@@ -446,6 +453,14 @@ export default function Declaracion2237() {
             Calcular del sistema
           </Button>
           {decl && (
+            <Tooltip title="Abre el diálogo de impresión: elegí «Guardar como PDF» para descargarlo">
+              <Button icon={<FilePdfOutlined />} onClick={() => window.print()}
+                style={{ color: '#c0392b', borderColor: '#c0392b' }}>
+                Descargar PDF
+              </Button>
+            </Tooltip>
+          )}
+          {decl && (
             <Tag color={STATUS_TAG[decl.status]?.color} style={{ fontSize: 13, padding: '2px 10px' }}>
               {STATUS_TAG[decl.status]?.label}
             </Tag>
@@ -457,7 +472,7 @@ export default function Declaracion2237() {
         <Spin spinning={loading || saveLoading}>
 
           {/* ═══ FORMULARIO SAT-2237 ══════════════════════════════════════════ */}
-          <div style={{ border: BD, background: '#fff', marginBottom: 16 }}>
+          <div id="formulario-2237" style={{ border: BD, background: '#fff', marginBottom: 16 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <colgroup>
                 <col /><col style={{ width: 112 }} /><col style={{ width: 112 }} />
@@ -766,7 +781,7 @@ export default function Declaracion2237() {
           </div>
 
           {/* ═══ Botones de acción ══════════════════════════════════════════════ */}
-          <Space wrap style={{ marginBottom: 24 }}>
+          <Space wrap style={{ marginBottom: 24 }} className="no-imprimir">
             {!editing ? (
               <>
                 {decl.status !== 'presentada' && (
