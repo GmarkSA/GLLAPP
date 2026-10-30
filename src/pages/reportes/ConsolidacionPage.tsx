@@ -4,6 +4,9 @@ import {
   simulaciones, gastoParaIvaCero, type SimulacionDeFactura,
 } from './simulacionFiscal'
 import {
+  ivaDelPeriodo, TITULO_IVA_PERIODO, AYUDA_IVA_PERIODO,
+} from './ivaDelPeriodo'
+import {
   Alert, Breadcrumb, Button, Card, Checkbox, Col, DatePicker, Empty, Modal,
   Row, Segmented, Space, Spin, Statistic, Table, Tabs, Tag, Tooltip, Typography,
 } from 'antd'
@@ -351,13 +354,24 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
             render: (v: number) => (v ?? 0) > 0.005
               ? <span style={{ ...qStyle, fontSize: 12, color: '#2ea172' }}>{Q(v)}</span>
               : <span style={{ fontSize: 12, color: '#9aa1ab' }}>—</span> },
-          { title: <span title="Suma el IVA de los meses YA DECLARADOS del período (con su remanente ya resuelto) — los meses sin declaración generada todavía no cuentan aquí. Por eso puede no coincidir con Débito − Crédito de este cuadro, que sí es la actividad completa del período. Clic para revisar los documentos y lo declarado.">IVA pagado / a favor</span>, dataIndex: 'ivaPorPagar', align: 'right',
-            render: (v: number, r: any) => (
-              <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
-                 style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: (v ?? 0) < -0.005 ? '#2ea172' : '#d46b08' }}>
-                {(v ?? 0) < -0.005 ? `${Q(Math.abs(v))} a favor` : `${Q(v ?? 0)} pagado`}
-              </a>
-            ) },
+          /*
+           * Entre paréntesis lo que queda POR PAGAR y con signo más el crédito
+           * a favor, como en la columna de crédito fiscal. Antes decía
+           * «Q 9,301.95 pagado» y «Q 2,691.52 a favor»: dos cifras positivas
+           * que solo se distinguían por una palabra al final, así que había
+           * que leer cada celda para saber de qué lado estaba.
+           */
+          { title: <span title={AYUDA_IVA_PERIODO}>{TITULO_IVA_PERIODO}</span>,
+            dataIndex: 'ivaPorPagar', align: 'right',
+            render: (v: number, r: any) => {
+              const iva = ivaDelPeriodo(v)
+              return (
+                <a onClick={() => setDetalleDe({ companyId: r.companyId, legalName: r.legalName })}
+                   style={{ ...qStyle, fontSize: 12, fontWeight: 600, color: iva.color }}>
+                  {iva.texto}
+                </a>
+              )
+            } },
           // ISR del Opcional Simplificado: se paga sobre los INGRESOS facturados, no
           // sobre la utilidad, y el tramo del 5% es mensual. Se lee igual que el IVA:
           // lo determinado, lo que ya le retuvieron, y el saldo.
@@ -420,9 +434,9 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={6} />
                   <Table.Summary.Cell index={7} align="right">
-                    <Tooltip title={`Antes: ${Q(sim.ivaAntes)}`}>
+                    <Tooltip title={`Antes: ${ivaDelPeriodo(sim.ivaAntes).texto}`}>
                       <span style={{ ...qStyle, fontSize: 12, fontWeight: 700, color: '#15803d' }}>
-                        {Q(sim.ivaDespues)}
+                        {ivaDelPeriodo(sim.ivaDespues).texto}
                       </span>
                     </Tooltip>
                   </Table.Summary.Cell>
@@ -466,7 +480,7 @@ function PanelFiscal({ data }: { data: PlanificacionFiscal }) {
                       <Table.Summary.Cell index={6} />
                       <Table.Summary.Cell index={7} align="right">
                         <span style={{ ...qStyle, fontSize: 12, fontWeight: 700, color: '#92400e' }}>
-                          {Q(0)}
+                          {ivaDelPeriodo(0).texto}
                         </span>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={8} />
@@ -758,7 +772,7 @@ function exportarExcel(params: {
   if (erData) XLSX.utils.book_append_sheet(wb, toSheet(erData), 'Est. Resultados')
 
   if (pfData) {
-    const headers = ['Empresa', 'NIT', 'Régimen', 'Renta imponible', 'Compras realizadas', 'Resultado del período', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Remanente mes anterior', 'IVA pagado / a favor', 'ISR determinado', 'ISR retenido', 'Excedente ISR pagado']
+    const headers = ['Empresa', 'NIT', 'Régimen', 'Renta imponible', 'Compras realizadas', 'Resultado del período', 'IVA por Pagar (débito)', 'IVA Crédito Fiscal', 'Remanente mes anterior', `${TITULO_IVA_PERIODO} (positivo = por pagar)`, 'ISR determinado', 'ISR retenido', 'Excedente ISR pagado']
     const rows = pfData.empresas.map(e => [e.legalName, e.taxId, e.regNombre, e.rentaImponible, e.gastos, e.utilidad, e.ivaDebito ?? 0, e.ivaCredito ?? 0, e.remanenteMesAnterior ?? 0, e.ivaPorPagar ?? 0, e.aplicaIsr ? e.isrDeterminado : 'No aplica', e.aplicaIsr ? e.isrRetenido : '', e.aplicaIsr ? e.isrPorPagar : ''])
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Plan. Fiscal')
   }
