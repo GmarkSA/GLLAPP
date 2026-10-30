@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  simularFactura, gastoEquivalente, simulaciones,
+  simularFactura, gastoParaIvaCero, simulaciones,
 } from './simulacionFiscal'
 import type { Recomendacion } from '../../api/consolidacion'
 
@@ -100,30 +100,60 @@ describe('qué recomendaciones NO se simulan', () => {
 })
 
 /**
- * El renglón de referencia.
+ * El renglón de referencia: llevar el IVA a CERO.
  *
- * Da la misma cifra que la factura entre empresas, y eso es justamente lo que
- * hay que mostrar: el IVA se calcula sobre la misma base, así que la compra a
- * un tercero cuesta lo mismo. Lo que cambia es a dónde va el dinero.
+ * Después de la factura entre empresas Kaizen todavía paga Q 6,610.43. Para
+ * borrar ese saldo comprándole a un tercero tendría que desembolsar
+ * Q 55,086.92 más IVA. Puesto al lado del renglón verde, deja clara la
+ * diferencia entre mover una factura dentro del grupo y gastar de verdad.
  */
-describe('el gasto equivalente con un tercero', () => {
-  it('cuesta lo mismo que la factura entre empresas', () => {
+describe('el gasto que dejaría el IVA en cero', () => {
+  it('la base sale de dividir el IVA pendiente entre la tasa', () => {
     const s = simularFactura(RECOMENDACION, EMPRESAS)!
-    const g = gastoEquivalente(s)
+    const g = gastoParaIvaCero(s)!
 
-    expect(g.base).toBeCloseTo(22429.33, 2)
-    expect(g.iva).toBeCloseTo(2691.52, 2)
-    expect(g.total).toBeCloseTo(25120.85, 2)
+    expect(g.base).toBeCloseTo(55086.92, 2)
+    expect(g.iva).toBeCloseTo(6610.43, 2)
+    expect(g.total).toBeCloseTo(61697.35, 2)
+  })
+
+  /** El IVA de esa compra es exactamente el que quedaba por pagar. */
+  it('el IVA de la compra borra el saldo, ni más ni menos', () => {
+    const s = simularFactura(RECOMENDACION, EMPRESAS)!
+    const g = gastoParaIvaCero(s)!
+
+    expect(g.iva).toBeCloseTo(s.ivaDespues, 2)
   })
 
   /**
-   * La comparación que importa: para ahorrarse Q 2,691.52 de IVA habría que
-   * desembolsar Q 25,120.85 — casi diez veces el ahorro.
+   * El contraste que justifica el renglón: ahorrarse el impuesto cuesta nueve
+   * veces esa cifra en efectivo.
    */
-  it('el desembolso es mucho mayor que el ahorro', () => {
+  it('el desembolso es muchas veces mayor que el impuesto que evita', () => {
     const s = simularFactura(RECOMENDACION, EMPRESAS)!
-    const g = gastoEquivalente(s)
+    const g = gastoParaIvaCero(s)!
 
-    expect(g.total).toBeGreaterThan(s.iva * 9)
+    expect(g.total).toBeGreaterThan(g.iva * 9)
+  })
+
+  /** Sin saldo que borrar no hay nada que simular. */
+  it('si el IVA ya quedó en cero, no hay gasto que mostrar', () => {
+    const s = simularFactura(
+      { ...RECOMENDACION, montoSugerido: 100000, ahorroEstimadoIva: 12000 },
+      EMPRESAS)!
+
+    expect(s.ivaDespues).toBe(0)
+    expect(gastoParaIvaCero(s)).toBeNull()
+  })
+
+  /** Usa la tasa de la recomendación, no un 12% fijo. */
+  it('respeta la tasa de la recomendación', () => {
+    const s = simularFactura(
+      { ...RECOMENDACION, montoSugerido: 10000, ahorroEstimadoIva: 1000 }, EMPRESAS)!
+    const g = gastoParaIvaCero(s)!
+
+    expect(s.tasa).toBeCloseTo(10, 2)
+    // Quedan 8,301.95 de IVA; al 10% la base es 83,019.50
+    expect(g.base).toBeCloseTo(83019.50, 2)
   })
 })

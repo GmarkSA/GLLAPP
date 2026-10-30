@@ -83,24 +83,37 @@ export function simularFactura(
   }
 }
 
-export interface GastoEquivalente {
+export interface GastoParaIvaCero {
   /** La base que habría que comprarle a un tercero. */
   base: number
+  /** El IVA de esa compra: justo el que queda por pagar. */
   iva: number
   /** Lo que saldría de la caja. */
   total: number
 }
 
 /**
- * Cuánto habría que gastar con un tercero para lograr la misma rebaja.
+ * Cuánto habría que gastar para dejar el IVA por pagar en CERO.
  *
- * Da la misma cifra que la factura entre empresas, y eso es justamente lo que
- * hay que mostrar: el IVA se calcula sobre la misma base, así que la «compra»
- * cuesta lo mismo. Lo que cambia es a dónde va el dinero — a un tercero no
- * vuelve; al grupo, sí.
+ * Es el renglón de referencia, y su valor está en el contraste: después de la
+ * factura entre empresas Kaizen todavía paga Q 6,610.43, y para borrar ese
+ * saldo comprándole a un tercero tendría que desembolsar Q 55,086.92 más IVA
+ * — Q 61,697.35 en total.
+ *
+ * O sea que ahorrarse Q 6,610.43 de impuesto cuesta nueve veces esa cifra en
+ * efectivo, y encima sale del grupo. Puesto al lado del renglón verde, deja
+ * clara la diferencia entre mover una factura dentro del grupo y gastar de
+ * verdad.
+ *
+ * La base se deduce de la tasa de la propia recomendación, no del 12% fijo.
+ * Devuelve null si ya no queda IVA que borrar: no hay nada que simular.
  */
-export function gastoEquivalente(sim: SimulacionDeFactura): GastoEquivalente {
-  return { base: sim.base, iva: sim.iva, total: sim.total }
+export function gastoParaIvaCero(sim: SimulacionDeFactura): GastoParaIvaCero | null {
+  const iva = sim.ivaDespues
+  if (iva <= 0.005 || sim.tasa <= 0) return null
+
+  const base = centavos(iva / (sim.tasa / 100))
+  return { base, iva, total: centavos(base + iva) }
 }
 
 /**
