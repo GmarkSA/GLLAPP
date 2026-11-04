@@ -483,8 +483,15 @@ export const createEstimate = (dto: CreateEstimateDto) =>
 export const updateEstimate = (id: string, dto: Partial<CreateEstimateDto>) =>
   api.patch(`${BASE_EST}/${id}`, dto).then(unwrap) as Promise<Estimate>
 
-export const sendEstimate = (id: string, dto: { to: string }) =>
-  api.post(`${BASE_EST}/${id}/enviar`, dto).then(unwrap)
+/**
+ * Enviar la cotización por correo.
+ *
+ * `to` es opcional: sin él va al correo del cliente, que es el caso normal
+ * cuando se envía desde el formulario. La respuesta dice a quién se mandó, así
+ * que la pantalla no tiene que adivinarlo.
+ */
+export const sendEstimate = (id: string, dto?: { to?: string; cc?: string; subject?: string; message?: string }) =>
+  api.post(`${BASE_EST}/${id}/enviar`, dto ?? {}).then(unwrap) as Promise<{ sent: boolean; to?: string }>
 
 export const convertEstimate = (id: string) =>
   api.post(`${BASE_EST}/${id}/convertir-a-factura`).then(unwrap) as Promise<Invoice>

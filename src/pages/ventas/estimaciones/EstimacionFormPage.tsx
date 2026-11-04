@@ -216,9 +216,12 @@ export default function EstimacionFormPage() {
     if (!id) return
     setSending(true)
     try {
-      await sendEstimate(id, { to: '' })
+      // Sin destinatario: el servidor la manda al correo del cliente y dice a
+      // cuál. Antes este botón solo cambiaba el estado —no enviaba nada— y el
+      // mensaje lo decía así; ahora sí envía.
+      const r = await sendEstimate(id)
       setStatus('sent')
-      message.success('Cotización marcada como Enviada')
+      message.success(r?.to ? `Cotización enviada a ${r.to}` : 'Cotización enviada')
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Error al enviar')
     } finally { setSending(false) }
