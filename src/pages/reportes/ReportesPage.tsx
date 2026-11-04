@@ -85,7 +85,7 @@ const GROUPS: ReportGroup[] = [
     id: 'inventario',
     label: 'Inventario',
     reports: [
-      { key: 'inventario', icon: <PieChartOutlined />, title: 'Inventario', desc: 'Valorización por costo promedio ponderado y kardex de movimientos por artículo.', path: '/reportes/inventario', color: '#2ea172' },
+      { key: 'inventario', icon: <PieChartOutlined />, title: 'Inventario', desc: 'Ventas por cliente, artículo, día y mes · Kardex con compras, ventas y ajustes · Valorización al costo promedio.', path: '/reportes/inventario', color: '#2ea172' },
     ],
   },
   {
