@@ -223,3 +223,82 @@ export interface KardexResult {
 
 export const getKardex = (productId: string, params?: { desde?: string; hasta?: string }) =>
   api.get(`/inventario/articulos/${productId}/kardex`, { params }).then(unwrap) as Promise<KardexResult>
+
+// ─── Reportes de ventas e inventario ──────────────────────────────────────────
+
+/**
+ * Las ventas del período, por la vista que se pida.
+ *
+ * Las cuatro vistas son la misma venta mirada de cuatro maneras y parten del
+ * mismo filtro en el servidor, así que sus totales coinciden entre sí.
+ */
+export type VistaDeVentas = 'cliente' | 'articulo' | 'dia' | 'mes'
+
+export interface FilaDeVentas {
+  /** Según la vista: id de cliente o de artículo. */
+  id?:          string
+  nombre?:      string
+  sku?:         string
+  fecha?:       string
+  mes?:         string
+  inicio?:      string
+  cantidad:     number
+  base:         number
+  impuesto:     number
+  total:        number
+  documentos:   number
+}
+
+export interface ReporteDeVentas {
+  vista:   VistaDeVentas
+  periodo: { desde?: string; hasta?: string }
+  filas:   FilaDeVentas[]
+  totales: {
+    cantidad: number; base: number; impuesto: number; total: number; filas: number
+  }
+}
+
+export const getReporteVentas = (params: {
+  vista: VistaDeVentas; desde: string; hasta: string
+}) => api.get('/reportes/inventario/ventas', { params }).then(unwrap) as Promise<ReporteDeVentas>
+
+/**
+ * El kardex completo: movimientos, ajustes y ventas, con el saldo arrastrado.
+ *
+ * El kardex del detalle del artículo solo leía los ajustes. Este une las tres
+ * fuentes, porque las existencias se mueven por caminos distintos y cada uno
+ * guarda su rastro en su propia tabla.
+ */
+export interface RenglonDeKardex {
+  fecha:          string
+  documento?:     string
+  tipo:           string
+  descripcion?:   string
+  productId?:     string
+  sku?:           string
+  articulo?:      string
+  cantidad:       number
+  entrada:        number
+  salida:         number
+  /** Las existencias DESPUÉS de este movimiento. */
+  saldo:          number
+  costoUnitario?: number
+  costoTotal?:    number
+}
+
+export interface ReporteDeKardex {
+  periodo:     { desde?: string; hasta?: string }
+  productId:   string | null
+  movimientos: RenglonDeKardex[]
+  resumen: {
+    saldoInicial: number
+    entradas:     number
+    salidas:      number
+    saldoFinal:   number
+    movimientos:  number
+  }
+}
+
+export const getKardexCompleto = (params: {
+  desde: string; hasta: string; productId?: string
+}) => api.get('/reportes/inventario/kardex', { params }).then(unwrap) as Promise<ReporteDeKardex>

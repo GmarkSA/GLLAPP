@@ -4,11 +4,13 @@ import {
   Statistic, Card, Tabs, Spin, Empty, Space, message,
 } from 'antd'
 import {
-  SearchOutlined, DownloadOutlined, WarningOutlined,
+  SearchOutlined, DownloadOutlined, WarningOutlined, ShoppingOutlined,
   ArrowLeftOutlined, FileExcelOutlined,
 } from '@ant-design/icons'
 import type { ColumnType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
+import VentasTab from './VentasTab'
+import KardexCompletoTab from './KardexCompletoTab'
 import { useNavigate } from 'react-router-dom'
 import { getProducts, getKardex, type Product, type KardexMovimiento } from '../../api/inventario'
 
@@ -394,8 +396,23 @@ export default function ReporteInventarioPage() {
             children: <ValorizacionTab />,
           },
           {
+            key:      'ventas',
+            label:    <span><ShoppingOutlined /> Ventas</span>,
+            children: <VentasTab />,
+          },
+          {
             key:      'kardex',
             label:    <span><SearchOutlined /> Kardex</span>,
+            children: <KardexCompletoTab />,
+          },
+          {
+            /*
+             * El kardex de solo ajustes que había antes. Se conserva: sigue
+             * sirviendo para revisar nada más los conteos y correcciones de un
+             * artículo, sin el ruido de compras y ventas.
+             */
+            key:      'kardex-ajustes',
+            label:    <span><SearchOutlined /> Kardex de ajustes</span>,
             children: <KardexTab />,
           },
         ]}
