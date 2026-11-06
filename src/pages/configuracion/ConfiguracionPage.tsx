@@ -31,6 +31,7 @@ import {
   type OrganizationProfile,
 } from '../../api/configuracion'
 import { FORMATOS_DE_LOGO, LIMITE_DE_LOGO, MB_DE_LOGO } from '../../components/Print/logoDeLaEmpresa'
+import { archivoDeSubida } from '../../utils/archivoDeSubida'
 import {
   getCurrencies, createCurrency, updateRate, syncBanguatRate, removeCurrency, updateCurrency,
   type Currency,
@@ -170,7 +171,9 @@ function OrganizationSection({
   }, [profile, form, activeCompany, authUser, fullCompany])
 
   const handleLogoUpload = async (info: UploadChangeParam) => {
-    const file = info.file.originFileObj
+    // `info.file` viene como File crudo: con beforeUpload=false antd NO lo
+    // envuelve, y leer `originFileObj` dejaba la subida muerta en silencio.
+    const file = archivoDeSubida(info)
     if (!file) return
 
     if (!FORMATOS_DE_LOGO.includes(file.type)) {
