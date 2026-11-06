@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
-  getEstimate, sendEstimate, convertEstimate, duplicateEstimate, deleteEstimate,
+  getEstimate, sendEstimate, convertEstimate, duplicateEstimate, deleteEstimate, updateEstimate,
   ESTIMATE_STATUS_CONFIG, type Estimate, type InvoiceItem,
 } from '../../../api/facturas'
 import { getEmisor } from '../../../api/emisor'
@@ -36,6 +36,10 @@ export default function EstimacionDetallePage() {
   const [sending,   setSending]   = useState(false)
   const [converting, setConverting] = useState(false)
   const [showSend,  setShowSend]  = useState(false)
+  // El texto de cierre se edita en la propia cotización, sin entrar a editarla
+  // entera. Arranca con lo que tenga escrito y, si no tiene, con el borrador.
+  const [cierre, setCierre] = useState('')
+  const [guardandoCierre, setGuardandoCierre] = useState(false)
   const [sendForm]  = Form.useForm()
 
   const loadEst = useCallback(async () => {
@@ -46,12 +50,24 @@ export default function EstimacionDetallePage() {
       // impresión leen el mismo régimen y no se contradicen en pantalla.
       const data = await getEstimate(id)
       setEst(data)
+      setCierre(textoDeCierreInicial(data.notes))
       setCompany(await getEmisor(data.companyId).catch(() => ({ name: '' } as OrganizationProfile)))
     } catch { message.error('No se pudo cargar la cotización') }
     finally { setLoading(false) }
   }, [id])
 
   useEffect(() => { loadEst() }, [loadEst])
+
+  const guardarCierre = async () => {
+    if (!est) return
+    setGuardandoCierre(true)
+    try {
+      await updateEstimate(est.id, { notes: cierre.trim() || undefined } as any)
+      message.success('Texto de cierre guardado')
+      loadEst()
+    } catch (e: any) { message.error(e?.response?.data?.message || 'No se pudo guardar') }
+    finally { setGuardandoCierre(false) }
+  }
 
   const handleSend = async () => {
     try { await sendForm.validateFields() } catch { return }
@@ -109,7 +125,7 @@ export default function EstimacionDetallePage() {
    * de IVA ni línea de IVA, aunque los montos salgan en cero. El régimen es
    * el de la empresa que emite, que llega con el emisor.
    */
-  const sinIva  = esPequenoContribuyente(company.fiscalRegimeCode)
+  const sinIva  = esPequenoContribuyente(est.fiscalRegimeCode ?? company.fiscalRegimeCode)
   const tasaIva = tasaDeIvaDelDocumento(est.items)
 
   const itemColumns = [
@@ -170,7 +186,7 @@ export default function EstimacionDetallePage() {
           <Button icon={<SendOutlined />} onClick={() => {
             // El cuadro se abre con el texto de cierre ya puesto: el que la
             // cotización tenga escrito, y si no, el borrador.
-            sendForm.setFieldsValue({ message: textoDeCierreInicial(est.notes) })
+            sendForm.setFieldsValue({ message: cierre })
             setShowSend(true)
           }}>
             Enviar correo
@@ -350,31 +366,46 @@ export default function EstimacionDetallePage() {
           </div>
         </div>
 
-        {/* Notas / Términos */}
-        {(est.notes || est.termsAndConditions) && (
-          <>
-            <Divider style={{ margin: 0 }} />
-            <div style={{ padding: '20px 40px', display: 'grid', gridTemplateColumns: est.notes && est.termsAndConditions ? '1fr 1fr' : '1fr', gap: 24 }}>
-              {est.notes && (
-                <div>
-                  <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
-                    Observaciones
-                  </Text>
-                  <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{est.notes}</Text>
-                </div>
-              )}
-              {est.termsAndConditions && (
-                <div>
-                  <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
-                    Términos y condiciones
-                  </Text>
-                  <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{est.termsAndConditions}</Text>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        {/*
+          * Texto de cierre: lo último que lee el cliente.
+          *
+          * Se edita aquí mismo, sin entrar a editar la cotización entera, y
+          * está SIEMPRE a la vista —aunque no haya nada escrito— con el
+          * borrador puesto. Antes solo aparecía si alguien ya había escrito
+          * notas, así que nadie sabía que el espacio existía.
+          */}
+        <Divider style={{ margin: 0 }} />
+        <div style={{ padding: '20px 40px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Texto de cierre
+            </Text>
+            {cierre.trim() !== (est.notes ?? '').trim() && (
+              <Button size="small" type="primary" loading={guardandoCierre}
+                onClick={guardarCierre} style={{ background: '#1faec2' }}>
+                Guardar
+              </Button>
+            )}
+          </div>
+          <Input.TextArea
+            value={cierre}
+            onChange={e => setCierre(e.target.value)}
+            autoSize={{ minRows: 3, maxRows: 10 }}
+            style={{ fontSize: 13 }}
+          />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            Sale al final de la cotización impresa y en el correo. Se puede ajustar también al enviarla.
+          </Text>
 
+          {est.termsAndConditions && (
+            <div style={{ marginTop: 20 }}>
+              <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+                Términos y condiciones
+              </Text>
+              <Text style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{est.termsAndConditions}</Text>
+            </div>
+          )}
+        </div>
         {/* ── Más información ───────────────────────────────────────────────── */}
         <Divider style={{ margin: 0 }} />
         <div style={{ padding: '20px 40px 28px', background: '#fafbfc' }}>

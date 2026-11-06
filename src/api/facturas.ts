@@ -130,6 +130,11 @@ export interface Estimate {
   id:              string
   /** La empresa que la emite. El documento se imprime con SU identidad. */
   companyId?:      string
+  /**
+   * El régimen fiscal de quien la emite, resuelto por el servidor. Viaja con
+   * el documento para que la pantalla y el PDF no puedan contradecirse.
+   */
+  fiscalRegimeCode?: string | null
   estimateNumber:  string
   status:          EstimateStatus
   customerId:      string
