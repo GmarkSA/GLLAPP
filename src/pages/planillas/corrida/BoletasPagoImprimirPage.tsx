@@ -46,6 +46,8 @@ function Boleta({ e, anio, mes, org, cfg, esUltima }: {
   return (
     <div className="boleta" style={{ pageBreakAfter: esUltima ? 'auto' : 'always' }}>
       <div className="hdr">
+        {/* El logo encabeza el recibo: es un documento que el empleado guarda. */}
+        {org?.logoUrl && <img src={org.logoUrl} alt="" className="co-logo" />}
         <div className="co-name">{companyName}</div>
         {org?.taxId && <div className="co-sub">NIT: {org.taxId}</div>}
       </div>
@@ -140,6 +142,7 @@ export default function BoletasPagoImprimirPage() {
         .boleta { background: #fff; max-width: 480px; margin: 20px auto; padding: 16px 20px; box-shadow: 0 2px 16px rgba(0,0,0,.15); }
 
         .hdr { text-align: center; margin-bottom: 4px; }
+        .co-logo { max-height: 34px; max-width: 150px; object-fit: contain; margin: 0 auto 2px; display: block; }
         .co-name { font-size: ${cfg.fontSize + 4}px; font-weight: 700; color: #1B3A6B; }
         .co-sub { font-size: ${cfg.fontSize - 1}px; color: #555; }
         .doc-title { text-align: center; font-weight: 700; font-size: ${cfg.fontSize + 1}px; margin: 8px 0; border-top: 2px solid #1B3A6B; border-bottom: 2px solid #1B3A6B; padding: 4px 0; }

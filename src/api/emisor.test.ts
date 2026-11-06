@@ -117,3 +117,45 @@ describe('Encabezado del documento', () => {
     })
   })
 })
+
+/**
+ * El logo que encabeza lo que se imprime.
+ *
+ * Es de la EMPRESA que emite, no de la cuenta: dos empresas de la misma
+ * cuenta no encabezan igual sus documentos. El de la cuenta queda de respaldo
+ * para quien todavía no subió el suyo — es la misma confusión que ya hizo
+ * salir los libros de Kaizen con el NIT del dueño de la cuenta.
+ */
+describe('el logo del emisor', () => {
+  const CUENTA = { name: 'GLL Consulting', logoUrl: 'logo-de-la-cuenta.png' } as any
+
+  it('es el de la empresa activa', () => {
+    const e = emisorDesdeEmpresa({ legalName: 'Paper Plus', logoUrl: 'logo-paper-plus.png' }, CUENTA)
+
+    expect(e.logoUrl).toBe('logo-paper-plus.png')
+  })
+
+  it('cada empresa trae el suyo', () => {
+    const otra = emisorDesdeEmpresa({ legalName: 'LUUM', logoUrl: 'logo-luum.png' }, CUENTA)
+
+    expect(otra.logoUrl).toBe('logo-luum.png')
+  })
+
+  /** Quien aún no subió el suyo imprime con el de la cuenta, no sin logo. */
+  it('sin logo propio, usa el de la cuenta', () => {
+    const e = emisorDesdeEmpresa({ legalName: 'Nueva, S.A.' }, CUENTA)
+
+    expect(e.logoUrl).toBe('logo-de-la-cuenta.png')
+  })
+
+  it('sin ninguno de los dos, no hay logo', () => {
+    const e = emisorDesdeEmpresa({ legalName: 'Nueva, S.A.' }, { name: 'GLL' } as any)
+
+    expect(e.logoUrl).toBeFalsy()
+  })
+
+  /** Sin empresa activa se imprime con la cuenta, como siempre. */
+  it('sin empresa, queda el de la cuenta', () => {
+    expect(emisorDesdeEmpresa(null, CUENTA).logoUrl).toBe('logo-de-la-cuenta.png')
+  })
+})

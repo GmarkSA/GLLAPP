@@ -74,6 +74,7 @@ export default function TransferenciaPrintPage() {
           display: flex; justify-content: space-between; align-items: flex-start;
           border-bottom: 3px solid #1faec2; padding-bottom: 10px; margin-bottom: 16px;
         }
+        .co-logo { max-height: 48px; max-width: 170px; object-fit: contain; margin-bottom: 6px; display: block; }
         .co-name { font-size: 14pt; font-weight: 700; color: #1faec2; margin: 0 0 2px; }
         .co-sub  { font-size: 8.5pt; color: #444; line-height: 1.5; }
 
@@ -148,6 +149,8 @@ export default function TransferenciaPrintPage() {
         {/* Encabezado empresa */}
         <div className="co-header">
           <div>
+            {/* El comprobante se le manda al proveedor: lleva el logo. */}
+            {company?.logoUrl && <img src={company.logoUrl} alt="" className="co-logo" />}
             <p className="co-name">{company?.legalName ?? company?.name ?? '—'}</p>
             <div className="co-sub">
               {company?.taxId && <span>NIT: {company.taxId}&nbsp;&nbsp;</span>}
