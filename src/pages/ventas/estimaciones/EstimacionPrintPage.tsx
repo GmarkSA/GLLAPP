@@ -60,7 +60,7 @@ export default function EstimacionPrintPage() {
    * de IVA ni línea de IVA, y sí lleva la leyenda del régimen al pie. El
    * régimen es el de la empresa que emite, que llega con el emisor.
    */
-  const sinIva  = esPequenoContribuyente(org?.fiscalRegimeCode)
+  const sinIva  = esPequenoContribuyente(estimate.fiscalRegimeCode ?? org?.fiscalRegimeCode)
   const tasaIva = tasaDeIvaDelDocumento(estimate.items)
 
   const subtotal = estimate.subtotal ?? 0
