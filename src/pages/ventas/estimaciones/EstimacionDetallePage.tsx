@@ -17,6 +17,7 @@ import {
 import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
+import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -117,7 +118,13 @@ export default function EstimacionDetallePage() {
     { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v ?? 12}%</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 130, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      // Del monto guardado, y si la cotización es de antes de que se guardara,
+      // calculado: si no, la columna entera salía «Q NaN».
+      render: (_: number, row: InvoiceItem) => (
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>
+          {fmtQ(totalDeLinea(row))}
+        </Text>
+      ),
     },
   ]
 

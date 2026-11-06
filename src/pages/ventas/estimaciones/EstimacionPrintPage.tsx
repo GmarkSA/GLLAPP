@@ -6,6 +6,7 @@ import { getEstimate, type Estimate, ESTIMATE_STATUS_CONFIG } from '../../../api
 import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { getSavedTemplate } from '../../../components/Print/printFormats'
+import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
 
 const fmtQ = (n: number, currency = 'GTQ') =>
   `${currency === 'USD' ? '$' : 'Q'} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -200,8 +201,12 @@ export default function EstimacionPrintPage() {
                 <td className="right">{fmtQ(Number(item.unitPrice), estimate.currency)}</td>
                 <td className="right">{Number(item.discountPercent) > 0 ? `${item.discountPercent}%` : '—'}</td>
                 <td className="right">{item.taxPercent}%</td>
+                {/*
+                  * Del monto guardado, y si la cotización es de antes de que
+                  * se guardara, calculado: si no, la columna salía en cero.
+                  */}
                 <td className="right" style={{ fontWeight: 600 }}>
-                  {fmtQ(Number(item.lineTotal ?? 0), estimate.currency)}
+                  {fmtQ(totalDeLinea(item), estimate.currency)}
                 </td>
               </tr>
             ))}

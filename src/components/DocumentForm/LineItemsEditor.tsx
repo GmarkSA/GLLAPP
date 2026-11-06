@@ -9,6 +9,7 @@ import { getProducts, getProduct, type Product } from '../../api/inventario'
 import { getAccounts, type Account } from '../../api/catalogo'
 import { getUnidadesActivas, type UnidadMedida } from '../../api/unidades-medida'
 import type { Tax } from '../../api/impuestos'
+import { montosDeLinea } from './montosDeLinea'
 
 export interface LineItem {
   _key:          string
@@ -57,31 +58,16 @@ export const newLineItem = (overrides?: Partial<LineItem>): LineItem => {
   return recalc(item)
 }
 
+/**
+ * El precio SAT ("P. Unitario con IVA") = base + IVA, sin IDP. El IDP se
+ * calcula en el form padre y se SUMA al total; aquí solo IVA.
+ *
+ * La fórmula está en `montosDeLinea`, aparte, porque las pantallas que solo
+ * muestran —el detalle de una cotización, su impresión— también la necesitan:
+ * las cotizaciones guardadas antes no traen el monto de cada línea.
+ */
 export function recalc(item: LineItem): LineItem {
-  const rate        = item.taxPercent ?? 0
-  // Descuento en Q exacto (DTE SAT lo trae absoluto): prioridad sobre el porcentaje
-  const discAbs     = Number(item.discountAmount ?? 0)
-  const grossAmount = discAbs > 0
-    ? Math.max(0, item.quantity * item.unitPrice - discAbs)
-    : item.quantity * item.unitPrice * (1 - (item.discountPercent ?? 0) / 100)
-
-  // El precio SAT ("P. Unitario con IVA") = base + IVA, sin IDP.
-  // El IDP se calcula en el form padre y se SUMA al total. Aquí solo IVA.
-  let lineNet: number, lineTax: number, lineTotal: number
-
-  if (item.taxInclusive && rate > 0) {
-    // Precio YA incluye el impuesto → extraer base e impuesto
-    lineNet   = Math.round(grossAmount / (1 + rate / 100) * 100) / 100
-    lineTax   = Math.round((grossAmount - lineNet) * 100) / 100
-    lineTotal = Math.round(grossAmount * 100) / 100
-  } else {
-    // Precio excluye el impuesto → agregar impuesto sobre la base
-    lineNet   = Math.round(grossAmount * 100) / 100
-    lineTax   = Math.round(lineNet * (rate / 100) * 100) / 100
-    lineTotal = Math.round((lineNet + lineTax) * 100) / 100
-  }
-
-  return { ...item, lineNet, lineTax, lineTotal }
+  return { ...item, ...montosDeLinea(item) }
 }
 
 export interface TaxBreakdownItem {
