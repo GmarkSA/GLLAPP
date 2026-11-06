@@ -28,6 +28,9 @@ export function emisorDesdeEmpresa(
     taxId:     empresa.taxId || cliente.taxId,
     email:     cliente.email || empresa.email,
     phone:     cliente.phone || empresa.phone,
+    // El régimen es de la empresa que emite, nunca del cliente: en una cuenta
+    // con varias empresas cada una puede tener el suyo.
+    fiscalRegimeCode: empresa.fiscalRegimeCode ?? null,
   }
 }
 

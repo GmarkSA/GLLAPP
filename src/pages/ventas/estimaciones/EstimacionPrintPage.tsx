@@ -7,6 +7,9 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { getSavedTemplate } from '../../../components/Print/printFormats'
 import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
+import {
+  esPequenoContribuyente, tasaDeIvaDelDocumento, LEYENDA_PEQUENO_CONTRIBUYENTE,
+} from '../../../components/Print/regimenFiscal'
 
 const fmtQ = (n: number, currency = 'GTQ') =>
   `${currency === 'USD' ? '$' : 'Q'} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -46,6 +49,14 @@ export default function EstimacionPrintPage() {
   }
 
   const statusCfg = ESTIMATE_STATUS_CONFIG[estimate.status] ?? { label: estimate.status, color: 'default' }
+
+  /**
+   * Un Pequeño Contribuyente no traslada IVA: su documento no lleva columna
+   * de IVA ni línea de IVA, y sí lleva la leyenda del régimen al pie. El
+   * régimen es el de la empresa que emite, que llega con el emisor.
+   */
+  const sinIva  = esPequenoContribuyente(org?.fiscalRegimeCode)
+  const tasaIva = tasaDeIvaDelDocumento(estimate.items)
 
   const subtotal = estimate.subtotal ?? 0
   const discount = estimate.discountAmount ?? 0
@@ -109,6 +120,10 @@ export default function EstimacionPrintPage() {
         .notes-text  { font-size: 12px; color: #444; white-space: pre-wrap; }
         .footer { margin-top: 32px; border-top: 1px solid rgba(10,10,10,0.08); padding-top: 12px;
           font-size: 10px; color: #aaa; text-align: center; }
+        /* La leyenda del régimen se lee: no es pie de página gris de 10px. */
+        .leyenda-regimen { margin-top: 28px; padding: 8px 12px; text-align: center;
+          font-size: 11px; font-weight: 600; letter-spacing: .02em; color: #444;
+          border: 1px solid rgba(10,10,10,0.12); border-radius: 4px; }
         .print-btn {
           position: fixed; bottom: 24px; right: 24px; z-index: 999;
           padding: 10px 22px; background: ${pc}; color: #fff;
@@ -187,7 +202,7 @@ export default function EstimacionPrintPage() {
               <th className="right" style={{ width: 65 }}>Cant.</th>
               <th className="right" style={{ width: 90 }}>P. Unit.</th>
               <th className="right" style={{ width: 65 }}>Desc.%</th>
-              <th className="right" style={{ width: 65 }}>IVA%</th>
+              {!sinIva && <th className="right" style={{ width: 65 }}>IVA%</th>}
               <th className="right" style={{ width: 100 }}>Total</th>
             </tr>
           </thead>
@@ -200,7 +215,7 @@ export default function EstimacionPrintPage() {
                 <td className="right">{Number(item.quantity).toFixed(2)}</td>
                 <td className="right">{fmtQ(Number(item.unitPrice), estimate.currency)}</td>
                 <td className="right">{Number(item.discountPercent) > 0 ? `${item.discountPercent}%` : '—'}</td>
-                <td className="right">{item.taxPercent}%</td>
+                {!sinIva && <td className="right">{Number(item.taxPercent ?? 0)}%</td>}
                 {/*
                   * Del monto guardado, y si la cotización es de antes de que
                   * se guardara, calculado: si no, la columna salía en cero.
@@ -226,10 +241,13 @@ export default function EstimacionPrintPage() {
                 <span style={{ color: '#e5484d' }}>− {fmtQ(discount, estimate.currency)}</span>
               </div>
             )}
-            <div className="totals-row">
-              <span style={{ color: '#666' }}>IVA</span>
-              <span>{fmtQ(tax, estimate.currency)}</span>
-            </div>
+            {/* Un Pequeño Contribuyente no traslada IVA: la línea no va. */}
+            {!sinIva && (
+              <div className="totals-row">
+                <span style={{ color: '#666' }}>IVA{tasaIva != null ? ` (${tasaIva}%)` : ''}</span>
+                <span>{fmtQ(tax, estimate.currency)}</span>
+              </div>
+            )}
             <div className="totals-row total">
               <span>TOTAL</span>
               <span>{fmtQ(total, estimate.currency)}</span>
@@ -253,6 +271,15 @@ export default function EstimacionPrintPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/*
+          * La leyenda del régimen va antes del pie técnico y con más peso que
+          * él: le dice al cliente que el precio no lleva IVA y que esta compra
+          * no le da crédito fiscal. Es lo primero que preguntaría si no está.
+          */}
+        {sinIva && (
+          <div className="leyenda-regimen">{LEYENDA_PEQUENO_CONTRIBUYENTE}</div>
         )}
 
         <div className="footer">
