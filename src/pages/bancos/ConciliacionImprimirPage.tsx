@@ -12,6 +12,8 @@ import {
   type ReconciliationPeriod,
 } from '../../api/bancos'
 import { useCompanyStore } from '../../store/companyStore'
+import { getEmisor } from '../../api/emisor'
+import type { OrganizationProfile } from '../../api/configuracion'
 import { useAuthStore } from '../../store/authStore'
 
 dayjs.locale('es')
@@ -54,6 +56,10 @@ export default function ConciliacionImprimirPage() {
   const [loading,      setLoading]      = useState(true)
   const [downloading,  setDownloading]  = useState(false)
   const [printedAt] = useState(() => dayjs().format('DD/MM/YYYY HH:mm'))
+  // El logo viene del emisor y no del store: el emisor lo trae ya firmado.
+  const [emisor, setEmisor] = useState<OrganizationProfile | null>(null)
+
+  useEffect(() => { getEmisor().then(setEmisor).catch(() => setEmisor(null)) }, [])
 
   useEffect(() => {
     if (!id) return
@@ -201,6 +207,11 @@ export default function ConciliacionImprimirPage() {
         {/* ══ ENCABEZADO ══════════════════════════════════════════════════ */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, borderBottom: '3px solid #1B3A6B', paddingBottom: 12 }}>
           <div>
+            {/* La conciliación se archiva y se le entrega al auditor. */}
+            {emisor?.logoUrl && (
+              <img src={emisor.logoUrl} alt=""
+                style={{ maxHeight: 44, maxWidth: 170, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+            )}
             <div style={{ fontSize: 18, fontWeight: 700, color: '#1B3A6B', letterSpacing: 0.5 }}>{companyName}</div>
             {companyNit && <div style={{ fontSize: 11, color: '#6b7280' }}>{companyNit}</div>}
           </div>

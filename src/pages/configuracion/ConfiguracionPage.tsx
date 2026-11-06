@@ -136,6 +136,10 @@ function OrganizationSection({
 
   const [logoUrl, setLogoUrl] = useState<string | undefined>(profile?.logoUrl)
   const [uploading, setUploading] = useState(false)
+  // El logo ya quedó guardado por su propia ruta: lo que se ve es una URL
+  // firmada que vence, y reenviarla al guardar el perfil la dejaría escrita
+  // en la base para quedar inservible en una hora.
+  const [logoGuardado, setLogoGuardado] = useState(false)
 
   // Cargar datos completos de la empresa (phone, email, legalRepresentative no están en el store)
   useEffect(() => {
@@ -159,7 +163,8 @@ function OrganizationSection({
         email:     profile.email || co?.email || (authUser as any)?.email || '',
         phone:     profile.phone || co?.phone || '',
       })
-      setLogoUrl(profile.logoUrl)
+      // El logo del documento es el de la EMPRESA; el de la cuenta es respaldo.
+      setLogoUrl(co?.logoUrl || profile.logoUrl)
     }
   }, [profile, form, activeCompany, authUser, fullCompany])
 
@@ -179,14 +184,22 @@ function OrganizationSection({
 
     setUploading(true)
     try {
+      // El servidor lo guarda al subirlo: no hace falta presionar «Guardar».
       const url = await uploadLogo(file)
       setLogoUrl(url)
-      message.success('Logo actualizado')
-    } catch {
-      const reader = new FileReader()
-      reader.onload = e => setLogoUrl(e.target?.result as string)
-      reader.readAsDataURL(file)
-      message.info('Logo cargado localmente (endpoint en desarrollo)')
+      setLogoGuardado(true)
+      message.success('Logo actualizado — ya sale en los documentos')
+      // El logo encabeza los documentos desde la empresa: recargarla para que
+      // el resto de la sesión lo vea sin volver a entrar.
+      if (activeCompany?.id) {
+        companiesApi.getOne(activeCompany.id).then(setFullCompany).catch(() => {})
+        useCompanyStore.getState().loadCompanies().catch(() => {})
+      }
+    } catch (e: any) {
+      // Antes esto dejaba la imagen solo en memoria y decía «endpoint en
+      // desarrollo»: el usuario la veía aquí y ningún documento la mostraba.
+      // Un error que no se ve es peor que no subir el logo.
+      message.error(e?.response?.data?.message ?? 'No se pudo subir el logo. Intenta de nuevo.')
     } finally {
       setUploading(false)
     }
@@ -196,7 +209,7 @@ function OrganizationSection({
     try {
       const values = await form.validateFields()
       setSaving(true)
-      await onSave({ ...values, logoUrl })
+      await onSave(logoGuardado ? values : { ...values, logoUrl })
       // NIT, razón social y nombre comercial también viven en la EMPRESA (no solo
       // en el perfil del tenant) — y es la empresa la que manda al recargar esta
       // pantalla (línea ~156: "co?.taxId || bas?.taxId || profile.taxId"), y la que

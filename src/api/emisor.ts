@@ -31,6 +31,9 @@ export function emisorDesdeEmpresa(
     // El régimen es de la empresa que emite, nunca del cliente: en una cuenta
     // con varias empresas cada una puede tener el suyo.
     fiscalRegimeCode: empresa.fiscalRegimeCode ?? null,
+    // El logo también: dos empresas de la misma cuenta no encabezan igual.
+    // El de la cuenta queda de respaldo para quien aún no subió el suyo.
+    logoUrl: empresa.logoUrl || cliente.logoUrl,
   }
 }
 
