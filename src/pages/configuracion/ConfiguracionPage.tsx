@@ -30,6 +30,7 @@ import {
   uploadLogo,
   type OrganizationProfile,
 } from '../../api/configuracion'
+import { FORMATOS_DE_LOGO, LIMITE_DE_LOGO, MB_DE_LOGO } from '../../components/Print/logoDeLaEmpresa'
 import {
   getCurrencies, createCurrency, updateRate, syncBanguatRate, removeCurrency, updateCurrency,
   type Currency,
@@ -172,13 +173,12 @@ function OrganizationSection({
     const file = info.file.originFileObj
     if (!file) return
 
-    const ALLOWED = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp']
-    if (!ALLOWED.includes(file.type)) {
-      message.error('Formato no admitido. Usa JPG, PNG, GIF o BMP.')
+    if (!FORMATOS_DE_LOGO.includes(file.type)) {
+      message.error('Formato no admitido. Usa JPG, PNG, GIF, BMP o WEBP.')
       return
     }
-    if (file.size > 1024 * 1024) {
-      message.error('El archivo supera 1 MB. Reduce el tamaño de la imagen.')
+    if (file.size > LIMITE_DE_LOGO) {
+      message.error(`El archivo supera ${MB_DE_LOGO} MB. Reduce el tamaño de la imagen.`)
       return
     }
 
@@ -254,7 +254,7 @@ function OrganizationSection({
                 {!logoUrl && ((fullCompany as any)?.legalName?.[0] || (activeCompany as any)?.legalName?.[0] || profile?.name?.[0] || 'E')}
               </Avatar>
               <Upload
-                accept=".jpg,.jpeg,.png,.gif,.bmp"
+                accept=".jpg,.jpeg,.png,.gif,.bmp,.webp"
                 showUploadList={false}
                 beforeUpload={() => false}
                 onChange={handleLogoUpload}
@@ -282,7 +282,7 @@ function OrganizationSection({
               </Text>
               <br />
               <Text type="secondary" style={{ fontSize: 12 }}>
-                JPG, PNG, GIF, BMP — máximo 1 MB, recomendado 240×240 px @ 72 ppp
+                JPG, PNG, GIF, BMP, WEBP — máximo {MB_DE_LOGO} MB, recomendado 240×240 px @ 72 ppp
               </Text>
             </div>
           </div>
