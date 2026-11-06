@@ -24,8 +24,13 @@ export default function EstimacionPrintPage() {
 
   useEffect(() => {
     if (!id) return
-    Promise.all([getEstimate(id), getEmisor()])
-      .then(([est, o]) => { setEstimate(est); setOrg(o) })
+    // El emisor se pide con la empresa DE LA COTIZACIÓN, no con la activa de
+    // la pestaña: esta ventana se abre con `window.open` y puede no tenerla.
+    getEstimate(id)
+      .then(async est => {
+        setEstimate(est)
+        setOrg(await getEmisor(est.companyId).catch(() => null))
+      })
       .finally(() => setLoading(false))
   }, [id])
 

@@ -19,6 +19,7 @@ import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
 import { esPequenoContribuyente, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
+import { textoDeCierreInicial } from '../../../components/DocumentForm/textoDeCierre'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -41,12 +42,11 @@ export default function EstimacionDetallePage() {
     if (!id) return
     setLoading(true)
     try {
-      const [data, org] = await Promise.all([
-        getEstimate(id),
-        getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
-      ])
+      // El emisor, con la empresa DE LA COTIZACIÓN: así el detalle y la
+      // impresión leen el mismo régimen y no se contradicen en pantalla.
+      const data = await getEstimate(id)
       setEst(data)
-      setCompany(org)
+      setCompany(await getEmisor(data.companyId).catch(() => ({ name: '' } as OrganizationProfile)))
     } catch { message.error('No se pudo cargar la cotización') }
     finally { setLoading(false) }
   }, [id])
@@ -57,8 +57,10 @@ export default function EstimacionDetallePage() {
     try { await sendForm.validateFields() } catch { return }
     setSending(true)
     try {
-      const { to } = sendForm.getFieldsValue()
-      await sendEstimate(est!.id, { to })
+      const { to, message: cierre } = sendForm.getFieldsValue()
+      // El texto va con el correo Y queda guardado en la cotización, para que
+      // el PDF que se imprima después diga lo mismo que recibió el cliente.
+      await sendEstimate(est!.id, { to, message: (cierre ?? '').trim() || undefined })
       message.success(`Cotización enviada a ${to}`)
       setShowSend(false); sendForm.resetFields(); loadEst()
     } catch (e: any) { message.error(e?.response?.data?.message || 'Error al enviar') }
@@ -165,7 +167,12 @@ export default function EstimacionDetallePage() {
           </Button>
         )}
         {can('ventas:estimaciones:send') && (est.status === 'draft' || est.status === 'sent') ? (
-          <Button icon={<SendOutlined />} onClick={() => { sendForm.resetFields(); setShowSend(true) }}>
+          <Button icon={<SendOutlined />} onClick={() => {
+            // El cuadro se abre con el texto de cierre ya puesto: el que la
+            // cotización tenga escrito, y si no, el borrador.
+            sendForm.setFieldsValue({ message: textoDeCierreInicial(est.notes) })
+            setShowSend(true)
+          }}>
             Enviar correo
           </Button>
         ) : null}
@@ -405,6 +412,16 @@ export default function EstimacionDetallePage() {
             rules={[{ required: true, message: 'El correo es requerido' }, { type: 'email', message: 'Correo inválido' }]}
           >
             <Input placeholder="cliente@empresa.com" />
+          </Form.Item>
+          {/*
+            * Lo último que lee el cliente. Viene con un borrador para no
+            * escribirlo desde cero, y se edita aquí —con el cliente ya a la
+            * vista— en vez de tener que volver a la cotización.
+            */}
+          <Form.Item name="message" label="Texto de cierre"
+            extra="Se envía en el correo y queda al final de la cotización impresa."
+          >
+            <Input.TextArea rows={4} autoSize={{ minRows: 3, maxRows: 8 }} />
           </Form.Item>
         </Form>
       </Modal>
