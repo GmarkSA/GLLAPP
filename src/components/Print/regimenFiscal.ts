@@ -41,3 +41,25 @@ export function tasaDeIvaDelDocumento(items: any[] | null | undefined): number |
   // Con varias tasas en el mismo documento, ninguna etiqueta sola es correcta.
   return tasas.every(t => t === tasas[0]) ? tasas[0] : null
 }
+
+/**
+ * ¿Este documento lleva IVA?
+ *
+ * Se responde con el documento en la mano: sus líneas y su monto de
+ * impuesto. No hace falta saber el régimen, ni pedir la empresa, ni que haya
+ * sesión o empresa activa en la pestaña.
+ *
+ * Existe porque la versión que preguntaba por el régimen falló tres veces: el
+ * detalle ocultaba la columna de IVA y el PDF la mostraba, para la misma
+ * cotización, porque el régimen se resolvía por un camino que en la ventana
+ * de impresión podía no devolver nada. Un documento sin un solo centavo de
+ * impuesto no tiene por qué anunciar una columna de IVA, sea cual sea el
+ * régimen de quien lo emite.
+ */
+export function documentoLlevaIva(
+  items: any[] | null | undefined,
+  montoDeImpuesto?: number | string | null,
+): boolean {
+  if (Math.abs(Number(montoDeImpuesto ?? 0) || 0) > 0.004) return true
+  return (items ?? []).some(i => (Number(i?.taxPercent ?? 0) || 0) > 0)
+}

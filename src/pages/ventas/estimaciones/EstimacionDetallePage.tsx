@@ -18,7 +18,7 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
-import { esPequenoContribuyente, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
+import { esPequenoContribuyente, tasaDeIvaDelDocumento, documentoLlevaIva } from '../../../components/Print/regimenFiscal'
 import { textoDeCierreInicial } from '../../../components/DocumentForm/textoDeCierre'
 
 const { Title, Text } = Typography
@@ -126,6 +126,7 @@ export default function EstimacionDetallePage() {
    * el de la empresa que emite, que llega con el emisor.
    */
   const sinIva  = esPequenoContribuyente(est.fiscalRegimeCode ?? company.fiscalRegimeCode)
+    || !documentoLlevaIva(est.items, est.taxAmount)
   const tasaIva = tasaDeIvaDelDocumento(est.items)
 
   const itemColumns = [
