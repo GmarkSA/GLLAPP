@@ -8,7 +8,7 @@ import type { OrganizationProfile } from '../../../api/configuracion'
 import { getSavedTemplate } from '../../../components/Print/printFormats'
 import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
 import {
-  esPequenoContribuyente, tasaDeIvaDelDocumento, LEYENDA_PEQUENO_CONTRIBUYENTE,
+  esPequenoContribuyente, tasaDeIvaDelDocumento, documentoLlevaIva, LEYENDA_PEQUENO_CONTRIBUYENTE,
 } from '../../../components/Print/regimenFiscal'
 
 const fmtQ = (n: number, currency = 'GTQ') =>
@@ -60,7 +60,21 @@ export default function EstimacionPrintPage() {
    * de IVA ni línea de IVA, y sí lleva la leyenda del régimen al pie. El
    * régimen es el de la empresa que emite, que llega con el emisor.
    */
-  const sinIva  = esPequenoContribuyente(estimate.fiscalRegimeCode ?? org?.fiscalRegimeCode)
+  /**
+   * Dos preguntas distintas, y por eso dos valores.
+   *
+   * `pequenoContribuyente` decide la LEYENDA, que es una afirmación sobre
+   * quién emite: solo puede escribirse si de verdad es de ese régimen.
+   *
+   * `sinIva` decide la COLUMNA y la línea de IVA, y se responde con el
+   * documento en la mano: si no lleva un centavo de impuesto, no hay IVA que
+   * anunciar. Esto último no depende de resolver el régimen, que es lo que
+   * venía fallando en esta ventana y hacía que el PDF mostrara una columna
+   * que el detalle ocultaba.
+   */
+  const pequenoContribuyente = esPequenoContribuyente(
+    estimate.fiscalRegimeCode ?? org?.fiscalRegimeCode)
+  const sinIva = pequenoContribuyente || !documentoLlevaIva(estimate.items, estimate.taxAmount)
   const tasaIva = tasaDeIvaDelDocumento(estimate.items)
 
   const subtotal = estimate.subtotal ?? 0
@@ -283,7 +297,7 @@ export default function EstimacionPrintPage() {
           * él: le dice al cliente que el precio no lleva IVA y que esta compra
           * no le da crédito fiscal. Es lo primero que preguntaría si no está.
           */}
-        {sinIva && (
+        {pequenoContribuyente && (
           <div className="leyenda-regimen">{LEYENDA_PEQUENO_CONTRIBUYENTE}</div>
         )}
 

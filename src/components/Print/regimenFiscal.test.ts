@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   esPequenoContribuyente, tasaDeIvaDelDocumento, LEYENDA_PEQUENO_CONTRIBUYENTE,
-} from './regimenFiscal'
+  documentoLlevaIva,
+} from "./regimenFiscal"
 import { emisorDesdeEmpresa } from '../../api/emisor'
 
 /**
@@ -104,5 +105,50 @@ describe('de dónde sale el régimen del documento', () => {
     })
 
     expect(emisor.fiscalRegimeCode).toBeNull()
+  })
+})
+
+/**
+ * Si el documento lleva IVA se responde con el documento, no preguntando.
+ *
+ * Esto nació de un fallo que se repitió tres veces: el detalle ocultaba la
+ * columna de IVA y el PDF la mostraba, para la MISMA cotización. El régimen
+ * se resolvía por un camino aparte que en la ventana de impresión podía no
+ * devolver nada, así que las dos pantallas podían contestar distinto. Las
+ * líneas y el monto de impuesto, en cambio, ya están en el documento que se
+ * está imprimiendo: no hay manera de que falten.
+ */
+describe('si el documento lleva IVA', () => {
+  it('no lo lleva cuando todas las líneas están en cero', () => {
+    expect(documentoLlevaIva([{ taxPercent: 0 }, { taxPercent: 0 }], 0)).toBe(false)
+  })
+
+  it('sí lo lleva cuando alguna línea tiene tasa', () => {
+    expect(documentoLlevaIva([{ taxPercent: 0 }, { taxPercent: 12 }], 0)).toBe(true)
+  })
+
+  /** Si hay impuesto cobrado, se muestra aunque las tasas no se hayan guardado. */
+  it('sí lo lleva cuando el documento trae monto de impuesto', () => {
+    expect(documentoLlevaIva([{ taxPercent: 0 }], 70.12)).toBe(true)
+  })
+
+  it('un monto guardado como texto se entiende', () => {
+    expect(documentoLlevaIva([], '70.12')).toBe(true)
+  })
+
+  /** Medio centavo no es IVA: es ruido de redondeo. */
+  it('no lo lleva por una fracción de centavo', () => {
+    expect(documentoLlevaIva([{ taxPercent: 0 }], 0.001)).toBe(false)
+  })
+
+  it('una cotización vacía no lleva IVA', () => {
+    expect(documentoLlevaIva([], 0)).toBe(false)
+    expect(documentoLlevaIva(undefined, undefined)).toBe(false)
+  })
+
+  /** El caso real: COT-00001, 34 artículos, todos sin impuesto. */
+  it('la cotización de Paper Plus no lleva IVA', () => {
+    const lineas = Array.from({ length: 34 }, () => ({ taxPercent: 0 }))
+    expect(documentoLlevaIva(lineas, 0)).toBe(false)
   })
 })
