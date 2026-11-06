@@ -128,6 +128,8 @@ export interface Invoice {
 // ─── Estimate ─────────────────────────────────────────────────────────────────
 export interface Estimate {
   id:              string
+  /** La empresa que la emite. El documento se imprime con SU identidad. */
+  companyId?:      string
   estimateNumber:  string
   status:          EstimateStatus
   customerId:      string

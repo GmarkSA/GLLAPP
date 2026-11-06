@@ -159,3 +159,39 @@ describe('el logo del emisor', () => {
     expect(emisorDesdeEmpresa(null, CUENTA).logoUrl).toBe('logo-de-la-cuenta.png')
   })
 })
+
+/**
+ * Con qué empresa se arma el emisor.
+ *
+ * La impresión abre una ventana nueva con `window.open`, y ahí la empresa
+ * activa de la pestaña puede no estar. Cuando faltaba, `getEmisor` devolvía
+ * el perfil de la CUENTA: el logo y el NIT salían igual —están en los dos
+ * lados— pero el régimen fiscal no, porque solo vive en la empresa. Resultado:
+ * el detalle en pantalla ocultaba el IVA y el PDF lo mostraba, para la misma
+ * cotización. Por eso quien imprime pasa la empresa DEL DOCUMENTO.
+ */
+describe('la empresa con la que se imprime', () => {
+  it('el documento manda sobre la empresa activa de la pestaña', () => {
+    const delDocumento = emisorDesdeEmpresa(
+      { legalName: 'Paper Plus', fiscalRegimeCode: 'gt_pequeno_contribuyente' },
+      { name: 'GLL Consulting' } as any,
+    )
+
+    expect(delDocumento.fiscalRegimeCode).toBe('gt_pequeno_contribuyente')
+  })
+
+  /**
+   * El caso que rompía: sin empresa, el emisor es la cuenta y la cuenta no
+   * tiene régimen, así que el documento imprimía con IVA.
+   */
+  it('sin empresa, no hay régimen y el documento sale con IVA', () => {
+    const soloCuenta = emisorDesdeEmpresa(null, {
+      name: 'GLL Consulting', logoUrl: 'logo.png', taxId: '69407452',
+    } as any)
+
+    expect(soloCuenta.fiscalRegimeCode).toBeUndefined()
+    // Y el logo y el NIT sí salían, que es lo que lo hacía difícil de ver.
+    expect(soloCuenta.logoUrl).toBe('logo.png')
+    expect(soloCuenta.taxId).toBe('69407452')
+  })
+})

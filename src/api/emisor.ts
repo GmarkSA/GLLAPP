@@ -43,9 +43,14 @@ export function emisorDesdeEmpresa(
  * muestre «quiénes somos». El perfil del cliente sigue siendo el sitio correcto
  * para lo que es del cliente entero: sus ajustes y su configuración.
  */
-export async function getEmisor(): Promise<OrganizationProfile> {
+export async function getEmisor(empresaId?: string): Promise<OrganizationProfile> {
   const cliente = await getOrganizationProfile().catch(() => ({ name: '' } as OrganizationProfile))
-  const companyId = sessionStorage.getItem('activeCompanyId')
+  // Quien imprime un documento debe pasar la empresa DEL DOCUMENTO. La empresa
+  // activa es de la pestaña, y la impresión abre una ventana nueva: ahí puede
+  // no haberla, y el documento salía con los datos de la cuenta —sin régimen
+  // fiscal, así que una cotización de Pequeño Contribuyente imprimía con IVA
+  // mientras la pantalla no lo mostraba.
+  const companyId = empresaId ?? sessionStorage.getItem('activeCompanyId')
   if (!companyId) return cliente
 
   const empresa = await companiesApi.getOne(companyId).catch(() => null)
