@@ -1,0 +1,108 @@
+import { describe, it, expect } from 'vitest'
+import {
+  esPequenoContribuyente, tasaDeIvaDelDocumento, LEYENDA_PEQUENO_CONTRIBUYENTE,
+} from './regimenFiscal'
+import { emisorDesdeEmpresa } from '../../api/emisor'
+
+/**
+ * El régimen fiscal de quien emite el documento.
+ *
+ * Un Pequeño Contribuyente no traslada IVA: paga una cuota fija sobre sus
+ * ventas. La cotización mostraba de todos modos una columna «IVA%» y una
+ * línea «IVA (12%)», con el 12% escrito fijo en el código. Decía algo que no
+ * es cierto, aunque los montos salieran en cero.
+ */
+describe('quién es Pequeño Contribuyente', () => {
+  it('lo es con el código del régimen', () => {
+    expect(esPequenoContribuyente('gt_pequeno_contribuyente')).toBe(true)
+  })
+
+  it('no lo es el régimen general', () => {
+    expect(esPequenoContribuyente('gt_regimen_general')).toBe(false)
+  })
+
+  /** Sin régimen configurado se sigue mostrando como hasta ahora. */
+  it('sin régimen, no se asume', () => {
+    expect(esPequenoContribuyente(undefined)).toBe(false)
+    expect(esPequenoContribuyente(null)).toBe(false)
+    expect(esPequenoContribuyente('')).toBe(false)
+  })
+
+  it('no se cae por mayúsculas ni espacios', () => {
+    expect(esPequenoContribuyente(' GT_Pequeno_Contribuyente ')).toBe(true)
+  })
+
+  it('la leyenda dice lo que el cliente necesita saber', () => {
+    expect(LEYENDA_PEQUENO_CONTRIBUYENTE).toMatch(/no genera derecho a crédito fiscal/i)
+  })
+})
+
+/**
+ * La tasa que se imprime sale de las líneas del documento, no de un 12% fijo.
+ * Un documento puede ser exento o de exportación, y entonces no hay tasa que
+ * anunciar.
+ */
+describe('la tasa de IVA del documento', () => {
+  it('es la de sus líneas', () => {
+    expect(tasaDeIvaDelDocumento([{ taxPercent: 12 }, { taxPercent: 12 }])).toBe(12)
+  })
+
+  it('con todas las líneas en cero, no hay tasa que mostrar', () => {
+    expect(tasaDeIvaDelDocumento([{ taxPercent: 0 }, { taxPercent: 0 }])).toBeNull()
+  })
+
+  /** Ninguna etiqueta sola sería correcta, así que se muestra «IVA» a secas. */
+  it('con dos tasas distintas, ninguna etiqueta es correcta', () => {
+    expect(tasaDeIvaDelDocumento([{ taxPercent: 12 }, { taxPercent: 5 }])).toBeNull()
+  })
+
+  it('las líneas exentas no tapan la tasa de las demás', () => {
+    expect(tasaDeIvaDelDocumento([{ taxPercent: 0 }, { taxPercent: 12 }])).toBe(12)
+  })
+
+  it('un documento sin líneas no revienta', () => {
+    expect(tasaDeIvaDelDocumento([])).toBeNull()
+    expect(tasaDeIvaDelDocumento(undefined)).toBeNull()
+  })
+
+  it('una tasa guardada como texto se entiende', () => {
+    expect(tasaDeIvaDelDocumento([{ taxPercent: '12' }])).toBe(12)
+  })
+})
+
+/**
+ * El régimen es de la EMPRESA que emite, no de la cuenta.
+ *
+ * Una cuenta puede tener varias empresas y cada una su régimen: si el
+ * documento tomara el de la cuenta, una empresa imprimiría con el régimen de
+ * otra. Es la misma confusión que ya hizo salir los libros de Kaizen con el
+ * NIT del dueño de la cuenta.
+ */
+describe('de dónde sale el régimen del documento', () => {
+  const CUENTA = { name: 'GLL Consulting', taxId: '123' } as any
+
+  it('viene de la empresa activa', () => {
+    const emisor = emisorDesdeEmpresa(
+      { legalName: 'Paper Plus, S.A.', taxId: '69407452', fiscalRegimeCode: 'gt_pequeno_contribuyente' },
+      CUENTA,
+    )
+
+    expect(esPequenoContribuyente(emisor.fiscalRegimeCode)).toBe(true)
+  })
+
+  it('cada empresa trae el suyo', () => {
+    const otra = emisorDesdeEmpresa(
+      { legalName: 'LUUM, S.A.', fiscalRegimeCode: 'gt_regimen_general' }, CUENTA,
+    )
+
+    expect(esPequenoContribuyente(otra.fiscalRegimeCode)).toBe(false)
+  })
+
+  it('una empresa sin régimen asignado no lo hereda de la cuenta', () => {
+    const emisor = emisorDesdeEmpresa({ legalName: 'Nueva, S.A.' }, {
+      ...CUENTA, fiscalRegimeCode: 'gt_pequeno_contribuyente',
+    })
+
+    expect(emisor.fiscalRegimeCode).toBeNull()
+  })
+})

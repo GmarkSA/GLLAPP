@@ -18,6 +18,7 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
+import { esPequenoContribuyente, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
 
 const { Title, Text } = Typography
 const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -101,6 +102,14 @@ export default function EstimacionDetallePage() {
   const canConvert = est.status === 'accepted' || est.status === 'sent'
   const canEdit    = est.status !== 'invoiced'
 
+  /**
+   * Un Pequeño Contribuyente no traslada IVA: su documento no lleva columna
+   * de IVA ni línea de IVA, aunque los montos salgan en cero. El régimen es
+   * el de la empresa que emite, que llega con el emisor.
+   */
+  const sinIva  = esPequenoContribuyente(company.fiscalRegimeCode)
+  const tasaIva = tasaDeIvaDelDocumento(est.items)
+
   const itemColumns = [
     { title: '#', width: 36, render: (_: any, __: any, i: number) => <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text> },
     {
@@ -115,7 +124,8 @@ export default function EstimacionDetallePage() {
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
     { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
     { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="#ff7f00">{v}%</Tag> : null },
-    { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v ?? 12}%</Tag> },
+    // La tasa que trae la línea, sin suponer 12%: el documento puede ser exento.
+    { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{Number(v ?? 0)}%</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 130, align: 'right' as const,
       // Del monto guardado, y si la cotización es de antes de que se guardara,
@@ -126,7 +136,7 @@ export default function EstimacionDetallePage() {
         </Text>
       ),
     },
-  ]
+  ].filter(c => !(sinIva && c.title === 'IVA%'))
 
   const ribbonColors: Record<string, string> = {
     draft: '#6b7280', sent: '#1faec2', accepted: '#2ea172',
@@ -313,10 +323,17 @@ export default function EstimacionDetallePage() {
                   <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>−{fmtQ(Number(est.discountAmount))}</Text>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                <Text type="secondary">IVA (12%)</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(est.taxAmount))}</Text>
-              </div>
+              {/*
+                * Un Pequeño Contribuyente no traslada IVA, así que la línea no
+                * va. Y cuando va, la tasa es la de las líneas del documento:
+                * antes decía «12%» fijo, aunque el documento fuera exento.
+                */}
+              {!sinIva && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <Text type="secondary">IVA{tasaIva != null ? ` (${tasaIva}%)` : ''}</Text>
+                  <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(est.taxAmount))}</Text>
+                </div>
+              )}
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total</Text>

@@ -19,6 +19,12 @@ export interface OrganizationProfile {
   logoUrl?: string
   industry?: string
   companySize?: string
+  /**
+   * Régimen fiscal de la EMPRESA que emite (no del cliente): lo resuelve el
+   * servidor y llega con `getEmisor`. Lo necesita lo que se imprime — un
+   * Pequeño Contribuyente no traslada IVA.
+   */
+  fiscalRegimeCode?: string | null
 }
 
 // GET tenant profile (uses X-Tenant-ID header — injected automatically by axios interceptor)
