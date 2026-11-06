@@ -22,6 +22,7 @@ import {
   ITEM_TYPE_CONFIG, ITEM_CATEGORY_CONFIG, UNITS,
   type Product,
 } from '../../api/inventario'
+import { archivoDeSubida } from '../../utils/archivoDeSubida'
 
 const { Title, Text } = Typography
 const { Option }      = Select
@@ -205,7 +206,9 @@ export default function ArticuloFormPage() {
 
   // ── Foto del artículo (requiere artículo ya guardado) ─────────────────────
   const handlePhotoUpload = async (info: UploadChangeParam) => {
-    const file = info.file.originFileObj
+    // Mismo caso que el logo: con beforeUpload=false antd entrega el File
+    // crudo, así que `originFileObj` es undefined y la foto nunca se subía.
+    const file = archivoDeSubida(info)
     if (!file || !id) return
     const ALLOWED = ['image/jpeg', 'image/png', 'image/webp']
     if (!ALLOWED.includes(file.type)) {
