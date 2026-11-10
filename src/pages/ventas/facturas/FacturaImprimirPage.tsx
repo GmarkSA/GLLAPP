@@ -5,6 +5,7 @@ import { getInvoice, type Invoice } from '../../../api/facturas'
 import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { getTemplateForFormat } from '../../../components/Print/printFormats'
+import { documentoLlevaIva, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
 
 type Format = 'carta' | 'media-carta' | 'ticket-80' | 'ticket-58'
 
@@ -60,6 +61,18 @@ export default function FacturaImprimirPage() {
   const subtotal    = Number(invoice.subtotal      ?? 0)
   const discount    = Number(invoice.discountAmount ?? 0)
   const tax         = Number(invoice.taxAmount     ?? 0)
+  /**
+   * Una factura sin un centavo de impuesto no anuncia IVA.
+   *
+   * Se decide con el documento en la mano —sus líneas y su monto—, no
+   * preguntando el régimen por otro camino: eso es lo que hacía que la
+   * cotización saliera distinta en pantalla y en PDF. El ajuste del usuario
+   * (`showTaxCol`) se sigue respetando: esto solo puede ocultar, nunca
+   * mostrar lo que él decidió esconder.
+   */
+  const conIva      = documentoLlevaIva(invoice.items, invoice.taxAmount) && !invoice.facturaExenta
+  const colIva      = tpl.showTaxCol && conIva
+  const tasaIva     = tasaDeIvaDelDocumento(invoice.items)
   const total       = Number(invoice.total         ?? 0)
   const paidAmount  = Number(invoice.paidAmount    ?? 0)
   const balance     = Number(invoice.balance       ?? 0)
@@ -283,7 +296,7 @@ export default function FacturaImprimirPage() {
               <th className="r" style={{ width: 60 }}>Cant.</th>
               <th className="r" style={{ width: 90 }}>Precio</th>
               {hasDiscount      && <th className="r" style={{ width: 55 }}>Desc.%</th>}
-              {tpl.showTaxCol   && <th className="r" style={{ width: 55 }}>IVA%</th>}
+              {colIva           && <th className="r" style={{ width: 55 }}>IVA%</th>}
               <th className="r" style={{ width: 100 }}>Total</th>
             </tr></thead>
             <tbody>
@@ -295,7 +308,7 @@ export default function FacturaImprimirPage() {
                   <td className="r">{Number(item.quantity).toFixed(2)}</td>
                   <td className="r">{fmtQ(item.unitPrice)}</td>
                   {hasDiscount    && <td className="r">{Number(item.discountPercent) > 0 ? `${item.discountPercent}%` : '—'}</td>}
-                  {tpl.showTaxCol && <td className="r">{item.taxPercent}%</td>}
+                  {colIva         && <td className="r">{Number(item.taxPercent ?? 0)}%</td>}
                   <td className="r" style={{ fontWeight: 600 }}>{fmtQ(item.lineTotal)}</td>
                 </tr>
               ))}
@@ -318,7 +331,7 @@ export default function FacturaImprimirPage() {
             </div>
             {!invoice.facturaExenta && tax >= 0.01 && (
               <div className="tot-row iva">
-                <span>IVA (12%)</span>
+                <span>IVA{tasaIva != null ? ` (${tasaIva}%)` : ''}</span>
                 <span>{fmtQ(tax)}</span>
               </div>
             )}

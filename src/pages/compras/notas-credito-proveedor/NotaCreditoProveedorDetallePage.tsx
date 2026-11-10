@@ -121,7 +121,11 @@ export default function NotaCreditoProveedorDetallePage() {
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
     { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
-    { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v ?? 12}%</Tag> },
+    // La tasa que trae la línea. NO se oculta la columna aunque sea cero: en una
+    // compra el IVA es el que cobra el proveedor, y nuestro régimen no lo decide.
+    // Y no se supone 12% donde no hay tasa: una línea sin impuesto decía «12%».
+    { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const,
+      render: (v: number) => <Tag>{v == null ? '—' : `${Number(v)}%`}</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 140, align: 'right' as const,
       render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172', fontSize: 13 }}>{fmtQ(v)}</Text>,

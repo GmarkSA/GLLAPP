@@ -23,6 +23,7 @@ import api, { getApiError } from '../../../api/axios'
 import LineItemsEditor, {
   type LineItem, newLineItem, calcTotals,
 } from '../../../components/DocumentForm/LineItemsEditor'
+import { tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
 
 const { Title, Text } = Typography
 
@@ -595,7 +596,10 @@ export default function NotaCreditoFormPage() {
                 <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmt(subtotal)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>IVA (12%)</Text>
+                {/* La tasa real de las líneas: el 12% estaba escrito fijo. */}
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  IVA{tasaDeIvaDelDocumento(items) != null ? ` (${tasaDeIvaDelDocumento(items)}%)` : ''}
+                </Text>
                 <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmt(taxAmount)}</Text>
               </div>
               <Divider style={{ margin: '4px 0' }} />
