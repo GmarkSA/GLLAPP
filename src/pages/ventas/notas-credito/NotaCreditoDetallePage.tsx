@@ -22,6 +22,7 @@ import { getBankAccounts } from '../../../api/bancos'
 import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
+import { documentoLlevaIva, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
 
 const { Title, Text } = Typography
 const fmtQ  = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
@@ -174,6 +175,15 @@ export default function NotaCreditoDetallePage() {
   const salesTotal     = salesEntries.reduce((s, r) => s + r.debe, 0)
   const costTotal      = costEntries.reduce((s, r) => s + r.debe, 0)
 
+  /**
+   * Una nota de crédito sin un centavo de impuesto no anuncia IVA.
+   *
+   * Se responde con el documento, no preguntando el régimen por otro camino:
+   * así el detalle no puede contradecir a lo que se imprima.
+   */
+  const conIva  = documentoLlevaIva(nc.items, nc.taxAmount)
+  const tasaIva = tasaDeIvaDelDocumento(nc.items)
+
   const itemColumns = [
     { title: '#', width: 36, render: (_: any, __: any, i: number) => <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text> },
     {
@@ -188,12 +198,14 @@ export default function NotaCreditoDetallePage() {
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
     { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
     { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="#ff7f00">{v}%</Tag> : null },
-    { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{v}%</Tag> },
+    // La tasa de la línea, sin suponer ninguna. La columna entera desaparece
+    // cuando la nota no lleva un centavo de impuesto.
+    { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{Number(v ?? 0)}%</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 130, align: 'right' as const,
       render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d', fontSize: 13 }}>{fmtQ(v)}</Text>,
     },
-  ]
+  ].filter(c => conIva || c.title !== 'IVA%')
 
   const journalCols = [
     {
@@ -418,10 +430,12 @@ export default function NotaCreditoDetallePage() {
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
             <div style={{ minWidth: 280 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                <Text type="secondary">IVA (12%)</Text>
-                <Text>{fmtQ(Number(nc.taxAmount))}</Text>
-              </div>
+              {conIva && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <Text type="secondary">IVA{tasaIva != null ? ` (${tasaIva}%)` : ''}</Text>
+                  <Text>{fmtQ(Number(nc.taxAmount))}</Text>
+                </div>
+              )}
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total nota de crédito</Text>

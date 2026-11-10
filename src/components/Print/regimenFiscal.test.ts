@@ -152,3 +152,40 @@ describe('si el documento lleva IVA', () => {
     expect(documentoLlevaIva(lineas, 0)).toBe(false)
   })
 })
+
+/**
+ * La misma regla aplicada a los documentos de VENTA, no a los de compra.
+ *
+ * El régimen de nuestra empresa decide lo que NOSOTROS cobramos: factura de
+ * venta, nota de crédito de venta, cotización. En una compra el IVA es el que
+ * cobra el proveedor —un Pequeño Contribuyente lo paga igual, solo que no lo
+ * acredita—, así que ocultarlo en una orden de compra o en una nota de
+ * crédito de proveedor diría algo falso sobre lo que el proveedor cobra.
+ */
+describe('qué documentos siguen el régimen de quien emite', () => {
+  /** Factura de venta de Paper Plus: 34 líneas sin impuesto. */
+  it('una factura de venta sin impuesto no anuncia IVA', () => {
+    const lineas = Array.from({ length: 34 }, () => ({ taxPercent: 0 }))
+    expect(documentoLlevaIva(lineas, 0)).toBe(false)
+  })
+
+  it('una factura de venta con IVA sí lo anuncia, y con su tasa', () => {
+    const lineas = [{ taxPercent: 12 }, { taxPercent: 12 }]
+    expect(documentoLlevaIva(lineas, 70.12)).toBe(true)
+    expect(tasaDeIvaDelDocumento(lineas)).toBe(12)
+  })
+
+  /**
+   * Una factura marcada como exenta no muestra IVA aunque arrastre un monto:
+   * lo exento no traslada impuesto, y así lo decía ya el bloque de totales.
+   */
+  it('una venta exenta no anuncia IVA aunque traiga monto', () => {
+    const exenta = true
+    expect(documentoLlevaIva([{ taxPercent: 12 }], 70.12) && !exenta).toBe(false)
+  })
+
+  /** Una nota de crédito que devuelve una venta con IVA sí lo lleva. */
+  it('una nota de crédito de venta con IVA lo anuncia', () => {
+    expect(documentoLlevaIva([{ taxPercent: 12 }], 10.71)).toBe(true)
+  })
+})
