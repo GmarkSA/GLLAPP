@@ -38,13 +38,19 @@ export const updateOrganizationProfile = (data: Partial<OrganizationProfile>) =>
   api.patch<{ data: OrganizationProfile }>('/tenants/profile', data)
     .then(r => r.data?.data ?? r.data as any)
 
-// Upload logo — multipart
-export const uploadLogo = (file: File) => {
+/**
+ * Sube el logo. El servidor lo guarda al recibirlo.
+ *
+ * Devuelve también si quedó asociado a la empresa activa: los documentos leen
+ * el logo de la EMPRESA, así que una subida que no la actualiza se ve desde
+ * afuera como «subí el logo y no se actualiza». La pantalla lo avisa.
+ */
+export const uploadLogo = (file: File): Promise<{
+  url: string; empresaActualizada?: boolean; motivoEmpresa?: string
+}> => {
   const form = new FormData()
   form.append('file', file)
   return api
-    .post<{ data: { url: string } }>('/tenants/logo', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    .then(r => r.data.data.url)
+    .post('/tenants/logo', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then(r => (r.data?.data ?? r.data))
 }

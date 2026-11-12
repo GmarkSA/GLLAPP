@@ -184,9 +184,16 @@ function OrganizationSection({
     setUploading(true)
     try {
       // El servidor lo guarda al subirlo: no hace falta presionar «Guardar».
-      const url = await uploadLogo(file)
+      const { url, empresaActualizada, motivoEmpresa } = await uploadLogo(file)
       setLogoUrl(url)
-      message.success('Logo actualizado — ya sale en los documentos')
+      // Los documentos leen el logo de la EMPRESA: si no quedó asociado, el
+      // archivo nuevo está subido pero todo seguiría mostrando el anterior.
+      // Decirlo, en vez de dar por buena una actualización a medias.
+      if (empresaActualizada === false) {
+        message.warning(motivoEmpresa ?? 'El logo se guardó, pero no quedó asociado a la empresa activa.')
+      } else {
+        message.success('Logo actualizado — ya sale en los documentos')
+      }
       // El logo encabeza los documentos desde la empresa: recargarla para que
       // el resto de la sesión lo vea sin volver a entrar.
       if (activeCompany?.id) {
