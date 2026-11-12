@@ -138,10 +138,6 @@ function OrganizationSection({
 
   const [logoUrl, setLogoUrl] = useState<string | undefined>(profile?.logoUrl)
   const [uploading, setUploading] = useState(false)
-  // El logo ya quedó guardado por su propia ruta: lo que se ve es una URL
-  // firmada que vence, y reenviarla al guardar el perfil la dejaría escrita
-  // en la base para quedar inservible en una hora.
-  const [logoGuardado, setLogoGuardado] = useState(false)
 
   // Cargar datos completos de la empresa (phone, email, legalRepresentative no están en el store)
   useEffect(() => {
@@ -190,7 +186,6 @@ function OrganizationSection({
       // El servidor lo guarda al subirlo: no hace falta presionar «Guardar».
       const url = await uploadLogo(file)
       setLogoUrl(url)
-      setLogoGuardado(true)
       message.success('Logo actualizado — ya sale en los documentos')
       // El logo encabeza los documentos desde la empresa: recargarla para que
       // el resto de la sesión lo vea sin volver a entrar.
@@ -212,7 +207,11 @@ function OrganizationSection({
     try {
       const values = await form.validateFields()
       setSaving(true)
-      await onSave(logoGuardado ? values : { ...values, logoUrl })
+      // El logo NO viaja aquí. Lo que esta pantalla tiene a la vista es una URL
+      // firmada que vence en una hora; mandarla al guardar la dejaba escrita en
+      // la base en lugar de la clave, y el logo se rompía solo al vencer. El
+      // logo se guarda por su propia ruta, en el momento de subirlo.
+      await onSave(values)
       // NIT, razón social y nombre comercial también viven en la EMPRESA (no solo
       // en el perfil del tenant) — y es la empresa la que manda al recargar esta
       // pantalla (línea ~156: "co?.taxId || bas?.taxId || profile.taxId"), y la que
