@@ -555,6 +555,16 @@ export default function CategorizarDrawer({
         amount:        Number(transaction.amount),
         date:          txDate,
         currency:      account.currency,
+        /**
+         * El tipo de cambio VIAJA al servidor.
+         *
+         * Esta pantalla ya calculaba la conversión y la mostraba («= Q …
+         * GTQ»), pero ese número solo alimentaba la vista previa de abajo:
+         * nunca se mandaba, y el servidor asentaba la póliza con la cifra en
+         * dólares. La pantalla decía una cosa y el libro guardaba otra —un
+         * depósito de Q 68,887 quedó asentado como Q 8,984—.
+         */
+        exchangeRate:  isForeign ? exchangeRate : 1,
         reference:     transaction.reference || undefined,
         bankAccountId: account.id,
       })
@@ -751,6 +761,8 @@ export default function CategorizarDrawer({
         amount:        overpayAmount,
         date:          txDate,
         currency:      account.currency,
+        // El sobrante también se asienta en quetzales: mismo caso que arriba.
+        exchangeRate:  isForeign ? exchangeRate : 1,
         reference:     transaction.reference || undefined,
         bankAccountId: account.id,
       })
