@@ -417,13 +417,26 @@ export default function CategorizarDrawer({
       let journalLines: JournalLine[] = []
       let jeId = ''; let jeNumber = ''
 
+      /**
+       * Sin cuenta contable en el banco no hay póliza posible, y entonces
+       * tampoco debe quedar categorizado: un movimiento categorizado sin
+       * póliza se ve completo en Bancos y es invisible en el mayor. Así
+       * quedaron dos movimientos de enero que solo aparecieron cuando la
+       * revaluación encontró Q 9,173.64 de descuadre, tres meses después.
+       */
       if (!bankId) {
-        message.warning(
-          `La cuenta bancaria "${account.name}" no tiene cuenta contable vinculada. ` +
-          `Configúrala en Bancos → Cuentas → Editar para que las categorizaciones generen pólizas.`,
-          6,
+        await updateTransaction(account.id, transaction.id, {
+          status: 'pending', accountId: null,
+        } as any).catch(() => null)
+        message.error(
+          `La cuenta bancaria "${account.name}" no tiene cuenta contable vinculada, ` +
+          `así que no se puede generar la póliza. Configúrala en Bancos → Cuentas → Editar ` +
+          `y vuelve a categorizar.`,
+          8,
         )
-      } else try {
+        return
+      }
+      try {
         const desc = manualNote.trim() || transaction.description || 'Categorización bancaria'
         const lines = isCredit
           ? [
@@ -459,8 +472,23 @@ export default function CategorizarDrawer({
           haber: l.credit,
         }))
       } catch (jeErr: unknown) {
+        /**
+         * Si la póliza no se pudo crear, la categorización NO se queda.
+         *
+         * Antes el movimiento quedaba categorizado igual y esto era un aviso
+         * de cinco segundos: si estabas categorizando varios seguidos, nunca
+         * lo veías, y nada volvía a recordártelo. El movimiento se veía
+         * completo en Bancos y el mayor nunca se enteró.
+         *
+         * Se devuelve a pendiente: sigue estando a la vista, por hacer.
+         */
+        await updateTransaction(account.id, transaction.id, {
+          status: 'pending', accountId: null,
+        } as any).catch(() => null)
+
         const msg = (jeErr as any)?.response?.data?.message ?? (jeErr as any)?.message ?? 'Error al crear la póliza'
-        message.warning(`Movimiento categorizado, pero la póliza contable no se pudo crear: ${msg}`)
+        message.error(`No se categorizó: la póliza contable no se pudo crear. ${msg}`, 8)
+        return
       }
 
       message.success('Movimiento categorizado')
