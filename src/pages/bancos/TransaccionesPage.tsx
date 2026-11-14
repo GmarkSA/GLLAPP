@@ -22,7 +22,7 @@ import {
   Spin,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import {
+import { SwapOutlined,
   ArrowLeftOutlined,
   BulbOutlined,
   CheckCircleOutlined,
@@ -609,6 +609,27 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
       .catch(() => setTcBanguat(null))
   }, [jeId, isForeign, currency, transaction?.transactionDate])
 
+  /**
+   * En qué moneda se lee la póliza.
+   *
+   * El mayor guarda quetzales, pero la operación ocurrió en otra moneda y es
+   * en esa en la que el usuario la reconoce: «el depósito fue de USD 8,984».
+   * Por eso una póliza en divisa se abre en SU moneda, con un botón para
+   * verla en la local — que es la que termina en los estados financieros.
+   *
+   * La conversión se hace con el tipo de cambio de la propia póliza, así que
+   * los dos modos muestran la misma operación y no pueden contradecirse.
+   */
+  const tasaDeLaPoliza = Number(je?.exchangeRate) > 0 ? Number(je!.exchangeRate) : 1
+  const [verEnLocal, setVerEnLocal] = useState(false)
+  const enDivisa = isForeign && !verEnLocal
+  const simboloDeLaVista = enDivisa ? (currency || 'USD') : 'Q'
+  const fmtVista = (n: number) => {
+    if (n === 0) return '—'
+    const v = enDivisa ? n / tasaDeLaPoliza : n
+    return `${simboloDeLaVista} ${v.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+
   const guardar = async (nuevaFecha: string, nuevaTasa: number) => {
     if (!jeId || !transaction) return
     setSaving(true)
@@ -736,7 +757,19 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
             <div><Text type="secondary" style={{ fontSize: 11 }}>FECHA</Text><div><Text strong>{String(je.entryDate).split('T')[0].split('-').reverse().join('/')}</Text></div></div>
             <div><Text type="secondary" style={{ fontSize: 11 }}>ESTADO</Text><div><Tag color={je.status === 'posted' ? '#2ea172' : '#ff7f00'}>{je.status}</Tag></div></div>
-            {isForeign && <div><Text type="secondary" style={{ fontSize: 11 }}>TIPO DE CAMBIO</Text><div><Text strong>{je.exchangeRate}</Text></div></div>}
+            {/*
+              * Un 1 en una póliza en moneda extranjera NO es un tipo de
+              * cambio: es el valor por omisión de la columna, y significa que
+              * la póliza se contabilizó sin convertir. Mostrarlo como si
+              * fuera una tasa hace creer que el dólar costó un quetzal. El
+              * aviso de abajo explica el caso con todas sus letras.
+              */}
+            {isForeign && tasaDeLaPoliza > 1 && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>TIPO DE CAMBIO</Text>
+                <div><Text strong>{je.exchangeRate}</Text></div>
+              </div>
+            )}
           </div>
 
           {isForeign && transaction && (
@@ -815,14 +848,21 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
             pagination={false}
             columns={[
               { title: 'Cuenta', ellipsis: true, render: (_: any, l: any) => <Text style={{ fontSize: 12 }}>{l.accountCode} — {l.accountName}</Text> },
-              { title: 'Debe',  dataIndex: 'debit',  width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#1faec2' : '#ccc' }}>{fmtQ(v)}</Text> },
-              { title: 'Haber', dataIndex: 'credit', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#2ea172' : '#ccc' }}>{fmtQ(v)}</Text> },
+              { title: `Debe (${simboloDeLaVista})`,  dataIndex: 'debit',  width: 130, align: 'right' as const,
+                render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#1faec2' : '#ccc' }}>{fmtVista(v)}</Text> },
+              { title: `Haber (${simboloDeLaVista})`, dataIndex: 'credit', width: 130, align: 'right' as const,
+                render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v > 0 ? '#2ea172' : '#ccc' }}>{fmtVista(v)}</Text> },
             ]}
             style={{ marginBottom: 12 }}
           />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space>
+              {isForeign && (
+                <Button icon={<SwapOutlined />} onClick={() => setVerEnLocal(v => !v)}>
+                  {verEnLocal ? `Ver en ${currency || 'USD'}` : 'Ver en moneda local'}
+                </Button>
+              )}
               <Button icon={<FileTextOutlined />} onClick={() => setEditing(v => !v)}>
                 {editing ? 'Cancelar edición' : 'Editar fecha / tipo de cambio'}
               </Button>
