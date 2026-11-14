@@ -186,9 +186,20 @@ const ejemploDeProveedor = (catalogo: CatalogoDeProveedores): Record<string, unk
   }
 }
 
-export function construirPlantillaProveedores(catalogo: CatalogoDeProveedores): ArrayBuffer {
+/**
+ * `filas` lleva los proveedores que YA existen.
+ *
+ * En blanco sigue siendo el modelo para empezar de cero. Con los proveedores
+ * escritos, el mismo archivo sirve para corregir en masa lo que ya está
+ * cargado: se baja, se edita en Excel y se vuelve a subir, porque lo que se
+ * escribe es exactamente lo que la carga lee.
+ */
+export function construirPlantillaProveedores(
+  catalogo: CatalogoDeProveedores,
+  filas: Array<Record<string, unknown>> = [],
+): ArrayBuffer {
   return armarLibro(
-    ESPECIFICACION_PROVEEDORES, [], hojasDeProveedores(catalogo),
+    ESPECIFICACION_PROVEEDORES, filas, hojasDeProveedores(catalogo),
     [ejemploDeProveedor(catalogo)],
     { spec: ESPECIFICACION_SALDOS, ejemplos: ejemplosDeSaldos('8765432-1') })
 }
