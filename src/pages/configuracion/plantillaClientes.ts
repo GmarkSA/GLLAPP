@@ -203,9 +203,13 @@ const ejemploDeCliente = (catalogo: CatalogoDeClientes): Record<string, unknown>
 }
 
 /** El modelo en blanco, con las listas de la empresa y una hoja de ejemplo. */
-export function construirPlantillaClientes(catalogo: CatalogoDeClientes): ArrayBuffer {
+/** `filas` lleva los clientes que YA existen. Ver construirPlantillaProveedores. */
+export function construirPlantillaClientes(
+  catalogo: CatalogoDeClientes,
+  filas: Array<Record<string, unknown>> = [],
+): ArrayBuffer {
   return armarLibro(
-    ESPECIFICACION_CLIENTES, [], hojasDeClientes(catalogo),
+    ESPECIFICACION_CLIENTES, filas, hojasDeClientes(catalogo),
     [ejemploDeCliente(catalogo)],
     { spec: ESPECIFICACION_SALDOS, ejemplos: ejemplosDeSaldos('1234567-8') })
 }

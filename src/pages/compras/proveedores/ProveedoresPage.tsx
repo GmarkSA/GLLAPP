@@ -17,6 +17,7 @@ import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
+import CargaMasivaContactos from '../../../components/CargaMasiva/CargaMasivaContactos'
 
 const { Title, Text } = Typography
 
@@ -358,9 +359,14 @@ export default function ProveedoresPage() {
           </div>
         </div>
         {can('compras:proveedores:create') && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/compras/proveedores/nuevo')} style={{ background: '#1faec2' }}>
-            <span data-tour="compras-proveedor-nuevo">Nuevo proveedor</span>
-          </Button>
+          <Space>
+            {/* La plantilla baja los proveedores actuales: sirve para crear y
+                también para corregir en masa lo que ya está cargado. */}
+            <CargaMasivaContactos tipo="proveedores" onImportado={fetchVendors} />
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/compras/proveedores/nuevo')} style={{ background: '#1faec2' }}>
+              <span data-tour="compras-proveedor-nuevo">Nuevo proveedor</span>
+            </Button>
+          </Space>
         )}
       </div>
 

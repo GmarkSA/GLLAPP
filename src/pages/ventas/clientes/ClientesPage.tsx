@@ -19,6 +19,7 @@ import ColumnConfigurator, {
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
 import { useCan } from '../../../auth/can'
+import CargaMasivaContactos from '../../../components/CargaMasiva/CargaMasivaContactos'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -373,9 +374,13 @@ export default function ClientesPage() {
           </div>
         </div>
         {can('ventas:clientes:create') && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/clientes/nuevo')} style={{ background: '#1faec2' }}>
-            <span data-tour="ventas-cliente-nuevo">Nuevo cliente</span>
-          </Button>
+          <Space>
+            {/* Ver ProveedoresPage: la plantilla baja los clientes actuales. */}
+            <CargaMasivaContactos tipo="clientes" onImportado={fetchCustomers} />
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/ventas/clientes/nuevo')} style={{ background: '#1faec2' }}>
+              <span data-tour="ventas-cliente-nuevo">Nuevo cliente</span>
+            </Button>
+          </Space>
         )}
       </div>
 
