@@ -70,6 +70,20 @@ interface VendorAgingRow {
   invoices: Array<ApAgingRow & { bucket: BucketKey }>
 }
 
+/**
+ * La tasa con la que YA está convertido el saldo de un anticipo.
+ *
+ * Se deduce de los dos valores que el backend manda juntos, en vez de leer
+ * `exchangeRate` aparte: cualquier columna que se derive de aquí queda a la
+ * misma tasa que el saldo, sin poder contradecirlo.
+ */
+function tasaDelSaldo(adv: any): number {
+  const bal = Number(adv?.balance ?? 0)
+  const gtq = Number(adv?.balanceGTQ ?? 0)
+  if (Math.abs(bal) > 0.0001 && Math.abs(gtq) > 0.0001) return gtq / bal
+  return Number(adv?.exchangeRate) > 0 ? Number(adv.exchangeRate) : 1
+}
+
 export function buildVendorRows(data: any): VendorAgingRow[] {
   const map = new Map<string, VendorAgingRow>()
 
@@ -127,6 +141,19 @@ export function buildVendorRows(data: any): VendorAgingRow[] {
       invoiceDate:   (adv as any).advanceDate,
       dueDate:       null,
       bucket:        null,
+      /**
+       * El anticipo guarda su monto en `amount`; la columna «Total» lee
+       * `total`, que en un anticipo no existe — salía «Q 0.00».
+       *
+       * Su equivalente en quetzales se deduce del SALDO ya convertido
+       * (`balanceGTQ / balance`), no de `exchangeRate`. Así las dos columnas
+       * de la misma fila quedan por construcción a la misma tasa: si se
+       * calcularan por separado podrían contradecirse cuando una de las dos
+       * fuentes falte.
+       */
+      total:    Number((adv as any).amount ?? 0),
+      totalGTQ: Math.round(
+        Number((adv as any).amount ?? 0) * tasaDelSaldo(adv) * 100) / 100,
     })
   }
 

@@ -127,3 +127,42 @@ describe('sin anticipos', () => {
     expect(fila.invoices).toHaveLength(1)
   })
 })
+
+/**
+ * El anticipo en el detalle muestra su monto, y convertido.
+ *
+ * La columna «Total» lee `total`, que en un anticipo no existe —su monto va
+ * en `amount`—, así que salía «Q 0.00». Y su equivalente en quetzales se
+ * arma con la MISMA tasa con que el backend valuó el saldo: si se calcularan
+ * por separado, las dos columnas de la misma fila podrían contradecirse.
+ */
+describe('las columnas del anticipo en el detalle', () => {
+  const [fila] = buildClientRows(agingCliente)
+  const anticipo = fila.invoices.find((i: any) => i.esAnticipo) as any
+
+  it('el Total muestra el monto del anticipo, no cero', () => {
+    expect(anticipo.total).toBe(1000)
+  })
+
+  it('y su equivalente en quetzales usa la tasa del documento', () => {
+    expect(anticipo.totalGTQ).toBeCloseTo(1000 * TC, 2)
+  })
+
+  /** Las dos columnas de la fila tienen que hablar de la misma tasa. */
+  it('Total y Saldo quedan a la misma tasa', () => {
+    expect(anticipo.totalGTQ / anticipo.total)
+      .toBeCloseTo(anticipo.balanceGTQ / anticipo.balance, 6)
+  })
+
+  /** Sin tasa el monto no se infla: queda su valor nominal. */
+  it('sin tipo de cambio, el equivalente es el propio monto', () => {
+    const [f] = buildClientRows({
+      ...agingCliente,
+      advances: [{ id: 'a9', customerId: 'c1', customerName: 'X', advanceNumber: 'ANT-9',
+        advanceDate: '2025-11-15', currency: 'USD', balance: 500, balanceGTQ: 500, amount: 500 }],
+    })
+    const a = f.invoices.find((i: any) => i.esAnticipo) as any
+
+    expect(a.totalGTQ).toBe(500)
+  })
+})
