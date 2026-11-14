@@ -70,7 +70,7 @@ interface VendorAgingRow {
   invoices: Array<ApAgingRow & { bucket: BucketKey }>
 }
 
-function buildVendorRows(data: any): VendorAgingRow[] {
+export function buildVendorRows(data: any): VendorAgingRow[] {
   const map = new Map<string, VendorAgingRow>()
 
   const ensure = (vid: string, vname: string): VendorAgingRow => {
@@ -104,7 +104,36 @@ function buildVendorRows(data: any): VendorAgingRow[] {
 
   for (const adv of data.advances ?? []) {
     const row = ensure(adv.vendorId || '__sin__', adv.vendorName || '—')
-    row.anticipo += Number(adv.balance ?? 0)
+    /**
+     * El anticipo se acumula en QUETZALES, igual que los tramos.
+     *
+     * Antes se sumaba `balance`, que está en la moneda del documento,
+     * mientras los tramos usan `balanceGTQ`. El neto —total menos
+     * anticipo— restaba entonces dólares a un total en quetzales y salía
+     * inflado por el tipo de cambio.
+     */
+    row.anticipo += Number((adv as any).balanceGTQ ?? adv.balance ?? 0)
+
+    /**
+     * El anticipo también va al detalle del proveedor: sin él no se puede
+     * ver el orden de la operación —cuándo se le adelantó dinero frente a
+     * las facturas que ese adelanto cubre—, que es justo lo que se revisa
+     * antes de pagar.
+     */
+    row.invoices.push({
+      ...(adv as any),
+      esAnticipo:    true,
+      invoiceNumber: (adv as any).advanceNumber,
+      invoiceDate:   (adv as any).advanceDate,
+      dueDate:       null,
+      bucket:        null,
+    })
+  }
+
+  // El detalle se lee en orden de operación: lo más viejo primero.
+  for (const row of map.values()) {
+    row.invoices.sort((a: any, b: any) =>
+      String(a.invoiceDate ?? '').localeCompare(String(b.invoiceDate ?? '')))
   }
 
   for (const row of map.values()) {
@@ -204,9 +233,15 @@ export default function ApAgingPage() {
       {
         title: 'Documento', width: 140,
         render: (_: any, inv: any) => (
-          <Link to={`/compras/facturas/${inv.id}`} style={{ fontWeight: 600, fontSize: 12 }}>
-            {inv.invoiceNumber}
-          </Link>
+          // Un anticipo no es una factura de compra: su ficha no vive en
+          // /compras/facturas y enlazarlo ahí daría «no encontrada».
+          inv.esAnticipo
+            ? <Text strong style={{ fontSize: 12, color: '#2ea172' }}>{inv.invoiceNumber}</Text>
+            : (
+              <Link to={`/compras/facturas/${inv.id}`} style={{ fontWeight: 600, fontSize: 12 }}>
+                {inv.invoiceNumber}
+              </Link>
+            )
         ),
       },
       {
@@ -220,6 +255,8 @@ export default function ApAgingPage() {
       {
         title: 'Vencimiento', width: 120,
         render: (_: any, inv: any) => {
+          // Un anticipo no vence: es dinero ya entregado al proveedor.
+          if (inv.esAnticipo) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
           if (!inv.dueDate) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
           const d = dayjs(inv.dueDate).diff(dayjs(), 'day')
           return (
@@ -233,9 +270,13 @@ export default function ApAgingPage() {
       {
         title: 'Antigüedad', width: 105, align: 'center' as const,
         render: (_: any, inv: any) => (
-          <Tag color={BUCKET_COLORS[inv.bucket as BucketKey]} style={{ fontSize: 11 }}>
-            {BUCKET_LABELS[inv.bucket as BucketKey]}
-          </Tag>
+          inv.esAnticipo
+            ? <Tag color="#2ea172" style={{ fontSize: 11 }}>Anticipo</Tag>
+            : (
+              <Tag color={BUCKET_COLORS[inv.bucket as BucketKey]} style={{ fontSize: 11 }}>
+                {BUCKET_LABELS[inv.bucket as BucketKey]}
+              </Tag>
+            )
         ),
       },
       {
@@ -251,7 +292,13 @@ export default function ApAgingPage() {
       {
         title: 'Saldo', width: 130, align: 'right' as const,
         render: (_: any, inv: any) => (
-          <Text strong style={{ fontSize: 12, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>
+          // El anticipo baja lo que se le debe al proveedor: con signo menos
+          // y en verde, para que la columna se pueda leer sumando.
+          <Text strong style={{
+            fontSize: 12, fontVariantNumeric: 'tabular-nums',
+            color: inv.esAnticipo ? '#2ea172' : '#1faec2',
+          }}>
+            {inv.esAnticipo ? '− ' : ''}
             {formatearImporte(
               { currency: inv.currency, original: inv.balance, enQuetzales: (inv as any).balanceGTQ },
               vistaDeMoneda)}
@@ -262,14 +309,16 @@ export default function ApAgingPage() {
     return (
       <Table
         columns={invCols}
-        dataSource={row.invoices}
+        // Con «Ocultar anticipos» el detalle tampoco los muestra: la pantalla
+        // tiene que decir lo mismo arriba y abajo.
+        dataSource={showAdvances ? row.invoices : row.invoices.filter((i: any) => !i.esAnticipo)}
         rowKey="id"
         size="small"
         pagination={false}
         style={{ background: '#fafbfc', margin: '0 32px' }}
       />
     )
-  }, [vistaDeMoneda])
+  }, [vistaDeMoneda, showAdvances])
 
   const columns: ColumnsType<VendorAgingRow> = useMemo((): ColumnsType<VendorAgingRow> => [
     {
