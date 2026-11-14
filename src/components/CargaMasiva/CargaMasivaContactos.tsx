@@ -19,6 +19,7 @@ import {
   construirPlantillaProveedores, COLUMNAS_PROVEEDORES, ESPECIFICACION_PROVEEDORES,
 } from '../../pages/configuracion/plantillaProveedores'
 import { ESPECIFICACION_SALDOS } from '../../pages/configuracion/plantillaSaldosPendientes'
+import { revisarContactos, type RevisionDeContactos } from './revisarContactos'
 
 const { Text } = Typography
 
@@ -47,6 +48,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
   const [filas, setFilas]       = useState<BatchImportRow[]>([])
   const [documentos, setDocumentos] = useState<Array<Record<string, unknown>>>([])
   const [faltantes, setFaltantes]   = useState<string[]>([])
+  const [revision, setRevision]     = useState<RevisionDeContactos | null>(null)
 
   const esProveedor = tipo === 'proveedores'
   const titulo      = esProveedor ? 'proveedores' : 'clientes'
@@ -105,7 +107,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
   const leerArchivo = async (file: File) => {
     try {
       const datos = await file.arrayBuffer()
-      const revision = analizarArchivo(datos, spec)
+      const analisis = analizarArchivo(datos, spec)
       const leidas = leerFilas(datos, spec).filter(f => String(f.nombre ?? '').trim())
 
       if (!leidas.length) {
@@ -123,9 +125,20 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
           .filter(f => String(f.nit ?? '').trim() && Number(f.monto ?? 0))
       } catch { pendientes = [] }
 
+      /**
+       * Lo que va a pasar, dicho antes de que pase: la carga reconoce a los
+       * que ya existen POR SU NIT, y sin NIT crea uno nuevo por fila. Un
+       * archivo sin NIT y con el mismo proveedor repetido entra «sin errores»
+       * y deja la cartera con once copias, cada una con un pedazo del saldo.
+       */
+      const actuales = await (esProveedor
+        ? getVendors({ limit: 5000 })
+        : getCustomers({ limit: 5000 })).catch(() => null)
+
       setFilas(leidas as unknown as BatchImportRow[])
       setDocumentos(pendientes)
-      setFaltantes(revision.faltantes)
+      setFaltantes(analisis.faltantes)
+      setRevision(revisarContactos(leidas, (actuales as any)?.data ?? actuales ?? []))
       setAbierto(true)
     } catch {
       message.error('No se pudo leer el archivo. ¿Es el Excel de la plantilla?')
@@ -180,6 +193,58 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
           <Alert type="error" showIcon style={{ marginBottom: 12 }}
             message={`Falta la columna obligatoria: ${faltantes.join(', ')}`}
             description="Sin ella no se puede crear el registro." />
+        ) : null}
+
+        {/* La regla de la carga, dicha en voz alta: reconoce por NIT. */}
+        {revision && revision.sinNit > 0 && (
+          <Alert type="warning" showIcon style={{ marginBottom: 12 }}
+            message={`${revision.sinNit} de ${revision.total} filas vienen sin NIT`}
+            description="A los que ya existen se les reconoce por el NIT. Sin él, cada fila crea un contacto nuevo aunque el nombre coincida con uno ya cargado." />
+        )}
+
+        {revision?.repetidos.length ? (
+          <Alert type="warning" showIcon style={{ marginBottom: 12 }}
+            message={`${revision.repetidos.length} nombre(s) aparecen en varias filas`}
+            description={
+              <>
+                <div style={{ marginBottom: 6 }}>
+                  Se crearía <strong>un contacto por fila</strong>, cada uno con su pedazo del saldo.
+                  Para varias facturas de un mismo contacto va una sola fila aquí y una fila por
+                  factura en la hoja «Saldos pendientes».
+                </div>
+                <ul style={{ paddingLeft: 18, margin: 0 }}>
+                  {revision.repetidos.slice(0, 6).map(r => (
+                    <li key={r.nombre}>
+                      <strong>{r.nombre}</strong> — {r.veces} filas
+                      {r.suma ? ` · suman Q ${r.suma.toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : ''}
+                    </li>
+                  ))}
+                  {revision.repetidos.length > 6 && <li>y {revision.repetidos.length - 6} más…</li>}
+                </ul>
+              </>
+            } />
+        ) : null}
+
+        {revision?.yaExisten.length ? (
+          <Alert type="info" showIcon style={{ marginBottom: 12 }}
+            message={`${revision.yaExisten.length} ya está(n) en el sistema`}
+            description={
+              <ul style={{ paddingLeft: 18, margin: 0 }}>
+                {revision.yaExisten.slice(0, 6).map(c => (
+                  <li key={c.nombre}>
+                    <strong>{c.nombre}</strong>{c.numero ? ` (${c.numero})` : ''} —{' '}
+                    {c.porNit ? 'mismo NIT: se actualiza' : 'mismo nombre, pero sin NIT: se crearía duplicado'}
+                  </li>
+                ))}
+                {revision.yaExisten.length > 6 && <li>y {revision.yaExisten.length - 6} más…</li>}
+              </ul>
+            } />
+        ) : null}
+
+        {revision?.conSaldo ? (
+          <Alert type="info" showIcon style={{ marginBottom: 12 }}
+            message={`${revision.conSaldo} con saldo inicial — Q ${revision.sumaDeSaldos.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`}
+            description="Entra como una póliza de apertura contra la cuenta por pagar de cada contacto." />
         ) : null}
 
         {documentos.length ? (

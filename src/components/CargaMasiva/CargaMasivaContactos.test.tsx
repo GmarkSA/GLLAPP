@@ -114,6 +114,52 @@ describe('los botones de carga masiva', () => {
 })
 
 /**
+ * Subir el archivo de LUUM: 52 filas sin NIT, diez nombres repetidos y dos que
+ * ya existen. La pantalla tiene que decirlo ANTES de importar.
+ */
+describe('al subir un archivo, la revisión se ve antes de importar', () => {
+  const archivoDePrueba = () => {
+    const filas = [
+      { nombre: 'Punto AG El Campo', saldo_inicial: 50.10, notas: '701188696' },
+      { nombre: 'Punto AG El Campo', saldo_inicial: 60.20, notas: '1897549401' },
+      { nombre: 'GMARK, SOCIEDAD ANÓNIMA', saldo_inicial: 100 },
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb,
+      XLSX.utils.json_to_sheet(filas, { header: ['nombre', 'saldo_inicial', 'notas'] }),
+      'Proveedores')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  const subir = async () => {
+    const entrada = host.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File([archivoDePrueba()], 'Proveedores.xlsx',
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    // jsdom no deja asignar `files`: se define a mano, que es lo que lee rc-upload.
+    Object.defineProperty(entrada, 'files', { value: [file], configurable: true })
+    await act(async () => { entrada.dispatchEvent(new Event('change', { bubbles: true })) })
+    for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() })
+  }
+
+  it('avisa de las filas sin NIT y de los nombres repetidos', async () => {
+    await render()
+    await subir()
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('sin NIT')
+    expect(texto).toContain('Punto AG El Campo')
+    expect(texto).toContain('2 filas')
+  })
+
+  it('y suma el saldo inicial que entraría', async () => {
+    await render()
+    await subir()
+
+    expect(document.body.textContent).toContain('210.30')
+  })
+})
+
+/**
  * El archivo que se baja, leído como lo leería Excel: los proveedores van en
  * su hoja, y el ejemplo en la suya, no mezclado con ellos.
  */
