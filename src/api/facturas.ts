@@ -468,7 +468,16 @@ export interface Anticipo {
 export const getAnticipos = (params?: { customerId?: string; page?: number; limit?: number }) =>
   api.get(BASE_ANT, { params }).then(unwrap) as Promise<{ data: Anticipo[]; total: number }>
 
-export const createAnticipo = (dto: { customerId: string; amount: number; date?: string; notes?: string; currency?: string; reference?: string; bankAccountId?: string }) =>
+export const createAnticipo = (dto: {
+  customerId: string; amount: number; date?: string; notes?: string;
+  currency?: string; reference?: string; bankAccountId?: string
+  /**
+   * El tipo de cambio del día. Obligatorio en moneda extranjera: el mayor
+   * está en quetzales y sin él la póliza asentaría los dólares como si
+   * fueran quetzales. El servidor lo rechaza si falta.
+   */
+  exchangeRate?: number
+}) =>
   api.post(BASE_ANT, dto).then(unwrap) as Promise<Anticipo>
 
 export const applyAnticipo = (advanceId: string, invoiceId: string, amount?: number) =>
