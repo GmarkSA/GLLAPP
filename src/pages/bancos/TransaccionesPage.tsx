@@ -553,9 +553,30 @@ function PolizaModal({ jeId, transaction, accountId, currency, isForeign, onSave
   const cargar = (id: string) => {
     setLoading(true)
     setFallo(null)
+
+    /**
+     * La pregunta de verdad: «¿cuál es la póliza de ESTE movimiento?». La
+     * contesta el servidor buscándola por el movimiento y por el documento que
+     * lo originó, así que vale aunque el enlace guardado esté viejo o roto.
+     */
+    const porElMovimiento = () =>
+      transaction ? getPolizaDelMovimiento(accountId, transaction.id) : Promise.resolve(null)
+
+    /**
+     * El enlace guardado es un atajo, no la verdad. Si apunta a una póliza que
+     * ya no existe —borrada, anulada, perdida a medio camino— pedirla devuelve
+     * 404, y quedarse ahí dejaba al movimiento sin salida: decía tener
+     * contabilidad, no la tenía, y el modal solo ofrecía Cerrar. Así quedaron
+     * dos movimientos de enero, invisibles hasta que la revaluación encontró
+     * Q 9,173.64 de descuadre.
+     *
+     * Cuando el atajo falla se le pregunta al movimiento: si el servidor
+     * encuentra su póliza se muestra esa, y si responde que no tiene, lo que
+     * toca ofrecer es generarla.
+     */
     const pide = id === SIN_POLIZA || !id
-      ? (transaction ? getPolizaDelMovimiento(accountId, transaction.id) : Promise.resolve(null))
-      : getAsiento(id)
+      ? porElMovimiento()
+      : getAsiento(id).catch(() => porElMovimiento())
     pide
       .then(recibir)
       .catch((e: unknown) => {
