@@ -15,6 +15,7 @@ import { useCompanyStore } from '../../store/companyStore'
 import { getEmisor } from '../../api/emisor'
 import type { OrganizationProfile } from '../../api/configuracion'
 import { useAuthStore } from '../../store/authStore'
+import { simboloDeMoneda } from './bancosShared'
 
 dayjs.locale('es')
 
@@ -38,8 +39,15 @@ const STATUS_SYMBOL: Record<string, string> = {
   voided:      '✗',
 }
 
-const fmt = (n: number) =>
-  `Q ${Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/**
+ * Los montos se imprimen en la moneda de la CUENTA.
+ *
+ * Antes llevaban «Q» fijo: la conciliación impresa de una cuenta en dólares
+ * mostraba quetzales con cifras en dólares. El documento se archiva y se le
+ * entrega al auditor, así que decía algo falso sobre su propia moneda.
+ */
+const fmtEn = (currency?: string | null) => (n: number) =>
+  `${simboloDeMoneda(currency)} ${Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export default function ConciliacionImprimirPage() {
   const { id } = useParams<{ id: string }>()
@@ -134,6 +142,9 @@ export default function ConciliacionImprimirPage() {
       setDownloading(false)
     }
   }
+
+  // Todos los montos de esta hoja son de la cuenta, en SU moneda.
+  const fmt = fmtEn(account?.currency)
 
   const renderTxRows = (list: BankTransaction[]) =>
     list.map((r, i) => (
