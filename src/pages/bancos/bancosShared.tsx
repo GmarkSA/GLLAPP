@@ -34,6 +34,17 @@ export const panelStyle = {
   boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
 } as const
 
+/**
+ * El símbolo que encabeza un monto de esta cuenta.
+ *
+ * Una conciliación se hace en la moneda de la CUENTA: el saldo del estado de
+ * cuenta de un banco en dólares viene en dólares. Los campos de captura
+ * llevaban «Q» fijo, así que pedían un dato en una moneda y lo rotulaban en
+ * otra — quien lo leía rápido podía anotar el saldo convertido.
+ */
+export const simboloDeMoneda = (currency?: string | null) =>
+  !currency || currency.toUpperCase() === 'GTQ' ? 'Q' : currency.toUpperCase()
+
 export const moneyFmt = (n: number, currency = 'GTQ') =>
   `${currency === 'GTQ' ? 'Q' : currency} ${Number(n || 0).toLocaleString('es-GT', {
     minimumFractionDigits: 2,

@@ -22,7 +22,7 @@ import {
   type ReconciliationPeriod,
   type TransactionStatus,
 } from '../../api/bancos'
-import { moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
+import { simboloDeMoneda, moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
 
 const { Title, Text } = Typography
 
@@ -739,7 +739,7 @@ export default function ConciliacionPage() {
           </Text>
           <InputNumber
             size="small"
-            prefix="Q"
+            prefix={simboloDeMoneda(account?.currency)}
             style={{ width: '100%' }}
             value={closeSaldo}
             onChange={v => setCloseSaldo(v)}

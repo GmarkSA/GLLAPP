@@ -81,7 +81,7 @@ import {
 } from '../../api/bancos'
 import { getApiError } from '../../api/axios'
 import { getExchangeRateForDate, tipoDeCambioOficial } from '../../api/monedas'
-import { accountTypeIcon, formGrid, moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
+import { simboloDeMoneda, accountTypeIcon, formGrid, moneyFmt, NAVY, pageHeaderStyle, panelStyle } from './bancosShared'
 
 /** Marca para abrir el modal de un movimiento que no trae enlace a su póliza. */
 const SIN_POLIZA = 'sin-poliza'
@@ -1565,7 +1565,7 @@ export default function TransaccionesPage() {
             <InputNumber
               size="small"
               style={{ width: '100%' }}
-              prefix="Q"
+              prefix={simboloDeMoneda(account?.currency)}
               min={0}
               precision={2}
               placeholder="0.00"
@@ -1597,9 +1597,9 @@ export default function TransaccionesPage() {
             pagination={false}
             columns={[
               { title: 'Período', render: (_, r) => `${mesesTx[r.month - 1]} ${r.year}`, width: 120 },
-              { title: 'Saldo banco', dataIndex: 'saldoBanco', align: 'right', width: 130, render: v => moneyFmt(Number(v)) },
+              { title: 'Saldo banco', dataIndex: 'saldoBanco', align: 'right', width: 130, render: v => moneyFmt(Number(v), account?.currency) },
               { title: 'Sin conciliar', dataIndex: 'diferencia', align: 'right', width: 120, render: v => (
-                <span style={{ color: Number(v) < 0.01 ? '#2ea172' : '#e5484d' }}>{moneyFmt(Number(v))}</span>
+                <span style={{ color: Number(v) < 0.01 ? '#2ea172' : '#e5484d' }}>{moneyFmt(Number(v), account?.currency)}</span>
               )},
               { title: 'Estado', dataIndex: 'status', width: 95, render: v => (
                 <Tag color={v === 'approved' ? '#2ea172' : v === 'closed' ? NAVY : '#ff7f00'}>
@@ -1709,7 +1709,7 @@ export default function TransaccionesPage() {
             <InputNumber
               size="small"
               style={{ width: '100%' }}
-              prefix="Q"
+              prefix={simboloDeMoneda(account?.currency)}
               min={0}
               precision={2}
               placeholder="0.00"
