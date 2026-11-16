@@ -34,6 +34,21 @@ const ESTADO_LABEL: Record<EstadoActivoFijo, string> = {
   BORRADOR: 'Borrador', ACTIVO: 'Activo', VENDIDO: 'Vendido', DADO_DE_BAJA: 'Dado de Baja',
 }
 
+/**
+ * Las pólizas que la ficha muestra, por su origen.
+ *
+ * `activo_fijo_migracion` —la de un activo cargado como saldo inicial— no
+ * estaba en la lista: la ficha del activo migrado se veía sin ninguna póliza
+ * y había que ir a buscarla a mano a Diarios Manuales. La depreciación tiene
+ * su propia pestaña, con su propia columna de póliza, y no se repite aquí.
+ */
+export const ORIGENES_DE_POLIZA = [
+  'activo_fijo_alta',
+  'activo_fijo_migracion',
+  'activo_fijo_baja',
+  'activo_fijo_venta',
+]
+
 // ── Previsión de depreciación (cálculo local, línea recta) ────────────────────
 interface PrevisionRow {
   fecha: string
@@ -741,11 +756,12 @@ export default function ActivoFijoDetallePage() {
 
 
                 {/* ── Historial de pólizas ─────────────────────────────────── */}
-                {polizas.filter(p => ['activo_fijo_alta', 'activo_fijo_baja', 'activo_fijo_venta'].includes(p.sourceDocumentType)).map(pol => {
+                {polizas.filter(p => ORIGENES_DE_POLIZA.includes(p.sourceDocumentType)).map(pol => {
                   const labelMap: Record<string, string> = {
-                    activo_fijo_alta:  'Póliza de alta',
-                    activo_fijo_venta: 'Póliza de venta',
-                    activo_fijo_baja:  'Póliza de baja',
+                    activo_fijo_alta:      'Póliza de alta',
+                    activo_fijo_venta:     'Póliza de venta',
+                    activo_fijo_baja:      'Póliza de baja',
+                    activo_fijo_migracion: 'Póliza de apertura (saldo inicial)',
                   }
                   return (
                   <div key={pol.id}>
