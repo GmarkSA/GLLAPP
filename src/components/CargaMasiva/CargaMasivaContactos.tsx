@@ -354,18 +354,24 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
             description="Esos no se van a cargar. Escribí en la hoja «Saldos pendientes» la tasa con la que se registró cada uno." />
         ) : null}
 
-        {/* La fecha de la póliza: visible y editable, nunca «hoy» en silencio. */}
-        <Space align="center" style={{ marginBottom: 10 }}>
-          <Text strong>Fecha de la póliza de apertura</Text>
+        {/*
+          * La fecha CONTABLE, que es otra cosa que la del documento.
+          *
+          * Cada factura conserva la suya —es su trazabilidad y no se toca—,
+          * pero la póliza entra al mayor con una sola: la del corte de la
+          * migración. Antes no se preguntaba y el servidor usaba «hoy».
+          */}
+        <Space align="center" style={{ marginBottom: 10 }} wrap>
+          <Text strong>Fecha de contabilización</Text>
           <DatePicker
             value={fechaApertura}
             onChange={setFechaApertura}
             format="DD/MM/YYYY"
             allowClear={false}
-            placeholder="Elegí la fecha de corte"
+            placeholder="Elegí la fecha contable"
           />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            El día al que corresponden estos saldos, no el día en que se suben.
+            Con esta fecha entra la póliza al mayor. Cada documento conserva la suya.
           </Text>
         </Space>
 
@@ -398,7 +404,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
                 columns={[
                   { title: 'Documento', dataIndex: 'documento', width: 180,
                     render: (v: string) => v || <Text type="secondary">sin número</Text> },
-                  { title: 'Fecha', dataIndex: 'fecha', width: 110,
+                  { title: 'Fecha del documento', dataIndex: 'fecha', width: 150,
                     render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : <Text type="secondary">—</Text> },
                   { title: 'Vence', dataIndex: 'vencimiento', width: 110,
                     render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : <Text type="secondary">—</Text> },

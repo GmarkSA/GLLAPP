@@ -295,6 +295,34 @@ describe('un archivo con saldos en dólares', () => {
     expect(texto).toContain('5,920.83')                 // 772.50 × 7.664504854
   })
 
+
+  /**
+   * Son dos fechas distintas y la pantalla tiene que distinguirlas: la del
+   * documento es trazabilidad y no se toca; la de contabilización es con la
+   * que la póliza entra al mayor.
+   */
+  it('se pide aparte de la fecha de cada documento', async () => {
+    await render()
+    await subirDolares()
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('Fecha de contabilización')
+    expect(texto).toContain('Cada documento conserva la suya')
+  })
+
+  it('el detalle dice que esa fecha es la del documento', async () => {
+    await render()
+    await subirDolares()
+
+    const expandir = [...document.querySelectorAll('.ant-table-row-expand-icon')]
+    await act(async () => {
+      expandir[0].dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await act(async () => { await Promise.resolve() })
+
+    expect(document.body.textContent).toContain('Fecha del documento')
+  })
+
   it('y el total de los seis documentos', async () => {
     await render()
     await subirDolares()
