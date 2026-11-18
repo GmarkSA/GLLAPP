@@ -23,6 +23,19 @@ import { revisarContactos, type RevisionDeContactos } from './revisarContactos'
 
 const { Text } = Typography
 
+const fmt = (n: number) => Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })
+
+/**
+ * La tasa del contacto: una sola, o el rango cuando cada factura trae la suya.
+ *
+ * Es el dato que el contador cuadra contra su balance anterior, así que se
+ * muestra con sus seis decimales, no redondeada.
+ */
+const tasa = (d: { tasaMin: number; tasaMax: number }) =>
+  d.tasaMin === d.tasaMax
+    ? d.tasaMin.toFixed(6)
+    : `${d.tasaMin.toFixed(6)} – ${d.tasaMax.toFixed(6)}`
+
 /**
  * Bajar y subir contactos en masa, desde su propia pantalla.
  *
@@ -138,7 +151,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
       setFilas(leidas as unknown as BatchImportRow[])
       setDocumentos(pendientes)
       setFaltantes(analisis.faltantes)
-      setRevision(revisarContactos(leidas, (actuales as any)?.data ?? actuales ?? []))
+      setRevision(revisarContactos(leidas, (actuales as any)?.data ?? actuales ?? [], pendientes))
       setAbierto(true)
     } catch {
       message.error('No se pudo leer el archivo. ¿Es el Excel de la plantilla?')
@@ -247,10 +260,17 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
             description="Entra como una póliza de apertura contra la cuenta por pagar de cada contacto." />
         ) : null}
 
-        {documentos.length ? (
+        {revision?.documentos ? (
           <Alert type="info" showIcon style={{ marginBottom: 12 }}
-            message={`${documentos.length} documento(s) pendientes, cada uno con su tipo de cambio`}
+            message={`${revision.documentos} documento(s) pendientes — Q ${fmt(revision.documentosEnQuetzales)}`}
             description="El saldo de cada contacto sale de sumar sus documentos convertidos con la tasa de cada uno, no con un promedio." />
+        ) : null}
+
+        {/* Sin tasa no se cargan: a 1 × 1 la cartera entraría por una séptima parte. */}
+        {revision?.documentosSinTasa ? (
+          <Alert type="error" showIcon style={{ marginBottom: 12 }}
+            message={`${revision.documentosSinTasa} documento(s) en moneda extranjera sin tipo de cambio`}
+            description="Esos no se van a cargar. Escribí en la hoja «Saldos pendientes» la tasa con la que se registró cada uno." />
         ) : null}
 
         <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
@@ -270,10 +290,36 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
             { title: esProveedor ? 'Cuenta por pagar' : 'Cuenta por cobrar',
               dataIndex: esProveedor ? 'cuenta_contacto' : 'cuenta_por_cobrar', width: 130,
               render: (v: string) => v || <Text type="secondary">—</Text> },
-            { title: 'Saldo inicial', dataIndex: 'saldo_inicial', width: 120,
-              render: (v: number) => v != null
-                ? `Q ${Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-                : <Text type="secondary">—</Text> },
+            /**
+             * El saldo que de verdad va a entrar.
+             *
+             * Si el contacto trae documentos en la hoja «Saldos pendientes»,
+             * mandan ellos y la columna `saldo_inicial` va vacía — así que
+             * mostrar esa columna a secas ponía «—» en un contacto que sí
+             * traía saldo. Aquí se ve en su moneda, a qué tasa y en quetzales.
+             */
+            { title: 'Saldo inicial', dataIndex: 'saldo_inicial', width: 210,
+              render: (v: number, fila: BatchImportRow) => {
+                const doc = revision?.porDocumentos[String(fila.nit ?? '').trim()]
+                if (doc) return (
+                  <div style={{ lineHeight: 1.35 }}>
+                    <div>
+                      {doc.moneda !== 'GTQ' && doc.moneda !== 'MIXTA' && (
+                        <Text>{doc.moneda} {fmt(doc.monto)} <Text type="secondary">→</Text> </Text>
+                      )}
+                      <Text strong>Q {fmt(doc.enQuetzales)}</Text>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {doc.documentos} doc.
+                      {doc.moneda === 'GTQ' ? '' : ` · TC ${tasa(doc)}`}
+                      {doc.moneda === 'MIXTA' ? ' · monedas mezcladas' : ''}
+                    </Text>
+                  </div>
+                )
+                return v != null
+                  ? `Q ${fmt(v)}`
+                  : <Text type="secondary">—</Text>
+              } },
           ]}
         />
       </Modal>

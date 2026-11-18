@@ -89,3 +89,94 @@ describe('lo que va a pasar al importar', () => {
     expect(r.sumaDeSaldos).toBe(0)
   })
 })
+
+/**
+ * La cartera en dólares: dos proveedores, seis facturas, cinco tasas distintas.
+ *
+ * El caso real de LUUM. La pantalla mostraba «—» en la columna de saldo porque
+ * leía `saldo_inicial`, que va vacío cuando el saldo viene por documentos:
+ * parecía que los dos proveedores entraban sin nada. Lo que hace falta ver es
+ * lo que deben en dólares, a qué tasa y cuánto es en quetzales.
+ */
+const EN_DOLARES = [
+  { nit: 'CF',       documento: 'INV-016944',        monto: 772.50,  moneda: 'USD', tipo_cambio: 7.664504854 },
+  { nit: 'CF',       documento: 'INV-017523',        monto: 750,     moneda: 'USD', tipo_cambio: 7.664506667 },
+  { nit: 'CF',       documento: 'INV-017524',        monto: 280,     moneda: 'USD', tipo_cambio: 7.6645 },
+  { nit: 'CF',       documento: 'INV-017525',        monto: 280,     moneda: 'USD', tipo_cambio: 7.6645 },
+  { nit: '41555384', documento: '3205384016',        monto: 0.70,    moneda: 'USD', tipo_cambio: 7.671428571 },
+  { nit: 'CF',       documento: '318-2025-00022636', monto: 1182.28, moneda: 'USD', tipo_cambio: 7.675855127 },
+]
+
+const EN_DOLARES_FILAS = [
+  { nombre: 'The Conscious Home, LLC', nit: 'CF' },
+  { nombre: 'ALEJANDRO , TORUN ENGELBERG', nit: '41555384' },
+]
+
+describe('el saldo que llega por documentos', () => {
+  const r = () => revisarContactos(EN_DOLARES_FILAS, [], EN_DOLARES)
+
+  it('muestra lo que debe en su moneda y en quetzales, por contacto', () => {
+    const llc = r().porDocumentos['CF']
+
+    expect(llc.documentos).toBe(5)
+    expect(llc.moneda).toBe('USD')
+    expect(llc.monto).toBeCloseTo(3264.78, 2)
+    expect(llc.enQuetzales).toBeCloseTo(25036.34, 2)
+  })
+
+  /** Cada factura a SU tasa: el rango se ve, no se promedia. */
+  it('con varias tasas, guarda la menor y la mayor', () => {
+    const llc = r().porDocumentos['CF']
+
+    expect(llc.tasaMin).toBeCloseTo(7.6645, 6)
+    expect(llc.tasaMax).toBeCloseTo(7.675855127, 6)
+  })
+
+  it('con una sola factura, la tasa es una sola', () => {
+    const torun = r().porDocumentos['41555384']
+
+    expect(torun.documentos).toBe(1)
+    expect(torun.tasaMin).toBe(torun.tasaMax)
+    expect(torun.enQuetzales).toBeCloseTo(5.37, 2)
+  })
+
+  it('el total es la suma de los documentos, no un promedio', () => {
+    expect(r().documentos).toBe(6)
+    expect(r().documentosEnQuetzales).toBeCloseTo(25041.71, 2)
+  })
+
+  /** El NIT se compara tal cual: «CF» une por «CF», igual que en el servidor. */
+  it('une por el NIT escrito, no solo por sus dígitos', () => {
+    expect(Object.keys(r().porDocumentos).sort()).toEqual(['41555384', 'CF'])
+  })
+
+  it('un contacto con facturas en dos monedas queda marcado', () => {
+    const mixto = revisarContactos([{ nombre: 'X', nit: '99' }], [], [
+      { nit: '99', monto: 100, moneda: 'USD', tipo_cambio: 7.7 },
+      { nit: '99', monto: 500, moneda: 'GTQ' },
+    ]).porDocumentos['99']
+
+    expect(mixto.moneda).toBe('MIXTA')
+    expect(mixto.monto).toBe(0)                    // sumar dos monedas no significa nada
+    expect(mixto.enQuetzales).toBeCloseTo(1270, 2) // 770 + 500
+  })
+
+  /** Sin tasa el servidor no lo carga: se avisa antes, no después. */
+  it('cuenta los documentos en moneda extranjera sin tipo de cambio', () => {
+    const r2 = revisarContactos([{ nombre: 'X', nit: '99' }], [], [
+      { nit: '99', monto: 100, moneda: 'USD' },
+      { nit: '99', monto: 200, moneda: 'USD', tipo_cambio: 7.7 },
+    ])
+
+    expect(r2.documentosSinTasa).toBe(1)
+    expect(r2.documentos).toBe(1)
+    expect(r2.documentosEnQuetzales).toBeCloseTo(1540, 2)
+  })
+
+  it('sin hoja de saldos pendientes no hay nada que mostrar', () => {
+    const r2 = revisarContactos(EN_DOLARES_FILAS)
+
+    expect(r2.documentos).toBe(0)
+    expect(r2.porDocumentos).toEqual({})
+  })
+})
