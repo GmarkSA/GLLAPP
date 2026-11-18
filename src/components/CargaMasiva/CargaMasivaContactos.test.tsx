@@ -157,6 +157,19 @@ describe('al subir un archivo, la revisión se ve antes de importar', () => {
 
     expect(document.body.textContent).toContain('210.30')
   })
+
+  /** Un contacto con saldo suelto en quetzales no inventa moneda ni tasa. */
+  it('el saldo suelto deja vacías la moneda y la tasa', async () => {
+    await render()
+    await subir()
+
+    const celdas = [...document.querySelectorAll('.ant-table-tbody tr')]
+      .map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent?.trim()))
+    const fila = celdas.find(c => c[0]?.includes('GMARK'))!
+
+    expect(fila).toContain('—')
+    expect(fila.some(c => c?.startsWith('Q 100.00'))).toBe(true)
+  })
 })
 
 /**
@@ -202,6 +215,35 @@ describe('un archivo con saldos en dólares', () => {
     expect(texto).toContain('USD 3,264.78')
     expect(texto).toContain('25,036.34')
   })
+
+  /**
+   * Cada dato en su columna: con sesenta proveedores, todo junto en una celda
+   * no se puede recorrer con la vista ni comparar un monto con el de abajo.
+   */
+  it('en tres columnas: moneda, tasa y quetzales', async () => {
+    await render()
+    await subirDolares()
+
+    const encabezados = [...document.querySelectorAll('.ant-table-thead th')]
+      .map(th => th.textContent?.trim())
+    expect(encabezados).toContain('Saldo en su moneda')
+    expect(encabezados).toContain('Tipo de cambio')
+    expect(encabezados).toContain('Saldo en Q')
+  })
+
+  it('cada fila lleva sus tres valores separados', async () => {
+    await render()
+    await subirDolares()
+
+    const celdas = [...document.querySelectorAll('.ant-table-tbody tr')]
+      .map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent?.trim()))
+    const llc = celdas.find(c => c[0]?.includes('Conscious'))!
+
+    expect(llc).toContain('USD 3,264.78')
+    expect(llc).toContain('7.664500 – 7.675855')
+    expect(llc.some(c => c?.startsWith('Q 25,036.34'))).toBe(true)
+  })
+
 
   it('con el tipo de cambio de cada contacto', async () => {
     await render()

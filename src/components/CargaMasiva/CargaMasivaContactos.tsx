@@ -36,6 +36,9 @@ const tasa = (d: { tasaMin: number; tasaMax: number }) =>
     ? d.tasaMin.toFixed(6)
     : `${d.tasaMin.toFixed(6)} – ${d.tasaMax.toFixed(6)}`
 
+/** Cifras de ancho fijo: en una columna de montos, es lo que deja compararlos. */
+const numeros = { fontVariantNumeric: 'tabular-nums' } as const
+
 /**
  * Bajar y subir contactos en masa, desde su propia pantalla.
  *
@@ -67,6 +70,27 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
   const titulo      = esProveedor ? 'proveedores' : 'clientes'
   const columnas    = esProveedor ? COLUMNAS_PROVEEDORES : COLUMNAS_CLIENTES
   const spec        = esProveedor ? ESPECIFICACION_PROVEEDORES : ESPECIFICACION_CLIENTES
+
+  /**
+   * El saldo que de verdad le va a entrar a esta fila.
+   *
+   * Si el contacto trae documentos en la hoja «Saldos pendientes», mandan
+   * ellos y la columna `saldo_inicial` va vacía a propósito: leerla a secas
+   * ponía «—» en un contacto que sí traía saldo. Si no hay documentos, el
+   * saldo suelto se trata como lo que es, una cifra en quetzales.
+   */
+  const saldoDeLaFila = (fila: BatchImportRow) => {
+    const porDocumentos = revision?.porDocumentos[String(fila.nit ?? '').trim()]
+    if (porDocumentos) return porDocumentos
+
+    const suelto = fila.saldo_inicial
+    if (suelto == null || !Number(suelto)) return null
+    return {
+      documentos: 0, moneda: 'GTQ',
+      monto: Number(suelto), enQuetzales: Number(suelto),
+      tasaMin: 1, tasaMax: 1,
+    }
+  }
 
   /** Las listas de la empresa: sin ellas la plantilla no puede traducir ids a códigos. */
   const catalogos = async () => {
@@ -197,7 +221,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
         open={abierto}
         title={`Revisar la carga de ${titulo}`}
         onCancel={() => setAbierto(false)}
-        width={820}
+        width={1040}
         okText={`Importar ${filas.length}`}
         okButtonProps={{ loading: subiendo, disabled: !!faltantes.length, style: { background: '#1B3A6B' } }}
         onOk={importar}
@@ -282,7 +306,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
           rowKey={(_, i) => String(i)}
           dataSource={filas}
           pagination={{ pageSize: 8, size: 'small' }}
-          scroll={{ x: 700 }}
+          scroll={{ x: 1060 }}
           columns={[
             { title: 'Nombre', dataIndex: 'nombre', width: 220 },
             { title: 'NIT', dataIndex: 'nit', width: 110 },
@@ -291,34 +315,39 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
               dataIndex: esProveedor ? 'cuenta_contacto' : 'cuenta_por_cobrar', width: 130,
               render: (v: string) => v || <Text type="secondary">—</Text> },
             /**
-             * El saldo que de verdad va a entrar.
+             * El saldo, en tres columnas y no en una.
              *
-             * Si el contacto trae documentos en la hoja «Saldos pendientes»,
-             * mandan ellos y la columna `saldo_inicial` va vacía — así que
-             * mostrar esa columna a secas ponía «—» en un contacto que sí
-             * traía saldo. Aquí se ve en su moneda, a qué tasa y en quetzales.
+             * Primero se mostraba todo junto en una celda. Con dos filas se
+             * lee; con sesenta proveedores, no: los montos quedan a distinta
+             * altura y no se pueden recorrer con la vista ni comparar. Cada
+             * dato en su columna, alineado a la derecha y con cifras de ancho
+             * fijo, que es como se lee una cartera.
              */
-            { title: 'Saldo inicial', dataIndex: 'saldo_inicial', width: 210,
-              render: (v: number, fila: BatchImportRow) => {
-                const doc = revision?.porDocumentos[String(fila.nit ?? '').trim()]
-                if (doc) return (
-                  <div style={{ lineHeight: 1.35 }}>
-                    <div>
-                      {doc.moneda !== 'GTQ' && doc.moneda !== 'MIXTA' && (
-                        <Text>{doc.moneda} {fmt(doc.monto)} <Text type="secondary">→</Text> </Text>
-                      )}
-                      <Text strong>Q {fmt(doc.enQuetzales)}</Text>
-                    </div>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      {doc.documentos} doc.
-                      {doc.moneda === 'GTQ' ? '' : ` · TC ${tasa(doc)}`}
-                      {doc.moneda === 'MIXTA' ? ' · monedas mezcladas' : ''}
-                    </Text>
+            { title: 'Saldo en su moneda', width: 140, align: 'right' as const,
+              render: (_: unknown, fila: BatchImportRow) => {
+                const s = saldoDeLaFila(fila)
+                if (!s || s.moneda === 'GTQ') return <Text type="secondary">—</Text>
+                if (s.moneda === 'MIXTA') return <Text type="secondary">varias monedas</Text>
+                return <Text style={numeros}>{s.moneda} {fmt(s.monto)}</Text>
+              } },
+            { title: 'Tipo de cambio', width: 150, align: 'right' as const,
+              render: (_: unknown, fila: BatchImportRow) => {
+                const s = saldoDeLaFila(fila)
+                if (!s || s.moneda === 'GTQ') return <Text type="secondary">—</Text>
+                return <Text style={numeros}>{tasa(s)}</Text>
+              } },
+            { title: 'Saldo en Q', width: 140, align: 'right' as const,
+              render: (_: unknown, fila: BatchImportRow) => {
+                const s = saldoDeLaFila(fila)
+                if (!s) return <Text type="secondary">—</Text>
+                return (
+                  <div style={{ lineHeight: 1.3 }}>
+                    <Text strong style={numeros}>Q {fmt(s.enQuetzales)}</Text>
+                    {s.documentos > 0 && (
+                      <div><Text type="secondary" style={{ fontSize: 11 }}>{s.documentos} doc.</Text></div>
+                    )}
                   </div>
                 )
-                return v != null
-                  ? `Q ${fmt(v)}`
-                  : <Text type="secondary">—</Text>
               } },
           ]}
         />
