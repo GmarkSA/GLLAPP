@@ -340,6 +340,15 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
             description="El saldo de cada contacto sale de sumar sus documentos convertidos con la tasa de cada uno, no con un promedio." />
         ) : null}
 
+        {/* El anticipo va a su propia cuenta, no al saldo del contacto. */}
+        {revision?.anticipos ? (
+          <Alert type="info" showIcon style={{ marginBottom: 12 }}
+            message={`${revision.anticipos} anticipo(s) — Q ${fmt(revision.anticiposEnQuetzales)}`}
+            description={esProveedor
+              ? 'Lo que ya se le pagó al proveedor sin aplicar. Entra a la cuenta de anticipos a proveedores, con su propia póliza, y no suma al saldo por pagar.'
+              : 'Lo que el cliente ya pagó sin aplicar. Entra a la cuenta de anticipos de clientes, con su propia póliza, y no resta del saldo por cobrar.'} />
+        ) : null}
+
         {/* Un NIT escrito distinto en las dos hojas: el documento no se carga ni se ve. */}
         {revision?.documentosSinContacto ? (
           <Alert type="error" showIcon style={{ marginBottom: 12 }}
@@ -402,6 +411,10 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
                 dataSource={documentosDe(fila.nit)}
                 pagination={false}
                 columns={[
+                  { title: 'Tipo', dataIndex: 'tipo', width: 100,
+                    render: (v: string) => String(v ?? '').toLowerCase() === 'anticipo'
+                      ? <Text style={{ color: '#2ea172' }}>Anticipo</Text>
+                      : <Text type="secondary">Factura</Text> },
                   { title: 'Documento', dataIndex: 'documento', width: 180,
                     render: (v: string) => v || <Text type="secondary">sin número</Text> },
                   { title: 'Fecha del documento', dataIndex: 'fecha', width: 150,

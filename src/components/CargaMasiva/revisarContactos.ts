@@ -85,6 +85,15 @@ export interface RevisionDeContactos {
    * distinto en las dos hojas.
    */
   documentosSinContacto: number
+  /**
+   * Los anticipos: lo contrario de una factura.
+   *
+   * No se suman al saldo del contacto —van a su propia cuenta y al lado
+   * contrario de la póliza—, así que se cuentan aparte. Mezclarlos daría un
+   * saldo menor al real y haría desaparecer el anticipo del balance.
+   */
+  anticipos: number
+  anticiposEnQuetzales: number
 }
 
 /** Sin tildes, sin mayúsculas y sin puntuación: «La Paneria, S.A.» = «LA PANERIA SA». */
@@ -111,6 +120,8 @@ export function saldosPorDocumentos(documentos: Array<Record<string, unknown>> =
   const porNit: Record<string, SaldoPorDocumentos> = {}
   let sinTasa = 0
 
+  let anticipos = 0, anticiposEnQuetzales = 0
+
   for (const d of documentos) {
     const nit   = String(d.nit ?? '').trim()
     const monto = Number(d.monto ?? 0) || 0
@@ -119,6 +130,13 @@ export function saldosPorDocumentos(documentos: Array<Record<string, unknown>> =
     const moneda = (String(d.moneda ?? '').trim() || 'GTQ').toUpperCase()
     const tasa   = Number(d.tipo_cambio ?? 0) || (moneda === 'GTQ' ? 1 : 0)
     if (!tasa) { sinTasa++; continue }
+
+    // El anticipo no es cartera: se cuenta aparte y no entra en el saldo.
+    if (String(d.tipo ?? '').trim().toLowerCase() === 'anticipo') {
+      anticipos++
+      anticiposEnQuetzales = centavos(anticiposEnQuetzales + monto * tasa)
+      continue
+    }
 
     const previo   = porNit[nit]
     const mezclada = previo && previo.moneda !== moneda
@@ -141,6 +159,8 @@ export function saldosPorDocumentos(documentos: Array<Record<string, unknown>> =
     documentos: Object.values(porNit).reduce((s, v) => s + v.documentos, 0),
     enQuetzales,
     sinTasa,
+    anticipos,
+    anticiposEnQuetzales,
   }
 }
 
@@ -208,5 +228,7 @@ export function revisarContactos(
     documentosEnQuetzales: docs.enQuetzales,
     documentosSinTasa:     docs.sinTasa,
     documentosSinContacto,
+    anticipos:             docs.anticipos,
+    anticiposEnQuetzales:  docs.anticiposEnQuetzales,
   }
 }

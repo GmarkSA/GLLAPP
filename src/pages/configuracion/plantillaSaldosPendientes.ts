@@ -1,4 +1,19 @@
-import type { ColumnaDePlantilla, EspecificacionDeCarga } from './plantillaCarga'
+import type { ColumnaDePlantilla, EspecificacionDeCarga, Vocabulario } from './plantillaCarga'
+
+/**
+ * Qué clase de saldo es cada fila.
+ *
+ * Una factura pendiente y un anticipo son lo contrario: la factura es lo que
+ * se debe, el anticipo lo que ya se pagó o se cobró sin aplicar. Van a
+ * cuentas distintas y a lados distintos de la póliza, así que la carga tiene
+ * que poder distinguirlos — y sin esta columna no había forma de decirlo: el
+ * servidor ya los sabía separar, pero la plantilla no los preguntaba, así que
+ * todo entraba como factura.
+ */
+const TIPO_DE_SALDO: Vocabulario = {
+  factura:  ['factura', 'documento', 'cargo', 'invoice'],
+  anticipo: ['anticipo', 'anticipos', 'adelanto', 'a cuenta', 'advance'],
+}
 
 /**
  * Los documentos pendientes con que un cliente o un proveedor arranca en Lucía.
@@ -23,6 +38,10 @@ export const COLUMNAS_SALDOS: ColumnaDePlantilla[] = [
   { clave: 'nit', titulo: 'nit', requerida: true, pestana: 'Saldos pendientes',
     ayuda: 'NIT del contacto, el mismo de la otra hoja. Es lo que une el documento con su cliente o proveedor.',
     alias: ['NIT', 'NIT / CUI', 'Tax ID', 'Identificación'] },
+  { clave: 'tipo', titulo: 'tipo', requerida: false, tipo: 'opcion', vocabulario: TIPO_DE_SALDO,
+    pestana: 'Saldos pendientes',
+    ayuda: 'factura o anticipo. Vacío = factura. El anticipo es lo que ya se pagó o se cobró sin aplicar: va a la cuenta de anticipos y al lado contrario de la póliza.',
+    alias: ['Tipo', 'Tipo de saldo', 'Clase'] },
   { clave: 'documento', titulo: 'documento', requerida: false, pestana: 'Saldos pendientes',
     ayuda: 'Número de la factura o documento. Sirve para reconocerlo al cobrarlo o pagarlo.',
     alias: ['Documento', 'No. Documento', 'Factura', 'Número de factura', 'Invoice Number'] },
@@ -57,15 +76,20 @@ export const ESPECIFICACION_SALDOS: EspecificacionDeCarga = {
  */
 export const ejemplosDeSaldos = (nit: string): Array<Record<string, unknown>> => [
   {
-    nit, documento: 'FAC-00120', fecha: '15/11/2025', vencimiento: '15/12/2025',
+    nit, tipo: 'factura', documento: 'FAC-00120', fecha: '15/11/2025', vencimiento: '15/12/2025',
     monto: 2500, moneda: 'USD', tipo_cambio: 7.712340,
   },
   {
-    nit, documento: 'FAC-00135', fecha: '03/12/2025', vencimiento: '02/01/2026',
+    nit, tipo: 'factura', documento: 'FAC-00135', fecha: '03/12/2025', vencimiento: '02/01/2026',
     monto: 1800, moneda: 'USD', tipo_cambio: 7.668900,
   },
   {
-    nit, documento: 'FAC-00141', fecha: '20/12/2025', vencimiento: '19/01/2026',
+    nit, tipo: 'factura', documento: 'FAC-00141', fecha: '20/12/2025', vencimiento: '19/01/2026',
     monto: 4300, moneda: 'GTQ', tipo_cambio: '',
+  },
+  // Lo contrario de una factura: ya está pagado y todavía no se aplicó.
+  {
+    nit, tipo: 'anticipo', documento: 'ANT-0007', fecha: '28/12/2025', vencimiento: '',
+    monto: 1000, moneda: 'GTQ', tipo_cambio: '',
   },
 ]

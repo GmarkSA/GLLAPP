@@ -180,3 +180,46 @@ describe('el saldo que llega por documentos', () => {
     expect(r2.porDocumentos).toEqual({})
   })
 })
+
+/**
+ * Los anticipos: lo contrario de una factura.
+ *
+ * El servidor ya sabía separarlos —`convertirSaldos` distingue el tipo—, pero
+ * la plantilla no preguntaba cuál era cuál, así que todo entraba como factura
+ * y un anticipo terminaba sumando al saldo por cobrar en vez de restarlo.
+ */
+describe('los anticipos se cuentan aparte', () => {
+  const CON_ANTICIPO = [
+    { nit: '111', tipo: 'factura',  documento: 'FAC-1', monto: 1000, moneda: 'GTQ' },
+    { nit: '111', tipo: 'anticipo', documento: 'ANT-1', monto: 400,  moneda: 'GTQ' },
+    { nit: '111', tipo: 'anticipo', documento: 'ANT-2', monto: 100,  moneda: 'USD', tipo_cambio: 7.7 },
+  ]
+
+  const r = () => revisarContactos([{ nombre: 'X', nit: '111' }], [], CON_ANTICIPO)
+
+  it('no entran en el saldo del contacto', () => {
+    expect(r().porDocumentos['111'].documentos).toBe(1)
+    expect(r().porDocumentos['111'].enQuetzales).toBeCloseTo(1000, 2)
+  })
+
+  it('se cuentan y se suman por su lado, cada uno a su tasa', () => {
+    expect(r().anticipos).toBe(2)
+    expect(r().anticiposEnQuetzales).toBeCloseTo(1170, 2)   // 400 + 100 × 7.7
+  })
+
+  it('sin anticipos, el conteo es cero', () => {
+    const sin = revisarContactos([{ nombre: 'X', nit: '111' }], [], [CON_ANTICIPO[0]])
+
+    expect(sin.anticipos).toBe(0)
+    expect(sin.anticiposEnQuetzales).toBe(0)
+  })
+
+  /** Una fila sin tipo es una factura: es lo que decía la plantilla vieja. */
+  it('una fila sin tipo sigue siendo factura', () => {
+    const viejo = revisarContactos([{ nombre: 'X', nit: '111' }], [],
+      [{ nit: '111', documento: 'FAC-1', monto: 1000, moneda: 'GTQ' }])
+
+    expect(viejo.anticipos).toBe(0)
+    expect(viejo.porDocumentos['111'].enQuetzales).toBeCloseTo(1000, 2)
+  })
+})
