@@ -26,6 +26,28 @@ const { TextArea } = Input
 
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+/**
+ * Una factura en dólares vale lo que vale EN DÓLARES; su equivalente en
+ * quetzales sale de la tasa con la que se registró, no de la de hoy.
+ *
+ * Esta ficha formateaba todo con «Q» y sumaba sin convertir, igual que la del
+ * proveedor: una cartera en dólares salía con el número en dólares y el signo
+ * de quetzales — ni lo uno ni lo otro.
+ */
+export const esLocal = (moneda?: string | null) => !moneda || moneda.toUpperCase() === 'GTQ'
+
+export const fmtMoneda = (n: number, moneda?: string | null) =>
+  esLocal(moneda)
+    ? fmtQ(n)
+    : `${String(moneda).toUpperCase()} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+/** Lo que vale en quetzales, con la tasa del propio documento. */
+export const enQuetzales = (n: unknown, doc: { currency?: string | null; exchangeRate?: number | null }) => {
+  const monto = Number(n ?? 0)
+  if (esLocal(doc?.currency)) return monto
+  return monto * (Number(doc?.exchangeRate) || 1)
+}
+
 const MONTHS = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
@@ -145,14 +167,15 @@ export default function ClienteDetallePage() {
 
   const totalFacturado = invoices
     .filter(inv => inv.status !== 'voided')
-    .reduce((s, inv) => s + Number(inv.total ?? 0), 0)
+    .reduce((s, inv) => s + enQuetzales(inv.total, inv), 0)
 
   const totalCobrado = payments
-    .reduce((s, p) => s + Number(p.amount ?? 0), 0)
+    .reduce((s, p) => s + enQuetzales(p.amount, p as any), 0)
 
+  // Los totales van en quetzales, cada documento con SU tasa.
   const saldoPendiente = invoices
     .filter(inv => ['open', 'partial', 'overdue', 'sent'].includes(inv.status))
-    .reduce((s, inv) => s + Number(inv.balance ?? 0), 0)
+    .reduce((s, inv) => s + enQuetzales(inv.balance, inv), 0)
 
   const facturasVencidas = invoices.filter(inv => inv.status === 'overdue').length
 
@@ -266,8 +289,30 @@ export default function ClienteDetallePage() {
         ? <Tag color="#6b7280" style={{ fontSize: 10 }}>Recurrente</Tag>
         : <Tag color="default" style={{ fontSize: 10 }}>Estándar</Tag>,
     },
-    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
-    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) > 0 ? '#ff7f00' : '#6b7280' }}>{fmtQ(Number(v))}</Text> },
+    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 150,
+      render: (v: number, inv: Invoice) => (
+        <div style={{ lineHeight: 1.3 }}>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtMoneda(v, inv.currency)}</Text>
+          {!esLocal(inv.currency) && (
+            <div><Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+              {fmtQ(enQuetzales(v, inv))}
+            </Text></div>
+          )}
+        </div>
+      ) },
+    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 150,
+      render: (v: number, inv: Invoice) => (
+        <div style={{ lineHeight: 1.3 }}>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) > 0 ? '#ff7f00' : '#6b7280' }}>
+            {fmtMoneda(Number(v), inv.currency)}
+          </Text>
+          {!esLocal(inv.currency) && (
+            <div><Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+              {fmtQ(enQuetzales(v, inv))} · TC {Number(inv.exchangeRate ?? 1).toFixed(6)}
+            </Text></div>
+          )}
+        </div>
+      ) },
   ]
 
   const payCols = [

@@ -4,6 +4,7 @@ import {
   construirPlantillaClientes, ESPECIFICACION_CLIENTES, COLUMNAS_CLIENTES,
   type CatalogoDeClientes,
 } from './plantillaClientes'
+import { COLUMNAS_PROVEEDORES } from './plantillaProveedores'
 import { analizarArchivo, leerFilas } from './plantillaCarga'
 
 /**
@@ -45,10 +46,13 @@ describe('la plantilla de clientes', () => {
   })
 
   it('trae los campos que la plantilla vieja no tenía', () => {
-    const claves = COLUMNAS_CLIENTES.map(c => c.clave)
+    // Por el ENCABEZADO del archivo, que es lo que ve el usuario: las cuentas
+    // viajan con la clave que lee el servidor (`cuenta_contacto`), no con su
+    // título.
+    const titulos = COLUMNAS_CLIENTES.map(c => c.titulo)
     for (const campo of ['tratamiento_fiscal', 'cuenta_por_cobrar', 'terminos_pago',
                          'limite_credito', 'moneda', 'cuenta_ingresos']) {
-      expect([campo, claves.includes(campo)]).toEqual([campo, true])
+      expect([campo, titulos.includes(campo)]).toEqual([campo, true])
     }
   })
 
@@ -203,5 +207,39 @@ describe('fechas escritas en Excel, no a mano', () => {
 
     const [fila] = leerFilas(datos, ESPECIFICACION_CLIENTES)
     expect(fila.fecha_saldo_inicial).toBe('2026-01-15')
+  })
+})
+
+/**
+ * Las dos columnas de cuentas tienen que llegar al servidor.
+ *
+ * El servidor lee `cuenta_contacto` y `cuenta_contrapartida` —las mismas dos
+ * para clientes y proveedores, solo cambia el nombre en la plantilla—. Con la
+ * clave vieja la columna se escribía, el usuario la llenaba y la carga la
+ * ignoraba en silencio: el cliente entraba sin su cuenta por cobrar.
+ */
+describe('las cuentas del cliente llegan a la carga', () => {
+  const porClave = (clave: string) => COLUMNAS_CLIENTES.find(c => c.clave === clave)
+
+  it('la cuenta por cobrar viaja como «cuenta_contacto»', () => {
+    expect(porClave('cuenta_contacto')?.titulo).toBe('cuenta_por_cobrar')
+  })
+
+  it('y la de ingresos como «cuenta_contrapartida»', () => {
+    expect(porClave('cuenta_contrapartida')?.titulo).toBe('cuenta_ingresos')
+  })
+
+  /** El encabezado del Excel no cambia: lo que cambia es la clave interna. */
+  it('el archivo sigue diciendo cuenta_por_cobrar', () => {
+    const titulos = COLUMNAS_CLIENTES.map(c => c.titulo)
+    expect(titulos).toContain('cuenta_por_cobrar')
+    expect(titulos).toContain('cuenta_ingresos')
+  })
+
+  /** Las mismas claves que proveedores: el mapeo del servidor es uno solo. */
+  it('son las mismas claves que usa proveedores', () => {
+    const deProveedores = COLUMNAS_PROVEEDORES.filter(c => c.clave.startsWith('cuenta_')).map(c => c.clave)
+    const deClientes    = COLUMNAS_CLIENTES.filter(c => c.clave.startsWith('cuenta_')).map(c => c.clave)
+    expect(deClientes.sort()).toEqual(deProveedores.sort())
   })
 })

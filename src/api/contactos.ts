@@ -207,8 +207,10 @@ export interface BatchImportRow {
   retencion_iva?: string
   retiene_isr?: boolean
   impuesto_isr?: string
-  cuenta_por_cobrar?: string
-  cuenta_ingresos?: string
+  /** Cliente: cuenta por cobrar. Proveedor: cuenta por pagar. */
+  cuenta_contacto?: string
+  /** Cliente: cuenta de ingresos. Proveedor: cuenta de gastos. */
+  cuenta_contrapartida?: string
   direccion?: string
   ciudad?: string
   departamento?: string

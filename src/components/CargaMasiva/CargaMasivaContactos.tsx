@@ -439,7 +439,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
             { title: 'Email', dataIndex: 'email', width: 150,
               render: (v: string) => v || <Text type="secondary">—</Text> },
             { title: esProveedor ? 'Cuenta por pagar' : 'Cuenta por cobrar',
-              dataIndex: esProveedor ? 'cuenta_contacto' : 'cuenta_por_cobrar', width: 130,
+              dataIndex: 'cuenta_contacto', width: 130,
               render: (v: string) => v || <Text type="secondary">—</Text> },
             /**
              * El saldo, en tres columnas y no en una.
