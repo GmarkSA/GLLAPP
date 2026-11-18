@@ -92,6 +92,14 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
     }
   }
 
+  /** Los documentos de un contacto, para abrirlos debajo de su fila. */
+  const documentosDe = (nit: unknown) => {
+    const clave = String(nit ?? '').trim()
+    return clave
+      ? documentos.filter(d => String(d.nit ?? '').trim() === clave)
+      : []
+  }
+
   /** Las listas de la empresa: sin ellas la plantilla no puede traducir ids a códigos. */
   const catalogos = async () => {
     const [cuentas, impuestos] = await Promise.all([
@@ -221,7 +229,8 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
         open={abierto}
         title={`Revisar la carga de ${titulo}`}
         onCancel={() => setAbierto(false)}
-        width={1040}
+        width={1180}
+        style={{ maxWidth: '96vw', top: 24 }}
         okText={`Importar ${filas.length}`}
         okButtonProps={{ loading: subiendo, disabled: !!faltantes.length, style: { background: '#1B3A6B' } }}
         onOk={importar}
@@ -290,6 +299,13 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
             description="El saldo de cada contacto sale de sumar sus documentos convertidos con la tasa de cada uno, no con un promedio." />
         ) : null}
 
+        {/* Un NIT escrito distinto en las dos hojas: el documento no se carga ni se ve. */}
+        {revision?.documentosSinContacto ? (
+          <Alert type="error" showIcon style={{ marginBottom: 12 }}
+            message={`${revision.documentosSinContacto} documento(s) no corresponden a ningún contacto del archivo`}
+            description="Su NIT no aparece en la hoja de contactos, así que no se van a cargar. Revisá que esté escrito igual en las dos hojas." />
+        ) : null}
+
         {/* Sin tasa no se cargan: a 1 × 1 la cartera entraría por una séptima parte. */}
         {revision?.documentosSinTasa ? (
           <Alert type="error" showIcon style={{ marginBottom: 12 }}
@@ -306,11 +322,60 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
           rowKey={(_, i) => String(i)}
           dataSource={filas}
           pagination={{ pageSize: 8, size: 'small' }}
-          scroll={{ x: 1060 }}
+          scroll={{ x: 1000 }}
+          /**
+           * El detalle, debajo de su contacto.
+           *
+           * El total de un proveedor no se revisa: se revisan las facturas que
+           * lo forman, una por una, con su número y su tasa. Van desplegables y
+           * no en una lista aparte porque con sesenta proveedores una lista
+           * suelta de doscientos documentos no se puede recorrer.
+           */
+          expandable={{
+            rowExpandable: (fila: BatchImportRow) => documentosDe(fila.nit).length > 0,
+            expandedRowRender: (fila: BatchImportRow) => (
+              <Table
+                size="small"
+                rowKey={(_, i) => String(i)}
+                dataSource={documentosDe(fila.nit)}
+                pagination={false}
+                columns={[
+                  { title: 'Documento', dataIndex: 'documento', width: 180,
+                    render: (v: string) => v || <Text type="secondary">sin número</Text> },
+                  { title: 'Fecha', dataIndex: 'fecha', width: 110,
+                    render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : <Text type="secondary">—</Text> },
+                  { title: 'Vence', dataIndex: 'vencimiento', width: 110,
+                    render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : <Text type="secondary">—</Text> },
+                  { title: 'Monto', width: 130, align: 'right' as const,
+                    render: (_: unknown, d: Record<string, unknown>) => (
+                      <Text style={numeros}>
+                        {String(d.moneda ?? 'GTQ').toUpperCase()} {fmt(Number(d.monto ?? 0))}
+                      </Text>
+                    ) },
+                  { title: 'Tipo de cambio', dataIndex: 'tipo_cambio', width: 130, align: 'right' as const,
+                    render: (v: number, d: Record<string, unknown>) => {
+                      const extranjera = String(d.moneda ?? 'GTQ').toUpperCase() !== 'GTQ'
+                      if (!extranjera) return <Text type="secondary">—</Text>
+                      return Number(v) > 0
+                        ? <Text style={numeros}>{Number(v).toFixed(6)}</Text>
+                        : <Text type="danger">falta la tasa</Text>
+                    } },
+                  { title: 'En quetzales', width: 130, align: 'right' as const,
+                    render: (_: unknown, d: Record<string, unknown>) => {
+                      const moneda = String(d.moneda ?? 'GTQ').toUpperCase()
+                      const tc = moneda === 'GTQ' ? 1 : Number(d.tipo_cambio ?? 0)
+                      if (!tc) return <Text type="danger">no se cargará</Text>
+                      return <Text strong style={numeros}>Q {fmt(Number(d.monto ?? 0) * tc)}</Text>
+                    } },
+                ]}
+              />
+            ),
+          }}
           columns={[
-            { title: 'Nombre', dataIndex: 'nombre', width: 220 },
+            { title: 'Nombre', dataIndex: 'nombre', width: 210 },
             { title: 'NIT', dataIndex: 'nit', width: 110 },
-            { title: 'Email', dataIndex: 'email', width: 180 },
+            { title: 'Email', dataIndex: 'email', width: 150,
+              render: (v: string) => v || <Text type="secondary">—</Text> },
             { title: esProveedor ? 'Cuenta por pagar' : 'Cuenta por cobrar',
               dataIndex: esProveedor ? 'cuenta_contacto' : 'cuenta_por_cobrar', width: 130,
               render: (v: string) => v || <Text type="secondary">—</Text> },

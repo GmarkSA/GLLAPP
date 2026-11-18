@@ -77,6 +77,14 @@ export interface RevisionDeContactos {
    * por una séptima parte de su valor. Se avisan antes, no después.
    */
   documentosSinTasa: number
+  /**
+   * Documentos cuyo NIT no aparece en ninguna fila de contactos.
+   *
+   * No se cargan y, peor, no se ven: al listarlos por contacto quedarían
+   * fuera de la pantalla sin que nadie los nombre. Suele ser un NIT escrito
+   * distinto en las dos hojas.
+   */
+  documentosSinContacto: number
 }
 
 /** Sin tildes, sin mayúsculas y sin puntuación: «La Paneria, S.A.» = «LA PANERIA SA». */
@@ -182,6 +190,12 @@ export function revisarContactos(
 
   const docs = saldosPorDocumentos(documentos)
 
+  // El NIT tal como está escrito en la hoja de contactos: es lo que los une.
+  const nitsDelArchivo = new Set(filas.map(f => String(f.nit ?? '').trim()).filter(Boolean))
+  const documentosSinContacto = Object.entries(docs.porNit)
+    .filter(([nit]) => !nitsDelArchivo.has(nit))
+    .reduce((s, [, v]) => s + v.documentos, 0)
+
   return {
     total: filas.length,
     sinNit,
@@ -193,5 +207,6 @@ export function revisarContactos(
     documentos:            docs.documentos,
     documentosEnQuetzales: docs.enQuetzales,
     documentosSinTasa:     docs.sinTasa,
+    documentosSinContacto,
   }
 }
