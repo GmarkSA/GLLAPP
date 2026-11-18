@@ -37,6 +37,26 @@ export interface ContactoQueYaExiste {
   porNit: boolean
 }
 
+/**
+ * El saldo que le entra a un contacto desde la hoja «Saldos pendientes».
+ *
+ * No es una cifra suelta: son documentos, cada uno en su moneda y con la tasa
+ * del día en que se registró. La pantalla tiene que decir las tres cosas —lo
+ * que debe en su moneda, a qué tasa y cuánto es en quetzales—, porque es lo
+ * que el contador va a cuadrar contra su balance anterior. Mostrar solo «—»
+ * daba a entender que la fila entraba sin saldo.
+ */
+export interface SaldoPorDocumentos {
+  documentos: number
+  /** 'GTQ', la moneda extranjera, o 'MIXTA' si el contacto trae de varias. */
+  moneda: string
+  /** La suma en esa moneda. En MIXTA no significa nada y va en cero. */
+  monto: number
+  enQuetzales: number
+  tasaMin: number
+  tasaMax: number
+}
+
 export interface RevisionDeContactos {
   total: number
   sinNit: number
@@ -46,6 +66,17 @@ export interface RevisionDeContactos {
   /** Cuántas filas traen saldo inicial y cuánto suman. */
   conSaldo: number
   sumaDeSaldos: number
+  /** Lo que aporta la hoja «Saldos pendientes», por el NIT que los une. */
+  porDocumentos: Record<string, SaldoPorDocumentos>
+  documentos: number
+  documentosEnQuetzales: number
+  /**
+   * Documentos en moneda extranjera SIN tipo de cambio.
+   *
+   * El servidor no los carga: anotarlos a 1 × 1 metería la cartera al balance
+   * por una séptima parte de su valor. Se avisan antes, no después.
+   */
+  documentosSinTasa: number
 }
 
 /** Sin tildes, sin mayúsculas y sin puntuación: «La Paneria, S.A.» = «LA PANERIA SA». */
@@ -61,9 +92,54 @@ const soloDigitos = (v: unknown): string => String(v ?? '').replace(/[^0-9kK]/g,
 
 const centavos = (n: number) => Math.round(n * 100) / 100
 
+/**
+ * Los documentos pendientes, agrupados por el NIT que los une a su contacto.
+ *
+ * La clave es el NIT TAL CUAL viene escrito —no solo sus dígitos—, porque es
+ * así como los une el servidor: un proveedor del exterior anotado como «CF»
+ * se une por «CF».
+ */
+export function saldosPorDocumentos(documentos: Array<Record<string, unknown>> = []) {
+  const porNit: Record<string, SaldoPorDocumentos> = {}
+  let sinTasa = 0
+
+  for (const d of documentos) {
+    const nit   = String(d.nit ?? '').trim()
+    const monto = Number(d.monto ?? 0) || 0
+    if (!nit || !monto) continue
+
+    const moneda = (String(d.moneda ?? '').trim() || 'GTQ').toUpperCase()
+    const tasa   = Number(d.tipo_cambio ?? 0) || (moneda === 'GTQ' ? 1 : 0)
+    if (!tasa) { sinTasa++; continue }
+
+    const previo   = porNit[nit]
+    const mezclada = previo && previo.moneda !== moneda
+
+    porNit[nit] = {
+      documentos:  (previo?.documentos ?? 0) + 1,
+      moneda:      mezclada ? 'MIXTA' : moneda,
+      monto:       mezclada ? 0 : centavos((previo?.monto ?? 0) + monto),
+      enQuetzales: centavos((previo?.enQuetzales ?? 0) + monto * tasa),
+      tasaMin:     Math.min(previo?.tasaMin ?? tasa, tasa),
+      tasaMax:     Math.max(previo?.tasaMax ?? tasa, tasa),
+    }
+  }
+
+  const enQuetzales = centavos(
+    Object.values(porNit).reduce((s, v) => s + v.enQuetzales, 0))
+
+  return {
+    porNit,
+    documentos: Object.values(porNit).reduce((s, v) => s + v.documentos, 0),
+    enQuetzales,
+    sinTasa,
+  }
+}
+
 export function revisarContactos(
   filas: Array<Record<string, unknown>>,
   existentes: ContactoExistente[] = [],
+  documentos: Array<Record<string, unknown>> = [],
 ): RevisionDeContactos {
   const porNit    = new Map<string, ContactoExistente>()
   const porNombre = new Map<string, ContactoExistente>()
@@ -104,6 +180,8 @@ export function revisarContactos(
     }
   }
 
+  const docs = saldosPorDocumentos(documentos)
+
   return {
     total: filas.length,
     sinNit,
@@ -111,5 +189,9 @@ export function revisarContactos(
     yaExisten: [...yaExisten.values()],
     conSaldo,
     sumaDeSaldos: centavos(sumaDeSaldos),
+    porDocumentos:         docs.porNit,
+    documentos:            docs.documentos,
+    documentosEnQuetzales: docs.enQuetzales,
+    documentosSinTasa:     docs.sinTasa,
   }
 }

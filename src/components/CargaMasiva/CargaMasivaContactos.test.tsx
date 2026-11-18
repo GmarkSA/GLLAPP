@@ -160,6 +160,67 @@ describe('al subir un archivo, la revisión se ve antes de importar', () => {
 })
 
 /**
+ * La cartera en dólares, en la pantalla de revisión.
+ *
+ * Cuando el saldo viene por documentos, la columna `saldo_inicial` va vacía y
+ * la pantalla mostraba «—»: los dos proveedores de LUUM parecían entrar sin
+ * nada, cuando entraban USD 3,265.48. Hay que ver las tres cosas: lo que debe
+ * en su moneda, a qué tasa y cuánto es en quetzales.
+ */
+describe('un archivo con saldos en dólares', () => {
+  const archivoEnDolares = () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { nombre: 'The Conscious Home, LLC', nit: 'CF' },
+      { nombre: 'ALEJANDRO , TORUN ENGELBERG', nit: '41555384' },
+    ], { header: ['nombre', 'nit'] }), 'Proveedores')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { nit: 'CF',       documento: 'INV-016944', monto: 772.50,  moneda: 'USD', tipo_cambio: 7.664504854 },
+      { nit: 'CF',       documento: 'INV-017523', monto: 750,     moneda: 'USD', tipo_cambio: 7.664506667 },
+      { nit: 'CF',       documento: 'INV-017524', monto: 280,     moneda: 'USD', tipo_cambio: 7.6645 },
+      { nit: 'CF',       documento: 'INV-017525', monto: 280,     moneda: 'USD', tipo_cambio: 7.6645 },
+      { nit: '41555384', documento: '3205384016', monto: 0.70,    moneda: 'USD', tipo_cambio: 7.671428571 },
+      { nit: 'CF',       documento: '318-2025-00022636', monto: 1182.28, moneda: 'USD', tipo_cambio: 7.675855127 },
+    ], { header: ['nit', 'documento', 'monto', 'moneda', 'tipo_cambio'] }), 'Saldos pendientes')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  const subirDolares = async () => {
+    const entrada = host.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File([archivoEnDolares()], 'Proveedores USD.xlsx',
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    Object.defineProperty(entrada, 'files', { value: [file], configurable: true })
+    await act(async () => { entrada.dispatchEvent(new Event('change', { bubbles: true })) })
+    for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() })
+  }
+
+  it('muestra el monto en dólares y su conversión a quetzales', async () => {
+    await render()
+    await subirDolares()
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('USD 3,264.78')
+    expect(texto).toContain('25,036.34')
+  })
+
+  it('con el tipo de cambio de cada contacto', async () => {
+    await render()
+    await subirDolares()
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('7.664500 – 7.675855')   // las cinco facturas de la LLC
+    expect(texto).toContain('7.671429')              // la única de Torun
+  })
+
+  it('y el total de los seis documentos', async () => {
+    await render()
+    await subirDolares()
+
+    expect(document.body.textContent).toContain('6 documento(s) pendientes — Q 25,041.71')
+  })
+})
+
+/**
  * El archivo que se baja, leído como lo leería Excel: los proveedores van en
  * su hoja, y el ejemplo en la suya, no mezclado con ellos.
  */
