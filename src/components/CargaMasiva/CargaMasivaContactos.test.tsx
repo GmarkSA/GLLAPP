@@ -165,7 +165,7 @@ describe('al subir un archivo, la revisión se ve antes de importar', () => {
 
     const celdas = [...document.querySelectorAll('.ant-table-tbody tr')]
       .map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent?.trim()))
-    const fila = celdas.find(c => c[0]?.includes('GMARK'))!
+    const fila = celdas.find(c => c.some(x => x?.includes('GMARK')))!
 
     expect(fila).toContain('—')
     expect(fila.some(c => c?.startsWith('Q 100.00'))).toBe(true)
@@ -231,13 +231,32 @@ describe('un archivo con saldos en dólares', () => {
     expect(encabezados).toContain('Saldo en Q')
   })
 
+  /** Un NIT escrito distinto en las dos hojas deja documentos sin dueño. */
+  it('avisa de los documentos que no corresponden a ningún contacto', async () => {
+    await render()
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      [{ nombre: 'Proveedor A', nit: '111' }], { header: ['nombre', 'nit'] }), 'Proveedores')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      [{ nit: '222', documento: 'FAC-1', monto: 100, moneda: 'GTQ' }],
+      { header: ['nit', 'documento', 'monto', 'moneda'] }), 'Saldos pendientes')
+    const entrada = host.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File([XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer],
+      'x.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    Object.defineProperty(entrada, 'files', { value: [file], configurable: true })
+    await act(async () => { entrada.dispatchEvent(new Event('change', { bubbles: true })) })
+    for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() })
+
+    expect(document.body.textContent).toContain('no corresponden a ningún contacto')
+  })
+
   it('cada fila lleva sus tres valores separados', async () => {
     await render()
     await subirDolares()
 
     const celdas = [...document.querySelectorAll('.ant-table-tbody tr')]
       .map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent?.trim()))
-    const llc = celdas.find(c => c[0]?.includes('Conscious'))!
+    const llc = celdas.find(c => c.some(x => x?.includes('Conscious')))!
 
     expect(llc).toContain('USD 3,264.78')
     expect(llc).toContain('7.664500 – 7.675855')
@@ -252,6 +271,27 @@ describe('un archivo con saldos en dólares', () => {
     const texto = document.body.textContent ?? ''
     expect(texto).toContain('7.664500 – 7.675855')   // las cinco facturas de la LLC
     expect(texto).toContain('7.671429')              // la única de Torun
+  })
+
+  /** El total no se revisa: se revisan las facturas que lo forman. */
+  it('abre el detalle de los documentos de un contacto', async () => {
+    await render()
+    await subirDolares()
+
+    const expandir = [...document.querySelectorAll('.ant-table-row-expand-icon')]
+    expect(expandir.length).toBe(2)                     // uno por contacto
+
+    await act(async () => {
+      expandir[0].dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await act(async () => { await Promise.resolve() })
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('INV-016944')
+    expect(texto).toContain('INV-017523')
+    expect(texto).toContain('318-2025-00022636')
+    expect(texto).toContain('7.664505')                 // la tasa de esa factura
+    expect(texto).toContain('5,920.83')                 // 772.50 × 7.664504854
   })
 
   it('y el total de los seis documentos', async () => {
