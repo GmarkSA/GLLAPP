@@ -28,6 +28,28 @@ const { TextArea } = Input
 
 const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
+/**
+ * Un documento en dólares vale lo que vale EN DÓLARES; su equivalente en
+ * quetzales sale de la tasa con la que se registró, no de la de hoy.
+ *
+ * Esta ficha formateaba todo con «Q» y sumaba sin convertir: cinco facturas de
+ * USD 3,264.78 salían como «Q 3,264.78» —ni lo uno ni lo otro—, cuando la
+ * deuda real eran Q 25,036.34.
+ */
+export const esLocal = (moneda?: string | null) => !moneda || moneda.toUpperCase() === 'GTQ'
+
+export const fmtMoneda = (n: number, moneda?: string | null) =>
+  esLocal(moneda)
+    ? fmtQ(n)
+    : `${String(moneda).toUpperCase()} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+
+/** Lo que vale en quetzales, con la tasa del propio documento. */
+export const enQuetzales = (n: unknown, doc: { currency?: string | null; exchangeRate?: number | null }) => {
+  const monto = Number(n ?? 0)
+  if (esLocal(doc?.currency)) return monto
+  return monto * (Number(doc?.exchangeRate) || 1)
+}
+
 const MONTHS = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
@@ -135,16 +157,17 @@ export default function ProveedorDetallePage() {
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
+  // Los totales van en quetzales, cada documento con SU tasa.
   const totalComprado = bills
     .filter(b => b.status !== 'voided' && b.invoiceType !== 'credit_note')
-    .reduce((s, b) => s + Number(b.total ?? 0), 0)
+    .reduce((s, b) => s + enQuetzales(b.total, b), 0)
 
   const totalPagado = payments
-    .reduce((s, p) => s + Number(p.amount ?? 0), 0)
+    .reduce((s, p) => s + enQuetzales(p.amount, p as any), 0)
 
   const saldoPendiente = bills
     .filter(b => ['open', 'partial', 'overdue', 'pending_approval'].includes(b.status))
-    .reduce((s, b) => s + Number(b.balance ?? 0), 0)
+    .reduce((s, b) => s + enQuetzales(b.balance, b), 0)
 
   const facturasVencidas = bills.filter(b => b.status === 'overdue').length
 
@@ -262,8 +285,30 @@ export default function ProveedorDetallePage() {
       title: 'Estado', dataIndex: 'status', width: 110,
       render: (v: string) => { const c = BILL_STATUS_CONFIG[v as keyof typeof BILL_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
-    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
-    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) > 0 ? '#ff7f00' : '#6b7280' }}>{fmtQ(Number(v))}</Text> },
+    { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 150,
+      render: (v: number, b: PurchaseInvoice) => (
+        <div style={{ lineHeight: 1.3 }}>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtMoneda(v, b.currency)}</Text>
+          {!esLocal(b.currency) && (
+            <div><Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+              {fmtQ(enQuetzales(v, b))}
+            </Text></div>
+          )}
+        </div>
+      ) },
+    { title: 'Saldo', dataIndex: 'balance', align: 'right' as const, width: 150,
+      render: (v: number, b: PurchaseInvoice) => (
+        <div style={{ lineHeight: 1.3 }}>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) > 0 ? '#ff7f00' : '#6b7280' }}>
+            {fmtMoneda(Number(v), b.currency)}
+          </Text>
+          {!esLocal(b.currency) && (
+            <div><Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+              {fmtQ(enQuetzales(v, b))} · TC {Number(b.exchangeRate ?? 1).toFixed(6)}
+            </Text></div>
+          )}
+        </div>
+      ) },
   ]
 
   const payCols = [
