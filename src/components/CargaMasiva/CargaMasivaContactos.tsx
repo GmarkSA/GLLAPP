@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import {
-  Alert, Button, Modal, Space, Table, Tooltip, Typography, Upload, message,
+  Alert, Button, DatePicker, Modal, Space, Table, Tooltip, Typography, Upload, message,
 } from 'antd'
 import { FileExcelOutlined, UploadOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import dayjs, { type Dayjs } from 'dayjs'
 import {
   batchImportClientes, batchImportProveedores, getCustomers, getVendors,
   type BatchImportRow,
@@ -40,6 +40,30 @@ const tasa = (d: { tasaMin: number; tasaMax: number }) =>
 const numeros = { fontVariantNumeric: 'tabular-nums' } as const
 
 /**
+ * Qué fecha proponer para la póliza de apertura.
+ *
+ * La más reciente que trae el propio archivo: la del saldo inicial de los
+ * contactos, y si no, la del último documento. Es el corte de la migración
+ * —el día en que esos saldos eran ciertos—, no el día en que se suben. Si el
+ * archivo no trae ninguna, se deja vacío para que lo elija el usuario: poner
+ * «hoy» por omisión es justo el error que esto viene a evitar.
+ */
+export const fechaQuePropone = (
+  filas: Array<Record<string, unknown>>,
+  documentos: Array<Record<string, unknown>>,
+): Dayjs | null => {
+  const deLosContactos = filas
+    .map(f => String(f.fecha_saldo_inicial ?? '').slice(0, 10)).filter(Boolean)
+  const deLosDocumentos = documentos
+    .map(d => String(d.fecha ?? '').slice(0, 10)).filter(Boolean)
+
+  const candidatas = deLosContactos.length ? deLosContactos : deLosDocumentos
+  if (!candidatas.length) return null
+
+  return dayjs(candidatas.sort().at(-1))
+}
+
+/**
  * Bajar y subir contactos en masa, desde su propia pantalla.
  *
  * La carga ya existía en Configuración › Cargas Iniciales, pensada para el
@@ -65,6 +89,15 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
   const [documentos, setDocumentos] = useState<Array<Record<string, unknown>>>([])
   const [faltantes, setFaltantes]   = useState<string[]>([])
   const [revision, setRevision]     = useState<RevisionDeContactos | null>(null)
+  /**
+   * La fecha de la póliza de apertura.
+   *
+   * No se mandaba ninguna, así que el servidor fechaba la póliza HOY: los
+   * saldos de una migración al 31/12/2025 entraban al balance con fecha de
+   * noviembre de 2026, en otro ejercicio. Ahora se elige aquí, a la vista, y
+   * se propone la del propio archivo.
+   */
+  const [fechaApertura, setFechaApertura] = useState<Dayjs | null>(null)
 
   const esProveedor = tipo === 'proveedores'
   const titulo      = esProveedor ? 'proveedores' : 'clientes'
@@ -91,6 +124,9 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
       tasaMin: 1, tasaMax: 1,
     }
   }
+
+  /** ¿Hay algo que contabilizar? Sin saldos, la fecha de apertura no hace falta. */
+  const haySaldos = Boolean(revision && (revision.conSaldo || revision.documentos))
 
   /** Los documentos de un contacto, para abrirlos debajo de su fila. */
   const documentosDe = (nit: unknown) => {
@@ -180,6 +216,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
         ? getVendors({ limit: 5000 })
         : getCustomers({ limit: 5000 })).catch(() => null)
 
+      setFechaApertura(fechaQuePropone(leidas, pendientes))
       setFilas(leidas as unknown as BatchImportRow[])
       setDocumentos(pendientes)
       setFaltantes(analisis.faltantes)
@@ -195,7 +232,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
     setSubiendo(true)
     try {
       const fn = esProveedor ? batchImportProveedores : batchImportClientes
-      const r = await fn(filas, undefined, documentos)
+      const r = await fn(filas, fechaApertura?.format('YYYY-MM-DD'), documentos)
       message.success(`${r.created} creados, ${r.updated} actualizados`)
       if (r.errors?.length) {
         Modal.warning({
@@ -232,7 +269,11 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
         width={1180}
         style={{ maxWidth: '96vw', top: 24 }}
         okText={`Importar ${filas.length}`}
-        okButtonProps={{ loading: subiendo, disabled: !!faltantes.length, style: { background: '#1B3A6B' } }}
+        okButtonProps={{
+          loading: subiendo,
+          disabled: !!faltantes.length || (!fechaApertura && haySaldos),
+          style: { background: '#1B3A6B' },
+        }}
         onOk={importar}
       >
         {faltantes.length ? (
@@ -313,6 +354,27 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
             description="Esos no se van a cargar. Escribí en la hoja «Saldos pendientes» la tasa con la que se registró cada uno." />
         ) : null}
 
+        {/*
+          * La fecha CONTABLE, que es otra cosa que la del documento.
+          *
+          * Cada factura conserva la suya —es su trazabilidad y no se toca—,
+          * pero la póliza entra al mayor con una sola: la del corte de la
+          * migración. Antes no se preguntaba y el servidor usaba «hoy».
+          */}
+        <Space align="center" style={{ marginBottom: 10 }} wrap>
+          <Text strong>Fecha de contabilización</Text>
+          <DatePicker
+            value={fechaApertura}
+            onChange={setFechaApertura}
+            format="DD/MM/YYYY"
+            allowClear={false}
+            placeholder="Elegí la fecha contable"
+          />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Con esta fecha entra la póliza al mayor. Cada documento conserva la suya.
+          </Text>
+        </Space>
+
         <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
           Los que ya existan con el mismo NIT se actualizan; el resto se crea.
         </Text>
@@ -342,7 +404,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
                 columns={[
                   { title: 'Documento', dataIndex: 'documento', width: 180,
                     render: (v: string) => v || <Text type="secondary">sin número</Text> },
-                  { title: 'Fecha', dataIndex: 'fecha', width: 110,
+                  { title: 'Fecha del documento', dataIndex: 'fecha', width: 150,
                     render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : <Text type="secondary">—</Text> },
                   { title: 'Vence', dataIndex: 'vencimiento', width: 110,
                     render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY') : <Text type="secondary">—</Text> },

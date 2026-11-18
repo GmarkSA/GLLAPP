@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { fechaQuePropone } from './CargaMasivaContactos'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import * as XLSX from 'xlsx'
@@ -294,6 +295,34 @@ describe('un archivo con saldos en dólares', () => {
     expect(texto).toContain('5,920.83')                 // 772.50 × 7.664504854
   })
 
+
+  /**
+   * Son dos fechas distintas y la pantalla tiene que distinguirlas: la del
+   * documento es trazabilidad y no se toca; la de contabilización es con la
+   * que la póliza entra al mayor.
+   */
+  it('se pide aparte de la fecha de cada documento', async () => {
+    await render()
+    await subirDolares()
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('Fecha de contabilización')
+    expect(texto).toContain('Cada documento conserva la suya')
+  })
+
+  it('el detalle dice que esa fecha es la del documento', async () => {
+    await render()
+    await subirDolares()
+
+    const expandir = [...document.querySelectorAll('.ant-table-row-expand-icon')]
+    await act(async () => {
+      expandir[0].dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await act(async () => { await Promise.resolve() })
+
+    expect(document.body.textContent).toContain('Fecha del documento')
+  })
+
   it('y el total de los seis documentos', async () => {
     await render()
     await subirDolares()
@@ -330,5 +359,74 @@ describe('el archivo que se baja', () => {
     ])
     expect(hoja[0].cuenta_por_pagar).toBe('211001')
     expect(wb.SheetNames).toContain('Saldos pendientes')
+  })
+})
+
+
+/**
+ * La fecha de la póliza de apertura.
+ *
+ * Esta pantalla no mandaba ninguna, así que el servidor fechaba la póliza HOY:
+ * los saldos en dólares de LUUM —una migración al 31/12/2025— entraron al
+ * balance con fecha 18/11/2026, en otro ejercicio. La POL-00128 salió así.
+ */
+describe('qué fecha se propone para la apertura', () => {
+  it('la del saldo inicial de los contactos, la más reciente', () => {
+    const f = fechaQuePropone([
+      { fecha_saldo_inicial: '2025-12-31' },
+      { fecha_saldo_inicial: '2025-06-30' },
+    ], [])
+
+    expect(f?.format('YYYY-MM-DD')).toBe('2025-12-31')
+  })
+
+  /** Cuando el saldo viene por documentos, los contactos no traen fecha. */
+  it('si no la traen, la del último documento', () => {
+    const f = fechaQuePropone([{ nombre: 'X' }], [
+      { fecha: '2024-07-01' }, { fecha: '2025-12-01' }, { fecha: '2025-09-29' },
+    ])
+
+    expect(f?.format('YYYY-MM-DD')).toBe('2025-12-01')
+  })
+
+  it('la de los contactos manda sobre la de los documentos', () => {
+    const f = fechaQuePropone([{ fecha_saldo_inicial: '2025-12-31' }], [{ fecha: '2024-07-01' }])
+
+    expect(f?.format('YYYY-MM-DD')).toBe('2025-12-31')
+  })
+
+  /** Nunca «hoy» en silencio: sin fecha en el archivo, la elige el usuario. */
+  it('sin ninguna fecha en el archivo, no propone nada', () => {
+    expect(fechaQuePropone([{ nombre: 'X' }], [])).toBeNull()
+  })
+})
+
+describe('la fecha viaja al servidor', () => {
+  const archivoConFecha = () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      [{ nombre: 'Proveedor A', nit: '111', saldo_inicial: 500, fecha_saldo_inicial: '31/12/2025' }],
+      { header: ['nombre', 'nit', 'saldo_inicial', 'fecha_saldo_inicial'] }), 'Proveedores')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  it('la carga manda la fecha del archivo, no la de hoy', async () => {
+    const { batchImportProveedores } = await import('../../api/contactos')
+    vi.mocked(batchImportProveedores).mockClear()
+
+    await render()
+    const entrada = host.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File([archivoConFecha()], 'x.xlsx',
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    Object.defineProperty(entrada, 'files', { value: [file], configurable: true })
+    await act(async () => { entrada.dispatchEvent(new Event('change', { bubbles: true })) })
+    for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() })
+
+    const importar = [...document.querySelectorAll('button')]
+      .find(b => b.textContent?.includes('Importar'))!
+    await act(async () => { importar.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve() })
+
+    expect(vi.mocked(batchImportProveedores).mock.calls[0][1]).toBe('2025-12-31')
   })
 })
