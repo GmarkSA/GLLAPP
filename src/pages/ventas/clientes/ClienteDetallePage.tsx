@@ -243,6 +243,15 @@ export default function ClienteDetallePage() {
       .forEach(inv => { prevBalance += Number(inv.total ?? 0) })
     payments.filter(p => dayjs(p.paymentDate ?? p.createdAt).isBefore(from))
       .forEach(p => { prevBalance -= Number(p.amount ?? 0) })
+    /**
+     * Las notas de crédito también bajan lo que el cliente debe.
+     *
+     * El estado de cuenta solo leía facturas y pagos: una nota de crédito no
+     * aparecía por ningún lado y el saldo del cliente salía más alto que el
+     * del mayor, justo por lo acreditado.
+     */
+    creditNotes.filter(nc => dayjs(nc.invoiceDate ?? nc.createdAt).isBefore(from) && nc.status !== 'voided')
+      .forEach(nc => { prevBalance -= Number(nc.total ?? 0) })
 
     invoices.filter(inv => {
       const d = dayjs(inv.invoiceDate ?? inv.createdAt)
@@ -251,6 +260,15 @@ export default function ClienteDetallePage() {
       key: inv.id, date: inv.invoiceDate, type: 'Factura', ref: inv.invoiceNumber,
       route: `/ventas/facturas/${inv.id}`,
       debit: Number(inv.total ?? 0), credit: 0,
+    }))
+
+    creditNotes.filter(nc => {
+      const d = dayjs(nc.invoiceDate ?? nc.createdAt)
+      return d.isAfter(from.subtract(1, 'ms')) && d.isBefore(to.add(1, 'ms')) && nc.status !== 'voided'
+    }).forEach(nc => periodRows.push({
+      key: `nc-${nc.id}`, date: nc.invoiceDate, type: 'Nota de crédito', ref: nc.invoiceNumber,
+      route: `/ventas/notas-credito/${nc.id}`,
+      debit: 0, credit: Number(nc.total ?? 0),
     }))
 
     payments.filter(p => {
