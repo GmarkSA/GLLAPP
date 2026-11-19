@@ -323,6 +323,44 @@ describe('un archivo con saldos en dólares', () => {
     expect(document.body.textContent).toContain('Fecha del documento')
   })
 
+  /**
+   * Una nota de crédito tiene que decir que lo es, y verse en negativo.
+   *
+   * El detalle decía «Factura» para todo lo que no fuera anticipo, y mostraba
+   * el monto en positivo aunque el saldo del contacto bajara: parecía que la
+   * nota sumaba.
+   */
+  it('la nota de crédito se nombra y se muestra en negativo', async () => {
+    await render()
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      [{ nombre: 'The Conscious Home LLC', nit: '812898460' }],
+      { header: ['nombre', 'nit'] }), 'Proveedores')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
+      nit: '812898460', tipo: 'nota_credito', documento: 'NC-0001',
+      aplica_a: 'INV-000126', monto: 3057.51, moneda: 'USD', tipo_cambio: 7.66451,
+    }], { header: ['nit', 'tipo', 'documento', 'aplica_a', 'monto', 'moneda', 'tipo_cambio'] }),
+      'Saldos pendientes')
+    const entrada = host.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File([XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer],
+      'nc.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    Object.defineProperty(entrada, 'files', { value: [file], configurable: true })
+    await act(async () => { entrada.dispatchEvent(new Event('change', { bubbles: true })) })
+    for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() })
+
+    const expandir = [...document.querySelectorAll('.ant-table-row-expand-icon')]
+    await act(async () => {
+      expandir[0].dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await act(async () => { await Promise.resolve() })
+
+    const texto = document.body.textContent ?? ''
+    expect(texto).toContain('Nota de crédito')
+    expect(texto).toContain('USD -3,057.51')
+    expect(texto).toContain('Q -23,434.32')      // ni positivo, ni con milésimas
+    expect(texto).not.toContain('23,434.316')
+  })
+
   it('y el total de los seis documentos', async () => {
     await render()
     await subirDolares()

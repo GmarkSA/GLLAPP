@@ -23,7 +23,24 @@ import { revisarContactos, type RevisionDeContactos } from './revisarContactos'
 
 const { Text } = Typography
 
-const fmt = (n: number) => Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })
+/** Dos decimales: un saldo en quetzales tiene centavos, no milésimas. */
+const fmt = (n: number) =>
+  Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** Cómo se llama cada clase de documento en la pantalla. */
+const CLASE = {
+  anticipo:     { etiqueta: 'Anticipo',         color: '#2ea172' },
+  nota_credito: { etiqueta: 'Nota de crédito',  color: '#e5484d' },
+  factura:      { etiqueta: 'Factura',          color: undefined as string | undefined },
+} as const
+
+const claseDe = (v: unknown): keyof typeof CLASE => {
+  const t = String(v ?? '').trim().toLowerCase()
+  return t === 'anticipo' || t === 'nota_credito' ? t : 'factura'
+}
+
+/** La nota de crédito resta: se muestra en negativo, como va a entrar. */
+const signoDe = (v: unknown) => (claseDe(v) === 'nota_credito' ? -1 : 1)
 
 /**
  * La tasa del contacto: una sola, o el rango cuando cada factura trae la suya.
@@ -411,10 +428,13 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
                 dataSource={documentosDe(fila.nit)}
                 pagination={false}
                 columns={[
-                  { title: 'Tipo', dataIndex: 'tipo', width: 100,
-                    render: (v: string) => String(v ?? '').toLowerCase() === 'anticipo'
-                      ? <Text style={{ color: '#2ea172' }}>Anticipo</Text>
-                      : <Text type="secondary">Factura</Text> },
+                  { title: 'Tipo', dataIndex: 'tipo', width: 130,
+                    render: (v: string) => {
+                      const { etiqueta, color } = CLASE[claseDe(v)]
+                      return color
+                        ? <Text style={{ color }}>{etiqueta}</Text>
+                        : <Text type="secondary">{etiqueta}</Text>
+                    } },
                   { title: 'Documento', dataIndex: 'documento', width: 180,
                     render: (v: string) => v || <Text type="secondary">sin número</Text> },
                   { title: 'Fecha del documento', dataIndex: 'fecha', width: 150,
@@ -424,7 +444,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
                   { title: 'Monto', width: 130, align: 'right' as const,
                     render: (_: unknown, d: Record<string, unknown>) => (
                       <Text style={numeros}>
-                        {String(d.moneda ?? 'GTQ').toUpperCase()} {fmt(Number(d.monto ?? 0))}
+                        {String(d.moneda ?? 'GTQ').toUpperCase()} {fmt(signoDe(d.tipo) * Number(d.monto ?? 0))}
                       </Text>
                     ) },
                   { title: 'Tipo de cambio', dataIndex: 'tipo_cambio', width: 130, align: 'right' as const,
@@ -440,7 +460,7 @@ export default function CargaMasivaContactos({ tipo, onImportado }: {
                       const moneda = String(d.moneda ?? 'GTQ').toUpperCase()
                       const tc = moneda === 'GTQ' ? 1 : Number(d.tipo_cambio ?? 0)
                       if (!tc) return <Text type="danger">no se cargará</Text>
-                      return <Text strong style={numeros}>Q {fmt(Number(d.monto ?? 0) * tc)}</Text>
+                      return <Text strong style={numeros}>Q {fmt(signoDe(d.tipo) * Number(d.monto ?? 0) * tc)}</Text>
                     } },
                 ]}
               />
