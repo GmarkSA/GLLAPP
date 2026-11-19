@@ -30,3 +30,11 @@ describe('el monto del cliente se muestra en su moneda', () => {
     expect(enQuetzales(100, { currency: 'USD', exchangeRate: null })).toBe(100)
   })
 })
+
+/** El saldo en quetzales lleva centavos, no milésimas: «Q 40,866.296» era un error. */
+describe('el redondeo de la ficha del cliente', () => {
+  it('siempre dos decimales', () => {
+    expect(fmtMoneda(40866.2956, 'GTQ')).toBe('Q 40,866.30')
+    expect(fmtMoneda(5350.004, 'USD')).toBe('USD 5,350.00')
+  })
+})
