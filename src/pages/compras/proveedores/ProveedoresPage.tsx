@@ -17,6 +17,7 @@ import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
+import { esLocal, fmtQ } from '../../../utils/moneda'
 import CargaMasivaContactos from '../../../components/CargaMasiva/CargaMasivaContactos'
 
 const { Title, Text } = Typography
@@ -125,9 +126,6 @@ const COL_WIDTHS: Record<string, number> = {
   balance: 110, status: 100, ciudad: 120, notes: 160,
 }
 
-const fmtQ = (n: number) =>
-  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-
 // ── Definiciones de columna ───────────────────────────────────────────────────
 function buildColDef(key: string, navigate: (p: string) => void): ColumnsType<Vendor>[number] | null {
   const base = { key }
@@ -218,11 +216,21 @@ function buildColDef(key: string, navigate: (p: string) => void): ColumnsType<Ve
           </Space>
         ) }
     case 'balance':
-      return { ...base, title: 'Saldo', dataIndex: 'balance', width: 110, align: 'right' as const,
+      /**
+       * El saldo viene YA convertido a quetzales desde el servidor —suma
+       * `balance * exchangeRate` de cada documento—, así que la columna dice
+       * «(Q)» aunque el contacto facture en dólares: es la única forma de que
+       * la columna se pueda sumar y ordenar. El desglose por moneda, con su
+       * tasa y cada documento, está en la ficha.
+       */
+      return { ...base, title: 'Saldo (Q)', dataIndex: 'balance', width: 110, align: 'right' as const,
         sorter: (a: Vendor, b: Vendor) => Number(a.balance ?? 0) - Number(b.balance ?? 0),
-        render: (v: number) => (
+        render: (v: number, r: Vendor) => (
           <Text strong style={{ color: Number(v) > 0 ? '#1faec2' : '#6b7280' }}>
             {Number(v) > 0 ? fmtQ(v) : '—'}
+            {Number(v) > 0 && !esLocal(r.currency) && (
+              <Tag style={{ fontSize: 10, marginLeft: 4 }}>{String(r.currency).toUpperCase()}</Tag>
+            )}
           </Text>
         ) }
     case 'status':

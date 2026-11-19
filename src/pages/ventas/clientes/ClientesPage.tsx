@@ -19,6 +19,7 @@ import ColumnConfigurator, {
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
 import { useCan } from '../../../auth/can'
+import { esLocal, fmtQ } from '../../../utils/moneda'
 import CargaMasivaContactos from '../../../components/CargaMasiva/CargaMasivaContactos'
 
 const { Title, Text } = Typography
@@ -83,9 +84,6 @@ const COL_WIDTHS: Record<string, number> = {
   creditLimit: 120, taxTreatment: 145, impuesto: 120, taxCode: 110,
   balance: 110, status: 100, ciudad: 120, notes: 160,
 }
-
-const fmtQ = (n: number) =>
-  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 // ── Filtros avanzados ─────────────────────────────────────────────────────────
 interface CustomerFilters {
@@ -231,11 +229,21 @@ function buildColDef(key: string, navigate: (p: string) => void, handleDelete: (
       return { ...base, title: 'Código IVA', dataIndex: 'taxCode', width: 110,
         render: (v: string) => v ? <Tag color="#1faec2" style={{ fontSize: 11 }}>{v}</Tag> : <Text type="secondary">—</Text> }
     case 'balance':
-      return { ...base, title: 'Saldo', dataIndex: 'balance', width: 110, align: 'right' as const,
+      /**
+       * El saldo viene YA convertido a quetzales desde el servidor —suma
+       * `balance * exchangeRate` de cada documento—, así que la columna dice
+       * «(Q)» aunque el contacto facture en dólares: es la única forma de que
+       * la columna se pueda sumar y ordenar. El desglose por moneda, con su
+       * tasa y cada documento, está en la ficha.
+       */
+      return { ...base, title: 'Saldo (Q)', dataIndex: 'balance', width: 110, align: 'right' as const,
         sorter: (a: Customer, b: Customer) => Number(a.balance ?? 0) - Number(b.balance ?? 0),
-        render: (v: number) => (
+        render: (v: number, r: Customer) => (
           <Text strong style={{ color: Number(v) > 0 ? '#1faec2' : '#6b7280' }}>
             {Number(v) > 0 ? fmtQ(v) : '—'}
+            {Number(v) > 0 && !esLocal(r.currency) && (
+              <Tag style={{ fontSize: 10, marginLeft: 4 }}>{String(r.currency).toUpperCase()}</Tag>
+            )}
           </Text>
         ) }
     case 'status':
