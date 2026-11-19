@@ -31,9 +31,19 @@ export function emisorDesdeEmpresa(
     // El régimen es de la empresa que emite, nunca del cliente: en una cuenta
     // con varias empresas cada una puede tener el suyo.
     fiscalRegimeCode: empresa.fiscalRegimeCode ?? null,
-    // El logo también: dos empresas de la misma cuenta no encabezan igual.
-    // El de la cuenta queda de respaldo para quien aún no subió el suyo.
-    logoUrl: empresa.logoUrl || cliente.logoUrl,
+    /**
+     * El logo es DE LA EMPRESA. Sin respaldo de la cuenta.
+     *
+     * El de la cuenta se usaba cuando la empresa no tenía el suyo, y en una
+     * cuenta con varias empresas eso presta el logo de una a la otra: la nota
+     * de crédito de LUUM salió encabezada con el logo de Paper Plus, con el
+     * nombre y el NIT de LUUM. Un documento con el logo de otra empresa es
+     * peor que uno sin logo.
+     *
+     * Si la empresa no tiene el suyo, no se encabeza con ninguno: se sube en
+     * Configuración › Empresas, en la empresa que emite.
+     */
+    logoUrl: empresa.logoUrl || undefined,
   }
 }
 

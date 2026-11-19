@@ -251,7 +251,7 @@ export default function ClienteDetallePage() {
      * del mayor, justo por lo acreditado.
      */
     creditNotes.filter(nc => dayjs(nc.invoiceDate ?? nc.createdAt).isBefore(from) && nc.status !== 'voided')
-      .forEach(nc => { prevBalance -= Number(nc.total ?? 0) })
+      .forEach(nc => { prevBalance -= enQuetzales(nc.total, nc as any) })
 
     invoices.filter(inv => {
       const d = dayjs(inv.invoiceDate ?? inv.createdAt)
@@ -268,7 +268,7 @@ export default function ClienteDetallePage() {
     }).forEach(nc => periodRows.push({
       key: `nc-${nc.id}`, date: nc.invoiceDate, type: 'Nota de crédito', ref: nc.invoiceNumber,
       route: `/ventas/notas-credito/${nc.id}`,
-      debit: 0, credit: Number(nc.total ?? 0),
+      debit: 0, credit: enQuetzales(nc.total, nc as any),
     }))
 
     payments.filter(p => {
@@ -375,8 +375,39 @@ export default function ClienteDetallePage() {
       title: 'Estado', dataIndex: 'status', width: 110,
       render: (v: string) => { const c = NC_STATUS_CONFIG[v as keyof typeof NC_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
-    { title: 'Total NC', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>{fmtQ(v)}</Text> },
-    { title: 'Saldo NC', dataIndex: 'creditBalance', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>{fmtQ(Number(v ?? 0))}</Text> },
+    /**
+     * En SU moneda, con su tasa y su equivalente.
+     *
+     * Una nota de crédito de USD 3,057.51 salía como «Q 3,057.51»: el número
+     * en dólares con el signo de quetzales. Ni lo uno ni lo otro — son
+     * Q 23,434.32.
+     */
+    { title: 'Total NC', dataIndex: 'total', align: 'right' as const, width: 150,
+      render: (v: number, r: NotaCredito) => (
+        <div style={{ lineHeight: 1.3 }}>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>
+            {fmtMoneda(Number(v ?? 0), (r as any).currency)}
+          </Text>
+          {!esLocal((r as any).currency) && (
+            <div><Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+              {fmtQ(enQuetzales(v, r as any))} · TC {Number((r as any).exchangeRate ?? 1).toFixed(6)}
+            </Text></div>
+          )}
+        </div>
+      ) },
+    { title: 'Saldo NC', dataIndex: 'creditBalance', align: 'right' as const, width: 150,
+      render: (v: number, r: NotaCredito) => (
+        <div style={{ lineHeight: 1.3 }}>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#2ea172' }}>
+            {fmtMoneda(Number(v ?? 0), (r as any).currency)}
+          </Text>
+          {!esLocal((r as any).currency) && Number(v ?? 0) !== 0 && (
+            <div><Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+              {fmtQ(enQuetzales(v, r as any))}
+            </Text></div>
+          )}
+        </div>
+      ) },
   ]
 
   const stmtCols = [

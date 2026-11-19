@@ -72,7 +72,8 @@ describe('Encabezado del documento', () => {
     it('lleva el correo, el teléfono y el logotipo que muestra su perfil', () => {
       expect(emisor.email).toBe(PERFIL.email)
       expect(emisor.phone).toBe(PERFIL.phone)
-      expect(emisor.logoUrl).toBe(PERFIL.logoUrl)
+      // El logo es de la EMPRESA, no de la cuenta: ver «el logo del emisor».
+      expect(emisor.logoUrl).toBe(undefined)
     })
   })
 
@@ -142,10 +143,12 @@ describe('el logo del emisor', () => {
   })
 
   /** Quien aún no subió el suyo imprime con el de la cuenta, no sin logo. */
-  it('sin logo propio, usa el de la cuenta', () => {
+  it('sin logo propio, NO usa el de otra empresa ni el de la cuenta', () => {
     const e = emisorDesdeEmpresa({ legalName: 'Nueva, S.A.' }, CUENTA)
 
-    expect(e.logoUrl).toBe('logo-de-la-cuenta.png')
+    // En una cuenta con varias empresas, el de la cuenta es el de alguna de
+    // ellas: prestarlo encabeza un documento con el logo de otra empresa.
+    expect(e.logoUrl).toBeUndefined()
   })
 
   it('sin ninguno de los dos, no hay logo', () => {
@@ -193,5 +196,31 @@ describe('la empresa con la que se imprime', () => {
     // Y el logo y el NIT sí salían, que es lo que lo hacía difícil de ver.
     expect(soloCuenta.logoUrl).toBe('logo.png')
     expect(soloCuenta.taxId).toBe('69407452')
+  })
+})
+
+/**
+ * El logo de una empresa no encabeza los documentos de otra.
+ *
+ * Caso real: la cuenta de LUUM tiene dos empresas. El logo de Paper Plus
+ * estaba guardado también en la cuenta, y la nota de crédito de LUUM salió
+ * con ese logo sobre el nombre y el NIT de LUUM.
+ */
+describe('dos empresas en la misma cuenta', () => {
+  const CUENTA_CON_LOGO_AJENO = { name: 'GLL', logoUrl: 'logo-paper-plus.png' } as any
+
+  it('la que no tiene logo propio no hereda el de la otra', () => {
+    const luum = emisorDesdeEmpresa(
+      { legalName: 'LUUM, SOCIEDAD ANONIMA', taxId: '92d7' } as any, CUENTA_CON_LOGO_AJENO)
+
+    expect(luum.logoUrl).toBeUndefined()
+    expect(luum.legalName).toBe('LUUM, SOCIEDAD ANONIMA')
+  })
+
+  it('y la que sí lo tiene sigue usando el suyo', () => {
+    const paper = emisorDesdeEmpresa(
+      { legalName: 'Paper Plus', logoUrl: 'logo-paper-plus.png' } as any, CUENTA_CON_LOGO_AJENO)
+
+    expect(paper.logoUrl).toBe('logo-paper-plus.png')
   })
 })
