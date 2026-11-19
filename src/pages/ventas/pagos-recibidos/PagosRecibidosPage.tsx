@@ -22,13 +22,13 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
+import MontoDual from '../../../components/Moneda/MontoDual'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 import { useCan } from '../../../auth/can'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 
-const fmtQ = (n: number) =>
-  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const INVOICE_STATUS_COLOR: Record<string, string> = {
   sent: '#1faec2', partial: '#1faec2', paid: '#2ea172', voided: '#e5484d', draft: 'default',
@@ -122,8 +122,8 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
     case 'invoiceTotal':
       return { ...base, title: 'Total Factura', dataIndex: 'invoiceTotal', width: 120, align: 'right' as const,
         sorter: (a: PagoRecibido, b: PagoRecibido) => Number(a.invoiceTotal ?? 0) - Number(b.invoiceTotal ?? 0),
-        render: (v: number) => v != null
-          ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span>
+        render: (v: number, r: PagoRecibido) => v != null
+          ? <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} />
           : <Text type="secondary">—</Text> }
     case 'currency':
       return { ...base, title: 'Moneda', dataIndex: 'currency', width: 80,
@@ -141,7 +141,9 @@ function buildColDef(key: string): ColumnsType<PagoRecibido>[number] | null {
     case 'amount':
       return { ...base, title: 'Monto', dataIndex: 'amount', width: 130, align: 'right' as const,
         sorter: (a: PagoRecibido, b: PagoRecibido) => Number(a.amount ?? 0) - Number(b.amount ?? 0),
-        render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text> }
+        render: (v: number, r: PagoRecibido) => (
+          <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} fuerte color="#1faec2" />
+        ) }
     case 'isAdvance':
       return { ...base, title: 'Anticipo', dataIndex: 'isAdvance', width: 90, align: 'center' as const,
         render: (v: boolean) => v
@@ -251,8 +253,13 @@ export default function PagosRecibidosPage() {
     finally { setReprocessing(null) }
   }
 
-  const totalMonto     = data.reduce((s, p) => s + Number(p.amount), 0)
-  const totalAnticipos = data.filter(p => p.isAdvance).reduce((s, p) => s + Number(p.amount), 0)
+  /**
+   * Los cuadros suman cobros de varias monedas: cada uno entra convertido con
+   * SU tasa, nunca el número pelado. Un cobro de USD 3,057.51 aportaba 3,057
+   * a un total en quetzales, cuando de verdad entraron Q 23,434.32.
+   */
+  const totalMonto     = data.reduce((s, p) => s + enQuetzales(p.amount, p), 0)
+  const totalAnticipos = data.filter(p => p.isAdvance).reduce((s, p) => s + enQuetzales(p.amount, p), 0)
   const pagosHoy       = data.filter(p => dayjs(p.paymentDate).isSame(dayjs(), 'day')).length
 
   // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
@@ -432,7 +439,8 @@ export default function PagosRecibidosPage() {
                   {r.invoiceNumber && <><br />Doc: {r.invoiceNumber}</>}
                 </span>
               }
-              amount={fmtQ(Number(r.amount))}
+              amount={fmtMoneda(r.amount, r.currency)}
+              amountSub={esLocal(r.currency) ? undefined : fmtQ(enQuetzales(r.amount, r))}
               status={
                 r.isAdvance
                   ? <Tag color="gold" style={{ margin: 0 }}>Anticipo</Tag>
