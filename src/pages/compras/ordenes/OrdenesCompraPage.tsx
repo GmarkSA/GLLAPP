@@ -20,11 +20,10 @@ import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
+import { fmtMoneda } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
 
-const fmt = (x: number | string) =>
-  `Q ${Number(x).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 // ── Configurador de columnas ──────────────────────────────────────────────────
 const STORAGE_KEY = 'contaerp_cols_ordenes_compra'
@@ -92,7 +91,7 @@ function buildColDef(
         ) }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
-        render: (v: number) => <Text strong>{fmt(v)}</Text> }
+        render: (v: number, r: PurchaseOrder) => <Text strong>{fmtMoneda(v, r.currency)}</Text> }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 120,
         render: (v: POStatus) => {
@@ -348,7 +347,7 @@ export default function OrdenesCompraPage() {
       >
         <p>
           ¿Aprobar la orden <strong>{approveTarget?.orderNumber}</strong> por{' '}
-          <strong>{approveTarget ? fmt(approveTarget.total) : ''}</strong>?
+          <strong>{approveTarget ? fmtMoneda(approveTarget.total, approveTarget.currency) : ''}</strong>?
         </p>
         <p style={{ color: '#6b7280', fontSize: 13 }}>
           Al aprobar, la orden quedará marcada como <em>Enviada</em> y se notificará al proveedor{' '}

@@ -26,9 +26,9 @@ import { getTaxes, type Tax } from '../../../api/impuestos'
 import { getVendor } from '../../../api/contactos'
 import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 import { useCan } from '../../../auth/can'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
-const fmtGTQ = (n: number, cur = 'GTQ') => `${cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
   bank_transfer: 'Transferencia bancaria', cash: 'Efectivo',
@@ -307,6 +307,16 @@ export default function FacturaProveedorDetallePage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
   if (!bill)   return <div style={{ padding: 40 }}><Text>Factura no encontrada</Text></div>
 
+  /**
+   * Esta factura está en una moneda y todo lo suyo está en ella. Antes los
+   * montos salían como «GTQ 280.00» incluso siendo locales, y el equivalente
+   * en quetzales de una factura en dólares no aparecía en ninguna parte: para
+   * saber qué se le debe de verdad al proveedor había que multiplicar a mano.
+   */
+  const enMoneda = !esLocal(bill.currency)
+  const m        = (n: unknown) => fmtMoneda(n, bill.currency)
+  const equivale = (n: unknown) => fmtQ(enQuetzales(n, bill))
+
   const statusCfg  = BILL_STATUS_CONFIG[bill.status] ?? { label: bill.status, color: 'default' }
   const typeCfg    = BILL_TYPE_CONFIG[bill.invoiceType] ?? { label: bill.invoiceType }
   const canEditOpen   = !['voided', 'paid'].includes(bill.status)
@@ -343,7 +353,7 @@ export default function FacturaProveedorDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'P. Unitario', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(v, bill.currency)}</Text> },
+    { title: 'P. Unitario', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{m(v)}</Text> },
     ...(hasDiscounts ? [{
       title: 'Descuento', width: 110, align: 'right' as const,
       render: (_v: any, row: any) => {
@@ -352,7 +362,7 @@ export default function FacturaProveedorDetallePage() {
           || gross * Number(row.discountPercent ?? 0) / 100
           || Math.max(0, gross - Number(row.lineTotal ?? gross))
         return discAmt > 0.001
-          ? <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>−{fmtGTQ(discAmt, bill.currency)}</Text>
+          ? <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>−{m(discAmt)}</Text>
           : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
       },
     }] : []),
@@ -385,7 +395,7 @@ export default function FacturaProveedorDetallePage() {
         const price    = Number(row.unitPrice ?? 0)
         const discount = Number(row.discountPercent ?? 0)
         const total    = qty * price * (1 - discount / 100)
-        return <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtGTQ(total, bill.currency)}</Text>
+        return <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{m(total)}</Text>
       },
     },
   ]
@@ -586,8 +596,13 @@ export default function FacturaProveedorDetallePage() {
                 {canPay ? 'Saldo pendiente' : 'Total factura'}
               </Text>
               <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: canPay ? '#ff7f00' : '#1faec2' }}>
-                {fmtGTQ(canPay ? Number(bill.balance) : Number(bill.total), bill.currency)}
+                {m(canPay ? Number(bill.balance) : Number(bill.total))}
               </Text>
+              {enMoneda && (
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                  {equivale(canPay ? bill.balance : bill.total)} · T/C {Number(bill.exchangeRate ?? 1).toFixed(6)}
+                </Text>
+              )}
             </div>
           </div>
         </div>
@@ -682,34 +697,34 @@ export default function FacturaProveedorDetallePage() {
             <div style={{ minWidth: 300 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">Subtotal</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.subtotal), bill.currency)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{m(Number(bill.subtotal))}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">IVA</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.taxAmount), bill.currency)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{m(Number(bill.taxAmount))}</Text>
               </div>
               {Number(bill.timbrePrensaAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#6d28d9' }}>Timbre de Prensa (0.5%)</Text>
-                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.timbrePrensaAmount), bill.currency)}</Text>
+                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{m(Number(bill.timbrePrensaAmount))}</Text>
                 </div>
               )}
               {Number(bill.turismoAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#6d28d9' }}>Turismo INGUAT (10%)</Text>
-                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.turismoAmount), bill.currency)}</Text>
+                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{m(Number(bill.turismoAmount))}</Text>
                 </div>
               )}
               {Number(bill.bebidasAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#6d28d9' }}>Bebidas Alcohólicas (Dto. 21-2004)</Text>
-                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.bebidasAmount), bill.currency)}</Text>
+                  <Text style={{ color: '#6d28d9', fontVariantNumeric: 'tabular-nums' }}>+{m(Number(bill.bebidasAmount))}</Text>
                 </div>
               )}
               {Number(bill.idpAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#ff7f00' }}>IDP Combustible</Text>
-                  <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>+{fmtGTQ(Number(bill.idpAmount), bill.currency)}</Text>
+                  <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>+{m(Number(bill.idpAmount))}</Text>
                 </div>
               )}
               {/* ISR editable: solo aparece si el dato maestro del proveedor tiene tdsEnabled=true */}
@@ -751,7 +766,7 @@ export default function FacturaProveedorDetallePage() {
                       ) : (
                         <>
                           <Text style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
-                            {fmtGTQ(editIsrAmount, bill.currency)}
+                            {m(editIsrAmount)}
                           </Text>
                           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsrAmt(true)} style={{ color: '#9aa1ab' }} />
                         </>
@@ -763,38 +778,59 @@ export default function FacturaProveedorDetallePage() {
                 displayIsrAmt > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                     <Text style={{ color: '#6b7280' }}>Retención ISR</Text>
-                    <Text style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>−{fmtGTQ(displayIsrAmt, bill.currency)}</Text>
+                    <Text style={{ color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>−{m(displayIsrAmt)}</Text>
                   </div>
                 )
               )}
               {Number(bill.ivaRetentionAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#e5484d' }}>Retención IVA</Text>
-                  <Text style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>−{fmtGTQ(Number(bill.ivaRetentionAmount), bill.currency)}</Text>
+                  <Text style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>−{m(Number(bill.ivaRetentionAmount))}</Text>
                 </div>
               )}
               <Divider style={{ margin: '8px 0' }} />
               {totalRetention > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text strong>Neto a pagar proveedor</Text>
-                  <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtGTQ(netPayable, bill.currency)}</Text>
+                  <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{m(netPayable)}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total factura</Text>
-                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.total), bill.currency)}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{m(Number(bill.total))}</Text>
               </div>
               {Number(bill.paidAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text type="secondary">Pagado</Text>
-                  <Text style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>−{fmtGTQ(Number(bill.paidAmount), bill.currency)}</Text>
+                  <Text style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>−{m(Number(bill.paidAmount))}</Text>
                 </div>
               )}
               {Number(bill.balance) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                   <Text strong style={{ fontSize: 14, color: '#ff7f00' }}>Saldo pendiente</Text>
-                  <Text strong style={{ fontSize: 14, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.balance), bill.currency)}</Text>
+                  <Text strong style={{ fontSize: 14, color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>{m(Number(bill.balance))}</Text>
                 </div>
+              )}
+              {enMoneda && (
+                <>
+                  <Divider style={{ margin: '8px 0' }} dashed />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Tipo de cambio</Text>
+                    <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {Number(bill.exchangeRate ?? 1).toFixed(6)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Total en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(bill.total)}</Text>
+                  </div>
+                  {Number(bill.balance) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                      <Text type="secondary">Saldo en quetzales</Text>
+                      <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(bill.balance)}</Text>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -971,7 +1007,7 @@ export default function FacturaProveedorDetallePage() {
                     render: (v: number, r: any) => {
                       const applied = r.appliedInvoices?.find((a: any) => a.purchaseInvoiceId === bill.id)
                       const amt = applied ? Number(applied.amount) : Number(v)
-                      return <Text strong style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(amt, r.currency ?? 'GTQ')}</Text>
+                      return <Text strong style={{ color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{fmtMoneda(amt, r.currency)}</Text>
                     },
                   },
                   { title: 'Póliza', dataIndex: 'journalEntryId', width: 70, align: 'center' as const,
@@ -1006,11 +1042,11 @@ export default function FacturaProveedorDetallePage() {
         onOk={handlePay} confirmLoading={paying} okText="Registrar pago"
         okButtonProps={{ style: { background: '#1faec2' } }}>
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Saldo pendiente: <Text strong style={{ color: '#ff7f00' }}>{fmtGTQ(Number(bill.balance), bill.currency)}</Text>
+          Saldo pendiente: <Text strong style={{ color: '#ff7f00' }}>{m(Number(bill.balance))}</Text>
         </Text>
         <Form form={payForm} layout="vertical">
           <Form.Item name="amount" label="Monto pagado"
-            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(bill.balance), message: `Máximo ${fmtGTQ(Number(bill.balance), bill.currency)}` }]}>
+            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(bill.balance), message: `Máximo ${m(Number(bill.balance))}` }]}>
             <InputNumber style={{ width: '100%' }} min={0.01} precision={2} prefix={bill.currency === 'GTQ' ? 'Q' : bill.currency} />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
