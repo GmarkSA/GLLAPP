@@ -18,11 +18,11 @@ import {
 import { getVendors } from '../../../api/contactos'
 import AnticipoDeAperturaModal from '../../../components/SaldoInicial/AnticipoDeAperturaModal'
 import { useCan } from '../../../auth/can'
+import MontoDual from '../../../components/Moneda/MontoDual'
+import { esLocal, fmtMoneda as fmtQ, fmtQ as fmtQuetzales, enQuetzales } from '../../../utils/moneda'
 
 const { Text, Title } = Typography
 
-const fmtQ = (n: number, cur = 'GTQ') =>
-  `${cur === 'GTQ' ? 'Q' : cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const STATUS_COLOR: Record<string, string> = {
   open:    'blue',
@@ -174,14 +174,13 @@ export default function AnticiposProveedorPage() {
     },
     {
       title: 'Monto', dataIndex: 'amount', width: 140, align: 'right',
-      render: (v, r) => <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v, r.currency)}</Text>,
+      render: (v, r) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} />,
     },
     {
       title: 'Saldo', dataIndex: 'balance', width: 140, align: 'right',
       render: (v, r) => (
-        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: Number(v) > 0 ? '#ff7f00' : '#2ea172' }}>
-          {fmtQ(v, r.currency)}
-        </Text>
+        <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate}
+                   fuerte color={Number(v) > 0 ? '#ff7f00' : '#2ea172'} />
       ),
     },
     {
@@ -339,6 +338,16 @@ export default function AnticiposProveedorPage() {
               </Descriptions.Item>
               <Descriptions.Item label="Monto">{fmtQ(detail.amount, detail.currency)}</Descriptions.Item>
               <Descriptions.Item label="Saldo">{fmtQ(detail.balance, detail.currency)}</Descriptions.Item>
+              {!esLocal(detail.currency) && (
+                <>
+                  <Descriptions.Item label="Tipo de cambio">
+                    {Number(detail.exchangeRate ?? 1).toFixed(6)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Saldo en quetzales">
+                    {fmtQuetzales(enQuetzales(detail.balance, detail))}
+                  </Descriptions.Item>
+                </>
+              )}
               {detail.advanceAccountCode && (
                 <Descriptions.Item label="Cuenta anticipo" span={2}>
                   <Text code style={{ fontSize: 11 }}>{detail.advanceAccountCode}</Text>

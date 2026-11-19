@@ -187,6 +187,12 @@ export interface VendorAdvance {
   amount:        number
   balance:       number
   currency:      string
+  /**
+   * La tasa con que se registró el anticipo. El backend devuelve la entidad
+   * completa, así que ya venía; faltaba declararla para poder mostrar el
+   * equivalente en quetzales sin inventar la tasa de hoy.
+   */
+  exchangeRate?: number
   status:        string
   reference?:    string
   notes?:        string
