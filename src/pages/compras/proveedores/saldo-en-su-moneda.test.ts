@@ -75,3 +75,22 @@ describe('el redondeo de la ficha', () => {
     expect(fmtMoneda(5350.004, 'USD')).toBe('USD 5,350.00')
   })
 })
+
+/**
+ * Los anticipos siguen la misma regla que las facturas y las notas de
+ * crédito: monto en su moneda, tasa aparte, equivalente en quetzales.
+ *
+ * Un anticipo de USD 8,984.00 salía como «Q 8,984.00» en la lista de
+ * Anticipos de Clientes. Son Q 68,844.70.
+ */
+describe('un anticipo en dólares', () => {
+  const ANTICIPO = { currency: 'USD', exchangeRate: 7.6630, total: 8984 }
+
+  it('se muestra en dólares, no en quetzales', () => {
+    expect(fmtMoneda(ANTICIPO.total, ANTICIPO.currency)).toBe('USD 8,984.00')
+  })
+
+  it('y su equivalente sale de su propia tasa', () => {
+    expect(enQuetzales(ANTICIPO.total, ANTICIPO)).toBeCloseTo(68844.39, 2)
+  })
+})
