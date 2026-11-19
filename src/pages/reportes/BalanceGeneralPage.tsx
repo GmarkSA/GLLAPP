@@ -61,7 +61,7 @@ function SectionCard({ title, color, children, total }: { title: string; color: 
 type BGKind = 'hdr' | 'subhdr' | 'acct' | 'sub' | 'grand' | 'grand2'
 type BGRow  = { key: string; _kind: BGKind; _name: string; _code?: string; _color?: string; _accountId?: string; _total: number; [ym: string]: any }
 
-function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | null }>): BGRow[] {
+export function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | null }>): BGRow[] {
   const months   = md.map(m => m.month)
   const empty    = Object.fromEntries(months.map(m => [m.yearMonth, null]))
   const lastData = md[md.length - 1]?.data
@@ -113,6 +113,32 @@ function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralData | n
   rows.push(sub('sub-cap', 'Total Capital', last(d => d.totalCapital), sVals(d => d.totalCapital)))
 
   rows.push(sub('grand2-tpc', 'TOTAL PASIVO + CAPITAL', last(d => d.totalPasivoCapital), sVals(d => d.totalPasivoCapital), 'grand2'))
+
+  /**
+   * La diferencia, mes a mes, cuando la hay.
+   *
+   * Esta tabla mostraba los dos totales y dejaba la resta al ojo del lector:
+   * «Total activos 802,252.12» y «Total pasivo + capital 778,817.80» sin una
+   * sola línea que dijera que faltan 23,434.32.
+   *
+   * Casi siempre es una cuenta que no entra en ningún reporte —la de orden de
+   * los saldos iniciales, mientras la apertura esté incompleta—. Debajo, la
+   * fila la nombra.
+   */
+  const difVals    = sVals(d => Number(d.diferencia ?? (d.totalActivo - d.totalPasivoCapital)))
+  const difUltimo  = last(d => Number(d.diferencia ?? (d.totalActivo - d.totalPasivoCapital)))
+  const hayDif     = Math.abs(difUltimo) > 0.005 || months.some(m => Math.abs(difVals[m.yearMonth] ?? 0) > 0.005)
+
+  if (hayDif) {
+    rows.push(sub('grand3-dif', 'DIFERENCIA (no cuadra)', difUltimo, difVals, 'grand2'))
+
+    // Las cuentas que quedaron fuera de los dos reportes, con su nombre.
+    const fuera = collect(d => d.sinClasificar?.accounts ?? [])
+    fuera.forEach(a => rows.push(acct(
+      `adif-${a.id}`, a.id, a.code, `${a.name} — fuera del balance`,
+      aVals(d => d.sinClasificar?.accounts ?? [], a.id),
+      lastA(d => d.sinClasificar?.accounts ?? [], a.id))))
+  }
 
   const nonZeroMonths = (r: BGRow) => months.some(m => (r[m.yearMonth] ?? 0) !== 0)
   return rows.filter(r => r._kind !== 'acct' || r._total !== 0 || nonZeroMonths(r))
