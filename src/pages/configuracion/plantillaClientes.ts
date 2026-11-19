@@ -120,10 +120,20 @@ export const COLUMNAS_CLIENTES: ColumnaDePlantilla[] = [
     alias: ['Impuesto ISR aplicable', 'Impuesto ISR'] },
 
   // ── Cuentas ────────────────────────────────────────────────────────────────
-  { clave: 'cuenta_por_cobrar', titulo: 'cuenta_por_cobrar', requerida: false, pestana: 'Cuentas',
+  /**
+   * La clave es `cuenta_contacto`, no `cuenta_por_cobrar`.
+   *
+   * El servidor lee las cuentas de un contacto por `cuenta_contacto` y
+   * `cuenta_contrapartida` —son las mismas dos columnas para clientes y para
+   * proveedores, solo cambia cómo se llaman en la plantilla—. Con la clave
+   * vieja, la columna se escribía en el Excel, el usuario la llenaba… y la
+   * carga la ignoraba en silencio: el cliente entraba sin su cuenta por
+   * cobrar. El encabezado del archivo no cambia.
+   */
+  { clave: 'cuenta_contacto', titulo: 'cuenta_por_cobrar', requerida: false, pestana: 'Cuentas',
     ayuda: 'Código de su cuenta por cobrar. Vacío = la cuenta por defecto de la empresa. Ver la hoja Cuentas.',
     alias: ['Cuenta por cobrar (CxC)', 'Cuenta por cobrar', 'CxC'] },
-  { clave: 'cuenta_ingresos', titulo: 'cuenta_ingresos', requerida: false, pestana: 'Cuentas',
+  { clave: 'cuenta_contrapartida', titulo: 'cuenta_ingresos', requerida: false, pestana: 'Cuentas',
     ayuda: 'Código de la cuenta de ingresos por defecto para sus facturas.',
     alias: ['Cuenta de ingresos por defecto', 'Cuenta de ingresos'] },
 
