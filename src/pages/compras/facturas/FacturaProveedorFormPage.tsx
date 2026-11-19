@@ -148,6 +148,13 @@ export default function FacturaProveedorFormPage() {
   const invoiceDate      = Form.useWatch('invoiceDate',              form)
   const customDays       = Form.useWatch('paymentTermsDays',         form) as number
   const watchCurr        = Form.useWatch('currency',                 form) ?? 'GTQ'
+  /**
+   * El signo de la moneda de la factura. Las líneas de retención, IDP, tasa
+   * municipal y bomberos salen de los totales del documento, así que están en
+   * su moneda: decían «Q» aunque la factura fuera en dólares. El equivalente
+   * en quetzales ya tiene su propio bloque más abajo.
+   */
+  const simboloDoc       = watchCurr === 'USD' ? '$' : watchCurr === 'GTQ' ? 'Q' : watchCurr
   const watchVendorId    = Form.useWatch('vendorId',                 form) as string | undefined
   const isReimbursement  = Form.useWatch('isExpenseReimbursement',   form) as boolean ?? false
 
@@ -1188,7 +1195,7 @@ export default function FacturaProveedorFormPage() {
                       <Text style={{ fontSize: 12, color: '#e5484d', fontWeight: 500 }}>IVA Retenido — Factura Especial</Text>
                       <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block' }}>El comprador retiene el 100% del IVA</Text>
                     </div>
-                    <Text style={{ fontSize: 13, color: '#e5484d', fontWeight: 600 }}>− Q {fmt(totals.taxAmount)}</Text>
+                    <Text style={{ fontSize: 13, color: '#e5484d', fontWeight: 600 }}>− {simboloDoc} {fmt(totals.taxAmount)}</Text>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1209,7 +1216,7 @@ export default function FacturaProveedorFormPage() {
                       ) : (
                         <>
                           <Text style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
-                            Q {fmt(ivaRetAmount)}
+                            {simboloDoc} {fmt(ivaRetAmount)}
                           </Text>
                           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIvaRet(true)} style={{ color: '#9aa1ab' }} />
                         </>
@@ -1235,20 +1242,20 @@ export default function FacturaProveedorFormPage() {
                 {idpAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#ff7f00' }}>IDP Combustible</Text>
-                    <Text style={{ fontSize: 13, color: '#ff7f00', fontWeight: 600 }}>+ Q {fmt(idpAmount)}</Text>
+                    <Text style={{ fontSize: 13, color: '#ff7f00', fontWeight: 600 }}>+ {simboloDoc} {fmt(idpAmount)}</Text>
                   </div>
                 )}
 
                 {tasaMunicipalAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#1B3A6B' }}>Tasa Municipal</Text>
-                    <Text style={{ fontSize: 13, color: '#1B3A6B', fontWeight: 600 }}>+ Q {fmt(tasaMunicipalAmount)}</Text>
+                    <Text style={{ fontSize: 13, color: '#1B3A6B', fontWeight: 600 }}>+ {simboloDoc} {fmt(tasaMunicipalAmount)}</Text>
                   </div>
                 )}
                 {bomberosAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, color: '#1B3A6B' }}>Bomberos (Dto. 112-97)</Text>
-                    <Text style={{ fontSize: 13, color: '#1B3A6B', fontWeight: 600 }}>+ Q {fmt(bomberosAmount)}</Text>
+                    <Text style={{ fontSize: 13, color: '#1B3A6B', fontWeight: 600 }}>+ {simboloDoc} {fmt(bomberosAmount)}</Text>
                   </div>
                 )}
 

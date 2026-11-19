@@ -20,9 +20,9 @@ import {
 import { useAuthStore } from '../../../store/authStore'
 import { useCompanyStore } from '../../../store/companyStore'
 import { companyIntegrationsApi, type ElectronicInvoicingProfile } from '../../../api/companyIntegrations'
+import { fmtMoneda, fmtQ as fmtQuetzales, enQuetzales, esLocal } from '../../../utils/moneda'
 
 const { Text, Title } = Typography
-const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const FRECUENCIAS = Object.entries(FRECUENCIA_LABELS) as [FrecuenciaRecurrencia, string][]
 
@@ -56,6 +56,7 @@ export default function FacturaRecurrenteFormPage() {
   const [tipoVigencia, setTipoVigencia] = useState<TipoVigencia>('indefinida')
   const [fechaInicio,  setFechaInicio]  = useState<Dayjs>(dayjs())
   const [moneda,       setMoneda]       = useState('GTQ')
+  const tipoCambioRef = Form.useWatch('tipoCambioReferencia', form)
   const [felFrases,       setFelFrases]       = useState<FelFrase[]>([])
   const [notificar,       setNotificar]       = useState(false)
   const [emailCliente,    setEmailCliente]    = useState('')
@@ -350,17 +351,30 @@ export default function FacturaRecurrenteFormPage() {
             <div style={{ minWidth: 260, background: '#f8f9fb', borderRadius: 8, padding: '12px 16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>Subtotal (base)</Text>
-                <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totales.subtotal)}</Text>
+                <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtMoneda(totales.subtotal, moneda)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>IVA (impuesto)</Text>
-                <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(totales.taxAmount)}</Text>
+                <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtMoneda(totales.taxAmount, moneda)}</Text>
               </div>
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text strong style={{ fontSize: 14 }}>Total factura</Text>
-                <Text strong style={{ fontSize: 16, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtQ(totales.total)}</Text>
+                <Text strong style={{ fontSize: 16, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtMoneda(totales.total, moneda)}</Text>
               </div>
+              {/*
+                * El equivalente es de REFERENCIA, con la tasa que se dejó en la
+                * plantilla: la factura de verdad tomará la del día en que se
+                * genere. Por eso se dice, en lugar de dar una cifra en firme.
+                */}
+              {!esLocal(moneda) && Number(tipoCambioRef) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11 }}>
+                  <Text type="secondary">Referencia en quetzales (T/C {Number(tipoCambioRef).toFixed(6)})</Text>
+                  <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtQuetzales(enQuetzales(totales.total, { currency: moneda, exchangeRate: Number(tipoCambioRef) }))}
+                  </Text>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -59,6 +59,8 @@ export default function NotaCreditoProveedorFormPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const watchCurr    = Form.useWatch('currency',      form) ?? 'GTQ'
+  /** El signo de la moneda de la nota: el subtotal y el IVA están en ella. */
+  const simboloDoc   = watchCurr === 'USD' ? '$' : watchCurr === 'GTQ' ? 'Q' : watchCurr
   const invoiceDate  = Form.useWatch('invoiceDate',   form)
   const paymentTerms = Form.useWatch('paymentTerms',  form) as string ?? 'immediate'
   const customDays   = Form.useWatch('paymentTermsDays', form) as number
@@ -468,11 +470,11 @@ export default function NotaCreditoProveedorFormPage() {
             <div style={{ maxWidth: 360, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#6b7280', fontSize: 12 }}>Subtotal</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>Q {fmt(totals.subtotal)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{simboloDoc} {fmt(totals.subtotal)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#6b7280', fontSize: 12 }}>IVA</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>Q {fmt(totals.taxAmount)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{simboloDoc} {fmt(totals.taxAmount)}</Text>
               </div>
               <Divider style={{ margin: '3px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e5484d', borderRadius: 6, padding: '5px 14px' }}>
