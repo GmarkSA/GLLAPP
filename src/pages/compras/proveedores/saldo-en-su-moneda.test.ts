@@ -58,3 +58,20 @@ describe('el equivalente en quetzales', () => {
     expect(total).not.toBeCloseTo(3264.78, 2)
   })
 })
+
+/**
+ * El saldo en quetzales lleva centavos, no milésimas.
+ *
+ * Al convertir un documento en dólares por su tasa el resultado trae más
+ * decimales, y la ficha mostraba «Q 40,866.296» y «Q 871,365.842».
+ */
+describe('el redondeo de la ficha', () => {
+  it('siempre dos decimales', () => {
+    expect(fmtMoneda(40866.2956, 'GTQ')).toBe('Q 40,866.30')
+    expect(fmtMoneda(871365.8423, 'GTQ')).toBe('Q 871,365.84')
+  })
+
+  it('y también en la moneda del documento', () => {
+    expect(fmtMoneda(5350.004, 'USD')).toBe('USD 5,350.00')
+  })
+})

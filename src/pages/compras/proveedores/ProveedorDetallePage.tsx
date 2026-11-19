@@ -26,7 +26,15 @@ import { useCan } from '../../../auth/can'
 const { Title, Text } = Typography
 const { TextArea } = Input
 
-const fmtQ = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+/**
+ * Dos decimales, siempre.
+ *
+ * Sin el máximo, `toLocaleString` deja hasta tres: al convertir un documento
+ * en dólares por su tasa el resultado trae más decimales, y la ficha mostraba
+ * «Q 40,866.296». Un saldo en quetzales tiene centavos, no milésimas.
+ */
+const fmtQ = (n: number) =>
+  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 /**
  * Un documento en dólares vale lo que vale EN DÓLARES; su equivalente en
@@ -41,7 +49,7 @@ export const esLocal = (moneda?: string | null) => !moneda || moneda.toUpperCase
 export const fmtMoneda = (n: number, moneda?: string | null) =>
   esLocal(moneda)
     ? fmtQ(n)
-    : `${String(moneda).toUpperCase()} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+    : `${String(moneda).toUpperCase()} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 /** Lo que vale en quetzales, con la tasa del propio documento. */
 export const enQuetzales = (n: unknown, doc: { currency?: string | null; exchangeRate?: number | null }) => {
@@ -198,7 +206,7 @@ export default function ProveedorDetallePage() {
   const chartOption = useMemo(() => ({
     tooltip: {
       trigger: 'axis',
-      formatter: (params: any[]) => `${params[0].name}<br/>Q ${Number(params[0].value).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`,
+      formatter: (params: any[]) => `${params[0].name}<br/>Q ${Number(params[0].value).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     grid: { left: 16, right: 16, top: 12, bottom: 28, containLabel: true },
     xAxis: { type: 'category', data: chartData.months, axisLabel: { fontSize: 10, color: '#6b7280' }, axisLine: { lineStyle: { color: 'rgba(10,10,10,0.08)' } } },
@@ -555,13 +563,13 @@ export default function ProveedorDetallePage() {
                       title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Saldo pendiente</Text>}
                       value={saldoPendiente} precision={2} prefix="Q"
                       valueStyle={{ color: saldoPendiente > 0 ? '#ff7f00' : '#2ea172', fontSize: 20, fontVariantNumeric: 'tabular-nums' }}
-                      formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                      formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     />
                     <Statistic
                       title={<Text style={{ fontSize: 11, color: '#6b7280' }}>Total comprado</Text>}
                       value={totalComprado} precision={2} prefix="Q"
                       valueStyle={{ color: '#0a0a0a', fontSize: 20, fontVariantNumeric: 'tabular-nums' }}
-                      formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                      formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     />
                   </div>
                 </div>
