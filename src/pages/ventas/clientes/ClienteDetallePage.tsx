@@ -15,6 +15,7 @@ import dayjs from 'dayjs'
 import { getCustomer, deleteCustomer, type Customer } from '../../../api/contactos'
 import { getInvoices, getEstimates, type Invoice, type Estimate, INVOICE_STATUS_CONFIG, ESTIMATE_STATUS_CONFIG } from '../../../api/facturas'
 import { getPagosRecibidos, PAYMENT_MODE_LABELS, type PagoRecibido } from '../../../api/pagos-recibidos'
+import { getAnticiposClientes, type AnticipoCliente } from '../../../api/anticipos-clientes'
 import { getNotasCredito, NC_STATUS_CONFIG, type NotaCredito } from '../../../api/notas-credito'
 import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
@@ -86,6 +87,8 @@ export default function ClienteDetallePage() {
   const [payments,    setPayments]    = useState<PagoRecibido[]>([])
   const [estimates,   setEstimates]   = useState<Estimate[]>([])
   const [creditNotes, setCreditNotes] = useState<NotaCredito[]>([])
+  /** Los anticipos del cliente: lo que ya pagó y todavía no se aplica. */
+  const [anticipos,   setAnticipos]   = useState<AnticipoCliente[]>([])
   const [comments,    setComments]    = useState<ActivityComment[]>([])
   const [loading,     setLoading]     = useState(true)
 
@@ -112,13 +115,14 @@ export default function ClienteDetallePage() {
     if (!id) return
     setLoading(true)
     try {
-      const [cust, org, invRes, payRes, estRes, ncRes, cmtRes] = await Promise.all([
+      const [cust, org, invRes, payRes, estRes, ncRes, antRes, cmtRes] = await Promise.all([
         getCustomer(id),
         getEmisor().catch(() => ({ name: '' } as OrganizationProfile)),
         getInvoices({ customerId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getPagosRecibidos({ customerId: id, limit: 100 }).catch(() => ({ data: [], total: 0 })),
         getEstimates({ customerId: id, limit: 50 }).catch(() => ({ data: [], total: 0 })),
         getNotasCredito({ customerId: id, limit: 50 }).catch(() => ({ data: [], total: 0 })),
+        getAnticiposClientes({ customerId: id, limit: 50 }).catch(() => ({ data: [], total: 0 })),
         getComments('customer', id).catch(() => [] as ActivityComment[]),
       ])
       setCustomer(cust)
@@ -127,6 +131,7 @@ export default function ClienteDetallePage() {
       setPayments(payRes.data ?? [])
       setEstimates(estRes.data ?? [])
       setCreditNotes(ncRes.data ?? [])
+      setAnticipos((antRes as any)?.data ?? [])
       setComments(Array.isArray(cmtRes) ? cmtRes : [])
     } catch { message.error('No se pudo cargar el cliente') }
     finally { setLoading(false) }
@@ -363,6 +368,41 @@ export default function ClienteDetallePage() {
       render: (v: string) => { const c = ESTIMATE_STATUS_CONFIG[v as keyof typeof ESTIMATE_STATUS_CONFIG]; return <Tag color={c?.color} style={{ fontSize: 11 }}>{c?.label ?? v}</Tag> },
     },
     { title: 'Total', dataIndex: 'total', align: 'right' as const, width: 120, render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
+  ]
+
+  /**
+   * Los anticipos del cliente, en su moneda.
+   *
+   * Un anticipo de USD 8,984.00 no son Q 8,984.00: la tasa y el equivalente
+   * van en su propia columna, como en las facturas y las notas de crédito.
+   */
+  const anticipoCols = [
+    { title: 'N.º', dataIndex: 'invoiceNumber', width: 120,
+      render: (v: string) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{v}</Text> },
+    { title: 'Fecha', dataIndex: 'invoiceDate', width: 110,
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v ? dayjs(v).format('DD/MM/YYYY') : '—'}</Text> },
+    { title: 'Monto', dataIndex: 'total', align: 'right' as const, width: 130,
+      render: (v: number, r: AnticipoCliente) => (
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
+          {fmtMoneda(Number(v ?? 0), r.currency)}
+        </Text>
+      ) },
+    { title: 'Tipo de cambio', dataIndex: 'exchangeRate', align: 'right' as const, width: 130,
+      render: (v: number, r: AnticipoCliente) => esLocal(r.currency)
+        ? <Text type="secondary">—</Text>
+        : <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{Number(v ?? 1).toFixed(6)}</Text> },
+    { title: 'Monto en Q', align: 'right' as const, width: 130,
+      render: (_: unknown, r: AnticipoCliente) => (
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
+          {fmtQ(enQuetzales(r.total, r as any))}
+        </Text>
+      ) },
+    { title: 'Saldo disponible', dataIndex: 'balance', align: 'right' as const, width: 140,
+      render: (v: number, r: AnticipoCliente) => (
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: Number(v) > 0 ? '#d97706' : '#2ea172' }}>
+          {fmtMoneda(Number(v ?? 0), r.currency)}
+        </Text>
+      ) },
   ]
 
   const ncCols = [
@@ -759,6 +799,16 @@ export default function ClienteDetallePage() {
                           locale={{ emptyText: 'Sin cotizaciones' }}
                           style={{ background: '#fff', borderRadius: 8 }} />
                       </div>
+                    ),
+                  },
+                  {
+                    key: 'anticipos',
+                    label: `Anticipos (${anticipos.length})`,
+                    children: (
+                      <Table columns={anticipoCols} dataSource={anticipos} rowKey="id" size="small"
+                        pagination={{ pageSize: 10, showTotal: t => `${t} anticipos` }}
+                        locale={{ emptyText: 'Sin anticipos' }}
+                        style={{ background: '#fff', borderRadius: 8 }} />
                     ),
                   },
                   {

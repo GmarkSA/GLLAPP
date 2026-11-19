@@ -25,7 +25,23 @@ import { useCan } from '../../../auth/can'
 const { Text, Title } = Typography
 
 const fmtQ = (n: number) =>
-  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+/** Un anticipo en dólares vale lo que vale EN DÓLARES; su equivalente sale de su tasa. */
+const esLocal = (moneda?: string | null) => !moneda || moneda.toUpperCase() === 'GTQ'
+
+const fmtMoneda = (n: number, moneda?: string | null) =>
+  esLocal(moneda)
+    ? fmtQ(n)
+    : `${String(moneda).toUpperCase()} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const enQuetzales = (n: unknown, doc: { currency?: string | null; exchangeRate?: number | null }) => {
+  const monto = Number(n ?? 0)
+  return esLocal(doc?.currency) ? monto : monto * (Number(doc?.exchangeRate) || 1)
+}
+
+/** Cifras de ancho fijo: en una columna de montos es lo que deja compararlos. */
+const numeros = { fontVariantNumeric: 'tabular-nums' } as const
 
 const STATUS_COLOR: Record<string, string> = {
   pending: 'blue',
@@ -243,18 +259,46 @@ export default function AnticiposClientesPage() {
       sorter: (a: AnticipoCliente, b: AnticipoCliente) => String(a.invoiceDate ?? '').localeCompare(String(b.invoiceDate ?? '')),
       render: (v: string) => dayjs(v).format('DD/MM/YYYY'),
     },
+    /**
+     * El monto, la tasa y el equivalente: tres columnas, no una.
+     *
+     * Un anticipo de USD 8,984.00 salía como «Q 8,984.00» — el número en
+     * dólares con el signo de quetzales—, cuando son Q 68,844.70. Cada dato
+     * en su columna, que es como se revisa una cartera.
+     */
     {
       title: 'Monto original', dataIndex: 'total', width: 130, align: 'right' as const,
       sorter: (a: AnticipoCliente, b: AnticipoCliente) => Number(a.total ?? 0) - Number(b.total ?? 0),
-      render: (v: number) => fmtQ(v),
+      render: (v: number, r: AnticipoCliente) => (
+        <Text style={numeros}>{fmtMoneda(Number(v ?? 0), r.currency)}</Text>
+      ),
     },
     {
-      title: 'Saldo disponible', dataIndex: 'balance', width: 140, align: 'right' as const,
+      title: 'Tipo de cambio', dataIndex: 'exchangeRate', width: 130, align: 'right' as const,
+      render: (v: number, r: AnticipoCliente) => esLocal(r.currency)
+        ? <Text type="secondary">—</Text>
+        : <Text style={numeros}>{Number(v ?? 1).toFixed(6)}</Text>,
+    },
+    {
+      title: 'Monto en Q', width: 130, align: 'right' as const,
+      render: (_: unknown, r: AnticipoCliente) => (
+        <Text style={numeros}>{fmtQ(enQuetzales(r.total, r))}</Text>
+      ),
+    },
+    {
+      title: 'Saldo disponible', dataIndex: 'balance', width: 150, align: 'right' as const,
       sorter: (a: AnticipoCliente, b: AnticipoCliente) => Number(a.balance ?? 0) - Number(b.balance ?? 0),
-      render: (v: number) => (
-        <Text style={{ fontWeight: 700, color: Number(v) > 0 ? '#d97706' : '#2ea172' }}>
-          {fmtQ(v)}
-        </Text>
+      render: (v: number, r: AnticipoCliente) => (
+        <div style={{ lineHeight: 1.3 }}>
+          <Text style={{ ...numeros, fontWeight: 700, color: Number(v) > 0 ? '#d97706' : '#2ea172' }}>
+            {fmtMoneda(Number(v ?? 0), r.currency)}
+          </Text>
+          {!esLocal(r.currency) && (
+            <div><Text type="secondary" style={{ ...numeros, fontSize: 11 }}>
+              {fmtQ(enQuetzales(v, r))}
+            </Text></div>
+          )}
+        </div>
       ),
     },
     {
