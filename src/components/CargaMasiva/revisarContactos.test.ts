@@ -223,3 +223,24 @@ describe('los anticipos se cuentan aparte', () => {
     expect(viejo.porDocumentos['111'].enQuetzales).toBeCloseTo(1000, 2)
   })
 })
+
+/** La nota de crédito resta: lo que se debe es la factura menos su abono. */
+describe('las notas de crédito en la revisión', () => {
+  const r = () => revisarContactos([{ nombre: 'TCH', nit: '812898460' }], [], [
+    { nit: '812898460', tipo: 'factura',      documento: 'INV-000126', monto: 9654, moneda: 'USD', tipo_cambio: 7.66451 },
+    { nit: '812898460', tipo: 'nota_credito', documento: 'NC-1', aplica_a: 'INV-000126',
+      monto: 3057.51, moneda: 'USD', tipo_cambio: 7.66451 },
+  ])
+
+  it('restan del saldo del contacto', () => {
+    const tch = r().porDocumentos['812898460']
+
+    expect(tch.documentos).toBe(2)
+    expect(tch.monto).toBeCloseTo(9654 - 3057.51, 2)
+    expect(tch.enQuetzales).toBeCloseTo((9654 - 3057.51) * 7.66451, 1)
+  })
+
+  it('no se cuentan como anticipos', () => {
+    expect(r().anticipos).toBe(0)
+  })
+})

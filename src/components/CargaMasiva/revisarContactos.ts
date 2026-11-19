@@ -131,8 +131,18 @@ export function saldosPorDocumentos(documentos: Array<Record<string, unknown>> =
     const tasa   = Number(d.tipo_cambio ?? 0) || (moneda === 'GTQ' ? 1 : 0)
     if (!tasa) { sinTasa++; continue }
 
+    /**
+     * La nota de crédito RESTA del saldo del contacto.
+     *
+     * Entra con la misma cuenta que la factura pero al lado contrario: lo que
+     * se debe es la factura menos su nota de crédito. Sumarla mostraría un
+     * saldo mayor al que va a quedar en los libros.
+     */
+    const clase = String(d.tipo ?? '').trim().toLowerCase()
+    const signo = clase === 'nota_credito' ? -1 : 1
+
     // El anticipo no es cartera: se cuenta aparte y no entra en el saldo.
-    if (String(d.tipo ?? '').trim().toLowerCase() === 'anticipo') {
+    if (clase === 'anticipo') {
       anticipos++
       anticiposEnQuetzales = centavos(anticiposEnQuetzales + monto * tasa)
       continue
@@ -144,8 +154,8 @@ export function saldosPorDocumentos(documentos: Array<Record<string, unknown>> =
     porNit[nit] = {
       documentos:  (previo?.documentos ?? 0) + 1,
       moneda:      mezclada ? 'MIXTA' : moneda,
-      monto:       mezclada ? 0 : centavos((previo?.monto ?? 0) + monto),
-      enQuetzales: centavos((previo?.enQuetzales ?? 0) + monto * tasa),
+      monto:       mezclada ? 0 : centavos((previo?.monto ?? 0) + signo * monto),
+      enQuetzales: centavos((previo?.enQuetzales ?? 0) + signo * monto * tasa),
       tasaMin:     Math.min(previo?.tasaMin ?? tasa, tasa),
       tasaMax:     Math.max(previo?.tasaMax ?? tasa, tasa),
     }

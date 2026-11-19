@@ -11,8 +11,9 @@ import type { ColumnaDePlantilla, EspecificacionDeCarga, Vocabulario } from './p
  * todo entraba como factura.
  */
 const TIPO_DE_SALDO: Vocabulario = {
-  factura:  ['factura', 'documento', 'cargo', 'invoice'],
-  anticipo: ['anticipo', 'anticipos', 'adelanto', 'a cuenta', 'advance'],
+  factura:      ['factura', 'documento', 'cargo', 'invoice'],
+  anticipo:     ['anticipo', 'anticipos', 'adelanto', 'a cuenta', 'advance'],
+  nota_credito: ['nota_credito', 'nota de credito', 'nota de crédito', 'nc', 'abono', 'credit note'],
 }
 
 /**
@@ -40,11 +41,14 @@ export const COLUMNAS_SALDOS: ColumnaDePlantilla[] = [
     alias: ['NIT', 'NIT / CUI', 'Tax ID', 'Identificación'] },
   { clave: 'tipo', titulo: 'tipo', requerida: false, tipo: 'opcion', vocabulario: TIPO_DE_SALDO,
     pestana: 'Saldos pendientes',
-    ayuda: 'factura o anticipo. Vacío = factura. El anticipo es lo que ya se pagó o se cobró sin aplicar: va a la cuenta de anticipos y al lado contrario de la póliza.',
+    ayuda: 'factura, anticipo o nota_credito. Vacío = factura. El anticipo es lo que ya se pagó o se cobró sin aplicar: va a la cuenta de anticipos y al lado contrario de la póliza.',
     alias: ['Tipo', 'Tipo de saldo', 'Clase'] },
   { clave: 'documento', titulo: 'documento', requerida: false, pestana: 'Saldos pendientes',
     ayuda: 'Número de la factura o documento. Sirve para reconocerlo al cobrarlo o pagarlo.',
     alias: ['Documento', 'No. Documento', 'Factura', 'Número de factura', 'Invoice Number'] },
+  { clave: 'aplica_a', titulo: 'aplica_a', requerida: false, pestana: 'Saldos pendientes',
+    ayuda: 'Solo para una nota de crédito: el número del documento que acredita, tal como está escrito en la columna «documento» de esa factura. Si se deja vacío, la nota queda como crédito abierto a favor del contacto.',
+    alias: ['Aplica a', 'Factura original', 'Documento original'] },
   { clave: 'fecha', titulo: 'fecha', requerida: false, tipo: 'fecha', pestana: 'Saldos pendientes',
     ayuda: 'Fecha del documento. Vacío = la fecha de migración de la empresa.',
     alias: ['Fecha', 'Fecha de factura', 'Invoice Date'] },
