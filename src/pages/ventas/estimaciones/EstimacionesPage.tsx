@@ -19,11 +19,10 @@ import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
+import MontoDual from '../../../components/Moneda/MontoDual'
 
 const { Title, Text } = Typography
 
-const fmt = (x: number | string) =>
-  `Q ${Number(x).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 // ── Configurador de columnas ──────────────────────────────────────────────────
 const STORAGE_KEY = 'contaerp_cols_cotizaciones'
@@ -100,18 +99,18 @@ function buildColDef(key: string): ColumnsType<Estimate>[number] | null {
             : <Text type="secondary">—</Text> }
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const,
-        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+        render: (v: number, r: Estimate) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} /> }
     case 'discountAmount':
       return { ...base, title: 'Descuento', dataIndex: 'discountAmount', width: 100, align: 'right' as const,
-        render: (v: number) => Number(v) > 0
-          ? <span style={{ fontSize: 12, color: '#059669' }}>- {fmt(v)}</span>
+        render: (v: number, r: Estimate) => Number(v) > 0
+          ? <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} color="#059669" />
           : <Text type="secondary">—</Text> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 100, align: 'right' as const,
-        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+        render: (v: number, r: Estimate) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} /> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
-        render: (v: number) => <Text strong style={{ fontSize: 13 }}>{fmt(v)}</Text> }
+        render: (v: number, r: Estimate) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} fuerte /> }
     case 'itemsCount':
       return { ...base, title: '# Líneas', width: 80, align: 'center' as const,
         render: (_: any, r: Estimate) => <Tag style={{ fontSize: 11 }}>{r.items?.length ?? 0}</Tag> }

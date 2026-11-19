@@ -20,10 +20,9 @@ import { useCan } from '../../../auth/can'
 import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
 import { esPequenoContribuyente, tasaDeIvaDelDocumento, documentoLlevaIva } from '../../../components/Print/regimenFiscal'
 import { textoDeCierreInicial } from '../../../components/DocumentForm/textoDeCierre'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
-const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-const fmtGTQ = (n: number) => `GTQ ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 export default function EstimacionDetallePage() {
   const { id }   = useParams<{ id: string }>()
@@ -115,6 +114,10 @@ export default function EstimacionDetallePage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
   if (!est)    return <div style={{ padding: 40 }}><Text>Cotización no encontrada</Text></div>
 
+  /** La cotización está en una moneda: así se muestra, y así la lee el cliente. */
+  const enMoneda = !esLocal(est.currency)
+  const m        = (n: unknown) => fmtMoneda(n, est.currency)
+
   const statusCfg = ESTIMATE_STATUS_CONFIG[est.status] ?? { label: est.status, color: 'default' }
   const isExpired = est.expiryDate && dayjs(est.expiryDate).isBefore(dayjs(), 'day') && est.status !== 'invoiced' && est.status !== 'declined'
   const canConvert = est.status === 'accepted' || est.status === 'sent'
@@ -141,7 +144,7 @@ export default function EstimacionDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{m(v)}</Text> },
     { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="#ff7f00">{v}%</Tag> : null },
     // La tasa que trae la línea, sin suponer 12%: el documento puede ser exento.
     { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{Number(v ?? 0)}%</Tag> },
@@ -151,7 +154,7 @@ export default function EstimacionDetallePage() {
       // calculado: si no, la columna entera salía «Q NaN».
       render: (_: number, row: InvoiceItem) => (
         <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>
-          {fmtQ(totalDeLinea(row))}
+          {m(totalDeLinea(row))}
         </Text>
       ),
     },
@@ -263,8 +266,13 @@ export default function EstimacionDetallePage() {
                 Total
               </Text>
               <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
-                {fmtGTQ(Number(est.total))}
+                {m(Number(est.total))}
               </Text>
+              {enMoneda && (
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtQ(enQuetzales(est.total, est))} · T/C {Number(est.exchangeRate ?? 1).toFixed(6)}
+                </Text>
+              )}
             </div>
           </div>
         </div>
@@ -339,12 +347,12 @@ export default function EstimacionDetallePage() {
             <div style={{ minWidth: 280 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">Subtotal</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(est.subtotal))}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{m(Number(est.subtotal))}</Text>
               </div>
               {Number(est.discountAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text type="secondary">Descuento</Text>
-                  <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>−{fmtQ(Number(est.discountAmount))}</Text>
+                  <Text style={{ color: '#ff7f00', fontVariantNumeric: 'tabular-nums' }}>−{m(Number(est.discountAmount))}</Text>
                 </div>
               )}
               {/*
@@ -355,14 +363,29 @@ export default function EstimacionDetallePage() {
               {!sinIva && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text type="secondary">IVA{tasaIva != null ? ` (${tasaIva}%)` : ''}</Text>
-                  <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(Number(est.taxAmount))}</Text>
+                  <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{m(Number(est.taxAmount))}</Text>
                 </div>
               )}
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
-                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(est.total))}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{m(Number(est.total))}</Text>
               </div>
+              {enMoneda && (
+                <>
+                  <Divider style={{ margin: '8px 0' }} dashed />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Tipo de cambio</Text>
+                    <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {Number(est.exchangeRate ?? 1).toFixed(6)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Total en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(enQuetzales(est.total, est))}</Text>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
