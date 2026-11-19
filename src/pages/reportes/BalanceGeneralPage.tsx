@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Col, Row, Space, Table, Tag, Typography, Divider, Statistic, Switch, Spin } from 'antd'
+import { Alert, Card, Col, Row, Space, Table, Tag, Typography, Divider, Statistic, Switch, Spin } from 'antd'
 import { CheckCircleOutlined, WarningOutlined, AuditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -290,10 +290,59 @@ export default function BalanceGeneralPage() {
                 <Tag icon={<CheckCircleOutlined />} color="success">Balance cuadrado · Activos = Pasivo + Capital</Tag>
               ) : (
                 <Tag icon={<WarningOutlined />} color="error">
-                  Desequilibrio: diferencia Q {fmtQ(Math.abs(single.totalActivo - single.totalPasivoCapital))}
+                  Desequilibrio: diferencia Q {fmtQ(Math.abs(single.diferencia ?? (single.totalActivo - single.totalPasivoCapital)))}
                 </Tag>
               )}
               <Tag style={{ marginLeft: 8 }}>Al {single.asOf}</Tag>
+
+              {/*
+                * La diferencia, con nombre y apellido.
+                *
+                * Decir «desequilibrio Q X» y nada más obliga a buscar a ciegas
+                * en todo el catálogo. El balance lee Activo, Activo Fijo,
+                * Pasivo y Capital; el estado de resultados, ingresos y gastos.
+                * Una cuenta con cualquier otro tipo —las de orden, o una mal
+                * clasificada— no sale en ninguno de los dos, y su saldo ES la
+                * diferencia. Aquí se nombran esas cuentas.
+                */}
+              {!single.balanced && (
+                <Alert
+                  type="error"
+                  showIcon
+                  style={{ marginTop: 10 }}
+                  message={`Faltan Q ${fmtQ(Math.abs(single.diferencia ?? 0))} para cuadrar`}
+                  description={
+                    single.sinClasificar?.accounts?.length ? (
+                      <>
+                        <div style={{ marginBottom: 6 }}>
+                          Estas cuentas tienen saldo y no entran ni en el Balance ni en el
+                          Estado de Resultados, porque su tipo no es de balance ni de resultados:
+                        </div>
+                        <ul style={{ paddingLeft: 18, margin: 0 }}>
+                          {single.sinClasificar.accounts.slice(0, 10).map((c: any) => (
+                            <li key={c.id ?? c.code}>
+                              <strong>{c.code} {c.name}</strong> — Q {fmtQ(Math.abs(Number(c.balance ?? 0)))}
+                              {c.balance_type ? ` · tipo «${c.balance_type}»` : ' · sin tipo'}
+                            </li>
+                          ))}
+                          {single.sinClasificar.accounts.length > 10 && (
+                            <li>y {single.sinClasificar.accounts.length - 10} más…</li>
+                          )}
+                        </ul>
+                        {Math.abs(Math.abs(single.sinClasificar.total) - Math.abs(single.diferencia ?? 0)) > 0.01 && (
+                          <div style={{ marginTop: 6 }}>
+                            Ojo: estas cuentas suman Q {fmtQ(Math.abs(single.sinClasificar.total))}, que no es toda la
+                            diferencia. El resto viene de otro lado — una póliza publicada sin cuadrar.
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      'Ninguna cuenta quedó fuera de los reportes, así que la diferencia viene de una '
+                      + 'póliza publicada sin cuadrar. Revisá el Libro Diario del período.'
+                    )
+                  }
+                />
+              )}
             </div>
 
             <Row gutter={12} style={{ marginBottom: 16 }}>

@@ -38,6 +38,14 @@ export interface BalanceGeneralData {
   totalCapital:        number
   totalPasivoCapital:  number
   balanced:    boolean
+  /** Cuánto falta para cuadrar: Activo − (Pasivo + Capital). */
+  diferencia?: number
+  /**
+   * Las cuentas con saldo que no entran ni en el Balance ni en el Estado de
+   * Resultados —su tipo no es de balance ni de resultados—. Ahí es donde está
+   * la diferencia, casi siempre.
+   */
+  sinClasificar?: { accounts: AccountRow[]; total: number }
   netIncome:   number
   comparison?: any
 }
