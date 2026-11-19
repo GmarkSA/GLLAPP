@@ -374,6 +374,7 @@ export default function NotaCreditoFormPage() {
     )
   }
 
+  const watchCurr  = Form.useWatch('currency', form) ?? 'GTQ'
   const watchUuid  = Form.useWatch('felUuid',  form)
   const watchSerie = Form.useWatch('felSerie', form)
 
@@ -587,7 +588,7 @@ export default function NotaCreditoFormPage() {
           title={<span style={{ fontSize: 13, fontWeight: 600 }}>Líneas ({docType})</span>}
           styles={{ body: { padding: '8px 14px' } }}
         >
-          <LineItemsEditor items={items} onChange={setItems} taxes={taxes} />
+          <LineItemsEditor items={items} onChange={setItems} taxes={taxes} currency={watchCurr} />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
             <div style={{ width: 300 }}>

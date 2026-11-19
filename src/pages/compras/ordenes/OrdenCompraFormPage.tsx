@@ -372,6 +372,7 @@ export default function OrdenCompraFormPage() {
               onChange={setItems}
               docType="po"
               vendorDefaultTaxId={vendorDefaultTaxId}
+              currency={watchCurr}
             />
           </Card>
 

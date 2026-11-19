@@ -279,6 +279,8 @@ const TABLE_COMPONENTS = {
 }
 
 export default function LineItemsEditor({ items, taxes, onChange, readOnly, accountEditable, docType = 'invoice', vendorDefaultTaxId, currency = 'GTQ' }: Props) {
+  /** El signo de la moneda del documento: «Q», «$» para dólares, o el código. */
+  const simboloDeLaMoneda = currency === 'USD' ? '$' : currency === 'GTQ' ? 'Q' : currency
   const [prodOptions, setProdOptions]     = useState<ProdOption[]>([])
   const defaultTaxAppliedRef = useRef<string | null>(null) // (docType:vendor) ya recibió el impuesto por defecto — no volver a pisar elecciones por línea
   const [searching,   setSearching]       = useState(false)
@@ -753,7 +755,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
             value={row.unitPrice}
             onCommit={v => update(row._key, { unitPrice: v })}
             min={0} step={0.01} precision={2}
-            prefix={currency === 'USD' ? '$' : currency === 'GTQ' ? 'Q' : currency}
+            prefix={simboloDeLaMoneda}
             inputStyle={{ textAlign: 'right' }}
             formatter={v => {
               if (v === undefined || v === '') return ''
@@ -773,7 +775,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
         const qMode = discQMode[row._key] ?? ((row.discountAmount ?? 0) > 0)
         if (readOnly) {
           if ((row.discountAmount ?? 0) > 0)
-            return <Tag color="#ff7f00" style={{ fontSize: 11, margin: 0 }}>Q {Number(row.discountAmount).toFixed(2)}</Tag>
+            return <Tag color="#ff7f00" style={{ fontSize: 11, margin: 0 }}>{simboloDeLaMoneda} {Number(row.discountAmount).toFixed(2)}</Tag>
           return row.discountPercent > 0
             ? <Tag color="#ff7f00" style={{ fontSize: 11, margin: 0 }}>{row.discountPercent}%</Tag>
             : <span style={{ color: '#9aa1ab' }}>—</span>
@@ -920,7 +922,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
             Subtotal (base)
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>
-            {currency === 'USD' ? '$' : 'Q'} {totals.subtotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            {simboloDeLaMoneda} {totals.subtotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
 
@@ -936,7 +938,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
             IVA (impuesto)
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#1faec2' }}>
-            {currency === 'USD' ? '$' : 'Q'} {totals.taxAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            {simboloDeLaMoneda} {totals.taxAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
 
@@ -951,7 +953,7 @@ export default function LineItemsEditor({ items, taxes, onChange, readOnly, acco
             Total Factura
           </div>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#ffffff' }}>
-            {currency === 'USD' ? '$' : 'Q'} {totals.total.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+            {simboloDeLaMoneda} {totals.total.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
           </div>
         </div>
       </div>
