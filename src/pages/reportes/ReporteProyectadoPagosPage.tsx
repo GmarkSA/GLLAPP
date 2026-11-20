@@ -14,6 +14,7 @@ import {
   getCashFlowProjection,
   type CashFlowProjection, type CashFlowBucketItem,
 } from '../../api/pagosRealizados'
+import MontoDual from '../../components/Moneda/MontoDual'
 
 const { Text, Title } = Typography
 
@@ -88,8 +89,17 @@ export default function ReporteProyectadoPagosPage() {
       render: (v) => v !== 'GTQ' ? <Tag color="#6b7280">{v}</Tag> : null,
     },
     {
-      title: 'Saldo', dataIndex: 'balanceGTQ', width: 130, align: 'right',
-      render: (v) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v)}</Text>,
+      /**
+       * El saldo en la moneda de la factura y, debajo, el equivalente que es
+       * lo que suman los tramos. Antes solo se veía el equivalente: con una
+       * cartera en dólares, la cifra no coincidía con ninguna factura y no
+       * había forma de conciliar con el proveedor.
+       */
+      title: 'Saldo', dataIndex: 'balance', width: 150, align: 'right',
+      render: (_, r) => (
+        <MontoDual monto={r.balance} currency={r.currency} exchangeRate={r.exchangeRate}
+                   fuerte color="#1faec2" />
+      ),
     },
     {
       key: 'action', width: 100, align: 'center',

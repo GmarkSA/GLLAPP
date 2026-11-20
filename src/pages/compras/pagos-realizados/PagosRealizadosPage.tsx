@@ -18,11 +18,11 @@ import {
 } from '../../../api/pagosRealizados'
 import { getAsiento } from '../../../api/asientos'
 import { useCan } from '../../../auth/can'
+import MontoDual from '../../../components/Moneda/MontoDual'
+import { fmtMoneda as fmtQ } from '../../../utils/moneda'
 
 const { Text, Title } = Typography
 
-const fmtQ = (n: number, cur = 'GTQ') =>
-  `${cur === 'GTQ' ? 'Q' : cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const MODE_LABELS: Record<string, string> = {
   cash:          'Efectivo',
@@ -217,7 +217,7 @@ export default function PagosRealizadosPage() {
     {
       title: 'Monto', dataIndex: 'amount', width: 130, align: 'right',
       sorter: (a, b) => Number(a.amount ?? 0) - Number(b.amount ?? 0),
-      render: (v, r) => <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v, r.currency)}</Text>,
+      render: (v, r) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} fuerte />,
     },
     {
       title: 'Estado', dataIndex: 'status', width: 105,

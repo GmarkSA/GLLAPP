@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { esLocal, fmtMoneda, enQuetzales } from './ProveedorDetallePage'
+import { esLocal, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 /**
  * La ficha del proveedor en dólares.

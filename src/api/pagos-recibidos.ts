@@ -30,6 +30,12 @@ export interface PagoRecibido {
   paymentDate:    string
   amount:         number
   currency:       string
+  /**
+   * La tasa con la que se registró el pago. El backend siempre la devuelve
+   * —la columna tiene default 1—, solo faltaba declararla aquí, y sin ella
+   * un cobro en dólares se mostraba y se sumaba como si fuera en quetzales.
+   */
+  exchangeRate?:  number
   mode?:          PaymentMode
   reference?:     string
   bankAccountId?: string

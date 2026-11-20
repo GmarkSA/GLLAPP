@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { esLocal, fmtMoneda, enQuetzales } from './ClienteDetallePage'
+import { esLocal, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 /**
  * La ficha del cliente, homologada con la del proveedor.

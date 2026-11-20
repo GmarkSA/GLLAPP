@@ -20,12 +20,12 @@ import ColumnConfigurator, {
   loadColConfig, type ColConfig, type ColMeta,
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
+import MontoDual from '../../../components/Moneda/MontoDual'
+import { fmtQ, enQuetzales } from '../../../utils/moneda'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 
-const fmtQ = (n: number) =>
-  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 // ── Configurador de columnas ──────────────────────────────────────────────────
 const STORAGE_KEY = 'contaerp_cols_notas_credito'
@@ -105,26 +105,25 @@ function buildColDef(key: string): ColumnsType<NotaCredito>[number] | null {
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 110, align: 'right' as const,
         sorter: (a: NotaCredito, b: NotaCredito) => Number(a.subtotal ?? 0) - Number(b.subtotal ?? 0),
-        render: (v: number) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> }
+        render: (v: number, r: NotaCredito) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} /> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 100, align: 'right' as const,
-        render: (v: number) => <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</span> }
+        render: (v: number, r: NotaCredito) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} /> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 120, align: 'right' as const,
         sorter: (a: NotaCredito, b: NotaCredito) => Number(a.total ?? 0) - Number(b.total ?? 0),
-        render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmtQ(v)}</Text> }
+        render: (v: number, r: NotaCredito) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} fuerte /> }
     case 'creditBalance':
       return { ...base, title: 'Crédito disp.', dataIndex: 'creditBalance', width: 120, align: 'right' as const,
         sorter: (a: NotaCredito, b: NotaCredito) => Number(a.creditBalance ?? 0) - Number(b.creditBalance ?? 0),
-        render: (v: number) => (
-          <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: Number(v) > 0 ? '#2ea172' : '#bbb' }}>
-            {fmtQ(v)}
-          </Text>
+        render: (v: number, r: NotaCredito) => (
+          <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate}
+                     fuerte color={Number(v) > 0 ? '#2ea172' : '#bbb'} />
         ) }
     case 'appliedCreditAmount':
       return { ...base, title: 'Crédito aplicado', dataIndex: 'appliedCreditAmount', width: 130, align: 'right' as const,
-        render: (v: number) => Number(v) > 0
-          ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>{fmtQ(v)}</span>
+        render: (v: number, r: NotaCredito) => Number(v) > 0
+          ? <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} color="#1faec2" />
           : <Text type="secondary">—</Text> }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 130,
@@ -248,8 +247,9 @@ export default function NotasCreditoPage() {
     finally { setVoiding(false) }
   }
 
-  const totalMonto   = data.reduce((s, nc) => s + Number(nc.total), 0)
-  const totalCredito = data.reduce((s, nc) => s + Number(nc.creditBalance), 0)
+  /** Notas de varias monedas: cada una entra convertida con SU tasa. */
+  const totalMonto   = data.reduce((s, nc) => s + enQuetzales(nc.total, nc), 0)
+  const totalCredito = data.reduce((s, nc) => s + enQuetzales(nc.creditBalance, nc), 0)
 
   // ── Scroll horizontal dinámico según columnas visibles ──────────────────────
   const scrollX = useMemo(() => {

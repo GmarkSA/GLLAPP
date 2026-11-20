@@ -440,6 +440,12 @@ export default function FacturaFormPage() {
   // ── Form.useWatch — TODOS deben estar aquí, nunca dentro del JSX ──────────
   const watchDiscountPct  = Form.useWatch('discountPercent',   form) ?? 0
   const watchCurrency     = Form.useWatch('currency',          form) ?? 'GTQ'
+  /**
+   * El signo de la moneda de la factura. Los bloques de retención y de neto
+   * a cobrar salen de los totales del documento, así que llevan su moneda:
+   * decían «Q» aunque la factura fuera en dólares.
+   */
+  const simboloDoc        = watchCurrency === 'USD' ? '$' : watchCurrency === 'GTQ' ? 'Q' : watchCurrency
   const watchInvoiceDate  = Form.useWatch('invoiceDate',       form)
   const watchTipoDoc      = Form.useWatch('felTipoDocumento',  form)
   const watchSerie        = Form.useWatch('felSerie',          form)
@@ -734,6 +740,7 @@ export default function FacturaFormPage() {
               vendorDefaultTaxId={customerDefaultTaxId}
               readOnly={isSentEdit}
               accountEditable={isSentEdit}
+              currency={watchCurrency}
             />
 
             {/* ── ISR Retención en origen (solo para facturas no-FESP) ─────── */}
@@ -749,7 +756,7 @@ export default function FacturaFormPage() {
                             <Text style={{ fontSize: 12, color: '#0a0a0a', fontWeight: 500 }}>{customerIsrTax.name}</Text>
                           </Space>
                           <Text style={{ fontSize: 11, color: '#9aa1ab', display: 'block', marginTop: 2 }}>
-                            Base Q {fmt(calcTotals(items).subtotal)} × {customerIsrTax.rate}%
+                            Base {simboloDoc} {fmt(calcTotals(items).subtotal)} × {customerIsrTax.rate}%
                           </Text>
                         </>
                       ) : (
@@ -772,7 +779,7 @@ export default function FacturaFormPage() {
                       ) : (
                         <>
                           <Text style={{ fontSize: 14, fontWeight: 700, color: '#0a0a0a', fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
-                            Q {fmt(isrAmount)}
+                            {simboloDoc} {fmt(isrAmount)}
                           </Text>
                           <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingIsr(true)} style={{ color: '#9aa1ab' }} />
                         </>
@@ -782,7 +789,7 @@ export default function FacturaFormPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
                     <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>Neto a Cobrar</Text>
                     <Text style={{ fontSize: 15, fontWeight: 700, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>
-                      Q {fmt(Math.max(0, calcTotals(items).total - isrAmount))}
+                      {simboloDoc} {fmt(Math.max(0, calcTotals(items).total - isrAmount))}
                     </Text>
                   </div>
                 </div>

@@ -36,13 +36,12 @@ import DocumentLink from '../../../components/DocumentLink'
 import { requestDownloadUrl } from '../../../api/storage'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { useCan } from '../../../auth/can'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 const isPdfFile   = (ct?: string, name?: string) => !!ct?.includes('pdf') || /\.pdf$/i.test(name ?? '')
 const isImageFile = (ct?: string, name?: string) => !!ct?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name ?? '')
 
 const { Text, Title } = Typography
-const fmt = (n: any) => `Q ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-const fmtGTQ = (n: any) => `GTQ ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 /**
  * Las líneas de la póliza de la factura, tal como se contabilizaron.
@@ -156,6 +155,17 @@ export default function FacturaDetallePage() {
 
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
   if (!invoice) return <Alert type="error" message="Factura no encontrada" />
+
+  /**
+   * Una factura tiene UNA moneda, y todos sus montos están en ella: el
+   * precio de cada línea, el IVA, el total y el saldo. Escribirlos con «Q»
+   * cuando la factura es en dólares es decir una cifra siete veces menor.
+   * El equivalente en quetzales se muestra aparte, con la tasa del documento.
+   */
+  const enMoneda = !esLocal(invoice.currency)
+  const simbolo  = enMoneda ? String(invoice.currency).toUpperCase() : 'Q'
+  const m        = (n: unknown) => fmtMoneda(n, invoice.currency)
+  const equivale = (n: unknown) => fmtQ(enQuetzales(n, invoice))
 
   const cfg         = INVOICE_STATUS_CONFIG[invoice.status as keyof typeof INVOICE_STATUS_CONFIG] ?? { label: invoice.status, color: 'default' }
   const isEditable  = invoice.status === 'draft'
@@ -461,10 +471,10 @@ export default function FacturaDetallePage() {
     },
     { title: 'Tipo', dataIndex: 'unit', width: 80, render: (v: string) => <Text style={{ fontSize: 12 }}>{v ?? 'UND'}</Text> },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{fmt(v)}</Text> },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{m(v)}</Text> },
     {
       title: 'Total', dataIndex: 'lineTotal', width: 120, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ color: '#1faec2', fontSize: 13 }}>{fmt(v)}</Text>,
+      render: (v: number) => <Text strong style={{ color: '#1faec2', fontSize: 13 }}>{m(v)}</Text>,
     },
   ]
 
@@ -473,7 +483,7 @@ export default function FacturaDetallePage() {
     { title: 'Fecha', dataIndex: 'paymentDate', width: 110, render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
     { title: 'Forma', dataIndex: 'mode', width: 130, render: (v: string) => PAYMENT_MODES.find(m => m.value === v)?.label ?? v },
     { title: 'Referencia', dataIndex: 'reference' },
-    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2ea172' }}>{fmt(v)}</Text> },
+    { title: 'Monto', dataIndex: 'amount', align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#2ea172' }}>{m(v)}</Text> },
     {
       title: 'Póliza', dataIndex: 'journalEntryId', width: 70, align: 'center' as const,
       render: (jeId: string | undefined, row: any) => jeId
@@ -687,7 +697,7 @@ export default function FacturaDetallePage() {
       {invoice.status === 'overdue' && (
         <Alert
           type="error" showIcon icon={<ExclamationCircleOutlined />}
-          message={`Factura vencida desde ${invoice.dueDate ? dayjs(invoice.dueDate).format('DD/MM/YYYY') : ''}. Saldo pendiente: ${fmt(invoice.balance)}`}
+          message={`Factura vencida desde ${invoice.dueDate ? dayjs(invoice.dueDate).format('DD/MM/YYYY') : ''}. Saldo pendiente: ${m(invoice.balance)}`}
           action={canPay && can('ventas:pagos:create') ? <Button size="small" type="primary" danger onClick={() => { payForm.resetFields(); payForm.setFieldValue('amount', Number(invoice.balance)); setPayIsrEnabled(false); setPayIsrAmount(0); setPayModal(true) }}>Registrar pago</Button> : null}
           style={{ marginBottom: 12 }}
         />
@@ -754,8 +764,13 @@ export default function FacturaDetallePage() {
                 fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
                 color: isPaid ? '#2ea172' : Number(invoice.balance) > 0 ? '#1faec2' : '#2ea172',
               }}>
-                {fmtGTQ(invoice.balance)}
+                {m(invoice.balance)}
               </Text>
+              {enMoneda && (
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                  {equivale(invoice.balance)} · T/C {Number(invoice.exchangeRate ?? 1).toFixed(6)}
+                </Text>
+              )}
             </div>
           </div>
         </div>
@@ -841,28 +856,47 @@ export default function FacturaDetallePage() {
               {Number(invoice.discountAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text type="secondary">Descuento</Text>
-                  <Text style={{ color: '#e5484d' }}>− {fmt(invoice.discountAmount)}</Text>
+                  <Text style={{ color: '#e5484d' }}>− {m(invoice.discountAmount)}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">IVA {invoice.facturaExenta ? '(Exento)' : '(12%)'}</Text>
-                <Text>{invoice.facturaExenta ? 'Q 0.00' : fmt(invoice.taxAmount)}</Text>
+                <Text>{invoice.facturaExenta ? m(0) : m(invoice.taxAmount)}</Text>
               </div>
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
-                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(invoice.total)}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{m(invoice.total)}</Text>
               </div>
               {Number(invoice.isrRetentionAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text style={{ color: '#7c3aed' }}>ISR Retención (retenida por cliente)</Text>
-                  <Text style={{ color: '#7c3aed', fontVariantNumeric: 'tabular-nums' }}>− {fmt(invoice.isrRetentionAmount)}</Text>
+                  <Text style={{ color: '#7c3aed', fontVariantNumeric: 'tabular-nums' }}>− {m(invoice.isrRetentionAmount)}</Text>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Saldo adeudado</Text>
-                <Text strong style={{ fontSize: 14, color: isPaid ? '#2ea172' : '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(invoice.balance)}</Text>
+                <Text strong style={{ fontSize: 14, color: isPaid ? '#2ea172' : '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{m(invoice.balance)}</Text>
               </div>
+              {enMoneda && (
+                <>
+                  <Divider style={{ margin: '8px 0' }} dashed />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Tipo de cambio</Text>
+                    <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {Number(invoice.exchangeRate ?? 1).toFixed(6)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Total en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(invoice.total)}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Saldo en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(invoice.balance)}</Text>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1043,7 +1077,7 @@ export default function FacturaDetallePage() {
               <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
             </Form.Item>
             <Form.Item name="amount" label={payIsrEnabled ? 'Efectivo al banco (opcional)' : 'Monto'} rules={[{ required: !payIsrEnabled }]}>
-              <InputNumber style={{ width: '100%' }} min={0} step={0.01} prefix="Q" max={Number(invoice.balance)} precision={2} placeholder={payIsrEnabled ? '0.00 — dejar en 0 si es solo retención ISR' : undefined} />
+              <InputNumber style={{ width: '100%' }} min={0} step={0.01} prefix={simbolo} max={Number(invoice.balance)} precision={2} placeholder={payIsrEnabled ? '0.00 — dejar en 0 si es solo retención ISR' : undefined} />
             </Form.Item>
             <Form.Item name="mode" label="Forma de pago" initialValue="bank_transfer">
               <Select options={PAYMENT_MODES} />
@@ -1079,7 +1113,7 @@ export default function FacturaDetallePage() {
             <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '12px 16px', marginBottom: 12 }}>
               <Form.Item label="ISR retenido por el cliente" style={{ marginBottom: 8 }}>
                 <InputNumber
-                  style={{ width: '100%' }} prefix="Q" min={0.01} step={0.01} precision={2}
+                  style={{ width: '100%' }} prefix={simbolo} min={0.01} step={0.01} precision={2}
                   max={Number(invoice.balance)}
                   value={payIsrAmount || undefined}
                   placeholder="0.00"
@@ -1093,15 +1127,15 @@ export default function FacturaDetallePage() {
                   <div style={{ fontSize: 12, color: '#6b21a8', display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {efectivo > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>Efectivo recibido en banco:</span>
-                      <span>{fmt(efectivo)}</span>
+                      <span>{m(efectivo)}</span>
                     </div>}
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>ISR retenido por cliente:</span>
-                      <span>{fmt(payIsrAmount)}</span>
+                      <span>{m(payIsrAmount)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #ddd6fe', paddingTop: 4, marginTop: 2 }}>
                       <span>Total que se abona al saldo:</span>
-                      <span>{fmt(totalAbonado)}</span>
+                      <span>{m(totalAbonado)}</span>
                     </div>
                   </div>
                 )
@@ -1126,7 +1160,7 @@ export default function FacturaDetallePage() {
                 <div>
                   <div style={{ fontSize: 13, marginBottom: 4 }}>Comisión retenida (calculada)</div>
                   <InputNumber
-                    style={{ width: '100%' }} prefix="Q" min={0} step={0.01} precision={2}
+                    style={{ width: '100%' }} prefix={simbolo} min={0} step={0.01} precision={2}
                     max={Number(invoice.balance)}
                     value={payComision || undefined}
                     placeholder="0.00"
@@ -1145,21 +1179,21 @@ export default function FacturaDetallePage() {
               {payComision > 0 && (
                 <div style={{ fontSize: 12, color: '#9a3412', marginTop: 10, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Entra al banco:</span><span>{fmt(Number(payForm.getFieldValue('amount') ?? 0))}</span>
+                    <span>Entra al banco:</span><span>{m(Number(payForm.getFieldValue('amount') ?? 0))}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Comisión al gasto:</span><span>{fmt(payComision)}</span>
+                    <span>Comisión al gasto:</span><span>{m(payComision)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #fed7aa', paddingTop: 4, marginTop: 2 }}>
                     <span>Se abona a la factura:</span>
-                    <span>{fmt(Number(payForm.getFieldValue('amount') ?? 0) + payComision + payIsrAmount)}</span>
+                    <span>{m(Number(payForm.getFieldValue('amount') ?? 0) + payComision + payIsrAmount)}</span>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          <Alert type="info" showIcon message={`Saldo pendiente: ${fmt(invoice.balance)}`}
+          <Alert type="info" showIcon message={`Saldo pendiente: ${m(invoice.balance)}`}
             description={Number(invoice.paidAmount) === 0 ? 'Este pago saldará la factura completamente.' : 'Pago parcial — quedará saldo pendiente.'} />
         </Form>
       </Modal>
@@ -1187,7 +1221,7 @@ export default function FacturaDetallePage() {
               const maxAmt = Math.min(Number(ant.balance), Number(invoice.balance))
               return (<>
                 <Form.Item label={`Monto a aplicar (máx Q ${maxAmt.toLocaleString('es-GT', { minimumFractionDigits: 2 })})`}>
-                  <InputNumber style={{ width: '100%' }} prefix="Q" min={0.01} max={maxAmt} step={0.01} precision={2} value={anticipoAmount} onChange={(v) => setAnticipoAmount(v ?? maxAmt)} />
+                  <InputNumber style={{ width: '100%' }} prefix={simbolo} min={0.01} max={maxAmt} step={0.01} precision={2} value={anticipoAmount} onChange={(v) => setAnticipoAmount(v ?? maxAmt)} />
                 </Form.Item>
                 <Alert type="info" showIcon message={`Anticipo ${ant.invoiceNumber} · Saldo: Q ${Number(ant.balance).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`}
                   description={`Se aplicarán Q ${(anticipoAmount || 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })} al saldo pendiente.`} />

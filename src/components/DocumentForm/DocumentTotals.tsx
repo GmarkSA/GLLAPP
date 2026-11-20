@@ -12,6 +12,7 @@
  */
 import { Divider, Tag, Typography, InputNumber, Form } from 'antd'
 import type { TaxBreakdownItem } from './LineItemsEditor'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../utils/moneda'
 
 const { Text } = Typography
 
@@ -32,14 +33,20 @@ interface DocumentTotalsProps {
   isExenta?:      boolean
   /** Moneda para mostrar en el Total */
   currency?:      string
+  /**
+   * Tipo de cambio del documento. Cuando la moneda no es local y viene una
+   * tasa, debajo del total aparece el equivalente en quetzales: es la cifra
+   * que va a quedar en el mayor, y verla ANTES de guardar evita descubrir el
+   * descuadre después.
+   */
+  exchangeRate?:  number
   /** Permite editar el descuento directamente en el panel */
   onDiscountChange?: (v: number) => void
   /** Mostrar el campo de descuento editable */
   showDiscountInput?: boolean
 }
 
-const fmtNum = (n: number, currency = 'GTQ') =>
-  `${currency} ${n.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmtNum = (n: number, currency = 'GTQ') => fmtMoneda(n, currency)
 
 const Row = ({ label, value, sub, danger, bold, large, muted }: {
   label: React.ReactNode
@@ -90,6 +97,7 @@ export default function DocumentTotals({
   discountPercent = 0,
   isExenta        = false,
   currency        = 'GTQ',
+  exchangeRate,
   onDiscountChange,
   showDiscountInput = false,
 }: DocumentTotalsProps) {
@@ -236,6 +244,23 @@ export default function DocumentTotals({
           {grandTotal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}
         </Text>
       </div>
+
+      {!esLocal(currency) && Number(exchangeRate) > 0 && (
+        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <Text type="secondary">Tipo de cambio</Text>
+            <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {Number(exchangeRate).toFixed(6)}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <Text type="secondary">Equivalente en quetzales</Text>
+            <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {fmtQ(enQuetzales(grandTotal, { currency, exchangeRate }))}
+            </Text>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

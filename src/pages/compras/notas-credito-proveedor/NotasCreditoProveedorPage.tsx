@@ -16,11 +16,10 @@ import {
   type PurchaseInvoice, type BillStatus,
 } from '../../../api/compras'
 import { useCan } from '../../../auth/can'
+import { fmtQ } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
 
-const fmtGTQ = (x: number | string) =>
-  `Q ${Number(x).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 const STATUS_TABS = [
   { key: 'all',     label: 'Todas'    },
@@ -169,7 +168,7 @@ export default function NotasCreditoProveedorPage() {
             </div>
           )
         }
-        return <Text strong style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(v)}</Text>
+        return <Text strong style={{ color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text>
       },
     },
     {

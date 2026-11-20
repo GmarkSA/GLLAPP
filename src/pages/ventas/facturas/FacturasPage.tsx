@@ -26,12 +26,11 @@ import ColumnConfigurator, {
 import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 import MobileCard from '../../../components/responsive/MobileCard'
 import { useCan } from '../../../auth/can'
+import MontoDual from '../../../components/Moneda/MontoDual'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
-
-const fmt = (x: number | string) =>
-  `Q ${Number(x).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 // ── Configurador de columnas ──────────────────────────────────────────────────
 const STORAGE_KEY = 'contaerp_cols_facturas_venta'
@@ -148,34 +147,33 @@ function buildColDef(
     case 'subtotal':
       return { ...base, title: 'Subtotal', dataIndex: 'subtotal', width: 120, align: 'right' as const,
         sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'subtotal'),
-        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+        render: (v: number, r: Invoice) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} /> }
     case 'discountAmount':
       return { ...base, title: 'Descuento', dataIndex: 'discountAmount', width: 105, align: 'right' as const,
         sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'discountAmount'),
-        render: (v: number) => Number(v) > 0
-          ? <span style={{ fontSize: 12, color: '#059669' }}>- {fmt(v)}</span>
+        render: (v: number, r: Invoice) => Number(v) > 0
+          ? <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} color="#059669" />
           : <Text type="secondary">—</Text> }
     case 'taxAmount':
       return { ...base, title: 'IVA', dataIndex: 'taxAmount', width: 105, align: 'right' as const,
         sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'taxAmount'),
-        render: (v: number) => <span style={{ fontSize: 12 }}>{fmt(v)}</span> }
+        render: (v: number, r: Invoice) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} /> }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
         sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'total'),
-        render: (v: number) => <Text strong style={{ fontSize: 13 }}>{fmt(v)}</Text> }
+        render: (v: number, r: Invoice) => <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} fuerte /> }
     case 'paidAmount':
       return { ...base, title: 'Pagado', dataIndex: 'paidAmount', width: 120, align: 'right' as const,
         sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'paidAmount'),
-        render: (v: number) => Number(v) > 0
-          ? <span style={{ fontSize: 12, color: '#2ea172' }}>{fmt(v)}</span>
+        render: (v: number, r: Invoice) => Number(v) > 0
+          ? <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} tamano={12} color="#2ea172" />
           : <Text type="secondary">—</Text> }
     case 'balance':
       return { ...base, title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
         sorter: (a: Invoice, b: Invoice) => numSort(a, b, 'balance'),
-        render: (v: number) => (
-          <Text style={{ fontWeight: 700, fontSize: 13, color: Number(v) > 0 ? '#e5484d' : '#2ea172' }}>
-            {fmt(v)}
-          </Text>
+        render: (v: number, r: Invoice) => (
+          <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate}
+                     fuerte color={Number(v) > 0 ? '#e5484d' : '#2ea172'} />
         ) }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 105,
@@ -292,11 +290,17 @@ export default function FacturasPage() {
 
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
 
+  /**
+   * Los cuadros de arriba suman facturas de varias monedas, así que cada una
+   * entra convertida con SU tasa. Sumando los números pelados, una factura de
+   * USD 9,654.00 aportaba 9,654 a un total en quetzales — una séptima parte de
+   * lo que de verdad se facturó.
+   */
   const stats = {
-    totalFacturado: invoices.reduce((s, i) => s + Number(i.total), 0),
-    pendiente:      invoices.filter(i => ['draft', 'sent', 'partial'].includes(i.status)).reduce((s, i) => s + Number(i.balance), 0),
-    vencidas:       invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + Number(i.balance), 0),
-    cobradas:       invoices.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.total), 0),
+    totalFacturado: invoices.reduce((s, i) => s + enQuetzales(i.total, i), 0),
+    pendiente:      invoices.filter(i => ['draft', 'sent', 'partial'].includes(i.status)).reduce((s, i) => s + enQuetzales(i.balance, i), 0),
+    vencidas:       invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + enQuetzales(i.balance, i), 0),
+    cobradas:       invoices.filter(i => i.status === 'paid').reduce((s, i) => s + enQuetzales(i.total, i), 0),
   }
 
   const handleDelete = (inv: Invoice) => {
@@ -445,7 +449,7 @@ export default function FacturasPage() {
                   title={<span style={{ fontSize: 12 }}>{s.title}</span>}
                   value={s.value}
                   prefix={<span style={{ color: s.color, marginRight: 4 }}>{s.icon}</span>}
-                  formatter={(v) => fmt(Number(v))}
+                  formatter={(v) => fmtQ(v)}
                   valueStyle={{ fontSize: 18, color: s.color }}
                 />
               </Card>
@@ -549,8 +553,11 @@ export default function FacturasPage() {
                     {r.invoiceNumber}{r.invoiceDate ? ` · ${dayjs(r.invoiceDate).format('DD/MM/YYYY')}` : ''}
                   </span>
                 }
-                amount={fmt(r.total)}
-                amountSub={Number(r.balance) > 0 ? `Saldo ${fmt(r.balance)}` : undefined}
+                amount={fmtMoneda(r.total, r.currency)}
+                amountSub={[
+                  esLocal(r.currency) ? null : fmtQ(enQuetzales(r.total, r)),
+                  Number(r.balance) > 0 ? `Saldo ${fmtMoneda(r.balance, r.currency)}` : null,
+                ].filter(Boolean).join(' · ') || undefined}
                 status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : <Tag>{r.status}</Tag>}
                 onClick={() => navigate(`/ventas/facturas/${r.id}`)}
               />

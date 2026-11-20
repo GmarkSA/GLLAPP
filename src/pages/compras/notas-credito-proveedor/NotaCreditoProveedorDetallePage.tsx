@@ -18,10 +18,9 @@ import {
 import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
-const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-const fmtGTQ = (n: number, cur = 'GTQ') => `${cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 export default function NotaCreditoProveedorDetallePage() {
   const { id }   = useParams<{ id: string }>()
@@ -96,6 +95,11 @@ export default function NotaCreditoProveedorDetallePage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
   if (!bill)   return <div style={{ padding: 40 }}><Text>Nota de crédito no encontrada</Text></div>
 
+  /** La nota está en una moneda; sus líneas y su total se escriben en ella. */
+  const enMoneda = !esLocal(bill.currency)
+  const m        = (n: unknown) => fmtMoneda(n, bill.currency)
+  const equivale = (n: unknown) => fmtQ(enQuetzales(n, bill))
+
   const statusCfg  = BILL_STATUS_CONFIG[bill.status] ?? { label: bill.status, color: 'default' }
   const canEdit    = ['draft', 'pending_approval'].includes(bill.status)
   const canApprove = ['draft', 'pending_approval'].includes(bill.status)
@@ -120,7 +124,7 @@ export default function NotaCreditoProveedorDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{m(v)}</Text> },
     // La tasa que trae la línea. NO se oculta la columna aunque sea cero: en una
     // compra el IVA es el que cobra el proveedor, y nuestro régimen no lo decide.
     // Y no se supone 12% donde no hay tasa: una línea sin impuesto decía «12%».
@@ -128,7 +132,7 @@ export default function NotaCreditoProveedorDetallePage() {
       render: (v: number) => <Tag>{v == null ? '—' : `${Number(v)}%`}</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 140, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#2ea172', fontSize: 13 }}>{m(v)}</Text>,
     },
   ]
 
@@ -229,8 +233,13 @@ export default function NotaCreditoProveedorDetallePage() {
                 Crédito recibido
               </Text>
               <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>
-                {fmtGTQ(Number(bill.total), bill.currency)}
+                {m(Number(bill.total))}
               </Text>
+              {enMoneda && (
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                  {equivale(bill.total)} · T/C {Number(bill.exchangeRate ?? 1).toFixed(6)}
+                </Text>
+              )}
             </div>
           </div>
         </div>
@@ -307,17 +316,32 @@ export default function NotaCreditoProveedorDetallePage() {
             <div style={{ minWidth: 280 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">Subtotal</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.subtotal), bill.currency)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{m(Number(bill.subtotal))}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">IVA</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.taxAmount), bill.currency)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{m(Number(bill.taxAmount))}</Text>
               </div>
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total nota de crédito</Text>
-                <Text strong style={{ fontSize: 14, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(bill.total), bill.currency)}</Text>
+                <Text strong style={{ fontSize: 14, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{m(Number(bill.total))}</Text>
               </div>
+              {enMoneda && (
+                <>
+                  <Divider style={{ margin: '8px 0' }} dashed />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Tipo de cambio</Text>
+                    <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {Number(bill.exchangeRate ?? 1).toFixed(6)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Total en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(bill.total)}</Text>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

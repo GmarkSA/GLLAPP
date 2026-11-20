@@ -21,27 +21,15 @@ import { getJournalEntry } from '../../../api/compras'
 import { getInvoices, type Invoice } from '../../../api/facturas'
 import { getCustomers } from '../../../api/contactos'
 import { useCan } from '../../../auth/can'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales, numeros } from '../../../utils/moneda'
 
 const { Text, Title } = Typography
 
-const fmtQ = (n: number) =>
-  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-/** Un anticipo en dólares vale lo que vale EN DÓLARES; su equivalente sale de su tasa. */
-const esLocal = (moneda?: string | null) => !moneda || moneda.toUpperCase() === 'GTQ'
 
-const fmtMoneda = (n: number, moneda?: string | null) =>
-  esLocal(moneda)
-    ? fmtQ(n)
-    : `${String(moneda).toUpperCase()} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-const enQuetzales = (n: unknown, doc: { currency?: string | null; exchangeRate?: number | null }) => {
-  const monto = Number(n ?? 0)
-  return esLocal(doc?.currency) ? monto : monto * (Number(doc?.exchangeRate) || 1)
-}
 
 /** Cifras de ancho fijo: en una columna de montos es lo que deja compararlos. */
-const numeros = { fontVariantNumeric: 'tabular-nums' } as const
 
 const STATUS_COLOR: Record<string, string> = {
   pending: 'blue',

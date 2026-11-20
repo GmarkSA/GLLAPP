@@ -6,6 +6,7 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { getTemplateForFormat } from '../../../components/Print/printFormats'
 import { documentoLlevaIva, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 type Format = 'carta' | 'media-carta' | 'ticket-80' | 'ticket-58'
 
@@ -16,7 +17,6 @@ const FORMAT_CONFIG: Record<Format, { pageSize: string; fontSize: number; isTick
   'ticket-58':   { pageSize: '58mm auto',   fontSize: 8,  isTicket: true  },
 }
 
-const fmtQ = (n: any) => `Q ${Number(n ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 const fmtD = (d?: string) => d
   ? new Date(d + 'T12:00:00').toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
   : '—'
@@ -76,6 +76,15 @@ export default function FacturaImprimirPage() {
   const total       = Number(invoice.total         ?? 0)
   const paidAmount  = Number(invoice.paidAmount    ?? 0)
   const balance     = Number(invoice.balance       ?? 0)
+
+  /**
+   * La factura se imprime en la moneda en que se emitió. Antes salía todo
+   * con «Q» aunque fuera en dólares: el cliente recibía un papel que decía
+   * una cifra que no era la suya. Al pie, cuando no es local, van el tipo de
+   * cambio y el equivalente en quetzales.
+   */
+  const enMoneda = !esLocal(invoice.currency)
+  const m        = (n: unknown) => fmtMoneda(n, invoice.currency)
   const hasPayments = paidAmount > 0 && balance < total
   const hasDiscount = tpl.showDiscount && (invoice.items ?? []).some(i => Number(i.discountPercent) > 0)
   const companyName = org?.legalName || org?.name || 'Mi Empresa'
@@ -282,7 +291,7 @@ export default function FacturaImprimirPage() {
                       {item.discountPercent > 0 ? ` (−${item.discountPercent}%)` : ''}
                     </div>
                   </td>
-                  <td className="r" style={{ fontWeight: 600 }}>{fmtQ(item.lineTotal)}</td>
+                  <td className="r" style={{ fontWeight: 600 }}>{m(item.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
@@ -306,10 +315,10 @@ export default function FacturaImprimirPage() {
                   <td><div className="td-desc">{item.description}</div></td>
                   {tpl.showUnit   && <td className="r">{item.unit || '—'}</td>}
                   <td className="r">{Number(item.quantity).toFixed(2)}</td>
-                  <td className="r">{fmtQ(item.unitPrice)}</td>
+                  <td className="r">{m(item.unitPrice)}</td>
                   {hasDiscount    && <td className="r">{Number(item.discountPercent) > 0 ? `${item.discountPercent}%` : '—'}</td>}
                   {colIva         && <td className="r">{Number(item.taxPercent ?? 0)}%</td>}
-                  <td className="r" style={{ fontWeight: 600 }}>{fmtQ(item.lineTotal)}</td>
+                  <td className="r" style={{ fontWeight: 600 }}>{m(item.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
@@ -322,28 +331,40 @@ export default function FacturaImprimirPage() {
             {discount > 0 && (
               <div className="tot-row">
                 <span style={{ color: '#666' }}>Descuento ({invoice.discountPercent}%)</span>
-                <span style={{ color: '#e5484d' }}>− {fmtQ(discount)}</span>
+                <span style={{ color: '#e5484d' }}>− {m(discount)}</span>
               </div>
             )}
             <div className="tot-row">
               <span style={{ color: '#666' }}>Subtotal {invoice.facturaExenta ? '(exento)' : '(base sin IVA)'}</span>
-              <span>{fmtQ(subtotal)}</span>
+              <span>{m(subtotal)}</span>
             </div>
             {!invoice.facturaExenta && tax >= 0.01 && (
               <div className="tot-row iva">
                 <span>IVA{tasaIva != null ? ` (${tasaIva}%)` : ''}</span>
-                <span>{fmtQ(tax)}</span>
+                <span>{m(tax)}</span>
               </div>
             )}
             <div className="tot-row grand">
               <span>TOTAL FACTURA ({invoice.currency ?? 'GTQ'})</span>
-              <span>{fmtQ(total)}</span>
+              <span>{m(total)}</span>
             </div>
+            {enMoneda && (
+              <>
+                <div className="tot-row" style={{ marginTop: 6 }}>
+                  <span style={{ color: '#666' }}>Tipo de cambio</span>
+                  <span>{Number(invoice.exchangeRate ?? 1).toFixed(6)}</span>
+                </div>
+                <div className="tot-row">
+                  <span style={{ color: '#666' }}>Equivalente en quetzales</span>
+                  <span>{fmtQ(enQuetzales(total, invoice))}</span>
+                </div>
+              </>
+            )}
             {hasPayments && (
               <>
                 <div className="tot-row" style={{ marginTop: 8 }}>
                   <span style={{ color: '#666' }}>Pagos aplicados</span>
-                  <span style={{ color: '#2ea172' }}>− {fmtQ(paidAmount)}</span>
+                  <span style={{ color: '#2ea172' }}>− {m(paidAmount)}</span>
                 </div>
                 <div className="tot-row" style={{
                   fontWeight: 700,
@@ -354,7 +375,7 @@ export default function FacturaImprimirPage() {
                   marginTop: 4,
                 }}>
                   <span>{balance <= 0 ? 'PAGADA' : 'SALDO ADEUDADO'}</span>
-                  <span>{balance <= 0 ? '✓' : fmtQ(balance)}</span>
+                  <span>{balance <= 0 ? '✓' : m(balance)}</span>
                 </div>
               </>
             )}

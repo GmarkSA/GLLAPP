@@ -21,41 +21,14 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { getComments, addComment, type ActivityComment } from '../../../api/comments'
 import { useCan } from '../../../auth/can'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales, numeros } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
 
-/**
- * Dos decimales, siempre.
- *
- * Sin el máximo, `toLocaleString` deja hasta tres: al convertir un documento
- * en dólares por su tasa el resultado trae más decimales, y la ficha mostraba
- * «Q 40,866.296». Un saldo en quetzales tiene centavos, no milésimas.
- */
-const fmtQ = (n: number) =>
-  `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-/**
- * Una factura en dólares vale lo que vale EN DÓLARES; su equivalente en
- * quetzales sale de la tasa con la que se registró, no de la de hoy.
- *
- * Esta ficha formateaba todo con «Q» y sumaba sin convertir, igual que la del
- * proveedor: una cartera en dólares salía con el número en dólares y el signo
- * de quetzales — ni lo uno ni lo otro.
- */
-export const esLocal = (moneda?: string | null) => !moneda || moneda.toUpperCase() === 'GTQ'
 
-export const fmtMoneda = (n: number, moneda?: string | null) =>
-  esLocal(moneda)
-    ? fmtQ(n)
-    : `${String(moneda).toUpperCase()} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-/** Lo que vale en quetzales, con la tasa del propio documento. */
-export const enQuetzales = (n: unknown, doc: { currency?: string | null; exchangeRate?: number | null }) => {
-  const monto = Number(n ?? 0)
-  if (esLocal(doc?.currency)) return monto
-  return monto * (Number(doc?.exchangeRate) || 1)
-}
 
 const MONTHS = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',

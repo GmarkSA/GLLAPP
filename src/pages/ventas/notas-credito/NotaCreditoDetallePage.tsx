@@ -23,10 +23,9 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 import { documentoLlevaIva, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
-const fmtQ  = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-const fmtGTQ = (n: number) => `GTQ ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 export default function NotaCreditoDetallePage() {
   const { id }   = useParams<{ id: string }>()
@@ -72,7 +71,7 @@ export default function NotaCreditoDetallePage() {
     const res  = await getInvoices({ customerId: nc.customerId, limit: 50 } as any)
     const list = Array.isArray(res) ? res : ((res as any)?.data ?? [])
     setInvoices(list.filter((inv: any) => inv.status !== 'voided' && inv.status !== 'paid' && inv.id !== nc.originalInvoiceId)
-      .map((inv: any) => ({ value: inv.id, label: `${inv.invoiceNumber} — ${fmtQ(Number(inv.balance))} pendiente` })))
+      .map((inv: any) => ({ value: inv.id, label: `${inv.invoiceNumber} — ${m(Number(inv.balance))} pendiente` })))
   }
 
   const loadBankAccounts = async () => {
@@ -98,7 +97,7 @@ export default function NotaCreditoDetallePage() {
     try {
       const vals = applyForm.getFieldsValue()
       await aplicarNotaCredito(nc!.id, { invoiceId: vals.invoiceId, amount: vals.amount })
-      message.success(`Crédito de ${fmtQ(vals.amount)} aplicado correctamente`)
+      message.success(`Crédito de ${m(vals.amount)} aplicado correctamente`)
       setShowApply(false); applyForm.resetFields(); loadNc()
     } catch (e: any) { message.error(e?.response?.data?.message || 'Error al aplicar') }
     finally { setApplying(false) }
@@ -155,6 +154,17 @@ export default function NotaCreditoDetallePage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
   if (!nc) return <div style={{ padding: 40 }}><Text>Nota de crédito no encontrada</Text></div>
 
+  /**
+   * La nota está en una moneda y todo lo suyo está en ella: el precio de cada
+   * línea, el IVA, el total y el crédito disponible. Escribir «GTQ 3,057.51»
+   * sobre una nota en dólares es decir una cifra siete veces menor — y es
+   * justo lo que no cuadraba al aplicarla contra una factura en dólares.
+   */
+  const enMoneda = !esLocal(nc.currency)
+  const simbolo  = enMoneda ? String(nc.currency).toUpperCase() : 'Q'
+  const m        = (n: unknown) => fmtMoneda(n, nc.currency)
+  const equivale = (n: unknown) => fmtQ(enQuetzales(n, nc))
+
   const statusCfg = NC_STATUS_CONFIG[nc.status] ?? { label: nc.status, color: 'default' }
   const canAct    = nc.status !== 'draft' && nc.status !== 'voided'
   const isFelCertified = !!nc.felUuid
@@ -196,14 +206,14 @@ export default function NotaCreditoDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 120, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{m(v)}</Text> },
     { title: 'Dto.%', dataIndex: 'discountPercent', width: 70, align: 'center' as const, render: (v: number) => v ? <Tag color="#ff7f00">{v}%</Tag> : null },
     // La tasa de la línea, sin suponer ninguna. La columna entera desaparece
     // cuando la nota no lleva un centavo de impuesto.
     { title: 'IVA%', dataIndex: 'taxPercent', width: 70, align: 'center' as const, render: (v: number) => <Tag>{Number(v ?? 0)}%</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 130, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#e5484d', fontSize: 13 }}>{m(v)}</Text>,
     },
   ].filter(c => conIva || c.title !== 'IVA%')
 
@@ -345,8 +355,13 @@ export default function NotaCreditoDetallePage() {
                   Crédito disponible
                 </Text>
                 <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#2ea172' }}>
-                  {fmtGTQ(Number(nc.creditBalance))}
+                  {m(Number(nc.creditBalance))}
                 </Text>
+                {enMoneda && (
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                    {equivale(nc.creditBalance)} · T/C {Number(nc.exchangeRate ?? 1).toFixed(6)}
+                  </Text>
+                )}
               </div>
             )}
             {!canAct && (
@@ -355,8 +370,13 @@ export default function NotaCreditoDetallePage() {
                   Total nota
                 </Text>
                 <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#e5484d' }}>
-                  {fmtGTQ(Number(nc.total))}
+                  {m(Number(nc.total))}
                 </Text>
+                {enMoneda && (
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                    {equivale(nc.total)} · T/C {Number(nc.exchangeRate ?? 1).toFixed(6)}
+                  </Text>
+                )}
               </div>
             )}
           </div>
@@ -433,19 +453,38 @@ export default function NotaCreditoDetallePage() {
               {conIva && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                   <Text type="secondary">IVA{tasaIva != null ? ` (${tasaIva}%)` : ''}</Text>
-                  <Text>{fmtQ(Number(nc.taxAmount))}</Text>
+                  <Text>{m(Number(nc.taxAmount))}</Text>
                 </div>
               )}
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total nota de crédito</Text>
-                <Text strong style={{ fontSize: 14, color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(nc.total))}</Text>
+                <Text strong style={{ fontSize: 14, color: '#e5484d', fontVariantNumeric: 'tabular-nums' }}>{m(Number(nc.total))}</Text>
               </div>
               {canAct && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                   <Text strong style={{ fontSize: 14 }}>Crédito disponible</Text>
-                  <Text strong style={{ fontSize: 14, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(nc.creditBalance))}</Text>
+                  <Text strong style={{ fontSize: 14, color: '#2ea172', fontVariantNumeric: 'tabular-nums' }}>{m(Number(nc.creditBalance))}</Text>
                 </div>
+              )}
+              {enMoneda && (
+                <>
+                  <Divider style={{ margin: '8px 0' }} dashed />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Tipo de cambio</Text>
+                    <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {Number(nc.exchangeRate ?? 1).toFixed(6)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Total en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(nc.total)}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Crédito en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(nc.creditBalance)}</Text>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -578,16 +617,16 @@ export default function NotaCreditoDetallePage() {
         onOk={handleApply} confirmLoading={applying} okText="Aplicar crédito" okButtonProps={{ style: { background: '#1faec2' } }}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Crédito disponible: <Text strong style={{ color: '#2ea172' }}>{fmtQ(Number(nc.creditBalance))}</Text>
+          Crédito disponible: <Text strong style={{ color: '#2ea172' }}>{m(Number(nc.creditBalance))}</Text>
         </Text>
         <Form form={applyForm} layout="vertical">
           <Form.Item name="invoiceId" label="Factura destino" rules={[{ required: true, message: 'Selecciona una factura' }]}>
             <Select placeholder="Seleccionar factura pendiente del cliente..." options={invoices} />
           </Form.Item>
           <Form.Item name="amount" label="Monto a aplicar"
-            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(nc.creditBalance), message: `Máximo: ${fmtQ(Number(nc.creditBalance))}` }]}
+            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(nc.creditBalance), message: `Máximo: ${m(Number(nc.creditBalance))}` }]}
           >
-            <InputNumber style={{ width: '100%' }} min={0.01} max={Number(nc.creditBalance)} precision={2} prefix="Q" placeholder="0.00" />
+            <InputNumber style={{ width: '100%' }} min={0.01} max={Number(nc.creditBalance)} precision={2} prefix={simbolo} placeholder="0.00" />
           </Form.Item>
         </Form>
       </Modal>
@@ -597,13 +636,13 @@ export default function NotaCreditoDetallePage() {
         onOk={handleRefund} confirmLoading={refunding} okText="Registrar reembolso" okButtonProps={{ style: { background: '#2ea172' } }}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Crédito disponible: <Text strong style={{ color: '#2ea172' }}>{fmtQ(Number(nc.creditBalance))}</Text>
+          Crédito disponible: <Text strong style={{ color: '#2ea172' }}>{m(Number(nc.creditBalance))}</Text>
         </Text>
         <Form form={refundForm} layout="vertical" initialValues={{ mode: 'cash', paymentDate: dayjs() }}>
           <Form.Item name="amount" label="Monto a reembolsar"
-            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(nc.creditBalance), message: `Máximo: ${fmtQ(Number(nc.creditBalance))}` }]}
+            rules={[{ required: true, message: 'Ingresa el monto' }, { type: 'number', max: Number(nc.creditBalance), message: `Máximo: ${m(Number(nc.creditBalance))}` }]}
           >
-            <InputNumber style={{ width: '100%' }} min={0.01} max={Number(nc.creditBalance)} precision={2} prefix="Q" />
+            <InputNumber style={{ width: '100%' }} min={0.01} max={Number(nc.creditBalance)} precision={2} prefix={simbolo} />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item name="paymentDate" label="Fecha" rules={[{ required: true }]}>

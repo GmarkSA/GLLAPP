@@ -272,6 +272,7 @@ export default function EstimacionFormPage() {
   const totals      = calcTotals(items)
   const discountPct = Form.useWatch('discountPercent', form) ?? 0
   const watchCurr   = Form.useWatch('currency', form) ?? 'GTQ'
+  const watchTasa   = Form.useWatch('exchangeRate', form)
 
   if (loading) {
     return (
@@ -376,6 +377,7 @@ export default function EstimacionFormPage() {
               onChange={setItems}
               docType="estimate"
               vendorDefaultTaxId={customerDefaultTaxId}
+              currency={watchCurr}
             />
           </Card>
 
@@ -404,6 +406,7 @@ export default function EstimacionFormPage() {
               taxBreakdown={totals.taxBreakdown}
               discountPercent={discountPct}
               currency={watchCurr}
+              exchangeRate={watchTasa}
               showDiscountInput
               onDiscountChange={v => form.setFieldValue('discountPercent', v)}
             />

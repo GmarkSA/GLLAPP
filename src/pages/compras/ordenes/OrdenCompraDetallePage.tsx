@@ -18,10 +18,9 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { useCan } from '../../../auth/can'
+import { fmtMoneda } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
-const fmtQ   = (n: number) => `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-const fmtGTQ = (n: number, cur = 'GTQ') => `${cur} ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
 
 export default function OrdenCompraDetallePage() {
   const { id }   = useParams<{ id: string }>()
@@ -143,6 +142,15 @@ export default function OrdenCompraDetallePage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
   if (!po)     return <div style={{ padding: 40 }}><Text>Orden de compra no encontrada</Text></div>
 
+  /**
+   * La orden se emite en una moneda: así se le manda al proveedor, y así se
+   * muestra. No lleva equivalente en quetzales porque la orden NO guarda tipo
+   * de cambio —no hay columna— y el de hoy no es el del documento. Ponerlo
+   * sería inventar una cifra; cuando la orden se convierte en factura, es la
+   * factura la que fija la tasa.
+   */
+  const m = (n: unknown) => fmtMoneda(n, po.currency)
+
   const statusCfg  = PO_STATUS_CONFIG[po.status] ?? { label: po.status, color: 'default' }
   const canEdit    = ['draft'].includes(po.status)
   const canSend    = ['draft', 'received'].includes(po.status)
@@ -168,7 +176,7 @@ export default function OrdenCompraDetallePage() {
       ),
     },
     { title: 'Cant.', dataIndex: 'quantity', width: 70, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{v}</Text> },
-    { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmtQ(v)}</Text> },
+    { title: 'Precio', dataIndex: 'unitPrice', width: 130, align: 'right' as const, render: (v: number) => <Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{m(v)}</Text> },
     // La tasa que trae la línea. NO se oculta la columna aunque sea cero: en una
     // compra el IVA es el que cobra el proveedor, y nuestro régimen no lo decide.
     // Y no se supone 12% donde no hay tasa: una línea sin impuesto decía «12%».
@@ -176,7 +184,7 @@ export default function OrdenCompraDetallePage() {
       render: (v: number) => <Tag>{v == null ? '—' : `${Number(v)}%`}</Tag> },
     {
       title: 'Total línea', dataIndex: 'lineTotal', width: 140, align: 'right' as const,
-      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 13 }}>{m(v)}</Text>,
     },
   ]
 
@@ -293,7 +301,7 @@ export default function OrdenCompraDetallePage() {
                 Total estimado
               </Text>
               <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
-                {fmtGTQ(Number(po.total) || calcTotal, po.currency)}
+                {m(Number(po.total) || calcTotal)}
               </Text>
             </div>
           </div>
@@ -362,12 +370,12 @@ export default function OrdenCompraDetallePage() {
             <div style={{ minWidth: 280 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <Text type="secondary">IVA estimado</Text>
-                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(calcTax, po.currency)}</Text>
+                <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{m(calcTax)}</Text>
               </div>
               <Divider style={{ margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
-                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{fmtGTQ(Number(po.total) || calcTotal, po.currency)}</Text>
+                <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{m(Number(po.total) || calcTotal)}</Text>
               </div>
             </div>
           </div>
