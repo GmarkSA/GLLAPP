@@ -83,8 +83,16 @@ export default function EstimacionFormPage() {
           termsAndConditions: est.termsAndConditions ?? '',
           dimensiones: { centroBeneficioId: est.centroBeneficioId ?? null, centroCostoId: null },
         })
+        /**
+         * El cliente de la cotización se AGREGA a la lista; antes la
+         * reemplazaba. Al abrir una cotización a editar, el desplegable se
+         * quedaba con un solo cliente —el suyo— y no había forma de ver los
+         * demás sin escribir a ciegas.
+         */
         if (est.customerId && est.customerName) {
-          setCustomers([{ value: est.customerId, label: est.customerName }])
+          setCustomers(prev => prev.some(c => c.value === est.customerId)
+            ? prev
+            : [{ value: est.customerId, label: est.customerName }, ...prev])
         }
         const loadedItems: LineItem[] = (est.items ?? []).map((it) =>
           newLineItem({
@@ -123,18 +131,35 @@ export default function EstimacionFormPage() {
       .finally(() => setLoading(false))
   }, [id, form])
 
+  /**
+   * La lista de clientes del desplegable.
+   *
+   * Tres cosas que no estaban:
+   *  - se piden 50, no 20: con 20 el desplegable mostraba un trozo arbitrario
+   *    de la cartera y parecía que el sistema no tuviera los demás clientes;
+   *  - se ordenan por lo que se lee —la razón social—, no por fecha de
+   *    creación, que es el orden en que venían del servidor;
+   *  - si la petición falla, se dice. Antes el error se tragaba y el
+   *    desplegable quedaba vacío sin explicación: el usuario veía «Sin
+   *    resultados» y no tenía forma de saber que ni siquiera se había podido
+   *    preguntar.
+   */
   const fetchCustomers = useCallback((search: string) => {
     setLoadingCustomers(true)
-    getCustomers({ search, limit: 20 })
+    getCustomers({ search, limit: 50 })
       .then((res: any) => {
         const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
-        setCustomers(list.map((c) => ({
-          value: c.id,
-          label: c.legalName ?? c.name,
-          commercialName: c.name,
-        })))
+        setCustomers(
+          list
+            .map((c) => ({
+              value: c.id,
+              label: c.legalName ?? c.name,
+              commercialName: c.name,
+            }))
+            .sort((a, b) => String(a.label).localeCompare(String(b.label), 'es')),
+        )
       })
-      .catch(() => {})
+      .catch(() => message.error('No se pudo cargar la lista de clientes'))
       .finally(() => setLoadingCustomers(false))
   }, [])
 
