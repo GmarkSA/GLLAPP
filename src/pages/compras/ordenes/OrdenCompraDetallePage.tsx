@@ -18,7 +18,7 @@ import { getEmisor } from '../../../api/emisor'
 import type { OrganizationProfile } from '../../../api/configuracion'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { useCan } from '../../../auth/can'
-import { fmtMoneda } from '../../../utils/moneda'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
 
@@ -134,6 +134,9 @@ export default function OrdenCompraDetallePage() {
           vendorId:        po.vendorId,
           vendorName:      po.vendorName,
           items:           po.items ?? [],
+          // La factura nace en la moneda de la orden, no en quetzales.
+          currency:        po.currency ?? 'GTQ',
+          exchangeRate:    Number(po.exchangeRate) > 1 ? Number(po.exchangeRate) : 1,
         },
       },
     })
@@ -144,12 +147,13 @@ export default function OrdenCompraDetallePage() {
 
   /**
    * La orden se emite en una moneda: así se le manda al proveedor, y así se
-   * muestra. No lleva equivalente en quetzales porque la orden NO guarda tipo
-   * de cambio —no hay columna— y el de hoy no es el del documento. Ponerlo
-   * sería inventar una cifra; cuando la orden se convierte en factura, es la
-   * factura la que fija la tasa.
+   * muestra. Desde que guarda su tipo de cambio, también se puede leer en
+   * quetzales — con la tasa del documento, no la de hoy. Es de referencia: la
+   * que manda es la de la factura cuando la orden se convierte.
    */
-  const m = (n: unknown) => fmtMoneda(n, po.currency)
+  const enMoneda = !esLocal(po.currency)
+  const m        = (n: unknown) => fmtMoneda(n, po.currency)
+  const equivale = (n: unknown) => fmtQ(enQuetzales(n, po))
 
   const statusCfg  = PO_STATUS_CONFIG[po.status] ?? { label: po.status, color: 'default' }
   const canEdit    = ['draft'].includes(po.status)
@@ -303,6 +307,11 @@ export default function OrdenCompraDetallePage() {
               <Text style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#1faec2' }}>
                 {m(Number(po.total) || calcTotal)}
               </Text>
+              {enMoneda && Number(po.exchangeRate) > 1 && (
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                  {equivale(Number(po.total) || calcTotal)} · T/C {Number(po.exchangeRate).toFixed(6)}
+                </Text>
+              )}
             </div>
           </div>
         </div>
@@ -377,6 +386,21 @@ export default function OrdenCompraDetallePage() {
                 <Text strong style={{ fontSize: 14 }}>Total</Text>
                 <Text strong style={{ fontSize: 14, color: '#1faec2', fontVariantNumeric: 'tabular-nums' }}>{m(Number(po.total) || calcTotal)}</Text>
               </div>
+              {enMoneda && Number(po.exchangeRate) > 1 && (
+                <>
+                  <Divider style={{ margin: '8px 0' }} dashed />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Tipo de cambio</Text>
+                    <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {Number(po.exchangeRate).toFixed(6)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: 12 }}>
+                    <Text type="secondary">Total en quetzales</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums' }}>{equivale(Number(po.total) || calcTotal)}</Text>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
