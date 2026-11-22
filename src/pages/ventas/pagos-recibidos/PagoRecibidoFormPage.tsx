@@ -6,7 +6,7 @@ import {
 } from 'antd'
 import {
   DollarOutlined, SaveOutlined, ArrowLeftOutlined, ThunderboltOutlined,
-  DeleteOutlined, InfoCircleOutlined,
+  DeleteOutlined, InfoCircleOutlined, EditOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { createPagoRecibido, type PaymentMode, PAYMENT_MODE_LABELS } from '../../../api/pagos-recibidos'
@@ -16,6 +16,8 @@ import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import AccountSelect from '../../../components/AccountSelect'
 import { getAccountDefaults } from '../../../api/compras'
 import { getAccounts } from '../../../api/catalogo'
+import { getExchangeRateForDate } from '../../../api/monedas'
+import { esLocal, fmtQ, fmtMoneda, monedaDeLosDocumentos } from '../../../utils/moneda'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -24,10 +26,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 
 /** La forma de pago en la que el procesador se queda una comisión. */
 const MODO_TARJETA = 'credit_card'
-const fmtQ = (n: number | undefined) =>
-  n !== undefined ? `Q ${Number(n).toLocaleString('es-GT', { minimumFractionDigits: 2 })}` : '—'
-
-interface Customer { id: string; name: string; legalName?: string; taxId?: string }
+interface Customer { id: string; name: string; legalName?: string; taxId?: string; currency?: string }
 
 export default function PagoRecibidoFormPage() {
   const navigate   = useNavigate()
@@ -39,6 +38,17 @@ export default function PagoRecibidoFormPage() {
   const [loadingCust,  setLoadingCust]  = useState(false)
   const [selectedCust, setSelectedCust] = useState<string | null>(null)
   const [openInvoices, setOpenInvoices] = useState<Invoice[]>([])
+
+  /**
+   * La moneda del cobro sale de las facturas que se están pagando: cobrar una
+   * factura en dólares es recibir dólares. Esta pantalla mandaba
+   * `currency: 'GTQ'` fijo, así que ese cobro quedaba guardado como quetzales
+   * con tasa 1 — la cifra correcta con la moneda equivocada.
+   */
+  const [tasaDelCobro, setTasaDelCobro] = useState<number>(1)
+  const [tasaMeta,     setTasaMeta]     = useState<{ effectiveDate: string; source: string } | null>(null)
+  const [cargandoTasa, setCargandoTasa] = useState(false)
+  const [editandoTasa, setEditandoTasa] = useState(false)
   const [loadingInv,   setLoadingInv]   = useState(false)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [isrEnabled,   setIsrEnabled]   = useState(false)
@@ -114,6 +124,43 @@ export default function PagoRecibidoFormPage() {
     setAllocations(newAlloc)
   }, [openInvoices])
 
+  /** Las facturas con importe aplicado; de ellas sale la moneda del cobro. */
+  const facturasAplicadas = openInvoices.filter(inv => (allocations[inv.id] ?? 0) > 0)
+  const clienteElegido    = customers.find(c => c.id === selectedCust)
+  const { moneda: monedaDelCobro, mezcla: monedasMezcladas } = monedaDeLosDocumentos(
+    isAdvance ? [] : facturasAplicadas,
+    clienteElegido?.currency ?? 'GTQ',
+  )
+  const cobroEnDivisa = !esLocal(monedaDelCobro)
+  const simboloCobro  = cobroEnDivisa ? monedaDelCobro : 'Q'
+  /** Todo monto de esta pantalla está en la moneda del cobro. */
+  const m = (n: unknown) => fmtMoneda(n, monedaDelCobro)
+
+  /**
+   * La tasa del día del cobro, de Banguat.
+   *
+   * La cuenta por cobrar se descarga al tipo de cambio de la FACTURA —es su
+   * valor en libros— y lo que entra al banco se registra a la tasa del día;
+   * la diferencia es el diferencial cambiario. Esa lógica ya está en el
+   * servidor, pero nunca se activaba porque esta pantalla no mandaba tasa.
+   */
+  const fechaDelPago = Form.useWatch('paymentDate', form)
+  useEffect(() => {
+    if (!cobroEnDivisa) { setTasaDelCobro(1); setTasaMeta(null); return }
+    const fecha = fechaDelPago
+      ? dayjs(fechaDelPago).format('YYYY-MM-DD')
+      : dayjs().format('YYYY-MM-DD')
+    setCargandoTasa(true)
+    getExchangeRateForDate(monedaDelCobro, fecha)
+      .then((r: any) => {
+        const tasa = r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 1)
+        setTasaDelCobro(Number(Number(tasa).toFixed(6)))
+        setTasaMeta({ effectiveDate: r.effectiveDate, source: r.source })
+      })
+      .catch(() => message.warning(`No se pudo cargar el tipo de cambio de ${monedaDelCobro} para esa fecha`))
+      .finally(() => setCargandoTasa(false))
+  }, [cobroEnDivisa, monedaDelCobro, fechaDelPago])
+
   const clearAllocations = () => {
     setAllocations(Object.fromEntries(openInvoices.map(inv => [inv.id, 0])))
   }
@@ -176,7 +223,8 @@ export default function PagoRecibidoFormPage() {
           reference:     vals.reference || undefined,
           bankAccountId: vals.bankAccountId || undefined,
           notes:         vals.notes || undefined,
-          currency:      'GTQ',
+          currency:      monedaDelCobro,
+          exchangeRate:  cobroEnDivisa ? tasaDelCobro : 1,
           isAdvance:     true as const,
         })
         message.success(`Anticipo ${pago.paymentNumber} registrado`)
@@ -198,6 +246,14 @@ export default function PagoRecibidoFormPage() {
       message.error('Selecciona una cuenta bancaria para registrar el efectivo recibido')
       return
     }
+    /**
+     * Un mismo depósito no puede ser en dos monedas a la vez: si las facturas
+     * elegidas no coinciden, se dice en vez de elegir una por cuenta propia.
+     */
+    if (monedasMezcladas) {
+      message.error('Las facturas elegidas están en monedas distintas. Haz un cobro por cada moneda.', 8)
+      return
+    }
 
     setSaving(true)
     try {
@@ -211,7 +267,8 @@ export default function PagoRecibidoFormPage() {
         reference:     vals.reference || undefined,
         bankAccountId: vals.bankAccountId || undefined,
         notes:         vals.notes || undefined,
-        currency:      'GTQ',
+        currency:      monedaDelCobro,
+        exchangeRate:  cobroEnDivisa ? tasaDelCobro : 1,
         ...(isrEnabled && isrAmount > 0 ? { isrRetentionAmount: isrAmount } : {}),
         ...(comision > 0 && comisionCuenta ? { commissionAccountId: comisionCuenta } : {}),
       }
@@ -261,7 +318,7 @@ export default function PagoRecibidoFormPage() {
       }
 
       if (advanceNumber) {
-        message.success(`Pago registrado. Excedente de ${fmtQ(difference)} registrado como anticipo ${advanceNumber}`)
+        message.success(`Pago registrado. Excedente de ${m(difference)} registrado como anticipo ${advanceNumber}`)
       } else if (results.length === 1) {
         message.success(`Pago ${results[0].paymentNumber} registrado correctamente`)
       } else {
@@ -316,7 +373,7 @@ export default function PagoRecibidoFormPage() {
       dataIndex: 'total',
       width: 150,
       align: 'right' as const,
-      render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
+      render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{m(v)}</Text>,
     },
     {
       title: 'IMPORTE ADEUDADO',
@@ -325,7 +382,7 @@ export default function PagoRecibidoFormPage() {
       align: 'right' as const,
       render: (v: number) => (
         <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, fontWeight: 600, color: Number(v) > 0 ? '#fa541c' : '#2ea172' }}>
-          {fmtQ(v)}
+          {m(v)}
         </Text>
       ),
     },
@@ -352,7 +409,7 @@ export default function PagoRecibidoFormPage() {
               min={0}
               max={Number(r.balance)}
               precision={2}
-              prefix="Q"
+              prefix={simboloCobro}
               size="small"
               style={{ width: 130 }}
               placeholder="0.00"
@@ -500,7 +557,7 @@ export default function PagoRecibidoFormPage() {
                   <InputNumber
                     value={isAdvance ? undefined : totalAmount ?? undefined}
                     style={{ flex: 1 }}
-                    prefix="Q"
+                    prefix={simboloCobro}
                     precision={2}
                     min={0}
                     placeholder="0.00"
@@ -592,7 +649,7 @@ export default function PagoRecibidoFormPage() {
                 <div>
                   <div style={{ fontSize: 12, marginBottom: 4 }}>Comisión retenida (calculada)</div>
                   <InputNumber
-                    style={{ width: 160 }} prefix="Q" min={0} step={0.01} precision={2}
+                    style={{ width: 160 }} prefix={simboloCobro} min={0} step={0.01} precision={2}
                     value={comision || undefined} placeholder="0.00"
                     onChange={v => setComision(v ?? 0)}
                   />
@@ -623,7 +680,7 @@ export default function PagoRecibidoFormPage() {
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <Text style={{ fontSize: 12 }}>ISR retenido:</Text>
                   <InputNumber
-                    style={{ width: 140 }} prefix="Q" min={0.01} step={0.01} precision={2}
+                    style={{ width: 140 }} prefix={simboloCobro} min={0.01} step={0.01} precision={2}
                     value={isrAmount || undefined} placeholder="0.00"
                     onChange={v => setIsrAmount(v ?? 0)}
                   />
@@ -674,16 +731,64 @@ export default function PagoRecibidoFormPage() {
                 locale={{ emptyText: 'Sin facturas pendientes' }}
               />
 
+              {/*
+                * El tipo de cambio del cobro, cuando las facturas no son en
+                * quetzales. La cuenta por cobrar se descarga a la tasa de la
+                * FACTURA —su valor en libros— y lo que entra al banco va a la
+                * tasa de hoy: la diferencia es el diferencial cambiario, y por
+                * eso la tasa se ve aquí antes de guardar.
+                */}
+              {cobroEnDivisa && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, marginTop: 16,
+                  padding: '6px 12px', background: '#f0f9ff',
+                  borderRadius: 6, border: '1px solid #bae6fd',
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>
+                    1 {monedaDelCobro} =
+                  </span>
+                  {editandoTasa ? (
+                    <InputNumber
+                      value={tasaDelCobro} precision={6} min={0.000001} step={0.01}
+                      style={{ width: 130 }} autoFocus addonAfter="GTQ"
+                      onChange={(v: number | null) => setTasaDelCobro(v ?? 1)}
+                      onBlur={() => setEditandoTasa(false)}
+                      onPressEnter={() => setEditandoTasa(false)}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>
+                      {cargandoTasa ? '...' : tasaDelCobro.toFixed(6)} GTQ
+                    </span>
+                  )}
+                  <Button
+                    size="small" type="text" icon={<EditOutlined />}
+                    onClick={() => setEditandoTasa(!editandoTasa)}
+                    title="Editar tipo de cambio manualmente"
+                    style={{ color: '#374151' }} disabled={cargandoTasa}
+                  />
+                  <span style={{ fontSize: 11, color: '#9aa1ab', marginLeft: 4 }}>
+                    {cargandoTasa
+                      ? 'Consultando Banguat...'
+                      : tasaMeta
+                        ? `Tasa del ${dayjs(tasaMeta.effectiveDate).format('DD/MM/YYYY')} (${tasaMeta.source})`
+                        : 'Escríbela si Banguat no la tiene'}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#374151', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtQ(totalApplied * tasaDelCobro)}
+                  </span>
+                </div>
+              )}
+
               {/* Totales */}
               <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ width: 320, border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, overflow: 'hidden' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '8px 14px', background: '#fafbfc', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                     <Text style={{ fontSize: 12 }}>Importe recibido</Text>
-                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(totalReceived)}</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{m(totalReceived)}</Text>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '8px 14px', background: '#fafbfc', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                     <Text style={{ fontSize: 12 }}>Total aplicado a facturas</Text>
-                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2', fontWeight: 600 }}>{fmtQ(totalApplied)}</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2', fontWeight: 600 }}>{m(totalApplied)}</Text>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '10px 14px', background: difference < -0.009 ? '#fff5f5' : difference > 0.009 ? '#fffbeb' : '#f0fdf4' }}>
                     <Text style={{ fontSize: 13, fontWeight: 700 }}>Diferencia</Text>
@@ -691,7 +796,7 @@ export default function PagoRecibidoFormPage() {
                       fontVariantNumeric: 'tabular-nums', fontSize: 13, fontWeight: 700,
                       color: Math.abs(difference) < 0.01 ? '#2ea172' : difference > 0 ? '#d97706' : '#dc2626',
                     }}>
-                      {fmtQ(Math.abs(difference))} {difference > 0.009 ? '(excedente)' : difference < -0.009 ? '(excede importe)' : '✓'}
+                      {m(Math.abs(difference))} {difference > 0.009 ? '(excedente)' : difference < -0.009 ? '(excede importe)' : '✓'}
                     </Text>
                   </div>
                 </div>
@@ -705,7 +810,7 @@ export default function PagoRecibidoFormPage() {
                     onChange={e => setAutoAnticipo(e.target.checked)}
                   >
                     <Text style={{ fontSize: 13 }}>
-                      Registrar excedente de <strong>{fmtQ(difference)}</strong> como anticipo (ANT) con la misma cuenta bancaria
+                      Registrar excedente de <strong>{m(difference)}</strong> como anticipo (ANT) con la misma cuenta bancaria
                     </Text>
                   </Checkbox>
                   {autoAnticipo && !form.getFieldValue('bankAccountId') && (
