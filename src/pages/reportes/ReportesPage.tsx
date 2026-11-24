@@ -79,6 +79,7 @@ const GROUPS: ReportGroup[] = [
     reports: [
       { key: 'declaracion-iva', icon: <FileProtectOutlined />, title: 'Declaración IVA', desc: 'Cierre mensual: débito fiscal, crédito fiscal y póliza de regularización SAT-2237.', path: '/reportes/declaracion-iva', color: '#1B3A6B' },
       { key: 'declaracion-isr', icon: <FileProtectOutlined />, title: 'ISR Opcional Mensual', desc: 'Declaración mensual ISR Opcional Simplificado (SAT-1311). 5%/7% sobre renta imponible.', path: '/reportes/declaracion-isr', color: '#1B3A6B' },
+      { key: 'declaracion-iso', icon: <FileProtectOutlined />, title: 'ISO Trimestral', desc: 'Impuesto de Solidaridad (SAT-1608). 1% sobre la mayor entre activo neto e ingresos brutos.', path: '/reportes/declaracion-iso', color: '#1B3A6B' },
     ],
   },
   {
@@ -148,7 +149,8 @@ function ReportCard({ report, onClick }: { report: ReportCard; onClick: () => vo
 }
 
 // Reportes que requieren Régimen General (no aplican a Pequeño Contribuyente)
-const REGIMEN_GENERAL_ONLY = new Set(['declaracion-iva', 'declaracion-isr'])
+// El ISO es del Régimen Sobre Utilidades: un Pequeño Contribuyente no lo paga.
+const REGIMEN_GENERAL_ONLY = new Set(['declaracion-iva', 'declaracion-isr', 'declaracion-iso'])
 
 export default function ReportesPage() {
   const navigate = useNavigate()
