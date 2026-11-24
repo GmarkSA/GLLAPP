@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
-  Form, Select, DatePicker, Input, Button,
+  Form, Select, DatePicker, Input, InputNumber, Button,
   Card, Breadcrumb, Spin, Space, message, Tag,
   Divider, Popconfirm, Modal,
 } from 'antd'
 import {
   SaveOutlined, ShoppingCartOutlined, HomeOutlined, SendOutlined,
   DeleteOutlined, SwapOutlined, FilePdfOutlined, MailOutlined,
-  CheckCircleOutlined,
+  CheckCircleOutlined, EditOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -17,6 +17,7 @@ import {
   sendPurchaseOrder, deletePurchaseOrder, approvePurchaseOrder,
   getVendors, PO_STATUS_CONFIG, type POStatus,
 } from '../../../api/compras'
+import { getExchangeRateForDate } from '../../../api/monedas'
 import { getTaxes, type Tax } from '../../../api/impuestos'
 import LineItemsEditor, {
   type LineItem,
@@ -34,6 +35,7 @@ interface VendorOption {
   paymentTerms?: string
   paymentTermsDays?: number
   taxId?: string
+  currency?: string
 }
 
 export default function OrdenCompraFormPage() {
@@ -61,6 +63,23 @@ export default function OrdenCompraFormPage() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  /**
+   * La moneda y el tipo de cambio de la orden.
+   *
+   * La orden no tenía NADA de esto: no había selector de moneda, el guardado
+   * no mandaba `currency`, y al editar tampoco se cargaba. Toda orden nacía
+   * en quetzales con tasa 1, aunque el proveedor facturara en dólares — y el
+   * detalle y el PDF salían con el signo equivocado.
+   *
+   * Se sigue el mismo camino que la factura de proveedor: la moneda la
+   * propone el proveedor, la tasa la trae Banguat para la fecha de la orden,
+   * y se puede corregir a mano.
+   */
+  const [exchangeRate,       setExchangeRate]       = useState<number>(1)
+  const [exchangeRateMeta,   setExchangeRateMeta]   = useState<{ effectiveDate: string; source: string } | null>(null)
+  const [loadingExchangeRate, setLoadingExchangeRate] = useState(false)
+  const [editingRate,        setEditingRate]        = useState(false)
+
   useEffect(() => {
     getTaxes()
       .then((res: any) => setTaxes(Array.isArray(res) ? res : (res?.data ?? [])))
@@ -75,6 +94,8 @@ export default function OrdenCompraFormPage() {
     const found = vendors.find(v => v.value === vendorId)
     if (!found) return
     setVendorDefaultTaxId(found.defaultPurchaseTaxId)
+    // La moneda la propone el proveedor: uno en dólares cotiza en dólares.
+    if (!id && found.currency) form.setFieldValue('currency', found.currency)
     // Auto-fill términos de pago en órdenes nuevas
     if (!id && found.paymentTerms) {
       form.setFieldValue('paymentTerms', found.paymentTerms)
@@ -86,6 +107,30 @@ export default function OrdenCompraFormPage() {
   // Auto-calcula fecha esperada de entrega cuando cambian los términos de pago + fecha de orden
   const watchPaymentTerms = Form.useWatch('paymentTerms', form) as string | undefined
   const watchOrderDate    = Form.useWatch('orderDate',    form)
+  const watchCurr         = (Form.useWatch('currency', form) ?? 'GTQ') as string
+  const enDivisa          = watchCurr !== 'GTQ'
+
+  // El tipo de cambio del día de la orden, de Banguat — como en la factura de proveedor.
+  useEffect(() => {
+    if (watchCurr === 'GTQ') {
+      setExchangeRate(1)
+      setExchangeRateMeta(null)
+      return
+    }
+    const fecha = watchOrderDate
+      ? dayjs(watchOrderDate).format('YYYY-MM-DD')
+      : dayjs().format('YYYY-MM-DD')
+    setLoadingExchangeRate(true)
+    getExchangeRateForDate(watchCurr, fecha)
+      .then((result: any) => {
+        const tasa = result.officialRate ?? (result.rate > 0 ? 1 / result.rate : 1)
+        setExchangeRate(Number(Number(tasa).toFixed(6)))
+        setExchangeRateMeta({ effectiveDate: result.effectiveDate, source: result.source })
+      })
+      .catch(() => message.warning('No se pudo cargar el tipo de cambio para la fecha de la orden'))
+      .finally(() => setLoadingExchangeRate(false))
+  }, [watchCurr, watchOrderDate])
+
   useEffect(() => {
     if (!watchOrderDate || !watchPaymentTerms || watchPaymentTerms === 'immediate') return
     const days = getPaymentTermDays(watchPaymentTerms)
@@ -107,8 +152,13 @@ export default function OrdenCompraFormPage() {
           expectedDeliveryDate: po.expectedDeliveryDate ? dayjs(po.expectedDeliveryDate) : undefined,
           paymentTerms:         po.paymentTerms  ?? undefined,
           paymentTermsDays:     po.paymentTermsDays ?? undefined,
+          currency:             po.currency ?? 'GTQ',
           notes:                po.notes ?? '',
         })
+        // La tasa guardada manda sobre la del día: es la de ESTA orden.
+        if (po.currency && po.currency !== 'GTQ' && Number(po.exchangeRate) > 1) {
+          setExchangeRate(Number(po.exchangeRate))
+        }
         if (po.vendorId && po.vendorName) {
           setVendors(prev => {
             if (prev.find(v => v.value === po.vendorId)) return prev
@@ -153,6 +203,7 @@ export default function OrdenCompraFormPage() {
             paymentTerms:         v.paymentTerms ?? undefined,
             paymentTermsDays:     v.paymentTermsDays ?? undefined,
             taxId:                v.taxId ?? undefined,
+            currency:             v.currency ?? undefined,
           }))
           return [...keepMap.values()]
         })
@@ -177,6 +228,9 @@ export default function OrdenCompraFormPage() {
       expectedDeliveryDate: vals.expectedDeliveryDate ? vals.expectedDeliveryDate.format('YYYY-MM-DD') : undefined,
       paymentTerms:         vals.paymentTerms  ?? undefined,
       paymentTermsDays:     vals.paymentTermsDays ?? undefined,
+      currency:             vals.currency ?? 'GTQ',
+      // En quetzales siempre 1: el servidor la vuelve a normalizar igual.
+      exchangeRate:         (vals.currency ?? 'GTQ') !== 'GTQ' ? exchangeRate : 1,
       notes:                vals.notes || undefined,
       status,
       items:                lineItems,
@@ -251,6 +305,9 @@ export default function OrdenCompraFormPage() {
             vendorId,
             vendorName,
             items,
+            // La factura nace en la moneda de la orden, no en quetzales.
+            currency:     form.getFieldValue('currency') ?? 'GTQ',
+            exchangeRate: enDivisa ? exchangeRate : 1,
           },
         },
       })
@@ -274,7 +331,7 @@ export default function OrdenCompraFormPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const totals    = calcTotals(items)
-  const watchCurr = Form.useWatch('currency', form) ?? 'GTQ'
+
   const isEditable = !poStatus || poStatus === 'draft' || poStatus === 'sent'
   const statusCfg  = poStatus ? PO_STATUS_CONFIG[poStatus] : null
 
@@ -362,6 +419,65 @@ export default function OrdenCompraFormPage() {
                   <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" disabled={!isEditable} />
                 </Form.Item>
               </div>
+
+              {/* Fila 3: Moneda — la propone el proveedor y se puede cambiar */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                <Form.Item name="currency" label="Moneda" style={{ marginBottom: 8 }}>
+                  <Select
+                    disabled={!isEditable}
+                    options={[
+                      { value: 'GTQ', label: 'GTQ — Quetzal' },
+                      { value: 'USD', label: 'USD — Dólar' },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+
+              {/*
+                * El tipo de cambio, solo cuando la orden no es en quetzales.
+                * Es de referencia —la que manda es la de la factura cuando la
+                * orden se convierte—, pero sin él no hay con qué leer la orden
+                * en quetzales, que es la moneda del mayor.
+                */}
+              {enDivisa && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 12px', marginBottom: 12,
+                  background: '#f0f9ff', borderRadius: 6, border: '1px solid #bae6fd',
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>
+                    1 {watchCurr} =
+                  </span>
+                  {editingRate ? (
+                    <InputNumber
+                      value={exchangeRate}
+                      precision={6} min={0.000001} step={0.01}
+                      style={{ width: 130 }} autoFocus addonAfter="GTQ"
+                      onChange={(v: number | null) => setExchangeRate(v ?? 1)}
+                      onBlur={() => setEditingRate(false)}
+                      onPressEnter={() => setEditingRate(false)}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>
+                      {loadingExchangeRate ? '...' : exchangeRate.toFixed(6)} GTQ
+                    </span>
+                  )}
+                  <Button
+                    size="small" type="text" icon={<EditOutlined />}
+                    onClick={() => setEditingRate(!editingRate)}
+                    title="Editar tipo de cambio manualmente"
+                    style={{ color: '#374151' }}
+                    disabled={loadingExchangeRate || !isEditable}
+                  />
+                  <span style={{ fontSize: 11, color: '#9aa1ab', marginLeft: 4 }}>
+                    {loadingExchangeRate
+                      ? 'Consultando Banguat...'
+                      : exchangeRateMeta
+                        ? `Tasa del ${dayjs(exchangeRateMeta.effectiveDate).format('DD/MM/YYYY')} (${exchangeRateMeta.source})`
+                        : 'Escríbela si Banguat no la tiene'}
+                  </span>
+                </div>
+              )}
             </Form>
           </Card>
 
@@ -395,6 +511,7 @@ export default function OrdenCompraFormPage() {
               hasInclusive={totals.hasInclusive}
               taxBreakdown={totals.taxBreakdown}
               currency={watchCurr}
+              exchangeRate={enDivisa ? exchangeRate : undefined}
             />
           </Card>
 

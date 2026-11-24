@@ -25,7 +25,7 @@ const fmtQ = (v: number, d = 2) =>
   'Q ' + Number(v || 0).toLocaleString('es-GT', { minimumFractionDigits: d, maximumFractionDigits: d })
 
 // ── Types for local state ────────────────────────────────────────────────────
-interface LocalLinea extends Partial<ImportacionLinea> {
+export interface LocalLinea extends Partial<ImportacionLinea> {
   _key: number
   productName?: string
   productSku?: string
@@ -45,10 +45,22 @@ interface LocalLinea extends Partial<ImportacionLinea> {
 }
 
 // ── Proration engine ─────────────────────────────────────────────────────────
-function calcProrrateo(
+/**
+ * El costo de cada línea, en quetzales.
+ *
+ * La factura del exportador viene en su moneda —USD casi siempre— y los gastos
+ * de nacionalización (flete, seguro, DAI, IVA de importación) son locales, en
+ * quetzales. El costo que termina en el kardex está en quetzales.
+ *
+ * Antes el FOB se sumaba con los gastos SIN convertir: USD 1,000 de mercadería
+ * más Q 500 de flete daban 1,500, como si el dólar costara un quetzal. El tipo
+ * de cambio del encabezado existía y no se usaba en ninguna parte.
+ */
+export function calcProrrateo(
   lineas: LocalLinea[],
   costs: { freight: number; insurance: number; customsDuty: number; ivaImport: number; otherCharges: number },
   method: string,
+  tasa = 1,
 ): LocalLinea[] {
   if (!lineas.length) return lineas
 
@@ -74,7 +86,8 @@ function calcProrrateo(
     const pDuty         = customsDuty  * prop
     const pIva          = ivaImport    * prop
     const pOther        = otherCharges * prop
-    const totalLanded   = (l.totalFob || 0) + pFreight + pInsurance + pDuty + pIva + pOther
+    const fobEnQ        = (l.totalFob || 0) * tasa
+    const totalLanded   = fobEnQ + pFreight + pInsurance + pDuty + pIva + pOther
     const landedPerUnit = (l.quantity || 0) > 0 ? totalLanded / (l.quantity || 1) : 0
 
     return {
@@ -91,12 +104,14 @@ function calcProrrateo(
 }
 
 // ── Modal: Agregar artículo ──────────────────────────────────────────────────
-function AddLineaModal({ open, onClose, onAdd, showWeight, showVolume }: {
+function AddLineaModal({ open, onClose, onAdd, showWeight, showVolume, simboloFob = 'Q' }: {
   open: boolean
   onClose: () => void
   onAdd: (linea: Omit<LocalLinea, '_key' | 'proratedFreight' | 'proratedInsurance' | 'proratedCustomsDuty' | 'proratedIva' | 'proratedOther' | 'totalLandedCost' | 'landedCostPerUnit'>) => void
   showWeight: boolean
   showVolume: boolean
+  /** El FOB se captura en la moneda de la factura del exportador, no en quetzales. */
+  simboloFob?: string
 }) {
   const [form]     = Form.useForm()
   const [products, setProducts] = useState<Product[]>([])
@@ -168,8 +183,8 @@ function AddLineaModal({ open, onClose, onAdd, showWeight, showVolume }: {
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="unitCostFob" label="Costo FOB unitario" rules={[{ required: true, message: 'Requerido' }]}>
-              <InputNumber style={{ width: '100%' }} min={0} precision={4} prefix="Q" />
+            <Form.Item name="unitCostFob" label={`Costo FOB unitario (${simboloFob})`} rules={[{ required: true, message: 'Requerido' }]}>
+              <InputNumber style={{ width: '100%' }} min={0} precision={4} prefix={simboloFob} />
             </Form.Item>
           </Col>
         </Row>
@@ -211,9 +226,18 @@ export default function ImportacionFormPage() {
   const ivaImport    = Form.useWatch('ivaImport',    form) ?? 0
   const otherCharges = Form.useWatch('otherCharges', form) ?? 0
   const prorationMethod = Form.useWatch('prorationMethod', form) ?? 'by_value'
+  const moneda          = (Form.useWatch('currency', form) ?? 'USD') as string
+  const tasaCaptura     = Form.useWatch('exchangeRate', form) ?? 1
+  const enDivisa        = String(moneda).toUpperCase() !== 'GTQ'
+  /** En quetzales la tasa es 1 aunque el campo traiga otra cosa. */
+  const tasa            = enDivisa ? (Number(tasaCaptura) > 0 ? Number(tasaCaptura) : 1) : 1
+  const simboloFob      = enDivisa ? String(moneda).toUpperCase() : 'Q'
+  const fmtFob          = (v: number, d = 2) =>
+    `${simboloFob} ` + Number(v || 0).toLocaleString('es-GT', { minimumFractionDigits: d, maximumFractionDigits: d })
 
-  const totalFobSum = lineas.reduce((s, l) => s + (l.totalFob || 0), 0)
-  const totalLandedSum = freight + insurance + customsDuty + ivaImport + otherCharges + totalFobSum
+  const totalFobSum    = lineas.reduce((s, l) => s + (l.totalFob || 0), 0)
+  const totalFobEnQ    = totalFobSum * tasa
+  const totalLandedSum = freight + insurance + customsDuty + ivaImport + otherCharges + totalFobEnQ
 
   // Load existing importacion if viewing
   useEffect(() => {
@@ -238,8 +262,8 @@ export default function ImportacionFormPage() {
 
   // ── Live proration recalculation ──────────────────────────────────────
   const recalc = useCallback(() => {
-    setLineas(prev => calcProrrateo(prev, { freight, insurance, customsDuty, ivaImport, otherCharges }, prorationMethod))
-  }, [freight, insurance, customsDuty, ivaImport, otherCharges, prorationMethod])
+    setLineas(prev => calcProrrateo(prev, { freight, insurance, customsDuty, ivaImport, otherCharges }, prorationMethod, tasa))
+  }, [freight, insurance, customsDuty, ivaImport, otherCharges, prorationMethod, tasa])
 
   useEffect(() => {
     recalc()
@@ -260,18 +284,19 @@ export default function ImportacionFormPage() {
     }
     setKeyCounter(k => k + 1)
     const updated = [...lineas, newLinea]
-    setLineas(calcProrrateo(updated, { freight, insurance, customsDuty, ivaImport, otherCharges }, prorationMethod))
+    setLineas(calcProrrateo(updated, { freight, insurance, customsDuty, ivaImport, otherCharges }, prorationMethod, tasa))
   }
 
   // ── Remove linea ──────────────────────────────────────────────────────
   const handleRemoveLinea = (key: number) => {
     const updated = lineas.filter(l => l._key !== key)
-    setLineas(calcProrrateo(updated, { freight, insurance, customsDuty, ivaImport, otherCharges }, prorationMethod))
+    setLineas(calcProrrateo(updated, { freight, insurance, customsDuty, ivaImport, otherCharges }, prorationMethod, tasa))
   }
 
   // ── Calculate 12% IVA ────────────────────────────────────────────────
   const handleCalcIva = () => {
-    const base = totalFobSum + freight + insurance + customsDuty
+    // La base del IVA de importación está en quetzales: el FOB va convertido.
+    const base = totalFobEnQ + freight + insurance + customsDuty
     form.setFieldValue('ivaImport', Math.round(base * 0.12 * 100) / 100)
   }
 
@@ -357,18 +382,27 @@ export default function ImportacionFormPage() {
       render: v => Number(v).toLocaleString('es-GT', { maximumFractionDigits: 4 }),
     },
     {
-      title: 'Costo FOB/u',
+      title: `Costo FOB/u (${simboloFob})`,
       dataIndex: 'unitCostFob',
-      width: 100,
-      align: 'right',
-      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>Q {Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</Text>,
-    },
-    {
-      title: 'Total FOB',
-      dataIndex: 'totalFob',
       width: 110,
       align: 'right',
-      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text>,
+      render: v => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtFob(Number(v))}</Text>,
+    },
+    {
+      title: `Total FOB (${simboloFob})`,
+      dataIndex: 'totalFob',
+      width: 120,
+      align: 'right',
+      render: v => (
+        <div style={{ textAlign: 'right' }}>
+          <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtFob(Number(v))}</Text>
+          {enDivisa && (
+            <div><Text style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>
+              {fmtQ(Number(v) * tasa)}
+            </Text></div>
+          )}
+        </div>
+      ),
     },
     {
       title: 'Flete',
@@ -540,13 +574,29 @@ export default function ImportacionFormPage() {
             >
               <div style={{ marginBottom: 12 }}>
                 <Statistic
-                  title="Total FOB (artículos)"
+                  title={`Total FOB (artículos) — ${simboloFob}`}
                   value={totalFobSum}
                   precision={2}
-                  prefix="Q"
+                  prefix={simboloFob}
                   valueStyle={{ fontSize: 16, fontVariantNumeric: 'tabular-nums', color: '#0a0a0a' }}
                   formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                 />
+                {/*
+                  * El equivalente en quetzales: es con el que se suman los
+                  * gastos y el que termina como costo del artículo.
+                  */}
+                {enDivisa && (
+                  <Text style={{ fontSize: 12, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtQ(totalFobEnQ)} · T/C {Number(tasa).toFixed(6)}
+                  </Text>
+                )}
+                {enDivisa && tasa === 1 && (
+                  <Alert
+                    type="warning" showIcon style={{ marginTop: 8 }}
+                    message={`Falta el tipo de cambio de ${simboloFob}`}
+                    description="Sin él, el costo entraría al inventario como si la divisa fuera quetzales. Escríbelo arriba antes de confirmar."
+                  />
+                )}
               </div>
               <Divider style={{ margin: '8px 0' }} />
 
@@ -739,6 +789,7 @@ export default function ImportacionFormPage() {
         onAdd={handleAddLinea}
         showWeight={showWeight}
         showVolume={showVolume}
+        simboloFob={simboloFob}
       />
     </div>
   )
