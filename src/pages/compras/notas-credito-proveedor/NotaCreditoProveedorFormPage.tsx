@@ -58,6 +58,18 @@ export default function NotaCreditoProveedorFormPage() {
   const [originalBills, setOriginalBills] = useState<{ value: string; label: string }[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  /**
+   * El temporizador de la búsqueda se apaga al salir de la pantalla.
+   *
+   * Quedaba corriendo: si alguien escribía en el buscador y cerraba la
+   * pantalla antes de los 300 ms, el temporizador disparaba la consulta y su
+   * respuesta guardaba estado en un componente que ya no existe. En el
+   * navegador es un desperdicio silencioso; en las pruebas tumbó el CI dos
+   * veces —el trabajo que React agendaba llegaba cuando el entorno ya estaba
+   * desmontado: «ReferenceError: window is not defined»—.
+   */
+  useEffect(() => () => clearTimeout(debounceRef.current), [])
+
   const watchCurr    = Form.useWatch('currency',      form) ?? 'GTQ'
   /** El signo de la moneda de la nota: el subtotal y el IVA están en ella. */
   const simboloDoc   = watchCurr === 'USD' ? '$' : watchCurr === 'GTQ' ? 'Q' : watchCurr
