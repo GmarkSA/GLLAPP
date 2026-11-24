@@ -28,14 +28,24 @@ const { TextArea } = Input
 
 // ── Constantes ─────────────────────────────────────────────────────────────
 
-const TAX_TREATMENTS = [
-  { value: 'taxable',                label: 'Contribuyente — IVA 12%',                desc: 'Aplica IVA estándar. El proveedor cobra el IVA completo.' },
-  { value: 'pequeno_contribuyente',  label: 'Pequeño Contribuyente — PC',             desc: 'No desglosa IVA. El precio es el total; no genera crédito fiscal.' },
-  { value: 'exempt',                 label: 'Exento de IVA',                          desc: 'No aplica IVA (exportaciones, medicamentos, etc.).' },
-  { value: 'contribuyente_especial', label: 'Contribuyente especial — Retención IVA', desc: 'SAT designó a este proveedor como retenedor de IVA (15% o 30%).' },
-  { value: 'gobierno',               label: 'Entidad de gobierno — Retención 65%',    desc: 'Entidades del Estado retienen el 65% del IVA.' },
-  { value: 'exportador',             label: 'Exportador — IVA 0%',                    desc: 'Operaciones de exportación, tasa cero.' },
-]
+/**
+ * El tratamiento fiscal ya no se pregunta.
+ *
+ * Nació para ser el interruptor que decidía el IVA del proveedor, pero esa
+ * parte nunca se construyó: ninguna regla del sistema lo consulta —ni al
+ * registrar la compra, ni en el libro de compras, ni en las declaraciones—.
+ * Quien decide el IVA de una factura de compra es el «Impuesto de compra por
+ * defecto» de esta misma pestaña, y la retención de ISR tiene su propio
+ * interruptor aquí arriba.
+ *
+ * Además, la lista ofrecía «Pequeño Contribuyente», un valor que el servidor
+ * rechaza —su catálogo tiene cinco y ese no está—: elegirlo devolvía un error
+ * al guardar. Ese era el «no me deja cambiarlo».
+ *
+ * El dato se sigue guardando —la columna, el filtro del listado y la ficha no
+ * se tocan— y los proveedores que ya estaban marcados como retenedores
+ * conservan su tarjeta de retención.
+ */
 
 
 const SALUTATIONS = ['Sr.', 'Sra.', 'Lic.', 'Ing.', 'Dr.', 'Dra.', 'Arq.']
@@ -46,7 +56,7 @@ const COUNTRIES   = ['Guatemala', 'México', 'El Salvador', 'Honduras', 'Costa R
 const TAB_ORDER = ['info', 'taxes', 'address', 'contacts', 'other']
 const TAB_REQUIRED_FIELDS: Record<string, string[]> = {
   info: ['legalName'],
-  taxes: ['taxTreatment'],
+  taxes: [],
   address: [],
   contacts: [],
   other: [],
@@ -274,6 +284,13 @@ export default function ProveedorFormPage() {
   )
   const isrTaxes          = taxes.filter(t => t.category === 'isr')
   const ivaRetentionTaxes = taxes.filter(t => t.isWithholding && (t.category === 'iva' || t.category === 'iva_retenida'))
+  /**
+   * La tarjeta de retención de IVA sigue disponible para quien YA estaba
+   * marcado como retenedor: el tratamiento se carga del proveedor aunque ya no se
+   * pregunte. Para uno nuevo no aparece, y no se pierde nada — ese código de
+   * retención no lo lee ningún proceso; la retención real se escribe en cada
+   * factura.
+   */
   const showRetention = ['contribuyente_especial', 'gobierno'].includes(taxTreatment)
 
   const tabIndex  = TAB_ORDER.indexOf(activeTab)
@@ -647,23 +664,6 @@ export default function ProveedorFormPage() {
                           type="info" showIcon style={{ marginBottom: 20 }}
                         />
 
-                        {/* Tratamiento fiscal */}
-                        <Form.Item
-                          name="taxTreatment"
-                          label="Tratamiento fiscal del proveedor"
-                          rules={[{ required: true }]}
-                        >
-                          <Select onChange={v => setTaxTreatment(v)} optionLabelProp="label">
-                            {TAX_TREATMENTS.map(t => (
-                              <Option key={t.value} value={t.value} label={t.label}>
-                                <div>
-                                  <div style={{ fontWeight: 500 }}>{t.label}</div>
-                                  <div style={{ fontSize: 11, color: '#6b7280' }}>{t.desc}</div>
-                                </div>
-                              </Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
 
                         <Row gutter={20}>
                           {/* IVA Retenida — solo para contribuyente especial / gobierno */}
