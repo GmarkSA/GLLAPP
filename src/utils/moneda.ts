@@ -56,3 +56,39 @@ export const fmtTasa = (doc?: DocumentoConMoneda | null): string =>
 
 /** Cifras de ancho fijo: en una columna de montos es lo que deja compararlos. */
 export const numeros = { fontVariantNumeric: 'tabular-nums' } as const
+
+/**
+ * En qué moneda se está cobrando o pagando.
+ *
+ * Un cobro se aplica a facturas, y la moneda del cobro es la de ellas: pagar
+ * una factura en dólares es recibir dólares. Las dos pantallas de pagos
+ * —recibidos y realizados— mandaban `currency: 'GTQ'` fijo, así que un cobro
+ * de una factura en dólares quedaba guardado como quetzales con tasa 1: la
+ * cifra correcta con la moneda equivocada, y cualquier reporte que leyera esa
+ * moneda mentía.
+ *
+ * Si las facturas elegidas no coinciden en moneda no hay una sola respuesta
+ * —un mismo depósito no puede ser en dos monedas a la vez—, y eso se avisa en
+ * vez de elegir una por cuenta propia.
+ */
+export interface DocumentoACobrar extends DocumentoConMoneda {
+  id: string
+}
+
+export interface MonedaDelCobro {
+  moneda: string
+  /** true cuando los documentos elegidos están en monedas distintas. */
+  mezcla: boolean
+}
+
+export const monedaDeLosDocumentos = (
+  documentos: DocumentoACobrar[],
+  porOmision = 'GTQ',
+): MonedaDelCobro => {
+  const monedas = [...new Set(
+    documentos.map(d => String(d.currency ?? 'GTQ').trim().toUpperCase()),
+  )]
+  if (monedas.length === 0) return { moneda: String(porOmision).toUpperCase(), mezcla: false }
+  if (monedas.length === 1) return { moneda: monedas[0], mezcla: false }
+  return { moneda: monedas[0], mezcla: true }
+}

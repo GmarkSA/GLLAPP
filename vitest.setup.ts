@@ -83,8 +83,24 @@ afterEach(async () => {
  * de vaciarse. Son 27 archivos: medio segundo en toda la corrida.
  */
 afterAll(async () => {
-  await new Promise(resolve => setTimeout(resolve, 20))
-  await new Promise(resolve => setImmediate(resolve))
+  /**
+   * Tiempo REAL antes de apagar el entorno, no un turno vacío.
+   *
+   * Lo que queda en vuelo al terminar un archivo no siempre es una promesa:
+   * las animaciones de Ant Design —el desplegable que una prueba abrió— se
+   * agendan con `requestAnimationFrame`, que en jsdom es un `setTimeout` de
+   * unos 16 ms, y una puede encadenar la siguiente. Esperar 0 ms devolvía el
+   * control antes de que corrieran: vitest desmontaba jsdom y ese trabajo
+   * reventaba contra un `window` que ya no existía, con las 774 pruebas en
+   * verde y la corrida en código 1.
+   *
+   * Tres vueltas de 25 ms cubren una cadena de varios cuadros. Es por ARCHIVO
+   * —no por prueba—, así que son unos cinco segundos en toda la corrida.
+   */
+  for (let i = 0; i < 3; i++) {
+    await new Promise(resolve => setTimeout(resolve, 25))
+    await new Promise(resolve => setImmediate(resolve))
+  }
 })
 
 /**

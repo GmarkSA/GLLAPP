@@ -15,6 +15,8 @@ import {
 } from '../../../api/pagosRealizados'
 import { getVendors } from '../../../api/compras'
 import { getBankAccounts } from '../../../api/bancos'
+import { getExchangeRateForDate } from '../../../api/monedas'
+import { esLocal, monedaDeLosDocumentos } from '../../../utils/moneda'
 
 const { Text, Title } = Typography
 
@@ -42,6 +44,18 @@ export default function PagoRealizadoFormPage() {
   const [submitting,     setSubmitting]     = useState(false)
   const [mode,           setMode]           = useState<string>('bank_transfer')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  /**
+   * El temporizador de la búsqueda se apaga al salir de la pantalla.
+   *
+   * Quedaba corriendo: si alguien escribía en el buscador y cerraba la
+   * pantalla antes de los 300 ms, el temporizador disparaba la consulta y su
+   * respuesta guardaba estado en un componente que ya no existe. En el
+   * navegador es un desperdicio silencioso; en las pruebas tumbó el CI dos
+   * veces —el trabajo que React agendaba llegaba cuando el entorno ya estaba
+   * desmontado: «ReferenceError: window is not defined»—.
+   */
+  useEffect(() => () => clearTimeout(debounceRef.current), [])
 
   const fetchVendors = useCallback((search = '') => {
     setLoadingVendors(true)
@@ -115,6 +129,22 @@ export default function PagoRealizadoFormPage() {
       return [...prev, id]
     })
   }
+
+  /**
+   * La moneda del pago sale de las facturas que se están pagando: pagar una
+   * factura en dólares es entregar dólares. Esta pantalla mandaba
+   * `currency: 'GTQ'` fijo, así que ese pago quedaba guardado como quetzales
+   * con tasa 1 — la cifra correcta con la moneda equivocada.
+   */
+  const proveedorDelForm = Form.useWatch('vendorId', form) as string | undefined
+  const facturasElegidas = pendingInvs.filter(i => selectedIds.includes(i.id))
+  const proveedorElegido = vendors.find(v => v.id === proveedorDelForm)
+  const { moneda: monedaDelPago, mezcla: monedasMezcladas } = monedaDeLosDocumentos(
+    facturasElegidas,
+    (proveedorElegido as any)?.currency ?? 'GTQ',
+  )
+  const pagoEnDivisa = !esLocal(monedaDelPago)
+  const simboloPago  = pagoEnDivisa ? monedaDelPago : 'Q'
 
   const totalSelected = selectedIds.reduce((s, id) => s + (amounts[id] ?? 0), 0)
 
@@ -217,9 +247,41 @@ export default function PagoRealizadoFormPage() {
     },
   ]
 
+  /**
+   * La tasa del día del pago, de Banguat. La cuenta por pagar se descarga al
+   * tipo de cambio de la FACTURA y lo que sale del banco va a la tasa de hoy:
+   * la diferencia es el diferencial cambiario, que el servidor ya sabe
+   * asentar — pero no se activaba porque esta pantalla no mandaba tasa.
+   */
+  const [tasaDelPago, setTasaDelPago] = useState<number>(1)
+  const [tasaMeta,    setTasaMeta]    = useState<{ effectiveDate: string; source: string } | null>(null)
+  const [cargandoTasa, setCargandoTasa] = useState(false)
+  const fechaDelPago = Form.useWatch('paymentDate', form)
+
+  useEffect(() => {
+    if (!pagoEnDivisa) { setTasaDelPago(1); setTasaMeta(null); return }
+    const fecha = fechaDelPago
+      ? dayjs(fechaDelPago).format('YYYY-MM-DD')
+      : dayjs().format('YYYY-MM-DD')
+    setCargandoTasa(true)
+    getExchangeRateForDate(monedaDelPago, fecha)
+      .then((r: any) => {
+        const tasa = r.officialRate ?? (r.rate > 0 ? 1 / r.rate : 1)
+        setTasaDelPago(Number(Number(tasa).toFixed(6)))
+        setTasaMeta({ effectiveDate: r.effectiveDate, source: r.source })
+      })
+      .catch(() => message.warning(`No se pudo cargar el tipo de cambio de ${monedaDelPago} para esa fecha`))
+      .finally(() => setCargandoTasa(false))
+  }, [pagoEnDivisa, monedaDelPago, fechaDelPago])
+
   // ── Submit regular ───────────────────────────────────────────────────────────
   const onFinishRegular = async (values: any) => {
     if (selectedIds.length === 0) { message.warning('Selecciona al menos una factura'); return }
+    // Un mismo pago no puede ser en dos monedas a la vez.
+    if (monedasMezcladas) {
+      message.error('Las facturas elegidas están en monedas distintas. Haz un pago por cada moneda.', 8)
+      return
+    }
     setSubmitting(true)
     try {
       const dto: CreateVendorPaymentDto = {
@@ -229,7 +291,8 @@ export default function PagoRealizadoFormPage() {
         amounts,
         paymentDate:   values.paymentDate.format('YYYY-MM-DD'),
         mode:          values.mode,
-        currency:      'GTQ',
+        currency:      monedaDelPago,
+        exchangeRate:  pagoEnDivisa ? tasaDelPago : 1,
         reference:     values.reference || undefined,
         checkType:     values.checkType || undefined,
         bankAccountId: values.bankAccountId || undefined,
@@ -261,7 +324,8 @@ export default function PagoRealizadoFormPage() {
         vendorName,
         amount:        Number(values.amount),
         date:          values.paymentDate.format('YYYY-MM-DD'),
-        currency:      'GTQ',
+        currency:      monedaDelPago,
+        exchangeRate:  pagoEnDivisa ? tasaDelPago : 1,
         reference:     values.reference || undefined,
         bankAccountId: values.bankAccountId || undefined,
         notes:         values.concept || values.notes || undefined,
@@ -438,8 +502,17 @@ export default function PagoRealizadoFormPage() {
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={4} align="right">
                       <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#1faec2', fontSize: 14 }}>
-                        {fmtQ(totalSelected)}
+                        {fmtQ(totalSelected, monedaDelPago)}
                       </Text>
+                      {pagoEnDivisa && (
+                        <div>
+                          <Text style={{ fontSize: 11, color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>
+                            {fmtQ(totalSelected * tasaDelPago)} · T/C{' '}
+                            {cargandoTasa ? '...' : tasaDelPago.toFixed(6)}
+                            {tasaMeta ? ` (${tasaMeta.source})` : ''}
+                          </Text>
+                        </div>
+                      )}
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={5} />
                   </Table.Summary.Row>

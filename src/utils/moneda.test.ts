@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { esLocal, fmtQ, fmtMoneda, enQuetzales, fmtTasa } from './moneda'
+import { esLocal, fmtQ, fmtMoneda, enQuetzales, fmtTasa, monedaDeLosDocumentos } from './moneda'
 
 /** El caso real de LUUM: cartera en dólares que se leía como quetzales. */
 const EN_DOLARES = { currency: 'USD', exchangeRate: 7.675855127 }
@@ -35,5 +35,34 @@ describe('una empresa con dos monedas', () => {
   it('los quetzales llevan centavos, no milésimas', () => {
     expect(fmtQ(40866.2956)).toBe('Q 40,866.30')
     expect(fmtQ(871365.8423)).toBe('Q 871,365.84')
+  })
+})
+
+/**
+ * La moneda de un cobro sale de las facturas que se están pagando.
+ *
+ * Las dos pantallas de pagos mandaban «GTQ» fijo: un cobro de una factura en
+ * dólares quedaba guardado como quetzales con tasa 1.
+ */
+describe('en qué moneda se está cobrando', () => {
+  const factura = (id: string, currency?: string) => ({ id, currency })
+
+  it('la de las facturas elegidas', () => {
+    expect(monedaDeLosDocumentos([factura('1', 'USD'), factura('2', 'USD')]))
+      .toEqual({ moneda: 'USD', mezcla: false })
+  })
+
+  it('una factura sin moneda es local', () => {
+    expect(monedaDeLosDocumentos([factura('1')]).moneda).toBe('GTQ')
+  })
+
+  /** Sin facturas —un anticipo suelto— manda la del contacto. */
+  it('sin facturas, la que se le pase por omisión', () => {
+    expect(monedaDeLosDocumentos([], 'USD').moneda).toBe('USD')
+  })
+
+  /** Un mismo depósito no puede ser en dos monedas: se avisa. */
+  it('avisa cuando las facturas no coinciden', () => {
+    expect(monedaDeLosDocumentos([factura('1', 'USD'), factura('2', 'GTQ')]).mezcla).toBe(true)
   })
 })

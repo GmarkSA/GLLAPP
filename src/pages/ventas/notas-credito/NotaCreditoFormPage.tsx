@@ -70,6 +70,29 @@ export default function NotaCreditoFormPage() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+
+  /**
+
+   * El temporizador de la búsqueda se apaga al salir de la pantalla.
+
+   *
+
+   * Quedaba corriendo: si alguien escribía en el buscador y cerraba la
+
+   * pantalla antes de los 300 ms, el temporizador disparaba la consulta y su
+
+   * respuesta guardaba estado en un componente que ya no existe. En el
+
+   * navegador es un desperdicio silencioso; en las pruebas tumbó el CI dos
+
+   * veces —el trabajo que React agendaba llegaba cuando el entorno ya estaba
+
+   * desmontado: «ReferenceError: window is not defined»—.
+
+   */
+
+  useEffect(() => () => clearTimeout(debounceRef.current), [])
+
   useEffect(() => {
     getTaxes()
       .then((res: any) => setTaxes(Array.isArray(res) ? res : (res?.data ?? [])))

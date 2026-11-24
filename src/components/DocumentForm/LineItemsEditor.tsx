@@ -125,6 +125,17 @@ const CellInput = memo(({ value, onCommit, placeholder, style }: {
   const committed           = useRef(value)
   const debounceRef         = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  /**
+   * El temporizador del debounce se apaga al desmontar la celda.
+   *
+   * Quedaba corriendo: borrar una línea mientras alguien escribía en ella
+   * dejaba un temporizador que después guardaba estado en una celda que ya
+   * no existe. En el navegador es un desperdicio silencioso; en las pruebas
+   * el trabajo que React agendaba llegaba cuando el entorno ya estaba
+   * desmontado —«ReferenceError: window is not defined»—.
+   */
+  useEffect(() => () => clearTimeout(debounceRef.current), [])
+
   useEffect(() => {
     if (value !== committed.current) { setLocal(value); committed.current = value }
   }, [value])
@@ -161,6 +172,9 @@ const CellTextArea = memo(({ value, onCommit, placeholder, style }: {
   const [local, setLocal]   = useState(value)
   const committed           = useRef(value)
   const debounceRef         = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  /** Igual que en la celda de texto: el temporizador no sobrevive al desmontaje. */
+  useEffect(() => () => clearTimeout(debounceRef.current), [])
 
   useEffect(() => {
     if (value !== committed.current) { setLocal(value); committed.current = value }
