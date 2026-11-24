@@ -209,6 +209,12 @@ export interface PurchaseOrder {
   orderDate:             string
   expectedDeliveryDate?: string
   currency:              string
+  /**
+   * El tipo de cambio con el que se emitió la orden. Es de REFERENCIA —la que
+   * manda es la de la factura cuando la orden se convierte—, pero sin él no
+   * hay con qué leer una orden en dólares en quetzales.
+   */
+  exchangeRate?:         number
   paymentTerms?:         string
   paymentTermsDays?:     number
   total:                 number

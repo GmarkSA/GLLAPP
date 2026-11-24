@@ -67,7 +67,10 @@ export default function FacturaProveedorFormPage() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const fromPO       = !id ? (location.state as any)?.fromPO as { purchaseOrderId: string; vendorId: string; vendorName: string; items: LineItem[] } | undefined : undefined
+  const fromPO       = !id ? (location.state as any)?.fromPO as {
+        purchaseOrderId: string; vendorId: string; vendorName: string; items: LineItem[]
+        currency?: string; exchangeRate?: number
+      } | undefined : undefined
   const fromVendorId = (location.state as any)?.fromVendorId as string | undefined
   const [form] = Form.useForm()
 
@@ -250,6 +253,20 @@ export default function FacturaProveedorFormPage() {
         return [{ value: fromPO.vendorId, label: fromPO.vendorName }, ...prev]
       })
       form.setFieldValue('vendorId', fromPO.vendorId)
+    }
+    /**
+     * La factura nace en la moneda de la ORDEN.
+     *
+     * Antes la orden no mandaba moneda ni tasa, así que una orden en dólares
+     * se convertía en una factura en quetzales con los mismos números: el
+     * precio en dólares con el signo del quetzal.
+     */
+    if (fromPO.currency) {
+      form.setFieldValue('currency', fromPO.currency)
+      setVendorCurrency(fromPO.currency)
+      if (fromPO.currency !== 'GTQ' && Number(fromPO.exchangeRate) > 1) {
+        setExchangeRate(Number(fromPO.exchangeRate))
+      }
     }
     if (fromPO.items?.length) {
       setItems(fromPO.items.map(it => newLineItem({

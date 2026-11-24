@@ -55,6 +55,19 @@ if (!(globalThis as any).ResizeObserver) {
  */
 afterEach(async () => {
   await new Promise(resolve => setTimeout(resolve, 0))
+  /**
+   * Y un turno de `setImmediate`, que es donde React agenda el suyo.
+   *
+   * El planificador de React corre en Node con `setImmediate`
+   * —«Immediate.performWorkUntilDeadline» en la traza—, y en el bucle de
+   * eventos los `setImmediate` corren DESPUÉS de los `setTimeout`. Esperar
+   * solo un `setTimeout(0)` devolvía el control antes de que ese turno
+   * ocurriera: si el archivo terminaba ahí, vitest desmontaba jsdom y el
+   * trabajo pendiente reventaba contra un `window` que ya no existía
+   * —«ReferenceError: window is not defined»— y la corrida salía con código 1
+   * aunque las 766 pruebas estuvieran en verde. Tumbó el CI del PR 849.
+   */
+  await new Promise(resolve => setImmediate(resolve))
 })
 
 /**
@@ -71,6 +84,7 @@ afterEach(async () => {
  */
 afterAll(async () => {
   await new Promise(resolve => setTimeout(resolve, 20))
+  await new Promise(resolve => setImmediate(resolve))
 })
 
 /**

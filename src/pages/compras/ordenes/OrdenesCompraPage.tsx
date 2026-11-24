@@ -21,6 +21,7 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
 import { fmtMoneda } from '../../../utils/moneda'
+import MontoDual from '../../../components/Moneda/MontoDual'
 
 const { Title, Text } = Typography
 
@@ -91,7 +92,9 @@ function buildColDef(
         ) }
     case 'total':
       return { ...base, title: 'Total', dataIndex: 'total', width: 130, align: 'right' as const,
-        render: (v: number, r: PurchaseOrder) => <Text strong>{fmtMoneda(v, r.currency)}</Text> }
+        render: (v: number, r: PurchaseOrder) => (
+          <MontoDual monto={v} currency={r.currency} exchangeRate={r.exchangeRate} fuerte />
+        ) }
     case 'status':
       return { ...base, title: 'Estado', dataIndex: 'status', width: 120,
         render: (v: POStatus) => {
