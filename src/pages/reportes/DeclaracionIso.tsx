@@ -110,10 +110,33 @@ export default function DeclaracionIsoPage() {
     setVIsr(r2(Number(d.isrAcreditado ?? 0)))
   }
 
+  /**
+   * La póliza nace en BORRADOR y se va a Contabilidad › Diarios Manuales, que
+   * es donde se revisa y se contabiliza. Cuando allá se publica, la
+   * declaración pasa sola a «presentada»: aquí se pregunta por el estado de
+   * las que tienen póliza, al cargar la lista y al volver el foco a la
+   * ventana —el mismo camino del IVA y del ISR mensual—.
+   */
+  const sincronizarSiSePublico = useCallback(
+    async (d: DeclaracionIso, datos: DeclaracionIso[]): Promise<DeclaracionIso[]> => {
+      if (d.status !== 'poliza_generada') return datos
+      try {
+        const fresca = await sincronizarEstadoIso(d.id)
+        if (fresca.status !== d.status) {
+          setSelected(prev => prev?.id === fresca.id ? fresca : prev)
+          return datos.map(x => x.id === fresca.id ? fresca : x)
+        }
+      } catch { /* informativo: si falla se conserva lo que ya se mostraba */ }
+      return datos
+    }, [])
+
   const cargarLista = useCallback(async (actual?: DeclaracionIso | null) => {
     setLoading(true)
     try {
-      const datos = await getDeclaracionesIso()
+      let datos = await getDeclaracionesIso()
+      for (const d of datos.filter(x => x.status === 'poliza_generada')) {
+        datos = await sincronizarSiSePublico(d, datos)
+      }
       setLista(datos)
       if (actual) {
         const fresca = datos.find(d => d.id === actual.id)
@@ -121,9 +144,16 @@ export default function DeclaracionIsoPage() {
       }
     } catch { setLista([]) }
     finally { setLoading(false) }
-  }, [])
+  }, [sincronizarSiSePublico])
 
   useEffect(() => { cargarLista() }, [cargarLista])
+
+  // Al volver de Diarios Manuales, preguntar de nuevo por el estado.
+  useEffect(() => {
+    const alVolver = () => cargarLista(selected)
+    window.addEventListener('focus', alVolver)
+    return () => window.removeEventListener('focus', alVolver)
+  }, [selected, cargarLista])
 
   const seleccionar = (d: DeclaracionIso) => { setSelected(d); setEditing(false); syncEdit(d) }
 
@@ -318,6 +348,25 @@ export default function DeclaracionIsoPage() {
                 </Space>
               }
             >
+              {/*
+                * Una migración que solo cargó saldos no tiene pérdidas y
+                * ganancias del año anterior: los ingresos salen en cero y hay
+                * que escribirlos. Vale decirlo, porque un cero mudo parece un
+                * error del sistema.
+                */}
+              {Number(selected.ingresosBrutos) === 0 && (
+                <Alert
+                  type="warning" showIcon style={{ marginBottom: 12 }}
+                  message={`Sin ingresos de ${selected.anioBase} en los libros`}
+                  description={
+                    `Lucía no encontró pérdidas y ganancias del ejercicio ${selected.anioBase}: `
+                    + 'pasa cuando ese año se llevó en otro sistema y aquí solo se cargaron los '
+                    + 'saldos iniciales. Escribe los ingresos y el costo de ventas de la '
+                    + 'liquidación anual de ese año con el botón de editar.'
+                  }
+                />
+              )}
+
               {!selected.afecto && (
                 <Alert
                   type="info" showIcon style={{ marginBottom: 12 }}
@@ -464,6 +513,38 @@ export default function DeclaracionIsoPage() {
                   </tr>
                 </tbody>
               </table>
+
+              {selected.polizaId && (
+                <div style={{
+                  marginTop: 10, padding: '8px 12px', background: '#f0f5ff',
+                  borderRadius: 6, border: '1px solid #adc6ff', fontSize: 12,
+                }}>
+                  <div style={{ fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>
+                    Póliza contable — {STATUS_TAG[selected.status]?.label}
+                  </div>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    <span>
+                      <Text type="secondary">ID: </Text>
+                      <code style={{ fontSize: 11 }}>{selected.polizaId.slice(0, 8)}…</code>
+                    </span>
+                    <span>
+                      <Text type="secondary">Débito ISO por acreditar: </Text>
+                      <strong>Q {fmt(n('impuestoDeterminado'))}</strong>
+                    </span>
+                    <span>
+                      <Text type="secondary">Crédito ISO por pagar: </Text>
+                      <strong>Q {fmt(n('impuestoDeterminado'))}</strong>
+                    </span>
+                  </div>
+                  {selected.status === 'poliza_generada' && (
+                    <div style={{ marginTop: 6, color: '#1d4ed8' }}>
+                      Está en <strong>borrador</strong>: revísala y contabilízala en
+                      Contabilidad › Diarios Manuales. Al publicarla, esta declaración
+                      pasa sola a «presentada».
+                    </div>
+                  )}
+                </div>
+              )}
 
               <Alert
                 type="info" showIcon style={{ marginTop: 12 }}
