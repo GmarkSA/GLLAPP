@@ -1045,6 +1045,14 @@ interface AccountDefaults {
    * configurarla: sin ella, esas pólizas no se generaban y nadie se enteraba.
    */
   inventoryClearingAccountCode?: string
+  /**
+   * El Impuesto de Solidaridad del trimestre (SAT-1608). Son DOS cuentas y
+   * ninguna es de gasto: el art. 11 del Decreto 73-2008 lo deja acreditable
+   * al ISR durante tres años, así que lo que se paga es un derecho contra el
+   * fisco —activo— hasta que se acredita, y mientras no se paga es un pasivo.
+   */
+  isoCreditAccountCode?: string
+  isoPayableAccountCode?: string
 }
 
 function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef?: React.MutableRefObject<null | (() => Promise<boolean>)> } = {}) {
@@ -1118,6 +1126,10 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
       openingBalanceAccountCode:   '800001',
       cardCommissionAccountCode:   '650003',
       inventoryClearingAccountCode: '140001',
+      // Las del ISO: cada catálogo las numera distinto, así que la sugerencia
+      // solo se aplica si ese código existe en el catálogo del cliente.
+      isoCreditAccountCode:        '125004',
+      isoPayableAccountCode:       '216008',
     }
     const byCode = (code: string) => accounts.find(a => a.code === code)?.code
     setDefaults(prev => ({
@@ -1331,6 +1343,61 @@ function AccountDefaultsSection({ guided, saveRef }: { guided?: boolean; saveRef
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
                 Valor actual: <Text code>{defaults.cardCommissionAccountCode || 'No configurado'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24}>
+              <div style={{ marginBottom: 8, marginTop: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>ISO por acreditar (activo)</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Dónde queda el Impuesto de Solidaridad del trimestre. No es gasto: el
+                  artículo 11 del Decreto 73-2008 lo deja acreditable al ISR durante los tres
+                  años calendario siguientes, así que es un derecho contra el fisco hasta que
+                  se acredita. Solo si vence ese plazo sin acreditarse se vuelve gasto.
+                </Text>
+              </div>
+              <Select
+                showSearch
+                allowClear
+                style={{ width: '100%', maxWidth: 520 }}
+                value={defaults.isoCreditAccountCode}
+                placeholder="Ej: 125004 — ISO por acreditar"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, isoCreditAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.isoCreditAccountCode || 'No configurado'}</Text>
+              </Text>
+            </Col>
+
+            <Col xs={24}>
+              <div style={{ marginBottom: 8, marginTop: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>ISO por pagar (pasivo)</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Lo que se le debe al fisco por el ISO del trimestre, hasta que se paga en el
+                  banco. La póliza del formulario SAT-1608 acredita esta cuenta y debita la de
+                  arriba.
+                </Text>
+              </div>
+              <Select
+                showSearch
+                allowClear
+                style={{ width: '100%', maxWidth: 520 }}
+                value={defaults.isoPayableAccountCode}
+                placeholder="Ej: 216008 — ISO por pagar"
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={accountOptions}
+                onChange={val => setDefaults(prev => ({ ...prev, isoPayableAccountCode: val }))}
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Valor actual: <Text code>{defaults.isoPayableAccountCode || 'No configurado'}</Text>
               </Text>
             </Col>
 

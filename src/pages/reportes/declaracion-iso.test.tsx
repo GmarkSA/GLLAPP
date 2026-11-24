@@ -48,6 +48,7 @@ const LUUM_Q1 = {
 }
 
 const getDeclaracionesIso = vi.fn(async () => [LUUM_Q1])
+const sincronizarEstadoIso = vi.fn(async (_id: string) => LUUM_Q1)
 
 vi.mock('../../api/reportes', () => ({
   getDeclaracionesIso:      () => getDeclaracionesIso(),
@@ -55,7 +56,7 @@ vi.mock('../../api/reportes', () => ({
   generarPolizaBorradorIso: vi.fn(),
   marcarIsoPresentada:      vi.fn(),
   actualizarDeclaracionIso: vi.fn(),
-  sincronizarEstadoIso:     vi.fn(),
+  sincronizarEstadoIso:     (id: string) => sincronizarEstadoIso(id),
 }))
 
 describe('la declaración de ISO en pantalla', () => {
@@ -64,6 +65,8 @@ describe('la declaración de ISO en pantalla', () => {
 
   beforeEach(() => {
     getDeclaracionesIso.mockClear()
+    sincronizarEstadoIso.mockClear()
+    sincronizarEstadoIso.mockResolvedValue(LUUM_Q1 as any)
     getDeclaracionesIso.mockResolvedValue([LUUM_Q1] as any)
     div = document.createElement('div')
     document.body.appendChild(div)
@@ -149,5 +152,69 @@ describe('la declaración de ISO en pantalla', () => {
     expect(div.textContent).toContain('no afecto')
     const botones = [...div.querySelectorAll('button')].map(b => b.textContent ?? '')
     expect(botones.some(t => t.includes('Generar póliza'))).toBe(false)
+  })
+
+  /**
+   * El caso de una migración que solo cargó saldos: el año anterior no tiene
+   * pérdidas y ganancias en Lucía, así que los ingresos salen en cero y hay
+   * que escribirlos. Un cero sin explicación parece un error del sistema.
+   */
+  it('avisa cuando el año base no tiene ingresos en los libros', async () => {
+    getDeclaracionesIso.mockResolvedValue([{
+      ...LUUM_Q1,
+      ingresosServicios: 0, ingresosVentas: 0, costoVentas: 0,
+      ingresosBrutos: 0, margenBruto: 0, margenBrutoPct: 0, afecto: false,
+      baseIngresosBrutos: 0, impuestoIngresosBrutos: 0,
+      impuestoDeterminado: 0, impuestoAPagar: 0,
+    }] as any)
+
+    await dibujar()
+    await abrirTrimestre()
+
+    expect(div.textContent).toContain('Sin ingresos de 2025 en los libros')
+  })
+
+  /**
+   * El escenario del IVA y del ISR mensual, igual aquí: la póliza nace en
+   * BORRADOR y se va a Contabilidad › Diarios Manuales, que es donde se
+   * revisa y se contabiliza. La pantalla lo dice y, al volver, pregunta sola
+   * por el estado.
+   */
+  describe('la póliza en borrador', () => {
+    const CON_POLIZA = { ...LUUM_Q1, status: 'poliza_generada', polizaId: 'je-12345678-abcd' }
+
+    it('dice que está en borrador y dónde se contabiliza', async () => {
+      getDeclaracionesIso.mockResolvedValue([CON_POLIZA] as any)
+      sincronizarEstadoIso.mockResolvedValue(CON_POLIZA as any)
+
+      await dibujar()
+      await abrirTrimestre()
+
+      const texto = div.textContent ?? ''
+      expect(texto).toContain('Póliza contable')
+      expect(texto).toContain('Diarios Manuales')
+      expect(texto).toContain('Débito ISO por acreditar')
+      expect(texto).toContain('Crédito ISO por pagar')
+    })
+
+    /** Al abrir la pantalla pregunta por las que tienen póliza sin publicar. */
+    it('pregunta sola por el estado de la póliza', async () => {
+      getDeclaracionesIso.mockResolvedValue([CON_POLIZA] as any)
+      sincronizarEstadoIso.mockResolvedValue(CON_POLIZA as any)
+
+      await dibujar()
+
+      expect(sincronizarEstadoIso).toHaveBeenCalledWith(CON_POLIZA.id)
+    })
+
+    /** Y cuando allá se publicó, la declaración queda presentada sin tocar nada. */
+    it('al publicarse en el diario, queda presentada', async () => {
+      getDeclaracionesIso.mockResolvedValue([CON_POLIZA] as any)
+      sincronizarEstadoIso.mockResolvedValue({ ...CON_POLIZA, status: 'presentada' } as any)
+
+      await dibujar()
+
+      expect(div.textContent).toContain('Presentada')
+    })
   })
 })

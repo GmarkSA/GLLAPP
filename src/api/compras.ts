@@ -17,6 +17,14 @@ export interface AccountDefaults {
    * —cuentas de mayor, clientes, proveedores, inventario, activos fijos—.
    */
   openingBalanceAccountCode?:  string
+  /**
+   * Las dos cuentas del Impuesto de Solidaridad (SAT-1608). Ninguna es de
+   * gasto: el art. 11 del Decreto 73-2008 lo deja acreditable al ISR por tres
+   * años, así que lo pagado es un derecho contra el fisco —activo— y lo que
+   * aún no se paga, un pasivo.
+   */
+  isoCreditAccountCode?:       string
+  isoPayableAccountCode?:      string
 }
 
 export const getAccountDefaults = async (): Promise<AccountDefaults> => {
