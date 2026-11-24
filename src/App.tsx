@@ -88,6 +88,7 @@ const LibroComprasPage         = lazy(() => import('./pages/reportes/LibroCompra
 const DeclaracionIvaPage       = lazy(() => import('./pages/reportes/DeclaracionIvaPage'))
 const TiposCambioPage          = lazy(() => import('./pages/reportes/TiposCambioPage'))
 const Declaracion1311Page      = lazy(() => import('./pages/reportes/Declaracion1311'))
+const DeclaracionIsoPage       = lazy(() => import('./pages/reportes/DeclaracionIso'))
 const OrdenesCompraPage        = lazy(() => import('./pages/compras/ordenes/OrdenesCompraPage'))
 const OrdenCompraFormPage      = lazy(() => import('./pages/compras/ordenes/OrdenCompraFormPage'))
 const OrdenCompraDetallePage   = lazy(() => import('./pages/compras/ordenes/OrdenCompraDetallePage'))
@@ -379,6 +380,7 @@ export default function App() {
             <Route path="centros-costo"              element={<EjecucionCentrosCostoPage />} />
             <Route path="declaracion-iva"            element={<DeclaracionIvaPage />} />
             <Route path="declaracion-isr"            element={<Declaracion1311Page />} />
+            <Route path="declaracion-iso"            element={<DeclaracionIsoPage />} />
             <Route path="integraciones-contables"    element={<IntegracionesContablesPage />} />
             <Route path="estados-financieros"        element={<EstadosFinancierosPage />} />
             <Route path="consolidacion"              element={<ConsolidacionPage />} />

@@ -431,3 +431,99 @@ export const exportReporte = (tipo: string, formato: 'excel' | 'pdf', params: Re
     URL.revokeObjectURL(url)
   })
 }
+
+// ─── Declaración de ISO — Impuesto de Solidaridad (SAT-1608) ──────────────────
+
+export type DeclaracionIsoStatus = 'borrador' | 'poliza_generada' | 'presentada'
+export type BaseIso = 'activo_neto' | 'ingresos_brutos'
+
+/**
+ * El formulario SAT-1608, trimestral.
+ *
+ * La base no sale del trimestre: sale del ejercicio anterior —ingresos brutos
+ * de la liquidación anual inmediata anterior y activo neto de su cierre
+ * (arts. 2 y 7 del Decreto 73-2008)—. Por eso el Q1 de 2026 se calcula con el
+ * cierre de 2025 y los cuatro trimestres del año llevan la misma base.
+ */
+export interface DeclaracionIso {
+  id:        string
+  tenantId:  string
+  companyId: string | null
+  trimestre: number
+  anio:      number
+  /** El ejercicio del que salen las cifras. Por omisión, anio − 1. */
+  anioBase:  number
+  status:    DeclaracionIsoStatus
+
+  // 3. Margen bruto (art. 2.4) — afecto solo si supera el 4%
+  ingresosServicios: number
+  ingresosVentas:    number
+  costoVentas:       number
+  ingresosBrutos:    number
+  margenBruto:       number
+  margenBrutoPct:    number
+  afecto:            boolean
+
+  // 4. Activo neto (art. 2.1)
+  activoTotal:              number
+  depreciacionesAcumuladas: number
+  amortizacionesAcumuladas: number
+  reservaIncobrables:       number
+  creditosFiscales:         number
+  activoNeto:               number
+  baseActivoNeto:           number
+  impuestoActivoNeto:       number
+  /** IUSI del trimestre: se resta solo si la base aplicada es la del activo. */
+  iusiPagado:               number
+
+  // 5. Ingresos brutos
+  exclusionesIngresos:    number
+  baseIngresosBrutos:     number
+  impuestoIngresosBrutos: number
+
+  // 6. Determinación
+  baseAplicada:        BaseIso
+  impuestoDeterminado: number
+  /** ISR trimestral acreditado al ISO (art. 11 b). */
+  isrAcreditado:       number
+  impuestoAPagar:      number
+
+  polizaId:  string | null
+  snapshot:  Record<string, any> | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const getDeclaracionesIso = () =>
+  api.get(`${BASE}/impuestos/declaracion-iso`).then(unwrap) as Promise<DeclaracionIso[]>
+
+export const getDeclaracionIso = (id: string) =>
+  api.get(`${BASE}/impuestos/declaracion-iso/${id}`).then(unwrap) as Promise<DeclaracionIso>
+
+export const generarBorradorIso = (trimestre: number, anio: number, anioBase?: number) =>
+  api.post(`${BASE}/impuestos/declaracion-iso/generar-borrador`, {}, {
+    params: { trimestre, anio, ...(anioBase ? { anioBase } : {}) },
+  }).then(unwrap) as Promise<DeclaracionIso>
+
+export const generarPolizaBorradorIso = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-iso/${id}/poliza-borrador`).then(unwrap) as Promise<DeclaracionIso>
+
+export const marcarIsoPresentada = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-iso/${id}/marcar-presentada`).then(unwrap) as Promise<DeclaracionIso>
+
+export const sincronizarEstadoIso = (id: string) =>
+  api.post(`${BASE}/impuestos/declaracion-iso/${id}/sincronizar`).then(unwrap) as Promise<DeclaracionIso>
+
+/**
+ * Corregir las casillas del formulario. El impuesto NO se escribe a mano: el
+ * servidor lo vuelve a calcular con la regla de la ley.
+ */
+export const actualizarDeclaracionIso = (
+  id: string,
+  dto: Partial<Pick<DeclaracionIso,
+    'ingresosServicios' | 'ingresosVentas' | 'costoVentas' |
+    'activoTotal' | 'depreciacionesAcumuladas' | 'amortizacionesAcumuladas' |
+    'reservaIncobrables' | 'creditosFiscales' | 'exclusionesIngresos' |
+    'iusiPagado' | 'isrAcreditado'>>,
+) =>
+  api.patch(`${BASE}/impuestos/declaracion-iso/${id}`, dto).then(unwrap) as Promise<DeclaracionIso>
