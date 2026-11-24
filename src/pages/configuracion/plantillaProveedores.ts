@@ -32,12 +32,24 @@ const TIPO_PROVEEDOR: Vocabulario = {
  * Un pequeño contribuyente al que se le factura como contribuyente normal
  * termina con un IVA acreditable que la SAT no reconoce.
  */
+/**
+ * El catálogo del SERVIDOR, que son cinco valores y no seis.
+ *
+ * Esta lista ofrecía «pequeño contribuyente», que el servidor rechaza —su
+ * enum no lo tiene—: una importación con esa palabra devolvía un error de
+ * validación y el archivo entero se quedaba sin cargar. Y le faltaba
+ * «exportador», que sí existe. Ahora coincide con lo que el servidor acepta.
+ *
+ * El tratamiento fiscal ya no se pregunta en la ficha del proveedor —no lo
+ * consulta ninguna regla del sistema—; la columna sigue aquí para no perder
+ * el dato al migrar de otro sistema.
+ */
 const TRATAMIENTO_FISCAL: Vocabulario = {
   taxable:                 ['contribuyente', 'taxable', 'iva 12', 'normal', 'gravado'],
-  exempt:                  ['exento', 'exempt', 'exenta'],
-  pequeno_contribuyente:   ['pequeno_contribuyente', 'pequeño contribuyente', 'pequeno', 'regimen pequeno'],
+  exempt:                  ['exento', 'exempt', 'exenta', 'pequeño contribuyente', 'pequeno contribuyente'],
   contribuyente_especial:  ['contribuyente_especial', 'especial', 'retenedor'],
   gobierno:                ['gobierno', 'government', 'estado'],
+  exportador:              ['exportador', 'exporter', 'exportacion', 'iva 0'],
 }
 
 const ESTADO: Vocabulario = {

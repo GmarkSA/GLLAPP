@@ -78,11 +78,19 @@ describe('la plantilla de proveedores', () => {
     ])
   })
 
-  it('admite el régimen de pequeño contribuyente, que el de clientes no tiene', () => {
+  /**
+   * «Pequeño contribuyente» no es uno de los cinco valores que el servidor
+   * acepta: una importación con esa palabra devolvía un error de validación y
+   * el archivo entero se quedaba sin cargar. Se lee como exento, que es lo
+   * que significa para quien recibe la factura —no da crédito fiscal—, y la
+   * carga pasa.
+   */
+  it('no produce un tratamiento fiscal que el servidor rechace', () => {
     const [fila] = leerFilas(
       archivoCon('Proveedores', [{ nombre: 'X', tratamiento_fiscal: 'pequeño contribuyente' }]),
       ESPECIFICACION_PROVEEDORES)
-    expect(fila.tratamiento_fiscal).toBe('pequeno_contribuyente')
+    expect(['taxable', 'exempt', 'contribuyente_especial', 'gobierno', 'exportador'])
+      .toContain(fila.tratamiento_fiscal)
   })
 })
 
