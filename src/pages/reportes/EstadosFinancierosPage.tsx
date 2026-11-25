@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Select, Tabs, Spin, Empty, Typography, Card, Button, Switch, Space } from 'antd'
+import { Select, Tabs, Spin, Empty, Typography, Card, Button, Switch, Space, message } from 'antd'
 import { ArrowLeftOutlined, PrinterOutlined, DownloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
@@ -9,6 +9,10 @@ import {
   type BalanceGeneralData, type EstadoResultadosData, type AccountRow,
 } from '../../api/reportes'
 import { getDetalleIntegracion, type DetalleResult } from '../../api/integraciones'
+import {
+  construirHoja, cuentasAIntegrar,
+  type BloqueDeHoja, type CuentaConIntegracion,
+} from './excelConIntegracion'
 import { DetallePanel } from './IntegracionesContablesPage'
 
 const { Title, Text } = Typography
@@ -108,6 +112,8 @@ export default function EstadosFinancierosPage() {
   const [selected, setSelected] = useState<Selected>(null)
   const [detalle,  setDetalle]  = useState<DetalleResult | null>(null)
   const [loadingDet, setLoadingDet] = useState(false)
+  /** Avance de la descarga con integración: null cuando no se está armando. */
+  const [avanceExcel, setAvanceExcel] = useState<{ hechas: number; total: number } | null>(null)
 
   const endOfMonth = dayjs(`${anio}-${String(mes).padStart(2, '0')}-01`).endOf('month').format('YYYY-MM-DD')
   const jan1       = `${anio}-01-01`
@@ -183,6 +189,121 @@ export default function EstadosFinancierosPage() {
     XLSX.writeFile(wb, `estados_financieros_${anio}_${String(mes).padStart(2, '0')}.xlsx`)
   }
 
+  /**
+   * El Excel con la integración de cada cuenta, desplegable.
+   *
+   * Hay que traer el detalle cuenta por cuenta: se usa el MISMO endpoint que
+   * alimenta el panel de la derecha, no una segunda versión del cálculo. Son
+   * muchas llamadas, así que van de cinco en cinco y el botón va contando —
+   * una cuenta que falle no tumba la descarga: baja sin su detalle y el resto
+   * sigue.
+   */
+  const traerIntegraciones = async (
+    cuentas: { id: string; code: string; name: string; balance: number }[],
+    esResultado: boolean,
+    avanzar: () => void,
+  ): Promise<CuentaConIntegracion[]> => {
+    const resultado: CuentaConIntegracion[] = new Array(cuentas.length)
+    const porTanda = 5
+    for (let i = 0; i < cuentas.length; i += porTanda) {
+      const tanda = cuentas.slice(i, i + porTanda)
+      await Promise.all(tanda.map(async (c, j) => {
+        const base = { code: c.code, name: c.name, balance: Number(c.balance) }
+        try {
+          const det = await getDetalleIntegracion(c.id, mes, anio, esResultado ? jan1 : undefined)
+          resultado[i + j] = { ...base, lineas: det?.lineas ?? [] }
+        } catch {
+          resultado[i + j] = { ...base, lineas: [] }
+        } finally {
+          avanzar()
+        }
+      }))
+    }
+    return resultado
+  }
+
+  const exportarConIntegracion = async () => {
+    if (!bg && !er) return
+    const conSaldo = (g?: { accounts: AccountRow[] }) =>
+      (g?.accounts ?? []).filter(a => Number(a.balance) !== 0)
+
+    const gruposBalance: { titulo: string; cuentas: AccountRow[]; total: number }[] = bg ? [
+      { titulo: 'Activo Circulante', cuentas: conSaldo(bg.activo),     total: Number(bg.activo?.total ?? 0) },
+      { titulo: 'Activo Fijo',       cuentas: conSaldo(bg.activoFijo), total: Number(bg.activoFijo?.total ?? 0) },
+      { titulo: 'Pasivo',            cuentas: conSaldo(bg.pasivo),     total: Number(bg.pasivo?.total ?? 0) },
+      { titulo: 'Capital',           cuentas: conSaldo(bg.capital),    total: Number(bg.capital?.total ?? 0) },
+    ] : []
+
+    const gruposResultado: { titulo: string; cuentas: AccountRow[]; total: number }[] = er ? [
+      { titulo: 'Ingresos',       cuentas: conSaldo(er.ingresos),      total: Number(er.ingresos?.total ?? 0) },
+      { titulo: 'Otros Ingresos', cuentas: conSaldo(er.otrosIngresos), total: Number(er.otrosIngresos?.total ?? 0) },
+      { titulo: 'Costos',         cuentas: conSaldo(er.costos),        total: Number(er.costos?.total ?? 0) },
+      { titulo: 'Gastos',         cuentas: conSaldo(er.gastos),        total: Number(er.gastos?.total ?? 0) },
+      { titulo: 'Otros Gastos',   cuentas: conSaldo(er.otrosGastos),   total: Number(er.otrosGastos?.total ?? 0) },
+    ] : []
+
+    const total = [...gruposBalance, ...gruposResultado].reduce((n, g) => n + g.cuentas.length, 0)
+    if (total === 0) { message.info('No hay cuentas con movimiento para integrar'); return }
+
+    let hechas = 0
+    setAvanceExcel({ hechas: 0, total })
+    const avanzar = () => { hechas += 1; setAvanceExcel({ hechas, total }) }
+
+    try {
+      const wb = XLSX.utils.book_new()
+
+      const armarHoja = async (
+        titulo: string, subtitulo: string,
+        grupos: { titulo: string; cuentas: AccountRow[]; total: number }[],
+        esResultado: boolean,
+        totalesFinales: { etiqueta: string; valor: number }[],
+        totalesIntermedios: Record<string, { etiqueta: string; valor: number }> = {},
+      ) => {
+        const bloques: BloqueDeHoja[] = []
+        for (const g of grupos) {
+          const cuentas = await traerIntegraciones(g.cuentas, esResultado, avanzar)
+          bloques.push({ tipo: 'grupo', grupo: { titulo: g.titulo, cuentas, total: g.total } })
+          const intermedio = totalesIntermedios[g.titulo]
+          if (intermedio) bloques.push({ tipo: 'total', total: intermedio })
+        }
+        for (const t of totalesFinales) bloques.push({ tipo: 'total', total: t })
+
+        const hoja = construirHoja(titulo, subtitulo, bloques)
+        const ws = XLSX.utils.aoa_to_sheet(hoja.aoa)
+        ws['!rows'] = hoja.rows
+        ws['!cols'] = hoja.anchos
+        // El signo +/− va ARRIBA del detalle, en la fila de la cuenta.
+        ;(ws as any)['!outline'] = { above: true }
+        XLSX.utils.book_append_sheet(wb, ws, titulo.slice(0, 31))
+      }
+
+      if (bg) {
+        await armarHoja(
+          'Balance General', `Al ${dayjs(endOfMonth).format('DD/MM/YYYY')}`,
+          gruposBalance, false,
+          [{ etiqueta: 'TOTAL PASIVO + CAPITAL', valor: Number(bg.totalPasivoCapital) }],
+          { 'Activo Fijo': { etiqueta: 'TOTAL ACTIVOS', valor: Number(bg.totalActivo) } },
+        )
+      }
+      if (er) {
+        await armarHoja(
+          'Estado de Resultados',
+          `Del ${dayjs(jan1).format('DD/MM/YYYY')} al ${dayjs(endOfMonth).format('DD/MM/YYYY')}`,
+          gruposResultado, true,
+          [{ etiqueta: 'UTILIDAD NETA', valor: Number(er.utilidadNeta) }],
+          { Costos: { etiqueta: 'UTILIDAD BRUTA', valor: Number(er.utilidadBruta) } },
+        )
+      }
+
+      XLSX.writeFile(wb, `estados_financieros_integrado_${anio}_${String(mes).padStart(2, '0')}.xlsx`)
+      message.success('Listo: abre el signo + de cada cuenta para ver sus movimientos')
+    } catch {
+      message.error('No se pudo armar el archivo con la integración')
+    } finally {
+      setAvanceExcel(null)
+    }
+  }
+
   const printExcelBtns = (
     <Space size={6}>
       <Button size="small" icon={<PrinterOutlined />}
@@ -191,6 +312,16 @@ export default function EstadosFinancierosPage() {
       </Button>
       <Button size="small" icon={<DownloadOutlined />} onClick={exportEstadosExcel}>
         Excel
+      </Button>
+      <Button
+        size="small" type="primary" icon={<DownloadOutlined />}
+        style={{ background: NAVY }}
+        loading={!!avanceExcel}
+        onClick={exportarConIntegracion}
+      >
+        {avanceExcel
+          ? `Integrando ${avanceExcel.hechas}/${avanceExcel.total}…`
+          : 'Excel con integración'}
       </Button>
     </Space>
   )
