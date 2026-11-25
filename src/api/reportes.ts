@@ -443,6 +443,29 @@ export const exportReporte = (tipo: string, formato: 'excel' | 'pdf', params: Re
   })
 }
 
+/**
+ * El juego de Estados Financieros en Excel, armado por el servidor.
+ *
+ * Portada, Balance General y Estado de Resultados comparados contra el año
+ * anterior, y las integraciones como anexo. Se arma allá porque el logo de la
+ * empresa vive en R2 —solo el servidor puede bajar sus bytes— y porque la
+ * integración de cien cuentas son cien consultas.
+ */
+export const descargarEstadosFinancierosExcel = async (mes: number, anio: number) => {
+  const r = await api.get(`${BASE}/financiero/estados-financieros/excel`, {
+    params: { mes, anio },
+    responseType: 'blob',
+  })
+  const url = URL.createObjectURL(new Blob([r.data], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `estados_financieros_${anio}_${String(mes).padStart(2, '0')}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ─── Declaración de ISO — Impuesto de Solidaridad (SAT-1608) ──────────────────
 
 export type DeclaracionIsoStatus = 'borrador' | 'poliza_generada' | 'presentada'

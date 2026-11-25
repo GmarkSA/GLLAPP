@@ -5,7 +5,7 @@ import { ArrowLeftOutlined, PrinterOutlined, DownloadOutlined } from '@ant-desig
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import {
-  getBalanceGeneral, getEstadoResultados,
+  getBalanceGeneral, getEstadoResultados, descargarEstadosFinancierosExcel,
   type BalanceGeneralData, type EstadoResultadosData, type AccountRow,
 } from '../../api/reportes'
 import { getDetalleIntegracion, type DetalleResult } from '../../api/integraciones'
@@ -237,7 +237,31 @@ export default function EstadosFinancierosPage() {
     return resultado
   }
 
+  /**
+   * La descarga: la arma el servidor.
+   *
+   * Allá está el logo de la empresa —vive en R2— y la integración de cada
+   * cuenta sale al lado de la base, no en cien viajes desde el navegador. Si
+   * el servidor no puede (una versión vieja, un 404), se cae a la versión que
+   * arma el navegador, que es la que había: una descarga que no baja es peor
+   * que una descarga sin portada.
+   */
   const exportarConIntegracion = async () => {
+    if (!bg && !er) return
+    setAvanceExcel({ hechas: 0, total: 0 })
+    try {
+      await descargarEstadosFinancierosExcel(mes, anio)
+      message.success('Listo: abre el signo + de cada cuenta para ver su integración')
+      return
+    } catch {
+      message.info('Armando la descarga desde el navegador…')
+    } finally {
+      setAvanceExcel(null)
+    }
+    await exportarConIntegracionLocal()
+  }
+
+  const exportarConIntegracionLocal = async () => {
     if (!bg && !er) return
     const conSaldo = (g?: { accounts: AccountRow[] }) =>
       (g?.accounts ?? []).filter(a => Number(a.balance) !== 0)
@@ -334,9 +358,11 @@ export default function EstadosFinancierosPage() {
         loading={!!avanceExcel}
         onClick={exportarConIntegracion}
       >
-        {avanceExcel
-          ? `Integrando ${avanceExcel.hechas}/${avanceExcel.total}…`
-          : 'Excel con integración'}
+        {!avanceExcel
+          ? 'Excel con integración'
+          : avanceExcel.total
+            ? `Integrando ${avanceExcel.hechas}/${avanceExcel.total}…`
+            : 'Preparando…'}
       </Button>
     </Space>
   )
