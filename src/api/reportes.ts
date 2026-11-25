@@ -46,6 +46,17 @@ export interface BalanceGeneralData {
    * la diferencia, casi siempre.
    */
   sinClasificar?: { accounts: AccountRow[]; total: number }
+  /**
+   * Los dos resultados que el capital tiene que llevar, y que no son cuentas
+   * del catálogo: viven en ingresos y gastos.
+   *
+   * El de ejercicios anteriores es todo lo acumulado hasta el 31 de diciembre
+   * pasado —cero si el cliente hizo asiento de cierre, porque entonces ya está
+   * en una cuenta de capital—. Sin estas dos líneas el capital no suma lo que
+   * dice su total.
+   */
+  resultadoEjerciciosAnteriores?: number
+  resultadoDelPeriodo?:           number
   netIncome:   number
   comparison?: any
 }

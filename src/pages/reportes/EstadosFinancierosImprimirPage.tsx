@@ -71,6 +71,14 @@ function Grand({ label, value }: { label: string; value: number }) {
   return <tr className="grand"><td /><td>{label}</td><td className="amt">{Q(value)}</td></tr>
 }
 
+/**
+ * Un renglón con cifra que no es una cuenta del catálogo: los resultados que
+ * el capital tiene que llevar y que viven en ingresos y gastos.
+ */
+function Linea({ label, value }: { label: string; value: number }) {
+  return <tr><td /><td>{label}</td><td className="amt">{Q(value)}</td></tr>
+}
+
 export default function EstadosFinancierosImprimirPage() {
   const { anio, mes } = useParams<{ anio: string; mes: string }>()
   const y = Number(anio); const m = Number(mes)
@@ -117,6 +125,8 @@ export default function EstadosFinancierosImprimirPage() {
               <Grand label="TOTAL ACTIVOS" value={bg.totalActivo} />
               <Grupo title="Pasivo" g={bg.pasivo} />
               <Grupo title="Capital" g={bg.capital} />
+              <Linea label="Resultado de Ejercicios Anteriores" value={bg.resultadoEjerciciosAnteriores ?? 0} />
+              <Linea label="Resultado del Período" value={bg.resultadoDelPeriodo ?? bg.netIncome ?? 0} />
               <Grand label="TOTAL PASIVO + CAPITAL" value={bg.totalPasivoCapital} />
             </tbody>
           </table>

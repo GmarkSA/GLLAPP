@@ -83,6 +83,18 @@ function Group({ title, accounts, total, selectedId, onSelect, color = '#6b7280'
   )
 }
 
+// ─── Línea de resultado (no es una cuenta del catálogo) ──────────────────────
+function LineaDeResultado({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 10px' }}>
+      <Text style={{ fontSize: 13 }}>{label}</Text>
+      <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>
+        {Q(value)}
+      </Text>
+    </div>
+  )
+}
+
 // ─── Fila de total mayor ─────────────────────────────────────────────────────
 function GrandTotal({ label, value }: { label: string; value: number }) {
   return (
@@ -172,6 +184,9 @@ export default function EstadosFinancierosPage() {
       r.push(['', 'TOTAL ACTIVOS', Number(bg.totalActivo)])
       pushGroup(r, 'Pasivo', bg.pasivo)
       pushGroup(r, 'Capital', bg.capital)
+      r.push(['', 'Resultado de Ejercicios Anteriores', Number(bg.resultadoEjerciciosAnteriores ?? 0)])
+      r.push(['', 'Resultado del Período', Number(bg.resultadoDelPeriodo ?? bg.netIncome)])
+      r.push(['', 'Total Capital', Number(bg.totalCapital)])
       r.push(['', 'TOTAL PASIVO + CAPITAL', Number(bg.totalPasivoCapital)])
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(r), 'Balance General')
     }
@@ -341,6 +356,20 @@ export default function EstadosFinancierosPage() {
           <GrandTotal label="TOTAL ACTIVOS" value={bg.totalActivo} />
           <Group title="Pasivo" accounts={fil(bg.pasivo.accounts)} total={bg.pasivo.total} selectedId={selId} onSelect={onSelectBalance} color="#b45309" />
           <Group title="Capital" accounts={fil(bg.capital.accounts)} total={bg.capital.total} selectedId={selId} onSelect={onSelectBalance} color="#7c3aed" />
+          {/*
+            Los dos resultados. No son cuentas del catálogo —viven en ingresos
+            y gastos—, pero el capital no suma su total sin ellos: el de los
+            años que no se cerraron era, exactamente, la diferencia que el
+            balance no cuadraba.
+          */}
+          <LineaDeResultado label="Resultado de Ejercicios Anteriores" value={bg.resultadoEjerciciosAnteriores ?? 0} />
+          <LineaDeResultado label="Resultado del Período" value={bg.resultadoDelPeriodo ?? bg.netIncome} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 10px', marginBottom: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>Total Capital</Text>
+            <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              {Q(bg.totalCapital)}
+            </Text>
+          </div>
           <GrandTotal label="TOTAL PASIVO + CAPITAL" value={bg.totalPasivoCapital} />
         </div>
       ),
