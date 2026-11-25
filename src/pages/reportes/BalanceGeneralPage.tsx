@@ -109,6 +109,13 @@ export function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralD
 
   rows.push(subhdr('sh-cap', 'Capital Contable', '#0a0a0a'))
   collect(d => d.capital.accounts).forEach(a => rows.push(acct(`acap-${a.id}`, a.id, a.code, a.name, aVals(d => d.capital.accounts, a.id), lastA(d => d.capital.accounts, a.id))))
+  /**
+   * Los dos resultados. El de ejercicios anteriores viene de las cuentas de
+   * ingresos y gastos de los años que no se cerraron: sin esa línea el
+   * capital no suma su total y el balance parecía descuadrado.
+   */
+  rows.push(acct('acap-ant', '', '', 'Resultado de Ejercicios Anteriores',
+    sVals(d => d.resultadoEjerciciosAnteriores ?? 0), last(d => d.resultadoEjerciciosAnteriores ?? 0)))
   rows.push(acct('acap-ni', '', '', 'Utilidad del Período', sVals(d => d.netIncome), last(d => d.netIncome)))
   rows.push(sub('sub-cap', 'Total Capital', last(d => d.totalCapital), sVals(d => d.totalCapital)))
 
@@ -414,7 +421,14 @@ export default function BalanceGeneralPage() {
                 </SectionCard>
                 <SectionCard title="Capital Contable" color="#2ea172" total={single.totalCapital}>
                   <AccountTable accounts={single.capital.accounts} total={single.capital.total} label="Capital" onDrilldown={openDrilldown} />
+                  {/* El resultado de los años que no se cerraron: sin esta línea el capital no suma su total. */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 16px', borderTop: '1px solid rgba(10,10,10,0.08)' }}>
+                    <Text style={{ fontSize: 12 }}>Resultado de Ejercicios Anteriores</Text>
+                    <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: accColor(single.resultadoEjerciciosAnteriores ?? 0) }}>
+                      {fmtQ(single.resultadoEjerciciosAnteriores ?? 0)}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 16px' }}>
                     <Text style={{ fontSize: 12 }}>Utilidad del Período</Text>
                     <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: accColor(single.netIncome) }}>{fmtQ(single.netIncome)}</Text>
                   </div>
