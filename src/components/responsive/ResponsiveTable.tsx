@@ -1,22 +1,38 @@
 import type { ReactNode, Key } from 'react'
 import { Table, Spin, Empty, Pagination } from 'antd'
 import type { TableProps, TablePaginationConfig } from 'antd'
-import { useIsMobile } from '../../hooks/useMediaQuery'
+import { useDispositivo } from '../../hooks/useMediaQuery'
 
-// Tabla que en desktop/tablet se comporta como <Table> de AntD, y en móvil (<992px)
-// renderiza cada fila como tarjeta (patrón Zoho Books). Si no se pasa `renderMobileCard`,
-// siempre usa la tabla normal (con su scroll horizontal).
+/**
+ * La tabla, en los tres tamaños de pantalla.
+ *
+ *  - Escritorio: la tabla de AntD tal cual.
+ *  - Tablet: la misma tabla, pero que se pueda correr de lado en vez de
+ *    apretar las columnas hasta que no se lea nada. Una tabla de 810px se
+ *    lee mejor desplazándose que convertida en una pila de tarjetas.
+ *  - Teléfono: cada fila es una tarjeta (patrón Zoho Books).
+ *
+ * Sin `renderMobileCard` se usa siempre la tabla: una pantalla que todavía
+ * no tiene su tarjeta sigue funcionando, solo que apretada.
+ */
 export interface ResponsiveTableProps<T> extends TableProps<T> {
   renderMobileCard?: (record: T, index: number) => ReactNode
   mobileEmptyText?: ReactNode
 }
 
 export default function ResponsiveTable<T extends object = any>(props: ResponsiveTableProps<T>) {
-  const isMobile = useIsMobile()
+  const dispositivo = useDispositivo()
   const { renderMobileCard, mobileEmptyText, dataSource, loading, rowKey, pagination, ...rest } = props
 
-  if (!isMobile || !renderMobileCard) {
-    return <Table<T> {...props} />
+  if (dispositivo !== 'telefono' || !renderMobileCard) {
+    /**
+     * En tablet la tabla se corre de lado en lugar de apretarse. Si quien la
+     * usa ya definió su propio `scroll`, manda el suyo.
+     */
+    const scroll = dispositivo === 'tablet'
+      ? { x: 'max-content' as const, ...(props.scroll ?? {}) }
+      : props.scroll
+    return <Table<T> {...props} scroll={scroll} />
   }
   void rest
 
