@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import { ControlOutlined, DeleteOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import AccountSelect from '../../components/AccountSelect'
 import { useCompanyStore } from '../../store/companyStore'
@@ -246,7 +248,7 @@ export default function ReglasBancariasPage() {
       </div>
 
       <Card size="small" style={panelStyle} bodyStyle={{ padding: 0 }}>
-        <Table<BankRule>
+        <ResponsiveTable<BankRule>
           columns={columns}
           dataSource={rules}
           rowKey="id"
@@ -255,6 +257,40 @@ export default function ReglasBancariasPage() {
           scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
           sticky={{ offsetHeader: 60 }}
           pagination={{ pageSize: 50, showTotal: t => `${t} registros` }}
+          mobileEmptyText="Sin reglas registradas"
+          renderMobileCard={row => (
+            <MobileCard
+              chevron={false}
+              title={row.name}
+              subtitle={
+                <span>
+                  {accountName(row.bankAccountId)}
+                  <br />
+                  {row.applyTo === 'credit' ? 'Ingresos' : row.applyTo === 'debit' ? 'Egresos' : 'Todos'}
+                  {' · '}
+                  {row.action?.accountCode || row.action?.accountName || 'Sin cuenta asignada'}
+                </span>
+              }
+              status={<Tag color={row.isActive ? '#2ea172' : 'default'}>{row.isActive ? 'Activa' : 'Inactiva'}</Tag>}
+              amountSub={`Aplicada ${row.timesApplied ?? 0} veces`}
+              extra={
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <Space wrap size={4}>
+                    {(row.conditions || []).map((c, i) => (
+                      <Tag key={i} style={{ marginInlineEnd: 0 }}>{c.field} {c.operator} {String(c.value)}</Tag>
+                    ))}
+                  </Space>
+                  <Space>
+                    <Button size="small" icon={<PlayCircleOutlined />} onClick={() => handleApply(row.id)}>Aplicar</Button>
+                    <Popconfirm title="Eliminar regla" okText="Eliminar" cancelText="Cancelar"
+                      onConfirm={async () => { await deleteBankRule(row.id); await load() }}>
+                      <Button size="small" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  </Space>
+                </div>
+              }
+            />
+          )}
         />
       </Card>
 

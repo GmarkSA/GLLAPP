@@ -22,6 +22,8 @@ import {
   Spin,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import { SwapOutlined,
   ArrowLeftOutlined,
   BulbOutlined,
@@ -1556,7 +1558,7 @@ export default function TransaccionesPage() {
       </Card>
 
       <Card size="small" style={panelStyle} bodyStyle={{ padding: 0 }}>
-        <Table<BankTransaction>
+        <ResponsiveTable<BankTransaction>
           columns={columns}
           dataSource={transactions}
           rowKey="id"
@@ -1565,6 +1567,48 @@ export default function TransaccionesPage() {
           showSorterTooltip={false}
           scroll={{ x: 'max-content', y: 'calc(100vh - 412px)' }}
           pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
+          mobileEmptyText="Sin movimientos"
+          renderMobileCard={row => {
+            const cfgEstado = TRANSACTION_STATUS_CONFIG[row.status as TransactionStatus]
+              || TRANSACTION_STATUS_CONFIG.pending
+            const esIngreso = row.type === 'credit'
+            /**
+             * En el teléfono la fila no tiene lugar para la botonera, así que
+             * el toque hace la acción que corresponde al estado: lo que está
+             * sin categorizar se categoriza, lo ya contabilizado abre su
+             * póliza. Las demás acciones siguen estando en la tabla.
+             */
+            const alTocar = row.status === 'categorized' || row.status === 'reconciled'
+              ? () => { setPolizaTx(row); setPolizaJeId(row.matchedJournalEntryId || SIN_POLIZA) }
+              : () => setCategorizarTx(row)
+            return (
+              <MobileCard
+                onClick={alTocar}
+                title={row.description}
+                subtitle={
+                  <span>
+                    {fmtDate(row.transactionDate)}
+                    {row.reference ? ` · Ref. ${row.reference}` : ''}
+                    {row.status === 'matched' && (
+                      <>
+                        <br />
+                        {row.rawData?.matchLabel ?? 'Coincidencia detectada'}
+                      </>
+                    )}
+                  </span>
+                }
+                amount={
+                  <span style={{ color: esIngreso ? '#2ea172' : '#e5484d' }}>
+                    {esIngreso ? '+ ' : '- '}{moneyFmt(Number(row.amount), account?.currency)}
+                  </span>
+                }
+                status={<Tag color={cfgEstado.color}>{cfgEstado.label}</Tag>}
+                amountSub={row.runningBalance == null
+                  ? undefined
+                  : `Saldo ${moneyFmt(Number(row.runningBalance), account?.currency)}`}
+              />
+            )
+          }}
         />
       </Card>
 

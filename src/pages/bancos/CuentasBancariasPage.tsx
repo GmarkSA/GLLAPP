@@ -19,6 +19,8 @@ import {
   Badge,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import {
   ApartmentOutlined,
   BankOutlined,
@@ -366,7 +368,7 @@ export default function CuentasBancariasPage() {
       </Card>
 
       <Card size="small" style={panelStyle} bodyStyle={{ padding: 0 }}>
-        <Table<BankAccount>
+        <ResponsiveTable<BankAccount>
           columns={columns}
           dataSource={filteredAccounts}
           rowKey="id"
@@ -376,6 +378,28 @@ export default function CuentasBancariasPage() {
           scroll={{ x: 'max-content', y: 'calc(100vh - 352px)' }}
           pagination={{ pageSize: 50, showTotal: t => `${t} registros` }}
           locale={{ emptyText: <Empty description="Sin cuentas bancarias" /> }}
+          mobileEmptyText="Sin cuentas bancarias"
+          renderMobileCard={row => (
+            <MobileCard
+              onClick={() => navigate(`/bancos/${row.id}`)}
+              title={row.name}
+              subtitle={
+                <span>
+                  {row.bankName || 'Banco no indicado'}
+                  {row.accountNumber ? ` · ****${row.accountNumber.slice(-4)}` : ''}
+                  <br />
+                  {ACCOUNT_TYPE_CONFIG[row.type]?.label ?? row.type} · {row.currency}
+                </span>
+              }
+              amount={moneyFmt(Number(row.currentBalance ?? 0), row.currency)}
+              amountSub={
+                row.bankBalance == null
+                  ? 'Saldo banco pendiente'
+                  : `Banco ${moneyFmt(Number(row.bankBalance), row.currency)}`
+              }
+              status={row.status !== 'active' ? <Tag color="default">Inactiva</Tag> : null}
+            />
+          )}
         />
       </Card>
 
