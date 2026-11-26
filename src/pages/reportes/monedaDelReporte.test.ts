@@ -1,7 +1,60 @@
 import { describe, it, expect } from 'vitest'
 import {
-  enDolares, filasEnDolares, mesesSinTasa, fmtMonto,
+  enDolares, filasEnDolares, mesesSinTasa, fmtMonto, quetzalesPorDolar,
 } from './monedaDelReporte'
+
+/**
+ * De qué lado viene la tasa.
+ *
+ * Esto es lo que hizo que al pasar a dólares las cifras SUBIERAN: con base
+ * GTQ el servidor guarda el par GTQ→USD como dólares por quetzal (0.1299),
+ * no como quetzales por dólar (7.70). Dividir entre 0.1299 multiplica por
+ * 7.70 — justo al revés de lo que se quería.
+ */
+describe('cuántos quetzales cuesta un dólar', () => {
+  it('con base GTQ, el servidor manda dólares por quetzal y se invierte', () => {
+    expect(quetzalesPorDolar({
+      rate: 0.12987013, baseCurrencyCode: 'GTQ', targetCurrencyCode: 'USD',
+    })).toBeCloseTo(7.7, 4)
+  })
+
+  it('con base USD, ya viene como quetzales por dólar', () => {
+    expect(quetzalesPorDolar({
+      rate: 7.7, baseCurrencyCode: 'USD', targetCurrencyCode: 'GTQ',
+    })).toBeCloseTo(7.7, 6)
+  })
+
+  /** Cuando viene la de Banguat, no hay nada que adivinar. */
+  it('la tasa oficial de Banguat manda sobre el par', () => {
+    expect(quetzalesPorDolar({
+      rate: 0.12987013, officialRate: 7.70123,
+      baseCurrencyCode: 'GTQ', targetCurrencyCode: 'USD',
+    })).toBeCloseTo(7.70123, 5)
+  })
+
+  /** Último recurso, para tasas cargadas a mano sin par: el quetzal nunca
+   *  ha valido más que el dólar. */
+  it('sin par, una tasa menor que uno solo puede ser dólares por quetzal', () => {
+    expect(quetzalesPorDolar({ rate: 0.1299 })).toBeCloseTo(7.698, 2)
+    expect(quetzalesPorDolar({ rate: 7.7 })).toBeCloseTo(7.7, 6)
+  })
+
+  it('una tasa que no sirve no se convierte', () => {
+    expect(quetzalesPorDolar(null)).toBeNull()
+    expect(quetzalesPorDolar({ rate: 0 })).toBeNull()
+    expect(quetzalesPorDolar({ rate: -7.7 })).toBeNull()
+    expect(quetzalesPorDolar({})).toBeNull()
+  })
+
+  /** Y el resultado, puesto a trabajar: Q7,700 son US$1,000, no US$59,290. */
+  it('el saldo en dólares BAJA, no sube', () => {
+    const tasa = quetzalesPorDolar({
+      rate: 0.12987013, baseCurrencyCode: 'GTQ', targetCurrencyCode: 'USD',
+    })
+    expect(enDolares(7_700, tasa)).toBeCloseTo(1_000, 2)
+    expect(enDolares(7_700, tasa)!).toBeLessThan(7_700)
+  })
+})
 
 /**
  * Ver los estados financieros en dólares.

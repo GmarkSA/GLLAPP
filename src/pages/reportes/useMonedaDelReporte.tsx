@@ -3,7 +3,7 @@ import { Segmented, Tooltip, Typography } from 'antd'
 import { getExchangeRateForDate } from '../../api/monedas'
 import type { MonthRange } from '../../utils/reportMonthly'
 import {
-  enDolares, filasEnDolares, fmtMonto, mesesSinTasa,
+  enDolares, filasEnDolares, fmtMonto, mesesSinTasa, quetzalesPorDolar,
   type ClaseDeTotal, type MonedaDelReporte,
 } from './monedaDelReporte'
 
@@ -37,9 +37,10 @@ export function useMonedaDelReporte(meses: MonthRange[], claseDeTotal: ClaseDeTo
     setCargando(true)
     Promise.all(faltan.map(async m => {
       try {
-        const r = await getExchangeRateForDate('USD', m.to)
-        const tasa = Number(r?.rate)
-        return Number.isFinite(tasa) && tasa > 0 ? [m.yearMonth, tasa] as const : null
+        // El endpoint devuelve la tasa en el sentido que le toque al par de
+        // la empresa; aquí se guarda siempre como quetzales por dólar.
+        const tasa = quetzalesPorDolar(await getExchangeRateForDate('USD', m.to))
+        return tasa ? [m.yearMonth, tasa] as const : null
       } catch {
         // Un mes sin tipo de cambio se avisa en pantalla; no tumba el reporte.
         return null
@@ -91,10 +92,7 @@ export function useMonedaDeUnCorte(fecha: string) {
     let vivo = true
     setCargando(true)
     getExchangeRateForDate('USD', fecha)
-      .then(r => {
-        const t = Number(r?.rate)
-        if (vivo) setTasa(Number.isFinite(t) && t > 0 ? t : null)
-      })
+      .then(r => { if (vivo) setTasa(quetzalesPorDolar(r)) })
       .catch(() => { if (vivo) setTasa(null) })
       .finally(() => { if (vivo) setCargando(false) })
     return () => { vivo = false }
