@@ -41,7 +41,13 @@ vi.mock('../../../store/companyStore', () => ({
     selector({ activeCompany: { id: 'c-1', legalName: 'LUUM, SOCIEDAD ANONIMA', taxId: '96639687' } }),
 }))
 vi.mock('../../../auth/can', () => ({ useCan: () => () => true }))
-vi.mock('../../../hooks/useMediaQuery', () => ({ useIsMobile: () => false }))
+// La bandeja se prueba en escritorio: tabla completa, sin tarjetas.
+vi.mock('../../../hooks/useMediaQuery', () => ({
+  useIsMobile:       () => false,
+  useTarjetas:       () => false,
+  useMenuColapsable: () => false,
+  useDispositivo:    () => 'escritorio',
+}))
 vi.mock('../../../components/DocumentLink', () => ({ default: () => null }))
 vi.mock('../../../api/companies', () => ({
   companiesApi: { getSettings: vi.fn(async () => ({ settingsJson: { satNit: '96639687' } })) },

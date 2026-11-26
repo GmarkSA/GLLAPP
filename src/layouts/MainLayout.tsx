@@ -14,7 +14,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import { useVersionCheck } from '../hooks/useVersionCheck'
-import { useIsMobile } from '../hooks/useMediaQuery'
+import { useMenuColapsable } from '../hooks/useMediaQuery'
 import { useCompanyStore } from '../store/companyStore'
 import type { Company } from '../store/authStore'
 import CompanySelector from '../components/CompanySelector'
@@ -225,7 +225,12 @@ const pageVariants = {
 }
 
 export default function MainLayout() {
-  const isMobile = useIsMobile()
+  /**
+   * El menú deja de estar fijo en teléfono Y en tablet: hasta 1024 el ancho
+   * se necesita para el contenido. Antes el corte era 991, así que una
+   * tablet de 1024 se quedaba con el menú fijo comiéndose el espacio.
+   */
+  const isMobile = useMenuColapsable()
   const [collapsed,      setCollapsed]      = useState(true)
   const [mobileOpen,     setMobileOpen]     = useState(false)   // sidebar off-canvas en móvil/tablet
   const [searchOpen,     setSearchOpen]     = useState(false)
