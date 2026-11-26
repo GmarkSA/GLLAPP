@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Empty, Input, InputNumber, Modal, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import { ArrowLeftOutlined, CheckCircleOutlined, HistoryOutlined, MailOutlined, PrinterOutlined, ReloadOutlined, RobotOutlined, RollbackOutlined, SearchOutlined, SendOutlined, SyncOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -676,7 +678,14 @@ export default function ConciliacionPage() {
 
       <Card size="small" style={panelStyle} styles={{ body: { padding: 0 } }}>
         {isSessionMode ? (
-          <Table<BankTransaction>
+          /**
+           * El modo sesión se queda como tabla también en el teléfono: ahí se
+           * marcan varios movimientos con la casilla para conciliarlos en
+           * lote, y una pila de tarjetas no tiene dónde poner esa casilla.
+           * Se corre de lado, que es peor que una tarjeta pero no quita lo
+           * que ya funciona.
+           */
+          <ResponsiveTable<BankTransaction>
             columns={sessionColumns}
             dataSource={sessionRows}
             rowKey="id"
@@ -689,7 +698,7 @@ export default function ConciliacionPage() {
             rowClassName={row => row.status === 'reconciled' ? 'tx-reconciled-row' : ''}
           />
         ) : (
-          <Table<BankTransaction>
+          <ResponsiveTable<BankTransaction>
             columns={columns}
             dataSource={rows}
             rowKey="id"
@@ -698,6 +707,38 @@ export default function ConciliacionPage() {
             scroll={{ x: 'max-content', y: 'calc(100vh - 432px)' }}
             pagination={{ current: page, pageSize: 50, total, showTotal: t => `${t} registros`, onChange: setPage }}
             locale={{ emptyText: <Empty description="Sin movimientos en este estado" /> }}
+            mobileEmptyText="Sin movimientos en este estado"
+            renderMobileCard={row => {
+              const cfgEstado = TRANSACTION_STATUS_CONFIG[row.status as TransactionStatus]
+                || TRANSACTION_STATUS_CONFIG.pending
+              const esIngreso = row.type === 'credit'
+              const tieneCoincidencia = !!(row.matchedPaymentId || row.matchedInvoiceId || row.matchedJournalEntryId)
+              return (
+                <MobileCard
+                  chevron={false}
+                  title={row.description}
+                  subtitle={
+                    <span>
+                      {dayjs(row.transactionDate).format('DD/MM/YYYY')}
+                      {row.reference ? ` · Ref. ${row.reference}` : ''}
+                      <br />
+                      {tieneCoincidencia ? 'Coincidencia detectada' : 'Sin coincidencia'}
+                    </span>
+                  }
+                  amount={
+                    <span style={{ color: esIngreso ? '#2ea172' : '#e5484d' }}>
+                      {moneyFmt(Number(row.amount), account?.currency)}
+                    </span>
+                  }
+                  status={<Tag color={cfgEstado.color}>{cfgEstado.label}</Tag>}
+                  extra={row.status === 'reconciled'
+                    ? <Button size="small" danger block icon={<RollbackOutlined />} onClick={() => handleUnreconcile(row)}>Desconciliar</Button>
+                    : row.status === 'categorized'
+                      ? <Button size="small" block icon={<RollbackOutlined />} onClick={() => handleUnreconcile(row)}>Marcar pendiente</Button>
+                      : <Button size="small" type="primary" block icon={<CheckCircleOutlined />} style={{ background: NAVY }} onClick={() => handleReconcile(row)}>Conciliar</Button>}
+                />
+              )
+            }}
           />
         )}
       </Card>
