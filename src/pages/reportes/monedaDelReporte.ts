@@ -42,6 +42,61 @@ export type TasaDelMes = (yearMonth: string) => number | null;
 /** La columna del total, que todos los reportes mensualizados comparten. */
 export const COLUMNA_TOTAL = '_total';
 
+/** Lo que devuelve el endpoint de tipo de cambio, en cualquiera de los dos sentidos. */
+export interface TasaDelServidor {
+  rate?:               number | null
+  /** La tasa de Banguat tal cual: quetzales por dólar. */
+  officialRate?:       number | null
+  baseCurrencyCode?:   string | null
+  targetCurrencyCode?: string | null
+}
+
+/**
+ * Cuántos quetzales cuesta un dólar, salga como salga del servidor.
+ *
+ * El sentido de la tasa depende de cuál sea la moneda base del cliente, y no
+ * hay que adivinarlo: es el mismo que muestra Configuración › Tipos de
+ * cambio, donde las dos columnas están rotuladas «Conversión GTQ → USD»
+ * —dólares por quetzal, 0.1299— y «Oficial Banguat (1 USD = GTQ)» —7.70—.
+ *
+ * Con base GTQ el par GTQ→USD se guarda como DÓLARES POR QUETZAL; con base
+ * USD, el par USD→GTQ se guarda como quetzales por dólar. Tomar el número
+ * sin mirar el par es lo que hacía que al pasar a dólares las cifras
+ * SUBIERAN en vez de bajar.
+ *
+ * Se prefiere `officialRate` cuando viene: es la de Banguat tal cual, la que
+ * cita el contador, sin sentido que interpretar. Si no, se orienta por el par.
+ */
+export function quetzalesPorDolar(tasa: TasaDelServidor | null | undefined): number | null {
+  if (!tasa) return null;
+
+  const util = (n: unknown): number | null => {
+    const v = Number(n);
+    return Number.isFinite(v) && v > 0 ? v : null;
+  };
+
+  const oficial = util(tasa.officialRate);
+  if (oficial) return oficial;
+
+  const valor = util(tasa.rate);
+  if (!valor) return null;
+
+  const base   = String(tasa.baseCurrencyCode ?? '').toUpperCase();
+  const objeto = String(tasa.targetCurrencyCode ?? '').toUpperCase();
+
+  // GTQ → USD: el número son dólares por quetzal; se invierte.
+  if (base === 'GTQ' && objeto === 'USD') return 1 / valor;
+  // USD → GTQ: ya son quetzales por dólar.
+  if (base === 'USD' && objeto === 'GTQ') return valor;
+
+  /**
+   * Sin par que mirar, se decide por el tamaño: una tasa menor que uno solo
+   * puede ser dólares por quetzal —el quetzal nunca ha valido más que el
+   * dólar—. Es el último recurso, para tasas cargadas a mano sin par.
+   */
+  return valor < 1 ? 1 / valor : valor;
+}
+
 /**
  * Pasa un monto en quetzales a dólares.
  *
