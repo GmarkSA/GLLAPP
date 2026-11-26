@@ -20,6 +20,8 @@ import { getAsiento } from '../../../api/asientos'
 import { useCan } from '../../../auth/can'
 import MontoDual from '../../../components/Moneda/MontoDual'
 import { fmtMoneda as fmtQ } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Text, Title } = Typography
 
@@ -395,7 +397,7 @@ export default function PagosRealizadosPage() {
         bodyStyle={{ padding: 0 }}
       >
         <div className="pagos-table">
-          <Table
+          <ResponsiveTable
             columns={columns}
             dataSource={filteredData}
             rowKey="id"
@@ -403,6 +405,21 @@ export default function PagosRealizadosPage() {
             size="middle"
             showSorterTooltip={false}
             scroll={{ x: 1200, y: 'calc(100vh - 330px)' }}
+            mobileEmptyText="Sin pagos realizados"
+            renderMobileCard={(r: any) => (
+              <MobileCard
+                title={r.vendorName}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.paymentNumber}{r.paymentDate ? ` · ${dayjs(r.paymentDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                amount={fmtQ(r.amount, r.currency)}
+                amountSub={r.checkNumber ? `Cheque ${r.checkNumber}` : undefined}
+                status={<Tag color={STATUS_COLOR[r.status] ?? 'default'}>{STATUS_LABEL[r.status] ?? r.status}</Tag>}
+                chevron={false}
+              />
+            )}
             rowClassName={(r) => r.status === 'voided' ? 'row-void' : ''}
             rowSelection={{
               type: 'checkbox',

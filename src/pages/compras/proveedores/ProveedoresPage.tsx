@@ -18,6 +18,8 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
 import { esLocal, fmtQ } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import CargaMasivaContactos from '../../../components/CargaMasiva/CargaMasivaContactos'
 
 const { Title, Text } = Typography
@@ -429,7 +431,7 @@ export default function ProveedoresPage() {
 
       {/* Tabla */}
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={filteredVendors}
           rowKey="id"
@@ -438,6 +440,17 @@ export default function ProveedoresPage() {
           showSorterTooltip={false}
           scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/proveedores/${r.id}`) })}
+          mobileEmptyText="Sin proveedores"
+          renderMobileCard={(r: any) => (
+            <MobileCard
+              title={r.name}
+              subtitle={[r.vendorNumber, r.taxId ? `NIT ${r.taxId}` : null].filter(Boolean).join(' · ')}
+              amount={Number(r.balance ?? 0) > 0 ? fmtQ(r.balance) : undefined}
+              amountSub={Number(r.balance ?? 0) > 0 ? 'Por pagar' : undefined}
+              status={r.isActive === false ? <Tag>Inactivo</Tag> : undefined}
+              onClick={() => navigate(`/compras/proveedores/${r.id}`)}
+            />
+          )}
           pagination={{
             total,
             current: page,

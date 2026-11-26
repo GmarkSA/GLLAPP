@@ -17,6 +17,8 @@ import {
 } from '../../../api/compras'
 import { useCan } from '../../../auth/can'
 import { fmtQ } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 
@@ -265,7 +267,7 @@ export default function NotasCreditoProveedorPage() {
         style={{ borderRadius: '0 0 10px 10px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: 0 }}
       >
-        <Table
+        <ResponsiveTable
           columns={columns}
           dataSource={filteredData}
           rowKey="id"
@@ -274,6 +276,23 @@ export default function NotasCreditoProveedorPage() {
           showSorterTooltip={false}
           scroll={{ x: 1050, y: 'calc(100vh - 312px)' }}
           onRow={r => ({ onDoubleClick: () => navigate(`/compras/notas-credito-proveedor/${r.id}`) })}
+          mobileEmptyText="Sin notas de crédito"
+          renderMobileCard={(r: any) => {
+            const cfg = BILL_STATUS_CONFIG[r.status as BillStatus]
+            return (
+              <MobileCard
+                title={r.vendorName}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.invoiceNumber}{r.invoiceDate ? ` · ${dayjs(r.invoiceDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                amount={fmtQ(Number(r.total) * Number(r.exchangeRate ?? 1))}
+                status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : undefined}
+                onClick={() => navigate(`/compras/notas-credito-proveedor/${r.id}`)}
+              />
+            )
+          }}
           rowClassName={r => r.status === 'voided' ? 'row-void' : ''}
           pagination={{
             total,
