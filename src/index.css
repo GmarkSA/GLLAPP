@@ -263,3 +263,44 @@ body {
   /* Una sección no se parte entre dos hojas. */
   #formulario-2237 tr { break-inside: avoid; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Teléfono: que el encabezado de cada pantalla baje en vez de aplastarse.
+ *
+ * El encabezado de una pantalla es una fila con el título a la izquierda y
+ * los botones a la derecha, repetida en más de cien pantallas con el estilo
+ * escrito en línea. En un teléfono los botones no caben, y como Ant Design
+ * le pone `word-break: break-word` a los títulos, el bloque del título se
+ * encogía hasta un solo carácter: «Clientes» salía en vertical, una letra
+ * por renglón.
+ *
+ * Dos reglas, y no hacen falta más:
+ *
+ *  1. Las filas que reparten espacio —las que llevan `space-between`—
+ *     envuelven: los botones bajan debajo del título en vez de robarle el
+ *     ancho. Solo se declara `flex-wrap`, que ningún estilo en línea fija,
+ *     así que no pelea con nada.
+ *  2. Los títulos se parten por palabra, nunca por letra. Con eso el bloque
+ *     nunca puede medir menos que su palabra más larga.
+ * ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  [style*="space-between"] {
+    flex-wrap: wrap;
+  }
+
+  .ant-typography,
+  h1.ant-typography, h2.ant-typography, h3.ant-typography,
+  h4.ant-typography, h5.ant-typography {
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  /*
+   * Y el margen de la pantalla no se cuenta dos veces: el marco ya deja 12px
+   * a cada lado en teléfono, y encima varias pantallas agregan 24 propios.
+   * De 375px de ancho se iban 72 en aire.
+   */
+  .ant-layout-content > div[style*="padding: 24px"] {
+    padding: 12px !important;
+  }
+}
