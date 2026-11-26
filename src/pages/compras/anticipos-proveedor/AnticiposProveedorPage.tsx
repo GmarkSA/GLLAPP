@@ -148,8 +148,20 @@ export default function AnticiposProveedorPage() {
     if (!applying || !selectedBill) return
     setApplyLoading(true)
     try {
-      await applyVendorAdvanceToBill(applying.id, selectedBill, undefined, applyDate)
+      /**
+       * El monto que la pantalla PROMETE arriba: lo que alcance el anticipo.
+       *
+       * Antes se mandaba la orden sin monto y el servidor tomaba el saldo
+       * completo de la factura, así que un anticipo de Q1,125 contra una
+       * factura de Q1,662.72 se rechazaba —«supera el saldo del anticipo»—
+       * aunque el cuadro verde ofreciera aplicar los Q1,125.
+       */
       const bill = openBills.find(b => b.id === selectedBill)
+      const aAplicar = Math.min(
+        Number(applying.balance ?? 0),
+        Number(bill?.balance ?? 0),
+      )
+      await applyVendorAdvanceToBill(applying.id, selectedBill, aAplicar, applyDate)
       message.success(`Anticipo ${applying.advanceNumber} aplicado a ${bill?.invoiceNumber ?? 'factura'}`)
       setApplying(null)
       load()
