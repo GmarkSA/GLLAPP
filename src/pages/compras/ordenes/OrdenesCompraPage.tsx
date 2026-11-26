@@ -21,6 +21,8 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
 import { fmtMoneda } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import MontoDual from '../../../components/Moneda/MontoDual'
 
 const { Title, Text } = Typography
@@ -318,7 +320,7 @@ export default function OrdenesCompraPage() {
 
       {/* Table */}
       <Card bordered={false} style={{ borderRadius: '0 0 10px 10px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={orders}
           rowKey="id"
@@ -326,6 +328,23 @@ export default function OrdenesCompraPage() {
           size="middle"
           scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/compras/ordenes/${r.id}`) })}
+          mobileEmptyText="Sin órdenes de compra"
+          renderMobileCard={(r: PurchaseOrder) => {
+            const cfg = PO_STATUS_CONFIG[r.status as POStatus]
+            return (
+              <MobileCard
+                title={r.vendorName}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.orderNumber}{r.orderDate ? ` · ${dayjs(r.orderDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                amount={fmtMoneda(r.total, r.currency)}
+                status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : undefined}
+                onClick={() => navigate(`/compras/ordenes/${r.id}`)}
+              />
+            )
+          }}
           pagination={{
             total,
             current: page,

@@ -20,6 +20,8 @@ import AnticipoDeAperturaModal from '../../../components/SaldoInicial/AnticipoDe
 import { useCan } from '../../../auth/can'
 import MontoDual from '../../../components/Moneda/MontoDual'
 import { esLocal, fmtMoneda as fmtQ, fmtQ as fmtQuetzales, enQuetzales } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Text, Title } = Typography
 
@@ -312,7 +314,7 @@ export default function AnticiposProveedorPage() {
         style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: 0 }}
       >
-        <Table
+        <ResponsiveTable
           columns={columns}
           dataSource={data}
           rowKey="id"
@@ -320,6 +322,24 @@ export default function AnticiposProveedorPage() {
           size="middle"
           scroll={{ x: 900, y: 'calc(100vh - 330px)' }}
           rowClassName={(r) => r.status === 'voided' ? 'row-void' : ''}
+          mobileEmptyText="Sin anticipos registrados"
+          renderMobileCard={(r: any) => (
+            <MobileCard
+              title={r.vendorName}
+              subtitle={
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {r.advanceNumber}{r.advanceDate ? ` · ${dayjs(r.advanceDate).format('DD/MM/YYYY')}` : ''}
+                </span>
+              }
+              amount={fmtQ(r.amount, r.currency)}
+              amountSub={[
+                esLocal(r.currency) ? null : fmtQuetzales(enQuetzales(r.amount, r)),
+                `Saldo ${fmtQ(r.balance, r.currency)}`,
+              ].filter(Boolean).join(' · ')}
+              status={<Tag color={STATUS_COLOR[r.status] ?? 'default'}>{STATUS_LABEL[r.status] ?? r.status}</Tag>}
+              chevron={false}
+            />
+          )}
           pagination={{
             total,
             current: page,
