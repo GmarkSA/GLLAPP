@@ -438,7 +438,7 @@ export default function AnticiposClientesPage() {
               `Disponible ${fmtMoneda(r.balance, r.currency)}`,
             ].filter(Boolean).join(' · ')}
             status={<Tag color={STATUS_COLOR[r.status] ?? 'default'}>{STATUS_LABEL[r.status] ?? r.status}</Tag>}
-            chevron={false}
+            onClick={() => openPoliza(r)}
           />
         )}
       />

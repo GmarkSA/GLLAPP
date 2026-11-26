@@ -147,6 +147,17 @@ export default function AnticiposProveedorPage() {
     finally { setLoadingBills(false) }
   }
 
+  /** Abre la ficha del anticipo con todas sus pólizas. */
+  const verPolizas = (r: VendorAdvance) => {
+    setDetail(r)
+    setPolizas([])
+    setJeLoading(true)
+    getVendorAdvanceJournals(r.id)
+      .then(setPolizas)
+      .catch(() => setPolizas([]))
+      .finally(() => setJeLoading(false))
+  }
+
   const handleApply = async () => {
     if (!applying || !selectedBill) return
     setApplyLoading(true)
@@ -207,15 +218,7 @@ export default function AnticiposProveedorPage() {
       render: (_, r) => (
         <Space size={4}>
           <Tooltip title="Ver póliza">
-            <Button size="small" icon={<BookOutlined />} onClick={() => {
-              setDetail(r)
-              setPolizas([])
-              setJeLoading(true)
-              getVendorAdvanceJournals(r.id)
-                .then(setPolizas)
-                .catch(() => setPolizas([]))
-                .finally(() => setJeLoading(false))
-            }} />
+            <Button size="small" icon={<BookOutlined />} onClick={() => verPolizas(r)} />
           </Tooltip>
           {r.status !== 'voided' && r.status !== 'applied' && can('compras:facturas:update') && (
             <Tooltip title="Aplicar a factura de compra">
@@ -337,7 +340,7 @@ export default function AnticiposProveedorPage() {
                 `Saldo ${fmtQ(r.balance, r.currency)}`,
               ].filter(Boolean).join(' · ')}
               status={<Tag color={STATUS_COLOR[r.status] ?? 'default'}>{STATUS_LABEL[r.status] ?? r.status}</Tag>}
-              chevron={false}
+              onClick={() => verPolizas(r)}
             />
           )}
           pagination={{
