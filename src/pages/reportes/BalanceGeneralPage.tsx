@@ -7,6 +7,8 @@ import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getBalanceGeneral, type BalanceGeneralData, type AccountRow } from '../../api/reportes'
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
+import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
+import type { MonedaDelReporte } from './monedaDelReporte'
 
 const { Text, Title } = Typography
 
@@ -151,7 +153,13 @@ export function buildBGRows(md: Array<{ month: MonthRange; data: BalanceGeneralD
   return rows.filter(r => r._kind !== 'acct' || r._total !== 0 || nonZeroMonths(r))
 }
 
-function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: BalanceGeneralData | null }>; loading: boolean }) {
+function MonthlyBGTable({ monthData, loading, enMoneda, moneda }: {
+  monthData: Array<{ month: MonthRange; data: BalanceGeneralData | null }>
+  loading:   boolean
+  /** Las filas en la moneda que se esté viendo. */
+  enMoneda:  <T extends Record<string, any>>(filas: T[]) => T[]
+  moneda:    MonedaDelReporte
+}) {
   const months = monthData.map(m => m.month)
   const n      = months.length
   const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
@@ -159,7 +167,7 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
   const cfg  = getColConfig(n)
-  const rows = buildBGRows(monthData)
+  const rows = enMoneda(buildBGRows(monthData))
 
   const rowBg: Record<BGKind, string | undefined> = {
     hdr:    '#fafbfc',
@@ -214,9 +222,10 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
     })),
     {
       key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
-      title: <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>Actual</div>,
-      render: (v: number, row) => {
+      title: <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>Acumulado</div>,
+      render: (v: number | null, row) => {
         if (row._kind === 'hdr' || row._kind === 'subhdr') return null
+        if (v == null) return <span style={{ color: '#9aa1ab' }}>—</span>
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#e5484d' : '#374151') : (v < 0 ? '#e5484d' : undefined)
         const content = <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
@@ -227,6 +236,11 @@ function MonthlyBGTable({ monthData, loading }: { monthData: Array<{ month: Mont
 
   return (
     <>
+      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+        {moneda === 'USD'
+          ? 'Cifras en dólares — cada mes convertido al tipo de cambio de su fin de mes'
+          : 'Cifras en quetzales'}
+      </Text>
       <Spin spinning={loading}>
         <Table
           size="small"
@@ -287,6 +301,10 @@ export default function BalanceGeneralPage() {
       .finally(() => setMLoading(false))
   }, [from, to, isMonthly])
 
+  /** El balance es una foto: su total se convierte con la tasa del corte. */
+  const { moneda, setMoneda, enMoneda, cargando, sinTasa } =
+    useMonedaDelReporte(monthly.map(m => m.month), 'saldoFinal')
+
   const openDrilldown = (id: string, name: string) =>
     setDrilldown({ accountId: id, accountName: name, fromDate: from, toDate: to })
 
@@ -305,16 +323,18 @@ export default function BalanceGeneralPage() {
       onPresetChange={setPreset}
       exportParams={{ date: to }}
       extra={
-        !isMonthly ? (
+        isMonthly ? (
+          <SwitchDeMoneda moneda={moneda} onChange={setMoneda} cargando={cargando} sinTasa={sinTasa} />
+        ) : (
           <Space size={4}>
             <Switch size="small" checked={compare} onChange={setCompare} />
             <Text style={{ fontSize: 12 }}>Comparar año anterior</Text>
           </Space>
-        ) : undefined
+        )
       }
     >
       {isMonthly ? (
-        <MonthlyBGTable monthData={monthly} loading={mLoading} />
+        <MonthlyBGTable monthData={monthly} loading={mLoading} enMoneda={enMoneda} moneda={moneda} />
       ) : (
         single && (
           <>

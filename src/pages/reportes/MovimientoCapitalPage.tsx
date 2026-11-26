@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getMovimientoCapital, type MovimientoCapitalData } from '../../api/reportes'
+import { useMonedaDeUnCorte, SwitchDeMoneda } from './useMonedaDelReporte'
 
 const { Text, Title } = Typography
 
@@ -13,8 +14,11 @@ const fmtQ = (n: number) =>
 
 const accentColor = (n: number) => (n >= 0 ? '#2ea172' : '#e5484d')
 
-function CapitalRow({ label, value, indent = 0, highlight = false, border = false, onClick }: {
-  label: string; value: number; indent?: number; highlight?: boolean; border?: boolean; onClick?: () => void
+function CapitalRow({ label, value, indent = 0, highlight = false, border = false, onClick, fmt = fmtQ }: {
+  label: string; value: number; indent?: number; highlight?: boolean; border?: boolean
+  onClick?: () => void
+  /** Cómo se escribe la cifra: depende de la moneda en que se esté viendo. */
+  fmt?: (n: number) => string
 }) {
   return (
     <div
@@ -36,7 +40,7 @@ function CapitalRow({ label, value, indent = 0, highlight = false, border = fals
         textDecoration: onClick ? 'underline' : undefined,
         textDecorationStyle: onClick ? 'dotted' : undefined,
       }}>
-        {fmtQ(value)}
+        {fmt(value)}
       </Text>
     </div>
   )
@@ -45,6 +49,8 @@ function CapitalRow({ label, value, indent = 0, highlight = false, border = fals
 export default function MovimientoCapitalPage() {
   const [from,    setFrom]    = useState(dayjs().startOf('year').format('YYYY-MM-DD'))
   const [to,      setTo]      = useState(dayjs().format('YYYY-MM-DD'))
+  /** Un solo corte: una sola tasa, la del día del corte. */
+  const { moneda, setMoneda, fmt, cargando, sinTasa } = useMonedaDeUnCorte(to)
   const [data,    setData]    = useState<MovimientoCapitalData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -76,6 +82,7 @@ export default function MovimientoCapitalPage() {
       toDate={to}
       onRangeChange={(f, t) => { setFrom(f); setTo(t) }}
       exportParams={{ fromDate: from, toDate: to }}
+      extra={<SwitchDeMoneda moneda={moneda} onChange={setMoneda} cargando={cargando} sinTasa={sinTasa} />}
     >
       {data && (
         <>
@@ -91,13 +98,12 @@ export default function MovimientoCapitalPage() {
             ].map(k => (
               <Col xs={12} sm={6} key={k.label}>
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }} bodyStyle={{ padding: '12px 8px' }}>
+                  {/* La cifra y su signo salen de la misma regla que el resto. */}
                   <Statistic
                     title={<span style={{ fontSize: 11 }}>{k.label}</span>}
                     value={k.value}
-                    precision={2}
-                    prefix="Q"
                     valueStyle={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: k.color }}
-                    formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                    formatter={v => fmt(Number(v))}
                   />
                 </Card>
               </Col>
@@ -111,7 +117,7 @@ export default function MovimientoCapitalPage() {
             style={{ borderRadius: 8, marginBottom: 16 }}
             bodyStyle={{ padding: 0 }}
           >
-            <CapitalRow label="Saldo inicial de Capital" value={data.openingBalance} />
+            <CapitalRow fmt={fmt} label="Saldo inicial de Capital" value={data.openingBalance} />
             <Divider style={{ margin: 0 }} />
             {data.capitalContribuciones.accounts.length > 0 && (
               <>
@@ -119,10 +125,10 @@ export default function MovimientoCapitalPage() {
                   CAPITAL APORTADO
                 </div>
                 {data.capitalContribuciones.accounts.map((a: any) => (
-                  <CapitalRow key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1}
+                  <CapitalRow fmt={fmt} key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1}
                     onClick={() => setDrilldown({ accountId: a.id, accountName: a.name, fromDate: from, toDate: to })} />
                 ))}
-                <CapitalRow label="Subtotal Capital Aportado" value={data.capitalContribuciones.total} indent={0} />
+                <CapitalRow fmt={fmt} label="Subtotal Capital Aportado" value={data.capitalContribuciones.total} indent={0} />
               </>
             )}
             {data.utilidadesRetenidas.accounts.length > 0 && (
@@ -132,15 +138,15 @@ export default function MovimientoCapitalPage() {
                   UTILIDADES RETENIDAS
                 </div>
                 {data.utilidadesRetenidas.accounts.map((a: any) => (
-                  <CapitalRow key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1}
+                  <CapitalRow fmt={fmt} key={a.id} label={`${a.code} ${a.name}`} value={a.balance} indent={1}
                     onClick={() => setDrilldown({ accountId: a.id, accountName: a.name, fromDate: from, toDate: to })} />
                 ))}
-                <CapitalRow label="Subtotal Utilidades Retenidas" value={data.utilidadesRetenidas.total} indent={0} />
+                <CapitalRow fmt={fmt} label="Subtotal Utilidades Retenidas" value={data.utilidadesRetenidas.total} indent={0} />
               </>
             )}
             <Divider style={{ margin: 0 }} />
-            <CapitalRow label="Utilidad / Pérdida del Período" value={data.netIncomePeriod} indent={1} />
-            <CapitalRow label="SALDO FINAL DE CAPITAL" value={data.closingBalance} highlight border />
+            <CapitalRow fmt={fmt} label="Utilidad / Pérdida del Período" value={data.netIncomePeriod} indent={1} />
+            <CapitalRow fmt={fmt} label="SALDO FINAL DE CAPITAL" value={data.closingBalance} highlight border />
           </Card>
 
           {/* Movement detail */}
@@ -189,14 +195,14 @@ export default function MovimientoCapitalPage() {
                     dataIndex: 'debit',
                     width: 110,
                     align: 'right' as const,
-                    render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text>,
+                    render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmt(v)}</Text> : <Text type="secondary">—</Text>,
                   },
                   {
                     title: 'Crédito',
                     dataIndex: 'credit',
                     width: 110,
                     align: 'right' as const,
-                    render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmtQ(v)}</Text> : <Text type="secondary">—</Text>,
+                    render: (v: number) => v > 0 ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>{fmt(v)}</Text> : <Text type="secondary">—</Text>,
                   },
                   {
                     title: 'Movimiento',
@@ -209,7 +215,7 @@ export default function MovimientoCapitalPage() {
                           ? <ArrowUpOutlined style={{ color: '#2ea172', fontSize: 10 }} />
                           : <ArrowDownOutlined style={{ color: '#e5484d', fontSize: 10 }} />}
                         <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: accentColor(v) }}>
-                          {fmtQ(Math.abs(v))}
+                          {fmt(Math.abs(v))}
                         </Text>
                       </Space>
                     ),
