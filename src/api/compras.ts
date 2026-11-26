@@ -92,6 +92,26 @@ export const applyVendorAdvanceRefund = (
 export const desaplicarAnticipoProveedor = (advanceId: string) =>
   api.post(`/compras/anticipos-proveedor/${advanceId}/desaplicar`, {}).then(unwrap)
 
+/**
+ * Todas las pólizas del anticipo, en orden: la de creación —el dinero que
+ * salió del banco—, las de cada aplicación y los reversos si los hubo.
+ *
+ * La pantalla mostraba solo la de creación, así que un anticipo ya aplicado
+ * parecía no haber contabilizado nada contra el proveedor.
+ */
+export const getVendorAdvanceJournals = (advanceId: string) =>
+  api.get(`/compras/anticipos-proveedor/${advanceId}/polizas`).then(unwrap) as Promise<Array<{
+    id:          string
+    entryNumber: string
+    entryDate:   string
+    description: string
+    totalDebit:  number
+    totalCredit: number
+    tipo:        string
+    titulo:      string
+    lines: Array<{ accountCode: string; accountName: string; description?: string; debit: number; credit: number }>
+  }>>
+
 export const applyVendorAdvanceToBill = (
   advanceId: string,
   invoiceId: string,
