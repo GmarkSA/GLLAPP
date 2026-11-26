@@ -20,6 +20,9 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
 import MontoDual from '../../../components/Moneda/MontoDual'
+import { esLocal, fmtMoneda, fmtQ, enQuetzales } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 
@@ -338,7 +341,7 @@ export default function EstimacionesPage() {
 
       {/* Table */}
       <Card bordered={false} style={{ borderRadius: '0 0 10px 10px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={estimates}
           rowKey="id"
@@ -346,6 +349,24 @@ export default function EstimacionesPage() {
           size="middle"
           scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           onRow={(r) => ({ onDoubleClick: () => navigate(`/ventas/estimaciones/${r.id}`) })}
+          mobileEmptyText="Sin cotizaciones"
+          renderMobileCard={(r: Estimate) => {
+            const cfg = ESTIMATE_STATUS_CONFIG[r.status as EstimateStatus]
+            return (
+              <MobileCard
+                title={r.customerName}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.estimateNumber}{r.estimateDate ? ` · ${dayjs(r.estimateDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                amount={fmtMoneda(r.total, r.currency)}
+                amountSub={esLocal(r.currency) ? undefined : fmtQ(enQuetzales(r.total, r))}
+                status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : undefined}
+                onClick={() => navigate(`/ventas/estimaciones/${r.id}`)}
+              />
+            )
+          }}
           pagination={{
             total,
             current: page,

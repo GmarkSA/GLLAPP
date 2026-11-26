@@ -22,6 +22,8 @@ import { getInvoices, type Invoice } from '../../../api/facturas'
 import { getCustomers } from '../../../api/contactos'
 import { useCan } from '../../../auth/can'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales, numeros } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Text, Title } = Typography
 
@@ -415,12 +417,30 @@ export default function AnticiposClientesPage() {
         </Badge>
       </Space>
 
-      <Table
+      <ResponsiveTable
         dataSource={filteredAntipos} columns={columns} rowKey="id"
         loading={loading} size="small" showSorterTooltip={false}
         scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         pagination={{ current: page, pageSize: 50, total, onChange: p => setPage(p), showTotal: t => `${t} anticipos` }}
         locale={{ emptyText: 'No hay anticipos registrados' }}
+        mobileEmptyText="No hay anticipos registrados"
+        renderMobileCard={(r: AnticipoCliente) => (
+          <MobileCard
+            title={r.customerName}
+            subtitle={
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {r.invoiceNumber}{r.invoiceDate ? ` · ${dayjs(r.invoiceDate).format('DD/MM/YYYY')}` : ''}
+              </span>
+            }
+            amount={fmtMoneda(r.total, r.currency)}
+            amountSub={[
+              esLocal(r.currency) ? null : fmtQ(enQuetzales(r.total, r)),
+              `Disponible ${fmtMoneda(r.balance, r.currency)}`,
+            ].filter(Boolean).join(' · ')}
+            status={<Tag color={STATUS_COLOR[r.status] ?? 'default'}>{STATUS_LABEL[r.status] ?? r.status}</Tag>}
+            chevron={false}
+          />
+        )}
       />
 
       <AnticipoDeAperturaModal
