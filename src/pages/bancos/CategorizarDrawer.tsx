@@ -106,9 +106,27 @@ export default function CategorizarDrawer({
     getAccountDefaults().then(setAccountDefaults).catch(() => null)
   }, [])
 
+  /**
+   * Con quién y contra qué factura cuadró el banco.
+   *
+   * La detección ya lo sabe —es lo que pinta la etiqueta de la lista— pero
+   * esta pantalla lo ignoraba: abría con las primeras facturas pendientes de
+   * cualquier proveedor y había que escribir el nombre a mano para ver las
+   * que importaban. Se usa el nombre guardado aparte y, para las
+   * transacciones viejas que solo tienen la etiqueta, se parte en el guión.
+   */
+  const coincidencia = (() => {
+    const raw = transaction?.rawData as Record<string, any> | undefined
+    const nombre = String(raw?.matchName ?? '').trim()
+      || String(raw?.matchLabel ?? '').split('—')[0].trim()
+    const numero = String(raw?.matchInvoiceNumber ?? '').trim()
+      || String(raw?.matchLabel ?? '').split('—')[1]?.trim() || ''
+    return nombre ? { nombre, numero } : null
+  })()
+
   useEffect(() => {
     if (!open || !transaction) return
-    setSearch('')
+    setSearch(coincidencia?.nombre ?? '')
     setManualAccountId(undefined)
     setManualAccount(undefined)
     setExchangeRate(1)
@@ -139,7 +157,7 @@ export default function CategorizarDrawer({
     setShowOverpayAccountForm(false)
     setOverpayAccountId(undefined)
     setOverpayAccountObj(undefined)
-    fetchMatches('')
+    fetchMatches(coincidencia?.nombre ?? '')
     if (account?.currency && account.currency !== 'GTQ') {
       const txDate = String(transaction.transactionDate || '').split('T')[0]
       getExchangeRateForDate(account.currency, txDate)
@@ -156,19 +174,36 @@ export default function CategorizarDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
 
+  /**
+   * El orden en que conviene verlas: primero la que el banco señaló, y luego
+   * de la más antigua a la más nueva.
+   *
+   * Una cuenta corriente se abona desde la factura más vieja hacia adelante.
+   * Cuando tres facturas tienen el mismo monto —el caso que hizo falta
+   * arreglar— la de arriba tiene que ser la que toca pagar, no una
+   * cualquiera.
+   */
+  const ordenarParaAplicar = <T extends { invoiceNumber?: string; invoiceDate?: string }>(filas: T[]): T[] =>
+    [...filas].sort((a, b) => {
+      const sugerida = (f: T) => coincidencia?.numero && f.invoiceNumber === coincidencia.numero ? 0 : 1
+      const porSugerida = sugerida(a) - sugerida(b)
+      if (porSugerida !== 0) return porSugerida
+      return String(a.invoiceDate ?? '').localeCompare(String(b.invoiceDate ?? ''))
+    })
+
   const fetchMatches = async (q: string) => {
     if (!transaction) return
     setLoadingList(true)
     try {
       if (isCredit) {
         const r = await getInvoices({ status: 'sent,pending,partial,overdue', search: q || undefined, limit: 50 })
-        setInvoices(r.data)
+        setInvoices(ordenarParaAplicar(r.data))
       } else {
         const [r1, r2] = await Promise.all([
           getBills({ status: 'open', search: q || undefined, limit: 15 }),
           getBills({ status: 'partial', search: q || undefined, limit: 10 }),
         ])
-        setBills([...r1.data, ...r2.data])
+        setBills(ordenarParaAplicar([...r1.data, ...r2.data]))
       }
     } catch {
       // silent
@@ -845,6 +880,9 @@ export default function CategorizarDrawer({
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
           <Text strong style={{ color: '#e5484d', fontSize: 12 }}>{moneyFmt(Number(v), account?.currency)}</Text>
           {isExactMatch(Number(row.balance)) && <Tag color="#2ea172" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>Coincide</Tag>}
+          {coincidencia?.numero && row.invoiceNumber === coincidencia.numero && (
+            <Tag color={NAVY} style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>La más antigua</Tag>
+          )}
         </div>
       ),
     },
@@ -893,6 +931,9 @@ export default function CategorizarDrawer({
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
           <Text strong style={{ color: '#e5484d', fontSize: 12 }}>{moneyFmt(Number(v), account?.currency)}</Text>
           {isExactMatch(Number(row.balance)) && <Tag color="#2ea172" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>Coincide</Tag>}
+          {coincidencia?.numero && row.invoiceNumber === coincidencia.numero && (
+            <Tag color={NAVY} style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>La más antigua</Tag>
+          )}
         </div>
       ),
     },
@@ -1137,6 +1178,19 @@ export default function CategorizarDrawer({
           <Title level={5} style={{ margin: '0 0 8px' }}>
             {isCredit ? 'Facturas pendientes de cobro' : 'Facturas proveedor pendientes'}
           </Title>
+          {coincidencia && (
+            <Alert
+              type="info" showIcon banner
+              style={{ marginBottom: 8, padding: '4px 8px', fontSize: 11 }}
+              message={
+                <span style={{ fontSize: 11 }}>
+                  El banco cuadró con <b>{coincidencia.nombre}</b>
+                  {coincidencia.numero ? <> · <b>{coincidencia.numero}</b></> : null}
+                  {' '}— la lista abre en ese {isCredit ? 'cliente' : 'proveedor'}; borra el filtro para ver el resto.
+                </span>
+              }
+            />
+          )}
           <Input.Search
             size="small" allowClear
             placeholder={isCredit ? 'Buscar cliente o N° factura...' : 'Buscar proveedor o N° factura...'}
