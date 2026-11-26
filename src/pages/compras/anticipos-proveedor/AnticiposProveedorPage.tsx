@@ -10,7 +10,7 @@ import {
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  getVendorAdvances, voidVendorAdvance, unvoidVendorAdvance, getJournalEntry,
+  getVendorAdvances, voidVendorAdvance, unvoidVendorAdvance, getVendorAdvanceJournals,
   applyVendorAdvanceToBill, getBills, desaplicarAnticipoProveedor,
   createVendorAdvance,
   type VendorAdvance, type PurchaseInvoice,
@@ -48,7 +48,8 @@ export default function AnticiposProveedorPage() {
   const [voiding,   setVoiding]   = useState<string | null>(null)
   const [unvoiding, setUnvoiding] = useState(false)
   const [detail,   setDetail]   = useState<VendorAdvance | null>(null)
-  const [jeLines,  setJeLines]  = useState<any[]>([])
+  /** Las pólizas del anticipo: creación, aplicaciones y reversos. */
+  const [polizas,  setPolizas]  = useState<any[]>([])
   const [jeLoading, setJeLoading] = useState(false)
 
   /** Registrar un anticipo que ya existía antes de Lucía. */
@@ -109,7 +110,7 @@ export default function AnticiposProveedorPage() {
       await unvoidVendorAdvance(id)
       message.success('Anticipo restaurado a Abierto — póliza de reverso eliminada')
       setDetail(null)
-      setJeLines([])
+      setPolizas([])
       load()
     } catch (e: any) {
       const d = e?.response?.data
@@ -206,14 +207,12 @@ export default function AnticiposProveedorPage() {
           <Tooltip title="Ver póliza">
             <Button size="small" icon={<BookOutlined />} onClick={() => {
               setDetail(r)
-              setJeLines([])
-              if (r.journalEntryId) {
-                setJeLoading(true)
-                getJournalEntry(r.journalEntryId)
-                  .then(je => setJeLines(je.lines ?? []))
-                  .catch(() => {})
-                  .finally(() => setJeLoading(false))
-              }
+              setPolizas([])
+              setJeLoading(true)
+              getVendorAdvanceJournals(r.id)
+                .then(setPolizas)
+                .catch(() => setPolizas([]))
+                .finally(() => setJeLoading(false))
             }} />
           </Tooltip>
           {r.status !== 'voided' && r.status !== 'applied' && can('compras:facturas:update') && (
@@ -335,7 +334,7 @@ export default function AnticiposProveedorPage() {
 
       <Modal
         open={!!detail}
-        onCancel={() => { setDetail(null); setJeLines([]) }}
+        onCancel={() => { setDetail(null); setPolizas([]) }}
         footer={null}
         title={`Anticipo ${detail?.advanceNumber}`}
         width={620}
@@ -393,12 +392,27 @@ export default function AnticiposProveedorPage() {
             )}
 
             <Divider style={{ margin: '14px 0 10px' }} />
-            <Text strong style={{ fontSize: 13 }}>Póliza contable</Text>
+            <Text strong style={{ fontSize: 13 }}>
+              {polizas.length > 1 ? 'Pólizas contables' : 'Póliza contable'}
+            </Text>
+            {jeLoading && polizas.length === 0 && (
+              <div style={{ padding: 16, textAlign: 'center' }}><Text type="secondary">Cargando…</Text></div>
+            )}
+            {!jeLoading && polizas.length === 0 && (
+              <div style={{ padding: 16 }}><Text type="secondary">Sin póliza contable</Text></div>
+            )}
+            {polizas.map(poliza => (
+            <div key={poliza.id} style={{ marginTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <Text strong style={{ fontSize: 12, color: '#1B3A6B' }}>{poliza.titulo}</Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {poliza.entryNumber} · {String(poliza.entryDate ?? '').slice(0, 10)}
+              </Text>
+            </div>
             <Table
               size="small"
-              loading={jeLoading}
-              dataSource={jeLines}
-              rowKey={(_, i) => String(i)}
+              dataSource={poliza.lines}
+              rowKey={(_, i) => `${poliza.id}-${i}`}
               pagination={false}
               style={{ marginTop: 8 }}
               locale={{ emptyText: 'Sin póliza contable' }}
@@ -442,6 +456,8 @@ export default function AnticiposProveedorPage() {
                 )
               }}
             />
+            </div>
+            ))}
           </>
         )}
       </Modal>
