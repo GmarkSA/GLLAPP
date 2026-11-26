@@ -7,6 +7,8 @@ import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getEstadoResultados, type EstadoResultadosData, type AccountRow } from '../../api/reportes'
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
+import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
+import type { MonedaDelReporte } from './monedaDelReporte'
 
 const { Text } = Typography
 
@@ -122,7 +124,13 @@ function buildERRows(md: Array<{ month: MonthRange; data: EstadoResultadosData |
   return rows.filter(r => r._kind !== 'acct' || r._total !== 0 || nonZeroMonths(r))
 }
 
-function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: EstadoResultadosData | null }>; loading: boolean }) {
+function MonthlyERTable({ monthData, loading, enMoneda, moneda }: {
+  monthData: Array<{ month: MonthRange; data: EstadoResultadosData | null }>
+  loading:   boolean
+  /** Las filas en la moneda que se esté viendo. */
+  enMoneda:  <T extends Record<string, any>>(filas: T[]) => T[]
+  moneda:    MonedaDelReporte
+}) {
   const months = monthData.map(m => m.month)
   const n      = months.length
   const [drilldown, setDrilldown] = useState<DrilldownTarget | null>(null)
@@ -130,7 +138,7 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
   const cfg  = getColConfig(n)
-  const rows = buildERRows(monthData)
+  const rows = enMoneda(buildERRows(monthData))
 
   const cell = (v: number | null, kind: RowKind) => {
     if (v == null || kind === 'hdr') return null
@@ -173,9 +181,10 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
     })),
     {
       key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
-      title: <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>Año a<br />la fecha</div>,
-      render: (v: number, row) => {
+      title: <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>Acumulado</div>,
+      render: (v: number | null, row) => {
         if (row._kind === 'hdr') return null
+        if (v == null) return <span style={{ color: '#9aa1ab' }}>—</span>
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#e5484d' : '#2ea172') : (v < 0 ? '#e5484d' : undefined)
         const content = <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
@@ -194,6 +203,11 @@ function MonthlyERTable({ monthData, loading }: { monthData: Array<{ month: Mont
 
   return (
     <>
+      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+        {moneda === 'USD'
+          ? 'Cifras en dólares — cada mes convertido al tipo de cambio de su fin de mes'
+          : 'Cifras en quetzales'}
+      </Text>
       <Spin spinning={loading}>
         <Table
           size="small"
@@ -258,6 +272,10 @@ export default function EstadoResultadosPage() {
       .finally(() => setMLoading(false))
   }, [from, to, isMonthly])
 
+  /** Lo que es flujo se acumula convertido: cada mes con su tipo de cambio. */
+  const { moneda, setMoneda, enMoneda, cargando, sinTasa } =
+    useMonedaDelReporte(monthly.map(m => m.month), 'suma')
+
   const kpis = single && [
     { label: 'Ingresos',       value: single.ingresos.total,   color: '#374151' },
     { label: 'Utilidad Bruta', value: single.utilidadBruta,    color: accent(single.utilidadBruta) },
@@ -283,16 +301,18 @@ export default function EstadoResultadosPage() {
       onPresetChange={setPreset}
       exportParams={{ fromDate: from, toDate: to }}
       extra={
-        !isMonthly ? (
+        isMonthly ? (
+          <SwitchDeMoneda moneda={moneda} onChange={setMoneda} cargando={cargando} sinTasa={sinTasa} />
+        ) : (
           <Space size={4}>
             <Switch size="small" checked={compare} onChange={setCompare} />
             <Text style={{ fontSize: 12 }}>vs. año anterior</Text>
           </Space>
-        ) : undefined
+        )
       }
     >
       {isMonthly ? (
-        <MonthlyERTable monthData={monthly} loading={mLoading} />
+        <MonthlyERTable monthData={monthly} loading={mLoading} enMoneda={enMoneda} moneda={moneda} />
       ) : (
         single && (
           <>

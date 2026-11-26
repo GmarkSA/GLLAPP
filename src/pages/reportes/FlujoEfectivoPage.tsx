@@ -6,6 +6,8 @@ import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
 import { getFlujoEfectivo, type FlujoEfectivoData } from '../../api/reportes'
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
+import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
+import type { MonedaDelReporte } from './monedaDelReporte'
 
 const { Text } = Typography
 
@@ -95,13 +97,19 @@ function buildFlujoRows(md: Array<{ month: MonthRange; data: FlujoEfectivoData |
   return rows.filter(r => r._kind !== 'acct' || r._total !== 0 || nonZeroMonths(r))
 }
 
-function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: MonthRange; data: FlujoEfectivoData | null }>; loading: boolean }) {
+function MonthlyFlujoTable({ monthData, loading, enMoneda, moneda }: {
+  monthData: Array<{ month: MonthRange; data: FlujoEfectivoData | null }>
+  loading:   boolean
+  /** Las filas en la moneda que se esté viendo. */
+  enMoneda:  <T extends Record<string, any>>(filas: T[]) => T[]
+  moneda:    MonedaDelReporte
+}) {
   const months = monthData.map(m => m.month)
   const n      = months.length
   if (n === 0) return <Spin spinning={loading}><div style={{ height: 120 }} /></Spin>
 
   const cfg  = getColConfig(n)
-  const rows = buildFlujoRows(monthData)
+  const rows = enMoneda(buildFlujoRows(monthData))
 
   const rowBg: Record<FKind, string | undefined> = {
     hdr:   '#fafbfc',
@@ -134,9 +142,10 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
     })),
     {
       key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
-      title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3, fontWeight: 700 }}>AÑO A<br />LA FECHA</div>,
-      render: (v: number, row) => {
+      title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3, fontWeight: 700 }}>ACUMULADO</div>,
+      render: (v: number | null, row) => {
         if (row._kind === 'hdr') return null
+        if (v == null) return <span style={{ color: '#9aa1ab' }}>—</span>
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#e5484d' : '#2ea172') : (v < 0 ? '#e5484d' : undefined)
         return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
@@ -145,7 +154,13 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
   ]
 
   return (
-    <Spin spinning={loading}>
+    <>
+      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+        {moneda === 'USD'
+          ? 'Cifras en dólares — cada mes convertido al tipo de cambio de su fin de mes'
+          : 'Cifras en quetzales'}
+      </Text>
+      <Spin spinning={loading}>
       <Table
         size="small"
         dataSource={rows}
@@ -164,6 +179,7 @@ function MonthlyFlujoTable({ monthData, loading }: { monthData: Array<{ month: M
         })}
       />
     </Spin>
+    </>
   )
 }
 
@@ -201,6 +217,10 @@ export default function FlujoEfectivoPage() {
       .finally(() => setMLoading(false))
   }, [from, to, isMonthly])
 
+  /** Lo que es flujo se acumula convertido: cada mes con su tipo de cambio. */
+  const { moneda, setMoneda, enMoneda, cargando, sinTasa } =
+    useMonedaDelReporte(monthly.map(m => m.month), 'suma')
+
   return (
     <ReportLayout
       icon={<FundOutlined />}
@@ -214,9 +234,12 @@ export default function FlujoEfectivoPage() {
       onRangeChange={(f, t) => { setFrom(f); setTo(t) }}
       onPresetChange={setPreset}
       exportParams={{ fromDate: from, toDate: to }}
+      extra={isMonthly
+        ? <SwitchDeMoneda moneda={moneda} onChange={setMoneda} cargando={cargando} sinTasa={sinTasa} />
+        : undefined}
     >
       {isMonthly ? (
-        <MonthlyFlujoTable monthData={monthly} loading={mLoading} />
+        <MonthlyFlujoTable monthData={monthly} loading={mLoading} enMoneda={enMoneda} moneda={moneda} />
       ) : (
         single && (
           <>
