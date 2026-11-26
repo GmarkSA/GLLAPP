@@ -21,7 +21,9 @@ import ColumnConfigurator, {
 } from '../../../components/ColumnConfigurator'
 import { useCan } from '../../../auth/can'
 import MontoDual from '../../../components/Moneda/MontoDual'
-import { fmtQ, enQuetzales } from '../../../utils/moneda'
+import { fmtQ, enQuetzales, esLocal, fmtMoneda } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -401,7 +403,7 @@ export default function NotasCreditoPage() {
 
       {/* Tabla */}
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={activeColumns}
           dataSource={filteredNc}
           rowKey="id"
@@ -411,6 +413,24 @@ export default function NotasCreditoPage() {
           scroll={{ x: scrollX, y: 'calc(100vh - 312px)' }}
           pagination={{ total, current: page, pageSize: 20, onChange: setPage, showTotal: t => `${t} notas de crédito`, showSizeChanger: false }}
           locale={{ emptyText: 'No hay notas de crédito en el período' }}
+          mobileEmptyText="No hay notas de crédito en el período"
+          renderMobileCard={(r: NotaCredito) => {
+            const cfg = NC_STATUS_CONFIG[r.status as keyof typeof NC_STATUS_CONFIG]
+            return (
+              <MobileCard
+                title={r.customerName}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.invoiceNumber}{r.invoiceDate ? ` · ${dayjs(r.invoiceDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                amount={fmtMoneda(r.total, r.currency)}
+                amountSub={esLocal(r.currency) ? undefined : fmtQ(enQuetzales(r.total, r))}
+                status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : undefined}
+                onClick={() => navigate(`/ventas/notas-credito/${r.id}`)}
+              />
+            )
+          }}
         />
       </Card>
 

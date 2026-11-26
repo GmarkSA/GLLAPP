@@ -19,6 +19,8 @@ import {
   type EstadoFacturaRecurrente,
 } from '../../../api/facturas-recurrentes'
 import { useCan } from '../../../auth/can'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Text, Title } = Typography
 
@@ -294,7 +296,7 @@ export default function FacturasRecurrentesPage() {
         </Badge>
       </div>
 
-      <Table
+      <ResponsiveTable
         dataSource={filteredRec}
         columns={columns}
         rowKey="id"
@@ -304,6 +306,25 @@ export default function FacturasRecurrentesPage() {
         pagination={{ total, pageSize: 20, current: page, onChange: setPage, showSizeChanger: false }}
         scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         style={{ background: '#fff', borderRadius: 10 }}
+        mobileEmptyText="Sin plantillas recurrentes"
+        renderMobileCard={(r: FacturaRecurrente) => {
+          const cfg = ESTADO_CONFIG[r.estado as EstadoFacturaRecurrente]
+          return (
+            <MobileCard
+              title={r.clienteNombre}
+              subtitle={
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {r.codigoPlantilla}
+                  {r.fechaProximaGeneracion
+                    ? ` · próxima ${dayjs(r.fechaProximaGeneracion).format('DD/MM/YYYY')}`
+                    : ''}
+                </span>
+              }
+              status={<Badge status={cfg?.color as any} text={cfg?.label ?? r.estado} />}
+              chevron={false}
+            />
+          )
+        }}
       />
 
       <Modal
