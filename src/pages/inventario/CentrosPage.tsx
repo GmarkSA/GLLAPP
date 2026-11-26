@@ -7,6 +7,8 @@ import { PlusOutlined, EditOutlined, BranchesOutlined, SearchOutlined } from '@a
 import type { ColumnsType } from 'antd/es/table'
 import AccountSelect from '../../components/AccountSelect'
 import { getCentros, createCentro, updateCentro, deleteCentro, type Centro } from '../../api/expedientes'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 
@@ -120,10 +122,18 @@ export default function CentrosPage() {
           value={search} onChange={e => setSearch(e.target.value)} allowClear />
       </Card>
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
-        <Table columns={columns} dataSource={items} loading={loading}
+        <ResponsiveTable columns={columns} dataSource={items} loading={loading}
           scroll={{ y: 'calc(100vh - 330px)' }}
           rowKey="id" size="small" pagination={{ pageSize: 20, showSizeChanger: false }}
-          locale={{ emptyText: 'Sin centros de costo registrados' }} />
+          locale={{ emptyText: 'Sin centros de costo registrados' }}
+          mobileEmptyText="Sin centros de costo registrados"
+          renderMobileCard={(r: any) => (
+            <MobileCard
+              title={r.name}
+              subtitle={<span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.code}</span>{r.description ? ` · ${r.description}` : ''}</span>}
+              chevron={false}
+            />
+          )} />
       </Card>
       <CentroModal open={modal} record={editing} onClose={() => setModal(false)} onSaved={load} />
     </div>

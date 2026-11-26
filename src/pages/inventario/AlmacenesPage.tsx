@@ -10,6 +10,8 @@ import {
 } from '../../api/expedientes'
 import { branchesApi, type Branch } from '../../api/branches'
 import { useCompanyStore } from '../../store/companyStore'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 
@@ -160,10 +162,24 @@ export default function AlmacenesPage() {
           value={search} onChange={e => setSearch(e.target.value)} allowClear />
       </Card>
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
-        <Table columns={columns} dataSource={items} loading={loading}
+        <ResponsiveTable columns={columns} dataSource={items} loading={loading}
           scroll={{ y: 'calc(100vh - 330px)' }}
           rowKey="id" size="small" pagination={{ pageSize: 20, showSizeChanger: false }}
-          locale={{ emptyText: 'Sin almacenes registrados' }} />
+          locale={{ emptyText: 'Sin almacenes registrados' }}
+          mobileEmptyText="Sin almacenes registrados"
+          renderMobileCard={(r: any) => (
+            <MobileCard
+              title={r.name}
+              subtitle={
+                <span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.code}</span>
+                  {r.branchId && branchMap[r.branchId] ? ` · ${branchMap[r.branchId]}` : ''}
+                  {r.manager ? <><br />{r.manager}</> : null}
+                </span>
+              }
+              chevron={false}
+            />
+          )} />
       </Card>
       <AlmacenModal open={modal} record={editing} branches={branches}
         onClose={() => setModal(false)} onSaved={load} />

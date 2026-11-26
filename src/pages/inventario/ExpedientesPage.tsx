@@ -10,6 +10,8 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import {
   getExpedientes, deleteExpediente,
   EXPEDIENTE_STATUS, type Expediente,
@@ -197,13 +199,29 @@ export default function ExpedientesPage() {
       </Card>
 
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={columns}
           dataSource={items}
           loading={loading}
           rowKey="id"
           size="small"
           scroll={{ x: 900, y: 'calc(100vh - 312px)' }}
+          mobileEmptyText="Sin expedientes"
+          renderMobileCard={(r: any) => {
+            const cfg = EXPEDIENTE_STATUS[r.status as keyof typeof EXPEDIENTE_STATUS]
+            return (
+              <MobileCard
+                title={r.description || r.expedienteNo}
+                subtitle={
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {r.expedienteNo}{r.openedDate ? ` · ${dayjs(r.openedDate).format('DD/MM/YYYY')}` : ''}
+                  </span>
+                }
+                status={cfg ? <Badge color={cfg.color} text={cfg.label} /> : undefined}
+                chevron={false}
+              />
+            )
+          }}
           pagination={{
             current: page, pageSize: 20, total,
             showSizeChanger: false,
