@@ -12,6 +12,8 @@ import dayjs from 'dayjs'
 import { getAjustes, createAjuste, AJUSTE_TYPE_CONFIG, type AjusteInventario } from '../../api/expedientes'
 import { getProducts, type Product } from '../../api/inventario'
 import AccountSelect from '../../components/AccountSelect'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -192,12 +194,27 @@ export default function AjustesInventarioPage() {
           value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} allowClear />
       </Card>
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
-        <Table columns={columns} dataSource={items} loading={loading}
+        <ResponsiveTable columns={columns} dataSource={items} loading={loading}
           scroll={{ y: 'calc(100vh - 330px)' }}
           rowKey="id" size="small"
           pagination={{ current: page, pageSize: 20, total, showSizeChanger: false,
             showTotal: t => `${t} ajustes`, onChange: p => setPage(p) }}
-          locale={{ emptyText: 'Sin ajustes registrados' }} />
+          locale={{ emptyText: 'Sin ajustes registrados' }}
+          mobileEmptyText="Sin ajustes registrados"
+          renderMobileCard={(r: any) => (
+            <MobileCard
+              title={r.reason || 'Ajuste de inventario'}
+              subtitle={
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {r.code}{r.date ? ` · ${dayjs(r.date).format('DD/MM/YYYY')}` : ''}
+                </span>
+              }
+              status={<Tag color={r.status === 'confirmed' ? '#2ea172' : '#ff7f00'}>
+                {r.status === 'confirmed' ? 'Confirmado' : 'Borrador'}
+              </Tag>}
+              chevron={false}
+            />
+          )} />
       </Card>
       <NuevoAjusteModal open={modal} onClose={() => setModal(false)} onSaved={load} />
     </div>

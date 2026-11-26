@@ -26,6 +26,8 @@ import {
   type Product,
 } from '../../api/inventario'
 import { totalDe } from '../../api/paginacion'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -848,7 +850,7 @@ export default function InventarioPage() {
 
       {/* ── Table ── */}
       <Card style={{ borderRadius: 8 }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           columns={columnasMostradas}
           rowSelection={{
             selectedRowKeys: etiquetasSeleccion,
@@ -861,6 +863,25 @@ export default function InventarioPage() {
           size="small"
           showSorterTooltip={false}
           scroll={{ x: 'max-content', y: 'calc(100vh - 312px)' }}
+          mobileEmptyText="Sin artículos"
+          renderMobileCard={(r: any) => (
+            <MobileCard
+              title={r.name}
+              subtitle={<span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.sku}</span>}
+              amount={r.isInventoriable
+                ? `${Number(r.stockOnHand ?? 0).toLocaleString('es-GT')} ${r.unit ?? ''}`.trim()
+                : undefined}
+              amountSub={r.salePrice != null
+                ? `Q ${Number(r.salePrice).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+                : undefined}
+              status={r.isActive === false
+                ? <Tag>Inactivo</Tag>
+                : (r.isInventoriable && r.minimumStock != null && Number(r.stockOnHand) < Number(r.minimumStock)
+                    ? <Tag color="#e5484d" style={{ margin: 0 }}>Bajo mínimo</Tag>
+                    : undefined)}
+              chevron={false}
+            />
+          )}
           pagination={{
             current: page,
             pageSize: limit,

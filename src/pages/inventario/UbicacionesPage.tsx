@@ -9,6 +9,8 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import {
   getUbicaciones, createUbicacion, updateUbicacion, deleteUbicacion,
   getAlmacenes,
@@ -274,7 +276,7 @@ export default function UbicacionesPage() {
 
       {/* Table */}
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
-        <Table
+        <ResponsiveTable
           scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
           columns={columns}
           dataSource={items}
@@ -282,6 +284,18 @@ export default function UbicacionesPage() {
           rowKey="id"
           size="small"
           pagination={{ pageSize: 20, showSizeChanger: false }}
+          mobileEmptyText="Sin ubicaciones registradas"
+          renderMobileCard={(r: any) => {
+            const cfg = TIPO_CONFIG[r.type as UbicacionType]
+            return (
+              <MobileCard
+                title={r.name}
+                subtitle={<span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.code}</span>}
+                status={cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.icon} {cfg.label}</Tag> : undefined}
+                chevron={false}
+              />
+            )
+          }}
           locale={{ emptyText: (
             <div style={{ padding: '40px 0', textAlign: 'center' }}>
               <ShopOutlined style={{ fontSize: 40, color: '#9aa1ab', display: 'block', marginBottom: 8 }} />
