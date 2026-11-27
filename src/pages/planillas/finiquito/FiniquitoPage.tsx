@@ -336,7 +336,7 @@ export default function FiniquitoPage() {
 
   // ── Nuevo finiquito ────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div data-ficha style={{ maxWidth: 760 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16, gap: 12 }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(`/planillas/empleados/${empleadoId}`)} style={{ marginTop: 2 }} />
         <div>

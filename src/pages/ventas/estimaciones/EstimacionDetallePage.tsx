@@ -21,6 +21,7 @@ import { totalDeLinea } from '../../../components/DocumentForm/montosDeLinea'
 import { esPequenoContribuyente, tasaDeIvaDelDocumento, documentoLlevaIva } from '../../../components/Print/regimenFiscal'
 import { textoDeCierreInicial } from '../../../components/DocumentForm/textoDeCierre'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -167,7 +168,7 @@ export default function EstimacionDetallePage() {
   const ribbonColor = ribbonColors[est.status] ?? '#6b7280'
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 960, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
@@ -334,7 +335,7 @@ export default function EstimacionDetallePage() {
 
         {/* Ítems */}
         <div style={{ padding: '0 40px 24px' }}>
-          <Table
+          <ResponsiveTable
             columns={itemColumns}
             dataSource={est.items ?? []}
             rowKey={(_, i) => String(i)}

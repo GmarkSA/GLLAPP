@@ -23,6 +23,7 @@ import type { OrganizationProfile } from '../../../api/configuracion'
 import { getComments, addComment, type ActivityComment } from '../../../api/comments'
 import { useCan } from '../../../auth/can'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales, numeros } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -340,7 +341,7 @@ export default function ProveedorDetallePage() {
   const yearOptions = Array.from({ length: 6 }, (_, i) => dayjs().year() - i) // usado en el gráfico
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 1100, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
@@ -615,7 +616,7 @@ export default function ProveedorDetallePage() {
                           </Button>
                         )}
                       </div>
-                      <Table columns={billCols} dataSource={bills} rowKey="id" size="small"
+                      <ResponsiveTable columns={billCols} dataSource={bills} rowKey="id" size="small"
                         pagination={{ pageSize: 10, showTotal: t => `${t} facturas` }}
                         locale={{ emptyText: 'Sin facturas de este proveedor' }}
                         style={{ background: '#fff', borderRadius: 8 }} />
@@ -626,7 +627,7 @@ export default function ProveedorDetallePage() {
                   key: 'pagos',
                   label: `Pagos realizados (${payments.length})`,
                   children: (
-                    <Table columns={payCols} dataSource={payments} rowKey="id" size="small"
+                    <ResponsiveTable columns={payCols} dataSource={payments} rowKey="id" size="small"
                       pagination={{ pageSize: 10, showTotal: t => `${t} pagos` }}
                       locale={{ emptyText: 'Sin pagos registrados' }}
                       style={{ background: '#fff', borderRadius: 8 }} />
@@ -636,7 +637,7 @@ export default function ProveedorDetallePage() {
                   key: 'nc',
                   label: `NC proveedor (${creditNotes.length})`,
                   children: (
-                    <Table columns={ncCols} dataSource={creditNotes} rowKey="id" size="small"
+                    <ResponsiveTable columns={ncCols} dataSource={creditNotes} rowKey="id" size="small"
                       pagination={{ pageSize: 10, showTotal: t => `${t} notas` }}
                       locale={{ emptyText: 'Sin notas de crédito del proveedor' }}
                       style={{ background: '#fff', borderRadius: 8 }} />
@@ -691,7 +692,7 @@ export default function ProveedorDetallePage() {
                 </div>
               </div>
 
-              <Table
+              <ResponsiveTable
                 columns={stmtCols}
                 dataSource={statementRows}
                 rowKey="key"

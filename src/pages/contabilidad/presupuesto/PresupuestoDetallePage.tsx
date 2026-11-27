@@ -20,6 +20,7 @@ import {
 import { getAccounts, type Account } from '../../../api/catalogo'
 import { getCentrosCosto, type CentroCosto } from '../../../api/centros-costo'
 import { getCentrosBeneficio, type CentroBeneficio } from '../../../api/centros-beneficio'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -490,7 +491,7 @@ export default function PresupuestoDetallePage() {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div data-ficha style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contabilidad/presupuesto')}>Volver</Button>
@@ -787,7 +788,7 @@ export default function PresupuestoDetallePage() {
       >
         <Alert type="info" showIcon style={{ marginBottom: 12, fontSize: 11 }}
           message="Define productos/servicios con su precio y unidades base. El monto se acumula sobre los valores existentes." />
-        <Table<ProductoRow>
+        <ResponsiveTable<ProductoRow>
           dataSource={productos}
           rowKey="id"
           size="small"

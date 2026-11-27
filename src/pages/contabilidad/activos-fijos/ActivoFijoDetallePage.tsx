@@ -22,6 +22,7 @@ import {
 import { getClasesActivoFijo, type ClaseActivoFijo } from '../../../api/clases-activo-fijo'
 import { getAccounts, type Account } from '../../../api/catalogo'
 import SelectorDimensionesAnaliticas, { type DimensionesValue, useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 const Q = (n: number | string) =>
@@ -480,7 +481,7 @@ export default function ActivoFijoDetallePage() {
   const polizaBajaPreview = calcBajaPoliza()
 
   return (
-    <div style={{ padding: '0 24px 24px' }}>
+    <div data-ficha style={{ padding: '0 24px 24px' }}>
 
       {/* ── Cabecera ────────────────────────────────────────────────────────── */}
       <div style={{
@@ -784,7 +785,7 @@ export default function ActivoFijoDetallePage() {
                           Ver póliza
                         </Button>
                       </div>
-                      <Table
+                      <ResponsiveTable
                         size="small"
                         pagination={false}
                         rowKey="id"
@@ -875,7 +876,7 @@ export default function ActivoFijoDetallePage() {
                     <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Previsión de depreciación
                     </Text>
-                    <Table
+                    <ResponsiveTable
                       dataSource={prevision}
                       columns={previsionColumns}
                       rowKey="periodo"
@@ -893,7 +894,7 @@ export default function ActivoFijoDetallePage() {
                     <Text style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
                       Historial registrado
                     </Text>
-                    <Table
+                    <ResponsiveTable
                       dataSource={historial}
                       columns={historialColumns}
                       rowKey="id"
@@ -1069,7 +1070,7 @@ export default function ActivoFijoDetallePage() {
                 </div>
 
                 {/* Tabla de líneas contables */}
-                <Table
+                <ResponsiveTable
                   size="small"
                   pagination={false}
                   rowKey="key"
@@ -1207,7 +1208,7 @@ export default function ActivoFijoDetallePage() {
               </Text>
             </div>
 
-            <Table
+            <ResponsiveTable
               size="small"
               pagination={false}
               rowKey="key"

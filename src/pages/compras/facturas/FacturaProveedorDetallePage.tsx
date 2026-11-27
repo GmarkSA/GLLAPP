@@ -27,6 +27,7 @@ import { getVendor } from '../../../api/contactos'
 import { useCentrosOptions } from '../../../components/SelectorDimensionesAnaliticas'
 import { useCan } from '../../../auth/can'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -484,7 +485,7 @@ export default function FacturaProveedorDetallePage() {
   const netPayable     = Number(bill.total) + Number(bill.idpAmount ?? 0) - totalRetention
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 980, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
@@ -689,7 +690,7 @@ export default function FacturaProveedorDetallePage() {
 
         {/* Ítems */}
         <div style={{ padding: '0 40px 24px' }}>
-          <Table columns={itemColumns} dataSource={activeItems} rowKey={(_, i) => String(i)}
+          <ResponsiveTable columns={itemColumns} dataSource={activeItems} rowKey={(_, i) => String(i)}
             pagination={false} size="small" scroll={{ x: 620 }}
             style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }} />
 
@@ -934,7 +935,7 @@ export default function FacturaProveedorDetallePage() {
                       )}
                     </Text>
                   </Space>
-                  <Table dataSource={makeJournalRows(journal)} columns={journalCols} rowKey="key"
+                  <ResponsiveTable dataSource={makeJournalRows(journal)} columns={journalCols} rowKey="key"
                     size="small" pagination={false}
                     style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden', marginBottom: reclasEntry ? 16 : 0 }}
                     summary={() => (
@@ -963,7 +964,7 @@ export default function FacturaProveedorDetallePage() {
                     <Tag color="#6b7280" style={{ margin: 0 }}>CxP Proveedor → CxP Empleado</Tag>
                     <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(reclasEntry.entryDate).format('DD/MM/YYYY')}</Text>
                   </Space>
-                  <Table dataSource={makeJournalRows(reclasEntry)} columns={journalCols} rowKey="key"
+                  <ResponsiveTable dataSource={makeJournalRows(reclasEntry)} columns={journalCols} rowKey="key"
                     size="small" pagination={false}
                     style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }} />
                 </>
@@ -988,7 +989,7 @@ export default function FacturaProveedorDetallePage() {
                   </Button>
                 )}
               </div>
-              <Table
+              <ResponsiveTable
                 dataSource={billPayments}
                 rowKey="id"
                 size="small"

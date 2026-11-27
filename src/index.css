@@ -304,3 +304,30 @@ body {
     padding: 12px !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Teléfono: las fichas, también en una columna.
+ *
+ * Una ficha —la de una factura, un cliente, un activo fijo, una corrida de
+ * planilla— no es un formulario: sus datos no están dentro de un `<Form>`,
+ * así que la regla de arriba no los alcanza. Pero el problema es el mismo:
+ * rejillas de dos y tres columnas escritas en línea, que en 375px dejan
+ * cifras de 90px.
+ *
+ * Por eso cada ficha marca su raíz con `data-ficha`: la regla no es ciega,
+ * solo entra donde alguien la invitó. Las vistas previas siguen exentas,
+ * igual que en los formularios.
+ * ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  [data-ficha] [style*="grid-template-columns"]:not([data-vista-previa]):not([data-vista-previa] *) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /*
+   * Y el aire de los lados no se cuenta dos veces: varias fichas traen su
+   * propio `padding: 24px`, encima del que ya deja el marco.
+   */
+  [data-ficha][style*="padding: 24px"] {
+    padding: 12px !important;
+  }
+}

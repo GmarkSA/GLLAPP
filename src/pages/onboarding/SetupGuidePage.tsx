@@ -22,6 +22,7 @@ import { useCompanyStore } from '../../store/companyStore'
 import { useAuthStore } from '../../store/authStore'
 import { getBillingState } from '../../api/billing'
 import { useEffect, useState } from 'react'
+import { useDispositivo } from '../../hooks/useMediaQuery'
 
 const { Title, Text } = Typography
 
@@ -38,6 +39,8 @@ const STEP_ICONS: Record<string, React.ReactNode> = {
 }
 
 export default function SetupGuidePage() {
+  /** En un teléfono, 24px por lado son 48 de los 375 que hay. */
+  const esTelefono = useDispositivo() === 'telefono'
   const navigate = useNavigate()
   const { steps, loading, completedCount, completionPercent, reload } = useSetupSteps()
   const companyId = useCompanyStore(s => s.activeCompany?.id)
@@ -83,7 +86,7 @@ export default function SetupGuidePage() {
   }
 
   return (
-    <div style={{ maxWidth: 780, margin: '0 auto', padding: '32px 24px' }}>
+    <div style={{ maxWidth: 780, margin: '0 auto', padding: esTelefono ? '20px 12px' : '32px 24px' }}>
 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
@@ -120,7 +123,12 @@ export default function SetupGuidePage() {
           Configuración base
         </Text>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+      {/*
+        Las tarjetas se acomodan solas: tantas columnas como caben sin bajar
+        de su ancho mínimo. En escritorio salen las mismas dos de siempre;
+        en un teléfono, una. Sin media query, porque la rejilla ya sabe.
+      */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginBottom: 24 }}>
         {steps.slice(0, 6).map(step => renderCard(step, nextPending, goTo, actions))}
       </div>
 
@@ -130,7 +138,7 @@ export default function SetupGuidePage() {
           Conoce Lucía — recorridos de menos de un minuto
         </Text>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14, marginBottom: 24 }}>
         {MODULE_TOURS.map(t => {
           const visto = isTourSeen(userId, t.key)
           return (
@@ -159,7 +167,7 @@ export default function SetupGuidePage() {
           Datos maestros
         </Text>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14, marginBottom: 24 }}>
         {steps.slice(6).map(step => renderCard(step, nextPending, goTo, actions))}
       </div>
 

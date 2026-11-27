@@ -21,6 +21,7 @@ import {
 } from '../../../api/planillas-corrida'
 import { getBankAccounts, type BankAccount } from '../../../api/bancos'
 import { getApiError } from '../../../api/axios'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Text, Title } = Typography
 const NAVY = '#1B3A6B'
@@ -435,7 +436,7 @@ export default function CorridaPlanillaPage() {
   const advertenciasCount = periodo.detalles.filter(d => d.advertencias).length
 
   return (
-    <div>
+    <div data-ficha>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <Space align="start">
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/planillas/corridas')} style={{ marginTop: 2 }} />
@@ -573,7 +574,7 @@ export default function CorridaPlanillaPage() {
         title={<Text strong style={{ fontSize: 13 }}>Detalle por empleado</Text>}
         extra={editable && <Text type="secondary" style={{ fontSize: 11 }}>Edita días, horas extra y otros montos — el cálculo se actualiza al salir de la celda</Text>}>
         <Spin spinning={loading || procesando}>
-          <Table
+          <ResponsiveTable
             size="small" rowKey="id" dataSource={periodo.detalles} columns={columns}
             pagination={false} scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
           />
@@ -597,7 +598,7 @@ export default function CorridaPlanillaPage() {
                     : `Faltan cuentas mapeadas: ${preview.faltantes.join(', ')}.`}
                   description="Ve a Planillas → Cuentas contables para completarlas — no se podrá contabilizar hasta entonces." />
               )}
-              <Table
+              <ResponsiveTable
                 size="small" rowKey={(_, i) => String(i)} pagination={false}
                 dataSource={preview.lines}
                 columns={[
@@ -661,7 +662,7 @@ export default function CorridaPlanillaPage() {
             Descargar archivo para banco
           </Button>
         </div>
-        <Table
+        <ResponsiveTable
           size="small" rowKey="id" pagination={false}
           dataSource={periodo.detalles}
           columns={[

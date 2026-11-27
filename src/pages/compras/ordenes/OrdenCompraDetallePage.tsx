@@ -19,6 +19,7 @@ import type { OrganizationProfile } from '../../../api/configuracion'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { useCan } from '../../../auth/can'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -199,7 +200,7 @@ export default function OrdenCompraDetallePage() {
   }, 0)
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 980, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
@@ -372,7 +373,7 @@ export default function OrdenCompraDetallePage() {
 
         {/* Ítems */}
         <div style={{ padding: '0 40px 24px' }}>
-          <Table columns={itemColumns} dataSource={po.items ?? []} rowKey={(_, i) => String(i)}
+          <ResponsiveTable columns={itemColumns} dataSource={po.items ?? []} rowKey={(_, i) => String(i)}
             pagination={false} size="small" scroll={{ x: 620 }}
             style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }} />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
