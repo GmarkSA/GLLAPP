@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography, message } from 'antd'
 import { PlusOutlined, EditOutlined, EnvironmentOutlined } from '@ant-design/icons'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getCentrosTrabajo, guardarCentroTrabajo, type CentroTrabajo,
 } from '../../../api/planillas-empleados'
@@ -104,11 +106,28 @@ export default function CentrosTrabajoPage() {
       </div>
 
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
-        <Table
+        <ResponsiveTable
           scroll={{ y: 'calc(100vh - 330px)' }}
           size="small" rowKey="id" loading={loading}
           dataSource={centros} columns={columns} pagination={false}
           locale={{ emptyText: 'Sin centros de trabajo. Crea al menos uno para poder generar el archivo IGSS.' }}
+          mobileEmptyText="Sin centros de trabajo. Crea al menos uno para poder generar el archivo IGSS."
+          renderMobileCard={(c: CentroTrabajo) => (
+            <MobileCard
+              onClick={() => abrirEditar(c)}
+              title={c.nombre}
+              subtitle={
+                <span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{c.codigo}</span>
+                  {' · '}
+                  {nombreDepto(c.departamento)} / {nombreMuni(c.departamento, c.municipio)}
+                  <br />
+                  Actividad IGSS {c.codigoActividadEconomica || '—'}
+                </span>
+              }
+              status={<Tag color={c.activo ? 'green' : 'default'}>{c.activo ? 'Activo' : 'Inactivo'}</Tag>}
+            />
+          )}
         />
       </Card>
 

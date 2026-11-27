@@ -5,6 +5,8 @@ import {
 } from 'antd'
 import { AuditOutlined, DownloadOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getParametroFiscal, guardarParametroFiscal, type ParametroFiscalAnual,
   getSalariosMinimos, seedSalariosMinimos2026, type SalarioMinimoVigente,
@@ -237,7 +239,7 @@ export default function ParametrosFiscalesPage() {
               </Text>
             </div>
           ) : (
-            <Table
+            <ResponsiveTable
               scroll={{ y: 'calc(100vh - 330px)' }}
               size="small" rowKey="id" pagination={false} dataSource={salarios}
               columns={[
@@ -246,6 +248,18 @@ export default function ParametrosFiscalesPage() {
                 { title: 'Diario', dataIndex: 'montoDiario', width: 130, align: 'right', render: (v: number) => <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
                 { title: 'Mensual', dataIndex: 'montoMensual', width: 140, align: 'right', render: (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{fmtQ(v)}</Text> },
               ]}
+              mobileEmptyText={`No hay salarios mínimos cargados para ${anio}.`}
+              renderMobileCard={(s: SalarioMinimoVigente) => (
+                <MobileCard
+                  chevron={false}
+                  title={ACTIVIDAD_LABEL[s.tipoActividadEconomica] ?? s.tipoActividadEconomica}
+                  subtitle={s.circunscripcionEconomica === 'CE1'
+                    ? 'CE1 — Depto. Guatemala'
+                    : 'CE2 — Resto del país'}
+                  amount={fmtQ(s.montoMensual)}
+                  amountSub={`${fmtQ(s.montoDiario)} diario`}
+                />
+              )}
             />
           )}
         </Card>
