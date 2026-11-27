@@ -10,6 +10,7 @@ import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from 
 import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
 import type { MonedaDelReporte } from './monedaDelReporte'
 import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import { PRESENTACION, ANCHOS, estiloEncabezado } from './presentacionDelReporte'
 
 const { Text, Title } = Typography
 
@@ -182,8 +183,8 @@ function MonthlyBGTable({ monthData, loading, enMoneda, moneda }: {
   const cell = (v: number | null, kind: BGKind) => {
     if (v == null || kind === 'hdr' || kind === 'subhdr') return null
     const bold = kind !== 'acct'
-    const c    = bold ? (v < 0 ? '#e5484d' : '#374151') : (v < 0 ? '#e5484d' : undefined)
-    return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
+    const c    = v < 0 ? PRESENTACION.cifraNegativa : PRESENTACION.cifraNormal
+    return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
   const clickable = (content: React.ReactNode, row: BGRow, fromDate: string, toDate: string) => {
@@ -200,36 +201,47 @@ function MonthlyBGTable({ monthData, loading, enMoneda, moneda }: {
   const yearTo   = months[months.length - 1].to
 
   const columns: ColumnsType<BGRow> = [
-    ...(cfg.codeW ? [{
-      key: '_code', dataIndex: '_code' as const, width: cfg.codeW,
-      render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont - 1, color: '#6b7280' }}>{v ?? ''}</span>,
-    }] : []),
     {
-      key: '_name', dataIndex: '_name' as const, width: cfg.nameW, ellipsis: true,
+      key: '_code', dataIndex: '_code' as const, width: ANCHOS.codigo,
+      title: <div style={estiloEncabezado('left')}>Código</div>,
+      render: (v: string) => (
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.codigo, color: PRESENTACION.grisEtiqueta }}>
+          {v ?? ''}
+        </span>
+      ),
+    },
+    {
+      key: '_name', dataIndex: '_name' as const, width: ANCHOS.nombre,
+      title: <div style={estiloEncabezado('left')}>Cuenta</div>,
+      /**
+       * El nombre ya no se corta con puntos suspensivos: «Total para Efectivo
+       * y equivalente de efectivo» se lee entero, en dos líneas si hace falta.
+       */
       render: (v: string, row) => (
         <span style={{
-          fontSize: cfg.nameFont,
-          fontWeight: (row._kind === 'acct') ? 400 : 600,
-          color: row._color,
+          fontSize: PRESENTACION.nombre,
+          fontWeight: (row._kind === 'acct') ? 400 : 700,
+          color: row._color ?? PRESENTACION.cifraNormal,
           paddingLeft: row._kind === 'acct' ? 18 : row._kind === 'subhdr' ? 8 : 0,
+          display: 'inline-block',
         }}>{v}</span>
       ),
     },
     ...months.map(m => ({
       key: m.yearMonth, dataIndex: m.yearMonth as keyof BGRow,
-      width: cfg.colW, align: 'right' as const,
-      title: <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>{m.label}</div>,
+      width: ANCHOS.mes, align: 'right' as const,
+      title: <div style={estiloEncabezado()}>{m.label}</div>,
       render: (v: number | null, row: BGRow) => clickable(cell(v, row._kind), row, m.from, m.to),
     })),
     {
-      key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
-      title: <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>Acumulado</div>,
+      key: '_total', dataIndex: '_total' as const, width: ANCHOS.acumulado, align: 'right' as const,
+      title: <div style={estiloEncabezado()}>Acumulado</div>,
       render: (v: number | null, row) => {
         if (row._kind === 'hdr' || row._kind === 'subhdr') return null
         if (v == null) return <span style={{ color: '#9aa1ab' }}>—</span>
         const bold = row._kind !== 'acct'
-        const c    = bold ? (v < 0 ? '#e5484d' : '#374151') : (v < 0 ? '#e5484d' : undefined)
-        const content = <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        const c    = v < 0 ? PRESENTACION.cifraNegativa : PRESENTACION.cifraNormal
+        const content = <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
         return clickable(content, row, yearFrom, yearTo)
       },
     },
