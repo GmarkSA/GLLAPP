@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, memo } from 'react'
 import {
   Button, Table, Tag, Space, message, InputNumber,
-  Switch, Typography, Alert, Popconfirm, Select, Modal, Form, Input,
+  Switch, Typography, Alert, Popconfirm, Select, Modal, Form, Input, Collapse,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCompanyStore } from '../../../store/companyStore'
 import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../../hooks/setupProgress'
@@ -38,6 +40,24 @@ const SUGERENCIAS_CLASES: Record<string, {
   '8000': { altaCode: '160002', depAcumCode: '160007', gastoDepCode: '640001', gananciaCode: '460001', perdidaCode: '660001' },    // EDIFICIOS Y CONSTRUCCIONES
   '9000': { altaCode: '170001', depAcumCode: '170003', gastoDepCode: '640006', gananciaCode: '460001', perdidaCode: '660001' },    // TÍTULOS Y DERECHOS
 }
+
+/**
+ * Las ocho cuentas que lleva una clase de activo fijo.
+ *
+ * Están en un solo lugar porque las usan las dos formas de la pantalla: las
+ * columnas de la tabla en escritorio y la tarjeta del teléfono. Con la lista
+ * repetida, agregar una cuenta obligaba a acordarse de los dos sitios.
+ */
+const CUENTAS_DE_LA_CLASE: Array<{ campo: keyof Pending; titulo: string }> = [
+  { campo: 'cuentaAltasId',                 titulo: 'Altas (costo activo)' },
+  { campo: 'cuentaDepreciacionAcumuladaId', titulo: 'Depreciación Acumulada' },
+  { campo: 'cuentaGastoDepreciacionId',     titulo: 'Gasto de Depreciación' },
+  { campo: 'cuentaGananciaPorVentaId',      titulo: 'Ganancia por Venta AF' },
+  { campo: 'cuentaPerdidaPorVentaId',       titulo: 'Pérdida por Venta AF' },
+  { campo: 'cuentaCostoVentaAFId',          titulo: 'Costo de Venta AF' },
+  { campo: 'cuentaPerdidaPorDeterioro',     titulo: 'Pérdida por Deterioro' },
+  { campo: 'cuentaSaldosInicialesId',       titulo: 'Saldos Iniciales (migración)' },
+]
 
 type NuevaClaseForm = {
   codigo: string
@@ -339,14 +359,7 @@ export default function ClasesActivoFijoPage() {
         />
       ),
     },
-    acctCol('cuentaAltasId',                'Altas (costo activo)'),
-    acctCol('cuentaDepreciacionAcumuladaId', 'Depreciación Acumulada'),
-    acctCol('cuentaGastoDepreciacionId',     'Gasto de Depreciación'),
-    acctCol('cuentaGananciaPorVentaId',      'Ganancia por Venta AF'),
-    acctCol('cuentaPerdidaPorVentaId',       'Pérdida por Venta AF'),
-    acctCol('cuentaCostoVentaAFId',          'Costo de Venta AF'),
-    acctCol('cuentaPerdidaPorDeterioro',     'Pérdida por Deterioro'),
-    acctCol('cuentaSaldosInicialesId',       'Saldos Iniciales (migración)'),
+    ...CUENTAS_DE_LA_CLASE.map(c => acctCol(c.campo, c.titulo)),
     {
       title: <span style={{ fontSize: 11 }}>Estado</span>, width: 90,
       render: (_: unknown, r: ClaseActivoFijo) => r.id
@@ -440,7 +453,7 @@ export default function ClasesActivoFijoPage() {
           description='Haz clic en "Cargar clases de AF" para crear las clases del ISR Art. 19 bis automáticamente.' />
       )}
 
-      <Table
+      <ResponsiveTable
         dataSource={data}
         columns={columns}
         rowKey={r => r.id ?? r.codigo}
@@ -449,6 +462,122 @@ export default function ClasesActivoFijoPage() {
         pagination={false}
         scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         rowClassName={r => isDirty(r.id ?? '') ? 'row-dirty' : ''}
+        mobileEmptyText='Sin clases configuradas. Usa "Cargar clases de AF".'
+        renderMobileCard={(r: ClaseActivoFijo) => {
+          const plantilla = !r.id
+          const sucia     = isDirty(r.id ?? '')
+          const vinculadas = CUENTAS_DE_LA_CLASE
+            .filter(c => !!val(r, c.campo as keyof ClaseActivoFijo))
+            .length
+          return (
+            <MobileCard
+              chevron={false}
+              title={r.nombre}
+              subtitle={
+                <span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.codigo}</span>
+                  {plantilla ? ' · plantilla sin guardar' : ''}
+                  <br />
+                  {/* Cuántas de las ocho cuentas están puestas: es lo que
+                      decide si la clase ya puede contabilizar. */}
+                  {vinculadas === CUENTAS_DE_LA_CLASE.length
+                    ? 'Las 8 cuentas vinculadas'
+                    : `${vinculadas} de ${CUENTAS_DE_LA_CLASE.length} cuentas vinculadas`}
+                </span>
+              }
+              status={plantilla
+                ? <Tag color="#1faec2" style={{ margin: 0 }}>Plantilla</Tag>
+                : <Tag color={r.activo ? 'success' : 'default'} style={{ margin: 0 }}>{r.activo ? 'Activo' : 'Bloqueado'}</Tag>}
+              extra={
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/*
+                    Lo que se toca a diario —la tasa del ISR, la vida útil y
+                    si la clase no deprecia— va a la vista, uno debajo de
+                    otro y a todo el ancho. Las ocho cuentas se despliegan
+                    aparte: se ponen una vez al configurar y después no se
+                    vuelven a mirar.
+                  */}
+                  <label style={{ display: 'block' }}>
+                    <span style={{ fontSize: 11, color: '#6b7280' }}>Tasa anual</span>
+                    <InputNumber
+                      size="small" style={{ width: '100%' }} min={0} max={1} precision={4} step={0.05}
+                      value={val(r, 'tasaDepreciacionAnual') as number}
+                      onChange={v => r.id && set(r.id, 'tasaDepreciacionAnual', v)}
+                      disabled={plantilla}
+                      formatter={v => `${((Number(v) || 0) * 100).toFixed(2)}%`}
+                      parser={v => (Number(v?.replace('%', '').trim()) / 100) as 0 | 1}
+                    />
+                  </label>
+                  <label style={{ display: 'block' }}>
+                    <span style={{ fontSize: 11, color: '#6b7280' }}>Vida útil (meses)</span>
+                    <InputNumber
+                      size="small" style={{ width: '100%' }} min={0}
+                      value={val(r, 'vidaUtilMeses') as number ?? undefined}
+                      onChange={v => r.id && set(r.id, 'vidaUtilMeses', v)}
+                      disabled={plantilla}
+                      placeholder="meses"
+                    />
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Switch
+                      size="small"
+                      checked={val(r, 'esNoDepreciable') as boolean}
+                      onChange={v => r.id && set(r.id, 'esNoDepreciable', v)}
+                      disabled={plantilla}
+                    />
+                    <span style={{ fontSize: 12 }}>No depreciable</span>
+                  </div>
+
+                  <Collapse
+                    size="small"
+                    items={[{
+                      key: 'cuentas',
+                      label: <span style={{ fontSize: 12 }}>Cuentas contables ({vinculadas}/{CUENTAS_DE_LA_CLASE.length})</span>,
+                      children: (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {CUENTAS_DE_LA_CLASE.map(c => (
+                            <label key={c.campo as string} style={{ display: 'block' }}>
+                              <span style={{ fontSize: 11, color: '#6b7280' }}>{c.titulo}</span>
+                              <AccountCellSelect
+                                accounts={accounts}
+                                value={val(r, c.campo as keyof ClaseActivoFijo) as string | null}
+                                onChange={v => r.id && set(r.id, c.campo, v)}
+                                disabled={plantilla}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      ),
+                    }]}
+                  />
+
+                  {!plantilla && (
+                    <Space wrap size={4}>
+                      <Button size="small" icon={<SaveOutlined />}
+                        loading={saving[r.id!]} disabled={!sucia}
+                        onClick={() => handleSave(r)}
+                        style={sucia ? { background: '#2ea172', borderColor: '#2ea172', color: '#fff' } : undefined}>
+                        Guardar
+                      </Button>
+                      <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Nombre</Button>
+                      <Button size="small" icon={<CopyOutlined />} onClick={() => openCopiar(r)}>Copiar</Button>
+                      <Popconfirm title={r.activo ? '¿Bloquear?' : '¿Desbloquear?'} onConfirm={() => handleBloquear(r)}>
+                        <Button size="small" icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
+                          danger={r.activo}
+                          style={!r.activo ? { color: '#2ea172', borderColor: '#2ea172' } : undefined}>
+                          {r.activo ? 'Bloquear' : 'Desbloquear'}
+                        </Button>
+                      </Popconfirm>
+                      <Popconfirm title="¿Eliminar esta clase?" onConfirm={() => handleEliminar(r)} okButtonProps={{ danger: true }}>
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </Space>
+                  )}
+                </div>
+              }
+            />
+          )
+        }}
       />
 
       <style>{`

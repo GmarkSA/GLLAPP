@@ -8,6 +8,8 @@ import {
   type ConceptoCuentaPlanilla,
 } from '../../../api/planillas'
 import { getAccounts, type Account } from '../../../api/catalogo'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 
 const { Text, Title } = Typography
 const NAVY = '#1faec2'
@@ -113,10 +115,41 @@ export default function CuentasPlanillaPage() {
   const renderGrupo = (naturaleza: 'gasto' | 'pasivo', titulo: string) => (
     <Card size="small" style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}
       title={<Text strong>{titulo}</Text>}>
-      <Table
+      <ResponsiveTable
         scroll={{ y: 'calc(100vh - 330px)' }}
         size="small" rowKey="campo" pagination={false} showHeader={false}
         dataSource={conceptos.filter(c => c.naturaleza === naturaleza)}
+        mobileEmptyText="Sin conceptos en este grupo"
+        renderMobileCard={(c: ConceptoCuentaPlanilla) => (
+          /*
+            Esta pantalla es un mapeo: concepto a la izquierda, su cuenta a la
+            derecha. En un teléfono las dos columnas no caben, así que el
+            concepto queda arriba y el selector debajo, a todo el ancho —que
+            es lo que necesita un nombre de cuenta—. El aviso de «obligatoria
+            sin cuenta» es lo que no se puede perder: es lo que impide
+            contabilizar la planilla.
+          */
+          <MobileCard
+            chevron={false}
+            title={c.etiqueta.replace(/^(Gasto|Pasivo) — /, '')}
+            subtitle={c.obligatoria
+              ? (valores[c.campo]
+                  ? 'obligatoria'
+                  : <span style={{ color: '#ff7f00' }}>obligatoria — sin cuenta</span>)
+              : undefined}
+            extra={
+              <Select
+                style={{ width: '100%' }} size="small" allowClear showSearch
+                placeholder="Seleccionar cuenta contable"
+                optionFilterProp="label"
+                value={valores[c.campo] ?? undefined}
+                onChange={v => setValores(prev => ({ ...prev, [c.campo]: v ?? null }))}
+                options={opcionesPorNaturaleza[naturaleza]}
+                status={c.obligatoria && !valores[c.campo] ? 'warning' : undefined}
+              />
+            }
+          />
+        )}
         columns={[
           {
             key: 'etiqueta', width: 250,
