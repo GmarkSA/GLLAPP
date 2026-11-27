@@ -8,6 +8,8 @@ import {
   LockOutlined, SaveOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import {
   getUnidades, createUnidad, updateUnidad, deleteUnidad,
   type UnidadMedida,
@@ -176,7 +178,7 @@ export default function UnidadesMedidaPage() {
       </div>
 
       <Card bordered={false} style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           scroll={{ y: 'calc(100vh - 330px)' }}
           columns={columns}
           dataSource={units}
@@ -186,6 +188,44 @@ export default function UnidadesMedidaPage() {
           pagination={false}
           locale={{ emptyText: 'Sin unidades de medida' }}
           rowClassName={(r) => !r.isActive ? 'ant-table-row-disabled' : ''}
+          mobileEmptyText="Sin unidades de medida"
+          renderMobileCard={(r: UnidadMedida) => (
+            <MobileCard
+              chevron={false}
+              title={r.name}
+              subtitle={
+                <span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.code}</span>
+                  {r.isSystem ? ' · del sistema' : ''}
+                  {r.description ? <><br />{r.description}</> : null}
+                </span>
+              }
+              status={r.isActive ? null : <Tag>Inactiva</Tag>}
+              extra={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <Space size={4}>
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Editar</Button>
+                    {/* Una unidad del sistema no se puede eliminar: tampoco aquí. */}
+                    {!r.isSystem && (
+                      <Popconfirm
+                        title="¿Eliminar esta unidad?"
+                        okText="Eliminar" cancelText="Cancelar"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => handleDelete(r.id)}
+                      >
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    )}
+                  </Space>
+                  <Space size={4}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>activa</Text>
+                    <Switch size="small" checked={r.isActive}
+                      onChange={checked => handleToggleActive(r, checked)} />
+                  </Space>
+                </div>
+              }
+            />
+          )}
         />
       </Card>
 

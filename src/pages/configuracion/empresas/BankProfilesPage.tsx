@@ -7,6 +7,8 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { companyIntegrationsApi, type BankProfile } from '../../../api/companyIntegrations'
 import { useCompanyStore } from '../../../store/companyStore'
 
@@ -165,7 +167,39 @@ export default function BankProfilesPage() {
         </Button>
       </div>
 
-      <Table rowKey="id" columns={columns} dataSource={profiles} loading={loading} size="small" pagination={false} scroll={{ y: 'calc(100vh - 330px)' }} />
+      <ResponsiveTable
+        rowKey="id" columns={columns} dataSource={profiles} loading={loading}
+        size="small" pagination={false} scroll={{ y: 'calc(100vh - 330px)' }}
+        mobileEmptyText="Sin perfiles bancarios"
+        renderMobileCard={(r: BankProfile) => (
+          <MobileCard
+            chevron={false}
+            title={r.bankName}
+            subtitle={
+              <span>
+                {r.integrationProvider
+                  ? (PROVIDERS.find(p => p.value === r.integrationProvider)?.label ?? r.integrationProvider)
+                  : 'Manual'}
+                {r.countryCode ? ` · ${r.countryCode}` : ''}
+                <br />
+                {r.lastTestedAt
+                  ? `Último test ${new Date(r.lastTestedAt).toLocaleString('es-GT')}`
+                  : 'sin pruebas'}
+              </span>
+            }
+            status={<Badge status={STATUS_BADGE[r.status] as any} text={r.status} />}
+            extra={
+              <Space size={4}>
+                <Button size="small" icon={<ThunderboltOutlined />} onClick={() => handleTest(r.id)}>Probar</Button>
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Editar</Button>
+                <Popconfirm title="¿Eliminar perfil?" onConfirm={() => handleDelete(r.id)}>
+                  <Button size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
+              </Space>
+            }
+          />
+        )}
+      />
 
       <Modal
         title={editing ? 'Editar perfil bancario' : 'Nuevo perfil bancario'}

@@ -9,6 +9,8 @@ import {
   ThunderboltOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { companyIntegrationsApi, type ElectronicInvoicingProfile } from '../../../api/companyIntegrations'
 import { useCompanyStore } from '../../../store/companyStore'
 import {
@@ -243,13 +245,54 @@ export default function ElectronicInvoicingPage() {
         />
       )}
 
-      <Table
+      <ResponsiveTable
         rowKey="id"
         columns={columns}
         dataSource={profiles}
         loading={loading}
         size="small"
         pagination={false}
+        mobileEmptyText="Sin perfiles FEL"
+        renderMobileCard={(p: ElectronicInvoicingProfile) => {
+          const prov = PROVIDERS.find(x => x.value === p.provider)
+          const rc   = p.apiConfigurationJson?.regimeCode
+          const dt   = p.apiConfigurationJson?.defaultDocumentType
+          return (
+            <MobileCard
+              chevron={false}
+              title={prov?.label ?? p.provider}
+              subtitle={
+                <span>
+                  {rc ? (REGIME_LABELS[rc] ?? rc) : 'sin régimen'}
+                  {dt ? ` · ${dt}` : ''}
+                  <br />
+                  {p.lastTestedAt
+                    ? `Último test ${new Date(p.lastTestedAt).toLocaleString('es-GT')}`
+                    : 'sin pruebas'}
+                </span>
+              }
+              status={
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                  {/* Producción vs sandbox es lo que no se puede confundir. */}
+                  {p.environment === 'production'
+                    ? <Tag color="#e5484d" icon={<CheckCircleOutlined />} style={{ margin: 0 }}>Producción</Tag>
+                    : <Tag color="#ff7f00" icon={<ExclamationCircleOutlined />} style={{ margin: 0 }}>Sandbox</Tag>}
+                  <Badge status={STATUS_BADGE[p.status] as any} text={p.status} />
+                </span>
+              }
+              extra={
+                <Space size={4}>
+                  <Button size="small" icon={<ThunderboltOutlined />} loading={testing === p.id}
+                    onClick={() => handleTest(p.id)}>Probar</Button>
+                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(p)}>Editar</Button>
+                  <Popconfirm title="¿Desactivar perfil?" onConfirm={() => handleDelete(p.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                </Space>
+              }
+            />
+          )
+        }}
       />
 
       {/* Modal crear/editar perfil FEL */}

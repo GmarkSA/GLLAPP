@@ -5,6 +5,8 @@ import {
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { branchesApi, type Branch } from '../../../api/branches'
 import { useCompanyStore } from '../../../store/companyStore'
 
@@ -103,7 +105,39 @@ export default function SucursalesPage() {
           onClick={openCreate}>Nueva Sucursal</Button>
       </div>
 
-      <Table rowKey="id" columns={columns} dataSource={branches} loading={loading} size="small" pagination={false} scroll={{ y: 'calc(100vh - 330px)' }} />
+      <ResponsiveTable
+        rowKey="id" columns={columns} dataSource={branches} loading={loading}
+        size="small" pagination={false} scroll={{ y: 'calc(100vh - 330px)' }}
+        mobileEmptyText="Sin sucursales registradas"
+        renderMobileCard={(r: Branch) => (
+          <MobileCard
+            chevron={false}
+            title={r.name}
+            subtitle={
+              <span>
+                {r.code ? <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.code}</span> : 'sin código'}
+                {r.city ? ` · ${r.city}` : ''}
+                {(r.phone || r.managerName) ? <br /> : null}
+                {r.managerName ?? ''}
+                {r.managerName && r.phone ? ' · ' : ''}
+                {r.phone ?? ''}
+              </span>
+            }
+            status={r.isDefault ? <Tag color="#1faec2">Principal</Tag> : null}
+            extra={
+              <Space size={4}>
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Editar</Button>
+                {/* La sucursal principal no se desactiva: tampoco aqui. */}
+                {!r.isDefault && (
+                  <Popconfirm title="¿Desactivar sucursal?" onConfirm={() => handleDelete(r.id)}>
+                    <Button size="small" icon={<DeleteOutlined />} danger />
+                  </Popconfirm>
+                )}
+              </Space>
+            }
+          />
+        )}
+      />
 
       <Modal title={editing ? 'Editar Sucursal' : 'Nueva Sucursal'} open={modalOpen}
         onCancel={() => setModalOpen(false)} onOk={() => form.submit()}

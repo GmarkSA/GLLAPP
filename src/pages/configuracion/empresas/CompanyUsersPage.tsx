@@ -5,6 +5,8 @@ import {
 } from 'antd'
 import { PlusOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { useParams } from 'react-router-dom'
 import { companiesApi } from '../../../api/companies'
 import { getUsers, type TenantUser } from '../../../api/usuarios'
@@ -212,7 +214,7 @@ export default function CompanyUsersPage() {
         </Button>
       </div>
 
-      <Table
+      <ResponsiveTable
         scroll={{ y: 'calc(100vh - 330px)' }}
         rowKey="userId"
         columns={columns}
@@ -221,6 +223,40 @@ export default function CompanyUsersPage() {
         size="small"
         pagination={false}
         locale={{ emptyText: 'Ningún usuario asignado a esta empresa' }}
+        mobileEmptyText="Ningún usuario asignado a esta empresa"
+        renderMobileCard={(r: CompanyUser) => {
+          const u = getUser(r.userId)
+          const actual = roleLabel(r.roleIds)
+          return (
+            <MobileCard
+              chevron={false}
+              title={u ? `${u.firstName} ${u.lastName}` : `${r.userId.slice(0, 8)}…`}
+              subtitle={u?.email}
+              status={u ? <Tag color={u.status === 'active' ? 'success' : 'default'}>{u.status}</Tag> : null}
+              extra={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {/* El rol se cambia aquí mismo, como en la tabla; un Super
+                      Admin no se toca. */}
+                  {u?.isSuperAdmin
+                    ? <Tag color="#e5484d" style={{ margin: 0 }}>Super Admin</Tag>
+                    : (
+                      <Select
+                        size="small"
+                        style={{ flex: 1, minWidth: 0 }}
+                        value={actual?.value ?? 'usuario'}
+                        loading={updatingRole === r.userId}
+                        onChange={(val: string) => handleRoleChange(r.userId, val)}
+                        options={COMPANY_ROLES.map(role => ({ value: role.value, label: role.label }))}
+                      />
+                    )}
+                  <Popconfirm title="¿Revocar acceso de este usuario?" onConfirm={() => handleRemove(r.userId)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                </div>
+              }
+            />
+          )
+        }}
       />
 
       <Modal

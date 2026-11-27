@@ -17,6 +17,8 @@ import {
   ThunderboltOutlined, RocketOutlined, ArrowLeftOutlined, SettingOutlined,
   ImportOutlined,
 } from '@ant-design/icons'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 import { fiscalRegimesApi, type FiscalRegime } from '../../api/fiscalRegimes'
 import { guideHighlight, markSetupStepDone, SETUP_ROUTES } from '../../hooks/setupProgress'
 import ImpuestosPage          from './impuestos/ImpuestosPage'
@@ -879,12 +881,70 @@ function CurrencySection() {
 
       {/* Tabla de monedas activas */}
       <Card bordered={false} style={cardStyle} bodyStyle={{ padding: 0 }}>
-        <Table
+        <ResponsiveTable
           dataSource={currencies}
           rowKey="id"
           pagination={false}
           size="middle"
           loading={loading}
+          mobileEmptyText="Sin monedas activas"
+          renderMobileCard={(r: Currency) => (
+            <MobileCard
+              chevron={false}
+              title={`${r.code} — ${r.name}`}
+              subtitle={
+                <span>
+                  Símbolo {r.symbol}
+                  <br />
+                  {r.updatedRateAt
+                    ? `Actualizado ${new Date(r.updatedRateAt).toLocaleDateString('es-GT')}`
+                    : 'Sin registro de tipo de cambio'}
+                </span>
+              }
+              status={
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                  {r.isBase && <Tag color="gold" icon={<StarFilled />} style={{ margin: 0 }}>Base</Tag>}
+                  {!r.isActive && <Tag style={{ margin: 0 }}>Inactiva</Tag>}
+                </span>
+              }
+              extra={
+                /**
+                 * El tipo de cambio se edita aquí mismo, igual que en la
+                 * tabla: es el único dato que se cambia de una moneda.
+                 */
+                r.code === localCurrencyCode
+                  ? <Text type="secondary" style={{ fontSize: 12 }}>1.0000 — moneda local</Text>
+                  : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <InputNumber
+                        value={Number(r.exchangeRate)}
+                        min={0.000001}
+                        precision={4}
+                        step={0.01}
+                        onBlur={e => {
+                          const v = parseFloat(e.target.value.replace(/[^0-9.]/g, ''))
+                          if (!isNaN(v)) handleRateChange(r.id, v)
+                        }}
+                        style={{ flex: 1, minWidth: 0 }}
+                        addonBefore={`1 ${localCurrencyCode} =`}
+                      />
+                      {!r.isActive
+                        ? <Button size="small" onClick={() => handleActivate(r.id, r.name)}>Activar</Button>
+                        : (
+                          <Popconfirm
+                            title={`¿Desactivar ${r.name}?`}
+                            onConfirm={() => handleRemove(r.id, r.name)}
+                            okText="Sí" cancelText="No"
+                            okButtonProps={{ danger: true }}
+                          >
+                            <Button size="small" danger icon={<DeleteOutlined />} />
+                          </Popconfirm>
+                        )}
+                    </div>
+                  )
+              }
+            />
+          )}
           columns={[
             {
               title: 'Moneda',

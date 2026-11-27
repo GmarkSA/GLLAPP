@@ -11,6 +11,8 @@ import {
   FileTextOutlined, StopOutlined, LinkOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getTaxes, createTax, updateTax, deleteTax, calculateTax,
   type Tax, type TaxTier,
@@ -1329,6 +1331,78 @@ export default function ImpuestosPage() {
   // Tabs separadas
   const taxesISR   = taxes.filter(t => t.category === 'isr')
   const taxesRIVA  = taxes.filter(t => t.isWithholding && t.category === 'iva')
+  /**
+   * Un código de impuesto, en el teléfono.
+   *
+   * Las cinco tablas de esta pantalla —ventas, compras, general, ISR y
+   * retenciones de IVA— muestran lo mismo, así que comparten una sola
+   * tarjeta. Lo que se busca de un código es su tasa y a qué cuenta pega;
+   * un código bloqueado no se edita ni se elimina, igual que en la tabla.
+   */
+  const tarjetaDeImpuesto = (r: Tax) => {
+    const cuentaVta = pageAccounts.find(a => a.id === r.salesAccountId)
+    const cuentaCmp = pageAccounts.find(a => a.id === r.purchaseAccountId)
+    const misma     = cuentaVta?.id === cuentaCmp?.id
+    const activo    = r.isActive !== false
+    const conHistorial = hasHistoryIds.has(r.id)
+    return (
+      <MobileCard
+        chevron={false}
+        title={r.name}
+        subtitle={
+          <span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.code}</span>
+            {' · '}
+            {SUBTYPE_LABELS[r.subtype ?? ''] ?? r.subtype ?? '—'}
+            <br />
+            {CATEGORY_LABELS[r.category ?? '']?.label ?? r.category ?? '—'}
+            {' · '}
+            {APPLICABILITY_LABELS[r.applicability ?? ''] ?? r.applicability ?? '—'}
+            {r.isWithholding ? ' · retención' : ''}
+            <br />
+            {cuentaVta || cuentaCmp
+              ? <>
+                  {cuentaVta && <>Vta: {cuentaVta.code} {cuentaVta.name}</>}
+                  {cuentaCmp && !misma && <>{cuentaVta ? <br /> : null}Cmp: {cuentaCmp.code} {cuentaCmp.name}</>}
+                </>
+              : <span style={{ color: '#ff7f00' }}>Sin cuenta contable</span>}
+          </span>
+        }
+        /** La tasa es el dato que se viene a ver. */
+        amount={rateDisplay(r)}
+        status={activo
+          ? <Tag color="success" style={{ margin: 0 }}>Activo</Tag>
+          : <Tag color="default" style={{ margin: 0 }}>Bloqueado</Tag>}
+        extra={activo ? (
+          <Space size={4}>
+            <Button size="small" icon={<EditOutlined />}
+              onClick={() => setModal({ open: true, tax: r })}>Editar</Button>
+            <Popconfirm
+              title="¿Bloquear impuesto?"
+              description="Queda inactivo y no aparece en documentos nuevos. El historial contable se conserva."
+              onConfirm={() => handleBlock(r.id)}
+              okText="Sí, bloquear"
+              okButtonProps={{ style: { background: '#f59e0b', borderColor: '#f59e0b' } }}
+            >
+              <Button size="small" icon={<StopOutlined style={{ color: '#f59e0b' }} />}>Bloquear</Button>
+            </Popconfirm>
+            {!conHistorial && (
+              <Popconfirm
+                title="¿Eliminar impuesto?"
+                description="Se elimina si no tiene transacciones. Si falla, usa Bloquear."
+                onConfirm={() => handleDelete(r.id)}
+                okText="Sí, eliminar"
+                okButtonProps={{ danger: true }}
+              >
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            )}
+          </Space>
+        ) : undefined}
+      />
+    )
+  }
+
   // Columnas compactas para bloques lado a lado
   const columnsCompact = columns
     .filter(c => {
@@ -1408,7 +1482,8 @@ export default function ImpuestosPage() {
             </Space>
           }
         >
-          <Table columns={columnsCompact} dataSource={taxesVentas} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} locale={{ emptyText: 'Sin códigos de ventas' }} />
+          <ResponsiveTable columns={columnsCompact} dataSource={taxesVentas} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} locale={{ emptyText: 'Sin códigos de ventas' }}
+            mobileEmptyText="Sin códigos de ventas" renderMobileCard={tarjetaDeImpuesto} />
         </Card>
 
         <Card
@@ -1429,7 +1504,8 @@ export default function ImpuestosPage() {
             </Space>
           }
         >
-          <Table columns={columnsCompact} dataSource={taxesCompras} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} locale={{ emptyText: 'Sin códigos de compras' }} />
+          <ResponsiveTable columns={columnsCompact} dataSource={taxesCompras} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} locale={{ emptyText: 'Sin códigos de compras' }}
+            mobileEmptyText="Sin códigos de compras" renderMobileCard={tarjetaDeImpuesto} />
         </Card>
       </div>
 
@@ -1438,7 +1514,8 @@ export default function ImpuestosPage() {
           title={<Space><Tag style={{ margin: 0 }}>General</Tag><Text style={{ fontSize: 13, color: '#374151' }}>Aplica en ventas y compras</Text></Space>}
           extra={<Text type="secondary" style={{ fontSize: 11 }}>{taxesBoth.length} códigos</Text>}
         >
-          <Table columns={columns} dataSource={taxesBoth} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''} />
+          <ResponsiveTable columns={columns} dataSource={taxesBoth} rowKey="id" loading={loading} pagination={false} size="small" scroll={{ x: 'max-content' }} rowClassName={(r) => r.isSystem ? 'system-row' : ''}
+            mobileEmptyText="Sin códigos generales" renderMobileCard={tarjetaDeImpuesto} />
         </Card>
       )}
     </>
@@ -1477,7 +1554,7 @@ export default function ImpuestosPage() {
           </div>
         </div>
       )}
-      <Table
+      <ResponsiveTable
         columns={columnsCompact}
         dataSource={taxesISR}
         rowKey="id"
@@ -1487,6 +1564,8 @@ export default function ImpuestosPage() {
         scroll={{ x: 'max-content' }}
         rowClassName={(r) => r.isSystem ? 'system-row' : ''}
         locale={{ emptyText: ' ' }}
+        mobileEmptyText=" "
+        renderMobileCard={tarjetaDeImpuesto}
       />
     </Card>
   )
@@ -1525,7 +1604,7 @@ export default function ImpuestosPage() {
           </div>
         </div>
       )}
-      <Table
+      <ResponsiveTable
         columns={columnsCompact}
         dataSource={taxesRIVA}
         rowKey="id"
@@ -1535,6 +1614,8 @@ export default function ImpuestosPage() {
         scroll={{ x: 'max-content' }}
         rowClassName={(r) => r.isSystem ? 'system-row' : ''}
         locale={{ emptyText: ' ' }}
+        mobileEmptyText=" "
+        renderMobileCard={tarjetaDeImpuesto}
       />
     </Card>
   )
