@@ -9,6 +9,7 @@ import {
   PrinterOutlined, InfoCircleOutlined, NumberOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useDispositivo } from '../hooks/useMediaQuery'
 import { exportReporte, nextCorrelativo, type CorrelativoData } from '../api/reportes'
 
 const { RangePicker } = DatePicker
@@ -54,6 +55,11 @@ export default function ReportLayout({
   onPresetChange,
 }: ReportLayoutProps) {
   const navigate = useNavigate()
+  /**
+   * En el teléfono el marco del reporte se aprieta: 24px por lado son 48 de
+   * los 375 que hay, y lo que se necesita es ancho para las cifras.
+   */
+  const esTelefono = useDispositivo() === 'telefono'
   const [exporting, setExporting] = useState(false)
   const [folioOpen, setFolioOpen] = useState(false)
   const [folioData, setFolioData] = useState<CorrelativoData | null>(null)
@@ -114,7 +120,11 @@ export default function ReportLayout({
   }
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+    <div style={{
+      background: '#fff', borderRadius: 12,
+      padding: esTelefono ? 12 : 24,
+      boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+    }}>
       {/* Header */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',

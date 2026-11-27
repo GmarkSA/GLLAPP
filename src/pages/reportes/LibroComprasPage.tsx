@@ -21,6 +21,7 @@ import {
   getLibroSATConfig, DEFAULT_CONFIG,
   type LibroColumn, type LibroSATConfig,
 } from '../../api/libros-sat'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -509,7 +510,7 @@ export default function LibroComprasPage() {
           </div>
 
           <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: '0 0 8px 8px', borderTop: 'none' }}>
-            <Table
+            <ResponsiveTable
               dataSource={data.items}
               columns={tableColumns}
               rowKey={(r) => r.uuid || r.numeroInterno}

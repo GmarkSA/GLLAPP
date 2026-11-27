@@ -18,6 +18,7 @@ import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 
 import { getArAging, type ArAgingRow } from '../../api/facturas'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -337,7 +338,7 @@ export default function ArAgingPage() {
       },
     ]
     return (
-      <Table
+      <ResponsiveTable
         columns={invCols}
         // Con «Ocultar anticipos» el detalle tampoco los muestra: la pantalla
         // tiene que decir lo mismo arriba y abajo.
@@ -773,7 +774,7 @@ export default function ArAgingPage() {
           )}
 
           {totalBalance > 0 && (
-            <Table
+            <ResponsiveTable
               columns={columns}
               dataSource={clientRows}
               rowKey="customerId"

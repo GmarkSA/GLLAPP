@@ -14,6 +14,7 @@ import {
   type LibroDiarioEntry, type LibroDiarioLine,
 } from '../../api/reportes'
 import { postAsiento, deleteAsiento } from '../../api/asientos'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Text, Title } = Typography
 
@@ -333,7 +334,7 @@ export default function LibroDiarioPage() {
         style={{ borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: 0 }}
       >
-        <Table
+        <ResponsiveTable
           columns={flatColumns}
           dataSource={flatRows}
           rowKey="_key"

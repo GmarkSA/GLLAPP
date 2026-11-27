@@ -18,6 +18,7 @@ import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 
 import { getApAging, type ApAgingRow } from '../../api/compras'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -334,7 +335,7 @@ export default function ApAgingPage() {
       },
     ]
     return (
-      <Table
+      <ResponsiveTable
         columns={invCols}
         // Con «Ocultar anticipos» el detalle tampoco los muestra: la pantalla
         // tiene que decir lo mismo arriba y abajo.
@@ -774,7 +775,7 @@ export default function ApAgingPage() {
           )}
 
           {totalBalance > 0 && (
-            <Table
+            <ResponsiveTable
               columns={columns}
               dataSource={vendorRows}
               rowKey="vendorId"

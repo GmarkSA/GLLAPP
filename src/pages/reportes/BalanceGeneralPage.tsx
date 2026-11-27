@@ -9,6 +9,7 @@ import { getBalanceGeneral, type BalanceGeneralData, type AccountRow } from '../
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
 import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
 import type { MonedaDelReporte } from './monedaDelReporte'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Text, Title } = Typography
 
@@ -242,7 +243,7 @@ function MonthlyBGTable({ monthData, loading, enMoneda, moneda }: {
           : 'Cifras en quetzales'}
       </Text>
       <Spin spinning={loading}>
-        <Table
+        <ResponsiveTable
           size="small"
           dataSource={rows}
           columns={columns}

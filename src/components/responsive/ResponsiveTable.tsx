@@ -26,12 +26,17 @@ export default function ResponsiveTable<T extends object = any>(props: Responsiv
 
   if (dispositivo !== 'telefono' || !renderMobileCard) {
     /**
-     * En tablet la tabla se corre de lado en lugar de apretarse. Si quien la
-     * usa ya definió su propio `scroll`, manda el suyo.
+     * Mientras no sea escritorio, la tabla se corre de lado en lugar de
+     * apretarse. En tablet eso aplica siempre; en teléfono, solo cuando la
+     * pantalla no tiene tarjeta —un reporte financiero, por ejemplo, que se
+     * lee comparando columnas y no se puede apilar—. Apretar un balance en
+     * 375px no lo hace legible: lo hace inservible.
+     *
+     * Si quien la usa ya definió su propio `scroll`, manda el suyo.
      */
-    const scroll = dispositivo === 'tablet'
-      ? { x: 'max-content' as const, ...(props.scroll ?? {}) }
-      : props.scroll
+    const scroll = dispositivo === 'escritorio'
+      ? props.scroll
+      : { x: 'max-content' as const, ...(props.scroll ?? {}) }
     return <Table<T> {...props} scroll={scroll} />
   }
   void rest

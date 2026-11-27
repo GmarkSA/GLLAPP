@@ -12,6 +12,7 @@ import {
   getLibroMayor, getCuentasConMovimientos, exportReporte,
   type LibroMayorMovement, type LibroMayorData,
 } from '../../api/reportes'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Text, Title } = Typography
 
@@ -401,7 +402,7 @@ export default function LibroMayorPage() {
         bodyStyle={{ padding: 0 }}
       >
         {viewMode === 'resumido' ? (
-          <Table
+          <ResponsiveTable
             columns={resumidoColumns}
             dataSource={filteredData}
             rowKey={d => d.account.id}
@@ -435,7 +436,7 @@ export default function LibroMayorPage() {
             locale={{ emptyText: 'Sin cuentas con movimientos en el período' }}
           />
         ) : (
-          <Table
+          <ResponsiveTable
             columns={flatColumns}
             dataSource={flatRows}
             rowKey="_key"
