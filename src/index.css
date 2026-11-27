@@ -306,6 +306,78 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+ * Teléfono: los formularios, en una columna.
+ *
+ * El patrón del proyecto es CSS Grid con las columnas escritas en línea
+ * —`gridTemplateColumns: '1fr 1fr'`, `'2fr 1fr'`, `'repeat(4, 1fr)'`—:
+ * 265 rejillas repartidas en 103 pantallas. En un teléfono de 375px eso
+ * deja campos de 90px donde no cabe ni un NIT, y el formulario se vuelve
+ * inservible aunque la pantalla «quepa».
+ *
+ * Son demasiadas para ir una por una, y no hace falta: todas viven dentro
+ * de un formulario, un modal o un cajón, y ahí la regla es la misma. Cuatro
+ * reglas acotadas a esos tres contenedores, sin tocar ninguna rejilla de
+ * fuera —las tiras de indicadores, las de tarjetas, las del propio
+ * tablero—, que ya se arreglan solas o no son formularios.
+ *
+ *  1. Una sola columna, EXCEPTO dentro de una vista previa. La
+ *     previsualización de una plantilla de impresión o de correo es la foto
+ *     de cómo saldrá el papel: su maqueta —el logo arriba a la izquierda,
+ *     el número a la derecha, los dos cuadros de «Facturar a» y
+ *     certificación FEL lado a lado— no depende del tamaño de la pantalla.
+ *     Colapsarla haría que la previsualización mintiera sobre la impresión,
+ *     así que lo que lleva `data-vista-previa` queda fuera.
+ *     En tablet (768–1024) no se toca nada: dos columnas es justo lo que
+ *     ahí se quiere, y `1fr 1fr` ya es eso.
+ *  2. Un modal nunca más ancho que la pantalla. Varios se abren con un
+ *     ancho fijo de 440, 660 o 1000px, que en 375 se sale por la derecha.
+ *  3. Un cajón, igual.
+ *  4. Un campo con ancho fijo en línea —`style={{ width: 280 }}`— no se
+ *     pasa de su columna. Solo se limita el máximo, así que donde cabía
+ *     sigue igual.
+ *  5. El logo de la empresa no se encoge. Un avatar es la única imagen de
+ *     ancho fijo que vive en estas filas, y al ser un elemento flex el
+ *     navegador le quita ancho —no alto— para darle sitio al texto: el
+ *     círculo del logo salía como un óvalo. Vale para el logo de la empresa
+ *     y para cualquier avatar de usuario.
+ * ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .ant-form        [style*="grid-template-columns"]:not([data-vista-previa]):not([data-vista-previa] *),
+  .ant-modal-body  [style*="grid-template-columns"]:not([data-vista-previa]):not([data-vista-previa] *),
+  .ant-drawer-body [style*="grid-template-columns"]:not([data-vista-previa]):not([data-vista-previa] *) {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ant-avatar {
+    flex-shrink: 0;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 16px);
+    margin: 8px auto;
+  }
+
+  .ant-drawer-content-wrapper {
+    max-width: 100vw;
+  }
+
+  .ant-form .ant-input,
+  .ant-form .ant-input-number,
+  .ant-form .ant-select,
+  .ant-form .ant-picker,
+  .ant-modal-body .ant-input,
+  .ant-modal-body .ant-input-number,
+  .ant-modal-body .ant-select,
+  .ant-modal-body .ant-picker,
+  .ant-drawer-body .ant-input,
+  .ant-drawer-body .ant-input-number,
+  .ant-drawer-body .ant-select,
+  .ant-drawer-body .ant-picker {
+    max-width: 100%;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
  * Teléfono: las fichas, también en una columna.
  *
  * Una ficha —la de una factura, un cliente, un activo fijo, una corrida de

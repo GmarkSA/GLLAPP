@@ -251,8 +251,15 @@ function OrganizationSection({
       <div style={{ maxWidth: 860 }}>
         {/* Logo row */}
         <Card bordered={false} style={cardStyle} bodyStyle={{ padding: '24px 28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <div style={{ position: 'relative', borderRadius: '50%', ...(guided ? guideHighlight : {}) }}>
+          {/*
+            El logo no se encoge ni se deforma en el teléfono. La fila es un
+            flex con el logo de 96px al lado del texto; sin `flexShrink: 0`
+            el navegador le quita ancho al logo para darle sitio al texto y
+            el círculo sale como un óvalo. Con `flexWrap` el texto baja
+            debajo del logo en vez de pelearle el ancho.
+          */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', borderRadius: '50%', flexShrink: 0, ...(guided ? guideHighlight : {}) }}>
               <Avatar
                 size={96}
                 src={logoUrl}
