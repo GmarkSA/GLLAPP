@@ -9,6 +9,8 @@ import {
   BarChartOutlined, LoadingOutlined,
 } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getAjustesMoneda, getCuentasDeDiferencial, type CuentasDeDiferencial, createAjusteMoneda, deleteAjusteMoneda,
   previewAjusteMoneda, type AjusteMoneda, type AjusteMonedaLinea,
@@ -252,7 +254,7 @@ export default function AjusteMonedaListPage() {
         </Button>
       </div>
 
-      <Table
+      <ResponsiveTable
         dataSource={list}
         columns={listColumns}
         rowKey="id"
@@ -260,6 +262,35 @@ export default function AjusteMonedaListPage() {
         size="small"
         pagination={{ pageSize: 20 }}
         locale={{ emptyText: 'No hay ajustes registrados' }}
+        mobileEmptyText="No hay ajustes registrados"
+        renderMobileCard={(r: AjusteMoneda) => (
+          <MobileCard
+            chevron={false}
+            title={dayjs(r.fechaAjuste).format('DD MMMM YYYY')}
+            subtitle={
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {r.moneda} · 1 {r.moneda} = {Number(r.tipoCambio).toFixed(6)} GTQ
+              </span>
+            }
+            amount={
+              <span style={{ color: Number(r.gananciasPerdidas) >= 0 ? '#2ea172' : '#e5484d' }}>
+                {Number(r.gananciasPerdidas) >= 0 ? '+' : '-'}GTQ{Math.abs(Number(r.gananciasPerdidas)).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+              </span>
+            }
+            status={<Tag color="#2ea172">Publicado</Tag>}
+            extra={
+              <Space size={4}>
+                <Button size="small" icon={<EyeOutlined />}
+                  onClick={() => navigate(`/contabilidad/ajuste-moneda/${r.id}`)}>Ver detalle</Button>
+                {r.status === 'posted' && (
+                  <Popconfirm title="¿Anular este ajuste?" onConfirm={() => handleDelete(r.id)} okText="Sí" cancelText="No">
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                )}
+              </Space>
+            }
+          />
+        )}
       />
 
       {/* ── Modal: Nuevo Ajuste ── */}

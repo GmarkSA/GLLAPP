@@ -10,6 +10,8 @@ import {
   CopyOutlined, EditOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getAsientos, getAsiento, postAsiento, voidAsiento, reverseAsiento, deleteAsiento, resetToDraftAsiento,
   type AsientoListItem, type GetAsientosParams,
@@ -303,7 +305,7 @@ export default function DiariosManualesPage() {
         </Badge>
       </Space>
 
-      <Table
+      <ResponsiveTable
         scroll={{ y: 'calc(100vh - 330px)' }}
         dataSource={filteredData} columns={columns} rowKey="id"
         loading={loading} size="small"
@@ -314,6 +316,23 @@ export default function DiariosManualesPage() {
           onChange: p => setPage(p),
           showTotal: t => `${t} registros`,
         }}
+        mobileEmptyText="Sin diarios manuales"
+        renderMobileCard={(r: AsientoListItem) => (
+          <MobileCard
+            onClick={() => navigate(`/contabilidad/diarios-manuales/${r.id}`)}
+            title={r.description || r.entryNumber}
+            subtitle={
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {r.entryNumber} · {dayjs(r.entryDate).format('DD/MM/YYYY')}
+                <br />
+                {TYPE_LABEL[r.type] ?? r.type}
+                {r.reference ? ` · Ref. ${r.reference}` : ''}
+              </span>
+            }
+            amount={`${r.currency ?? 'GTQ'} ${Number(r.totalDebit ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`}
+            status={<Tag color={STATUS_COLOR[r.status] ?? 'default'}>{STATUS_LABEL[r.status] ?? r.status}</Tag>}
+          />
+        )}
       />
 
       {/* Drawer filtros avanzados */}
