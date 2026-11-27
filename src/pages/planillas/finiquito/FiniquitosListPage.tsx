@@ -4,6 +4,8 @@ import { Button, Card, Table, Tag, Typography, message } from 'antd'
 import { SolutionOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { listarFiniquitos, type Finiquito, type MotivoBajaFiniquito } from '../../../api/planillas-finiquito'
 
 const { Text, Title } = Typography
@@ -47,12 +49,30 @@ export default function FiniquitosListPage() {
       </div>
 
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
-        <Table
+        <ResponsiveTable
           scroll={{ y: 'calc(100vh - 330px)' }}
           size="small" rowKey="id" loading={loading}
           dataSource={finiquitos} columns={columns} pagination={false}
           onRow={f => ({ style: { cursor: 'pointer' }, onClick: () => navigate(`/planillas/finiquitos/${f.id}`) })}
           locale={{ emptyText: 'Sin finiquitos registrados' }}
+          mobileEmptyText="Sin finiquitos registrados"
+          renderMobileCard={(f: Finiquito) => (
+            <MobileCard
+              onClick={() => navigate(`/planillas/finiquitos/${f.id}`)}
+              title={f.empleadoNombre}
+              subtitle={
+                <span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{f.empleadoCodigo}</span>
+                  <br />
+                  {MOTIVO_LABEL[f.motivoBaja] ?? f.motivoBaja}
+                  {' · baja '}
+                  {dayjs(f.fechaBaja).format('DD/MM/YYYY')}
+                </span>
+              }
+              amount={<span style={{ color: '#389e0d' }}>{fmtQ(f.netoAPagar)}</span>}
+              status={<Tag color={ESTADO_COLOR[f.estado]}>{f.estado}</Tag>}
+            />
+          )}
         />
       </Card>
     </div>

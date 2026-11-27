@@ -7,6 +7,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { PlusOutlined, SearchOutlined, TeamOutlined, FilterOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { getEmpleados, nombreCompleto, type Empleado } from '../../../api/planillas-empleados'
 
 const { Text, Title } = Typography
@@ -156,7 +158,7 @@ export default function EmpleadosPage() {
       </div>
 
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
-        <Table
+        <ResponsiveTable
           scroll={{ y: 'calc(100vh - 330px)' }}
           size="small" rowKey="id" loading={loading}
           dataSource={filtrados} columns={columns}
@@ -167,6 +169,35 @@ export default function EmpleadosPage() {
             onClick: () => navigate(`/planillas/empleados/${e.id}`),
           })}
           locale={{ emptyText: 'Sin empleados registrados. Crea el primero con "Nuevo empleado".' }}
+          mobileEmptyText='Sin empleados registrados. Crea el primero con "Nuevo empleado".'
+          renderMobileCard={(e: Empleado) => (
+            <MobileCard
+              onClick={() => navigate(`/planillas/empleados/${e.id}`)}
+              title={nombreCompleto(e)}
+              subtitle={
+                <span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{e.codigo}</span>
+                  {' · '}
+                  {e.puesto ?? 'sin puesto'}
+                  <br />
+                  {JORNADA_LABEL[e.tipoJornada] ?? e.tipoJornada}
+                  {' · alta '}
+                  {dayjs(e.fechaAlta).format('DD/MM/YYYY')}
+                  <br />
+                  {/* El afiliado IGSS pendiente frena la planilla electrónica:
+                      se dice, no se esconde. */}
+                  {e.numeroAfiliadoIGSS
+                    ? <>IGSS <span style={{ fontVariantNumeric: 'tabular-nums' }}>{e.numeroAfiliadoIGSS}</span></>
+                    : <span style={{ color: '#ff7f00' }}>IGSS pendiente</span>}
+                </span>
+              }
+              amount={e.salarioVigente != null ? fmtQ(e.salarioVigente) : '—'}
+              amountSub={e.salarioVigente != null && e.salarioDesde
+                ? `desde ${dayjs(e.salarioDesde).format('DD/MM/YYYY')}`
+                : undefined}
+              status={<Tag color={ESTADO_COLOR[e.estado]}>{e.estado}</Tag>}
+            />
+          )}
         />
       </Card>
 

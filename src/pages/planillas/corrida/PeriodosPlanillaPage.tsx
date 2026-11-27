@@ -9,6 +9,8 @@ import {
   SafetyCertificateOutlined, GiftOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getPeriodosPlanilla, crearPeriodoPlanilla, crearCorridaEspecial, descargarArchivoIGSS, type PeriodoPlanilla,
 } from '../../../api/planillas-corrida'
@@ -214,7 +216,7 @@ export default function PeriodosPlanillaPage() {
       </div>
 
       <Card style={{ borderRadius: 8 }} styles={{ body: { padding: 0 } }}>
-        <Table
+        <ResponsiveTable
           scroll={{ y: 'calc(100vh - 330px)' }}
           size="small" rowKey="id" loading={loading}
           dataSource={periodos} columns={columns}
@@ -224,6 +226,77 @@ export default function PeriodosPlanillaPage() {
             onClick: () => navigate(`/planillas/corridas/${p.id}`),
           })}
           locale={{ emptyText: 'Sin corridas. Crea la primera con "Nueva corrida" — se genera una línea por cada empleado activo.' }}
+          mobileEmptyText='Sin corridas. Crea la primera con "Generar planilla" — se genera una línea por cada empleado activo.'
+          renderMobileCard={(p: PeriodoPlanilla) => (
+            <MobileCard
+              onClick={() => navigate(`/planillas/corridas/${p.id}`)}
+              title={p.quincena === 0
+                ? `${p.tipo === 'BONO14' ? 'Bono 14' : 'Aguinaldo'} ${p.anio}`
+                : `${MESES[p.mes - 1]} ${p.anio}`}
+              subtitle={
+                <span>
+                  {p.quincena === 0
+                    ? `${p.tipo === 'BONO14' ? `jul/${p.anio - 1} → jun/${p.anio}` : `dic/${p.anio - 1} → nov/${p.anio}`} · corrida anual`
+                    : p.periodicidad === 'MENSUAL'
+                      ? 'Mensual (mes completo)'
+                      : p.quincena === 1 ? '1ra quincena (1-15)' : '2da quincena (16-fin)'}
+                  <br />
+                  {p.totalEmpleados} empleados · deducciones {fmtQ(p.totalDeducciones)}
+                  <br />
+                  Patronal {fmtQ(p.totalCuotaPatronal)}
+                </span>
+              }
+              /** De una corrida, lo que se busca es el neto a pagar. */
+              amount={<span style={{ color: '#389e0d' }}>{fmtQ(p.totalNeto)}</span>}
+              amountSub={`Devengado ${fmtQ(p.totalDevengado)}`}
+              status={<Tag color={ESTADO_COLOR[p.estado]}>{p.estado}</Tag>}
+              chevron={false}
+              extra={
+                /**
+                 * Las salidas de una corrida —sus dos pólizas, el detalle
+                 * mensual, las boletas y el archivo del IGSS— son lo que se
+                 * usa después de aprobarla, así que no se quedan fuera del
+                 * teléfono. Cada botón detiene la propagación para no abrir
+                 * la corrida al pulsarlo.
+                 */
+                <Space wrap size={4}>
+                  {p.asientoContableId && (
+                    <Button size="small" icon={<BookOutlined />}
+                      onClick={e => {
+                        e.stopPropagation()
+                        navigate(`/contabilidad/diarios-manuales/${p.asientoContableId}`, { state: { volverA: '/planillas/corridas' } })
+                      }}>Póliza</Button>
+                  )}
+                  {p.asientoPagoId && (
+                    <Button size="small" icon={<BankOutlined />}
+                      onClick={e => {
+                        e.stopPropagation()
+                        navigate(`/contabilidad/diarios-manuales/${p.asientoPagoId}`, { state: { volverA: '/planillas/corridas' } })
+                      }}>Pago</Button>
+                  )}
+                  {p.quincena === 2 && (
+                    <>
+                      <Button size="small" icon={<FileTextOutlined />}
+                        onClick={e => { e.stopPropagation(); navigate(`/planillas/mensual/${p.anio}/${p.mes}`) }}>Detalle</Button>
+                      <Button size="small" icon={<PrinterOutlined />}
+                        onClick={e => {
+                          e.stopPropagation()
+                          const url = `/planillas/mensual/${p.anio}/${p.mes}/imprimir-boletas?format=media-carta`
+                          const win = window.open(url, '_blank', 'width=880,height=1020,menubar=no,toolbar=no,location=no,scrollbars=yes')
+                          if (!win) message.warning('Permite ventanas emergentes en este sitio para poder imprimir.')
+                        }}>Boletas</Button>
+                      <Button size="small" icon={<SafetyCertificateOutlined />}
+                        onClick={e => {
+                          e.stopPropagation()
+                          descargarArchivoIGSS(p.anio, p.mes)
+                            .catch((err: any) => message.error(err?.response?.data?.message || 'Error al generar el archivo IGSS'))
+                        }}>IGSS</Button>
+                    </>
+                  )}
+                </Space>
+              }
+            />
+          )}
         />
       </Card>
 
