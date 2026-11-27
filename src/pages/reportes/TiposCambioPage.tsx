@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
 import { getExchangeRateHistory, importarHistorialBanguat, syncBanguatRate, type CurrencyExchangeRate } from '../../api/monedas'
 import { getApiError } from '../../api/axios'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -157,7 +158,7 @@ export default function TiposCambioPage() {
         </Col>
       </Row>
 
-      <Table
+      <ResponsiveTable
         size="small"
         rowKey="id"
         loading={loading}

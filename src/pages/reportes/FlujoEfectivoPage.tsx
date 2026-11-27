@@ -8,6 +8,7 @@ import { getFlujoEfectivo, type FlujoEfectivoData } from '../../api/reportes'
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
 import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
 import type { MonedaDelReporte } from './monedaDelReporte'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Text } = Typography
 
@@ -161,7 +162,7 @@ function MonthlyFlujoTable({ monthData, loading, enMoneda, moneda }: {
           : 'Cifras en quetzales'}
       </Text>
       <Spin spinning={loading}>
-      <Table
+      <ResponsiveTable
         size="small"
         dataSource={rows}
         columns={columns}

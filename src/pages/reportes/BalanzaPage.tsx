@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getBalanza, type BalanzaData, type AccountRow } from '../../api/reportes'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Text } = Typography
 
@@ -124,7 +125,7 @@ export default function BalanzaPage() {
             bodyStyle={{ padding: 0 }}
             size="small"
           >
-            <Table
+            <ResponsiveTable
               size="small"
               dataSource={filtered}
               rowKey="id"

@@ -17,6 +17,7 @@ import {
   generarPolizaBorradorIva, marcarIvaPresentada, actualizarDeclaracionIva,
   sincronizarEstadoIva,
 } from '../../api/reportes'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -837,7 +838,7 @@ export default function Declaracion2237() {
       {/* ═══ Historial de declaraciones ════════════════════════════════════════ */}
       {lista.length > 0 && (
         <Card size="small" title="Historial de Declaraciones" style={{ marginTop: 8 }}>
-          <Table
+          <ResponsiveTable
             size="small" rowKey="id" pagination={false} dataSource={lista}
             onRow={record => ({ onClick: () => handleSelectHistorial(record), style: { cursor: 'pointer' } })}
             columns={[

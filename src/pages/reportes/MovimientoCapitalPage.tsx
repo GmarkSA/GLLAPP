@@ -6,6 +6,7 @@ import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getMovimientoCapital, type MovimientoCapitalData } from '../../api/reportes'
 import { useMonedaDeUnCorte, SwitchDeMoneda } from './useMonedaDelReporte'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Text, Title } = Typography
 
@@ -157,7 +158,7 @@ export default function MovimientoCapitalPage() {
               style={{ borderRadius: 8 }}
               bodyStyle={{ padding: 0 }}
             >
-              <Table
+              <ResponsiveTable
         scroll={{ y: 'calc(100vh - 330px)' }}
                 size="small"
                 dataSource={data.movements}
