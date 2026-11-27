@@ -151,13 +151,40 @@ describe('cómo se ve el Balance General con doce meses', () => {
   })
 
   /**
-   * El detalle por cuenta no se tocó: cada cifra sigue siendo pulsable, que
-   * es lo que abre el movimiento de esa cuenta en ese mes.
+   * El detalle por cuenta NO se tocó: cada cifra sigue siendo pulsable y
+   * sigue abriendo el movimiento de esa cuenta en ese mes. Lo único que se
+   * fue es el subrayado punteado, que pintaba ciento y pico de líneas de
+   * puntos a la vez.
    */
   it('las cifras de una cuenta siguen abriendo su detalle', async () => {
     await dibujar()
     const pulsables = [...div.querySelectorAll<HTMLElement>('tbody span')]
-      .filter(e => e.style.cursor === 'pointer' && e.style.textDecorationStyle === 'dotted')
+      .filter(e => e.style.cursor === 'pointer')
     expect(pulsables.length, 'se perdió el detalle por cuenta').toBeGreaterThan(0)
+    // Y lo dice al pasar por encima, ya que no lo anuncia con el subrayado.
+    expect(pulsables[0].title).toContain('Ver el movimiento de')
+  })
+
+  it('y ya no queda ni un subrayado punteado en el reporte', async () => {
+    await dibujar()
+    const subrayadas = [...div.querySelectorAll<HTMLElement>('tbody span')]
+      .filter(e => e.style.textDecorationStyle === 'dotted' || e.style.textDecoration.includes('underline'))
+    expect(subrayadas, `quedaron ${subrayadas.length} cifras subrayadas`).toHaveLength(0)
+  })
+
+  /**
+   * Que siga abriendo no es una promesa: se pulsa una cifra y tiene que
+   * aparecer el panel del movimiento de esa cuenta.
+   */
+  it('al pulsar una cifra se abre el panel de esa cuenta', async () => {
+    await dibujar()
+    const cifra = [...div.querySelectorAll<HTMLElement>('tbody span')]
+      .find(e => e.style.cursor === 'pointer')!
+    expect(cifra).toBeTruthy()
+    await act(async () => { cifra.click() })
+    await act(async () => { await new Promise(r => setTimeout(r, 80)) })
+    // El panel se dibuja fuera del contenedor, en el cuerpo del documento.
+    const panel = document.body.textContent ?? ''
+    expect(panel).toContain('Banco GTQ — Principal')
   })
 })

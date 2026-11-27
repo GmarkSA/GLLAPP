@@ -187,10 +187,20 @@ function MonthlyBGTable({ monthData, loading, enMoneda, moneda }: {
     return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
+  /**
+   * Cada cifra de una cuenta abre su detalle.
+   *
+   * El subrayado punteado se quita: eran ciento y pico de líneas de puntos a
+   * la vez y el reporte se leía sucio. La cifra sigue siendo pulsable —el
+   * cursor lo dice al pasar por encima, y el título explica qué hace—, así
+   * que el detalle no se toca: solo deja de anunciarse en todas las celdas a
+   * la vez.
+   */
   const clickable = (content: React.ReactNode, row: BGRow, fromDate: string, toDate: string) => {
     if (!content || row._kind !== 'acct' || !row._accountId) return content
     return (
-      <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+      <span style={{ cursor: 'pointer' }}
+        title={`Ver el movimiento de ${row._name}`}
         onClick={() => setDrilldown({ accountId: row._accountId!, accountName: row._name, fromDate, toDate })}>
         {content}
       </span>
