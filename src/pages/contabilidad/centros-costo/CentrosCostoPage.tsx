@@ -4,6 +4,8 @@ import {
 } from 'antd'
 import { PlusOutlined, EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getCentrosCosto, crearCentroCosto, actualizarCentroCosto, eliminarCentroCosto,
   type CentroCosto,
@@ -111,11 +113,41 @@ export default function CentrosCostoPage() {
           style={{ background: '#1faec2' }}>Nuevo</Button>
       </div>
 
-      <Table
+      <ResponsiveTable
         scroll={{ y: 'calc(100vh - 330px)' }}
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
         pagination={{ pageSize: 50 }}
+        mobileEmptyText="Sin centros de costo"
+        renderMobileCard={(r: CentroCosto) => (
+          <MobileCard
+            chevron={false}
+            title={r.nombre}
+            subtitle={
+              <span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.codigo}</span>
+                {r.grupo ? ` · ${r.grupo}` : ''}
+                {r.responsable ? <><br />{r.responsable}</> : null}
+              </span>
+            }
+            status={<Tag color={r.activo ? 'success' : 'default'}>{r.activo ? 'Activo' : 'Inactivo'}</Tag>}
+            extra={
+              <Space size={4}>
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Editar</Button>
+                <Popconfirm
+                  title={r.activo ? '¿Bloquear este centro de costo?' : '¿Desbloquear este centro de costo?'}
+                  onConfirm={() => handleBloquear(r.id, r.activo)}
+                >
+                  <Button size="small" icon={r.activo ? <LockOutlined /> : <UnlockOutlined />}
+                    danger={r.activo}
+                    style={!r.activo ? { color: '#2ea172', borderColor: '#2ea172' } : undefined}>
+                    {r.activo ? 'Bloquear' : 'Desbloquear'}
+                  </Button>
+                </Popconfirm>
+              </Space>
+            }
+          />
+        )}
       />
 
       <Modal

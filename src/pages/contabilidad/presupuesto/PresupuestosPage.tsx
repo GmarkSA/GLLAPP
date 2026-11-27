@@ -8,6 +8,8 @@ import {
   CheckCircleOutlined, LockOutlined, RollbackOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getPresupuestos, deletePresupuesto, updatePresupuesto, type Budget, type BudgetStatus,
   STATUS_COLOR, STATUS_LABEL,
@@ -133,11 +135,50 @@ export default function PresupuestosPage() {
           </Empty>
         </Card>
       ) : (
-        <Table
+        <ResponsiveTable
           scroll={{ y: 'calc(100vh - 330px)' }}
           dataSource={data} columns={columns} rowKey="id"
           loading={loading} size="small"
           pagination={{ pageSize: 20, showTotal: t => `${t} presupuestos` }}
+          mobileEmptyText="Sin presupuestos"
+          renderMobileCard={(r: Budget) => (
+            <MobileCard
+              chevron={false}
+              title={r.nombre}
+              subtitle={
+                <span>
+                  Año {r.anioFiscal} · {r.periodo}
+                  <br />
+                  Creado {dayjs(r.createdAt).format('DD/MM/YYYY')}
+                </span>
+              }
+              status={<Tag color={STATUS_COLOR[r.status]}>{STATUS_LABEL[r.status]}</Tag>}
+              extra={
+                <Space size={4} wrap>
+                  <Button size="small" icon={<EyeOutlined />}
+                    onClick={() => navigate(`/contabilidad/presupuesto/${r.id}`)}>Editar</Button>
+                  <Button size="small" icon={<FundProjectionScreenOutlined />}
+                    onClick={() => navigate(`/contabilidad/presupuesto/${r.id}/vs-real`)}>Vs Real</Button>
+                  {r.status === 'BORRADOR' && (
+                    <Button size="small" icon={<CheckCircleOutlined />} style={{ color: '#16a34a', borderColor: '#16a34a' }}
+                      onClick={() => handleStatus(r.id, 'ACTIVO')}>Activar</Button>
+                  )}
+                  {r.status === 'ACTIVO' && (
+                    <Button size="small" icon={<LockOutlined />}
+                      onClick={() => handleStatus(r.id, 'CERRADO')}>Cerrar</Button>
+                  )}
+                  {r.status === 'CERRADO' && (
+                    <Button size="small" icon={<RollbackOutlined />}
+                      onClick={() => handleStatus(r.id, 'ACTIVO')}>Reabrir</Button>
+                  )}
+                  <Popconfirm title="¿Eliminar este presupuesto?" okText="Eliminar" okButtonProps={{ danger: true }}
+                    onConfirm={() => handleDelete(r.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                </Space>
+              }
+            />
+          )}
         />
       )}
     </div>

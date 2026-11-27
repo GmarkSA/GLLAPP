@@ -9,6 +9,8 @@ import {
   HistoryOutlined, DeleteOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getAsientosRecurrentes, generarAsientoRecurrente,
   getHistorialAsientoRecurrente, updateAsientoRecurrente,
@@ -244,12 +246,59 @@ export default function DiariosRecurrentesPage() {
         </Space>
       </div>
 
-      <Table
+      <ResponsiveTable
         scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
         pagination={{ pageSize: 50, showTotal: t => `${t} plantillas` }}
         locale={{ emptyText: 'Sin plantillas recurrentes — crea una nueva para automatizar asientos periódicos' }}
+        mobileEmptyText="Sin plantillas recurrentes — crea una nueva para automatizar asientos periódicos"
+        renderMobileCard={(r: AsientoRecurrente) => (
+          <MobileCard
+            chevron={false}
+            title={r.nombre}
+            subtitle={
+              <span>
+                {FRECUENCIA_LABEL[r.frecuencia] ?? r.frecuencia}
+                {' · '}
+                {r.lineas?.length ?? 0} líneas
+                <br />
+                Próxima: {r.proximaEjecucion ? dayjs(r.proximaEjecucion).format('DD/MM/YYYY') : '—'}
+                {' · '}
+                {r.nuncaVence
+                  ? 'nunca vence'
+                  : r.fechaFin ? `vence ${dayjs(r.fechaFin).format('DD/MM/YYYY')}` : 'sin vencimiento'}
+                {r.autoPublicar ? <><br />⚡ Auto-publica</> : null}
+              </span>
+            }
+            status={<Tag color={r.activo ? 'success' : 'default'}>{r.activo ? 'Activa' : 'Inactiva'}</Tag>}
+            extra={
+              /**
+               * En el teléfono la botonera de la fila no cabe, así que las
+               * mismas cuatro acciones viven dentro de la tarjeta. El
+               * interruptor de activo es el mismo de la tabla.
+               */
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Space size={4}>
+                  <Button size="small" icon={<EditOutlined />}
+                    onClick={() => navigate(`/contabilidad/diarios-recurrentes/${r.id}`)} />
+                  <Popconfirm title={`Generar borrador de "${r.nombre}" para el mes actual?`} okText="Generar"
+                    onConfirm={() => handleGenerar(r)}>
+                    <Button size="small" type="primary" icon={<PlayCircleOutlined />}
+                      style={{ background: '#1faec2' }} loading={acting === r.id} disabled={!r.activo} />
+                  </Popconfirm>
+                  <Button size="small" icon={<HistoryOutlined />} onClick={() => handleHistorial(r)} />
+                  <Popconfirm title="¿Desactivar esta plantilla?" okText="Desactivar"
+                    okButtonProps={{ danger: true }} onConfirm={() => handleEliminar(r.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} loading={acting === r.id} />
+                  </Popconfirm>
+                </Space>
+                <Switch checked={r.activo} size="small" loading={acting === r.id}
+                  onChange={() => handleToggle(r)} />
+              </div>
+            }
+          />
+        )}
       />
 
       {/* Modal historial */}
