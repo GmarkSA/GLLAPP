@@ -27,6 +27,7 @@ import {
   getBills, getExpenses, getPurchaseOrders,
   type PurchaseInvoice, type Expense, type PurchaseOrder,
 } from '../../api/compras'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 const { Option }      = Select
@@ -533,7 +534,7 @@ export default function ExpedienteDetallePage() {
   // ── NEW EXPEDIENTE FORM ───────────────────────────────────────────────────
   if (isNew) {
     return (
-      <div style={{ maxWidth: 700, margin: '0 auto' }}>
+      <div data-ficha style={{ maxWidth: 700, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/inventario/expedientes')} />
           <div>
@@ -675,7 +676,7 @@ export default function ExpedienteDetallePage() {
   ]
 
   return (
-    <div>
+    <div data-ficha>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -860,7 +861,7 @@ export default function ExpedienteDetallePage() {
             <div style={{ fontSize: 12, marginTop: 4 }}>Factura del proveedor, flete, seguro, DAI, agente aduanal, etc.</div>
           </div>
         ) : (
-          <Table<ExpedienteDocumento>
+          <ResponsiveTable<ExpedienteDocumento>
             dataSource={exp.documentos} columns={docCols}
             rowKey="id" size="small" scroll={{ x: 900 }} pagination={false}
             summary={() => (
@@ -897,7 +898,7 @@ export default function ExpedienteDetallePage() {
             <div>Agrega los artículos que se están importando con sus cantidades y costo FOB</div>
           </div>
         ) : (
-          <Table<ExpedienteLinea>
+          <ResponsiveTable<ExpedienteLinea>
             dataSource={exp.lineas} columns={linCols}
             rowKey="id" size="small" scroll={{ x: 1100 }} pagination={false}
           />

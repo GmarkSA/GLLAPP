@@ -7,6 +7,7 @@ import {
   getDetalleMensualPlanilla,
   type DetalleMensualPlanilla, type EmpleadoDetalleMensual, type NomenclaturaLinea,
 } from '../../../api/planillas-corrida'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Text, Title } = Typography
 const NAVY = '#1B3A6B'
@@ -78,7 +79,7 @@ export default function DetalleMensualPlanillaPage() {
   ]
 
   return (
-    <div>
+    <div data-ficha>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <Space align="start">
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/planillas/corridas')} style={{ marginTop: 2 }} />
@@ -120,7 +121,7 @@ export default function DetalleMensualPlanillaPage() {
                     key: 'empleados',
                     label: 'Detalle de empleados',
                     children: (
-                      <Table
+                      <ResponsiveTable
                         size="small" rowKey="empleadoId" pagination={false}
                         dataSource={data.empleados} columns={columnasEmpleado}
                         summary={() => {
@@ -161,7 +162,7 @@ export default function DetalleMensualPlanillaPage() {
                         <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
                           Nomenclatura contable del mes completo — suma de las líneas de ambas quincenas, agrupadas por cuenta y centro
                         </Text>
-                        <Table
+                        <ResponsiveTable
                           size="small" rowKey={(_, i) => String(i)} pagination={false}
                           dataSource={data.nomenclatura} columns={columnasNomenclatura}
                           summary={() => (

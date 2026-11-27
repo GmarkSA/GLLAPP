@@ -510,7 +510,10 @@ export default function OnboardingWizardPage() {
           <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
             Puedes activar o desactivar módulos en cualquier momento desde Configuración.
           </Text>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {/* Las tarjetas de módulos se acomodan solas: dos donde caben, una
+              en un teléfono. Esta rejilla vive fuera del formulario, así que
+              la regla de teléfono de los formularios no la alcanza. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
             {MODULES.map(mod => {
               const active = selectedModules.includes(mod.value) || !!mod.locked
               return (

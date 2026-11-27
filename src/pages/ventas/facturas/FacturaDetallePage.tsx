@@ -37,6 +37,7 @@ import { requestDownloadUrl } from '../../../api/storage'
 import { getEmailTemplates, getDefaultEmailTemplate, replaceVars, type EmailTemplate } from '../../../api/emailTemplates'
 import { useCan } from '../../../auth/can'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const isPdfFile   = (ct?: string, name?: string) => !!ct?.includes('pdf') || /\.pdf$/i.test(name ?? '')
 const isImageFile = (ct?: string, name?: string) => !!ct?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name ?? '')
@@ -526,7 +527,7 @@ export default function FacturaDetallePage() {
   const ribbonColor = ribbonColors[invoice.status] ?? '#1faec2'
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 960, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ────────────────────────────────────────────── */}
       <div style={{
@@ -840,7 +841,7 @@ export default function FacturaDetallePage() {
 
         {/* Ítems */}
         <div style={{ padding: '0 40px 24px' }}>
-          <Table
+          <ResponsiveTable
             dataSource={invoice.items ?? []}
             columns={itemColumns}
             rowKey="id"
@@ -986,7 +987,7 @@ export default function FacturaDetallePage() {
                 El importe se muestra en su moneda base <Tag style={{ fontSize: 10 }}>{invoice.currency ?? 'GTQ'}</Tag>
               </Text>
               <div style={{ fontWeight: 600, fontSize: 12, color: '#555', marginBottom: 6 }}>Factura</div>
-              <Table
+              <ResponsiveTable
                 dataSource={journalEntries}
                 columns={journalCols}
                 rowKey="key"
@@ -1035,7 +1036,7 @@ export default function FacturaDetallePage() {
                   </Button>
                 )}
               </div>
-              <Table
+              <ResponsiveTable
                 dataSource={invoice.payments}
                 columns={paymentColumns}
                 rowKey="id"

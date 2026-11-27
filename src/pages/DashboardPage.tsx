@@ -19,6 +19,7 @@ import {
   type RatioItem,
 } from '../api/reportes'
 import TableroDueno from '../components/dashboard/TableroDueno'
+import ResponsiveTable from '../components/responsive/ResponsiveTable'
 
 const { Text } = Typography
 
@@ -467,7 +468,7 @@ function CashFlowPanel({ data, currency }: { data: ExecutiveDashboardData; curre
       <Col xs={24}>
         <Card bordered={false} style={cardStyle} title="Movimiento por cuenta bancaria y caja">
           {cash.cashAccounts.length ? (
-            <Table
+            <ResponsiveTable
               dataSource={cash.cashAccounts}
               rowKey={r => `${r.code}-${r.name}`}
               pagination={false}
@@ -603,7 +604,7 @@ function KpiPanel({ ratios, payables, currency }: { ratios: ExecutiveDashboardDa
 function OverdueInvoicesPanel({ invoices, currency }: { invoices: any[]; currency: string }) {
   if (!invoices.length) return <Empty description="Sin facturas vencidas" />
   return (
-    <Table
+    <ResponsiveTable
       dataSource={invoices}
       rowKey={r => r.id ?? r.invoiceNumber ?? String(Math.random())}
       size="small"

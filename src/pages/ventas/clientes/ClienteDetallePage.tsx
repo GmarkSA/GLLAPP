@@ -22,6 +22,7 @@ import type { OrganizationProfile } from '../../../api/configuracion'
 import { getComments, addComment, type ActivityComment } from '../../../api/comments'
 import { useCan } from '../../../auth/can'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales, numeros } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -455,7 +456,7 @@ export default function ClienteDetallePage() {
   const yearOptions = Array.from({ length: 6 }, (_, i) => dayjs().year() - i)
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 1100, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
@@ -737,7 +738,7 @@ export default function ClienteDetallePage() {
                             </Button>
                           )}
                         </div>
-                        <Table columns={invCols} dataSource={invoices} rowKey="id" size="small"
+                        <ResponsiveTable columns={invCols} dataSource={invoices} rowKey="id" size="small"
                           pagination={{ pageSize: 10, showTotal: t => `${t} facturas` }}
                           locale={{ emptyText: 'Sin facturas para este cliente' }}
                           style={{ background: '#fff', borderRadius: 8 }} />
@@ -748,7 +749,7 @@ export default function ClienteDetallePage() {
                     key: 'pagos',
                     label: `Pagos recibidos (${payments.length})`,
                     children: (
-                      <Table columns={payCols} dataSource={payments} rowKey="id" size="small"
+                      <ResponsiveTable columns={payCols} dataSource={payments} rowKey="id" size="small"
                         pagination={{ pageSize: 10, showTotal: t => `${t} pagos` }}
                         locale={{ emptyText: 'Sin pagos registrados' }}
                         style={{ background: '#fff', borderRadius: 8 }} />
@@ -767,7 +768,7 @@ export default function ClienteDetallePage() {
                             </Button>
                           )}
                         </div>
-                        <Table columns={estCols} dataSource={estimates} rowKey="id" size="small"
+                        <ResponsiveTable columns={estCols} dataSource={estimates} rowKey="id" size="small"
                           pagination={{ pageSize: 10, showTotal: t => `${t} cotizaciones` }}
                           locale={{ emptyText: 'Sin cotizaciones' }}
                           style={{ background: '#fff', borderRadius: 8 }} />
@@ -778,7 +779,7 @@ export default function ClienteDetallePage() {
                     key: 'anticipos',
                     label: `Anticipos (${anticipos.length})`,
                     children: (
-                      <Table columns={anticipoCols} dataSource={anticipos} rowKey="id" size="small"
+                      <ResponsiveTable columns={anticipoCols} dataSource={anticipos} rowKey="id" size="small"
                         pagination={{ pageSize: 10, showTotal: t => `${t} anticipos` }}
                         locale={{ emptyText: 'Sin anticipos' }}
                         style={{ background: '#fff', borderRadius: 8 }} />
@@ -788,7 +789,7 @@ export default function ClienteDetallePage() {
                     key: 'nc',
                     label: `Notas de crédito (${creditNotes.length})`,
                     children: (
-                      <Table columns={ncCols} dataSource={creditNotes} rowKey="id" size="small"
+                      <ResponsiveTable columns={ncCols} dataSource={creditNotes} rowKey="id" size="small"
                         pagination={{ pageSize: 10, showTotal: t => `${t} notas` }}
                         locale={{ emptyText: 'Sin notas de crédito' }}
                         style={{ background: '#fff', borderRadius: 8 }} />
@@ -845,7 +846,7 @@ export default function ClienteDetallePage() {
                   </div>
                 </div>
 
-                <Table
+                <ResponsiveTable
                   columns={stmtCols}
                   dataSource={statementRows}
                   rowKey="key"

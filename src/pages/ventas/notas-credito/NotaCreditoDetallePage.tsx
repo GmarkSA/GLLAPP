@@ -24,6 +24,7 @@ import type { OrganizationProfile } from '../../../api/configuracion'
 import { useCan } from '../../../auth/can'
 import { documentoLlevaIva, tasaDeIvaDelDocumento } from '../../../components/Print/regimenFiscal'
 import { esLocal, fmtQ, fmtMoneda, enQuetzales } from '../../../utils/moneda'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -240,7 +241,7 @@ export default function NotaCreditoDetallePage() {
   const ribbonColor = ribbonColors[nc.status] ?? '#e5484d'
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 960, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{
@@ -439,7 +440,7 @@ export default function NotaCreditoDetallePage() {
 
         {/* Ítems */}
         <div style={{ padding: '0 40px 24px' }}>
-          <Table
+          <ResponsiveTable
             columns={itemColumns}
             dataSource={nc.items ?? []}
             rowKey={(_, i) => String(i)}
@@ -549,7 +550,7 @@ export default function NotaCreditoDetallePage() {
               <Text style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
                 Nota de crédito — Reversión de venta
               </Text>
-              <Table
+              <ResponsiveTable
                 dataSource={salesEntries} columns={journalCols} rowKey="key"
                 size="small" pagination={false}
                 style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}
@@ -575,7 +576,7 @@ export default function NotaCreditoDetallePage() {
               <Text style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: 6 }}>
                 Nota de crédito — Reversión de costo / Inventario
               </Text>
-              <Table
+              <ResponsiveTable
                 dataSource={costEntries} columns={journalCols} rowKey="key"
                 size="small" pagination={false}
                 style={{ border: '1px solid rgba(10,10,10,0.08)', borderRadius: 8, overflow: 'hidden' }}

@@ -5,6 +5,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getAjusteMoneda, type AjusteMoneda, type AjusteMonedaLinea } from '../../../api/ajuste-moneda'
 import { getAsiento, type AsientoDetalle } from '../../../api/asientos'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -204,7 +205,7 @@ export default function AjusteMonedaDetallePage() {
   ]
 
   return (
-    <div style={{ padding: 24, maxWidth: 1400 }}>
+    <div data-ficha style={{ padding: 24, maxWidth: 1400 }}>
       {/* Cabecera */}
       <div style={{ marginBottom: 20 }}>
         <Button type="link" icon={<ArrowLeftOutlined />} style={{ padding: 0, marginBottom: 8 }}
@@ -250,7 +251,7 @@ export default function AjusteMonedaDetallePage() {
       </div>
 
       {/* Tabla principal */}
-      <Table
+      <ResponsiveTable
         dataSource={lines}
         columns={columns}
         rowKey={(r: AjusteMonedaLinea) => `${r.accountId}-${r.invoiceId ?? r.vendorId ?? 'na'}`}

@@ -16,6 +16,7 @@ import {
   type PagoRecibido, PAYMENT_MODE_LABELS,
 } from '../../../api/pagos-recibidos'
 import { useCan } from '../../../auth/can'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
 
 const { Title, Text } = Typography
 
@@ -151,7 +152,7 @@ export default function PagoRecibidoDetallePage() {
   ]
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div data-ficha style={{ maxWidth: 960, margin: '0 auto' }}>
 
       {/* ── Barra de acciones ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -279,7 +280,7 @@ export default function PagoRecibidoDetallePage() {
               <Text style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 10 }}>
                 Pago de
               </Text>
-              <Table
+              <ResponsiveTable
                 columns={invoiceCols}
                 dataSource={invoiceRows}
                 rowKey="key"
@@ -380,7 +381,7 @@ export default function PagoRecibidoDetallePage() {
                   <Button size="small" style={{ borderColor: 'rgba(10,10,10,0.08)', fontSize: 12 }}>Efectivo</Button>
                 </Space>
               </div>
-              <Table
+              <ResponsiveTable
                 columns={jeCols}
                 dataSource={(je.lines ?? []) as JeLine[]}
                 rowKey="id"
