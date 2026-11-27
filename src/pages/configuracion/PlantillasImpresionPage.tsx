@@ -30,13 +30,23 @@ const PRESET_COLORS = [
 
 // ── Vista previa ──────────────────────────────────────────────────────────────
 
-function InvoicePreview({ tpl, isTicket }: { tpl: PrintTemplate; isTicket: boolean }) {
+/**
+ * La vista previa de la plantilla.
+ *
+ * Es la foto de cómo saldrá el papel, así que su maqueta NO cambia con el
+ * tamaño de la pantalla: el logo arriba a la izquierda, el número de
+ * documento a la derecha, los dos cuadros de «Facturar a» y certificación
+ * FEL uno al lado del otro. `data-vista-previa` la deja fuera de las reglas
+ * de teléfono que ponen los formularios en una columna; sin esa marca, en
+ * un teléfono la previsualización mentía sobre la impresión.
+ */
+export function InvoicePreview({ tpl, isTicket }: { tpl: PrintTemplate; isTicket: boolean }) {
   const pc = tpl.primaryColor
   const ff = `'${tpl.fontFamily}', Arial, sans-serif`
 
   if (isTicket) {
     return (
-      <div style={{ fontFamily: ff, fontSize: 9, color: '#000', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: '12px 10px', maxWidth: 180, margin: '0 auto' }}>
+      <div data-vista-previa style={{ fontFamily: ff, fontSize: 9, color: '#000', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: '12px 10px', maxWidth: 180, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 6 }}>
           {tpl.showLogo && <div style={{ width: 40, height: 12, background: `${pc}33`, borderRadius: 2, margin: '0 auto 4px' }} />}
           <div style={{ fontWeight: 700, color: pc, fontSize: 10 }}>EMPRESA EJEMPLO</div>
@@ -63,7 +73,7 @@ function InvoicePreview({ tpl, isTicket }: { tpl: PrintTemplate; isTicket: boole
   }
 
   return (
-    <div style={{ fontFamily: ff, fontSize: 9, color: '#000', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: '14px 16px' }}>
+    <div data-vista-previa style={{ fontFamily: ff, fontSize: 9, color: '#000', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: '14px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, flexDirection: tpl.headerLayout === 'logo-right' ? 'row-reverse' : 'row' }}>
         <div>
           {tpl.showLogo && <div style={{ width: 44, height: 14, background: `${pc}33`, borderRadius: 3, marginBottom: 3 }} />}
