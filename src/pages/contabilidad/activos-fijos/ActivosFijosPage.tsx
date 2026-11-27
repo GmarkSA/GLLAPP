@@ -11,6 +11,8 @@ import {
   ImportOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getActivosFijos, crearActivoFijo, actualizarActivoFijo,
   activarActivoFijo, venderActivoFijo, darDeBajaActivoFijo,
@@ -494,7 +496,7 @@ export default function ActivosFijosPage() {
         />
       </Space>
 
-      <Table
+      <ResponsiveTable
         scroll={{ x: 'max-content', y: 'calc(100vh - 330px)' }}
         dataSource={data} columns={columns} rowKey="id"
         loading={loading} size="small"
@@ -503,6 +505,60 @@ export default function ActivosFijosPage() {
           onChange: p => setPage(p),
           showTotal: t => `${t} activos`,
         }}
+        mobileEmptyText="Sin activos fijos registrados"
+        renderMobileCard={(r: ActivoFijo) => (
+          <MobileCard
+            chevron={false}
+            title={r.name}
+            subtitle={
+              <span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.assetNumber}</span>
+                {' · '}
+                {clases.find(c => c.id === r.claseActivoFijoId)?.nombre ?? 'Sin clase'}
+                <br />
+                Adquirido {dayjs(r.acquisitionDate).format('DD/MM/YYYY')}
+                {' · cuota '}
+                {r.depreciacionMensual
+                  ? `Q ${Number(r.depreciacionMensual).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+                  : '—'}
+              </span>
+            }
+            /** Lo que se mira primero de un activo es lo que vale hoy. */
+            amount={`Q ${Number(r.currentBookValue ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`}
+            amountSub={`Costo Q ${Number(r.originalCost ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`}
+            status={<Tag color={ESTADO_COLOR[r.estado]}>{ESTADO_LABEL[r.estado]}</Tag>}
+            extra={
+              <Space size={4} wrap>
+                <Button size="small" icon={<EyeOutlined />}
+                  onClick={() => navigate(`/contabilidad/activos-fijos/${r.id}`)}>Ver</Button>
+                {(r.estado === 'BORRADOR' || r.estado === 'ACTIVO') && (
+                  <Button size="small" onClick={() => openEdit(r)}>Editar</Button>
+                )}
+                {r.estado === 'BORRADOR' && (
+                  <Popconfirm
+                    title={
+                      Number(r.accumulatedDepreciation) > 0
+                        ? '¿Activar activo migrado? Se generará póliza de apertura con saldo inicial.'
+                        : '¿Activar este activo? Se generará póliza de alta.'
+                    }
+                    onConfirm={() => handleActivar(r.id)}
+                  >
+                    <Button size="small" type="primary" icon={<CheckCircleOutlined />}
+                      style={{ background: '#1faec2' }} loading={actLoading}>Activar</Button>
+                  </Popconfirm>
+                )}
+                {r.estado === 'ACTIVO' && (
+                  <>
+                    <Button size="small" icon={<DollarOutlined />}
+                      onClick={() => { setActionId(r.id); formVender.resetFields(); setModalVender(true) }}>Vender</Button>
+                    <Button size="small" danger icon={<StopOutlined />}
+                      onClick={() => { setActionId(r.id); formBaja.resetFields(); setModalBaja(true) }}>Dar de baja</Button>
+                  </>
+                )}
+              </Space>
+            }
+          />
+        )}
       />
 
       {/* ── Modal: Nuevo / Editar ─────────────────────────────────────── */}
