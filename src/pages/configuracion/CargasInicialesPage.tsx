@@ -41,6 +41,8 @@ import {
 } from './plantillaCuentas'
 import { ESPECIFICACION_SALDOS } from './plantillaSaldosPendientes'
 import { analizarArchivo, leerFilas, etiquetaDeTipo, type AnalisisDelArchivo as Revision } from './plantillaCarga'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 
 const { Title, Text } = Typography
 const { Panel } = Collapse
@@ -88,7 +90,7 @@ function PanelDeRevision({ revision }: { revision: Revision }) {
           </Space>
         ),
         children: (
-          <Table
+          <ResponsiveTable
             dataSource={revision.columnas}
             rowKey="encabezado"
             size="small"
@@ -149,7 +151,7 @@ interface EntityStep {
  * Es de solo lectura a propósito: el saldo se corrige donde se capturó, en la
  * ficha del contacto, que es también donde está la póliza que lo generó.
  */
-function SaldosCapturadosEnLaFicha({ type }: { type: 'clientes' | 'proveedores' }) {
+export function SaldosCapturadosEnLaFicha({ type }: { type: 'clientes' | 'proveedores' }) {
   const [saldos, setSaldos]   = useState<SaldoDeAperturaContacto[]>([])
   const [cargando, setCargando] = useState(true)
   const navigate = useNavigate()
@@ -191,11 +193,25 @@ function SaldosCapturadosEnLaFicha({ type }: { type: 'clientes' | 'proveedores' 
         </Space>
       </div>
 
-      <Table<SaldoDeAperturaContacto>
+      <ResponsiveTable<SaldoDeAperturaContacto>
         size="small"
         rowKey="contactoId"
         dataSource={saldos}
         pagination={false}
+        mobileEmptyText="Sin saldos de apertura cargados"
+        renderMobileCard={r => (
+          /*
+            De un saldo de apertura lo que se busca es cuánto quedó en los
+            libros y de cuántos documentos sale; el nombre abre la ficha,
+            que es donde se corrige.
+          */
+          <MobileCard
+            onClick={() => navigate(`${ruta}/${r.contactoId}`)}
+            title={r.nombre}
+            subtitle={`${(r.lineas ?? []).length} documento${(r.lineas ?? []).length === 1 ? '' : 's'} · ${r.moneda}`}
+            amount={`Q ${Number(r.enQuetzales ?? 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          />
+        )}
         columns={[
           { title: type === 'clientes' ? 'Cliente' : 'Proveedor', dataIndex: 'nombre',
             render: (v: string, r) => (
@@ -375,7 +391,7 @@ function EntityImportSection({
               </Popconfirm>
             </Space>
           </div>
-          <Table
+          <ResponsiveTable
             dataSource={state.rows}
             columns={previewCols}
             rowKey={(_, i) => String(i)}
@@ -1024,7 +1040,7 @@ function SaldosCuentasSection({ fechaMigracion }: { fechaMigracion: Dayjs | null
                 </span>
                 <Tag color={BALANCE_TYPE_COLOR[bt]} style={{ fontSize: 11 }}>{items.length} cuentas</Tag>
               </div>
-              <Table
+              <ResponsiveTable
                 dataSource={items}
                 columns={cols}
                 rowKey="id"
@@ -1421,7 +1437,7 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
                   </Space>
                 ),
                 children: (
-                  <Table
+                  <ResponsiveTable
                     dataSource={analisis.columnas}
                     rowKey="encabezado"
                     size="small"
@@ -1501,7 +1517,7 @@ function InventarioSection({ fechaMigracion }: { fechaMigracion: Dayjs | null })
             />
           )}
 
-          <Table
+          <ResponsiveTable
             dataSource={state.rows}
             columns={previewCols}
             rowKey={(_, i) => String(i)}
