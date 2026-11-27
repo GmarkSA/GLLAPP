@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Table, Button, Modal, Form, InputNumber, Space, message, Typography, Tag, Tooltip } from 'antd'
 import { EditOutlined, NumberOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { companiesApi, type DocumentSeries } from '../../../api/companies'
 import { useCompanyStore } from '../../../store/companyStore'
 
@@ -178,7 +180,7 @@ export default function SeriesDocumentalesPage() {
             <div style={{ fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
               {group}
             </div>
-            <Table
+            <ResponsiveTable
               scroll={{ y: 'calc(100vh - 330px)' }}
               rowKey="id"
               columns={columns}
@@ -187,6 +189,27 @@ export default function SeriesDocumentalesPage() {
               size="small"
               pagination={false}
               style={{ background: '#fff', borderRadius: 8 }}
+              mobileEmptyText="Sin series en este grupo"
+              renderMobileCard={(r: DocumentSeries) => (
+                <MobileCard
+                  chevron={false}
+                  title={DOC_META[r.documentType]?.label ?? r.documentType}
+                  subtitle={
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      Prefijo {r.prefix} · {r.padding} díg.
+                      <br />
+                      Actual {formatNumber(r, r.currentNumber)}
+                    </span>
+                  }
+                  /** Lo que se busca de una serie es qué número sale ahora. */
+                  amount={<span style={{ color: '#1faec2' }}>→ {formatNumber(r, r.currentNumber + 1)}</span>}
+                  extra={
+                    <Button size="small" icon={<EditOutlined />} block onClick={() => openEdit(r)}>
+                      Ajustar contador
+                    </Button>
+                  }
+                />
+              )}
             />
           </div>
         ))}

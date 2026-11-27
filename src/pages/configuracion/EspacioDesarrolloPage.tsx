@@ -16,6 +16,8 @@ import {
   REGIME_LABELS,
 } from '../../api/fel'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import MobileCard from '../../components/responsive/MobileCard'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -477,7 +479,7 @@ function FelProfilesSection() {
   if (!activeCompany) return <Text type="secondary">Selecciona una empresa primero.</Text>
 
   return (
-    <Table
+    <ResponsiveTable
       rowKey="id"
       columns={columns}
       dataSource={profiles}
@@ -485,6 +487,41 @@ function FelProfilesSection() {
       size="small"
       pagination={false}
       locale={{ emptyText: 'Sin perfiles FEL. Configúralos en Empresas → Facturación Electrónica.' }}
+      mobileEmptyText="Sin perfiles FEL. Configúralos en Empresas → Facturación Electrónica."
+      renderMobileCard={(r: ElectronicInvoicingProfile) => {
+        const tr     = testResults[r.id]
+        const regime = r.apiConfigurationJson?.regimeCode
+        const dt     = r.apiConfigurationJson?.defaultDocumentType
+        return (
+          <MobileCard
+            chevron={false}
+            title={r.provider}
+            subtitle={
+              <span>
+                {regime ? (REGIME_LABELS[regime] ?? regime) : 'sin régimen'}
+                {dt ? ` · ${dt}` : ''}
+                <br />
+                {r.lastTestedAt ? `Último test ${new Date(r.lastTestedAt).toLocaleString('es-GT')}` : 'sin pruebas'}
+                {r.lastTestResult ? <><br />{r.lastTestResult.slice(0, 60)}</> : null}
+              </span>
+            }
+            status={
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                {r.environment === 'production'
+                  ? <Tag color="#e5484d" icon={<CheckCircleOutlined />} style={{ margin: 0 }}>Producción</Tag>
+                  : <Tag color="#ff7f00" icon={<ExclamationCircleOutlined />} style={{ margin: 0 }}>Sandbox</Tag>}
+                {tr
+                  ? <Badge status={tr.success ? 'success' : 'error'} text={tr.success ? 'OK' : 'Error'} />
+                  : <Badge status={r.status === 'active' ? 'success' : r.status === 'error' ? 'error' : 'default'} text={r.status} />}
+              </span>
+            }
+            extra={
+              <Button size="small" block icon={<ThunderboltOutlined />} loading={testing === r.id}
+                onClick={() => handleTest(r.id)}>Probar conexión</Button>
+            }
+          />
+        )
+      }}
     />
   )
 }

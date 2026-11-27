@@ -8,6 +8,8 @@ import {
   DatabaseOutlined, DeleteOutlined, StopOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import { companiesApi } from '../../../api/companies'
 import { getBillingState } from '../../../api/billing'
 import type { Company } from '../../../store/authStore'
@@ -298,7 +300,7 @@ export default function EmpresasPage() {
           </Tooltip>
         </Space>
       </div>
-      <Table
+      <ResponsiveTable
         scroll={{ y: 'calc(100vh - 330px)' }}
         rowKey="id"
         columns={columns}
@@ -307,6 +309,70 @@ export default function EmpresasPage() {
         size="small"
         pagination={false}
         rowClassName={(r) => r.id === activeCompanyId ? 'ant-table-row-selected' : ''}
+        mobileEmptyText="Sin empresas registradas"
+        renderMobileCard={(r: Company) => (
+          <MobileCard
+            chevron={false}
+            title={
+              <span>
+                {r.isDefault && <StarFilled style={{ color: '#ff7f00', marginRight: 6 }} />}
+                {r.legalName}
+              </span>
+            }
+            subtitle={
+              <span>
+                {r.tradeName && r.tradeName !== r.legalName ? <>{r.tradeName}<br /></> : null}
+                {/* El ID de organización es lo que se pide en soporte: a la vista. */}
+                ID org <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatOrgId(r)}</span>
+                <br />
+                {r.taxId ? `${r.taxIdLabel || 'ID'}: ${r.taxId}` : 'sin NIT'}
+                {' · '}
+                {r.countryCode} {r.currencyCode}
+              </span>
+            }
+            status={
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                {r.id === activeCompanyId && <Tag color="#1faec2" style={{ margin: 0 }}>Activa</Tag>}
+                <Badge status={STATUS_COLOR[r.status] as any} text={STATUS_LABEL[r.status] || r.status} />
+              </span>
+            }
+            extra={
+              <Space wrap size={4}>
+                <Button size="small" onClick={() => handleSwitch(r)}>Usar</Button>
+                <Button size="small" icon={<EditOutlined />}
+                  onClick={() => navigate(`/configuracion/empresas/${r.id}`)}>Editar</Button>
+                {!r.isDefault && (
+                  <Popconfirm title="¿Marcar como empresa principal?"
+                    description="La suscripción de Lucía se factura a nombre y NIT de la empresa principal."
+                    onConfirm={() => handleSetDefault(r.id)}>
+                    <Button size="small" icon={<StarOutlined />}>Principal</Button>
+                  </Popconfirm>
+                )}
+                <Popconfirm
+                  title={r.status === 'active' ? '¿Bloquear esta empresa?' : '¿Activar esta empresa?'}
+                  description={r.status === 'active' ? 'Los usuarios no podrán operar con ella.' : 'Volverá a estar disponible para operar.'}
+                  onConfirm={() => handleToggleStatus(r)}
+                  okText="Sí" cancelText="No"
+                >
+                  <Button size="small" loading={toggling === r.id}
+                    icon={r.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />}>
+                    {r.status === 'active' ? 'Bloquear' : 'Activar'}
+                  </Button>
+                </Popconfirm>
+                {!r.isDefault && (
+                  <Popconfirm
+                    title="¿Eliminar esta empresa?"
+                    description="Se eliminarán todos sus datos. Esta acción no se puede deshacer."
+                    onConfirm={() => handleDelete(r)}
+                    okText="Eliminar" okButtonProps={{ danger: true }} cancelText="Cancelar"
+                  >
+                    <Button size="small" danger icon={<DeleteOutlined />} loading={deleting === r.id} />
+                  </Popconfirm>
+                )}
+              </Space>
+            }
+          />
+        )}
       />
     </div>
   )

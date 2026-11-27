@@ -10,6 +10,8 @@ import {
   LockOutlined, SettingOutlined, SaveOutlined, UnlockOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import ResponsiveTable from '../../../components/responsive/ResponsiveTable'
+import MobileCard from '../../../components/responsive/MobileCard'
 import {
   getUsers, getRoles, getPermissions, createUser, updateUser, deleteUser,
   resetUserPassword, bloquearUser, desbloquearUser,
@@ -834,7 +836,7 @@ export default function UsuariosPage() {
                     </Button>
                   </Tooltip>
                 </div>
-                <Table
+                <ResponsiveTable
                   columns={userColumns}
                   dataSource={users}
                   rowKey="id"
@@ -842,6 +844,77 @@ export default function UsuariosPage() {
                   pagination={false}
                   size="small"
                   locale={{ emptyText: 'Sin usuarios' }}
+                  mobileEmptyText="Sin usuarios"
+                  renderMobileCard={(r: TenantUser) => {
+                    const porEmpresa = asignaciones[r.id] ?? []
+                    return (
+                      <MobileCard
+                        chevron={false}
+                        title={`${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || r.email}
+                        subtitle={
+                          <span>
+                            {r.email}
+                            <br />
+                            {r.roles?.length
+                              ? r.roles.map(role => role.name).join(', ')
+                              : r.isSuperAdmin ? 'Super Admin' : 'Sin rol'}
+                            {/* El rol por empresa manda donde hay asignación; el
+                                general rige solo donde no la hay. Se ven los dos. */}
+                            {porEmpresa.map(a => {
+                              const rol = a.roleId ? roles.find(x => x.id === a.roleId)?.name : undefined
+                              return (
+                                <span key={a.companyId}>
+                                  <br />
+                                  {a.legalName}: <b>{rol ?? 'rol general'}</b>
+                                </span>
+                              )
+                            })}
+                            <br />
+                            {r.lastLoginAt
+                              ? `Último acceso ${new Date(r.lastLoginAt).toLocaleDateString('es-GT')}`
+                              : 'sin accesos'}
+                          </span>
+                        }
+                        status={
+                          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                            {r.status === 'suspended'
+                              ? <Tag color="error" style={{ margin: 0 }}>Bloqueado por admin</Tag>
+                              : bloqueoTemporal(r)
+                                ? <Tag color="warning" style={{ margin: 0 }}>Bloqueado · {minutosBloqueo(r)} min</Tag>
+                                : <Badge
+                                    status={r.status === 'active' ? 'success' : r.status === 'pending_verification' ? 'warning' : 'default'}
+                                    text={r.status === 'active' ? 'Activo' : r.status === 'pending_verification' ? 'Pendiente' : 'Inactivo'}
+                                  />}
+                            {r.mustChangePassword && <Tag color="processing" style={{ margin: 0, fontSize: 10 }}>Clave temporal</Tag>}
+                          </span>
+                        }
+                        extra={
+                          <Space wrap size={4}>
+                            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Editar</Button>
+                            <Button size="small" icon={<BankOutlined />} onClick={() => openCompanies(r)}>Empresas</Button>
+                            <Button size="small" icon={<KeyOutlined />} onClick={() => openResetPassword(r)}>Clave</Button>
+                            {r.id !== me?.id && r.status !== 'suspended' && !bloqueoTemporal(r) && (
+                              <Popconfirm
+                                title="¿Bloquear este usuario?"
+                                description="No podrá ingresar hasta que lo desbloquees; sus sesiones se cierran de inmediato."
+                                okText="Bloquear" cancelText="Cancelar" okButtonProps={{ danger: true }}
+                                onConfirm={() => handleBloquear(r.id)}
+                              >
+                                <Button size="small" icon={<LockOutlined />}>Bloquear</Button>
+                              </Popconfirm>
+                            )}
+                            {(r.status === 'suspended' || bloqueoTemporal(r)) && (
+                              <Button size="small" style={{ color: '#2ea172', borderColor: '#2ea172' }}
+                                icon={<UnlockOutlined />} onClick={() => handleDesbloquear(r.id)}>Desbloquear</Button>
+                            )}
+                            <Popconfirm title="¿Eliminar este usuario?" onConfirm={() => handleDelete(r.id)}>
+                              <Button size="small" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                          </Space>
+                        }
+                      />
+                    )
+                  }}
                 />
               </>
             ),
