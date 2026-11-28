@@ -9,6 +9,7 @@ import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from 
 import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
 import type { MonedaDelReporte } from './monedaDelReporte'
 import ResponsiveTable from '../../components/responsive/ResponsiveTable'
+import { PRESENTACION, ANCHOS, estiloEncabezado } from './presentacionDelReporte'
 
 const { Text } = Typography
 
@@ -123,33 +124,34 @@ function MonthlyFlujoTable({ monthData, loading, enMoneda, moneda }: {
     if (v == null || kind === 'hdr') return null
     const bold = kind !== 'acct'
     const c    = bold ? (v < 0 ? '#e5484d' : '#2ea172') : (v < 0 ? '#e5484d' : undefined)
-    return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
+    return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
   const columns: ColumnsType<FRow> = [
     {
-      key: '_name', dataIndex: '_name' as const, width: cfg.nameW, ellipsis: true,
+      key: '_name', dataIndex: '_name' as const, width: ANCHOS.nombre,
+      title: <div style={estiloEncabezado('left')}>Concepto</div>,
       render: (v: string, row) => (
-        <span style={{ fontSize: cfg.nameFont, fontWeight: row._kind === 'acct' ? 400 : 600, color: row._color, paddingLeft: row._kind === 'acct' ? 14 : 0 }}>
+        <span style={{ fontSize: PRESENTACION.nombre, fontWeight: row._kind === 'acct' ? 400 : 700, color: row._color ?? PRESENTACION.cifraNormal, paddingLeft: row._kind === 'acct' ? 14 : 0, display: 'inline-block' }}>
           {v}
         </span>
       ),
     },
     ...months.map(m => ({
       key: m.yearMonth, dataIndex: m.yearMonth as keyof FRow,
-      width: cfg.colW, align: 'right' as const,
-      title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3 }}>{m.label}</div>,
+      width: ANCHOS.mes, align: 'right' as const,
+      title: <div style={estiloEncabezado()}>{m.label}</div>,
       render: (v: number | null, row: FRow) => cell(v, row._kind),
     })),
     {
-      key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
-      title: <div style={{ fontSize: 11, textAlign: 'center' as const, lineHeight: 1.3, fontWeight: 700 }}>ACUMULADO</div>,
+      key: '_total', dataIndex: '_total' as const, width: ANCHOS.acumulado, align: 'right' as const,
+      title: <div style={estiloEncabezado()}>Acumulado</div>,
       render: (v: number | null, row) => {
         if (row._kind === 'hdr') return null
         if (v == null) return <span style={{ color: '#9aa1ab' }}>—</span>
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#e5484d' : '#2ea172') : (v < 0 ? '#e5484d' : undefined)
-        return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
       },
     },
   ]

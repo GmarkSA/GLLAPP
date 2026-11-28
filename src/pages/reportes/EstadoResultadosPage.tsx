@@ -7,6 +7,7 @@ import ReportLayout from '../../components/ReportLayout'
 import AccountDrilldownDrawer, { type DrilldownTarget } from '../../components/AccountDrilldownDrawer'
 import { getEstadoResultados, type EstadoResultadosData, type AccountRow } from '../../api/reportes'
 import { getMonthRanges, getColConfig, fmtCol, fmtTotal, type MonthRange } from '../../utils/reportMonthly'
+import { PRESENTACION, ANCHOS, estiloEncabezado } from './presentacionDelReporte'
 import { useMonedaDelReporte, SwitchDeMoneda } from './useMonedaDelReporte'
 import type { MonedaDelReporte } from './monedaDelReporte'
 import ResponsiveTable from '../../components/responsive/ResponsiveTable'
@@ -145,7 +146,7 @@ function MonthlyERTable({ monthData, loading, enMoneda, moneda }: {
     if (v == null || kind === 'hdr') return null
     const bold = kind !== 'acct'
     const c    = bold ? (v < 0 ? '#e5484d' : v > 0 ? '#2ea172' : '#6b7280') : (v < 0 ? '#e5484d' : undefined)
-    return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
+    return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
   const clickable = (content: React.ReactNode, row: AnyRow, fromDate: string, toDate: string) => {
@@ -162,33 +163,39 @@ function MonthlyERTable({ monthData, loading, enMoneda, moneda }: {
   const yearTo   = months[months.length - 1].to
 
   const columns: ColumnsType<AnyRow> = [
-    ...(cfg.codeW ? [{
-      key: '_code', dataIndex: '_code' as const, width: cfg.codeW,
-      render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont - 1, color: '#6b7280' }}>{v ?? ''}</span>,
-    }] : []),
     {
-      key: '_name', dataIndex: '_name' as const, width: cfg.nameW, ellipsis: true,
+      key: '_code', dataIndex: '_code' as const, width: ANCHOS.codigo,
+      title: <div style={estiloEncabezado('left')}>Código</div>,
+      render: (v: string) => (
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.codigo, color: PRESENTACION.grisEtiqueta }}>
+          {v ?? ''}
+        </span>
+      ),
+    },
+    {
+      key: '_name', dataIndex: '_name' as const, width: ANCHOS.nombre,
+      title: <div style={estiloEncabezado('left')}>Cuenta</div>,
       render: (v: string, row) => (
-        <span style={{ fontSize: cfg.nameFont, fontWeight: row._kind === 'acct' ? 400 : 600, color: row._color ?? undefined, paddingLeft: row._kind === 'acct' ? 10 : 0 }}>
+        <span style={{ fontSize: PRESENTACION.nombre, fontWeight: row._kind === 'acct' ? 400 : 700, color: row._color ?? PRESENTACION.cifraNormal, paddingLeft: row._kind === 'acct' ? 10 : 0, display: 'inline-block' }}>
           {v}
         </span>
       ),
     },
     ...months.map(m => ({
       key: m.yearMonth, dataIndex: m.yearMonth as keyof AnyRow,
-      width: cfg.colW, align: 'right' as const,
-      title: <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>{m.label}</div>,
+      width: ANCHOS.mes, align: 'right' as const,
+      title: <div style={estiloEncabezado()}>{m.label}</div>,
       render: (v: number | null, row: AnyRow) => clickable(cell(v, row._kind), row, m.from, m.to),
     })),
     {
-      key: '_total', dataIndex: '_total' as const, width: cfg.colW + 14, align: 'right' as const,
-      title: <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'center' as const, lineHeight: 1.3 }}>Acumulado</div>,
+      key: '_total', dataIndex: '_total' as const, width: ANCHOS.acumulado, align: 'right' as const,
+      title: <div style={estiloEncabezado()}>Acumulado</div>,
       render: (v: number | null, row) => {
         if (row._kind === 'hdr') return null
         if (v == null) return <span style={{ color: '#9aa1ab' }}>—</span>
         const bold = row._kind !== 'acct'
         const c    = bold ? (v < 0 ? '#e5484d' : '#2ea172') : (v < 0 ? '#e5484d' : undefined)
-        const content = <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: cfg.cellFont, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
+        const content = <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtTotal(v)}</span>
         return clickable(content, row, yearFrom, yearTo)
       },
     },
