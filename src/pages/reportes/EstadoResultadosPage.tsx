@@ -52,8 +52,10 @@ function AccountTable({ accounts, total, label, negate, onDrilldown }: { account
         { dataIndex: 'balance', width: 140, align: 'right' as const, render: (v: number, row: AccountRow) => {
           const txt = <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{negate ? `(${fmtQ(v)})` : fmtQ(v)}</Text>
           if (!onDrilldown || !row.id) return txt
+          /* Sin subrayado: la cifra se pulsa y el cursor lo dice. */
           return (
-            <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+            <span style={{ cursor: 'pointer' }}
+              title={`Ver el movimiento de ${row.name}`}
               onClick={() => onDrilldown(row.id, row.name)}>
               {txt}
             </span>
@@ -149,10 +151,16 @@ function MonthlyERTable({ monthData, loading, enMoneda, moneda }: {
     return <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: PRESENTACION.cifra, fontWeight: bold ? 700 : 400, color: c }}>{fmtCol(v, cfg.useDecimals)}</span>
   }
 
+  /**
+   * Cada cifra de una cuenta abre su detalle, sin anunciarlo con un
+   * subrayado por celda: eran ciento y pico de líneas de puntos a la vez.
+   * El cursor lo dice al pasar por encima y el título explica qué hace.
+   */
   const clickable = (content: React.ReactNode, row: AnyRow, fromDate: string, toDate: string) => {
     if (!content || row._kind !== 'acct' || !row._accountId) return content
     return (
-      <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+      <span style={{ cursor: 'pointer' }}
+        title={`Ver el movimiento de ${row._name}`}
         onClick={() => setDrilldown({ accountId: row._accountId!, accountName: row._name, fromDate, toDate })}>
         {content}
       </span>

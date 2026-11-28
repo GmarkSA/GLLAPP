@@ -154,4 +154,52 @@ describe('la presentación homologada de los reportes mensualizados', () => {
     expect(texto).toContain('400001')
     expect(texto).toContain('Sueldos y salarios')
   })
+
+  /**
+   * El subrayado punteado de cada cifra.
+   *
+   * En el Balance se quitó de la vista mensual, pero quedó vivo en la de un
+   * solo corte —la que sale al elegir una fecha en vez de un año—, y el
+   * Estado de Resultados lo tenía en sus dos vistas. Son el mismo patrón
+   * repetido, y se van los tres: la cifra sigue pulsándose, lo dice el
+   * cursor y lo explica el título.
+   */
+  describe('el subrayado de cada cifra', () => {
+    it('el Estado de Resultados no deja ni uno, y sigue abriendo el detalle', async () => {
+      await dibujar('./EstadoResultadosPage')
+      const subrayadas = [...div.querySelectorAll<HTMLElement>('tbody span')]
+        .filter(e => e.style.textDecorationStyle === 'dotted'
+                  || e.style.textDecoration.includes('underline'))
+      expect(subrayadas, `quedaron ${subrayadas.length} cifras subrayadas`).toHaveLength(0)
+
+      const pulsables = [...div.querySelectorAll<HTMLElement>('tbody span')]
+        .filter(e => e.style.cursor === 'pointer')
+      expect(pulsables.length, 'se perdió el detalle por cuenta').toBeGreaterThan(0)
+      expect(pulsables[0].title).toContain('Ver el movimiento de')
+    })
+
+    /**
+     * La OTRA vista de cada reporte —la de un solo corte, la que sale al
+     * elegir una fecha en vez de un año— no se alcanza dibujando la pantalla
+     * con sus valores de entrada, así que se mira el código: en estos dos
+     * archivos no puede quedar ni un subrayado, ni en la vista mensual ni en
+     * la de corte único. El render de la vista mensual ya lo cubren las
+     * pruebas de arriba y las del Balance.
+     */
+    const FUENTES = import.meta.glob([
+      './BalanceGeneralPage.tsx',
+      './EstadoResultadosPage.tsx',
+    ], { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+
+    it('y no queda ninguno escrito en el código de los dos reportes', () => {
+      expect(Object.keys(FUENTES)).toHaveLength(2)
+      for (const [ruta, fuente] of Object.entries(FUENTES)) {
+        expect(fuente, `${ruta} todavía subraya alguna cifra`)
+          .not.toContain("textDecorationStyle: 'dotted'")
+        // Y en su lugar, el título que explica qué hace la cifra.
+        expect(fuente, `${ruta} se quedó sin el título del detalle`)
+          .toContain('Ver el movimiento de')
+      }
+    })
+  })
 })
