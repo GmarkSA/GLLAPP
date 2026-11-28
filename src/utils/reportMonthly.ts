@@ -25,13 +25,26 @@ export function getMonthRanges(fromDate: string, toDate: string): MonthRange[] {
   return ranges
 }
 
+/**
+ * OJO: de esta configuración ya solo se usa `useDecimals`.
+ *
+ * Los anchos y los tamaños de letra los daba esta función según cuántos
+ * meses tuviera el reporte, y era lo que encogía la cifra hasta 10px con
+ * doce columnas. Desde que el Balance, el Estado de Resultados y el Flujo
+ * toman su tipografía de `presentacionDelReporte`, estos cinco campos no
+ * los lee nadie.
+ *
+ * Se dejan en su sitio a propósito, para que revertir la homologación sea
+ * revertir solo las pantallas. Cuando la presentación esté confirmada, esto
+ * se borra y la función se queda en lo único vivo que tiene.
+ */
 export interface ColConfig {
-  codeW:       number | null  // width of code column (null = hide)
-  colW:        number         // width of each month column
-  nameW:       number         // width of name column
-  useDecimals: boolean        // show decimal places in month cells
-  cellFont:    number         // font size for month value cells
-  nameFont:    number         // font size for account name column
+  codeW:       number | null  // sin uso — lo da ANCHOS.codigo
+  colW:        number         // sin uso — lo da ANCHOS.mes
+  nameW:       number         // sin uso — lo da ANCHOS.nombre
+  useDecimals: boolean        // en uso: decimales en las celdas de mes
+  cellFont:    number         // sin uso — lo da PRESENTACION.cifra
+  nameFont:    number         // sin uso — lo da PRESENTACION.nombre
 }
 
 export function getColConfig(n: number): ColConfig {
