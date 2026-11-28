@@ -38,8 +38,11 @@ function AccountTable({ accounts, total, label, onDrilldown }: { accounts: Accou
         { dataIndex: 'balance', width: 140, align: 'right' as const, render: (v: number, row: AccountRow) => {
           const txt = <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: accColor(v) }}>{fmtQ(v)}</Text>
           if (!onDrilldown || !row.id) return txt
+          /* Sin subrayado, igual que en la vista mensual: la cifra se pulsa
+             y el cursor lo dice, sin pintar una línea de puntos por celda. */
           return (
-            <span style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+            <span style={{ cursor: 'pointer' }}
+              title={`Ver el movimiento de ${row.name}`}
               onClick={() => onDrilldown(row.id, row.name)}>
               {txt}
             </span>
