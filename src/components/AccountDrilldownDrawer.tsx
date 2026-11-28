@@ -5,6 +5,7 @@ import { FileExcelOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import * as XLSX from 'xlsx'
 import { getLibroMayor, type LibroMayorData, type LibroMayorMovement } from '../api/reportes'
+import { PRESENTACION, estiloEncabezado } from '../pages/reportes/presentacionDelReporte'
 
 const { Text } = Typography
 
@@ -145,14 +146,14 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
 
   const columns: ColumnsType<LibroMayorMovement> = [
     {
-      title: 'Fecha', dataIndex: 'date', width: 95,
+      title: <div style={estiloEncabezado('left')}>Fecha</div>, dataIndex: 'date', width: 95,
       sorter: (a, b) => String(a.date).localeCompare(String(b.date)),
       render: (v: string) => (
-        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{String(v).substring(0, 10)}</Text>
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{String(v).substring(0, 10)}</Text>
       ),
     },
     {
-      title: 'Tipo', key: 'tipo', width: 120,
+      title: <div style={estiloEncabezado('left')}>Tipo</div>, key: 'tipo', width: 120,
       sorter: (a, b) => {
         const la = SRC_LABEL[a.sourceType ?? a.entryType ?? ''] ?? ''
         const lb = SRC_LABEL[b.sourceType ?? b.entryType ?? ''] ?? ''
@@ -163,7 +164,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
       ),
     },
     {
-      title: 'No. Documento', key: 'docNumber', width: 130,
+      title: <div style={estiloEncabezado('left')}>No. Documento</div>, key: 'docNumber', width: 130,
       sorter: (a, b) => (a.docNumber || a.entryNumber || '').localeCompare(b.docNumber || b.entryNumber || ''),
       render: (_: unknown, row: LibroMayorMovement) => {
         const num = row.docNumber || row.entryNumber
@@ -172,7 +173,7 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
           return (
             <span
               role="button"
-              style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2', cursor: 'pointer', textDecoration: 'none' }}
+              style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#1faec2', cursor: 'pointer', textDecoration: 'none' }}
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'underline')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.textDecoration = 'none')}
               onClick={() => { onClose(); navigate(url) }}
@@ -181,53 +182,53 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
             </span>
           )
         }
-        return <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{num}</Text>
+        return <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#1faec2' }}>{num}</Text>
       },
     },
     ...(hasRef ? [{
-      title: 'FEL / Ref.',
+      title: <div style={estiloEncabezado('left')}>FEL / Ref.</div>,
       dataIndex: 'reference' as keyof LibroMayorMovement,
       width: 105,
       sorter: (a: LibroMayorMovement, b: LibroMayorMovement) =>
         (a.reference || '').localeCompare(b.reference || ''),
       render: (v: string | null | undefined) => v
-        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: '#6b7280' }}>{v}</Text>
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: PRESENTACION.grisEtiqueta }}>{v}</Text>
         : null,
     }] : []),
     ...(hasContact ? [{
-      title: 'Contacto',
+      title: <div style={estiloEncabezado('left')}>Contacto</div>,
       dataIndex: 'contactName' as keyof LibroMayorMovement,
       width: 155, ellipsis: true,
       sorter: (a: LibroMayorMovement, b: LibroMayorMovement) =>
         (a.contactName || '').localeCompare(b.contactName || ''),
       render: (v: string | null | undefined) => v
-        ? <Text style={{ fontSize: 12 }}>{v}</Text>
+        ? <Text style={{ fontSize: 13 }}>{v}</Text>
         : null,
     }] : []),
     {
-      title: 'Descripción', dataIndex: 'description', ellipsis: true,
+      title: <div style={estiloEncabezado('left')}>Descripción</div>, dataIndex: 'description', ellipsis: true,
       sorter: (a, b) => (a.description || '').localeCompare(b.description || ''),
-      render: (v: string) => <Text style={{ fontSize: 12, color: '#6b7280' }}>{v || '—'}</Text>,
+      render: (v: string) => <Text style={{ fontSize: 13, color: PRESENTACION.cifraNormal }}>{v || '—'}</Text>,
     },
     {
-      title: 'Débito', dataIndex: 'debit', width: 110, align: 'right' as const,
+      title: <div style={estiloEncabezado('right')}>Débito</div>, dataIndex: 'debit', width: 110, align: 'right' as const,
       sorter: (a, b) => a.debit - b.debit,
       render: (v: number) => v > 0
-        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>{fmtQ(v)}</Text>
-        : <Text style={{ color: '#9aa1ab', fontSize: 12 }}>—</Text>,
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#1faec2' }}>{fmtQ(v)}</Text>
+        : <Text style={{ color: '#9aa1ab', fontSize: 13 }}>—</Text>,
     },
     {
-      title: 'Crédito', dataIndex: 'credit', width: 110, align: 'right' as const,
+      title: <div style={estiloEncabezado('right')}>Crédito</div>, dataIndex: 'credit', width: 110, align: 'right' as const,
       sorter: (a, b) => a.credit - b.credit,
       render: (v: number) => v > 0
-        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>{fmtQ(v)}</Text>
-        : <Text style={{ color: '#9aa1ab', fontSize: 12 }}>—</Text>,
+        ? <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#e5484d' }}>{fmtQ(v)}</Text>
+        : <Text style={{ color: '#9aa1ab', fontSize: 13 }}>—</Text>,
     },
     {
-      title: 'Saldo', dataIndex: 'balance', width: 120, align: 'right' as const,
+      title: <div style={estiloEncabezado('right')}>Saldo</div>, dataIndex: 'balance', width: 120, align: 'right' as const,
       sorter: (a, b) => a.balance - b.balance,
       render: (v: number) => (
-        <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: v >= 0 ? '#1faec2' : '#e5484d' }}>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: v >= 0 ? '#1faec2' : '#e5484d' }}>
           {fmtQ(Math.abs(v))}
         </Text>
       ),
@@ -285,10 +286,10 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
                 <Col span={6} key={k.label}>
                   <Card size="small" styles={{ body: { padding: '8px 10px' } }}>
                     <Statistic
-                      title={<span style={{ fontSize: 10 }}>{k.label}</span>}
+                      title={<span style={estiloEncabezado('left')}>{k.label}</span>}
                       value={k.value}
                       precision={2}
-                      valueStyle={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', color: k.color }}
+                      valueStyle={{ fontSize: 16, fontVariantNumeric: 'tabular-nums', color: k.color }}
                       formatter={v => Number(v).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
                     />
                   </Card>
@@ -310,20 +311,20 @@ export default function AccountDrilldownDrawer({ target, onClose }: Props) {
                 summary={() => (
                   <Table.Summary.Row style={{ background: '#fafbfc' }}>
                     <Table.Summary.Cell index={0} colSpan={columns.length - 3}>
-                      <Text strong style={{ fontSize: 12 }}>Totales del período</Text>
+                      <Text strong style={{ fontSize: 13 }}>Totales del período</Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={columns.length - 3} align="right">
-                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#1faec2' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#1faec2' }}>
                         {fmtQ(data.totalDebit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={columns.length - 2} align="right">
-                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: '#e5484d' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: '#e5484d' }}>
                         {fmtQ(data.totalCredit)}
                       </Text>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={columns.length - 1} align="right">
-                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: data.closingBalance >= 0 ? '#2ea172' : '#e5484d' }}>
+                      <Text strong style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: data.closingBalance >= 0 ? '#2ea172' : '#e5484d' }}>
                         {fmtQ(Math.abs(data.closingBalance))}
                       </Text>
                     </Table.Summary.Cell>
